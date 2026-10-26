@@ -1,4 +1,4 @@
-"""Text-quote selectors (book 7.5): exact quote with prefix and suffix context, resolved inside a target's own text, never against file paths or line numbers."""
+"""Text-quote selectors: exact quote with prefix and suffix context, resolved inside a target's own text, never against file paths or line numbers."""
 
 from __future__ import annotations
 
@@ -198,7 +198,7 @@ def _common_prefix_len(a: str, b: str) -> int:
 
 
 def resolve_selector(own_text: str, sel: Selector) -> tuple[int, int] | None:
-    """Book 7.5.2: the unique exact occurrence, else the one whose context matches best, else the whitespace-normalised match, else None (detached)."""
+    """The unique exact occurrence, else the one whose context matches best, else the whitespace-normalised match, else None (detached)."""
     spans: list[tuple[int, int]] = []
     start = 0
     while True:

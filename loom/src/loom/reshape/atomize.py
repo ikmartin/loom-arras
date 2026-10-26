@@ -1,4 +1,4 @@
-"""`loom atomize` (book 6.4, 6.5): move each node of a file into nodes/<id>.tex and write a spine; never in place. `loom linearize` is the reverse."""
+"""`loom atomize`: move each node of a file into nodes/<id>.tex and write a spine; never in place. `loom linearize` is the reverse."""
 
 from __future__ import annotations
 

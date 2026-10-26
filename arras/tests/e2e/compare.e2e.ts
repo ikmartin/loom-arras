@@ -1,4 +1,4 @@
-// Compare (book 15.2.6), on the static fixture: no publisher answers, so a node that differs is marked on every line, which is what a static host shows. Its washed words are the write suite's (e2e-write/write.e2e.ts).
+// Compare, on the static fixture: no publisher answers, so a node that differs is marked on every line, which is what a static host shows. Its washed words are the write suite's (e2e-write/write.e2e.ts).
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane } from '../workspace';
 

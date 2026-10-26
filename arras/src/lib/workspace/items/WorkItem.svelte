@@ -106,7 +106,7 @@
 			<div class="prose">
 				{#if proposals.length}
 					<section class="proposals" data-testid="proposals">
-						<!-- the heading and its count alone: each proposal carries its own `proposed` flag, and what a proposal is is the book's to say (10.2.3), not the view's -->
+						<!-- the heading and its count alone: each proposal carries its own `proposed` flag, and what a proposal is is loom's to say, not the view's -->
 						<h2>Proposed <span class="muted">{proposals.length}</span></h2>
 						{#each proposals as p (p.id)}
 							<ProposalBox id={p.id} record={p.record} {citekey} />

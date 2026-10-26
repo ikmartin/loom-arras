@@ -1751,7 +1751,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
     assert "Bellamy19 p.2" in said, said
 
 
-# ---- refs path, add, ingest, drop, links, unlink (book 8.9, 8.14) ------------------------------------------
+# ---- refs path, add, ingest, drop, links, unlink ------------------------------------------
 
 
 def _fake_pdf(path: Path, text: str) -> Path:
@@ -1815,7 +1815,7 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
     assert "one.pdf as Man12's PDF, with its page text" in said and (home / "pages").is_dir()  # mapped at once
     said = " ".join(ok("library", "add", two, "--for", "Man12", cwd=q).stdout.split())
     assert "two.pdf as Man12's PDF, beside its first document as Man12A" in said, said
-    assert b"first copy" in (home / "paper.pdf").read_bytes(), "a second document never replaces the first (book 8.16)"
+    assert b"first copy" in (home / "paper.pdf").read_bytes(), "a second document never replaces the first"
 
     src = tmp_path / "eprint"
     (src / "sec").mkdir(parents=True)
@@ -1837,7 +1837,7 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
 
 
 def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped_the_rest(tmp_path: Path) -> None:
-    """Book 8.14: an identifier on the page files a document alone, and so does its whole title with the entry's first author leading its byline; anything weaker is skipped with its reason; a work that has a PDF gets the new one beside it; --dry-run files nothing."""
+    """An identifier on the page files a document alone, and so does its whole title with the entry's first author leading its byline; anything weaker is skipped with its reason; a work that has a PDF gets the new one beside it; --dry-run files nothing."""
     q = demo(tmp_path)
     pile = tmp_path / "pile"
     _fake_pdf(pile / "a.pdf", "Virtual pull-backs\nCristina Manolache\narXiv:0805.2065v2 [math.AG]")
@@ -1898,7 +1898,7 @@ def test_library_drop_removes_records_by_work_session_or_state_and_never_the_dig
 
 
 def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Path) -> None:
-    """Book 8.14: `why --depth` follows relations out from the result in one call; `relate --undo` removes one by id, records why, and refuses an unknown one."""
+    """`why --depth` follows relations out from the result in one call; `relate --undo` removes one by id, records why, and refuses an unknown one."""
     q = demo(tmp_path)
     a, b, c, d = (f"Calloway14-{x}" for x in ("def-3.1", "prop-3.2", "prop-3.3", "thm-3.4"))
     for frm, to in ((a, b), (b, c), (c, d)):

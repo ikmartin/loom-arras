@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The icon strip's glyphs (book 15.2.3). Line icons rather than the unicode marks the strip carried before: `◇ ▤ ◈ ✓ ! ¶` render at whatever weight and baseline a font decides, so they sat unevenly and read as punctuation. These are drawn on one 24x24 grid at one stroke width, which is what makes a column of them look like a set.
+	// The icon strip's glyphs. Line icons rather than the unicode marks the strip carried before: `◇ ▤ ◈ ✓ ! ¶` render at whatever weight and baseline a font decides, so they sat unevenly and read as punctuation. These are drawn on one 24x24 grid at one stroke width, which is what makes a column of them look like a set.
 	//
 	// Inline rather than an icon package: arras ships vendored inside loom's wheel, so a dependency is weight in every install, and six paths are a few hundred bytes.
 	let { name, size = 19 }: { name: string; size?: number } = $props();

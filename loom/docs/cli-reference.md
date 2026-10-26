@@ -34,7 +34,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--fix-anchoring` | With --from: rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 | `--dry-run` | Say what would be created, and write nothing; no identity test. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 
 ### `loom import`
 
@@ -49,7 +49,7 @@ Bring a paper into the quilt: its styles, bibliography and figures at the root, 
 | `--fix-anchoring` | Rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--to` `FILE` | The working document to draft, directly in the drafting directory (default: the paper's file name there). |
 | `--dry-run` | Say what the import would write, and write nothing; no identity test. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom atomize`
@@ -70,7 +70,7 @@ SRC is not modified; the history records that the spine superseded it, so it def
 | `--to-dir` `DIR` | With --all: the directory the spines are written under. |
 | `--retire` | Move SRC into retired/ once its spine is written, instead of leaving it superseded in place. |
 | `--dry-run` | Say what would be written and moved, and write nothing; no identity test. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom doctor`
@@ -106,7 +106,7 @@ The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configu
 | `--dry-run` | Say which id and file would be written, and write nothing. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--as` `NAME` | Who writes the node; an agent names itself, including Agent or AI. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom id`
@@ -137,7 +137,7 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--nodes` | One block per node id: what is wrong with its identity, and the superseded files. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -169,7 +169,7 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 | `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
 | `--reading` | List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise. |
 | `--explain` `KEY` | Why KEY is in its state, with the diff of what moved. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--session` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -201,7 +201,7 @@ A number as a reader sees it -- `Theorem 3.4`, `3.4`, `(3)` -- finds what each d
 |---|---|
 | `--kind` | Only matches of this kind. |
 | `--in` `DOC` | Resolve a number like `Theorem 3.4` in this document only. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -251,7 +251,7 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--dry-run` | Say what would be written, and write nothing, not even a session. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom accept`
@@ -270,7 +270,7 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--force` | Accept even when the document the acceptance is recorded against does not compile. |
 | `--yes`, `-y` | Accept --stale, --all-live or --master without asking. |
 | `--dry-run` | Say what would be accepted, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom deps`
@@ -282,7 +282,7 @@ Show what KEY depends on: direct statement-edges and proof-edges, grouped.
 | option | description |
 |---|---|
 | `--closure` | The transitive statement closure in dependency order. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -294,7 +294,7 @@ Show everything downstream of ID: dependents, reference and inclusion sites, led
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -308,13 +308,13 @@ Record steps, read and restore earlier text, and move documents.
 
 Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
 
-A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it (book 17.9).
+A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it.
 
 | option | description |
 |---|---|
 | `--message`, `-m` | What this stamp marks; given a DOCUMENT, it names the landmark (`widgets-v3`). |
 | `--dry-run` | Say what the step would record, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom history`
@@ -327,11 +327,11 @@ Run alone, `loom history` is a command; its subcommands follow its options.
 
 List the steps and stamps of this quilt, one per line; `loom history KEY` lists that key's versions and whether the head equals one.
 
-A landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP` (book 17.9).
+A landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP`.
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom history restore`
@@ -345,7 +345,7 @@ A new drafting document from the landmark NAME, with the package line and an id 
 | option | description |
 |---|---|
 | `--to` `FILE` | The new document, directly in the drafting directory. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom history show`
@@ -359,7 +359,7 @@ The text of the landmark NAME as its step kept it, raw; with --plain, the paper 
 | option | description |
 |---|---|
 | `--plain` | The paper without loom, its package line swapped for the macro block. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom history verify`
@@ -372,7 +372,7 @@ Every step directory is walked against the ledger: missing or edited version fil
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom revert`
@@ -383,7 +383,7 @@ Print the patch that puts KEY@N's recorded text back in place of the head's; the
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom mv`
@@ -397,7 +397,7 @@ Both are .tex files directly in the drafting directory. Moving the default docum
 | option | description |
 |---|---|
 | `--dry-run` | Say what would be moved and recorded, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom fork`
@@ -414,7 +414,7 @@ The copy is printed as a patch for FILE, with its references rewritten; nothing 
 | `--from` `@N` | Copy the text the key had at step N instead of the head. |
 | `--name` `ID` | The new id (default: the next free one). |
 | `--dry-run` | Print the plan and the patch, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom linearize`
@@ -430,7 +430,7 @@ Write FILE, SPINE with every \input, \include and \nest (levels shifted) expande
 | `--keep-shared` | Leave shared node files as inclusions, marked. |
 | `--no-check` | Skip the identity test. |
 | `--dry-run` | Say what would be written and superseded, and write nothing; no identity test. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom deloom`
@@ -447,7 +447,7 @@ Removed: `\usepackage{loom}`, `% !LOOM` lines, `\uses{…}`, and every label tha
 | `--keep-referenced-ids` | Keep the id label of a referenced result that has no label of yours, and the references to it. |
 | `--keep-incomplete` | Keep every \incomplete{…}, defined to print nothing as loom.sty defines it. |
 | `--dry-run` | Say what would be removed and written, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## Library
@@ -468,7 +468,7 @@ A WORK is a citekey, a fragment of one or of its author or title, or one of its 
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -478,7 +478,7 @@ A WORK is a citekey, a fragment of one or of its author or title, or one of its 
 
 File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
+A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it, unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
 
 | option | description |
 |---|---|
@@ -486,7 +486,7 @@ A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document,
 | `--force` | With --for, file a document that does not show it is that work; the override is recorded. |
 | `--as` `NAME` | Who is filing, when the user config and git do not say. |
 | `--dry-run` | Say what would be filed, skipped and refused, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library check`
@@ -499,7 +499,7 @@ Re-reads every verified result's anchor against the page or source it names; nev
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
@@ -516,7 +516,7 @@ Discard a proposed result, or reject a citation suggestion, with a reason.
 | `--why` | Why it should not stand; whatever proposes it again is shown this. |
 | `--as` `NAME` | Who is deciding, when the user config and git do not say. |
 | `--dry-run` | Check everything and say what would be recorded; write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library drop`
@@ -534,7 +534,7 @@ Dropping costs re-reading, never correctness. What you decided stays: a verified
 | `--proposed` | Every result still proposed, in every work. |
 | `--yes` | Do not ask. |
 | `--dry-run` | Say what would be dropped; drop nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library ignore`
@@ -551,7 +551,7 @@ A work with no document is declared unreadable -- the Stacks Project is a living
 | `--undo` | Withdraw what stands, so the work is asked for or offered again. |
 | `--as` `NAME` | Who is deciding, when the user config and git do not say. |
 | `--dry-run` | Check everything and say what would be recorded; write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library import`
@@ -566,7 +566,7 @@ It never overwrites a digest already there.
 |---|---|
 | `--name` `CITEKEY` | File it under this citekey, rewriting its ids. |
 | `--dry-run` | Say what would be written; write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library locate`
@@ -615,7 +615,7 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 
 Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its digest's Overview.
 
-The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/ (book 8.16).
+The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
 
 | option | description |
 |---|---|
@@ -639,7 +639,7 @@ Assert a typed relation between two results, FROM and TO, with a reason; with --
 | `--undo` `LINK_ID` | Remove this relation instead; an agent removes only an agent's. |
 | `--as` `NAME` | Who asserts it; an agent names itself, with Agent or AI in the name. |
 | `--dry-run` | Check everything and say what would change, writing nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
@@ -653,7 +653,7 @@ With WORK, only that work's proposals. Each line ends with the id that `loom lib
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
@@ -670,7 +670,7 @@ A word in a result's locator, its local name or its work's title counts three, o
 | `--pages` | Search the page text of every mapped work, not the results digested from them. |
 | `--work` `WORK` | Search only this work; repeatable. |
 | `--limit` | Show at most this many hits; everything is still searched. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
@@ -690,7 +690,7 @@ Each step is a no-op where its work is done, so a second run does only what is n
 | `--no-candidates` | Fetch only on identifiers an entry declares, never on a lookup's candidate. |
 | `--no-compile` | Extract without compiling each paper; its numbering is emulated, and the digest says so. |
 | `--dry-run` | Say what each step would act on, from what is on disk; no network, nothing written. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library verify`
@@ -709,7 +709,7 @@ A result id promotes a proposal into the digest, or re-verifies one already ther
 | `--as` `NAME` | Who is deciding, when the user config and git do not say. |
 | `--yes` | Skip the question; you have read both texts. |
 | `--dry-run` | Check everything and say what would be recorded; write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom library why`
@@ -723,7 +723,7 @@ Provenance names every party, not just the first: a record that credits an agent
 | option | description |
 |---|---|
 | `--depth` | Follow its relations this many hops out. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
@@ -737,14 +737,14 @@ Hand a document to an agent, take its changes back, and the sessions you both wo
 
 Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
-A copy step records what each of its nodes began from (book 17.7), and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
+A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
 
 | option | description |
 |---|---|
 | `--ai` `NAME` | The agent document to write, directly in the agent's drafting directory. |
 | `--as` `NAME` | Who drafts it; an agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would be written, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom adopt`
@@ -761,7 +761,7 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 | `--document-only` | Include document-level changes while keeping every node version. |
 | `--incorporate` `TOKEN` | Incorporate exactly the previously inspected preview. |
 | `--to` `FILE` | Write the preview's patch to FILE without incorporating; never among the quilt's sources. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom session`
@@ -782,7 +782,7 @@ End a session's current round. With no WHICH, the active one, which then stops b
 |---|---|
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session delete`
@@ -800,7 +800,7 @@ A plain delete is a tombstone: the session stops being shown and every annotatio
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--yes`, `-y` | Skip the question --purge asks. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session list`
@@ -827,7 +827,7 @@ Open a session and make it the active one.
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--no-use` | Create it without making it the active session. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session next`
@@ -860,7 +860,7 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 | `--name` `TITLE` | The new title. |
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session say`
@@ -876,7 +876,7 @@ The same post the viewer's composer makes, for a person and an agent alike: it c
 | `--session` | The session to speak in. |
 | `--as` | Who is speaking. An agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session use`
@@ -889,7 +889,7 @@ Make WHICH the active session, resuming it when it was closed. WHICH is an id, a
 |---|---|
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session watch`
@@ -944,7 +944,7 @@ Withdrawing appends an event like any other change, so a sitting's annotations c
 | `--target` `KEY` | Withdraw every record with an annotation on KEY. |
 | `--undo` | Restore the matching records instead. |
 | `--dry-run` | Say what would be withdrawn and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai drafts`
@@ -957,7 +957,7 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai init`
@@ -972,7 +972,7 @@ The permission files say what agents may run, for Claude Code (.claude/settings.
 |---|---|
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
 | `--dry-run` | Say what would be written and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai orient`
@@ -997,7 +997,7 @@ Update an agent document from the working document it was drafted from, keeping 
 | option | description |
 |---|---|
 | `--dry-run` | Say what would be refreshed and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## Publish
@@ -1016,7 +1016,7 @@ Rendering is cached per fragment by its inputs, which include loom's own version
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
 | `--force` | Render every fragment again, ignoring the cache and retrying remembered SVG failures. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom serve`
@@ -1046,7 +1046,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | `--with` `FILE` | Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--session` `SESSION` | Log this call to the session. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom check`
@@ -1060,7 +1060,7 @@ Lint, then compile every document, then the closures asked for. Exit 1 on any fa
 | option | description |
 |---|---|
 | `--closures` | Which statements' closures to compile after the documents: all of them, or none; stale compiles none yet. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom sync`
@@ -1078,7 +1078,7 @@ Change which documents publish to the workspace, without publishing.
 | option | description |
 |---|---|
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync fetch`
@@ -1089,7 +1089,7 @@ Fetch document workspace changes for Incoming review without changing author fil
 
 | option | description |
 |---|---|
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync incorporate`
@@ -1101,7 +1101,7 @@ Apply the fetched pull to the quilt's files, stamping first each document it rea
 | option | description |
 |---|---|
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync init`
@@ -1116,7 +1116,7 @@ Loom clones the workspace into .loom/workspace/ and runs Git only there; the qui
 |---|---|
 | `--publish-main` | The main document's path in the workspace, when it differs from the quilt's. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync publish`
@@ -1129,7 +1129,7 @@ Prepare the selected documents' sources as a workspace revision, check each comp
 |---|---|
 | `--push` | Push the prepared revision to the document workspace. |
 | `--dry-run` | Say what would change and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync status`
@@ -1142,7 +1142,7 @@ Show the document workspace's revisions, the selection and what is prepared; --p
 |---|---|
 | `--patch` | Print the incoming revision as a patch against the quilt's paths instead. |
 | `--to` `FILE` | With --patch, write the patch to FILE, a new file outside the quilt's sources. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## Upkeep
@@ -1160,7 +1160,7 @@ loom.sty is loom's and is always replaced; one you edited is kept first as loom.
 | option | description |
 |---|---|
 | `--dry-run` | Say which files would be refreshed, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom live`
@@ -1172,5 +1172,5 @@ Make a superseded document live again, so that it defines its nodes once more.
 | option | description |
 |---|---|
 | `--dry-run` | Say what making it live would define twice, and write nothing. |
-| `--json` | Print the report as one JSON object (book 12.9). |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |

@@ -1,4 +1,4 @@
-"""A minimal BibTeX reader: entry keys and the handful of fields the manifest and digests use (book 8.4, 8.8, specs/manifest.md §13)."""
+"""A minimal BibTeX reader: entry keys and the handful of fields the manifest and digests use (8.8, specs/manifest.md §13)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from loom.scan.tokenize import match_group
 
-#: The quilt's bibliography, which `loom library update` gathers into from the landmarks; the only `.bib` loom reads for references (book 8.15).
+#: The quilt's bibliography, which `loom library update` gathers into from the landmarks; the only `.bib` loom reads for references.
 BIBLIOGRAPHY = "digests/bibliography.bib"
 
 _ENTRY = re.compile(r"@(\w+)\s*[{(]")
@@ -120,5 +120,5 @@ def raw_entries(text: str) -> dict[str, str]:
 
 
 def citekey_slug(key: str) -> str:
-    """Digest id prefix for a citekey: alphanumerics only (book 5.3.1 as amended by the deviation on citekeys with punctuation)."""
+    """Digest id prefix for a citekey: alphanumerics only, so a citekey with punctuation still makes a valid id prefix."""
     return re.sub(r"[^A-Za-z0-9]", "", key)

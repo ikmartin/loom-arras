@@ -1,4 +1,4 @@
-"""`loom library add`: the author files the documents they hold, each under the work it shows it is (book 8.14, 8.16)."""
+"""`loom library add`: the author files the documents they hold, each under the work it shows it is."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def _came_from(root: Path, path: Path) -> str:
     "--as", "as_name", default=None, metavar="NAME", help="Who is filing, when the user config and git do not say."
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be filed, skipped and refused, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def add_command(
     files: tuple[Path, ...],
@@ -74,7 +74,7 @@ def add_command(
 ) -> None:
     """File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-    A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
+    A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it, unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
     """
     from loom.refs.ingest import identify_document, identify_source
     from loom.refs.pages import sha256_of

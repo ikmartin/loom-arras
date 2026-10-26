@@ -1,4 +1,4 @@
-"""The copy across the border (book 4.4, 17.7): a drafting document made flat, with every label it defines derived, for an agent to edit in `[quilt] drafting_ai`."""
+"""The copy across the border: a drafting document made flat, with every label it defines derived, for an agent to edit in `[quilt] drafting_ai`."""
 
 from __future__ import annotations
 

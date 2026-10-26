@@ -1,4 +1,4 @@
-"""Text normalisation and hashing (book 5.13).
+"""Text normalisation and hashing.
 
 Own text is hashed after: comment lines that are not directives removed, trailing whitespace stripped, tabs to spaces, blank runs collapsed, newlines normalised. A child cut out of a parent's region leaves a `% !LOOM child: KEY` line so structural changes change the hash.
 """
@@ -54,7 +54,7 @@ def mathematical_hash(text: str) -> str:
 
 
 def pair_hash(text: str) -> str:
-    """The hash compare pairs by: `mathematical_hash` with every derived label made plain, so an agent document's copy of a node it has not changed hashes as its counterpart does (book 15.2.6)."""
+    """The hash compare pairs by: `mathematical_hash` with every derived label made plain, so an agent document's copy of a node it has not changed hashes as its counterpart does."""
     from loom.scan.labels import rename_labels
 
     return mathematical_hash(rename_labels(text, plain=True))

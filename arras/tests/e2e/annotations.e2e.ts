@@ -44,7 +44,7 @@ const QUESTION = { r: 24, g: 95, b: 165 };
 const CITATION = { r: 107, g: 63, b: 160 };
 const NEUTRAL = { r: 111, g: 109, b: 102 };
 
-// The mark is `style()` of the record (book 15.3.1): hue is the kind, weight is the severity, the wash is the hue at 5% and at 10% on the mark whose box is open, and a settled annotation is not drawn. Each test holds one clause of that rule against the computed style, never a pixel.
+// The mark is `style()` of the record: hue is the kind, weight is the severity, the wash is the hue at 5% and at 10% on the mark whose box is open, and a settled annotation is not drawn. Each test holds one clause of that rule against the computed style, never a pixel.
 test.describe('marks', () => {
 	const mark = (page: Page, id: string) => page.locator(`.fragment mark.annotation[data-annotation~="${id}"]`);
 
@@ -459,7 +459,7 @@ test.describe('marks and boxes', () => {
 	});
 });
 
-// The box begins with the body (book 15.3.1; annotation study fixes 12–17): nothing is said in words that the record already shows, the kind is the stripe's hue, what the kind adds stands at a rule in its hue, and everything an annotation can do happens inside its box.
+// The box begins with the body (annotation study fixes 12–17): nothing is said in words that the record already shows, the kind is the stripe's hue, what the kind adds stands at a rule in its hue, and everything an annotation can do happens inside its box.
 test.describe('the box', () => {
 	/** Advertise `caps` from the publisher's write API and accept every write. */
 	async function writes(page: Page, caps: string[]): Promise<void> {
@@ -882,7 +882,7 @@ test.describe('writing', () => {
 	});
 });
 
-// The composer (book 15.3.10; annotation study fixes 5 and 18–21): the header names the words, the kinds are buttons, severity never moves, the submit is the verb, and × or Escape cancel. Against a mocked write API: what is tested here is the form, not the write, which the write suite holds against the real publisher.
+// The composer (annotation study fixes 5 and 18–21): the header names the words, the kinds are buttons, severity never moves, the submit is the verb, and × or Escape cancel. Against a mocked write API: what is tested here is the form, not the write, which the write suite holds against the real publisher.
 test.describe('the composer', () => {
 	async function writes(page: Page): Promise<void> {
 		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['annotate'], token: 't' } }));
@@ -986,7 +986,7 @@ test.describe('the composer', () => {
 	});
 });
 
-// The settled control (book 15.2.5, 15.3.1): a resolved or discarded annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
+// The settled control: a resolved or discarded annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
 test.describe('the settled control', () => {
 	const settledMark = (page: Page) => page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0002"]');
 
@@ -1059,7 +1059,7 @@ test.describe('the settled control', () => {
 	});
 
 	test('a link to a settled annotation turns it on and opens the box, a discarded one included', async ({ page }) => {
-		// a row in What it did or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn (15.2.5)
+		// a row in What it did or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn
 		// the discarded note on sy-000A belongs to the closed session; here it is the open one's, so only the settled control stands between the reader and it
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0011'].run = REFEREE));
 		await page.goto(`/session/${REFEREE}?view=did`);

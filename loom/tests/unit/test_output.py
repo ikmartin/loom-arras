@@ -1,6 +1,6 @@
-"""The terminal principles, held for every command (plan 0.18.3, book 1.10 and 12.1).
+"""The terminal principles, held for every command (plan 0.18.3).
 
-Every leaf command in the tree has a kind and its cases in `tests/output_cases`; each case runs on a fresh demo quilt, as text and, when the command takes it, with `--json`. A report leads with its verdict, keeps within 100 columns, and names no storage path and no hash; a refusal says `Error:` on stderr and nothing on stdout; `--json` is one envelope on stdout, on failure as on success; and every exit code is the case's, which is book 12.1's.
+Every leaf command in the tree has a kind and its cases in `tests/output_cases`; each case runs on a fresh demo quilt, as text and, when the command takes it, with `--json`. A report leads with its verdict, keeps within 100 columns, and names no storage path and no hash; a refusal says `Error:` on stderr and nothing on stdout; `--json` is one envelope on stdout, on failure as on success; and every exit code is the one the case expects.
 """
 
 from __future__ import annotations

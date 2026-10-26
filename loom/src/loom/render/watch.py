@@ -1,4 +1,4 @@
-"""Poll file mtimes, the tree every second and loom's own records five times a second, and rebuild when something the build depends on changed (book 9.8), the skeleton of the site generator's watcher with the roots parameterised.
+"""Poll file mtimes, the tree every second and loom's own records five times a second, and rebuild when something the build depends on changed, the skeleton of the site generator's watcher with the roots parameterised.
 
 Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and session files other than the inbox. Build-written observation caches are excluded to avoid an extra rebuild. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
 """

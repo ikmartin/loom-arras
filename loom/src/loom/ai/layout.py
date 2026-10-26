@@ -1,4 +1,4 @@
-"""`loom ai init` and `loom upgrade` (book 11.2, 11.3, 11.8, 11.12): the `ai/` directory, the vendor files, and their refresh.
+"""`loom ai init` and `loom upgrade`: the `ai/` directory, the vendor files, and their refresh.
 
 Mode files are the author's once written: `.loom-modes-version` records the shipped hash of each, so upgrade overwrites only files still equal to what it shipped and writes `<mode>.md.new` beside an edited one. The record holds `loom.sty`'s too, which upgrade always replaces, keeping an edited one as `loom.sty.old` (`refresh_sty`).
 """
@@ -181,7 +181,7 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
 
 
 def agent_dirs(config: QuiltConfig) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting and `drafting_ai` names in them (book 11.8)."""
+    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting and `drafting_ai` names in them."""
     return AGENT_WRITES + (config.drafting_ai,), (config.drafting,) + AGENT_READONLY
 
 

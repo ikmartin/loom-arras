@@ -1,4 +1,4 @@
-"""`loom fork` (book 17.10): a copy of a node under a new id, for the document that needs its own version, printed as a patch the editor applies.
+"""`loom fork`: a copy of a node under a new id, for the document that needs its own version, printed as a patch the editor applies.
 
 The text comes from the head or from a recorded version; the new id is allocated as `loom new` allocates; references inside the document are rewritten; nothing outside the document is touched.
 """

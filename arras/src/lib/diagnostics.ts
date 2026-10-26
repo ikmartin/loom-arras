@@ -1,4 +1,4 @@
-// Diagnostics grouped by code with the reserved-code affordances of book 10.6. Unknown codes render generically; nothing here fails on a code it has never seen.
+// Diagnostics grouped by code with affordances for the reserved codes. Unknown codes render generically; nothing here fails on a code it has never seen.
 import type { Diagnostic } from './manifest/types';
 
 export interface Group {
@@ -31,7 +31,7 @@ export function groupDiagnostics(items: Diagnostic[]): Group[] {
 	return [...map.values()].sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3) || a.code.localeCompare(b.code));
 }
 
-/** The two kinds of thing a diagnostic can be about: the source, and loom's own record of it (book 10.2.5). A diagnostic that names no subject is about the source. */
+/** The two kinds of thing a diagnostic can be about: the source, and loom's own record of it. A diagnostic that names no subject is about the source. */
 export function subjectOf(d: Diagnostic): string {
 	return d.subject ?? 'source';
 }

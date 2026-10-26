@@ -57,12 +57,12 @@ export function openOn(m: Manifest, key: string): Annotation[] {
 	return on(m, key).filter((a) => !a.discarded);
 }
 
-/** Whether an annotation is settled: resolved or discarded (15.3.1). The same test as `fragments/mount`'s, here so the index's callers need not import the wiring. */
+/** Whether an annotation is settled: resolved or discarded. The same test as `fragments/mount`'s, here so the index's callers need not import the wiring. */
 function isSettled(a: Annotation): boolean {
 	return a.discarded || a.status !== 'open';
 }
 
-/** Whether any top-level annotation on these keys is settled, under the session being shown: what lets a rail offer the settled control on a node where nothing is drawn at rest (15.2.5). */
+/** Whether any top-level annotation on these keys is settled, under the session being shown: what lets a rail offer the settled control on a node where nothing is drawn at rest. */
 export function settledOn(m: Manifest, keys: readonly string[]): boolean {
 	return onAny(m, keys).some(isSettled);
 }

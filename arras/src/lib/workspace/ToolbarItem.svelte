@@ -1,5 +1,5 @@
 <script lang="ts">
-	// One line of a toolbar's *view* menu (book 15.2.5): the control in full words, its key beside it where it has one. A mode is a `menuitemcheckbox` whose words name what a click gives; an action is a `menuitem`, a link where it opens a file. One that cannot act now stays in its place, greyed, with the reason as its title (DR-254-ikmartin).
+	// One line of a toolbar's *view* menu: the control in full words, its key beside it where it has one. A mode is a `menuitemcheckbox` whose words name what a click gives; an action is a `menuitem`, a link where it opens a file. One that cannot act now stays in its place, greyed, with the reason as its title (DR-254-ikmartin).
 	let {
 		label,
 		name,

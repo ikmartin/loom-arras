@@ -336,7 +336,7 @@ def test_ignore_then_add_replaces_a_wrong_document(tmp_path: Path) -> None:
 
     q = _olsson_holding_the_handbook(tmp_path)
     right = _fake_pdf(q / "refs" / "Olsson - 2003 - Logarithmic geometry and algebraic stacks.pdf", OLSSON)
-    # without the ignore, the right document goes beside the wrong one, never over it (book 8.16)
+    # without the ignore, the right document goes beside the wrong one, never over it
     dry = " ".join(ok("library", "add", str(right), "--for", "olsson03", "--dry-run", cwd=q).stdout.split())
     assert "beside its first document as olsson03A" in dry
     ok("library", "ignore", "olsson03", "--why", "it is Abramovich et al.'s survey", *AS, cwd=q)

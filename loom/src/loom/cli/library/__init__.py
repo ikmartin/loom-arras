@@ -1,4 +1,4 @@
-"""`loom library` (book 8; plan 0.18.5): the papers a quilt cites, what is known about each, and the results taken from them.
+"""`loom library` (plan 0.18.5): the papers a quilt cites, what is known about each, and the results taken from them.
 
 Bare, it reports what waits for the person and what for an agent; `loom library WORK` reports one work. The subcommands live one module per concern, each listing its commands in `COMMANDS`.
 """
@@ -57,7 +57,7 @@ def _positional(rest: list[str]) -> bool:
 
 
 @click.group(cls=_LibraryGroup, invoke_without_command=True, subcommand_metavar="[WORK | COMMAND [ARGS]...]")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="Log this call to the session."
 )
@@ -73,7 +73,7 @@ def library(ctx: click.Context, as_json: bool, run_dir: str | None, quilt_path: 
 
 
 @click.command(name="_work", hidden=True)
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="Log this call to the session."
 )

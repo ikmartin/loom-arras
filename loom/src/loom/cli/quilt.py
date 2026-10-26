@@ -1,4 +1,4 @@
-"""`loom init`: create a quilt (book 4.7), or write the demo quilt (chapter 14)."""
+"""`loom init`: create a quilt, or write the demo quilt."""
 
 from __future__ import annotations
 
@@ -258,7 +258,7 @@ def write_demo_quilt(target: Path) -> None:
 )
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
 @click.option("--dry-run", is_flag=True, help="Say what would be created, and write nothing; no identity test.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 def init(
     directory: str | None,
     from_file: str | None,

@@ -1,4 +1,4 @@
-"""`loom id`, `loom import`, `loom atomize`, `loom deloom` (book 6, 12.3) and the identity test they share."""
+"""`loom id`, `loom import`, `loom atomize`, `loom deloom` and the identity test they share."""
 
 from __future__ import annotations
 
@@ -389,7 +389,7 @@ def run_import(
     help="The working document to draft, directly in the drafting directory (default: the paper's file name there).",
 )
 @click.option("--dry-run", is_flag=True, help="Say what the import would write, and write nothing; no identity test.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def import_command(
     file: str,
@@ -455,7 +455,7 @@ def import_command(
 @click.option(
     "--dry-run", is_flag=True, help="Say what would be written and moved, and write nothing; no identity test."
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def atomize(
     src: str | None,
@@ -726,7 +726,7 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     help="Keep every \\incomplete{…}, defined to print nothing as loom.sty defines it.",
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be removed and written, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def deloom_command(
     source: str,

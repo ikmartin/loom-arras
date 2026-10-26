@@ -16,7 +16,7 @@ A log event, `retargeted`, naming the annotation, the plain key and the document
 
 ## Blast radius
 
-`records/log.py`, `adopt.py`'s incorporation, the adoption preview, chapter 7's annotation events.
+`records/log.py`, `adopt.py`'s incorporation, the adoption preview.
 
 ## Related
 

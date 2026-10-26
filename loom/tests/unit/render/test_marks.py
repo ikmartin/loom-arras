@@ -102,7 +102,7 @@ PRINTED = (
     ],
 )
 def test_a_quote_copied_from_the_source_is_marked_as_the_page_prints_it(quote: str, marked: str) -> None:
-    """`annotate` reads a quote as the page prints it (book 7.4.3), so the mark does too: a symbol, a tie, a dash, TeX quotes and a thin space were each found by the one and missed by the other, and the quote marked its whole paragraph (the anchoring critique, 2026-10-03)."""
+    """`annotate` reads a quote as the page prints it, so the mark does too: a symbol, a tie, a dash, TeX quotes and a thin space were each found by the one and missed by the other, and the quote marked its whole paragraph (the anchoring critique, 2026-10-03)."""
     out = place_marks(PRINTED, [MarkEntry("a-1", quote, "f.tex", 12, 30)])
     assert "annotation-block" not in out
     assert f'<mark class="annotation" data-annotation="a-1">{marked}' in out

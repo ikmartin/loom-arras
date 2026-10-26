@@ -1,4 +1,4 @@
-"""What `loom import` and `loom draft` share (book 6.1-6.3): a paper's closure, the package line a working draft needs, a temporary mirror of the quilt to stage a document in, `[quilt] main`, and the report a draft ends with."""
+"""What `loom import` and `loom draft` share: a paper's closure, the package line a working draft needs, a temporary mirror of the quilt to stage a document in, `[quilt] main`, and the report a draft ends with."""
 
 from __future__ import annotations
 

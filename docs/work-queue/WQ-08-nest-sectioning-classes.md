@@ -16,8 +16,8 @@ Extend the shift chain in `loom.sty` to `\part`, and to the sectioning commands 
 
 ## Blast radius
 
-`loom/src/loom/assets/loom.sty`, Chapter 4 §4.5, one edge-quilt fixture per class added.
+`loom/src/loom/assets/loom.sty`, one edge-quilt fixture per class added.
 
 ## Related
 
-Chapter 4 §4.5.
+.

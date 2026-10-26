@@ -1,4 +1,4 @@
-"""The converter on isolated LaTeX strings: each construct of book 9.4.1 maps to the dialect element the spec names."""
+"""The converter on isolated LaTeX strings: each construct maps to the dialect element the spec names."""
 
 from __future__ import annotations
 

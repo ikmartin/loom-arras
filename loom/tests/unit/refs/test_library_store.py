@@ -164,7 +164,7 @@ def test_a_pdf_naming_another_work_is_refused_and_force_records_the_override(tmp
 
 
 def test_a_second_document_is_filed_beside_the_first_and_keeps_its_pdf(tmp_path: Path) -> None:
-    """`add` never replaces (book 8.16): a second PDF for a work that has one is filed beside it under a sibling entry, which names its own home in `loom-file` so it shows its own PDF and not the first's (audit §3)."""
+    """`add` never replaces: a second PDF for a work that has one is filed beside it under a sibling entry, which names its own home in `loom-file` so it shows its own PDF and not the first's (audit §3)."""
     from loom.refs.fetch import work_dir
 
     q = demo(tmp_path)

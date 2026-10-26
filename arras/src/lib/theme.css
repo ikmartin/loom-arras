@@ -1,4 +1,4 @@
-/* Arras's own token vocabulary and base styles (book 15.6, 15.7).
+/* Arras's own token vocabulary and base styles.
    The names are drawn from print and are deliberately not the names used in the design documents or in any other product's system: arras renders a page of mathematics, not application chrome.
    Every colour, measure and typeface is a variable; no component hardcodes a value. */
 
@@ -49,7 +49,7 @@
 	--state-loose: #888780;
 	--state-loose-wash: transparent;
 
-	/* annotations: four hues and one neutral, each with its wash (15.3.1). Hue is the kind; nothing else about an annotation is a colour. */
+	/* annotations: four hues and one neutral, each with its wash. Hue is the kind; nothing else about an annotation is a colour. */
 	--ann-objection: #a32d2d;
 	--ann-objection-wash: rgb(163 45 45 / 10%);
 	--ann-suggestion: #a07a0a;
@@ -61,7 +61,7 @@
 	--ann-neutral: #6f6d66;
 	--ann-neutral-wash: rgb(111 109 102 / 10%);
 
-	/* compare with a base (15.2.6): git's red on the side holding the base, its green on the other; drawn only while annotations are off, so red is not read as an objection */
+	/* compare with a base: git's red on the side holding the base, its green on the other; drawn only while annotations are off, so red is not read as an objection */
 	--diff-del: #a32d2d;
 	--diff-del-wash: #fcebeb;
 	--diff-add: #0f6e56;
@@ -84,7 +84,7 @@
 	--rail-a: 267px;
 
 	/* typefaces: serif for mathematical content, sans for chrome, mono for ids.
-	   The serif is the stack the author's site generator uses, so a corpus page and a note page look like the same publication (15.7). */
+	   The serif is the stack the author's site generator uses, so a corpus page and a note page look like the same publication. */
 	--serif: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
 	--sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -97,7 +97,7 @@
 	color-scheme: light;
 }
 
-/* Dark mode: the light set inverted, washes as low-alpha overlays over the paper rather than tinted solids (15.6). */
+/* Dark mode: the light set inverted, washes as low-alpha overlays over the paper rather than tinted solids. */
 @media (prefers-color-scheme: dark) {
 	.arras:not([data-theme='light']) {
 		--paper: #17171a;
@@ -269,7 +269,7 @@ button.as-link:hover {
 	text-decoration: underline;
 }
 
-/* An unadorned list, used wherever a page or a rail lists links (15.3). */
+/* An unadorned list, used wherever a page or a rail lists links. */
 ul.plain {
 	list-style: none;
 	margin: 0;
@@ -286,7 +286,7 @@ ul.plain li {
 	font-size: 10px;
 }
 
-/* The five state tones (15.6). `state.ts` turns a manifest colour class into one of these class names; nothing else maps colours. */
+/* The five state tones. `state.ts` turns a manifest colour class into one of these class names; nothing else maps colours. */
 .tone-accepted { --tone: var(--state-accepted); --tone-wash: var(--state-accepted-wash); }
 .tone-stale { --tone: var(--state-stale); --tone-wash: var(--state-stale-wash); }
 .tone-draft { --tone: var(--state-draft); --tone-wash: var(--state-draft-wash); }
@@ -294,7 +294,7 @@ ul.plain li {
 .tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
 .tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
 
-/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). An item in a pane is laid out as a page is, inside the pane's scroll. */
+/* The content region of every page: the shell owns the chrome, the page owns its own <main>. An item in a pane is laid out as a page is, inside the pane's scroll. */
 main.page,
 .page.item {
 	padding: var(--gap-wide) 28px var(--gap-wide) 24px;
@@ -318,7 +318,7 @@ main.page > h2,
 	margin: var(--gap-wide) 0 var(--gap-tight);
 }
 
-/* Every rail is a scroll container: a contents tree of 74 sections must scroll inside its own box rather than run off the page (15.2). */
+/* Every rail is a scroll container: a contents tree of 74 sections must scroll inside its own box rather than run off the page. */
 .rail-scroll {
 	overflow-y: auto;
 	overscroll-behavior: contain;
@@ -367,7 +367,7 @@ table.list th {
 	letter-spacing: 0.04em;
 }
 
-/* ---- the dialect (book 9.4, 15.3.1) ---- */
+/* ---- the dialect ---- */
 
 .fragment {
 	font-family: var(--body-face);
@@ -379,7 +379,7 @@ table.list th {
    `left: 100%` and a margin annotation in the gutter opposite. Both were clipped, which made the gutter unclickable.
    A node that owns nothing outside itself could take it; a node in the read view is exactly the one that does. */
 
-/* Environments: a per-taxon left accent and no filled background (15.3.1). The colour is the token `$lib/taxonomy`
+/* Environments: a per-taxon left accent and no filled background. The colour is the token `$lib/taxonomy`
    chose for this taxon, set on the element as `--taxon-tone`; the palette itself is declared once above, so changing
    how a Lemma looks in the document changes how it looks in the graph. The fallback is what an unmarked element gets. */
 .fragment .env {
@@ -398,7 +398,7 @@ table.list th {
 .fragment .env-label .title { color: var(--ink-soft); }
 .fragment .env > :last-child { margin-bottom: 0; }
 
-/* Proofs: collapsed, no box, a left rule and a manual marker (15.3.1). */
+/* Proofs: collapsed, no box, a left rule and a manual marker. */
 .fragment details.env-proof {
 	border-left: 3px solid var(--rule);
 	padding-left: var(--gap);
@@ -417,7 +417,7 @@ table.list th {
 .fragment details.env-proof[open] > summary.env-label { margin-bottom: var(--gap-hair); }
 .fragment details.env-proof > :last-child { margin-bottom: 0; }
 
-/* The gutters (15.3.1), with the site generator's algebra so that a corpus page and a note page are laid out alike.
+/* The gutters, with the site generator's algebra so that a corpus page and a note page are laid out alike.
    The ideal gutter is half the slack around the measure; these are two thirds of that, and the text column absorbs the third they give up. One knob: change the /3 and the column, the margin annotations and the gutter comments all follow, because each is expressed in terms of these. A viewport too narrow for the measure gets no gutters at all rather than negative ones. */
 .gutters-host {
 	container-type: inline-size;
@@ -443,7 +443,7 @@ table.list th {
 	}
 }
 
-/* The read view's margin annotation (15.3.1): the key in mono beside every node and the state word beneath it, set in the left gutter so that the environment's taxon accent is the boundary between the two and the text column keeps its whole measure. */
+/* The read view's margin annotation: the key in mono beside every node and the state word beneath it, set in the left gutter so that the environment's taxon accent is the boundary between the two and the text column keeps its whole measure. */
 .fragment.read .env[data-key],
 .fragment.read details.env-proof[data-key] {
 	position: relative;
@@ -493,7 +493,7 @@ table.list th {
 	color: var(--tone);
 }
 
-/* Comments in the gutter (15.3.1). A short comment stands in the right gutter beside the node it is about; one with sizeable content stays in the text as a box, because a paragraph squeezed into a gutter is unreadable and a reader who has to hunt for the rest of a sentence would rather have it in the flow. */
+/* Comments in the gutter. A short comment stands in the right gutter beside the node it is about; one with sizeable content stays in the text as a box, because a paragraph squeezed into a gutter is unreadable and a reader who has to hunt for the rest of a sentence would rather have it in the flow. */
 .comment-slot {
 	display: block;
 }
@@ -654,7 +654,7 @@ table.list th {
 	color: var(--ink-soft);
 }
 
-/* The Stacks-project heading affordance: a node's own link, revealed on hover (15.3.1). */
+/* The Stacks-project heading affordance: a node's own link, revealed on hover. */
 a.heading-link {
 	margin-left: var(--gap-tight);
 	font-family: var(--sans);
@@ -672,7 +672,7 @@ a.heading-link:focus {
 /* An environment inside another drops the panel and keeps the accent. */
 .fragment .env .env { margin: var(--gap) 0; }
 
-/* Document headings: the body face, close to the text, with the number set apart (15.3.1). */
+/* Document headings: the body face, close to the text, with the number set apart. */
 .fragment > h1[data-fragment] {
 	font-family: var(--body-face);
 	font-size: 24px;
@@ -955,7 +955,7 @@ a.heading-link:focus {
 	--taxon-definition: #63c0b8;
 }
 
-/* The mark (15.3.1): what is drawn on the text, one rule set for every surface. Hue is the kind, `k-<kind>`; a note and any kind the viewer has never heard of take the neutral. Weight is the severity, `s-<severity>`: 1px minor, 3px major, 2px for moderate and for the kinds that take none. The wash is the hue at 5% at rest and at 10% (`--ann-<kind>-wash`) on the one mark whose box is open (`open`), the same whatever the severity. Nothing else is tinted or outlined. */
+/* The mark: what is drawn on the text, one rule set for every surface. Hue is the kind, `k-<kind>`; a note and any kind the viewer has never heard of take the neutral. Weight is the severity, `s-<severity>`: 1px minor, 3px major, 2px for moderate and for the kinds that take none. The wash is the hue at 5% at rest and at 10% (`--ann-<kind>-wash`) on the one mark whose box is open (`open`), the same whatever the severity. Nothing else is tinted or outlined. */
 .annotation {
 	--ann-hue: var(--ann-neutral);
 	--ann-wash: var(--ann-neutral-wash);
@@ -969,10 +969,10 @@ a.heading-link:focus {
 :is(.annotation, .box, .ann-dot).k-suggestion { --ann-hue: var(--ann-suggestion); --ann-wash: var(--ann-suggestion-wash); }
 :is(.annotation, .box, .ann-dot).k-question { --ann-hue: var(--ann-question); --ann-wash: var(--ann-question-wash); }
 :is(.annotation, .box, .ann-dot).k-citation { --ann-hue: var(--ann-citation); --ann-wash: var(--ann-citation-wash); }
-/* The box (15.3.1) takes the same hue for its left stripe, from the same class; settled, the stripe keeps the hue at half strength, as the settled mark does. */
+/* The box takes the same hue for its left stripe, from the same class; settled, the stripe keeps the hue at half strength, as the settled mark does. */
 article.box { --ann-hue: var(--ann-neutral); }
 article.box.settled { border-left-color: color-mix(in srgb, var(--ann-hue) 50%, transparent); }
-/* A list names the kind by hue and not by word (15.3.2, 15.3.9): a 7px dot in the kind's hue before the row's link, from the same `k-<kind>` seam; a reply's is a ring, since a reply's kind is its thread's. The word stays in the dot's label for a screen reader. Severity is not shown in a list. */
+/* A list names the kind by hue and not by word: a 7px dot in the kind's hue before the row's link, from the same `k-<kind>` seam; a reply's is a ring, since a reply's kind is its thread's. The word stays in the dot's label for a screen reader. Severity is not shown in a list. */
 .ann-dot {
 	--ann-hue: var(--ann-neutral);
 	display: inline-block;

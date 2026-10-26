@@ -1,4 +1,4 @@
-"""Macro definitions from the preamble closure (book 9.4.3, 8.3.1), replacing the sitegen regexes with brace matching.
+"""Macro definitions from the preamble closure, replacing the sitegen regexes with brace matching.
 
 Forms: \\newcommand{\\x}[n][default]{body}, \\newcommand\\x{body}, \\renewcommand, \\providecommand, \\def\\x#1#2{body}, \\DeclareMathOperator*{\\x}{body}, \\DeclarePairedDelimiter{\\x}{left}{right}, \\let\\a\\b, \\NewDocumentCommand\\x{argspec}{body}. Later definitions win. Expansion substitutes #n and is used for text-mode macros and macro display names.
 """

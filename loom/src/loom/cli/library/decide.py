@@ -1,4 +1,4 @@
-"""`loom library verify | discard | ignore` (book 8; plan 0.18.5): the author's decisions about what the library holds.
+"""`loom library verify | discard | ignore` (plan 0.18.5): the author's decisions about what the library holds.
 
 `verify` and `discard` take result ids and citation suggestions' annotation ids alike, the id's shape saying which. All three are the author's and refuse an agent.
 """
@@ -20,7 +20,7 @@ from loom.scan.scan import ScanResult
 
 _AS = "Who is deciding, when the user config and git do not say."
 _DRY = "Check everything and say what would be recorded; write nothing."
-_JSON = "Print the report as one JSON object (book 12.9)."
+_JSON = "Print the report as one JSON object."
 
 
 def _who(root: Path, declared: str | None) -> str:

@@ -1,4 +1,4 @@
-// The contents tree of a master, built from the manifest's inclusion tree (book 15.2, 15.4).
+// The contents tree of a master, built from the manifest's inclusion tree.
 // The inclusion tree is the publisher's own record of what appears where, in document order, with files interleaved at the offsets they are included at. Deriving the contents from it rather than from a sort over `nodes` gives true document order, and needs no numbering: an uncompiled corpus still gets a correct contents list.
 
 import type { Manifest, InclusionNode } from './manifest/types';

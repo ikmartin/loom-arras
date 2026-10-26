@@ -1,4 +1,4 @@
-"""Dependency closure and downstream sets over the edge list (book 3.4, 5.7.2, 7.9)."""
+"""Dependency closure and downstream sets over the edge list."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The navigation shell (book 15.2.3): a 44px icon strip of the views this corpus has, search, and at its foot the problems glyph and the settings control, beside a panel holding the page's own panel when it has one and the documents otherwise, with the write target pinned beneath.
+	// The navigation shell: a 44px icon strip of the views this corpus has, search, and at its foot the problems glyph and the settings control, beside a panel holding the page's own panel when it has one and the documents otherwise, with the write target pinned beneath.
 	// The strip carries no separate home mark: home is one of the views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';

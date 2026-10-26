@@ -1,4 +1,4 @@
-"""`loom draft`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history` (book chapter 17).
+"""`loom draft`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history`.
 
 Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); every command reports through `loom.cli.report`, a write naming what it wrote and the step it made. Patches are printed for the editor to apply; loom rewrites no author file.
 """
@@ -90,14 +90,14 @@ def _confirm(yes: bool, what: str) -> None:
     help="Who drafts it; an agent names itself, including Agent or AI.",
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def draft(
     document: str, ai_name: str, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
 ) -> None:
     """Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
-    A copy step records what each of its nodes began from (book 17.7), and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
+    A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
     """
     _draft_ai(open_scan(quilt_path), document, ai_name, declared, dry_run, as_json)
 
@@ -190,12 +190,12 @@ def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, 
     help="What this stamp marks; given a DOCUMENT, it names the landmark (`widgets-v3`).",
 )
 @click.option("--dry-run", is_flag=True, help="Say what the step would record, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
 
-    A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it (book 17.9).
+    A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it.
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -263,7 +263,7 @@ def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quil
             )
         )
     if doc is not None and not dry_run:
-        # a landmark is what the quilt's bibliography is gathered from, so a new one may carry entries it lacks (book 8.15)
+        # a landmark is what the quilt's bibliography is gathered from, so a new one may carry entries it lacks
         bib_groups, data["bibliography"] = bibliography_groups(result.quilt)
         groups += bib_groups
     Report(
@@ -308,7 +308,7 @@ class StepType(click.ParamType[int]):
 )
 @click.option("--name", "new_id", default=None, metavar="ID", help="The new id (default: the next free one).")
 @click.option("--dry-run", is_flag=True, help="Print the plan and the patch, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def fork(
     node_id: str,
@@ -394,7 +394,7 @@ def fork(
 
 @click.command()
 @click.argument("address")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
     """Print the patch that puts KEY@N's recorded text back in place of the head's; the file is the author's to change. Reverting materializes a version, it never points at one."""
@@ -419,7 +419,7 @@ def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
     src = result.files[n.file].text
     patched = src[: n.start] + body.rstrip("\n") + src[n.end :]
     diff = unified_diff(src, patched, n.file)
-    # Nothing is recorded: applying the patch is the author's act (17.11), and whether the head is again @N is read from its text, never from a note that a patch was once printed.
+    # Nothing is recorded: applying the patch is the author's act, and whether the head is again @N is read from its text, never from a note that a patch was once printed.
     if as_json or not diff:
         Report(
             f"the patch gives {key} the text of @{v.step} ({v.name}) again, once applied to {n.file}"
@@ -452,7 +452,7 @@ def _scan_after(result: ScanResult, action: str, data: dict[str, Any]) -> ScanRe
 @click.command()
 @click.argument("file")
 @click.option("--dry-run", is_flag=True, help="Say what making it live would define twice, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def live(file: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Make a superseded document live again, so that it defines its nodes once more."""
@@ -551,7 +551,7 @@ def _named_documents(result: ScanResult) -> set[str]:
 @click.argument("old")
 @click.argument("new")
 @click.option("--dry-run", is_flag=True, help="Say what would be moved and recorded, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
@@ -640,7 +640,7 @@ def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None)
 @click.option(
     "--dry-run", is_flag=True, help="Say what would be written and superseded, and write nothing; no identity test."
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def linearize(
     spine: str,
@@ -882,13 +882,13 @@ def _inherited(quilt_path: str | None, as_json: bool) -> tuple[str | None, bool]
 
 
 @click.group(cls=_HistoryGroup, invoke_without_command=True, subcommand_metavar="[KEY | COMMAND [ARGS]...]")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 @click.pass_context
 def history(ctx: click.Context, as_json: bool, quilt_path: str | None) -> None:
     """List the steps and stamps of this quilt, one per line; `loom history KEY` lists that key's versions and whether the head equals one.
 
-    A landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP` (book 17.9).
+    A landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP`.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -916,7 +916,7 @@ def history(ctx: click.Context, as_json: bool, quilt_path: str | None) -> None:
 
 
 @click.command(name="KEY", hidden=True)
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def _versions(as_json: bool, quilt_path: str | None) -> None:
     """List the versions recorded for KEY, and whether its text now is one of them."""
@@ -972,7 +972,7 @@ def _landmark(quilt_path: str | None, ref: str) -> tuple[ScanResult, History, En
 @history.command(name="show")
 @click.argument("name")
 @click.option("--plain", is_flag=True, help="The paper without loom, its package line swapped for the macro block.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def history_show(name: str, plain: bool, as_json: bool, quilt_path: str | None) -> None:
     """Print a landmark's text.
@@ -995,7 +995,7 @@ def history_show(name: str, plain: bool, as_json: bool, quilt_path: str | None) 
 @history.command(name="restore")
 @click.argument("name")
 @click.option("--to", "to", default=None, metavar="FILE", help="The new document, directly in the drafting directory.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def history_restore(name: str, to: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Start a document from a landmark.
@@ -1082,7 +1082,7 @@ def _detail(e: Entry) -> str:
 
 
 @history.command(name="verify")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def history_verify(as_json: bool, quilt_path: str | None) -> None:
     """Check the history against its ledger.

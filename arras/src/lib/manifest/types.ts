@@ -38,7 +38,7 @@ export interface Corpus {
   root_label: string;
 }
 
-/** A landmark: a flat, self-contained copy of a document as it stood when loom recorded a step (book 17.1). It is a document, not a corpus of nodes: nothing in it has an identity. */
+/** A landmark: a flat, self-contained copy of a document as it stood when loom recorded a step. It is a document, not a corpus of nodes: nothing in it has an identity. */
 export interface CanonDoc {
 	path: string;
 	stem: string;
@@ -63,9 +63,9 @@ export interface Master {
   compiled?: string;
   pdf?: string;
   numbering_known?: boolean;
-  /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit (book 4.1). */
+  /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit. */
   directory?: "drafting" | "drafting-ai" | null;
-  /** An agent document's source document, where the history's moves have taken it (book 17.7.1). */
+  /** An agent document's source document, where the history's moves have taken it. */
   copy_of?: string;
 }
 
@@ -76,7 +76,7 @@ export interface NumberEntry {
 
 export interface Node {
   name?: string;
-  /** An agent document's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
+  /** An agent document's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai`. Whole-quilt views leave such nodes out. */
   derived_of?: string;
   /** A derived node's base: the version of its plain key it began from, and that version's hash as `data-hash` takes it (`math`), so compare can tell a node changed on both sides. */
   base?: { key: string; step: number; hash: string; math?: string };
@@ -104,7 +104,7 @@ export interface Node {
   basis?: 'expository' | 'local-proof' | 'cited-result' | 'assumption' | 'open-claim' | 'unclassified';
   basis_reason?: string;
   inline_proof?: boolean;
-  /** The files that each define this id, when two do. The id is then `conflicted`: it has no text, and loom reports both rather than choosing (book 5.3.5). */
+  /** The files that each define this id, when two do. The id is then `conflicted`: it has no text, and loom reports both rather than choosing. */
   conflict?: string[];
   digest: string | null;
   locator?: string;
@@ -223,7 +223,7 @@ export interface Key {
   uses: string[];
   closure: string[];
   previous_key_match: string | null;
-  /** The step whose recorded text this key's current text is, when it is one: what "text of @2" is built from (book 17.5). */
+  /** The step whose recorded text this key's current text is, when it is one: what "text of @2" is built from. */
   version?: { step: string; name?: string };
   conflict?: string[];
 }

@@ -1,4 +1,4 @@
-"""The history ledger and its steps (book 17.2-17.6): append-only lines, quilt-wide numbering, per-key versions, and what a malformed record does."""
+"""The history ledger and its steps: append-only lines, quilt-wide numbering, per-key versions, and what a malformed record does."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-// Static deployment (book 10.7): build the SPA, then write an index.html for every route the manifest names so pretty URLs work on any static host, and copy the build directory beside them. The pages are the SPA shell; content still loads from build/manifest.json in the browser (server-rendered content is a later step, recorded in docs/deviations.md).
+// Static deployment: build the SPA, then write an index.html for every route the manifest names so pretty URLs work on any static host, and copy the build directory beside them. The pages are the SPA shell; content still loads from build/manifest.json in the browser (server-rendered content is a later step, recorded in docs/deviations.md).
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';

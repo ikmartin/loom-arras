@@ -1,4 +1,4 @@
-"""`loom serve` (book 9.8): one loop with three jobs, watch, serve, compile.
+"""`loom serve`: one loop with three jobs, watch, serve, compile.
 
 Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged, and `/_api/stream` says each time a new one is published, so a viewer that listens fetches it at once rather than on its next poll.
 """
@@ -360,9 +360,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.wfile.write(data)
 
     def _stream(self) -> None:
-        """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else (book 9.8).
+        """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else.
 
-        It says only that one exists: the viewer fetches the manifest as it would on a poll and learns nothing of what changed, so it still reacts to the manifest alone (10.8). Held open on its own thread; a comment every `HEARTBEAT` seconds keeps an idle one alive, and the server's stop ends it.
+        It says only that one exists: the viewer fetches the manifest as it would on a poll and learns nothing of what changed, so it still reacts to the manifest alone. Held open on its own thread; a comment every `HEARTBEAT` seconds keeps an idle one alive, and the server's stop ends it.
         """
         pubs = self.publications
         if pubs is None or self.quilt_root is None:

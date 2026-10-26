@@ -1,4 +1,4 @@
-"""`loom import` and `loom history restore` (book 6.1-6.3, 17.9): a paper arrives as one flat text, kept as a landmark, and a landmark's text becomes a working document with the two things a working document needs, `\\usepackage{loom}` and ids.
+"""`loom import` and `loom history restore`: a paper arrives as one flat text, kept as a landmark, and a landmark's text becomes a working document with the two things a working document needs, `\\usepackage{loom}` and ids.
 
 Nothing is written until a plan is confirmed; the draft is staged in a temporary mirror of the quilt and scanned there, exactly as import once staged a whole closure.
 """

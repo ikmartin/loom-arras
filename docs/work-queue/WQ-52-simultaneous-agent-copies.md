@@ -16,7 +16,7 @@ The derived suffix numbers the copies in base 36: `zk-0001-ai-01` … `-ai-0Z`, 
 
 ## Blast radius
 
-`scan/labels.py` (`DERIVED`, `derived_of`), `reshape/copy.py`, `loom draft --ai`'s refusal, `drafts.py`, `adopt.py`, arras's Incoming and compare, chapters 5.3.1 and 17.7.
+`scan/labels.py` (`DERIVED`, `derived_of`), `reshape/copy.py`, `loom draft --ai`'s refusal, `drafts.py`, `adopt.py`, arras's Incoming and compare.
 
 ## Related
 

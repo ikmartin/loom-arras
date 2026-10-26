@@ -1,4 +1,4 @@
-// Plan 0.9.5 §7: arras's core is host-neutral. The shells and the app served with loom are one host among others, and the core must not assume it is the only one. Like the forbidden-words guard beside it (Chapter 10.8), this is a boundary test rather than a style test: it exists so a boundary already decided is not eroded one plan at a time.
+// Plan 0.9.5 §7: arras's core is host-neutral. The shells and the app served with loom are one host among others, and the core must not assume it is the only one. Like the forbidden-words guard beside it, this is a boundary test rather than a style test: it exists so a boundary already decided is not eroded one plan at a time.
 //
 // The boundary over `src/lib/`, of which RULES checks what a pattern can:
 //   - no write to `:root` or `document.documentElement`; tokens go on a class the host applies, and preferences are set on a root the host owns.

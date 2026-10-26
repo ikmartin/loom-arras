@@ -82,7 +82,7 @@ def read_command(
 ) -> None:
     """Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its digest's Overview.
 
-    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/ (book 8.16).
+    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
     """
     if where is not None and pages is not None:
         raise EnvError("--where prints where the work is kept; give PAGES or --where, not both")
@@ -188,7 +188,7 @@ def _overview(result: Any, ck: str, as_json: bool) -> None:
     show_default=True,
     help="Show at most this many hits; everything is still searched.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 @logged("search")
 def search_command(
@@ -464,7 +464,7 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
 @click.option(
     "--depth", type=click.IntRange(min=1), default=1, show_default=True, help="Follow its relations this many hops out."
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 @logged("why")
 def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) -> None:

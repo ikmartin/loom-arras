@@ -1,4 +1,4 @@
-"""`loom accept`, `loom annotate`, `loom status` (book 7.3, 7.4.3, 7.7, 12.6)."""
+"""`loom accept`, `loom annotate`, `loom status`."""
 
 from __future__ import annotations
 
@@ -165,7 +165,7 @@ def write_acceptance(
 )
 @click.option("--yes", "-y", is_flag=True, help="Accept --stale, --all-live or --master without asking.")
 @click.option("--dry-run", is_flag=True, help="Say what would be accepted, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def accept(
     keys: tuple[str, ...],
@@ -552,7 +552,7 @@ NO_MESSAGE = 'an objection, suggestion, question or citation with no message say
 
 
 def _asks(kind: str | None) -> bool:
-    """Whether an annotation of `kind` asks something, so needs words; a `note` with none records that the target was read and nothing was wrong (book 7.4.3)."""
+    """Whether an annotation of `kind` asks something, so needs words; a `note` with none records that the target was read and nothing was wrong."""
     return (full_kind(kind) if kind else "note") != "note"
 
 
@@ -937,7 +937,7 @@ def _rects(box: str) -> list[list[float]]:
     help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing, not even a session.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def annotate(
     target: str | None,
@@ -968,7 +968,7 @@ def annotate(
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
-    # Each of these names its annotation by id and takes no TARGET (7.4), so the one positional given is the body.
+    # Each of these names its annotation by id and takes no TARGET, so the one positional given is the body.
     if (reply or resolve or edit or discard_id) and message is None:
         message, target = target, None
     if undo and not (discard_id or resolve):
@@ -1230,7 +1230,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         if key in derived:
             entry["derived"] = derived[key]
         keys[key] = entry
-    # An id two live files both define has no text and no state of its own until one definition goes (5.3.5); it is a row, so it cannot vanish from the list.
+    # An id two live files both define has no text and no state of its own until one definition goes; it is a row, so it cannot vanish from the list.
     for key, n in result.nodes.items():
         if n.kind != "conflict":
             continue
@@ -1431,7 +1431,7 @@ def filter_keys(
     help="List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
 )
 @click.option("--explain", default=None, metavar="KEY", help="Why KEY is in its state, with the diff of what moved.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION", help="Log this call to the session.")
 @quilt_option
 def status(

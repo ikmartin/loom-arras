@@ -1,4 +1,4 @@
-// The one place the interface's colour vocabulary meets arras's tokens (book 15.6).
+// The one place the interface's colour vocabulary meets arras's tokens.
 // The manifest declares a colour class per state label; the stylesheet declares five state pairs. Everything that needs a state colour goes through here, so adding a state to the interface is a one-line change and an unknown class still renders.
 
 import type { ColorClass } from './manifest/types';

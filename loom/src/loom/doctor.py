@@ -366,7 +366,7 @@ def check_tools() -> list[Item]:
 
 
 def check_author(quilt: Any) -> Item:
-    """The name `accept` and `annotate` record, by the book's order (4.3)."""
+    """The name `accept` and `annotate` record: `--as`, else the user config, else git."""
     from loom.scan.quilt import NoAuthorError, resolve_author, user_config_path
 
     try:

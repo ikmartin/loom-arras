@@ -1,4 +1,4 @@
-// The one PDF viewer (book 15.3.7). Anything that links into a cited work opens it here rather than navigating away, so a reader checking a citation keeps their place.
+// The one PDF viewer. Anything that links into a cited work opens it here rather than navigating away, so a reader checking a citation keeps their place.
 
 import type { WorkLink } from '$lib/worklink';
 

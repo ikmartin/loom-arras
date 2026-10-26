@@ -1,6 +1,6 @@
-"""Id grammar and allocation (book 5.3).
+"""Id grammar and allocation.
 
-An id is <prefix>-<local>. A prefix that is a citekey slug takes the paper-local form; any other prefix takes four uppercase base-36 characters, which keeps hyphenated human labels from being mistaken for ids. A derived id is a loom-local id with `-ai` after it, `zk-0001-ai`: the id of a node an agent's copy defines, whose counterpart is `zk-0001` (book 5.3).
+An id is <prefix>-<local>. A prefix that is a citekey slug takes the paper-local form; any other prefix takes four uppercase base-36 characters, which keeps hyphenated human labels from being mistaken for ids. A derived id is a loom-local id with `-ai` after it, `zk-0001-ai`: the id of a node an agent's copy defines, whose counterpart is `zk-0001`.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def plain_key(key: str) -> str:
 def rename_labels(text: str, rename: dict[str, str] | None = None, *, plain: bool = False) -> str:
     """Every label `text` names rewritten: through `rename`, or with `plain` each derived name made plain.
 
-    Covers definitions, references (a comma list keeps its separators), `\\hyperref[...]`, `see:` directives and child markers. `plain` strips the suffix from any name ending in it, since a copy suffixes every label it defines, an equation's included (book 17.7).
+    Covers definitions, references (a comma list keeps its separators), `\\hyperref[...]`, `see:` directives and child markers. `plain` strips the suffix from any name ending in it, since a copy suffixes every label it defines, an equation's included.
     """
 
     def one(name: str) -> str:

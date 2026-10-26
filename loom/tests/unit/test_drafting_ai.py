@@ -1,4 +1,4 @@
-"""The documents an agent edits (book 4.1, 5.3; plan 0.17.1): `[quilt] drafting_ai`, derived ids, and the border an agent's permission file draws."""
+"""The documents an agent edits (5.3, plan 0.17.1): `[quilt] drafting_ai`, derived ids, and the border an agent's permission file draws."""
 
 from __future__ import annotations
 
@@ -313,7 +313,7 @@ def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
 
 
 def test_the_agents_directory_holds_copies_that_define_derived_ids(tmp_path: Path) -> None:
-    """A document written straight into the directory has no copy step, so nothing can be adopted or refreshed from it, and a plain id defined there writes into the person's id space; lint refuses both, and adoption says why (book 4.4)."""
+    """A document written straight into the directory has no copy step, so nothing can be adopted or refreshed from it, and a plain id defined there writes into the person's id space; lint refuses both, and adoption says why."""
     q = demo(tmp_path)
     (q / "drafting-ai").mkdir(exist_ok=True)
     (q / "drafting-ai" / "scratch.tex").write_text(

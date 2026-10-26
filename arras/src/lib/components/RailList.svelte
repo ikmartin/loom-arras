@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A labelled list in the right rail (book 15.3.2). Every rail section is one of these, so they read alike and an empty one disappears rather than showing "None".
+	// A labelled list in the right rail. Every rail section is one of these, so they read alike and an empty one disappears rather than showing "None".
 	import type { Snippet } from 'svelte';
 
 	let { label, empty = '', children }: { label: string; empty?: string; children?: Snippet } = $props();

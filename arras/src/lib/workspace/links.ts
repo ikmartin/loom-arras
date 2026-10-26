@@ -23,7 +23,7 @@ export function paneOfElement(el: Element | null): number {
 /**
  * The item a link names, or null when it names nothing to read.
  *
- * A `cited:` link names a place in a work by the work's identifier; it is an item only when the copy on file is the very artifact the identifier names (book 10.4.1).
+ * A `cited:` link names a place in a work by the work's identifier; it is an item only when the copy on file is the very artifact the identifier names.
  */
 export function itemForHref(m: Manifest, href: string): Item | null {
 	if (href.startsWith('quilt:')) return itemForQuilt(m, href.slice('quilt:'.length));
@@ -203,7 +203,7 @@ export function interceptLinks(active: () => boolean, manifest: () => Manifest |
 		if (isWorkLink(href)) {
 			e.preventDefault();
 			const item = itemForHref(m, href);
-			// no copy of that artifact here: the modal says so and offers the source (15.3.7)
+			// no copy of that artifact here: the modal says so and offers the source
 			if (!item) {
 				const link = parseWorkLink(href);
 				if (link) pdf.open(link);

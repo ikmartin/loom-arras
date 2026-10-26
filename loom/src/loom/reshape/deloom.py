@@ -1,4 +1,4 @@
-"""A document with loom taken out: flat, and every line as the author wrote it except loom's own marks (book 17.13).
+"""A document with loom taken out: flat, and every line as the author wrote it except loom's own marks.
 
 `deloom` works on a flattened text and removes exactly what loom adds: `\\usepackage{loom}` (or `loom` from a package list) and the macro block `--plain` puts in its place, `% !LOOM` lines, `\\uses{…}`, and the labels that are loom ids, moving each reference to an id onto the author's own label beside it. Two things cannot be removed without changing what the document says, and block unless kept: a referenced result whose only label is its id, and `\\incomplete{…}`.
 """

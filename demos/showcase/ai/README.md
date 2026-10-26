@@ -1,6 +1,6 @@
 # ai/
 
-The optional AI layer of this quilt, created by `loom ai init` (book chapter 11). An agent working here reads `orientation.md` first, through `loom ai orient`.
+The optional AI layer of this quilt, created by `loom ai init`. An agent working here reads `orientation.md` first, through `loom ai orient`.
 
 Yours to edit: `modes/*.md`, the mode templates. `loom upgrade` leaves an edited mode file alone and writes the new shipped version beside it as `<mode>.md.new` for you to merge.
 

@@ -28,7 +28,7 @@ from loom.sync import SyncError
     metavar="FILE",
     help="Write the preview's patch to FILE without incorporating; never among the quilt's sources.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def adopt(
     document: str,

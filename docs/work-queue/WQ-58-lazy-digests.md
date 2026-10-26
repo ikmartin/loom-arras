@@ -21,7 +21,7 @@ The full extraction is kept as a search index outside the node graph (`results.j
 
 ## Blast radius
 
-`scan/` (which digest regions are nodes), `refs/build.py` and `digest/extract.py` (writing the index and the promoted file), `cli/library/read.py` (search over the index), closures (`tex/bundle.py`), arras's Digest view, chapter 8.
+`scan/` (which digest regions are nodes), `refs/build.py` and `digest/extract.py` (writing the index and the promoted file), `cli/library/read.py` (search over the index), closures (`tex/bundle.py`), arras's Digest view.
 
 ## Related
 

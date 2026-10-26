@@ -1,4 +1,4 @@
-"""`reference-notes.jsonl`: works an agent proposed citing and the author accepted (book 8.9.1, plan 0.10 Part F).
+"""`reference-notes.jsonl`: works an agent proposed citing and the author accepted (plan 0.10 Part F).
 
 A cheap stand-in, and deliberately so. When an agent suggests replacing an argument with a citation, the work it names is usually not in `refs.bib` at all -- so there is no entry to resolve, nothing for `loom:unresolved-work` to complain about, and no identity for loom to bind. Adding the bibliography entry is the author's job and always was (DR-122), but authors are lazy about references, and a suggestion accepted in a run that is later discarded is a verification done twice.
 

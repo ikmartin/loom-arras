@@ -222,7 +222,7 @@ def test_declared_prefix_carries_the_id_grammar(tmp_path: Path) -> None:
 
 
 def test_two_masters_share_one_set_of_nodes(tmp_path: Path) -> None:
-    """Several masters are arrangements over one set of patches: including the same node file twice is not a duplicate (book 4.1)."""
+    """Several masters are arrangements over one set of patches: including the same node file twice is not a duplicate."""
     from loom.scan.quilt import load_quilt
     from loom.scan.scan import scan
 

@@ -1,4 +1,4 @@
-"""Graphics for fragments (book 9.4.1): a PDF figure becomes SVG by pdftocairo, else `dvisvgm --pdf`; a raster or SVG is copied; everything lands content-addressed under build/svg/."""
+"""Graphics for fragments: a PDF figure becomes SVG by pdftocairo, else `dvisvgm --pdf`; a raster or SVG is copied; everything lands content-addressed under build/svg/."""
 
 from __future__ import annotations
 

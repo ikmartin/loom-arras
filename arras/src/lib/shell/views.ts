@@ -1,4 +1,4 @@
-// The views the shell offers. Every shell contains the same elements and no shell contains anything another lacks (book 15.2), so the list lives here and each arrangement renders it.
+// The views the shell offers. Every shell contains the same elements and no shell contains anything another lacks, so the list lives here and each arrangement renders it.
 
 import type { Manifest } from '$lib/manifest/types';
 import { canonUrl, masterUrl } from '$lib/nav';

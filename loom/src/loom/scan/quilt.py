@@ -1,4 +1,4 @@
-"""Quilt discovery, quilt config, user config, and author-name resolution (book 4.1-4.3).
+"""Quilt discovery, quilt config, user config, and author-name resolution.
 
 find_quilt walks up from a directory to the nearest config.toml with a [quilt] table. resolve_author applies the order flag, user config, git, refusal; the refusal message is part of the contract and tests check it verbatim.
 """
@@ -50,7 +50,7 @@ class NoAuthorError(Exception):
     """Raised when no author name can be resolved; str(exc) is NO_AUTHOR_MESSAGE."""
 
 
-# the `[quilt]` keys a person may set for every quilt in their user config; the quilt's own value wins (book 4.3)
+# the `[quilt]` keys a person may set for every quilt in their user config; the quilt's own value wins
 USER_QUILT_KEYS = ("name", "drafting", "drafting_ai", "history")
 
 
@@ -59,13 +59,13 @@ class QuiltConfig:
     name: str = ""
     main: str = ""
     drafting: str = "drafting"
-    drafting_ai: str = "drafting-ai"  # the documents the person and an agent both edit (book 4.1)
+    drafting_ai: str = "drafting-ai"  # the documents the person and an agent both edit
     history: str = ".loom/history"
     prefix: str = "q"
     engine: str = "pdflatex"
-    online: bool = False  # [library] online: whether loom may look identifiers up and fetch documents (book 8.9)
+    online: bool = False  # [library] online: whether loom may look identifiers up and fetch documents
     contact: str = ""  # [library] contact: the address the lookup services are given
-    author: str = ""  # [author] name: who this quilt's records name (book 4.3)
+    author: str = ""  # [author] name: who this quilt's records name
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
     basis: dict[str, str] = field(default_factory=dict)  # [basis]: environment name -> basis, over the built-in names

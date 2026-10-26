@@ -1,4 +1,4 @@
-"""What an annotation is, and the record one belongs to (book 7.4).
+"""What an annotation is, and the record one belongs to.
 
 Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` and `loom library verify|discard` write them.
 """
@@ -124,7 +124,7 @@ def load_records(root: Path) -> tuple[list[Record], list[str]]:
 
 
 def next_id(records: list[Record], date: str) -> str:
-    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (book 7.4.2, amended: the counter is not per file)."""
+    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (amended: the counter is not per file)."""
     n = 0
     prefix = f"a-{date}-"
     for record in records:

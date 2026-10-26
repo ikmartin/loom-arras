@@ -1,4 +1,4 @@
-"""Identity candidates (book 8.4.2): scoring, the two services' answers as recorded, the order they are asked in, the cache, the consent gate, and what lint and the manifest say. Nothing here touches the network."""
+"""Identity candidates: scoring, the two services' answers as recorded, the order they are asked in, the cache, the consent gate, and what lint and the manifest say. Nothing here touches the network."""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ class Clock:
 
 
 def test_requests_to_one_service_are_spaced_and_the_services_are_spaced_apart(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Book 8.9.1: requests to each service are at least SPACING apart, and a request to the other service does not wait on it."""
+    """Requests to each service are at least SPACING apart, and a request to the other service does not wait on it."""
     clock = Clock()
     monkeypatch.setattr(R, "SPACING", 1.0)
     monkeypatch.setattr(time, "monotonic", clock.monotonic)

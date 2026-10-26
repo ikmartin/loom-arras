@@ -1,4 +1,4 @@
-// Book 10.8: arras never contains a source-language parser or loom code, and names none of loom's operations as its own. The word quilt is arras's too since plan 0.14 gave the quilt's own things a link scheme, `quilt:` (DR-270-ikmartin); the guard enforces the rest: the loom-only operations, and every `loom <command>` phrase; advice that names a command reaches the viewer as a diagnostic's fix, never as arras's own words. Fixture data and manifest-supplied labels are outside src/ and untouched.
+// Arras never contains a source-language parser or loom code, and names none of loom's operations as its own. The word quilt is arras's too since plan 0.14 gave the quilt's own things a link scheme, `quilt:` (DR-270-ikmartin); the guard enforces the rest: the loom-only operations, and every `loom <command>` phrase; advice that names a command reaches the viewer as a diagnostic's fix, never as arras's own words. Fixture data and manifest-supplied labels are outside src/ and untouched.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';

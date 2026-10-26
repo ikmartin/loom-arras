@@ -1,6 +1,6 @@
 <script lang="ts">
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
-	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go.
+	// Home: four metric cards, then what needs attention, what is blocked, and where to go.
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, keyUrl, masterUrl, nodeUrl } from '$lib/nav';
 	import { route } from '$lib/paths';

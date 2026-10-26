@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Hover previews (plan 0.13.3 H1–H7, book 15.3.6): resting on a link shows what is behind it, so a reader can check what a result rests on, or what uses it, without following it. **A card renders an item**: the link is read as the item it names and the registry's small render draws it, so this component owns only the card — its timing, its place against the window, its dismissal and `open here` — and knows no kind of its own. A kind with no small render previews nothing.
+	// Hover previews (plan 0.13.3 H1–H7): resting on a link shows what is behind it, so a reader can check what a result rests on, or what uses it, without following it. **A card renders an item**: the link is read as the item it names and the registry's small render draws it, so this component owns only the card — its timing, its place against the window, its dismissal and `open here` — and knows no kind of its own. A kind with no small render previews nothing.
 	// The timing is the author's site generator's: 300ms before showing, so crossing a paragraph of links does not flicker; 200ms of grace to move into the card, which stays while the pointer is inside it; Escape, a press elsewhere or a scroll outside the card dismisses it. There is no preview on a device that cannot hover.
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';

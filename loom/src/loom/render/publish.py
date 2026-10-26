@@ -1,4 +1,4 @@
-"""Atomic publish (book 9.2.2): fragments and assets first, each by write-then-rename, the manifest last by rename, so a viewer never reads a half-written state."""
+"""Atomic publish: fragments and assets first, each by write-then-rename, the manifest last by rename, so a viewer never reads a half-written state."""
 
 from __future__ import annotations
 

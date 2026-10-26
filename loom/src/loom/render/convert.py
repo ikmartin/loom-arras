@@ -1,4 +1,4 @@
-"""LaTeX to the semantic dialect (book 9.4, docs/specs/dialect.md).
+"""LaTeX to the semantic dialect (docs/specs/dialect.md).
 
 A restricted translator over a node's own text: paragraphs, headings, lists, display math (left as TeX for the viewer), theorem-like environments and proofs, references, citations, footnotes, figures, simple tables, verbatim. Every block carries `data-src` back to its file offsets. Anything outside the contract renders exactly, per block, as SVG through `fallback.compile_svg`; nothing is silently dropped.
 """
@@ -65,7 +65,7 @@ CONTAINER_ENVS = {
     "minipage",
 }
 DIAGRAM_ENVS = {"tikzcd", "tikzpicture", "xy", "xymatrix"}
-# Environments a mathematics renderer handles inside a display; anything else in one means the block is a picture and belongs to the fallback (book 9.4.2).
+# Environments a mathematics renderer handles inside a display; anything else in one means the block is a picture and belongs to the fallback.
 MATH_SAFE_ENVS = {
     # the display environments themselves, which `display_env` wraps back up before this is asked
     "equation",
@@ -411,9 +411,7 @@ class RenderContext:
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
     highlight_spans: list[tuple[int, int]] = field(default_factory=list)  # comparison-only source ranges
-    pairs: dict[str, str] | None = (
-        None  # a landmark's keys -> their pair hashes, so its environments carry `data-pair` (book 15.2.6)
-    )
+    pairs: dict[str, str] | None = None  # a landmark's keys -> their pair hashes, so its environments carry `data-pair`
     last_pair: list[str] = field(
         default_factory=list
     )  # the statement a landmark's next proof belongs to, and the proofs it has had

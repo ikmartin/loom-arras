@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A cited work's outward links (book 10.2.3): its identifiers at the services that resolve them, and the fetched PDF when there is one. Each opens in a new tab, since each leaves the corpus.
+	// A cited work's outward links: its identifiers at the services that resolve them, and the fetched PDF when there is one. Each opens in a new tab, since each leaves the corpus.
 	import type { Reference } from '$lib/manifest/types';
 	import { resolve, workLinks } from '$lib/works';
 

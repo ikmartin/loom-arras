@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The local graph with its controls (book 15.5.1): how far out to draw, dots or boxes as in the graph view, a larger drawing on demand, and — where it floats over the read view — a way to put it away.
+	// The local graph with its controls: how far out to draw, dots or boxes as in the graph view, a larger drawing on demand, and — where it floats over the read view — a way to put it away.
 	import Icon from '$lib/components/Icon.svelte';
 	import Popover from '$lib/components/Popover.svelte';
 	import { store } from '$lib/manifest/client.svelte';

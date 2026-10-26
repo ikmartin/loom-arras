@@ -2,8 +2,6 @@
 
 This spec says exactly what loom reads from an author's LaTeX and what each construct means. Anything it does not name is ordinary LaTeX that loom passes over.
 
-The old book's chapter 5 is in git history.
-
 ## 1. What is read
 
 Loom scans every `.tex` file under the quilt root outside `build/`, `.loom/`, `ai/`, `refs/`, `digests/storage/`, `notes/`, `retired/`, the history and tool directories, unless its first twenty lines include the line `% !LOOM ignore`. A master is a file with `\documentclass` directly in a drafting directory; files it reaches by `\input`, `\include` or `\nest` (an `\input` one heading level down) are read in its context. Files no master reaches are scanned too.

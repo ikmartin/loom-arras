@@ -22,7 +22,7 @@ export class Workspace {
 	panes = $state<Pane[]>([]);
 	/** The pane interaction last touched (W10). */
 	focus = $state(0);
-	/** The two items compared, pane 0's and pane 1's by key, while compare is on (book 15.2.6); dropped the moment either pane's front tab is another. */
+	/** The two items compared, pane 0's and pane 1's by key, while compare is on; dropped the moment either pane's front tab is another. */
 	compared = $state<[string, string] | null>(null);
 	/** Whether the workspace draws one pane at a time, below its two-pane width; set by the workspace. */
 	narrow = $state(false);

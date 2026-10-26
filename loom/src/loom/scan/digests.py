@@ -1,4 +1,4 @@
-"""Digest headers and the checks that read them (book 8.4, 8.8, 8.11): provenance directives, the source version against the bibliography, and `requires:` against the preamble closure."""
+"""Digest headers and the checks that read them: provenance directives, the source version against the bibliography, and `requires:` against the preamble closure."""
 
 from __future__ import annotations
 

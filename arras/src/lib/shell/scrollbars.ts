@@ -1,4 +1,4 @@
-// Scrollbars shown only while something scrolls (book 15.7): whatever is scrolling carries `is-scrolling`, and the stylesheet draws its bar only then.
+// Scrollbars shown only while something scrolls: whatever is scrolling carries `is-scrolling`, and the stylesheet draws its bar only then.
 
 /** How long a bar stays after the last movement: long enough to find it and take hold of it. */
 const LINGER = 900;

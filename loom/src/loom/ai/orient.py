@@ -1,4 +1,4 @@
-"""`loom ai orient [--run RUN]` (book 11.3): the static orientation followed by what only the moment knows."""
+"""`loom ai orient [--run RUN]`: the static orientation followed by what only the moment knows."""
 
 from __future__ import annotations
 

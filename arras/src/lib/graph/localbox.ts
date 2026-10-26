@@ -1,4 +1,4 @@
-// The local graph drawn as boxes (book 15.5.1): the same neighbourhood as the dot drawing, laid out in layers by ELK with what a result rests on above it. No section groups: a neighbourhood crosses sections, and a handful of boxes reads without them.
+// The local graph drawn as boxes: the same neighbourhood as the dot drawing, laid out in layers by ELK with what a result rests on above it. No section groups: a neighbourhood crosses sections, and a handful of boxes reads without them.
 
 import type { Manifest } from '$lib/manifest/types';
 import { shortLabel, type Neighbourhood } from './local';

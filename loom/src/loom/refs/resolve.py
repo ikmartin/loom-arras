@@ -1,4 +1,4 @@
-"""Identity candidates for works whose bibliography entry states no identifier (book 8.9.1).
+"""Identity candidates for works whose bibliography entry states no identifier.
 
 A work with no DOI, eprint, MR or Zbl number is filed under a synthetic `work:<hash>`, which names it consistently but cannot be fetched or joined with anyone else's copy. This module asks zbMATH Open and Crossref which work an entry most likely is, and returns *candidates*: an identifier, where it came from, what it matched and how well. It never changes a work's identity and never writes the bibliography. A candidate becomes an identity when the author adds the field to their own entry, at which point it is declared like any other.
 

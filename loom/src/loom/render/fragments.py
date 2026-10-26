@@ -1,4 +1,4 @@
-"""Fragments: one HTML file per node, per master, and per digest (book 9.3).
+"""Fragments: one HTML file per node, per master, and per digest.
 
 A node fragment renders the node's own text with placeholders for child claimants; a master fragment renders the master's document with every inclusion expanded in place; a digest fragment renders the digest file as a document. All three come from one Converter with two `child_html` policies.
 """
@@ -212,7 +212,7 @@ class FragmentRenderer:
         return self.plan.fallback_preamble[master]
 
     def _fallback_for_preamble(self, preamble_text: str, key: str) -> Callable[[str, str, str], str]:
-        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble (book 9.3)."""
+        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble."""
         preamble = prepare_preamble(preamble_text)
 
         def render(latex: str, css: str, data_src: str) -> str:
@@ -240,7 +240,7 @@ class FragmentRenderer:
         block = ""
         extra = ""
         if file is not None and file in self.result.assembly.digest_files:
-            # a digest statement compiles inside its macro block, with the packages its header requires that the preamble lacks (book 8.3.5)
+            # a digest statement compiles inside its macro block, with the packages its header requires that the preamble lacks
             from loom.scan.digests import loaded_packages, required_packages
 
             closure = self.result.closures.get(master) if master else None
@@ -405,7 +405,7 @@ class FragmentRenderer:
         return "".join(parts)
 
     def _pair_attrs(self, node: NodeRec) -> list[str]:
-        """`data-pair` and `data-hash`, what compare pairs a node by (book 15.2.6); none for a node whose key names no id.
+        """`data-pair` and `data-hash`, what compare pairs a node by; none for a node whose key names no id.
 
         The pair is the key with its derived id made plain; the hash is `pair_hash` over the node's own text, the text the history versions.
         """
@@ -426,9 +426,7 @@ class FragmentRenderer:
         body = conv.render_range(env.body_start, env.body_end) if env else ""
         self._sink.extend(ctx.diagnostics)
         attrs = [f'class="env env-{slug(node.taxon or node.env or "env")}"']
-        attrs.append(
-            f'id="{slug(node.key)}"'
-        )  # a real anchor target: without it no link into a document can land (book 15.3.1)
+        attrs.append(f'id="{slug(node.key)}"')  # a real anchor target: without it no link into a document can land
         if node.id:
             attrs.append(f'data-id="{html.escape(node.id, quote=True)}"')
         attrs.append(f'data-key="{html.escape(node.key, quote=True)}"')

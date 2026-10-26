@@ -1,4 +1,4 @@
-// Annotations shown where they are (book 15.3.1; plan 0.13 §7): a mark on the text, or on the label of a node whose annotation has no mark of its own, opens its box at the mark. The mark whose box is open carries the class `open`, which is what the wash means (theme.css).
+// Annotations shown where they are (plan 0.13 §7): a mark on the text, or on the label of a node whose annotation has no mark of its own, opens its box at the mark. The mark whose box is open carries the class `open`, which is what the wash means (theme.css).
 //
 // Two placements share this controller because they differ only in where the box goes. `inline` puts it in the flow beneath the block the mark sits in, so nothing is covered and the text reflows. `floating` puts it over the page at the mark, free to overlap the text and the gutter. In both, the box is the same `AnnotationBox`.
 //
@@ -35,7 +35,7 @@ export interface InlineComments {
 
 type Box = Component<{ annotation: Annotation; replies: Annotation[]; onclose?: () => void }>;
 
-/** The top-level annotations among `ids`, settled ones included; a reply is shown inside its parent, so a mark listing both opens the parent once. A discarded one is a settled one (15.3.1): its mark is inert until the settled control draws it, and then its box opens like a resolved one's. */
+/** The top-level annotations among `ids`, settled ones included; a reply is shown inside its parent, so a mark listing both opens the parent once. A discarded one is a settled one: its mark is inert until the settled control draws it, and then its box opens like a resolved one's. */
 export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	const out: Annotation[] = [];
 	const seen = new Set<string>();

@@ -1,4 +1,4 @@
-// Compare's state (book 15.2.6), shared by the rail that turns it on and steps through it and by the layer each pane draws it with. What is compared is the workspace's (`compared`, in the URL); what it found and what the publisher answered live here.
+// Compare's state, shared by the rail that turns it on and steps through it and by the layer each pane draws it with. What is compared is the workspace's (`compared`, in the URL); what it found and what the publisher answered live here.
 
 import { store } from '$lib/manifest/client.svelte';
 import type { Manifest } from '$lib/manifest/types';

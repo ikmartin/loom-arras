@@ -1,4 +1,4 @@
-"""Annotation marks in fragments (book 9.5): a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
+"""Annotation marks in fragments: a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
 
 The quote is TeX and the block is HTML, so both are compared as the page prints them: the quote, a formula's TeX and the command a reference or citation carries in `data-tex` all read through `selectors.project`; printed text reads as it is, other tags as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
 """

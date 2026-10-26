@@ -1,4 +1,4 @@
-"""Figures the converter cannot draw compile once each, on one shared pool, and the review previews share them with the fragments (plan 0.18.2, book 9.3)."""
+"""Figures the converter cannot draw compile once each, on one shared pool, and the review previews share them with the fragments (plan 0.18.2)."""
 
 from __future__ import annotations
 

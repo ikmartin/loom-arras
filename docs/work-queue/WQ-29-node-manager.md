@@ -27,7 +27,7 @@ Arras shows a node's family (ancestors, forks, the version it was forked at) whe
 
 ## Blast radius
 
-`loom/src/loom/reshape/ids.py`, the ledger's ancestry entries, a node-page component, Chapter 5.
+`loom/src/loom/reshape/ids.py`, the ledger's ancestry entries, a node-page component.
 
 ## Related
 

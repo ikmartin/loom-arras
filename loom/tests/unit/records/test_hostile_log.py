@@ -72,7 +72,7 @@ def test_a_reply_to_nothing_is_reported(tmp_path: Path) -> None:
 
 
 def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Path) -> None:
-    """Book 7.4.1: a line loom did not write is reported with its line number and why, and the lines around it still load."""
+    """A line loom did not write is reported with its line number and why, and the lines around it still load."""
     (tmp_path / "annotations").mkdir()
     lines = [
         json.dumps(created()),

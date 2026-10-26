@@ -1,4 +1,4 @@
-"""The last text loom saw for every key, so an annotation's anchor can be frozen when the author edits under it (book 7.5).
+"""The last text loom saw for every key, so an annotation's anchor can be frozen when the author edits under it.
 
 An annotation records `against`: the hash of the text it was written about. When that text changes, the words the annotation quotes are gone from the quilt, and with them any chance of showing a reader what was being objected to. Freezing means copying the old text into `.loom/history/texts/` at the moment loom notices it moved.
 

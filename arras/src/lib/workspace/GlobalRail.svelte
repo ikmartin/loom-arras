@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The frame's one rail (plan 0.16, decision 6). It holds only what concerns both panes: the annotation filter at its left, which governs what every document draws, and **compare** at its right, which acts on the two items on screen (book 15.2.6). Nothing about one item stands here: an item's views are at the end of its pane's tab strip, and its controls on the focused pane.
+	// The frame's one rail (plan 0.16, decision 6). It holds only what concerns both panes: the annotation filter at its left, which governs what every document draws, and **compare** at its right, which acts on the two items on screen. Nothing about one item stands here: an item's views are at the end of its pane's tab strip, and its controls on the focused pane.
 	//
 	// **Compare turns annotations off** while it is pressed and puts back what was chosen when it is released: the comparison's washes and colours then mean one thing each (A4). It is released by a press, or by either pane's front tab changing. While comparing, the rail counts the differences and steps through them, `[` and `]` as well as ‹ ›: a step concerns both panes, so its keys are the rail's and not a fragment's.
 	import { untrack } from 'svelte';

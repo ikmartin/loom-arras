@@ -1,4 +1,4 @@
-"""Master expansion with a span map (book 5.9.1, 5.9.2, 5.9.4).
+"""Master expansion with a span map.
 
 \\input, \\include, and \\nest are resolved as TeX does: the path as written, then with .tex appended; a braceless \\input name is accepted; a name kpsewhich finds is a system file and ignored; a non-.tex file is an opaque inclusion whose text is never scanned. The expanded text keeps every reached file's text exactly once, each child spliced right after its inclusion command, so a section that starts in one file and continues in another is one unit. Cycles and second inclusions of a file in one master are reported and not expanded.
 """

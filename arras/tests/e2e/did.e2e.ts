@@ -57,7 +57,7 @@ test('with an empty log it says so in one line, rather than a section over nothi
 });
 
 test('a row opens its mark in the other pane, and the mark travels to its own box rather than back to the row', async ({ page }) => {
-	// a finding in what the session did opens the document it is about at its mark in the other pane; the mark's double-click lands on the annotation's box, which carries its id (15.3.1), so the row is never where a mark sends the reader
+	// a finding in what the session did opens the document it is about at its mark in the other pane; the mark's double-click lands on the annotation's box, which carries its id, so the row is never where a mark sends the reader
 	// the measure is how far the element sticks out of its pane, above or below; 0 or less is inside
 	const outOfPane = (el: Element) => {
 		const pane = el.closest('[data-pane] > .body') as HTMLElement;

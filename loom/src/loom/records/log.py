@@ -1,4 +1,4 @@
-"""`annotations/log.jsonl`: every review event, appended, never rewritten (book 7.4).
+"""`annotations/log.jsonl`: every review event, appended, never rewritten.
 
 One line per event, current state by replay. It replaced a tree of `annotations.json` files, one per run and one per author per day, each rewritten whole whenever anything in it changed — which is why an annotation could only ever be *replied* to. An agent re-checking a finding that still stands now `edited`s it: the history stays in the log, one current body is shown, and a finding stops accumulating restatements of itself.
 
@@ -49,7 +49,7 @@ def _kind(given: Any) -> str:
 def _annotation(event: dict[str, Any]) -> Annotation:
     """One `created` or `replied` event as an annotation.
 
-    `anchor` is one of two shapes under one name: the text triple every annotation has carried since book 7.5, or -- on a note against a page of a cited work -- a page anchor carrying `kind` beside that triple (plan 0.13 item 2). The triple is read in both cases; the page anchor only when `kind` says so, since `Selector.from_dict` would otherwise swallow the page fields without a word.
+    `anchor` is one of two shapes under one name: the text triple every annotation carries, or -- on a note against a page of a cited work -- a page anchor carrying `kind` beside that triple (plan 0.13 item 2). The triple is read in both cases; the page anchor only when `kind` says so, since `Selector.from_dict` would otherwise swallow the page fields without a word.
     """
     anchor = event.get("anchor")
     return Annotation(

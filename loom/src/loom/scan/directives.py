@@ -1,4 +1,4 @@
-"""% !LOOM and % !TEX directives (book 5.11): declarations the scanner reads, never actions.
+"""% !LOOM and % !TEX directives: declarations the scanner reads, never actions.
 
 File-level directives sit in the first twenty lines before any node; node-level ones inside a node's own text. `% !TEX root = ...` and `% !TEX program = ...` are read in their own form.
 """
@@ -35,7 +35,7 @@ BARE_KEYS = {"ignore"}
 REGION_KEYS = {
     "macros",
     "loom-macros",
-}  # loom-macros: the block a landmark shown `--plain` carries in place of \usepackage{loom} (17.13)
+}  # loom-macros: the block a landmark shown `--plain` carries in place of \usepackage{loom}
 HEAD_LINES = 20
 
 _LINE = re.compile(r"^[ \t]*%[ \t]*!(LOOM|TEX)[ \t]+(.*?)[ \t]*$", re.M)

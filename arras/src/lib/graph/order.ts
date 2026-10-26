@@ -1,4 +1,4 @@
-// Document order (book 15.5): where each node falls in a master, from the inclusion tree the manifest publishes.
+// Document order: where each node falls in a master, from the inclusion tree the manifest publishes.
 
 import type { Manifest } from '$lib/manifest/types';
 

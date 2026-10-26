@@ -1,4 +1,4 @@
-"""Flatten a master into one file: every \\input, \\include, and \\nest expanded in place, with \\nest's level shift applied to the text it brings in (book 6.6, 17.13).
+"""Flatten a master into one file: every \\input, \\include, and \\nest expanded in place, with \\nest's level shift applied to the text it brings in.
 
 The recursion lives in `reshape/linearize.py`; this module keeps the sectioning shift, which `atomize` and `linearize` share.
 """

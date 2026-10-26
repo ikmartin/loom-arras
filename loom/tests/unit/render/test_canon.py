@@ -1,4 +1,4 @@
-"""Landmarks in the build (book 9.3, 17.9): a landmark is rendered as a document, with no node identity, its own macros, and a place in the manifest."""
+"""Landmarks in the build: a landmark is rendered as a document, with no node identity, its own macros, and a place in the manifest."""
 
 from __future__ import annotations
 

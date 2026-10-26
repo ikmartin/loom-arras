@@ -1,4 +1,4 @@
-"""The dependency graph from the command line (book 12): `search`, `deps`, `downstream`, and the refusal of `delete`."""
+"""The dependency graph from the command line: `search`, `deps`, `downstream`, and the refusal of `delete`."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def test_search_deps_downstream_delete(tmp_path: Path) -> None:
         ("Theorem", "dm-0003"),
         ("Definition", "Calloway14-def-3.1"),
         ("Proposition", "Calloway14-prop-3.2"),
-    }  # the closure includes the digest nodes the proof cites by postnote (book 8.11)
+    }  # the closure includes the digest nodes the proof cites by postnote
     up = json_of("downstream", "dm-0001", "--json", cwd=q)
     assert {x["key"] for x in up["dependents"]} == {"dm-0002/proof", "dm-0005/proof"}
     assert any(i["file"] == "drafting/main.tex" for i in up["inclusions"])

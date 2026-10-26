@@ -1,4 +1,4 @@
-"""Bundles: a standalone document for one key containing exactly the statements it depends on (book 3.4, 9.7, DR-37).
+"""Bundles: a standalone document for one key containing exactly the statements it depends on (9.7, DR-37).
 
 Layout: the master's preamble closure verbatim (with \\usepackage{loom} guaranteed), a heading, the statements of the closure in dependency order, then the key's own region (the statement, or statement and proof). `--with` substitutes a proposed diff or file for the key's text and `--draft` bundles a node file not yet in the quilt; neither touches the quilt.
 """

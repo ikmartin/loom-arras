@@ -1,4 +1,4 @@
-// The viewer's own preferences (book 15.2, 15.7): the body typeface, the body size, the line width, the theme, how a document is set, where comments stand, and whether an item's toolbar fades.
+// The viewer's own preferences: the body typeface, the body size, the line width, the theme, how a document is set, where comments stand, and whether an item's toolbar fades.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
 export type Face = 'serif' | 'sans';
@@ -19,7 +19,7 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
  * `floating` opens a box over the text, anchored to the mark and inset from the window; `margin` stands it in a column beside the text; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
 export type Comments = 'floating' | 'inline';
-/** Whether the focused pane's toolbar stays (`pinned`) or fades when the pointer leaves the top of the pane (`fade`); one choice for every toolbar, the pin's (book 15.2.5). */
+/** Whether the focused pane's toolbar stays (`pinned`) or fades when the pointer leaves the top of the pane (`fade`); one choice for every toolbar, the pin's. */
 export type Controls = 'pinned' | 'fade';
 
 const KEY = 'arras.prefs';

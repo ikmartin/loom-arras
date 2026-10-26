@@ -1,4 +1,4 @@
-// The force layout's simulation alone (book 15.5): ids and edges in, positions out. Nothing here touches the page or the manifest, so it runs in a worker (force.worker.ts) as readily as on the page.
+// The force layout's simulation alone: ids and edges in, positions out. Nothing here touches the page or the manifest, so it runs in a worker (force.worker.ts) as readily as on the page.
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 

@@ -1,4 +1,4 @@
-"""Lint: the checks that turn scan facts into diagnostics (book 5.14).
+"""Lint: the checks that turn scan facts into diagnostics.
 
 Everything here reads the scan result and emits; nothing is stored. `[lint] disable` silences publisher codes only.
 """
@@ -59,7 +59,7 @@ LOOM_MACROS = ("uses", "incomplete", "nest")
 
 
 def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
-    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent document's derived id (book 5.3).
+    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent document's derived id.
 
     A document in `[quilt] drafting` reaching a derived node defines it; a node that document reaches referring to one cites it. The derived node itself is reported once, not again for each reference it makes.
     """
@@ -98,7 +98,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
 
 
 def _agent_documents(result: ScanResult) -> list[Diagnostic]:
-    """`loom:agent-document-not-a-copy` and `loom:plain-id-in-drafting-ai`: the agent's drafting directory holds copies, and a copy defines derived ids only (book 4.4, 5.3.1).
+    """`loom:agent-document-not-a-copy` and `loom:plain-id-in-drafting-ai`: the agent's drafting directory holds copies, and a copy defines derived ids only.
 
     A document no `copy` step made has no source to be adopted into and no bases to refresh from; a plain id defined there writes into the person's id space from a file no adoption reads.
     """
@@ -214,7 +214,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         if target is None or source is None:
             continue
         src_masters = set(source.reached_by)
-        if target.file in asm.digest_files:  # digests are loose by construction (8.1.2)
+        if target.file in asm.digest_files:  # digests are loose by construction
             continue
         loose_to_loose = not src_masters and not target.reached_by and target.file != source.file
         if (src_masters and not (src_masters & set(target.reached_by))) or loose_to_loose:

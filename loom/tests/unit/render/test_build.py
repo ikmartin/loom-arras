@@ -87,7 +87,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
         "dm-0003",
         "Calloway14-prop-3.2",
         "Calloway14-def-3.1",
-    }  # the postnote edge brings the digest nodes in (book 8.11)
+    }  # the postnote edge brings the digest nodes in
     assert m["keys"]["dm-0005/proof"]["state"] == "incomplete"
     assert m["regions"]["dm-0001#eq:fix"]["numbers"]["drafting/main.tex"]["number"] == "1.1"
     assert any(e["from"] == "dm-0003/proof" and e["to"] == "dm-0002" for e in m["edges"])
@@ -223,7 +223,7 @@ def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.Mo
 def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Book 9.2.2: arras reloads when `manifest.json` changes, so every file a build publishes is written beside its target and renamed into place before the manifest is, itself by rename. The interrupted-publish test passes whichever is written first, since a failed manifest write leaves the old one either way; this one records the renames.
+    """Arras reloads when `manifest.json` changes, so every file a build publishes is written beside its target and renamed into place before the manifest is, itself by rename. The interrupted-publish test passes whichever is written first, since a failed manifest write leaves the old one either way; this one records the renames.
 
     A cold build, where every file is new, and a rebuild after one node changed, which is what a served quilt does on every save.
     """

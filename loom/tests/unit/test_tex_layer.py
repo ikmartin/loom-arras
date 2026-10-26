@@ -80,7 +80,7 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
         "dm-0002",
         "Calloway14-def-3.1",
         "Calloway14-prop-3.2",
-    }  # the proof cites Calloway14 by postnote (book 8.11)
+    }  # the proof cites Calloway14 by postnote
     text = b.text
     assert text.index("\\usepackage{loom}") < text.index("\\begin{document}")
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")

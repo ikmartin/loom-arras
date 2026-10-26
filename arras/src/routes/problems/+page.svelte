@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The problems page (book 15.3.5): every diagnostic, grouped by code. The filters stand in the shell's left panel and live in the URL, so the home page's errors card opens it showing errors.
+	// The problems page: every diagnostic, grouped by code. The filters stand in the shell's left panel and live in the URL, so the home page's errors card opens it showing errors.
 	import { page } from '$app/state';
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
@@ -20,7 +20,7 @@
 			(d) => (!severity || d.severity === severity) && (!code || d.code === code) && (!subject || subjectOf(d) === subject)
 		)
 	);
-	// Two kinds of thing go wrong, and they are not the same kind of work to put right: the source, and loom's own record of it (book 10.2.5).
+	// Two kinds of thing go wrong, and they are not the same kind of work to put right: the source, and loom's own record of it.
 	const bySubject = $derived(groupBySubject(shown).map((g) => ({ ...g, groups: groupDiagnostics(g.items) })));
 	const subjects = $derived([...new Set(m.diagnostics.map(subjectOf))]);
 	const counts = $derived(countBySeverity(m.diagnostics));

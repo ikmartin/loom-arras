@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
 	//
-	// **The session selection governs the page.** What the panel is showing is what the page marks; an annotation the selection hides is not drawn. A settled one is drawn only while the settled control is on (book 15.3.1). **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
+	// **The session selection governs the page.** What the panel is showing is what the page marks; an annotation the selection hides is not drawn. A settled one is drawn only while the settled control is on. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
 	//
 	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	import { artifactUrl, dataUrl } from '$lib/paths';

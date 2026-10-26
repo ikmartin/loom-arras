@@ -1,4 +1,4 @@
-"""Addresses and versions (book 17.4, 17.5): `rl-0001@3` names the text key `rl-0001` had at step 3, a proof by `rl-0001/proof@paper-v2`."""
+"""Addresses and versions: `rl-0001@3` names the text key `rl-0001` had at step 3, a proof by `rl-0001/proof@paper-v2`."""
 
 from __future__ import annotations
 

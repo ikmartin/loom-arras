@@ -1,4 +1,4 @@
-"""`loom session new | use | list | rename | close | delete | say | next | watch` (book 11).
+"""`loom session new | use | list | rename | close | delete | say | next | watch`.
 
 A session is where work belongs; the author is who did it. These commands say which session is current and carry its chat, and the record says the rest.
 """
@@ -51,7 +51,7 @@ DRY_RUN = click.option("--dry-run", is_flag=True, help="Say what would change an
 @AS_OPTION
 @click.option("--no-use", is_flag=True, help="Create it without making it the active session.")
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def new_command(
     title: str | None, declared: str | None, no_use: bool, dry_run: bool, as_json: bool, quilt_path: str | None
@@ -85,7 +85,7 @@ def new_command(
 @click.argument("which")
 @AS_OPTION
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def use_command(which: str, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Make WHICH the active session, resuming it when it was closed. WHICH is an id, a title, or a unique id suffix."""
@@ -161,7 +161,7 @@ def list_command(show_all: bool, as_json: bool, quilt_path: str | None) -> None:
 @click.option("--name", "title", required=True, metavar="TITLE", help="The new title.")
 @AS_OPTION
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def rename_command(
     which: str, title: str, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
@@ -182,7 +182,7 @@ def rename_command(
 @click.argument("which", required=False)
 @AS_OPTION
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def close_command(
     which: str | None, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
@@ -220,7 +220,7 @@ def close_command(
 @AS_OPTION
 @click.option("--yes", "-y", is_flag=True, help="Skip the question --purge asks.")
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def delete_command(
     which: str,
@@ -360,7 +360,7 @@ def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # t
 @click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to speak in.")
 @click.option("--as", "declared", default=None, help="Who is speaking. An agent names itself, including Agent or AI.")
 @DRY_RUN
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def say_command(
     text: str, which: str | None, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None

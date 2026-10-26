@@ -1,4 +1,4 @@
-"""The one output layer every command that reports goes through (plan 0.18.3, book 12.1): a verdict, groups, notes, and the same report as JSON.
+"""The one output layer every command that reports goes through (plan 0.18.3): a verdict, groups, notes, and the same report as JSON.
 
 A command builds a `Report` and calls `emit`. The text leads with the verdict (T1), groups what repeats under a heading with its count and cuts a long list with what it left out (T2), names a next command where action is implied (T3), keeps within 100 columns without ever cutting an identifier (T5), and sends notes to stderr. `--json` prints the same report as one envelope (T8): the verdict, the groups uncut, the notes, and the command's own data under its keys. `Progress` shows that a slow command is alive, on stderr only (T6).
 """
@@ -89,7 +89,7 @@ class Report:
     ok : bool, default True
         Whether nothing is wrong; a success that leaves work undone is not ok.
     exit : int, default 0
-        The exit code, by book 12.1's rule.
+        The exit code: 0 success, 1 a content problem the author can fix, 2 a usage or environment problem.
     groups : list of Group, default []
         The detail, in the order a reader needs it.
     notes : list of str, default []
@@ -148,7 +148,7 @@ class Report:
         return "\n".join(out)
 
     def to_json(self) -> dict[str, Any]:
-        """The envelope (book 12.9): the verdict, ok, exit, the groups uncut, the notes, and the command's data beside them."""
+        """The envelope: the verdict, ok, exit, the groups uncut, the notes, and the command's data beside them."""
         out: dict[str, Any] = {
             "verdict": self.verdict,
             "ok": self.ok,

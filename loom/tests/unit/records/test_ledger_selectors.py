@@ -1,4 +1,4 @@
-"""Ledger, snapshots, and selectors as units (book 7.2, 7.5)."""
+"""Ledger, snapshots, and selectors as units."""
 
 from __future__ import annotations
 

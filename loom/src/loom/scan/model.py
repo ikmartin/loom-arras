@@ -1,4 +1,4 @@
-"""Dataclasses shared by every scanner stage (book chapter 5 vocabulary).
+"""Dataclasses shared by every scanner stage.
 
 Offsets are character offsets into a file's decoded text; comments are blanked, never removed, so offsets in `clean` equal offsets in `text`.
 """
@@ -32,9 +32,7 @@ class SourceFile:
     encoding: str
     ignored: bool
     line_starts: list[int] = field(default_factory=list)
-    superseded: str | None = (
-        None  # the ledger action whose output replaced this document, which then defines nothing (book 17.12)
-    )
+    superseded: str | None = None  # the ledger action whose output replaced this document, which then defines nothing
 
     def line_of(self, offset: int) -> int:
         """1-based line containing `offset`."""

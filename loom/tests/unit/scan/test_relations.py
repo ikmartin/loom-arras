@@ -1,4 +1,4 @@
-"""The `see:` relation (book 5.11.3, plan 0.2 §2): a link a viewer shows that the mathematics never sees."""
+"""The `see:` relation (plan 0.2 §2): a link a viewer shows that the mathematics never sees."""
 
 from __future__ import annotations
 

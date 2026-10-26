@@ -1,4 +1,4 @@
-"""Quilt discovery, config validation and who the author is (book 4.1, 4.2, 4.3)."""
+"""Quilt discovery, config validation and who the author is."""
 
 from __future__ import annotations
 

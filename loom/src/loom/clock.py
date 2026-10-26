@@ -1,4 +1,4 @@
-"""Timestamps, with LOOM_FIXED_TIME overriding the clock so fixtures are reproducible (book 12.10)."""
+"""Timestamps, with LOOM_FIXED_TIME overriding the clock so fixtures are reproducible."""
 
 from __future__ import annotations
 

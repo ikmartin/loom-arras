@@ -1,4 +1,4 @@
-"""Sectioning units on the expanded master (book 5.2, 5.4.2, 5.9.2).
+"""Sectioning units on the expanded master.
 
 Levels come from the command plus the \\nest shift of the segment it sits in; a unit runs to the next command of equal or higher level or to \\end{document}. Hierarchy is computed on the expanded text; the ownership span is per file: from the heading to the next heading of equal or higher level whose heading is in the same file, or the end of that file. A heading's label is the first \\label on its line or on the next non-blank line, unless that line opens an environment or another heading.
 """

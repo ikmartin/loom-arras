@@ -1,4 +1,4 @@
-// The workbench in the viewer (book 15.2, 15.3.1, 15.3.5): landmarks as documents of their own, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
+// The workbench in the viewer: landmarks as documents of their own, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
 

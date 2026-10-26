@@ -1,4 +1,4 @@
-"""Node assembly: theorem-like environments, proofs, sections, and containers become keyed records with ids, aliases, ownership, and regions (book 5.2-5.4, 5.6, 5.8, 5.9.3).
+"""Node assembly: theorem-like environments, proofs, sections, and containers become keyed records with ids, aliases, ownership, and regions.
 
 Ownership is a partition of each file: every character belongs to the innermost claimant (a theorem-like environment, a proof, a section's per-file span, or the file itself, the master owning its preamble and top-level prose). Hierarchy for sections is per master, from the expansion; ownership is per file, so hashes never depend on which master reached a file.
 """
@@ -85,14 +85,12 @@ class NodeRec:
     claimants: list[str] = field(
         default_factory=list
     )  # direct child claimants (nodes, proofs, sections) in offset order
-    conflict: list[str] = field(
-        default_factory=list
-    )  # kind "conflict": the files that each define this id (book 5.3.5)
+    conflict: list[str] = field(default_factory=list)  # kind "conflict": the files that each define this id
     conflict_of: str | None = None  # a demoted definition: the id it claimed, which a placeholder now holds
 
     @property
     def derived_of(self) -> str | None:
-        """The plain key an agent document's node corresponds to, `zk-0001/proof` for `zk-0001-ai/proof`; None for any other node (book 5.3)."""
+        """The plain key an agent document's node corresponds to, `zk-0001/proof` for `zk-0001-ai/proof`; None for any other node."""
         if self.external:
             return None
         plain = plain_key(self.key)
@@ -197,7 +195,7 @@ def assemble(
     for path, src in files.items():
         if src.ignored or path in expansions or path in reached_any or not path.endswith(".tex"):
             continue
-        # a file no master reaches is sectioned on its own (book 5.9.2.3); the file path stands in for the master
+        # a file no master reaches is sectioned on its own; the file path stands in for the master
         solo = Expansion(master=path, text=src.clean, segments=[Segment(path, 0, len(src.clean), 0, 0)])
         asm.sections[path] = find_sections(solo, files)
     conflicted = _conflicted_ids(asm, files, slugs)

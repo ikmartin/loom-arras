@@ -1,4 +1,4 @@
-"""`loom mv` (book 4.4, 17.12): moving a drafting document and recording the move, or recording a rename made elsewhere, so every record naming the document follows it."""
+"""`loom mv`: moving a drafting document and recording the move, or recording a rename made elsewhere, so every record naming the document follows it."""
 
 from __future__ import annotations
 

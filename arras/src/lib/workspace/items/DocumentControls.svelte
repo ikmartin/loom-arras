@@ -16,7 +16,7 @@
 	const m = $derived(store.manifest!);
 	const master = $derived(isLandmark(m, item.id) ? undefined : m.masters.find((x) => x.path === item.id));
 	const notes = $derived(documentState(item).notes);
-	// the settled control is offered wherever there is something for it to draw, so a document whose every annotation is settled can still show them (15.2.5)
+	// the settled control is offered wherever there is something for it to draw, so a document whose every annotation is settled can still show them
 	const anySettled = $derived(!!master && settledIn(m, master.path));
 
 	// the tools write, so a corpus served without a write API does not offer them
@@ -42,7 +42,7 @@
 				/>
 			{/if}
 			{#if notes.ready || anySettled}
-				<!-- Settled annotations are hidden at rest; this shows them faintly, for the sitting, on every document and node (book 15.3.1). -->
+				<!-- Settled annotations are hidden at rest; this shows them faintly, for the sitting, on every document and node. -->
 				<ToolbarItem
 					label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
 					name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"

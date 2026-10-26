@@ -1,6 +1,6 @@
 name: loom
 
-# loom's lane of scripts/verify, run as it is at a terminal: `fast --only loom` (ruff, the format check, mypy and the unit tier) over the Python matrix, and the TeX tier alone in a TeX Live container; and loom installed from the clone on a bare runner, where doctor must fail for want of TeX and serve must start. Book 14.4.
+# loom's lane of scripts/verify, run as it is at a terminal: `fast --only loom` (ruff, the format check, mypy and the unit tier) over the Python matrix, and the TeX tier alone in a TeX Live container; and loom installed from the clone on a bare runner, where doctor must fail for want of TeX and serve must start.
 
 on:
   push:

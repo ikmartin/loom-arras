@@ -1,6 +1,6 @@
 import { relationships } from './relationships';
 import { displayNode } from '$lib/nodes/display';
-// The dependency graph as a layered drawing (book 10.2.7): ELK lays the results out in layers, what a result rests on above it. Edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
+// The dependency graph as a layered drawing: ELK lays the results out in layers, what a result rests on above it. Edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
 import { taxonTone } from "$lib/taxonomy";
 import type { Manifest, Node } from "$lib/manifest/types";
 import { bibText } from "$lib/works";
@@ -46,7 +46,7 @@ export interface Filters {
   master?: string;
   taxon?: string;
   tag?: string;
-  /** Which cited results to draw. `reached` is the default: everything this corpus wrote, plus the external nodes it actually depends on. A digest holds a whole paper, so `all` is mostly other people's theorems. `papers` draws each cited work as one node instead of its results (15.5.2). */
+  /** Which cited results to draw. `reached` is the default: everything this corpus wrote, plus the external nodes it actually depends on. A digest holds a whole paper, so `all` is mostly other people's theorems. `papers` draws each cited work as one node instead of its results. */
   external?: "reached" | "all" | "none" | "papers";
   reached?: Set<string>;
 }
@@ -111,7 +111,7 @@ function sourceOf(m: Manifest): (id: string) => string | null {
 }
 
 /**
- * The work graph (15.5.2): the corpus's own results as they are, and every cited work as one node.
+ * The work graph: the corpus's own results as they are, and every cited work as one node.
  *
  * It is the result graph's quotient by source, taken over external nodes only. An edge runs from an own result to a paper when the result depends on any of the paper's digested results — counting how many — or cites the paper at all; an edge runs between two papers when a result in one digest depends on a result in another. A work cited but never digested appears too, from the references' `cited_by`, which the expanded graph cannot show. Nothing beyond the manifest is needed: a node's source is its `digest`.
  */
@@ -241,7 +241,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
       "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
     },
-    // ELK puts a source above its target, and upstream belongs above (15.5), so each edge is laid out from the dependency to what uses it
+    // ELK puts a source above its target, and upstream belongs above, so each edge is laid out from the dependency to what uses it
     children: drawn.map((n) => ({ id: n.id, width: W, height: H })),
     edges: routed.map((e, i) => ({ id: "e" + i, sources: [e.to], targets: [e.from] })),
   })) as ElkNode & { edges?: ElkEdge[]; width?: number; height?: number };

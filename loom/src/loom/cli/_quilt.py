@@ -76,7 +76,7 @@ def describe(result: ScanResult, key: str) -> str:
 
 
 def require_text(result: ScanResult, key: str) -> None:
-    """Refuse a key that is conflicted: defined by two files, it has no text for anything to act on (book 5.3.5)."""
+    """Refuse a key that is conflicted: defined by two files, it has no text for anything to act on."""
     n = result.assembly.nodes.get(key)
     if n is not None and n.kind == "conflict":
         from loom.scan.nodes import defined_by

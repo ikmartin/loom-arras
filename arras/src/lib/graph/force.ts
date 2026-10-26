@@ -1,5 +1,5 @@
 import { displayNode } from '$lib/nodes/display';
-// The force layout (book 15.5), the default: a neighbourhood, circular nodes, labels beneath, no direction encoded. It answers what sits near what, where the layered drawing answers what this rests on.
+// The force layout, the default: a neighbourhood, circular nodes, labels beneath, no direction encoded. It answers what sits near what, where the layered drawing answers what this rests on.
 
 import type { Manifest } from '$lib/manifest/types';
 import { taxonTone } from '$lib/taxonomy';

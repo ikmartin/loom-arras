@@ -1,4 +1,4 @@
-"""Edges from references, \\uses, citations with postnotes, and nesting (book 5.7, 5.8.3).
+"""Edges from references, \\uses, citations with postnotes, and nesting.
 
 An edge runs from a region (a statement, a proof, or prose) to a node; its kind is that of the region it occurs in. A reference to a labelled region inside a node targets the node that owns the region, which is the proof key when the region lies in a proof.
 """

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The PDF viewer (book 15.3.7): a link into a cited work, `cited:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
+	// The PDF viewer: a link into a cited work, `cited:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
 	// It opens only where the copy on file is not the artifact a link names: a link to a filed copy opens that work as an item, and which pane it opens in is `workspace/links.ts`'s to decide.
 	import { store } from '$lib/manifest/client.svelte';
 	import { pdf } from '$lib/pdf.svelte';

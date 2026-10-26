@@ -1,4 +1,4 @@
-"""The fixture quilts are the generator's output (book 14.3): `scripts/gen_quilts.py --check` regenerates each and compares byte for byte.
+"""The fixture quilts are the generator's output: `scripts/gen_quilts.py --check` regenerates each and compares byte for byte.
 
 Editing a quilt by hand, or an asset the generator draws on, fails here; that is the alarm this test exists for.
 """

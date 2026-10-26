@@ -1,4 +1,4 @@
-"""Environments written inline in a master render as HTML, and a fallback that cannot compile is remembered rather than retried (book 9.4.2)."""
+"""Environments written inline in a master render as HTML, and a fallback that cannot compile is remembered rather than retried."""
 
 from __future__ import annotations
 

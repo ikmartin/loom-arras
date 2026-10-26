@@ -15,7 +15,7 @@
 
 	const node = $derived(store.manifest?.nodes[item.id]);
 	const held = $derived(nodeState(item));
-	// the settled control is offered wherever there is something for it to draw, so a node whose every annotation is settled — nothing drawn at rest — can still show them (15.2.5)
+	// the settled control is offered wherever there is something for it to draw, so a node whose every annotation is settled — nothing drawn at rest — can still show them
 	const anySettled = $derived(!!store.manifest && !!node && settledOn(store.manifest, [item.id, ...node.proofs]));
 
 	function context(): void {

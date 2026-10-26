@@ -1,4 +1,4 @@
-"""The one rule every `--to` follows (plan 0.18.4, book 12.1): a working document goes in the drafting directory, anything else stays out of the quilt's sources, and nothing that exists is overwritten unless the command replaces by design."""
+"""The one rule every `--to` follows (plan 0.18.4): a working document goes in the drafting directory, anything else stays out of the quilt's sources, and nothing that exists is overwritten unless the command replaces by design."""
 
 from __future__ import annotations
 

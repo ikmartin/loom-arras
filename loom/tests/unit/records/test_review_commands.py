@@ -1,4 +1,4 @@
-"""accept, comment, status, ai discard on the demo and synthetic quilts; the states, causes, facts, and the worked timeline of book 7.11."""
+"""accept, comment, status, ai discard on the demo and synthetic quilts; the states, causes, facts, and a worked timeline."""
 
 from __future__ import annotations
 
@@ -1000,7 +1000,7 @@ def test_a_batch_carries_every_verb_and_refuses_line_by_line(
 
 
 def test_an_annotation_that_asks_needs_a_message_and_a_bare_note_does_not(tmp_path: Path) -> None:
-    """The re-grade: `annotate dm-0002 --kind objection` with no MESSAGE filed an empty objection, exit 0; a note with none is book 7.4.3's record that the target was read and nothing was wrong."""
+    """The re-grade: `annotate dm-0002 --kind objection` with no MESSAGE filed an empty objection, exit 0; a note with none is the record that the target was read and nothing was wrong."""
     d = demo(tmp_path)
     for kind in ("objection", "suggestion", "question", "citation"):
         refused("annotate", "dm-0002", "--kind", kind, *AS, cwd=d, code=2, match="no message")
@@ -1140,7 +1140,7 @@ def test_an_edit_or_a_discard_refuses_what_it_cannot_carry(tmp_path: Path) -> No
     refused("annotate", "--edit", ann, "x", "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
     assert len(events(d)) == before
 
-    # --placement is one of the fields an edit restates (7.4.3), and an edit of it alone is a change
+    # --placement is one of the fields an edit restates, and an edit of it alone is a change
     ok("annotate", "--edit", ann, "--placement", "after", *AS, cwd=d)
     [f] = json_of("ai", "annotations", "--all", "--json", cwd=d)["annotations"]
     assert f["placement"] == "after" and f["quote"] == "Every orbit"
@@ -1174,7 +1174,7 @@ def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     refused("annotate", "--edit", ann, "", *AS, cwd=d, code=2, match="empty body")
     assert len(events(d)) == before  # none of them wrote
 
-    # a field-only edit still stands, and a resolution needs no comment (7.4)
+    # a field-only edit still stands, and a resolution needs no comment
     ok("annotate", "--edit", ann, "--severity", "minor", *AS, cwd=d)
     ok("annotate", "--resolve", ann, *AS, cwd=d)
 

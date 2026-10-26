@@ -1,6 +1,6 @@
 """Shared CLI plumbing: exit codes, JSON output, and the two error classes every command raises.
 
-Exit codes follow the book's 12.1: 0 success, 1 a content problem the author can fix in the source, 2 a usage or environment problem.
+Exit codes: 0 success, 1 a content problem the author can fix in the source, 2 a usage or environment problem.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ SOURCE_SUFFIXES = (".tex", ".sty", ".cls", ".bib")
 def destination(
     quilt: Any, path: str | Path, *, drafting: bool = False, source: bool = False, overwrite: bool = False
 ) -> Path:
-    """Where a command's `--to` writes, by the one rule every `--to` follows (book 12.1, K2).
+    """Where a command's `--to` writes, by the one rule every `--to` follows (K2).
 
     Parameters
     ----------

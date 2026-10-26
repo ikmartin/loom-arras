@@ -1,4 +1,4 @@
-// The shell's props (book 15.8): what the layout knows about the page and hands to the navigation shell.
+// The shell's props: what the layout knows about the page and hands to the navigation shell.
 
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
@@ -20,11 +20,11 @@ export interface ShellProps {
 	currentSection: string;
 	/** The publisher's diagnostics, which the problems glyph carries. */
 	counts: { errors: number; warnings: number };
-	/** Opens the command palette, which is arras's search (book 15.2). */
+	/** Opens the command palette, which is arras's search. */
 	search: () => void;
 	children: Snippet;
 	rail?: Snippet;
-	/** The page's own left-panel contents, when it has any: a table page's filters stand where a document's contents would (book 15.4). */
+	/** The page's own left-panel contents, when it has any: a table page's filters stand where a document's contents would. */
 	panel?: Snippet;
 	panelLabel?: string;
 }

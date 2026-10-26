@@ -1,4 +1,4 @@
-"""`loom new`, `loom search` (book 12.3)."""
+"""`loom new`, `loom search`."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ def _declared(result: ScanResult) -> str:
     metavar="NAME",
     help="Who writes the node; an agent names itself, including Agent or AI.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def new(
     taxon: str,
@@ -267,7 +267,7 @@ def numbered_entries(result: ScanResult, query: str, only: str | None = None) ->
 @click.option(
     "--in", "within", default=None, metavar="DOC", help="Resolve a number like `Theorem 3.4` in this document only."
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )

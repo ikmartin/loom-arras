@@ -1,4 +1,4 @@
-"""`loom --version` (book 12.2); `loom doctor` has its own file, `test_doctor.py`."""
+"""`loom --version`; `loom doctor` has its own file, `test_doctor.py`."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""The AI layer (book 11): layout and vendor files, upgrade, orientation, runs and their logs, promotion, the outside-writes check, and threads in the manifest."""
+"""The AI layer: layout and vendor files, upgrade, orientation, runs and their logs, promotion, the outside-writes check, and threads in the manifest."""
 
 from __future__ import annotations
 
@@ -534,7 +534,7 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
 
 
 def test_upgrade_keeps_an_edited_loom_sty_as_old_and_says_so(tmp_path: Path) -> None:
-    """An edited `loom.sty` is replaced, as book 11 decides, but kept first as `loom.sty.old`, under a heading of its own."""
+    """An edited `loom.sty` is replaced, but kept first as `loom.sty.old`, under a heading of its own."""
     import loom.ai.layout as layout
 
     q = bare(tmp_path)

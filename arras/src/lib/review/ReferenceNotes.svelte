@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Works an agent proposed citing, and what became of the suggestion (plan 0.11 Part H).
 	//
-	// Two lists in one place, because they are two halves of one errand: the citation suggestions still open on this key, each linked to its annotation, whose box is where it is accepted or rejected (15.3.4a), and the works already accepted for it. An accepted note is a breadcrumb and never a second source of identity truth -- `verified` stays false until a person puts the identifier in the bibliography, and nothing here enters a closure.
+	// Two lists in one place, because they are two halves of one errand: the citation suggestions still open on this key, each linked to its annotation, whose box is where it is accepted or rejected, and the works already accepted for it. An accepted note is a breadcrumb and never a second source of identity truth -- `verified` stays false until a person puts the identifier in the bibliography, and nothing here enters a closure.
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
@@ -25,7 +25,7 @@
 					<li>
 						{#if a.payload}<span class="work"><TexProse text={a.payload} /></span>{/if}
 						<Prose html={a.body_html} />
-						<!-- the one rule for a link to an annotation (15.2.4): it opens what the annotation is on, with its box open -->
+						<!-- the one rule for a link to an annotation: it opens what the annotation is on, with its box open -->
 						<p class="actions"><a href="quilt:{a.id}" data-testid="refnote-open">open the suggestion</a></p>
 					</li>
 				{/each}

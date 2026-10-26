@@ -1,4 +1,4 @@
-"""Gathering (`loom library update --only gather`): the quilt's bibliography gathered from the landmarks, and only ever appended to (book 8.15)."""
+"""Gathering (`loom library update --only gather`): the quilt's bibliography gathered from the landmarks, and only ever appended to."""
 
 from __future__ import annotations
 

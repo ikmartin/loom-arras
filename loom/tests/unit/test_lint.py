@@ -1,4 +1,4 @@
-"""Diagnostic codes on the demo (book 5.14): lint's exit code, one test per warning, and the codes `check` and `atomize` report."""
+"""Diagnostic codes on the demo: lint's exit code, one test per warning, and the codes `check` and `atomize` report."""
 
 from __future__ import annotations
 

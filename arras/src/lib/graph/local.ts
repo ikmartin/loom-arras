@@ -1,5 +1,5 @@
 import { displayNode } from '$lib/nodes/display';
-// The neighbourhood of one node, for the local graph (book 15.5.1): what it depends on and what depends on it, out to a chosen number of steps in either direction, plus the `see` relations, which are drawn but never followed.
+// The neighbourhood of one node, for the local graph: what it depends on and what depends on it, out to a chosen number of steps in either direction, plus the `see` relations, which are drawn but never followed.
 
 import type { Manifest } from '$lib/manifest/types';
 

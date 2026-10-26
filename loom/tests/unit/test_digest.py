@@ -1,4 +1,4 @@
-"""Digests (book 8): postnote matching, provenance checks, extraction from a reference paper's source on the fake toolchain, porting with --as, and the fetch gate."""
+"""Digests: postnote matching, provenance checks, extraction from a reference paper's source on the fake toolchain, porting with --as, and the fetch gate."""
 
 from __future__ import annotations
 
@@ -201,7 +201,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_ex
     bundle = build_bundle(res, "dm-0002").text
     assert (
         bundle.count("\\begingroup\n\\let\\weird\\undefined") == 4
-    )  # one scoped group per digest statement in the closure (8.3.2)
+    )  # one scoped group per digest statement in the closure
     lem_bundle = build_bundle(res, "Ref20-lem-2.2").text
     assert (
         "\\begingroup\n\\let\\weird\\undefined\n\\def\\weird#1.{[#1]}\n\\begin{lemma}" in lem_bundle
@@ -638,7 +638,7 @@ def _cited(q: Path, key: str) -> None:
 
 
 def test_emulated_numbering_follows_the_starred_appendix_duplicate_and_cap_rules(tmp_path: Path) -> None:
-    """Book 8.5 on emulated numbering: `\\newtheorem*` is `-star-<n>` titled `(unnumbered)`, `\\appendix` letters the section, a second result under a used number is skipped and reported, and the setup node is capped at 1,500 characters."""
+    """Emulated numbering: `\\newtheorem*` is `-star-<n>` titled `(unnumbered)`, `\\appendix` letters the section, a second result under a used number is skipped and reported, and the setup node is capped at 1,500 characters."""
     q = demo(tmp_path)
     paragraph = "Throughout, every widget is a gadget of finite type over a field, and we say so at length. " * 8
     paper = tmp_path / "nu.tex"

@@ -1,4 +1,4 @@
-"""The workbench commands on the shim (book chapter 17): stamp and its landmarks, fork, revert, history with show, restore and verify, and what each records."""
+"""The workbench commands on the shim: stamp and its landmarks, fork, revert, history with show, restore and verify, and what each records."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def ledger(q: Path) -> list[dict]:
 
 
 def test_stamp_given_a_document_keeps_its_text_as_a_landmark(tmp_path: Path) -> None:
-    """Book 17.9: a stamp given a document freezes the keys it reaches and keeps its flat text, in loom's form, in the step as a landmark named by the message."""
+    """A stamp given a document freezes the keys it reaches and keeps its flat text, in loom's form, in the step as a landmark named by the message."""
     q = quilt(tmp_path)
     r = ok("stamp", "drafting/main.tex", "-m", "First landmark", cwd=q)
     assert (
@@ -72,7 +72,7 @@ def test_stamp_given_a_document_keeps_its_text_as_a_landmark(tmp_path: Path) -> 
     assert step["action"] == "stamp" and step["step"] == 2 and step["dir"] == "0002-first-landmark"
     assert step["message"] == "First landmark" and step["in"] == "drafting/main.tex"
     assert step["landmark"] == "first-landmark.tex" and step["to"]["path"] == "first-landmark.tex"
-    # sections are never versioned: a section has no text of its own that a version could hold (17.5)
+    # sections are never versioned: a section has no text of its own that a version could hold
     assert set(step["froze"]) == {"pp-0002", "pp-0002/proof", "pp-0003", "pp-0003/proof"}
     assert step["of"]["pp-0002/proof"] == "pp-0002@2"  # a proof version records the statement version it stood against
     assert sorted(step["reaches"]) == sorted(step["froze"])
@@ -242,7 +242,7 @@ def plant(q: Path, *lines: dict[str, object] | str) -> None:
 
 
 def test_a_ledger_that_cannot_be_read_in_full_is_history_corrupt(tmp_path: Path) -> None:
-    """Book 17.15: a malformed line or a step out of order is reported by lint and `history verify` as an error, and the rest of the ledger still loads."""
+    """A malformed line or a step out of order is reported by lint and `history verify` as an error, and the rest of the ledger still loads."""
     q = quilt(tmp_path)
     ok("stamp", "-m", "one", cwd=q)
     plant(q, "{not json", {"action": "stamp", "step": 1, "dir": "0001-again", "froze": {}})
@@ -288,7 +288,7 @@ def tree(d: Path) -> dict[str, bytes]:
 def test_a_step_is_written_whole_before_the_ledger_line_that_names_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Book 17.6: the ledger line is written last, after the step's directory and every file in it, so a step cut short leaves files the record does not name and never a line naming files that are not there. Every other test sees a step only once it is finished, which passes whichever is written first.
+    """The ledger line is written last, after the step's directory and every file in it, so a step cut short leaves files the record does not name and never a line naming files that are not there. Every other test sees a step only once it is finished, which passes whichever is written first.
 
     The same stamp is made twice, once to the end and once cut off where the line is appended: the cut one's directory must already hold every file of the finished one, byte for byte, while the ledger is as it was.
     """
@@ -358,7 +358,7 @@ def test_ancestry_the_history_no_longer_resolves_is_dangling(tmp_path: Path) -> 
 
 
 def test_stamp_given_a_document_records_only_the_keys_it_reaches(tmp_path: Path) -> None:
-    """Book 17.9: a document narrows a stamp to what it reaches, and its landmark is its flat text; a document that is not live in the drafting directory is refused."""
+    """A document narrows a stamp to what it reaches, and its landmark is its flat text; a document that is not live in the drafting directory is refused."""
     q = quilt(tmp_path)
     ok("stamp", "-m", "one", cwd=q)
     ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
@@ -394,7 +394,7 @@ def test_stamp_with_no_ids_has_nothing_to_stamp(tmp_path: Path) -> None:
 
 
 def test_revert_expands_child_markers_from_the_head_and_refuses_when_a_child_is_gone(tmp_path: Path) -> None:
-    """Book 17.5: a version records a nested result as `% !LOOM child: KEY`; reverting puts the head's text of that child back, and is refused when the child no longer exists."""
+    """A version records a nested result as `% !LOOM child: KEY`; reverting puts the head's text of that child back, and is refused when the child no longer exists."""
     paper = tmp_path / "paper"
     paper.mkdir()
     (paper / "main.tex").write_text(
@@ -432,7 +432,7 @@ def test_revert_expands_child_markers_from_the_head_and_refuses_when_a_child_is_
 
 
 def test_history_show_prints_a_landmark_by_name_step_or_document_and_plain_drops_loom(tmp_path: Path) -> None:
-    """Book 17.9: a landmark is named by its name, its step, or DOC@STEP; `--plain` is the paper without loom, which compiles without loom.sty forever."""
+    """A landmark is named by its name, its step, or DOC@STEP; `--plain` is the paper without loom, which compiles without loom.sty forever."""
     q = quilt(tmp_path)
     assert ok("history", "show", "main@1", cwd=q).stdout == PAPER  # the import's landmark: the paper as received
     main = q / "drafting" / "main.tex"

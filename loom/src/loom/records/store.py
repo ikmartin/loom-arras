@@ -1,4 +1,4 @@
-"""The Records object: everything durable that is not source, loaded once per query, and the states, causes, facts, and derived states computed from it (book 7.6, 7.9, 7.10).
+"""The Records object: everything durable that is not source, loaded once per query, and the states, causes, facts, and derived states computed from it.
 
 `compute` is pure over the scan result and the records; `apply` writes those results into a manifest and the diffs directory.
 """
@@ -533,7 +533,7 @@ class Records:
             return self._resolved_cache[1]
         out: list[ResolvedAnnotation] = []
         texts: dict[str, str] = {}  # the text a quote is found in: no child markers
-        hashed: dict[str, str] = {}  # the text a version is: with them, as every hash is taken (book 5.13)
+        hashed: dict[str, str] = {}  # the text a version is: with them, as every hash is taken
         works: dict[str, str] = {}
         for rec in self.records:
             for a in rec.annotations:
@@ -542,7 +542,7 @@ class Records:
                     res.target = a.target_key
                     out.append(res)
                     continue
-                # a document named by path is wherever the history's moves have taken it (book 17.12)
+                # a document named by path is wherever the history's moves have taken it
                 in_doc = (result.current_document(a.in_doc) or a.in_doc) if a.in_doc else None
                 target = a.target_key
                 if target not in result.nodes and is_document_path(result, target):

@@ -1,4 +1,4 @@
-"""The preamble closure of a master and the taxa it declares (book 5.5).
+"""The preamble closure of a master and the taxa it declares.
 
 The closure is the master's text before \\begin{document} plus every local file it loads, transitively: \\input, \\usepackage and \\RequirePackage lists (one \\usepackage may name several packages, over several lines), and a local \\documentclass. System packages are never read. Taxa come from \\newtheorem, \\newtheorem*, thmtools' \\declaretheorem, and the % !LOOM environment: directive; the style class is the \\theoremstyle in force at the declaration.
 """

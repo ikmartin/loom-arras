@@ -1,4 +1,4 @@
-"""`digests/unreadable.json`: what the author has said loom should stop chasing (plan 0.13 §4, book 8.14).
+"""`digests/unreadable.json`: what the author has said loom should stop chasing (plan 0.13 §4).
 
 Two claims live here, both the author's and both keyed by what the author can name. **Unreadable** says a cited work has no document to hold -- the Stacks Project is a living work with no fixed version -- so the invariant's lint stops asking for a PDF that does not exist. **Forgotten** (set aside) says a document in the store is not wanted, so gathering never offers it an entry again; a claim keyed by a citekey also carries the document's hash, which is what still names it once the entry is deleted.
 

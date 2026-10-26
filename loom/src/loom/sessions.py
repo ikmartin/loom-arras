@@ -1,4 +1,4 @@
-"""`.loom/sessions/`: where work belongs, as distinct from who did it (plan 0.13 §5, book 11).
+"""`.loom/sessions/`: where work belongs, as distinct from who did it (plan 0.13 §5).
 
 A **session** is a stretch of work on the quilt -- a sitting, a review, a thread with an agent -- and it is what an annotation belongs to. An **author** is who wrote the thing. Loom conflated the two: an agent's annotation recorded the run directory as its author, so the log could say *who* only by naming a place, and a person and an agent working the same afternoon had no way to say they were doing one job.
 

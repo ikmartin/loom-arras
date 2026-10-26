@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write the fixture quilts by running loom's own commands (book 14.3, plan 0.9 §6).
+"""Write the fixture quilts by running loom's own commands (plan 0.9 §6).
 
 `tests/quilts/sources/<name>/` holds what an author wrote; every record -- the acceptance ledger, the history, the runs and the comments -- is made here by the commands that make one, under a fixed clock, so nothing in a fixture is hand-written and `--check` proves the checked-in copy is this script's output.
 
@@ -1407,7 +1407,7 @@ def build_showcase(dest: Path) -> None:
     g.run("live", "drafting/sketch.tex")
 
     _write_expected_lint(g)
-    # The seed space is the author's and is not in version control (8.16), so the committed quilt is what a coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second gathering from filing the same documents again.
+    # The seed space is the author's and is not in version control, so the committed quilt is what a coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second gathering from filing the same documents again.
     shutil.rmtree(dest / "refs")
 
 

@@ -16,8 +16,8 @@ Extend the locator table with the abbreviations used in French, German, Italian 
 
 ## Blast radius
 
-`loom/src/loom/digest/` locator matching, Chapter 8 §8.7, one digest fixture in the new language.
+`loom/src/loom/digest/` locator matching, one digest fixture in the new language.
 
 ## Related
 
-Chapter 8 §8.7; `loom:unmatched-postnote` (DR-66).
+; `loom:unmatched-postnote` (DR-66).

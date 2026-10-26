@@ -1,4 +1,4 @@
-"""`loom library update`: everything a machine can make about the works a quilt cites, every step or one (book 8.9; plan 0.18.5)."""
+"""`loom library update`: everything a machine can make about the works a quilt cites, every step or one (plan 0.18.5)."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _named(quilt: Quilt, result: ScanResult, needles: tuple[str, ...]) -> list[s
     is_flag=True,
     help="Say what each step would act on, from what is on disk; no network, nothing written.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def update_command(
     work_args: tuple[str, ...],

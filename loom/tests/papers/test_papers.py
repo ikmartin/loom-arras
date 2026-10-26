@@ -1,4 +1,4 @@
-"""Paper tier (book 14.2): the two arXiv conversion fixtures go through import, atomize, a landmark stamp, and the identity test with the real toolchain. Gated by LOOM_PAPER_FIXTURES, a directory holding 0805.2065/ (Manolache, virtual6.tex) and 1709.09864/ (ACGS, decomposition-formula.tex); every test copies the sources so nothing outside the copy is read or written."""
+"""Paper tier: the two arXiv conversion fixtures go through import, atomize, a landmark stamp, and the identity test with the real toolchain. Gated by LOOM_PAPER_FIXTURES, a directory holding 0805.2065/ (Manolache, virtual6.tex) and 1709.09864/ (ACGS, decomposition-formula.tex); every test copies the sources so nothing outside the copy is read or written."""
 
 from __future__ import annotations
 

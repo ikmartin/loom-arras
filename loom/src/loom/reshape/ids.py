@@ -1,4 +1,4 @@
-"""Label insertion for `loom id` and `loom import` (book 6.2.4, 6.3): a `\\label{<prefix>-<local>}` on every theorem-like environment and sectioning command that has no id, allocated in document order."""
+"""Label insertion for `loom id` and `loom import`: a `\\label{<prefix>-<local>}` on every theorem-like environment and sectioning command that has no id, allocated in document order."""
 
 from __future__ import annotations
 

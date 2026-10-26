@@ -1,4 +1,4 @@
-"""Line anchoring (book 5.2.3, DR-40): `\\begin` and `\\end` of theorem-like environments and proofs alone on their lines.
+"""Line anchoring (DR-40): `\\begin` and `\\end` of theorem-like environments and proofs alone on their lines.
 
 The scanner reads by character offset and does not care; `atomize` moves whole lines and refuses violations; `import --fix-anchoring` rewrites the copy so the lines become anchored without changing the typeset output.
 """

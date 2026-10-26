@@ -1,8 +1,8 @@
-"""Relations declared with `% !LOOM see:` (book 5.11.3): a link between two nodes that a viewer shows and the mathematics never sees.
+"""Relations declared with `% !LOOM see:`: a link between two nodes that a viewer shows and the mathematics never sees.
 
 A relation is not a dependency. It enters no closure, no bundle, no acceptance row, and no staleness computation, and it is stored beside `edges` rather than inside them so that nothing which walks the graph can reach it by accident. `\\uses` remains the only way to declare a dependency the text does not name.
 
-Scope follows `tags:` (5.11.2): inside a node's own text the directive applies to that node; in a file's first twenty lines before any node it applies to every node the file defines.
+Scope follows `tags:`: inside a node's own text the directive applies to that node; in a file's first twenty lines before any node it applies to every node the file defines.
 """
 
 from __future__ import annotations

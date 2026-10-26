@@ -1,4 +1,4 @@
-"""`loom build` (book 9.1): scan, read records, read numbering, render, write the manifest, publish.
+"""`loom build`: scan, read records, read numbering, render, write the manifest, publish.
 
 Rendering is cached by an input hash per fragment (the text of the files it draws on plus the numbering), so a build after a one-line edit re-renders one node and its masters. The hash carries loom's version, and in a checkout — whose version does not move between edits — a fingerprint of loom's own code, so changing the converter does not leave yesterday's HTML on disk. `--force` renders everything regardless.
 """
@@ -351,7 +351,7 @@ def build(
     reuse: ScanResult | None = None,
     progress: Callable[[str, str, int, int | None], None] | None = None,
 ) -> BuildReport:
-    """Scan, read the records, render what changed and publish the build directory (book 9.1).
+    """Scan, read the records, render what changed and publish the build directory.
 
     Parameters
     ----------

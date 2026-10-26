@@ -23,4 +23,4 @@ The anchoring critique found quotes `annotate` accepted marked as their whole pa
 
 ## Related
 
-DR-334-ikmartin; book 7.4.3 and 9.5; [WQ-59](WQ-59-regrade-partials.md).
+DR-334-ikmartin; [WQ-59](WQ-59-regrade-partials.md).

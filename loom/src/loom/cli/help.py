@@ -213,7 +213,7 @@ class LoomGroup(click.Group):
         try:
             return super().invoke(ctx)
         except click.UsageError as e:
-            # click prints a usage block before its `Error:`; a refusal is one line (book 12.1), naming the help instead
+            # click prints a usage block before its `Error:`; a refusal is one line, naming the help instead
             where = f"; see `{' '.join(['loom', *_path(e.ctx)])} --help`." if e.ctx is not None else ""
             raise EnvError(e.format_message().rstrip(".") + where) from None
 

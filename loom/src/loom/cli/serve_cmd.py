@@ -1,4 +1,4 @@
-"""`loom serve [--port N] [--open] [--no-compile]` (book 12.5)."""
+"""`loom serve [--port N] [--open] [--no-compile]`."""
 
 from __future__ import annotations
 

@@ -16,7 +16,7 @@ Anchors are frozen on edit, only for texts an annotation points at, and deduplic
 
 ## Blast radius
 
-`loom/src/loom/records/` (the anchor store), one command, Chapter 7.
+`loom/src/loom/records/` (the anchor store), one command.
 
 ## Related
 

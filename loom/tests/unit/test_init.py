@@ -1,4 +1,4 @@
-"""`loom init` (book 4.2, 4.7): the layout, the refusals, the ignore file and README, the author and AI questions, `--from` a paper, and what `--demo` writes."""
+"""`loom init`: the layout, the refusals, the ignore file and README, the author and AI questions, `--from` a paper, and what `--demo` writes."""
 
 from __future__ import annotations
 
@@ -117,7 +117,7 @@ def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path,
 
 
 def test_init_asks_only_which_ai_and_writes_no_author(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The reviewer comes from local Settings or git, never from the quilt (book 4.3): init writes no `[author]` table and has no `--author`, and with a terminal attached the one question is which AI. An agent or a script sees no question."""
+    """The reviewer comes from local Settings or git, never from the quilt: init writes no `[author]` table and has no `--author`, and with a terminal attached the one question is which AI. An agent or a script sees no question."""
     from loom.cli import quilt as quilt_cli
 
     refused(
@@ -230,7 +230,7 @@ def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fail
 
 
 def test_demo_has_outline_master(tmp_path: Path) -> None:
-    """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2, book 4.4)."""
+    """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2)."""
     q = demo(tmp_path)
     assert (q / "drafting" / "outline.tex").exists()
     keys = json_of("status", "--master", "drafting/outline.tex", "--json", cwd=q)["keys"]

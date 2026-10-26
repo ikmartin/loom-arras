@@ -1,4 +1,4 @@
-"""The fallback renderer's pure functions (book 9.4.2): id namespacing, sizing in em, the prolog strip, and the figure. Compiling a block is the TeX tier's (tests/tex/test_fallback_preamble.py)."""
+"""The fallback renderer's pure functions: id namespacing, sizing in em, the prolog strip, and the figure. Compiling a block is the TeX tier's (tests/tex/test_fallback_preamble.py)."""
 
 from __future__ import annotations
 

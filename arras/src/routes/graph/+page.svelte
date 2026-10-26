@@ -5,7 +5,7 @@
 	import { relationships, scopedDrawing } from '$lib/graph/relationships';
 	import { placeLabels } from '$lib/graph/labels';
 	import { documentColor, memberships } from '$lib/graph/layout';
-	// The graph (book 15.5): one page, four drawings of one filtered graph — Dots, Box, Sections and Reading Order — with the selection, the filters and the scope kept across them. Pan and zoom belong to the three laid-out drawings; dragging a node belongs to Dots alone, since a laid-out drawing's positions are its meaning, and Reading Order scrolls like the document it follows.
+	// The graph: one page, four drawings of one filtered graph — Dots, Box, Sections and Reading Order — with the selection, the filters and the scope kept across them. Pan and zoom belong to the three laid-out drawings; dragging a node belongs to Dots alone, since a laid-out drawing's positions are its meaning, and Reading Order scrolls like the document it follows.
 	import { store } from '$lib/manifest/client.svelte';
 	import { graphInput, layout, PAPER, type Layout } from '$lib/graph/layout';
 	import { sectionLayout, type Sections } from '$lib/graph/sections';
@@ -67,7 +67,7 @@
 	const paper = $derived(selected.startsWith(PAPER) ? m.references[selected.slice(PAPER.length)] : undefined);
 	const open = (id: string) => (id.startsWith(PAPER) ? workUrl(id.slice(PAPER.length)) : nodeUrl(id));
 
-	/** Nodes within `depth` steps of the selection in the corpus's dependency graph, ignoring direction; 0 means the whole scope (15.5). */
+	/** Nodes within `depth` steps of the selection in the corpus's dependency graph, ignoring direction; 0 means the whole scope. */
 	const scope = $derived.by(() => {
 		if (!selected || depth === 0 || !m) return null;
 		const stmtOf = (key: string) => m.keys[key]?.node ?? key;

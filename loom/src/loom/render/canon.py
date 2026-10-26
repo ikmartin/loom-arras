@@ -1,4 +1,4 @@
-"""Landmarks as fragments (book 9.3, 17.9): a landmark is rendered as the document it is, with no node identity, no marks, and no numbers loom did not compile itself.
+"""Landmarks as fragments: a landmark is rendered as the document it is, with no node identity, no marks, and no numbers loom did not compile itself.
 
 A landmark's text lives in its step's directory, which the scan never enters, so nothing here goes through the assembly: the file is read on its own, its preamble closure is built from itself, and its labels anchor within the page.
 """
@@ -76,7 +76,7 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
 
 
 def landmark_pairs(history: History, entry: Entry | None) -> dict[str, str]:
-    """Each key a landmark reaches -> `pair_hash` of the version its stamp kept, what its environments pair by in compare (book 15.2.6)."""
+    """Each key a landmark reaches -> `pair_hash` of the version its stamp kept, what its environments pair by in compare."""
     if entry is None or entry.step is None:
         return {}
     from loom.history.versions import read_version

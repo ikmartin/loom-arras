@@ -1,4 +1,4 @@
-"""The global identity of a cited work (book 8.4).
+"""The global identity of a cited work.
 
 A citekey names a work inside one quilt and changes whenever the author re-exports their bibliography; a global identifier names the same work on two machines. Local identifiers are for authoring, global identifiers are for joining: `\\cite` and node ids keep the local names, and everything that has to agree across quilts -- the `refs/` layout, deduplication, fetching -- keys on what this module returns.
 """
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from loom.scan.bib import BibEntry
 
-# Resolution order. A DOI is preferred because it names the published work, which is what a bibliography cites; an eprint names a specific preprint, which is usually what loom can actually fetch. Both are kept when both exist (8.4): they are different facts, not competing answers.
+# Resolution order. A DOI is preferred because it names the published work, which is what a bibliography cites; an eprint names a specific preprint, which is usually what loom can actually fetch. Both are kept when both exist: they are different facts, not competing answers.
 SCHEMES = ("doi", "arxiv", "mr", "zbl", "work")
 DISPLAY = {"arxiv": "arXiv", "doi": "doi", "mr": "MR", "zbl": "Zbl", "work": "work"}
 PROVENANCE = ("declared", "resolved", "asserted")

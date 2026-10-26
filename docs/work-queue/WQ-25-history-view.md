@@ -4,7 +4,7 @@
 
 ## Trigger
 
-A quilt that is not a fixture or a demo holds three or more landmarks (an import, or a stamp given a document, book 17.9). Before that there is no history worth a view: one step is a copy, two is a diff you can read in git. The synthetic quilt holds three on purpose, to have something for the manifest and the badge to be built against; a trigger a fixture can fire is not a signal.
+A quilt that is not a fixture or a demo holds three or more landmarks (an import, or a stamp given a document). Before that there is no history worth a view: one step is a copy, two is a diff you can read in git. The synthetic quilt holds three on purpose, to have something for the manifest and the badge to be built against; a trigger a fixture can fire is not a signal.
 
 ## Why deferred
 
@@ -18,11 +18,11 @@ Plan 0.20.6 builds this item's smallest piece: a draft's history menu, a landmar
 
 One view, three settings, decided with the author on 2026-09-17:
 
-- **Landmarks** (default): the steps that keep a document's text only (`loom stamp DOC -m NAME`, book 17.9), as labelled major ticks, each opening the landmark the panel's Landmarks subsection already lists and offering compare against today. What a coauthor or referee opening a shared quilt expects — versions of the paper.
+- **Landmarks** (default): the steps that keep a document's text only (`loom stamp DOC -m NAME`), as labelled major ticks, each opening the landmark the panel's Landmarks subsection already lists and offering compare against today. What a coauthor or referee opening a shared quilt expects — versions of the paper.
 - **Working history**: landmarks plus stamps as minor ticks; the slider snaps to landmarks and steps through stamps when zoomed. What the author opening their own quilt expects.
 - **Everything** (deferred within the deferred): the annotation log's events layered on the timeline, so a step shows what stood against the versions it replaced.
 
-Per node: cycle a key's versions (`rl-0001@1 … @n`), each shown as a diff against the head, with a proof version displayed beside the statement version it records as `of:`. The graph drawings (15.5) drawn at a step, or with a step's additions and changes lit. Nothing here writes: `loom revert` is the write, and it is a command.
+Per node: cycle a key's versions (`rl-0001@1 … @n`), each shown as a diff against the head, with a proof version displayed beside the statement version it records as `of:`. The graph drawings drawn at a step, or with a step's additions and changes lit. Nothing here writes: `loom revert` is the write, and it is a command.
 
 A node item that opens a recorded version, addressed `/node/<key>@<step>` and typeset with that version's macros, is the smallest piece of this view and the one compare waits on: compare's design pairs two versions of one key with a base (compare-study §3), and plan 0.17.4 left it here, since nothing opens `key@N` until this view exists.
 
@@ -30,7 +30,7 @@ The "text of @2" badge on a node is built with the workbench plan and is the see
 
 ## Blast radius
 
-`docs/specs/manifest.md` (a `history` block: steps and per-key version lists, additive), `loom/src/loom/render/manifest.py`, a new arras route and a control on the node page and the graph page, Chapter 15.
+`docs/specs/manifest.md` (a `history` block: steps and per-key version lists, additive), `loom/src/loom/render/manifest.py`, a new arras route and a control on the node page and the graph page.
 
 ## Related
 

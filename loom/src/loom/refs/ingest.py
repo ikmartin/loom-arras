@@ -1,4 +1,4 @@
-"""What a document is, read off the document itself (book 8.14): the signals a pile of PDFs is matched by, and the rule `loom library add` files on.
+"""What a document is, read off the document itself: the signals a pile of PDFs is matched by, and the rule `loom library add` files on.
 
 **A match is strong only when the document says so plainly**: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is a guess and is skipped with its reason, because a wrong PDF filed against the right entry is worse than an unfiled one: the corpus this was built against has 25 files for 22 entries, eleven of which match nothing at all, and two weak signals once filed "Logarithmic geometry and moduli" as Olsson's 2003 paper.
 """

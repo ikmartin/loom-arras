@@ -31,11 +31,11 @@ Three things to settle:
 - **Acceptance does not transfer; hashes do.** The library's acceptance is theirs. What a consumer inherits is the content hash, so a statement changed under it makes the dependent nodes stale — `loom:version-mismatch` generalized.
 - **Local overrides library**, since a consumer will need to add a result the library lacks or correct one.
 
-Folded in from Chapter 8's open questions: **how a library quilt is recognized** — a flag in `config.toml`, or having no masters. Both are trivial; decide when the first library exists, which is this item's trigger.
+Folded in from the old design's open questions: **how a library quilt is recognized** — a flag in `config.toml`, or having no masters. Both are trivial; decide when the first library exists, which is this item's trigger.
 
 ## Blast radius
 
-`config.toml`, key resolution throughout the scanner, the manifest (a node may now come from elsewhere), arras (a node reference that resolves to no local digest must degrade to a labelled external link rather than "Unknown key" — the same shape as the existing `unknown relation kind renders generic` test), Chapter 8, `docs/specs/manifest.md`.
+`config.toml`, key resolution throughout the scanner, the manifest (a node may now come from elsewhere), arras (a node reference that resolves to no local digest must degrade to a labelled external link rather than "Unknown key" — the same shape as the existing `unknown relation kind renders generic` test), `docs/specs/manifest.md`.
 
 ## Related
 

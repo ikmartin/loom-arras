@@ -158,7 +158,7 @@ def test_an_ok_whose_block_changed_is_refused_at_finish_until_it_is_decided_agai
 
 
 def test_requires_attention_can_be_reopened_as_ok_and_clear_accepted_forgets_only_what_it_names(tmp_path: Path) -> None:
-    """Book 7.6.2: a block marked as requiring attention may later be marked OK; finishing clears the decisions it accepted and no others."""
+    """A block marked as requiring attention may later be marked OK; finishing clears the decisions it accepted and no others."""
     from loom.review_queue import _read, clear_accepted
 
     root = _synthetic(tmp_path)

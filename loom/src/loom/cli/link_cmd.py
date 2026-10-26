@@ -38,7 +38,7 @@ def link_command(thing: str, at: str | None, page: int | None, quote: str | None
     try:
         target = resolve(result, root, href)
     except LinkError as exc:
-        # a link to nothing the viewer shows: the argument names nothing linkable, which is usage (12.1)
+        # a link to nothing the viewer shows: the argument names nothing linkable, which is usage
         raise EnvError(str(exc)) from None
     if target.kind in ("node", "document") and target.key != thing:
         link = quilt_link(target.key, at or "")

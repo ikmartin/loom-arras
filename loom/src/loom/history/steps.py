@@ -1,4 +1,4 @@
-"""Steps and stamps (book 17.3-17.6): what every key is at a moment, written as one version file per changed key under a numbered directory, and the ledger line last.
+"""Steps and stamps: what every key is at a moment, written as one version file per changed key under a numbered directory, and the ledger line last.
 
 `plan_freeze` compares the head against the latest recorded version of each key, so a step holds only what moved; `state_at` in the ledger module puts the picture back together.
 """
@@ -41,7 +41,7 @@ class FreezePlan:
 def versionable(n: NodeRec) -> bool:
     """A statement or proof key with an identity: `rl-0001`, `rl-0001/proof`, `rl-0001/proof/2`, a labelled proof's own id; never a qualified key, a section, or a conflicted placeholder."""
     if n.kind not in ("environment", "proof") or "#" in n.key or n.derived_of:
-        return False  # an agent document's node has no history of its own: its base is its counterpart's version (book 17.7)
+        return False  # an agent document's node has no history of its own: its base is its counterpart's version
     if n.kind == "environment":
         return bool(n.id)
     return bool(n.id) or bool(n.of and "#" not in n.of)
@@ -201,7 +201,7 @@ def stamp_document(
 
 
 def file_hash(path: Path) -> str:
-    """sha256 over a file's exact text, so a comment-only edit to a landmark's text is seen (book 17.15)."""
+    """sha256 over a file's exact text, so a comment-only edit to a landmark's text is seen."""
     return sha256(path.read_text(encoding="utf-8", errors="replace"))
 
 

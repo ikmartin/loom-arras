@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The question-mark circle beside a page title (book 15.3.5): what the page means, what each state means, and which command records it.
+	// The question-mark circle beside a page title: what the page means, what each state means, and which command records it.
 	import Popover from '$lib/components/Popover.svelte';
 
 	let { label, topic }: { label: string; topic: 'review' | 'problems' | (string & {}) } = $props();

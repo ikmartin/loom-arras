@@ -1,4 +1,4 @@
-"""A node is defined once and included many times (book 5.3.5): a second live definition leaves the id conflicted -- no text, no winner -- and one `duplicate-id` naming both files."""
+"""A node is defined once and included many times: a second live definition leaves the id conflicted -- no text, no winner -- and one `duplicate-id` naming both files."""
 
 from __future__ import annotations
 

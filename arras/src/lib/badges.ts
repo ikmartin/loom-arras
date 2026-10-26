@@ -1,4 +1,4 @@
-// Badge composition (book 10.3), as a pure function so it is unit-tested. Arras renders whatever labels and colours the manifest declares; unknown labels fall back to a neutral badge.
+// Badge composition, as a pure function so it is unit-tested. Arras renders whatever labels and colours the manifest declares; unknown labels fall back to a neutral badge.
 import type { ColorClass, Key, Manifest, Node } from './manifest/types';
 
 export interface BadgePart {
@@ -6,7 +6,7 @@ export interface BadgePart {
 	color: ColorClass;
 }
 
-/** `text of @3 (paper-v2)` when a key's current text is one a landmark recorded (book 17.5); nothing when it is not, which is the ordinary case and not a fault. */
+/** `text of @3 (paper-v2)` when a key's current text is one a landmark recorded; nothing when it is not, which is the ordinary case and not a fault. */
 export function versionLabel(key: Key | undefined): string {
 	if (!key?.version) return '';
 	const n = Number(key.version.step);

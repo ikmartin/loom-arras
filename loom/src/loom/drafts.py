@@ -1,4 +1,4 @@
-"""Whether an agent document is stale (book 17.7): what has moved on the person's side since each of its nodes' bases."""
+"""Whether an agent document is stale: what has moved on the person's side since each of its nodes' bases."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""The one way a test runs loom: `run`, and the assertions over it that say what went wrong (plan 0.14.1 phase 2, book 14.1).
+"""The one way a test runs loom: `run`, and the assertions over it that say what went wrong (plan 0.14.1 phase 2).
 
 `run` lets any exception out of the command, so a crash is a traceback and never an exit code a test can mistake for a refusal. `ok`, `refused` and `json_of` run and assert in one call and, on failure, print the command, its exit code, its stdout and its stderr apart.
 """

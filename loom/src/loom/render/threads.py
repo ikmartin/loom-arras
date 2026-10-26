@@ -1,4 +1,4 @@
-"""Threads for the manifest (specs/manifest.md §10, book 11.4.7): every session, read-only.
+"""Threads for the manifest (specs/manifest.md §10): every session, read-only.
 
 One thread per session; its attachments are the files the session wrote into its own directory.
 """

@@ -1,4 +1,4 @@
-"""Run latexmk from the quilt root into a build subdirectory (book 4.4.8, 9.6).
+"""Run latexmk from the quilt root into a build subdirectory.
 
 The engine is the master's `% !TEX program` if present, else `[quilt] engine`. Nothing is set in the environment: loom.sty and local styles must sit at the root, which is what makes the quilt compile on Overleaf too. Tests isolate HOME and the TeX trees through the environment they run in.
 """

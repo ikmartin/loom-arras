@@ -1,4 +1,4 @@
-"""`fetch_work` offline (book 8.9): the arrival check, the consent and candidate gates, the PDF-link route, `_get`'s retries and `_unpack`'s containment. The transport is faked; nothing here touches the network."""
+"""`fetch_work` offline: the arrival check, the consent and candidate gates, the PDF-link route, `_get`'s retries and `_unpack`'s containment. The transport is faked; nothing here touches the network."""
 
 from __future__ import annotations
 
@@ -161,7 +161,7 @@ def test_the_gates_refuse_before_anything_is_asked(tmp_path: Path, monkeypatch: 
 def test_an_entry_with_only_a_pdf_link_is_fetched_from_it_and_checked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Book 8.9: kept only if its first page carries the entry's title, and dated in fetched.json with its hash."""
+    """Kept only if its first page carries the entry's title, and dated in fetched.json with its hash."""
     url = "https://example.org/~a/notes.pdf"
     quilt, t = fetching(tmp_path, monkeypatch, {url: b"<html>not a pdf</html>"})
 
@@ -225,7 +225,7 @@ def serve(monkeypatch: pytest.MonkeyPatch, failures: list[int | str]) -> Server:
 def test_get_retries_a_busy_answer_twice_with_a_growing_pause(
     code: int, monkeypatch: pytest.MonkeyPatch, pauses: list[float]
 ) -> None:
-    """Book 8.9 (DR-77): 406, 429 and 5xx are retried twice, after 3 s and then 6 s."""
+    """DR-77: 406, 429 and 5xx are retried twice, after 3 s and then 6 s."""
     s = serve(monkeypatch, [code, code])
     assert F._get("https://x/y") == b"ok"
     assert (s.calls, pauses) == (3, [3.0, 6.0])
@@ -255,7 +255,7 @@ def test_get_does_not_retry_a_refusal_but_does_retry_an_unreachable_host(
 
 
 def test_unpack_refuses_every_member_that_would_land_outside_its_directory(tmp_path: Path) -> None:
-    """Book 8.9: an e-print is untrusted input. `..`, an absolute name, a sibling sharing the directory's name as a prefix, and links are all skipped."""
+    """An e-print is untrusted input. `..`, an absolute name, a sibling sharing the directory's name as a prefix, and links are all skipped."""
     home = tmp_path / "work"
     dest = home / "src"
     data = tarball(

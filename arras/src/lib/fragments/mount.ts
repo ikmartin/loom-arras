@@ -9,13 +9,13 @@ import { travel } from '$lib/travel/travel';
 import { visible } from '$lib/sessions/sessions.svelte';
 
 export interface WireOptions {
-	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation (book 15.3.1). */
+	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation. */
 	master?: string;
 	/** Renders the Stacks-project heading affordance: a node's own link, revealed on hover. Off on a node page, where the heading is already the page. */
 	headingLinks?: boolean;
-	/** Renders the read view's margin column: the key and its state beside every node (book 15.3.1). */
+	/** Renders the read view's margin column: the key and its state beside every node. */
 	margins?: boolean;
-	/** Where each of a node's annotations without a mark of its own stands (book 15.3.1): as a mark on the node's label, or as a box in the flow that the caller fills. */
+	/** Where each of a node's annotations without a mark of its own stands: as a mark on the node's label, or as a box in the flow that the caller fills. */
 	comments?: (key: string) => CommentSlot[];
 	/** A fragment with no node identity (a landmark): its references are the publisher's own in-page anchors and must be left alone, and nothing in it is a key to look up. */
 	keyless?: boolean;
@@ -86,7 +86,7 @@ export function resetComments(root: HTMLElement): void {
 	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
 }
 
-/** Whether an annotation is settled: resolved or discarded, so its mark is not drawn at rest (book 15.3.1). */
+/** Whether an annotation is settled: resolved or discarded, so its mark is not drawn at rest. */
 export function settled(a: { status: string; discarded: boolean } | undefined): boolean {
 	return !!a && (a.discarded || a.status !== 'open');
 }
@@ -210,7 +210,7 @@ export function wire(
 			const placements = key ? opts.comments(key) : [];
 			if (!placements.length) continue;
 			el.dataset.wiredComments = '1';
-			// **One annotation, one mark** (15.3.1). An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its hue, opening its box like any mark; several share one label mark whose box lists them. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
+			// **One annotation, one mark**. An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its hue, opening its box like any mark; several share one label mark whose box lists them. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
 			const onLabel = placements.filter((p) => p.where === 'label').map((p) => p.id);
 			const label = el.querySelector<HTMLElement>(':scope > p.env-label, :scope > summary.env-label, :scope > :is(h1,h2,h3,h4,h5,h6)');
 			if (onLabel.length && label && !label.querySelector('mark.annotation-label')) {
@@ -271,7 +271,7 @@ export function wire(
 		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be clicked into at all -- a box that appears under the pointer and vanishes when it moves toward the box.
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go(e));
-		// and a double-click travels to the annotation's box, which carries its id (15.3.1): the one open in this pane, else the one the mark opens for it, else whatever else stands for the annotation on screen. Nothing is invented for one with no box here: the notice says so and the pane stays put.
+		// and a double-click travels to the annotation's box, which carries its id: the one open in this pane, else the one the mark opens for it, else whatever else stands for the annotation on screen. Nothing is invented for one with no box here: the notice says so and the pane stays put.
 		mark.addEventListener('dblclick', (e) => {
 			e.preventDefault();
 			if (inert(mark)) return;

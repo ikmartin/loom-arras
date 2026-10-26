@@ -44,7 +44,7 @@ T = TypeVar("T")
 
 #: What marks a refusal as the quilt's own content, which the author fixes in the source (exit 1); every other refusal is the workspace, the pairing or the arguments (exit 2).
 def _run(action: Callable[[], T]) -> T:
-    """`action()`, its SyncError raised as ContentError when the author fixes it in the source and EnvError otherwise (book 12.1)."""
+    """`action()`, its SyncError raised as ContentError when the author fixes it in the source and EnvError otherwise."""
     try:
         return action()
     except SourceError as exc:
@@ -54,7 +54,7 @@ def _run(action: Callable[[], T]) -> T:
 
 
 def _landmarks(quilt: Quilt, names: list[str]) -> list[str]:
-    """Each landmark as text shows it, `DOC@STEP`: its name carries a revision's hash, which stays in the JSON (book 17.9)."""
+    """Each landmark as text shows it, `DOC@STEP`: its name carries a revision's hash, which stays in the JSON."""
     from loom.history.ledger import load_history
 
     history = load_history(quilt.history_dir)
@@ -76,7 +76,7 @@ def _short(revision: str) -> str:
     "--publish-main", default="", help="The main document's path in the workspace, when it differs from the quilt's."
 )
 @click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
@@ -119,7 +119,7 @@ def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_p
 
 
 @sync.command("fetch")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
     """Fetch document workspace changes for Incoming review without changing author files."""
@@ -176,7 +176,7 @@ def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
     metavar="FILE",
     help="With --patch, write the patch to FILE, a new file outside the quilt's sources.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def status_sync(patch: bool, to: Path | None, as_json: bool, quilt_path: str | None) -> None:
     """Show the document workspace's revisions, the selection and what is prepared; --patch prints the incoming diff."""
@@ -245,7 +245,7 @@ def status_sync(patch: bool, to: Path | None, as_json: bool, quilt_path: str | N
 @click.argument("action", required=False, type=click.Choice(["add", "remove"]))
 @click.argument("document", required=False)
 @click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def documents_sync(
     action: str | None, document: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
@@ -266,7 +266,7 @@ def documents_sync(
             verdict = f"would {action} {document}; nothing saved"
         else:
             verdict = f"{'added' if action == 'add' else 'removed'} {document}; the selection is saved, not published"
-    # each document where it is now: the record keeps the paths it was written with (book 4.6)
+    # each document where it is now: the record keeps the paths it was written with
     main, selected_now = current_selection(state, scan(quilt))
     rows = [{"document": d, "as": state.published_main if d == main else d, "main": d == main} for d in selected_now]
     items = [
@@ -293,7 +293,7 @@ def documents_sync(
 
 @sync.command("incorporate")
 @click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Apply the fetched pull to the quilt's files, stamping first each document it reaches; Incoming does the same."""
@@ -343,7 +343,7 @@ def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> No
 @sync.command("publish")
 @click.option("--push", is_flag=True, help="Push the prepared revision to the document workspace.")
 @click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def publish_sync(push: bool, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Prepare the selected documents' sources as a workspace revision, check each compiles, and stamp each as published."""

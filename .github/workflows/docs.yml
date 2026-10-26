@@ -1,6 +1,6 @@
 name: docs
 
-# The docs lane of scripts/verify, run as it is at a terminal: `full --only docs` (the work queue and the agreement checks under scripts/checks/). hardwrap.py judges the lines this push or pull request adds, which it reads from HARDWRAP_BASE, since a clean checkout has nothing added since HEAD. Book 14.4.
+# The docs lane of scripts/verify, run as it is at a terminal: `full --only docs` (the work queue and the agreement checks under scripts/checks/). hardwrap.py judges the lines this push or pull request adds, which it reads from HARDWRAP_BASE, since a clean checkout has nothing added since HEAD.
 
 on:
   push:

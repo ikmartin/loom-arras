@@ -65,7 +65,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:citekey-slug-collision": ("error", False),
     "loom:main-not-found": ("warning", False),
     "loom:foreign-annotations": ("warning", False),
-    # the workbench and the record (book chapter 17; docs/specs/diagnostics.md §3)
+    # the workbench and the record (docs/specs/diagnostics.md §3)
     "loom:superseded-file": ("info", False),
     "loom:history-missing": ("error", False),
     "loom:history-edited": ("error", False),

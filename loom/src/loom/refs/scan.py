@@ -1,4 +1,4 @@
-"""The quilt's own bibliography (book 8.15): `digests/bibliography.bib`, gathered from the landmarks and only ever appended to.
+"""The quilt's own bibliography: `digests/bibliography.bib`, gathered from the landmarks and only ever appended to.
 
 A landmark cites through a `.bib` it names or through an inline `thebibliography`; both are read. An entry from a `.bib` is copied verbatim, so nothing the author wrote is lost. A `\\bibitem` is free text, so it becomes an entry holding that text in `loom-text`, the identifiers found in it, and a best-effort author, title and year, marked `loom-parsed = {heuristic}`. An entry already in the file is never rewritten or removed: the author corrects a heuristic entry by hand, and the next scan leaves the correction alone.
 """
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from loom.cli.report import Report
 
 HEADER = (
-    "% The quilt's bibliography, gathered by `loom library update` from the landmarks (book 8.15).\n"
+    "% The quilt's bibliography, gathered by `loom library update` from the landmarks.\n"
     "% Loom only appends: an entry here is never rewritten or removed, so correct one by hand and it stays corrected.\n"
 )
 
@@ -424,7 +424,7 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
 
 
 def versions_of(bib: dict[str, BibEntry]) -> dict[str, list[str]]:
-    """Each work with versions: its primary citekey and the sibling entries filed as other documents of it, by `loom-copy-of` (book 8.16).
+    """Each work with versions: its primary citekey and the sibling entries filed as other documents of it, by `loom-copy-of`.
 
     A version of a version belongs to the first one's primary; a sibling whose primary is no longer in the bibliography, or a cycle, stands alone.
     """
@@ -476,7 +476,7 @@ def _held(pdf: Path, title: str) -> tuple[str, int] | None:
 
 
 def same_document(pdf: Path, wid: WorkId | None, stored: list[tuple[BibEntry, Path]]) -> tuple[str, str]:
-    """(citekey, why) when `pdf` is a copy of a version's document, else ('', ''): the filing rule of book 8.16.
+    """(citekey, why) when `pdf` is a copy of a version's document, else ('', ''): a copy is recorded, never filed beside the document it copies.
 
     A copy states a version's own identifier, or sets the same title over the same byline on as many pages as that version's stored PDF. `stored` is each version of one work with where its PDF is, primary first; `wid` is what `pdf` states (`_own_account`).
     """
@@ -523,7 +523,7 @@ def _duplicates(bib: dict[str, BibEntry], aside: set[str]) -> list[tuple[str, li
     return sorted((came[home], sorted(keys)) for home, keys in by_home.items() if len(keys) > 1)
 
 
-#: The author's seed space: where they drop reference PDFs and `.bib` files. Loom reads it and never writes it (book 8.16).
+#: The author's seed space: where they drop reference PDFs and `.bib` files. Loom reads it and never writes it.
 SEED = "refs"
 #: Every document ever copied into the store, by content hash, so a file is copied once and never again -- not when it is renamed, not when it is deleted from the seed space and not when it is dropped a second time.
 LEDGER = "copied.json"
@@ -822,7 +822,7 @@ class Filing:
     sha: str
     source: str  # where it came from, as the ledger and `loom-source` record it
     home: Path | None = None
-    #: The sibling entry's key when the work already holds a document, so this one is filed beside it (book 8.16).
+    #: The sibling entry's key when the work already holds a document, so this one is filed beside it.
     sibling: str = ""
     #: Why nothing is filed: the same document is in the store already; '' when it is filed.
     already: str = ""

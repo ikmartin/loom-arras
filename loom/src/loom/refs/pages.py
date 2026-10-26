@@ -78,7 +78,7 @@ class PageMap:
         return found
 
 
-#: Loom's own store of other people's documents (book 8.16): everything it fetched or copied, keyed by the work's identifier. The author's seed space is `refs/` at the quilt root, which loom reads and never writes.
+#: Loom's own store of other people's documents: everything it fetched or copied, keyed by the work's identifier. The author's seed space is `refs/` at the quilt root, which loom reads and never writes.
 STORAGE = "digests/storage"
 
 

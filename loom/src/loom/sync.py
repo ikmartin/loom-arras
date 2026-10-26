@@ -35,7 +35,7 @@ class SyncError(Exception):
 
 
 class SourceError(SyncError):
-    """A sync refusal the author resolves in the quilt's own source: a document that does not compile or reaches outside the quilt, a pull that does not apply, a file in the way (book 12.1's exit 1)."""
+    """A sync refusal the author resolves in the quilt's own source: a document that does not compile or reaches outside the quilt, a pull that does not apply, a file in the way (exit 1)."""
 
 
 @dataclass
@@ -568,7 +568,7 @@ def _review(quilt: Quilt, state: SyncState, result: ScanResult) -> dict[str, Any
         | set(incoming_review.get("affected", []))
         | {d["key"] for c in incoming_review.get("changes", []) for d in c.get("affected", [])}
     )
-    # a live document deleted and an identical drafting document added is a collaborator's rename, recorded only once the pull is incorporated (book 4.6)
+    # a live document deleted and an identical drafting document added is a collaborator's rename, recorded only once the pull is incorporated
     moves = [
         {"from": main if gone == state.published_main else gone, "to": came, "main": gone == state.published_main}
         for gone, came in exact_renames(workspace(quilt.root), state.integrated, state.incoming)

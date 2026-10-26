@@ -1,4 +1,4 @@
-"""Chapter 6 on the shim: id, import (the closure, the landmark of the paper as received, the drafted document, anchoring, in-place), init --from, atomize, inline, and the identity test."""
+"""Bringing a paper in, on the shim: id, import (the closure, the landmark of the paper as received, the drafted document, anchoring, in-place), init --from, atomize, inline, and the identity test."""
 
 from __future__ import annotations
 

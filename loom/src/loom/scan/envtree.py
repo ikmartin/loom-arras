@@ -1,4 +1,4 @@
-"""Per-file environment trees and proof attachment (book 5.2, 5.6, amended for nesting).
+"""Per-file environment trees and proof attachment (5.6, amended for nesting).
 
 Every environment in a file is nested by the tokenizer; theorem-like ones and proofs are flagged by name. A proof attaches by the \\ref in its optional argument, by adjacency to the preceding sibling statement (or to a proof already attached by adjacency to it), or by enclosure when it sits directly inside a theorem-like node with no statement before it. An intervening remark or comment is skipped for positional attachment; anything else is unattached.
 """

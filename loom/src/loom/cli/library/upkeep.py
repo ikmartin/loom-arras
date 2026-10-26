@@ -1,4 +1,4 @@
-"""`loom library review | check | import | drop` (book 8; plan 0.18.5): what waits for the person, what has gone wrong, and the library's upkeep.
+"""`loom library review | check | import | drop` (plan 0.18.5): what waits for the person, what has gone wrong, and the library's upkeep.
 
 `review` and `check` read and are an agent's as much as the author's; `import` and `drop` are the author's.
 """
@@ -17,7 +17,7 @@ from loom.cli.library import _works
 from loom.cli.library.decide import _short
 from loom.cli.report import Group, Item, Progress, Report, counted
 
-_JSON = "Print the report as one JSON object (book 12.9)."
+_JSON = "Print the report as one JSON object."
 #: What `import --name` takes: a key BibTeX reads and a file name every system keeps.
 CITEKEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9_:.+-]*")
 _DRY = "Say what would be written; write nothing."

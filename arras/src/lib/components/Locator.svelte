@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A digest result's locator, `Construction 1.7, p.~13`, with the page made a link into the fetched paper when the paper on file is the version the digest was extracted from (book 15.3.7). Otherwise the page is text, since a page in another version is not this place.
+	// A digest result's locator, `Construction 1.7, p.~13`, with the page made a link into the fetched paper when the paper on file is the version the digest was extracted from. Otherwise the page is text, since a page in another version is not this place.
 	import type { Reference } from '$lib/manifest/types';
 	import { digestPageLink } from '$lib/worklink';
 	import { pdf } from '$lib/pdf.svelte';

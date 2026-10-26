@@ -35,7 +35,7 @@ from loom.refs.links import KINDS
     help="Who asserts it; an agent names itself, with Agent or AI in the name.",
 )
 @click.option("--dry-run", is_flag=True, help="Check everything and say what would change, writing nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 @logged("relate")
 def relate_command(

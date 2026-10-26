@@ -112,7 +112,7 @@ describe('what the page draws', () => {
 	});
 });
 
-describe('compare and the filter (15.2.6)', () => {
+describe('compare and the filter', () => {
 	it('turns annotations off, and puts back what was chosen when it ends', () => {
 		sessionView.view = 'current';
 		sessionView.suspend();

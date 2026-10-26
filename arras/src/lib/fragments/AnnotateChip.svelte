@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The one annotate chip (book 15.3.1): a selection stays a selection, and this offers the other thing. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on it does. The caller shows it while a selection is offered and takes it down once the composer opens.
+	// The one annotate chip: a selection stays a selection, and this offers the other thing. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on it does. The caller shows it while a selection is offered and takes it down once the composer opens.
 	type Box = { left: number; top: number; width: number; height: number };
 
 	let {

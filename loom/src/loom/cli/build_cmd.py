@@ -1,4 +1,4 @@
-"""`loom build [--keys KEY...]` (book 12.5)."""
+"""`loom build [--keys KEY...]`."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from loom.scan.scan import scan
     is_flag=True,
     help="Render every fragment again, ignoring the cache and retrying remembered SVG failures.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def build_command(keys: tuple[str, ...], force: bool, as_json: bool, quilt_path: str | None) -> None:
     """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).

@@ -1,4 +1,4 @@
-"""Compare's texts (`render/compare.py`, book 15.2.6): the differing pairs of two items, their directions, and the renderings cached by content."""
+"""Compare's texts (`render/compare.py`): the differing pairs of two items, their directions, and the renderings cached by content."""
 
 from __future__ import annotations
 

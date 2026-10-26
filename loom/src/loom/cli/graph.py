@@ -1,4 +1,4 @@
-"""`loom deps` and `loom downstream` (book 12.4)."""
+"""`loom deps` and `loom downstream`."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
 @click.command()
 @click.argument("key")
 @click.option("--closure", "show_closure", is_flag=True, help="The transitive statement closure in dependency order.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
@@ -255,7 +255,7 @@ def downstream_payload(result: ScanResult, key: str) -> dict[str, Any]:
 
 @click.command(name="downstream")
 @click.argument("id_", metavar="ID")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )

@@ -188,7 +188,7 @@
 		onmounted?.(el);
 	});
 
-	// The session filter and the settled control govern the marks (15.3.1): a change of either re-wires the fragment, which puts `hidden` on every mark whose annotation the filter excludes and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
+	// The session filter and the settled control govern the marks: a change of either re-wires the fragment, which puts `hidden` on every mark whose annotation the filter excludes and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
 	$effect(() => {
 		void sessionView.view;
 		void sessionView.selected;
@@ -367,7 +367,7 @@
 		scrollToHash();
 		const id = note;
 		if (!id || !el) return;
-		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as `s` would turn it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then (15.2.5)
+		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as `s` would turn it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then
 		if (settled(store.manifest?.annotations[id]) && !ui.showSettled) {
 			ui.showSettled = true;
 			await tick();

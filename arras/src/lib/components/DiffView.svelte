@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { dataUrl } from '$lib/paths';
-	// A unified diff shown as two tinted columns (book 15.3.5): what was accepted on the left, what is there now on the right.
+	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right.
 	let { path }: { path: string } = $props();
 
 	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk' };

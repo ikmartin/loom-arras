@@ -1,4 +1,4 @@
-"""TeX tier: import, atomize, and inline keep the compiled text identical under the real toolchain, and the identity test reports what changed when it fails (book 6.6)."""
+"""TeX tier: import, atomize, and inline keep the compiled text identical under the real toolchain, and the identity test reports what changed when it fails."""
 
 from __future__ import annotations
 

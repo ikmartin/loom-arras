@@ -1,4 +1,4 @@
-// The graph by section (book 15.5): one card per section holding its results in document order, and one edge per pair of sections carrying the dependencies behind it.
+// The graph by section: one card per section holding its results in document order, and one edge per pair of sections carrying the dependencies behind it.
 
 import type { Manifest } from '$lib/manifest/types';
 import { colorOf, graphInput, PAPER, sectionOf, type Filters } from './layout';

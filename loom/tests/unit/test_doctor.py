@@ -1,4 +1,4 @@
-"""`loom doctor` (book 12.2, DR-288-ikmartin): every item in each of its states, the bundle from each source, the JSON's shape, and the exit codes.
+"""`loom doctor` (DR-288-ikmartin): every item in each of its states, the bundle from each source, the JSON's shape, and the exit codes.
 
 Each case runs on a clean PATH holding only the fake toolchain, a fake git and whatever the case writes, so nothing depends on what `/usr/bin` holds; the author comes from a user config and the bundle from LOOM_ARRAS_BUNDLE unless the case is about them.
 """

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A document (plan 0.13.3 D1–D4, book 15.3.1): a master or a landmark rendered as a document in a measured column, with each result's id and state in the left gutter behind Show ids. No chrome of its own: its controls are drawn by the pane, and only while the pane is focused.
+	// A document (plan 0.13.3 D1–D4): a master or a landmark rendered as a document in a measured column, with each result's id and state in the left gutter behind Show ids. No chrome of its own: its controls are drawn by the pane, and only while the pane is focused.
 	// The gutters use the site generator's algebra, so a corpus page and a note page are laid out alike; the environment's taxon accent stands on the boundary between the left gutter and the text.
 	import { mount, unmount, untrack, type Component } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
@@ -42,7 +42,7 @@
 	const replies = (id: string) => repliesTo(m, id);
 	const slots = slotsFor(() => m, () => master?.path ?? null);
 	const notes = $derived(documentState(item).notes);
-	/** Beside a comparison every annotation's box stands in the flow; a settled one only while settled annotations are shown, as its mark is (15.3.1). */
+	/** Beside a comparison every annotation's box stands in the flow; a settled one only while settled annotations are shown, as its mark is. */
 	const inlineSlots = (key: string): CommentSlot[] =>
 		commentsOn(m, key)
 			.filter((a) => !settled(a) || ui.showSettled)
@@ -55,7 +55,7 @@
 	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind. Beside a comparison every card stands in the flow and is the annotation's one box: its mark travels to it rather than opening a second (`expand.ts`).
 	let mounted: Record<string, unknown>[] = [];
 
-	// The local graph follows the result being read (book 15.5.1). Whether it is open is a per-reader convenience kept in this browser, so a reader who put it away is not shown it on every document.
+	// The local graph follows the result being read. Whether it is open is a per-reader convenience kept in this browser, so a reader who put it away is not shown it on every document.
 	const GRAPH_KEY = 'arras.localGraph';
 	let docRoot = $state<HTMLElement | null>(null);
 	let graphOpen = $state(false);

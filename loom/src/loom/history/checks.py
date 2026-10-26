@@ -1,4 +1,4 @@
-"""What the record says against what the files say (book 17.14, 17.15): reported with the commands that would resolve it, repaired never.
+"""What the record says against what the files say: reported with the commands that would resolve it, repaired never.
 
 `quick_checks` runs on every scan and reads only the ledger; `verify` walks every step directory and runs only from `loom lint` and `loom history verify`.
 """

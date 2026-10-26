@@ -1,4 +1,4 @@
-"""Read theorem, section, and equation numbers, and citation labels, from a compiled master's .aux and .bbl (book 5.9.5, 9.6).
+"""Read theorem, section, and equation numbers, and citation labels, from a compiled master's .aux and .bbl.
 
 Both the plain form `\\newlabel{ID}{{NUMBER}{PAGE}}` and hyperref's `\\newlabel{ID}{{NUMBER}{PAGE}{TITLE}{ANCHOR}{}}` are read; cleveref's `@cref` entries are skipped. Loom never computes a number or a citation label itself.
 """
@@ -60,7 +60,7 @@ def parse_aux(text: str) -> dict[str, AuxNumber]:
 
 
 def aux_path_for(root: Path, master_rel: str) -> Path | None:
-    """`build/<stem>/<stem>.aux` if present, else the .aux beside the master, else None (book 4.4.8)."""
+    """`build/<stem>/<stem>.aux` if present, else the .aux beside the master, else None."""
     stem = Path(master_rel).stem
     candidates = [root / "build" / stem / f"{stem}.aux", root / Path(master_rel).with_suffix(".aux")]
     for c in candidates:

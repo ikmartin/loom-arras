@@ -1,4 +1,4 @@
-"""Postnote matching (book 8.7): `\\cite[POSTNOTE]{citekey}` becomes an edge to the digest node whose locator matches, after both sides are normalised.
+"""Postnote matching: `\\cite[POSTNOTE]{citekey}` becomes an edge to the digest node whose locator matches, after both sides are normalised.
 
 Normalisation lowercases, expands the abbreviation table, strips `~`, `\\S`, `\\href`, parentheses, trailing part selectors such as `(1)` or `(ii)`, page references, and the words see/cf/also, and folds plurals and Roman numerals; a postnote naming several results is split on commas, semicolons, and `and`, a bare number inheriting the taxon of the part before it.
 """

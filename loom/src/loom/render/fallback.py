@@ -1,4 +1,4 @@
-"""Exact rendering of a LaTeX block as SVG through a standalone document (book 9.4.2), the route the site generator's tikz pipeline used.
+"""Exact rendering of a LaTeX block as SVG through a standalone document, the route the site generator's tikz pipeline used.
 
 `latex` twice (tikz-cd forward references) then `dvisvgm --no-fonts --exact-bbox`; results are cached by content hash; ids inside the SVG are namespaced so several fit on one page; width is expressed in em so the viewer scales it with the text. Failures never raise: they return a `figure.fallback` with the error in a `pre`.
 

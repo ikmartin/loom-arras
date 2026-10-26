@@ -27,7 +27,7 @@ def test_blank_comments_preserves_offsets() -> None:
 def test_the_quilts_text_is_every_tex_file_but_build_the_seed_space_and_the_store(
     tmp_path: Path, excluded: str
 ) -> None:
-    """A fetched e-print is a whole paper carrying its own labels, and the author's seed space `refs/` holds other people's files; neither is scanned, while a digest beside the store is the quilt's own (DR-108, book 8.16)."""
+    """A fetched e-print is a whole paper carrying its own labels, and the author's seed space `refs/` holds other people's files; neither is scanned, while a digest beside the store is the quilt's own (DR-108)."""
     for rel in ["drafting/main.tex", "nodes/a.tex", "digests/Kre99.tex", excluded]:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +93,7 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
 
 
 def test_notes_is_the_authors_reference_material_and_never_scanned(tmp_path: Path) -> None:
-    """A colleague's `.tex` in `notes/` carries its own labels; scanning it would define nodes the author never wrote (book 4.1.2)."""
+    """A colleague's `.tex` in `notes/` carries its own labels; scanning it would define nodes the author never wrote."""
     from tests.unit.scan.helpers import PREAMBLE, make_quilt
 
     result = make_quilt(

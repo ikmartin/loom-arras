@@ -1,4 +1,4 @@
-"""Flattening (book 17.13, 6.6): every `\\input`, `\\include`, and `\\nest` of a `.tex` file expanded in place, `\\nest` with its level shift, raw text so comments and directives survive.
+"""Flattening: every `\\input`, `\\include`, and `\\nest` of a `.tex` file expanded in place, `\\nest` with its level shift, raw text so comments and directives survive.
 
 This is what `loom linearize` writes, what `loom stamp` keeps as a landmark's text and `loom import` keeps a paper as received in, and what `tex/assemble.py` wraps. A file in `skip` is left as an inclusion, with a comment above it from `marker` when one is given; a non-`.tex` inclusion (a figure's `.pspdftex`) is opaque and stays as written.
 """
@@ -77,7 +77,7 @@ def flatten(
 
 
 def loom_macro_block() -> str:
-    """The macros of loom.sty as a marked block, so a paper printed with `loom history show --plain` compiles alone forever and `loom history restore` can put the package line back (book 17.13)."""
+    """The macros of loom.sty as a marked block, so a paper printed with `loom history show --plain` compiles alone forever and `loom history restore` can put the package line back."""
     from importlib import resources
 
     sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")

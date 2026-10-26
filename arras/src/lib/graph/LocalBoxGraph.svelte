@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The local graph as boxes (book 15.5.1): the neighbourhood the dot drawing shows, laid out in layers with what a result rests on above it. Pan and zoom as in the dot drawing; nothing is dragged, since a layered drawing's positions are its meaning.
+	// The local graph as boxes: the neighbourhood the dot drawing shows, laid out in layers with what a result rests on above it. Pan and zoom as in the dot drawing; nothing is dragged, since a layered drawing's positions are its meaning.
 	import { store } from '$lib/manifest/client.svelte';
 	import { colorOf } from './layout';
 	import { neighbourhood } from './local';

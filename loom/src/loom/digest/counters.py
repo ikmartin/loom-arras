@@ -1,4 +1,4 @@
-"""amsthm counter emulation (book 8.5.2): numbers for results the extractor cannot read from an .aux file.
+"""amsthm counter emulation: numbers for results the extractor cannot read from an .aux file.
 
 Sectioning counters step and reset their descendants; a theorem counter shared with `[theorem]` follows the owning declaration's `[section]`-style reset; a theorem sharing a sectioning counter (`[subsection]`) steps it and prints as it; `\\newtheorem*` results have no number; `\\appendix` letters the section counter. An .aux number, when one exists for a labelled result, resynchronises the emulation.
 """

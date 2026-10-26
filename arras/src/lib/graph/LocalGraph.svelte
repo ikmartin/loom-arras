@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The local graph (book 15.5.1): one node's neighbourhood, drawn live, in the manner of Quartz's graph view. The centre is pinned in the middle and its neighbours settle around it, so when the centre moves — a reader scrolling on — nodes that stay in view keep their places and only the arrivals move.
+	// The local graph: one node's neighbourhood, drawn live, in the manner of Quartz's graph view. The centre is pinned in the middle and its neighbours settle around it, so when the centre moves — a reader scrolling on — nodes that stay in view keep their places and only the arrivals move.
 	// Hovering a node dims everything but it and its neighbours; each node is a link, so a click opens it and a rest shows its preview. Drawn in SVG with d3-force, which the viewer already carries, rather than ported with Quartz's PixiJS renderer: a neighbourhood is tens of nodes, and arras ships inside loom's wheel.
 	import { onDestroy } from 'svelte';
 	import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';

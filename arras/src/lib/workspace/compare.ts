@@ -1,4 +1,4 @@
-// What compare draws (book 15.2.6), computed from the two panes' nodes and nothing else: the pairs, which side holds the base, the marks, the wedges, and the differences stepped through. Pure, so its rules are tested without a browser; the drawing is CompareLayer's.
+// What compare draws, computed from the two panes' nodes and nothing else: the pairs, which side holds the base, the marks, the wedges, and the differences stepped through. Pure, so its rules are tested without a browser; the drawing is CompareLayer's.
 //
 // **Two comparisons.** With a base — an agent document against its source, a landmark against today or another landmark — a pair that differs is drawn as git draws a diff: `−` on the side holding the base, `+` on the other, `~` in the stale amber when both changed since the base; a node only one side has is marked on every line with a wedge where the base places it in the other pane; a node moved unchanged between a copy and its source is `↕`. Without a base — two of the author's documents — a shared node is one node file and so the same text, and only presence (a dashed rule) and order (a dotted one) can differ.
 

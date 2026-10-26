@@ -1,6 +1,6 @@
 name: arras
 
-# arras's lane of scripts/verify, run as it is at a terminal: `full --only arras` (svelte-check, vitest, one build, then the e2e, minimal, write and reading suites together). The write and reading suites serve with the real `loom serve` from this checkout, so a loom change runs them too. Book 14.4.
+# arras's lane of scripts/verify, run as it is at a terminal: `full --only arras` (svelte-check, vitest, one build, then the e2e, minimal, write and reading suites together). The write and reading suites serve with the real `loom serve` from this checkout, so a loom change runs them too.
 
 on:
   push:

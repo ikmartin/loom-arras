@@ -1,4 +1,4 @@
-"""The history ledger `<history>/ledger.jsonl` (book 17.2, 17.6): one JSON object per line, appended only, never rewritten.
+"""The history ledger `<history>/ledger.jsonl`: one JSON object per line, appended only, never rewritten.
 
 Read once per scan and cached by the file's mtime and size, since a served quilt rescans on every keystroke. Steps (`import`, `stamp`, `copy`) carry a quilt-wide number and a directory; every other action is a plain line.
 """
@@ -123,7 +123,7 @@ class History:
         return None
 
     def landmarks(self) -> list[Entry]:
-        """Every step that keeps a document's text, oldest first: an import's paper as received, and each stamp given a document (book 17.9)."""
+        """Every step that keeps a document's text, oldest first: an import's paper as received, and each stamp given a document."""
         return [e for e in self.steps() if e.get("landmark")]
 
     def landmark(self, ref: str) -> Entry | None:
@@ -246,7 +246,7 @@ class History:
         return end if end in live else None
 
     def copies(self, live: Collection[str]) -> dict[str, str]:
-        """Every agent document still live -> the document it copies, each where the history's moves have taken it (book 4.4)."""
+        """Every agent document still live -> the document it copies, each where the history's moves have taken it."""
         out: dict[str, str] = {}
         for e in self.entries:
             if e.action != "copy":
@@ -279,7 +279,7 @@ class History:
         return self.copies(live).get(self.current_document(copy, live) or copy)
 
     def bases(self, copy: str, live: Collection[str]) -> dict[str, dict[str, Any]]:
-        """What each of an agent document's nodes began from, as its latest `copy`, `adopt` or `refresh` line records it (book 17.7).
+        """What each of an agent document's nodes began from, as its latest `copy`, `adopt` or `refresh` line records it.
 
         Parameters
         ----------
@@ -349,7 +349,7 @@ class History:
         return state
 
     def removed_ids(self) -> dict[str, int]:
-        """id -> the step that removed it, for every recorded key whose last event is a removal (book 17.14)."""
+        """id -> the step that removed it, for every recorded key whose last event is a removal."""
         return self._walk()[2]
 
     def versions_of(self, key: str) -> list[Version]:
@@ -362,7 +362,7 @@ class History:
         return out
 
     def recorded_ids(self) -> set[str]:
-        """Every id the history has ever named as a key: frozen, removed, restored, or allocated by a fork. Never reused (book 5.3.2, 17.14)."""
+        """Every id the history has ever named as a key: frozen, removed, restored, or allocated by a fork. Never reused."""
         out: set[str] = set()
         for e in self.entries:
             for k in list(e.get("froze") or {}) + list(e.get("removed") or []) + list(e.get("restored") or []):

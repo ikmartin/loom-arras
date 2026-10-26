@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A state badge (book 15.3.2): a 14px pill, tinted background, state-coloured text. The colour comes from `state.ts`, never from this component.
+	// A state badge: a 14px pill, tinted background, state-coloured text. The colour comes from `state.ts`, never from this component.
 	import type { BadgePart } from '$lib/badges';
 	import { toneClass } from '$lib/state';
 

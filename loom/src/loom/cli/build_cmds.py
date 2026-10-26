@@ -1,4 +1,4 @@
-"""`loom compile`, `loom source`, `loom check` (book 12.5)."""
+"""`loom compile`, `loom source`, `loom check`."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def compile(  # noqa: A001
     target: str | None,
@@ -304,7 +304,7 @@ def _failed(res: CompileResult, root: Path, bad: bool) -> dict[str, Any]:
 
 
 def missing_packages(result: ScanResult, keys: list[str]) -> list[Diagnostic]:
-    """The `loom:missing-package` diagnostics of the digests among `keys`, named before a failed closure compile (book 8.11)."""
+    """The `loom:missing-package` diagnostics of the digests among `keys`, named before a failed closure compile."""
     files = {result.nodes[k].file for k in keys if k in result.nodes and result.nodes[k].digest}
     return [
         d for d in result.lint if d.code == "loom:missing-package" and any(loc.file in files for loc in d.locations)
@@ -318,7 +318,7 @@ def missing_packages(result: ScanResult, keys: list[str]) -> list[Diagnostic]:
     default="stale",
     help="Which statements' closures to compile after the documents: all of them, or none; stale compiles none yet.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
     """Lint, then compile every document, then the closures asked for. Exit 1 on any failure; the CI command.

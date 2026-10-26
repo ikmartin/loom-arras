@@ -163,7 +163,7 @@ def _cuts(result: ScanResult, node: NodeRec) -> list[tuple[int, int, str]]:
 
 
 def own_text(result: ScanResult, node: NodeRec) -> str:
-    """The raw own text of a node with a child marker where each child was cut out or included, the text every hash is taken over (book 5.13).
+    """The raw own text of a node with a child marker where each child was cut out or included, the text every hash is taken over.
 
     An inclusion line reads as the nodes the included file provides, so a node's hash is the same whether a child sits inline or in `nodes/<id>.tex`, and moving one there changes no state.
     """
@@ -303,7 +303,7 @@ def build_manifest(
         "macros": {"default": [], "sets": {}},
         "search": [],
     }
-    # an agent document's source and each derived node's base (book 17.7), read from the history the scan loaded
+    # an agent document's source and each derived node's base, read from the history the scan loaded
     record = result.history
     copies = record.copies(result.masters) if record is not None else {}
     bases = {c: record.bases(c, result.masters) for c in copies} if record is not None else {}
@@ -495,7 +495,7 @@ def build_manifest(
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
-        # one work, several documents (book 8.16): a primary names its versions, each with what is on disk for it
+        # one work, several documents: a primary names its versions, each with what is on disk for it
         if ck in versions:
             manifest["references"][ck]["versions"] = [_version(result, v) for v in versions[ck]]
         if ck in tops:
@@ -505,7 +505,7 @@ def build_manifest(
         said = unreadable.get(ck)
         if said is not None:
             manifest["references"][ck]["unreadable"] = {"why": said.why, "who": said.who, "when": said.when}
-        # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity (8.9.1)
+        # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity
         if bib is not None and not declared(bib):
             found = load_candidates(result.quilt.root, bib)
             if found:
@@ -567,7 +567,7 @@ def build_manifest(
 
 
 def _conflict_entry(n: NodeRec) -> dict[str, Any]:
-    """A doubly-defined id: published with the state `conflicted` and no text, so every view shows the id and none shows a winner (book 5.3.5)."""
+    """A doubly-defined id: published with the state `conflicted` and no text, so every view shows the id and none shows a winner."""
     return {
         "id": n.key,
         "kind": "environment",
@@ -614,7 +614,7 @@ def _conflict_key(n: NodeRec) -> dict[str, Any]:
 
 
 def _versions(result: ScanResult, manifest: dict[str, Any], history: Any) -> None:
-    """`keys[k].version` when a key's current text is one the history recorded: what the viewer shows as "text of @3" (book 17.5)."""
+    """`keys[k].version` when a key's current text is one the history recorded: what the viewer shows as "text of @3"."""
     from loom.history.versions import matching_version
 
     for key, entry in manifest["keys"].items():

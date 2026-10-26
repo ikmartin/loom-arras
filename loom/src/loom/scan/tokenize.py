@@ -1,4 +1,4 @@
-"""A restricted LaTeX tokenizer over comment-blanked text (book 5.1.4).
+"""A restricted LaTeX tokenizer over comment-blanked text.
 
 Yields commands, environment begin/end, groups, math delimiters, verbatim spans, and text runs with character offsets. It is not a TeX interpreter: it recognises surface forms and leaves the rest as text. Brace matching crosses newlines, so a citation or package list split over lines is one group.
 """

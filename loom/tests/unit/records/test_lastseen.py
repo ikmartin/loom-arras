@@ -1,4 +1,4 @@
-"""Anchors frozen against the last text loom saw (book 7.5, plan 0.10 Part B)."""
+"""Anchors frozen against the last text loom saw (plan 0.10 Part B)."""
 
 from __future__ import annotations
 

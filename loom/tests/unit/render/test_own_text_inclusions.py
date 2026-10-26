@@ -1,4 +1,4 @@
-"""A node's own text reads an inclusion of a child as the child itself, so moving a node into nodes/ leaves every hash where it was (book 5.13)."""
+"""A node's own text reads an inclusion of a child as the child itself, so moving a node into nodes/ leaves every hash where it was."""
 
 from __future__ import annotations
 

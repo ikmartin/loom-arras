@@ -6,7 +6,7 @@
 // attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
 // author has since moved.
 //
-// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits; `off` draws none, which compare chooses so that its washes and colours mean one thing each (book 15.2.6). The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
+// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits; `off` draws none, which compare chooses so that its washes and colours mean one thing each. The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
 //
 // A write is available only while an *open* session is selected. Nothing is created automatically: the courtesy of
 // opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to

@@ -1,4 +1,4 @@
-"""Fixture quilts: expected diagnostics, the demo equals `loom init --demo`, edge cases, and the author-file invariance property (book 4.8, 14.3, 14.7)."""
+"""Fixture quilts: expected diagnostics, the demo equals `loom init --demo`, edge cases, and the author-file invariance property."""
 
 from __future__ import annotations
 

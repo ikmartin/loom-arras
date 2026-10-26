@@ -1,4 +1,4 @@
-"""Snapshots `<history>/texts/<hex>.tex`: the normalised text of a key, a statement, or a preamble at acceptance time, content-addressed so identical text is stored once and nothing is ever overwritten (book 7.2.2, 17.2).
+"""Snapshots `<history>/texts/<hex>.tex`: the normalised text of a key, a statement, or a preamble at acceptance time, content-addressed so identical text is stored once and nothing is ever overwritten.
 
 The store is the history's `texts/` directory, shared with versions and anchors.
 """

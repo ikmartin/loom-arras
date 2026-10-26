@@ -131,7 +131,7 @@
 	}
 	.reviewer button { cursor: pointer; }
 	.reviewer button:hover { background: var(--link-wash); }
-	/* Sized by its widest row, never by the control it hangs off; rows never wrap (book 15.2.3). */
+	/* Sized by its widest row, never by the control it hangs off; rows never wrap. */
 	.panel {
 		width: max-content;
 		padding: var(--gap);

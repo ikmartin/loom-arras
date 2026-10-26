@@ -70,7 +70,7 @@ Arras displays this diagnostic on the block with a link to its row in a working-
 - `loom:see-redundant` (info): a `% !LOOM see:` item that names the node it is written in, or that repeats a relation already declared on that node.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
 - `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
-- `loom:closure-failed` (error): a key's closure document did not compile; first LaTeX error attached; `loom check --closures` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks (8.11).
+- `loom:closure-failed` (error): a key's closure document did not compile; first LaTeX error attached; `loom check --closures` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks.
 - `loom:atomize-target-exists` (error, fixed): atomize would overwrite a file.
 - `loom:import-outside-tree` (warning): import found a file outside the paper directory and did not copy it.
 - `loom:non-utf8-source` (warning): a scanned file was not UTF-8 and was decoded as Mac Roman or Latin-1 (DR-47).
@@ -85,15 +85,15 @@ Review:
 - `loom:retired-ledger-key` (info): a ledger row whose key no longer exists.
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
-- `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads (book 7.4.1).
+- `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads.
 
 References and digests:
 
 - `loom:unmatched-postnote` (warning): a `\cite[postnote]` that matched no digest node, when a digest for the citekey exists; a digest node's own locator title is exempt (DR-66).
 - `loom:undigested-citekey` (info): a cited key with no digest; the ingest trigger.
-- `loom:postnote-from-another-version` (info): a `\cite[postnote]{key}` that `key`'s own digest does not answer, answered by the digest of another version of the work (an entry filed as another document of it, `loom-copy-of`); the edge goes to that version's node. A key counts as digested for `loom:undigested-citekey` when a version of it is (book 8.16).
+- `loom:postnote-from-another-version` (info): a `\cite[postnote]{key}` that `key`'s own digest does not answer, answered by the digest of another version of the work (an entry filed as another document of it, `loom-copy-of`); the edge goes to that version's node. A key counts as digested for `loom:undigested-citekey` when a version of it is.
 - `loom:unresolved-work` (info): a cited work whose bibliography entry states no identifier (`doi`, `eprint`, `mrnumber`, `zbl`, or a URL carrying one). It can still be digested and still enters the graph; what it cannot do is deduplicate against another corpus's copy or be fetched (DR-109).
-- `loom:unverified-locators` (warning): a digest extracted from a preprint while the bibliography cites a published version, or one that does not say what it was extracted from. Its result numbers and page references are unverified against the document a reader will open (DR-109). The commands that read a digest say the same where it is read (book 8.4, DR-313-ikmartin).
+- `loom:unverified-locators` (warning): a digest extracted from a preprint while the bibliography cites a published version, or one that does not say what it was extracted from. Its result numbers and page references are unverified against the document a reader will open (DR-109). The commands that read a digest say the same where it is read (DR-313-ikmartin).
 - `loom:version-mismatch` (warning): a digest's source version differs from the bibliography's.
 - `loom:missing-package` (warning): a digest requires a package the preamble closure does not load.
 - `loom:digest-without-bib` (warning): a digest whose citekey is not in the bibliography.
@@ -108,7 +108,7 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 
 ### The workbench and the record
 
-**[decided]** These concern loom's own record of the quilt (Chapter 17) and carry `subject: "record"` except where noted.
+**[decided]** These concern loom's own record of the quilt and carry `subject: "record"` except where noted.
 
 - `loom:superseded-file` (info): a document a conversion replaced; it defines nothing until `loom live`.
 - `loom:history-missing` (error): a step directory or one of its files is gone.
@@ -119,11 +119,11 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
 - `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one from the newest landmark, `loom history restore NAME --to <drafting>/main.tex`.
-- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent document's derived id (book 5.3.1); the message names the plain id to use.
-- `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem (book 4.4).
-- `loom:agent-document-not-a-copy` (error, subject `source`): a document in the agent's drafting directory that no `copy` step made, so it has no source to be adopted into and no bases to refresh from (book 4.4); carries the fix `loom draft DOC --ai NAME.tex`, DOC the default document.
-- `loom:plain-id-in-drafting-ai` (error, subject `source`): a plain id defined in a file of the agent's drafting directory, where every id is derived (book 4.4, 5.3.1); carries the fix `loom id --next`, whose id takes `-ai`.
-- `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document (book 17.12). One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (book 7.6.2; DR-297-ikmartin).
+- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent document's derived id; the message names the plain id to use.
+- `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem.
+- `loom:agent-document-not-a-copy` (error, subject `source`): a document in the agent's drafting directory that no `copy` step made, so it has no source to be adopted into and no bases to refresh from; carries the fix `loom draft DOC --ai NAME.tex`, DOC the default document.
+- `loom:plain-id-in-drafting-ai` (error, subject `source`): a plain id defined in a file of the agent's drafting directory, where every id is derived; carries the fix `loom id --next`, whose id takes `-ai`.
+- `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document. One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (DR-297-ikmartin).
 
 ## 4. Adding a code
 

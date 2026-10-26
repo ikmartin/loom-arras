@@ -1,4 +1,4 @@
-"""Compare's texts (book 15.2.6): the differing pairs of two items, rendered with their changed words when a viewer asks, never at build.
+"""Compare's texts: the differing pairs of two items, rendered with their changed words when a viewer asks, never at build.
 
 A pair is two nodes with one plain key (`zk-0001` and `zk-0001-ai`, or a key in a landmark and today). Rendering is cached by content under `build/compare/`, so a pair renders once however many comparisons ask for it.
 """
@@ -172,7 +172,7 @@ def compare(result: ScanResult, left: str, right: str) -> dict[str, Any]:
     Returns
     -------
     dict
-        `{"left": {item, kind, macros}, "right": {...}, "pairs": [...]}`. Each pair has `pair` (the plain key), `base` ('left', 'right', 'both' or None) and, per side, `key`, `hash` and `fragment` (a path under the build directory; absent when no live node gives the rendering its context). Pairs whose `pair_hash`es agree are left out: a display name changed alone is no difference (book 17.7).
+        `{"left": {item, kind, macros}, "right": {...}, "pairs": [...]}`. Each pair has `pair` (the plain key), `base` ('left', 'right', 'both' or None) and, per side, `key`, `hash` and `fragment` (a path under the build directory; absent when no live node gives the rendering its context). Pairs whose `pair_hash`es agree are left out: a display name changed alone is no difference.
 
     Raises
     ------

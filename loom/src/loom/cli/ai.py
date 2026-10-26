@@ -1,4 +1,4 @@
-"""`loom ai ...` (book 11 and 12.8): the agent layer, its orientation, its documents, and a session's annotations."""
+"""`loom ai ...`: the agent layer, its orientation, its documents, and a session's annotations."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def ai() -> None:
 @click.option("--target", default=None, metavar="KEY", help="Withdraw every record with an annotation on KEY.")
 @click.option("--undo", is_flag=True, help="Restore the matching records instead.")
 @click.option("--dry-run", is_flag=True, help="Say what would be withdrawn and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def discard(
     run: str | None,
@@ -185,7 +185,7 @@ def install_layer(root: Path, *, skills: bool = False, write: bool = True) -> La
 @ai.command(name="init")
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
 @click.option("--dry-run", is_flag=True, help="Say what would be written and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def ai_init(skills: bool, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
@@ -267,7 +267,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 
 
 @ai.command(name="drafts")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
     """List each agent document drafted from a working document, and what has moved in that document since.
@@ -449,7 +449,7 @@ def ai_annotations(
 @ai.command(name="refresh")
 @click.argument("document")
 @click.option("--dry-run", is_flag=True, help="Say what would be refreshed and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def refresh_draft(document: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Update an agent document from the working document it was drafted from, keeping its outstanding proposals."""

@@ -1,4 +1,4 @@
-"""Id allocation by `loom new` (book 5.3.2): the next free id, past every id the quilt defines or references, and `--print`, which allocates nothing."""
+"""Id allocation by `loom new`: the next free id, past every id the quilt defines or references, and `--print`, which allocates nothing."""
 
 from __future__ import annotations
 

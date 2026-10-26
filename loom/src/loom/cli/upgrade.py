@@ -1,4 +1,4 @@
-"""`loom upgrade` (book 12.2): refresh loom.sty and the generated AI-layer files to the installed loom's versions; edited mode files are kept and a `.new` written beside them, and an edited loom.sty is kept as `loom.sty.old` before it is replaced."""
+"""`loom upgrade`: refresh loom.sty and the generated AI-layer files to the installed loom's versions; edited mode files are kept and a `.new` written beside them, and an edited loom.sty is kept as `loom.sty.old` before it is replaced."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from loom.cli.report import Group, Item, Report, counted
 
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Say which files would be refreshed, and write nothing.")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.

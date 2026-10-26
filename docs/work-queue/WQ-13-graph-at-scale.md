@@ -18,8 +18,8 @@ Distinguish from [[WQ-05]]: that decides *what* is drawn (results, or papers con
 
 ## Blast radius
 
-`loom/src/loom/render/manifest.py`, `docs/specs/manifest.md` (additive), `arras/src/lib/` graph components, Chapter 10 §10.6, Chapter 15 §15.5.
+`loom/src/loom/render/manifest.py`, `docs/specs/manifest.md` (additive), `arras/src/lib/` graph components.
 
 ## Related
 
-Chapter 10; [[WQ-05]]; DR-96 (the force layout's self-dependent effect, fixed during 0.3).
+; [[WQ-05]]; DR-96 (the force layout's self-dependent effect, fixed during 0.3).

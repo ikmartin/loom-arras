@@ -1,4 +1,4 @@
-"""The scan orchestrator: files, masters, closures, expansions, taxa, bibliography, assembly (book 9.1 step 1).
+"""The scan orchestrator: files, masters, closures, expansions, taxa, bibliography, assembly: the first step of every build.
 
 `scan(quilt)` is the single entry point every command uses; nothing in it writes to disk.
 """
@@ -81,7 +81,7 @@ class ScanResult:
         return self._trails[path]
 
     def current_document(self, path: str) -> str | None:
-        """Where the document a record names by `path` is now: a master of this scan, or None when it is gone (book 7.3).
+        """Where the document a record names by `path` is now: a master of this scan, or None when it is gone.
 
         Parameters
         ----------
@@ -101,7 +101,7 @@ class ScanResult:
         return end if end in self.masters else None
 
     def document_role(self, path: str) -> str | None:
-        """Which drafting directory a live document is in (book 4.1).
+        """Which drafting directory a live document is in.
 
         Parameters
         ----------
@@ -137,12 +137,12 @@ def _stems_taken(masters: list[str]) -> list[Diagnostic]:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material (book 4.1), and the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own."""
+    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material, and the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own."""
     return ("retired", "notes", Path(quilt.config.history).as_posix())
 
 
 def landmark_documents(quilt: Quilt) -> list[str]:
-    """The quilt-relative path of every landmark's text, oldest first: the file each landmark step keeps in its directory (book 17.9)."""
+    """The quilt-relative path of every landmark's text, oldest first: the file each landmark step keeps in its directory."""
     from loom.history.ledger import load_history
 
     history = load_history(quilt.history_dir)
@@ -172,7 +172,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
         src = result.files.get(rel)
         if src is None:
             continue
-        # a conversion recorded that its output replaced this document, so it defines nothing until `loom live` says otherwise (book 17.12)
+        # a conversion recorded that its output replaced this document, so it defines nothing until `loom live` says otherwise
         src.ignored = True
         src.superseded = entry.action
         result.diagnostics.append(
@@ -225,7 +225,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                 [],
             )
         )
-    # the quilt's own bibliography, gathered from the landmarks by `loom library update`; an author's `.bib` reaches it only through a landmark that names it (book 8.2)
+    # the quilt's own bibliography, gathered from the landmarks by `loom library update`; an author's `.bib` reaches it only through a landmark that names it
     if (root / BIBLIOGRAPHY).is_file():
         result.bib.update(parse_bib(read_source(root, BIBLIOGRAPHY).text))
     from loom.scan.directives import parse_directives

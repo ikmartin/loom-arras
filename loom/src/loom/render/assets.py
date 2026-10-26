@@ -1,4 +1,4 @@
-"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images are copied; everything lands content-addressed under build/svg/ (book 9.4.1)."""
+"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images are copied; everything lands content-addressed under build/svg/."""
 
 from __future__ import annotations
 

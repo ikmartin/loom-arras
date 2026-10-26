@@ -1,4 +1,4 @@
-"""`loom lint` (book 12.5): every diagnostic, one group per code with the author's before the cited works', and one line for works nothing cites; exit 1 on an error outside those works. `--nodes` groups by node id (book 17.16)."""
+"""`loom lint`: every diagnostic, one group per code with the author's before the cited works', and one line for works nothing cites; exit 1 on an error outside those works. `--nodes` groups by node id."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list
 
 
 @click.command(name="lint")
-@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--nodes",
     "nodes",

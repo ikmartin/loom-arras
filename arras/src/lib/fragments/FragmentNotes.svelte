@@ -23,7 +23,7 @@
 		holder: { tool: Tool };
 		/** The key a place belongs to when no result encloses it: the node shown, or the document. */
 		fallback: string;
-		/** The document being read, when the fragment is one: every annotation written here is filed with it (book 7). A node's own page passes nothing. */
+		/** The document being read, when the fragment is one: every annotation written here is filed with it. A node's own page passes nothing. */
 		in?: string;
 		children: Snippet;
 	} = $props();

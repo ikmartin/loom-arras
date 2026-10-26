@@ -1,4 +1,4 @@
-// The graph in reading order (book 15.5): the document top to bottom, its sections and results as rows, and every dependency an arc in the left margin.
+// The graph in reading order: the document top to bottom, its sections and results as rows, and every dependency an arc in the left margin.
 
 import type { Manifest } from '$lib/manifest/types';
 import { colorOf, graphInput, sectionOf, type Filters } from './layout';
