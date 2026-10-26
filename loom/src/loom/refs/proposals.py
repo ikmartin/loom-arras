@@ -3,7 +3,7 @@
 Three files per cited work, and the split between them is the whole design.
 
 - `digests/<citekey>.tex` holds **verified nodes only**. It is what a bundle `\\input`s.
-- `digests/<citekey>.proposed.tex` holds proposals. loom scans it and **nothing ever `\\input`s it**, so a proposal cannot enter a closure, be cited, or reach a compile. That is a structural guarantee rather than a check. It is a `.tex` rather than rows in JSON because a proposal exists to be *looked at*, and the pipeline that turns LaTeX into something a person can look at is the one that reads `.tex` files.
+- `digests/<citekey>.proposed.tex` holds proposals. loom scans it, **nothing ever `\\input`s it**, and the scan makes no edge to a proposal from outside it (`loom:cites-proposed-node` reports the citation instead), so a proposal cannot enter a closure or reach a compile. It is a `.tex` rather than rows in JSON because a proposal exists to be *looked at*, and the pipeline that turns LaTeX into something a person can look at is the one that reads `.tex` files.
 - `digests/<citekey>.results.json` carries what the document cannot: both texts, the anchor, the level, the state and the provenance. Contract §9 governs its shape, so a digest weft wrote is readable here.
 
 Events append to `digests/<citekey>.proposals.jsonl`, which is what makes a discard visible to the agent that proposed it: `loom library propose` refuses a discarded work-and-local-id and returns the reason in the same turn.

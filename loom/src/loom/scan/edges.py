@@ -157,6 +157,23 @@ def _resolve(
     src_node = asm.nodes.get(from_key)
     if src_node is not None and src_node.kind == "proof" and src_node.of == to:
         return
+    to_node = asm.nodes.get(to)
+    if (
+        to_node is not None
+        and to_node.file.endswith(".proposed.tex")
+        and (src_node is None or src_node.file != to_node.file)
+    ):
+        # a proposal is never an edge target from outside its own file: nobody has vouched for it
+        res.diagnostics.append(
+            Diagnostic(
+                "warning",
+                "loom:cites-proposed-node",
+                f"\\{via}{{{label}}} names {to}, which is proposed and not yet verified",
+                [Location(file, line, column)],
+                [from_key],
+            )
+        )
+        return
     res.edges.append(
         EdgeRec(from_key, to, kind, "postnote" if via == "cite" else via, file, line, label, offset, column)
     )

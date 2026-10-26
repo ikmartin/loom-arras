@@ -114,6 +114,7 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:history-missing` (error): a step directory or one of its files is gone.
 - `loom:history-edited` (error): a version file, a preamble, or a step's document — a landmark, or a copy step's source — does not hash to what the ledger recorded.
 - `loom:history-corrupt` (error): a ledger line cannot be read, or a step number does not follow the last.
+- `loom:history-interrupted` (warning): a step directory no ledger line names, left by a step interrupted before it was recorded; nothing reads it, and every command that records a step refuses until it is removed.
 - `loom:dangling-ancestry` (warning): a `fork`, `revert`, `restore` or `copy` line names a step, a landmark or a version the history no longer resolves.
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.

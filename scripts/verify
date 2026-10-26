@@ -2,12 +2,13 @@
 """Run the workspace's verification: one command, one table, CI's state last (plan 0.14.1, book 14.4).
 
 Usage:
-    scripts/verify [fast|full|paper] [--only loom|arras|docs]
+    scripts/verify [fast|full|paper|client] [--only loom|arras|docs]
     scripts/verify --steps NAME[,NAME...] [--only loom|arras|docs]
 
     fast     the inner loop: loom lint, types and unit tier; arras check and vitest; the docs checks
     full     before a commit: fast, plus loom's TeX tier and every arras Playwright suite
     paper    the paper tier, which needs LOOM_PAPER_FIXTURES; run by hand
+    client   the client tier: a quilt's generated agent configuration tried against the real Claude Code, which calls a hosted model on your account; run by hand
     --steps  exactly the named steps (the table's names without the lane, e.g. "pytest tex"), whatever their tier
 
 CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (book 14.4). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
@@ -29,7 +30,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-UNIT = "not tex and not paper and not network"
+UNIT = "not tex and not paper and not network and not client"
 LOOM_XDIST = ["-n", "auto", "--dist", "loadgroup"]
 # the one arras build of a run, which every Playwright suite copies; slot 1 gives the suites ports and scratch directories apart from a suite started by hand (arras/tests/sites.ts)
 ARRAS_BUILD = ".tmp-e2e/slot-1/bundle"
@@ -66,6 +67,8 @@ STEPS = [
     # the biber test skips itself where biber is absent; nothing is deselected by hand
     Step("loom", "pytest tex", "loom", ["uv", "run", "pytest", *LOOM_XDIST, "-m", "tex"], ("full",)),
     Step("loom", "pytest paper", "loom", ["uv", "run", "pytest", *LOOM_XDIST, "-m", "paper"], ("paper",)),
+    # choosing the tier is the consent its gate stands for, so the step sets it; one turn at a time, not on xdist workers, since each spends on the account of whoever runs it
+    Step("loom", "pytest client", "loom", ["uv", "run", "pytest", "-m", "client"], ("client",), env={"LOOM_CLIENT_TESTS": "1"}),
     Step("arras", "svelte-check", "arras", ["npm", "run", "check"], ("fast", "full")),
     Step("arras", "vitest", "arras", ["npx", "vitest", "--run"], ("fast", "full")),
     Step("arras", "build", "arras", ["node", "scripts/bundle.mjs", ARRAS_BUILD], ("full",)),
@@ -118,7 +121,7 @@ class Result:
 
 def env() -> dict[str, str]:
     """The caller's environment without what would leak into the suites: an activated virtualenv, which uv then warns about, and an agent's session. The tier gates pass through."""
-    gates = ("LOOM_PAPER_FIXTURES", "LOOM_NETWORK")
+    gates = ("LOOM_PAPER_FIXTURES", "LOOM_NETWORK", "LOOM_CLIENT_TESTS")
     out = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV" and (not k.startswith("LOOM_") or k in gates)}
     out["NO_COLOR"] = "1"
     out.pop("FORCE_COLOR", None)
@@ -211,7 +214,7 @@ def ci_state() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("tier", nargs="?", choices=("fast", "full", "paper"), help="default fast")
+    parser.add_argument("tier", nargs="?", choices=("fast", "full", "paper", "client"), help="default fast")
     parser.add_argument("--only", choices=("loom", "arras", "docs"))
     parser.add_argument("--steps", help="comma-separated step names to run whatever their tier, instead of a tier")
     args = parser.parse_args()

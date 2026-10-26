@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 
+import pytest
 from click.testing import Result
 
+from loom.history import steps
 from loom.history.steps import text_hash
+from loom.history.versions import version_filename
 from tests.helpers import edit, exits, json_of, ok, refused, run, templated, the
 
 PAPER = r"""\documentclass{article}
@@ -274,6 +278,63 @@ def test_verify_names_each_part_of_a_step_that_is_missing_or_edited(tmp_path: Pa
     js = json_of("history", "verify", "--json", cwd=q, code=1)["diagnostics"]
     missing = the(js, lambda x: x["code"] == "loom:history-missing", "loom:history-missing diagnostic")
     assert missing["message"] == "the directory 0002-v1 of step 0002 is missing from .loom/history"
+
+
+def tree(d: Path) -> dict[str, bytes]:
+    """Every file under `d` by its path relative to `d`, with its bytes."""
+    return {p.relative_to(d).as_posix(): p.read_bytes() for p in sorted(d.rglob("*")) if p.is_file()}
+
+
+def test_a_step_is_written_whole_before_the_ledger_line_that_names_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Book 17.6: the ledger line is written last, after the step's directory and every file in it, so a step cut short leaves files the record does not name and never a line naming files that are not there. Every other test sees a step only once it is finished, which passes whichever is written first.
+
+    The same stamp is made twice, once to the end and once cut off where the line is appended: the cut one's directory must already hold every file of the finished one, byte for byte, while the ledger is as it was.
+    """
+    done, cut = quilt(tmp_path / "done"), quilt(tmp_path / "cut")
+    ok("stamp", "drafting/main.tex", "-m", "v1", cwd=done)
+    finished = tree(done / ".loom" / "history" / "0002-v1")
+    step = ledger(done)[-1]
+    assert set(finished) == {version_filename(k) for k in step["froze"]} | {"preamble.tex", "v1.tex"}
+    before = (cut / ".loom" / "history" / "ledger.jsonl").read_bytes()
+
+    def interrupted(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("interrupted before the ledger line")
+
+    # a context, not `monkeypatch.undo()`, which would also undo the isolation conftest set up with the same fixture
+    with monkeypatch.context() as m, pytest.raises(RuntimeError, match="interrupted before the ledger line"):
+        m.setattr(steps, "append_entry", interrupted)
+        run("stamp", "drafting/main.tex", "-m", "v1", cwd=cut)
+    assert tree(cut / ".loom" / "history" / "0002-v1") == finished
+    assert (cut / ".loom" / "history" / "ledger.jsonl").read_bytes() == before
+    assert [e["dir"] for e in ledger(cut) if "dir" in e] == ["0001-main"]
+    # and the directory nothing names is reported, which is what makes writing the line last safe
+    r = ok("history", "verify", cwd=cut)
+    assert "warning loom:history-interrupted" in r.output and ".loom/history/0002-v1" in r.output, r.output
+    assert "rm -r .loom/history/0002-v1" in r.output
+
+
+def test_a_step_is_never_recorded_beside_an_interrupted_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retrying an interrupted stamp once crashed with a traceback, and a stamp under another name wrote a second directory numbered like the first; every command that records a step now refuses while the interrupted one is there, names the command that clears it, and writes nothing."""
+    q = quilt(tmp_path)
+    with monkeypatch.context() as m, pytest.raises(RuntimeError):
+        m.setattr(steps, "append_entry", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("interrupted")))
+        run("stamp", "drafting/main.tex", "-m", "v1", cwd=q)
+    hist = q / ".loom" / "history"
+    before = sorted(p.name for p in hist.iterdir())
+    for args in (
+        ("stamp", "drafting/main.tex", "-m", "v1"),
+        ("stamp", "drafting/main.tex", "-m", "v2"),
+        ("stamp", "-m", "points"),
+    ):
+        refused(*args, code=2, match="rm -r .loom/history/0002-v1", cwd=q)
+    refused("draft", "drafting/main.tex", "--ai", "copy", code=2, match="interrupted", cwd=q)
+    assert sorted(p.name for p in hist.iterdir()) == before, "a refusal writes nothing"
+    assert not (q / "drafting-ai" / "copy.tex").exists(), "draft refuses before it writes the copy"
+    shutil.rmtree(hist / "0002-v1")
+    ok("stamp", "drafting/main.tex", "-m", "v1", cwd=q)
+    assert [e["dir"] for e in ledger(q) if "dir" in e] == ["0001-main", "0002-v1"]
 
 
 def test_ancestry_the_history_no_longer_resolves_is_dangling(tmp_path: Path) -> None:

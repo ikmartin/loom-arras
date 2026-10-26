@@ -277,6 +277,37 @@ def test_a_proposal_is_in_no_bundle_and_no_closure(tmp_path: Path) -> None:
             assert shadow.name not in tex.read_text(), f"{tex} inputs the proposals file"
 
 
+def test_a_cited_proposal_is_no_dependency_until_it_is_verified(tmp_path: Path) -> None:
+    """Citing or referring to a proposal is reported and makes no edge, so nobody's unchecked statement enters a closure, a closure document or a compile; verifying it makes the citation a dependency."""
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+    from loom.tex.bundle import build_bundle
+
+    q, ck = mapped(tmp_path)
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Every widget is proposed.")
+    rid = f"{ck}-thm-1.1"
+    node = q / "nodes" / "dm-0003.tex"
+    cited = node.read_text().replace(
+        r"\cite[Proposition 3.2]{Calloway14}.",
+        rf"\cite[Proposition 3.2]{{Calloway14}} and \cite[Theorem 1.1]{{{ck}}}, \ref{{{rid}}}.",
+    )
+    node.write_text(cited)
+
+    res = scan(load_quilt(q))
+    assert rid in res.nodes, "the proposal is scanned"
+    assert all(e.to != rid for e in res.edges.edges), "a proposal is never an edge target"
+    assert rid not in res.graph.closure("dm-0003/proof")
+    bundle = build_bundle(res, "dm-0003")
+    assert rid not in bundle.closure and "Every widget is proposed" not in bundle.text
+    warned = [d for d in res.edges.diagnostics if d.code == "loom:cites-proposed-node"]
+    assert len(warned) == 2, "both the citation and the reference are reported"
+    assert "Every widget is proposed" not in ok("source", "dm-0003/proof", "--closure", cwd=q).stdout
+
+    ok("library", "verify", rid, "--as", "isaac", "--yes", cwd=q)
+    res = scan(load_quilt(q))
+    assert rid in res.graph.closure("dm-0003/proof"), "once verified, the citation is a dependency"
+
+
 def test_verifying_moves_it_into_the_digest_and_records_both_parties(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=new_session(q, "run A"))

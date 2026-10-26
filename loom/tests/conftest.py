@@ -42,8 +42,8 @@ REAL_POPPLER_BIN = _real_bin("pdftotext")
 NOTES = Path.home() / "notes"
 
 
-#: What a tier reads to decide whether to run: the paper tier's sources, and permission to use the network.
-TIER_GATES = ("LOOM_PAPER_FIXTURES", "LOOM_NETWORK")
+#: What a tier reads to decide whether to run: the paper tier's sources, permission to use the network, and permission to call a hosted model through the real client.
+TIER_GATES = ("LOOM_PAPER_FIXTURES", "LOOM_NETWORK", "LOOM_CLIENT_TESTS")
 
 
 def leaking(environ: dict[str, str] | os._Environ[str]) -> list[str]:

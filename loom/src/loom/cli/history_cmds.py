@@ -28,6 +28,7 @@ from loom.history.steps import (
     file_hash,
     plan_document_stamp,
     plan_freeze,
+    refuse_interrupted,
     slug,
     stamp_document,
     text_hash,
@@ -129,6 +130,7 @@ def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, 
             f"{taken[0]} is already named {Path(dest_rel).stem}; arras and the build tell documents apart by name"
         )
     history = _history(result)
+    refuse_interrupted(history)  # before the copy is written, so a refusal leaves nothing behind
     existing = [c for c, s in history.copies(result.masters).items() if s == source_rel]
     if existing:
         raise EnvError(f"{source_rel} already has an agent document, {existing[0]}; an agent works in that one")

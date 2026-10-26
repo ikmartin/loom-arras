@@ -320,8 +320,9 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     # theorem-like environments the preamble does not declare
     for path, fe in asm.envs.items():
         seen: set[str] = set()
+        own = asm.digest_taxa.get(path, {})  # a digest's results declare their own environments
         for env in fe.all_envs():
-            if env.name in result.taxa or env.name in seen or env.is_proof:
+            if env.name in result.taxa or env.name in own or env.name in seen or env.is_proof:
                 continue
             if env.name in COMMON_THEOREM_ENVS:
                 seen.add(env.name)

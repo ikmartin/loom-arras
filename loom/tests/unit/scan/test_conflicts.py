@@ -98,11 +98,16 @@ def test_a_conflicted_id_is_still_a_reference_target(tmp_path: Path) -> None:
     assert [e.to for e in r.edges.edges if e.src == "ab-0002"] == ["ab-0001"]
 
 
-def test_two_copies_in_one_file_keep_todays_message(tmp_path: Path) -> None:
+def test_two_copies_in_one_file_are_conflicted_too(tmp_path: Path) -> None:
+    """Two definitions in one file pick no winner either: the later one used to hold the id silently, so an acceptance or an annotation applied to a text nobody chose."""
     r = make_quilt(
         tmp_path,
         {"drafting/main.tex": PREAMBLE + "\\begin{document}\n" + LEMMA + LEMMA + "\\end{document}\n"},
     )
     (d,) = _diag(r, "duplicate-id")
-    assert d.message == "label ab-0001 is defined twice" and not d.fixes
-    assert "ab-0001" in r.nodes and r.nodes["ab-0001"].kind == "environment"  # one file is the author's to fix
+    assert d.message == "ab-0001 is defined twice in drafting/main.tex; it has no text until one definition remains"
+    assert [f.command for f in d.fixes] == ["loom id --next"], (
+        "forking splits documents; one file is told apart by hand"
+    )
+    assert len(d.locations) == 2, "both definitions are located"
+    assert r.nodes["ab-0001"].kind == "conflict"

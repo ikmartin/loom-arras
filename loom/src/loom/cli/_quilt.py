@@ -79,7 +79,12 @@ def require_text(result: ScanResult, key: str) -> None:
     """Refuse a key that is conflicted: defined by two files, it has no text for anything to act on (book 5.3.5)."""
     n = result.assembly.nodes.get(key)
     if n is not None and n.kind == "conflict":
+        from loom.scan.nodes import defined_by
+
+        split = (
+            f"loom fork {key} --in FILE splits them" if len(n.conflict) > 1 else "loom id --next gives one a fresh id"
+        )
         raise ContentError(
-            f"{key} is defined by {' and '.join(n.conflict)} and has no text until one definition remains; "
-            f"loom lint --nodes shows both, loom fork {key} --in FILE splits them"
+            f"{key} is {defined_by(n.conflict)} and has no text until one definition remains; "
+            f"loom lint --nodes shows both, {split}"
         )

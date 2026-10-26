@@ -17,7 +17,7 @@ from loom.render import publish as publish_mod
 from loom.render.build import build
 from loom.scan.macros import PACKAGE_COMMANDS
 from loom.scan.quilt import load_quilt
-from tests.helpers import exits, ok
+from tests.helpers import edit, exits, ok
 
 REPO = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO / "tests" / "tools" / "validate_dialect.py"
@@ -218,6 +218,51 @@ def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.Mo
         build(load_quilt(d))
     assert (d / "build" / "manifest.json").read_text() == before
     assert not list((d / "build").rglob("*.tmp"))
+
+
+def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Book 9.2.2: arras reloads when `manifest.json` changes, so every file a build publishes is written beside its target and renamed into place before the manifest is, itself by rename. The interrupted-publish test passes whichever is written first, since a failed manifest write leaves the old one either way; this one records the renames.
+
+    A cold build, where every file is new, and a rebuild after one node changed, which is what a served quilt does on every save.
+    """
+    d = demo(tmp_path)
+    b = d / "build"
+    renames: list[tuple[Path, Path]] = []
+    handed: list[str] = []
+    real_replace, real_publish = os.replace, build_mod.publish
+
+    def replace(src: str | os.PathLike[str], dst: str | os.PathLike[str], **fds: int | None) -> None:
+        renames.append((Path(src), Path(dst)))
+        real_replace(src, dst, **fds)
+
+    def publish(build_dir: Path, files: dict[str, str | bytes], *args: object, **kwargs: object) -> None:
+        handed.extend(files)
+        real_publish(build_dir, files, *args, **kwargs)
+
+    monkeypatch.setattr(publish_mod.os, "replace", replace)
+    monkeypatch.setattr(build_mod, "publish", publish)
+
+    def renamed() -> list[Path]:
+        """What the build renamed into build/ outside loom's own cache, in order, having checked that each came from beside its target and that the manifest came once and last; the manifest left out."""
+        into = [(src, dst) for src, dst in renames if dst.is_relative_to(b) and not dst.is_relative_to(b / "cache")]
+        renames.clear()
+        assert [dst for src, dst in into if src != dst.with_name(dst.name + ".tmp")] == []
+        order = [dst for _, dst in into]
+        assert order.count(b / "manifest.json") == 1, order
+        after = order[order.index(b / "manifest.json") + 1 :]
+        assert after == [], f"renamed after the manifest: {[p.relative_to(b).as_posix() for p in after]}"
+        return order[:-1]
+
+    build(load_quilt(d))
+    first = renamed()
+    # on a cold build every file is new, so every one handed to the publisher was renamed in before the manifest
+    assert "fragments/masters/main.html" in handed and "fragments/nodes/dm-0002.html" in handed
+    assert [rel for rel in handed if b / rel not in first] == []
+    edit(d / "nodes" / "dm-0002.tex", "\\end{", "Changed. \\end{")
+    build(load_quilt(d))
+    assert b / "fragments" / "nodes" / "dm-0002.html" in renamed()
 
 
 def test_publish_skips_identical_bytes_and_keeps_named_files(tmp_path: Path) -> None:

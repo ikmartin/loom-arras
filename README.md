@@ -48,7 +48,7 @@ For the viewer's own development, `cd arras && npm ci && npm run dev`. The edito
 
 | suite | command |
 |---|---|
-| loom, unit tier | `cd loom && uv run pytest -m "not tex and not paper and not network"` |
+| loom, unit tier | `cd loom && uv run pytest -m "not tex and not paper and not network and not client"` |
 | loom, everything | `cd loom && uv run pytest` (needs a TeX distribution and poppler) |
 | loom-lsp | `cd loom-lsp && uv run pytest` |
 | arras | `cd arras && npm run test:unit` and `npm run test:e2e` |
