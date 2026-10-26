@@ -1,5 +1,5 @@
 // Writing from the viewer, against a publisher that is actually serving the write API.
-import { expect, test, type Served } from '../served';
+import { expect, readOnly, test, type Served } from '../served';
 import { openPicker, pickSession } from '../picker';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -134,6 +134,31 @@ test('a document is written on the same way, and what is written there is filed 
 	await page.goto('/node/sy-0008');
 	await expect(page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"]')).toBeVisible();
 	await expect(markOf()).toHaveCount(0);
+});
+
+readOnly('the annotate chip stays at the end of the selection as its pane scrolls, and is hidden while those words are scrolled out of the pane', async ({ page }) => {
+	await page.goto('/master/main');
+	await expect(page.getByTestId('tool-select')).toBeVisible();
+	const body = page.locator('[data-pane="0"] > .body');
+	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
+	await words.scrollIntoViewIfNeeded();
+	await select(words);
+	const chip = page.getByTestId('annotate-offer');
+	await expect(chip).toBeVisible();
+	// how far the chip stands from the words' top, which a chip fixed to the window changes by the distance scrolled; the chip is placed to whole pixels, so within one
+	const at = (await chip.boundingBox())!.y - (await words.boundingBox())!.y;
+	const drift = async () => Math.abs((await chip.boundingBox())!.y - (await words.boundingBox())!.y - at);
+	await body.evaluate((b) => b.scrollBy(0, -30));
+	await expect.poll(drift).toBeLessThanOrEqual(1);
+	// the words' top 20px below the pane's bottom: the chip is not left over whatever the pane shows instead
+	await words.evaluate((p) => {
+		const b = p.closest('[data-pane] > .body')!;
+		b.scrollTop -= b.getBoundingClientRect().bottom - p.getBoundingClientRect().top + 20;
+	});
+	await expect(chip).toBeHidden();
+	await words.scrollIntoViewIfNeeded();
+	await expect(chip).toBeVisible();
+	await expect.poll(drift).toBeLessThanOrEqual(1);
 });
 
 test('an annotation written on the node\'s own page is filed with no document', async ({ page, served }) => {

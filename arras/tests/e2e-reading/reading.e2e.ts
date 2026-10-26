@@ -89,19 +89,18 @@ async function select(page: Page, phrase: string): Promise<void> {
 	await page.getByTestId('annotate-offer').click();
 }
 
-/** The selection alone, for a test about what selecting does on its own. */
+/** The selection alone, for a test about what selecting does on its own. The phrase is scrolled into view first, as one a reader selects is: the chip is hidden while the selection's end is out of its pane's view. */
 async function selectOnly(page: Page, phrase: string): Promise<void> {
-	await page
-		.locator(`[data-testid="pdf-page-2"] .text span:has-text("${phrase}")`)
-		.first()
-		.evaluate((node) => {
-			const range = document.createRange();
-			range.selectNodeContents(node);
-			const sel = window.getSelection();
-			sel?.removeAllRanges();
-			sel?.addRange(range);
-			node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-		});
+	const span = page.locator(`[data-testid="pdf-page-2"] .text span:has-text("${phrase}")`).first();
+	await span.scrollIntoViewIfNeeded();
+	await span.evaluate((node) => {
+		const range = document.createRange();
+		range.selectNodeContents(node);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+	});
 }
 
 test('a selection stays selected and only offers to annotate; a note written from it shows loom’s own words before anything is recorded', async ({ page, served }) => {
