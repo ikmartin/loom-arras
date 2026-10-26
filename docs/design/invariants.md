@@ -72,7 +72,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** The permission file's `Write` rules passed every unit test and were never enforced: Claude Code matches only `Edit` rules to paths. Then root-relative allows passed too, but under `--settings` a leading `/` means `.claude/`, so every write a launched agent made was refused.
 
-**Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it: `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors` and `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors` (branch `review-findings`). It covers Claude Code only; Codex has no path rules to try.
+**Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it: `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors` and `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`. It covers Claude Code only; Codex has no path rules to try.
 
 **Record.** DR-275-ikmartin, DR-343-ikmartin
 
@@ -92,7 +92,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** An agent tidying a session cluttered with its own intermediates tried to `rm` a file one of its own annotations pointed at. A shell permission cannot be confined to one directory, so the fix was a separate place for intermediates.
 
-**Guard.** `loom/tests/unit/test_ai_layer.py::test_an_agent_is_never_allowed_to_delete` (branch `review-findings`)
+**Guard.** `loom/tests/unit/test_ai_layer.py::test_an_agent_is_never_allowed_to_delete`
 
 **Record.** DR-315-ikmartin
 
@@ -184,7 +184,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** No incident is recorded. An interrupted step must leave a directory nothing refers to, not a ledger line naming files that do not exist; and arras reloads when the manifest changes, so a manifest written first would name fragments that are not there yet.
 
-**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_written_whole_before_the_ledger_line_that_names_it`, `loom/tests/unit/render/test_build.py::test_the_manifest_is_renamed_into_place_after_every_file_it_publishes` (both on branch `review-findings`)
+**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_written_whole_before_the_ledger_line_that_names_it`, `loom/tests/unit/render/test_build.py::test_the_manifest_is_renamed_into_place_after_every_file_it_publishes`
 
 **Record.** DR-83, DR-134
 
@@ -196,9 +196,9 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** The test that proved a step's files are written before its line found that `history verify` never reported the directory such an interruption leaves, that retrying the stamp crashed on it with a traceback, and that a stamp under another name wrote a second directory with the same step number.
 
-**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_never_recorded_beside_an_interrupted_one` (branch `review-findings`)
+**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_never_recorded_beside_an_interrupted_one`
 
-**Record.** Commit `3310c343` on `review-findings`.
+**Record.** Commit `3310c343`.
 
 ### Two definitions of one id leave it conflicted
 
@@ -206,11 +206,11 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** Picking one by walk order publishes a copy chosen by filename while a closure inlines the other, records acceptances against a text nobody chose, and lets an agent edit one copy while the other silently disagrees. Later, `loom inline` defined every id twice and reported "Identity test: pass".
 
-**Guard.** `loom/tests/unit/scan/test_conflicts.py::test_two_files_defining_one_id_leave_it_conflicted`, `loom/tests/unit/scan/test_conflicts.py::test_two_copies_in_one_file_are_conflicted_too` (branch `review-findings`), `loom/tests/unit/render/test_canon.py::test_a_conflicted_key_is_published_with_no_text`
+**Guard.** `loom/tests/unit/scan/test_conflicts.py::test_two_files_defining_one_id_leave_it_conflicted`, `loom/tests/unit/scan/test_conflicts.py::test_two_copies_in_one_file_are_conflicted_too`, `loom/tests/unit/render/test_canon.py::test_a_conflicted_key_is_published_with_no_text`
 
 **Record.** DR-135, DR-326-ikmartin
 
-**2026-10-26.** Two definitions within one file are conflicted too. The later one used to hold the id silently; the only fix offered is a fresh id (`loom id --next`), since forking splits documents, not one file. Commit `becf7258` on `review-findings`.
+**2026-10-26.** Two definitions within one file are conflicted too. The later one used to hold the id silently; the only fix offered is a fresh id (`loom id --next`), since forking splits documents, not one file. Commit `becf7258`.
 
 ### Sync never writes to the quilt's own repository
 
@@ -240,9 +240,9 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** Every postnote match became an edge, proposals included, so `loom source --closure` and `loom compile KEY` carried statements nobody had vouched for, while `refs/proposals.py` promised, as "a structural guarantee", that a proposal could enter no closure. Found by the review of the relloc quilt on 2026-10-26.
 
-**Guard.** `loom/tests/unit/test_refs_layer.py::test_a_cited_proposal_is_no_dependency_until_it_is_verified` (branch `review-findings`)
+**Guard.** `loom/tests/unit/test_refs_layer.py::test_a_cited_proposal_is_no_dependency_until_it_is_verified`
 
-**Record.** Commit `3f38e7c9` on `review-findings`.
+**Record.** Commit `3f38e7c9`.
 
 ### A document is filed only on a strong match
 
