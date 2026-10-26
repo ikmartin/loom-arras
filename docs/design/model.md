@@ -15,7 +15,7 @@ What lives where:
 
 Every `.tex` file is scanned except under `build/`, `.loom/`, `refs/`, `notes/`, `digests/storage/`, the history and tooling directories, and files whose first twenty lines say `% !LOOM ignore`. Nothing is inferred from where a file sits (P5); the exclusions are exclusions, not inferences.
 
-**Open.** A quilt today assumes a paper in places: `loom init` writes an article skeleton, `status` counts "keys of yours", and an empty `drafting/` is reported as a problem. Most seriously, theorem-like environments are declared only by a document's preamble, so a quilt with no document has section nodes only, and even a digest's `\begin{theorem}` is not a node there. For the Learner, a quilt with only works and notes must be complete and unremarkable (not built yet, see [README](README.md#decided-not-yet-built)).
+**Open.** A quilt today assumes a paper in places: `loom init` writes an article skeleton, `status` counts "keys of yours", and an empty `drafting/` is reported as a problem. For the Learner, a quilt with only works and notes must be complete and unremarkable (not built yet, see [README](README.md#decided-not-yet-built)).
 
 ## Documents
 
@@ -31,7 +31,7 @@ A conversion (`atomize`, `linearize`) records that its output **superseded** its
 
 A **node** is a theorem-like environment (declared by `\newtheorem`) or a section. It becomes addressable when its first label is id-shaped, `<prefix>-<local>` such as `rl-0004`; `loom id` prints the patch that adds one. Other labels on the same node are aliases. A **key** is what review is about: a statement (its id) or a proof (`rl-0004/proof`, `rl-0004/proof/2`).
 
-An id is **defined once**. A file may be included by several documents, and its nodes then appear in each, numbered by each. But when two scanned files both *define* an id, the key is **conflicted**: it has no text, loom reports both definitions and chooses neither, and `loom fork` gives one of them a fresh id. Loom never picks a winner, because any rule for picking one would let one definition's acceptance and annotations silently apply to another's text. An id that history has recorded is never allocated again.
+An id is **defined once**. A file may be included by several documents, and its nodes then appear in each, numbered by each. But when an id is defined twice, by two files or within one, the key is **conflicted**: it has no text, loom reports both definitions and chooses neither, and `loom fork` gives one of them a fresh id. Loom never picks a winner, because any rule for picking one would let one definition's acceptance and annotations silently apply to another's text. An id that history has recorded is never allocated again.
 
 **Edges** are read from what the author writes: `\ref` and its relatives, `\cite[Theorem 4.1]{key}` when a digest of that work has the result, and `\uses{…}` for a dependency the text does not name. The **closure** of a key is everything its statement depends on, transitively; `loom source KEY --closure` prints it as the exact context for reading, reviewing or drafting that key. A node no document reaches is **loose**, which is computed, never a directory. `% !LOOM see: ID` links two nodes for the reader and is never a dependency.
 
@@ -41,7 +41,7 @@ Two markers carry mathematical status in the source: `\incomplete{…}` marks a 
 
 The history (`.loom/history/`) records what loom was told, at the moments it was told: never on save, and never a claim about the filesystem (P13). A **step** is an import, a stamp, or the copy behind an agent document, numbered once across the quilt. A stamp records every key whose text moved since the last step; given a document, it also keeps that document as a landmark. A key's text at a step is a **version**, addressed `rl-0001@3` or `rl-0001@submitted`.
 
-`loom revert KEY@N` prints the patch that puts a version back and records nothing, since the head's text says whether it was applied. `loom fork` gives one document its own copy of a node under a new id. Every divergence between the record and the files (an edited landmark, a missing step, an unreadable ledger) is reported with the command that resolves it, and nothing stops a build.
+`loom revert KEY@N` prints the patch that puts a version back and records nothing, since the head's text says whether it was applied. `loom fork` gives one document its own copy of a node under a new id. Every divergence between the record and the files (an edited landmark, a missing step, an unreadable ledger, a step interrupted before it was recorded) is reported with the command that resolves it, and nothing stops a build. No step is recorded beside an interrupted one: every command that records a step refuses until its directory is removed.
 
 ## Review and trust
 
@@ -87,7 +87,7 @@ How an annotation is drawn is the A set of `principles.md`: hue for its kind, we
 
 The library is the works a quilt reads and cites, and what loom knows of them. A **work** is one paper or book, named by a global identifier (a DOI, an arXiv id), with whatever loom's store holds for it: its PDF, its LaTeX source, its page text, its digest. `loom library update` gathers the bibliography, fetches what it may (only when the quilt allows the network, which an agent cannot grant), and maps pages.
 
-A **digest** holds a work's results as digest nodes, each a statement verbatim with its locator (`Theorem 4.1, p. 12`), so that `\cite[Theorem 4.1]{Man12}` becomes an edge to a result someone can read and check. A digest is **extracted** mechanically from the work's LaTeX source; nothing is typed from a PDF. For a work with only a PDF, an agent or person **proposes** a result with `loom library propose`, and loom refuses a quotation that is not on the page it names. Proposals wait in a file nothing inputs until the author verifies them. A result's state is computed: extracted, proposed, verified, or discarded. A proposal whose quotation passed the page check is checked, never verified, and only the author verifies (P15).
+A **digest** holds a work's results as digest nodes, each a statement verbatim with its locator (`Theorem 4.1, p. 12`), so that `\cite[Theorem 4.1]{Man12}` becomes an edge to a result someone can read and check. A digest's results are results whether or not any document declares their environments: each declares its own from its locator, so a quilt of digests alone already has them. A digest is **extracted** mechanically from the work's LaTeX source; nothing is typed from a PDF. For a work with only a PDF, an agent or person **proposes** a result with `loom library propose`, and loom refuses a quotation that is not on the page it names. Proposals wait in a file nothing inputs until the author verifies them, and citing one makes no dependency: the citation is reported, and verifying the proposal makes it one. A result's state is computed: extracted, proposed, verified, or discarded. A proposal whose quotation passed the page check is checked, never verified, and only the author verifies (P15).
 
 A **relation** links two results (same notion, generalises, specialises, depends on, contradicts) with a reason. It is an assertion, never checked and never citable, and it is how connections between works are recorded and found from either end. A note on a page of a work (`loom annotate CITEKEY --page N --quote …`) says something about what is there.
 
@@ -130,7 +130,7 @@ The principles that govern it are the V and A sets. In short: open on the thing 
 
 A redesign is being settled (not built yet, see [README](README.md#decided-not-yet-built)): the left panel shows the quilt's content, documents and works alike, sized by what exists; there is a Library view; Review is a place; Home and the icon strip go.
 
-**Open.** A candidate viewer principle, not decided: *show a thing where it lives*. A statement is read in a document that holds it, a cited result on its work's page, an annotation on the words it marks; a separate view is only for something that lives nowhere you can open. A result can be included in several documents, or in none, which bounds the rule.
+Things are shown where they live (V7): a statement in a document that holds it, a cited result on its work's page, an annotation on the words it marks. A result included in several documents opens in the one the link stands in, else one on screen, else the one looked at last; a result in no document, or a work with no PDF, is the one case for a view of its own.
 
 ## Coauthors
 

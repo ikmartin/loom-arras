@@ -72,7 +72,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** The permission file's `Write` rules passed every unit test and were never enforced: Claude Code matches only `Edit` rules to paths. Then root-relative allows passed too, but under `--settings` a leading `/` means `.claude/`, so every write a launched agent made was refused.
 
-**Guard.** No test: nothing runs a real client against the generated files.
+**Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it: `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors` and `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors` (branch `review-findings`). It covers Claude Code only; Codex has no path rules to try.
 
 **Record.** DR-275-ikmartin, DR-343-ikmartin
 
@@ -92,7 +92,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** An agent tidying a session cluttered with its own intermediates tried to `rm` a file one of its own annotations pointed at. A shell permission cannot be confined to one directory, so the fix was a separate place for intermediates.
 
-**Guard.** No test. (`loom/tests/unit/test_doctor.py::test_the_permission_files` edits the `Bash(rm *)` line and so fails without it, but only by accident.)
+**Guard.** `loom/tests/unit/test_ai_layer.py::test_an_agent_is_never_allowed_to_delete` (branch `review-findings`)
 
 **Record.** DR-315-ikmartin
 
@@ -184,19 +184,33 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** No incident is recorded. An interrupted step must leave a directory nothing refers to, not a ledger line naming files that do not exist; and arras reloads when the manifest changes, so a manifest written first would name fragments that are not there yet.
 
-**Guard.** No test.
+**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_written_whole_before_the_ledger_line_that_names_it`, `loom/tests/unit/render/test_build.py::test_the_manifest_is_renamed_into_place_after_every_file_it_publishes` (both on branch `review-findings`)
 
 **Record.** DR-83, DR-134
 
+**2026-10-26.** Both orderings are now tested, each failing when its order is reversed.
+
+### No step is recorded beside an interrupted one
+
+**Rule.** A step directory no ledger line names, left by a step interrupted before it was recorded, is reported by `loom history verify` as `loom:history-interrupted` with the command that removes it; every command that records a step (stamp, draft, import, adopt) refuses while one is there, writes nothing, and names that command. Loom removes nothing itself (P13).
+
+**Why.** The test that proved a step's files are written before its line found that `history verify` never reported the directory such an interruption leaves, that retrying the stamp crashed on it with a traceback, and that a stamp under another name wrote a second directory with the same step number.
+
+**Guard.** `loom/tests/unit/history/test_commands.py::test_a_step_is_never_recorded_beside_an_interrupted_one` (branch `review-findings`)
+
+**Record.** Commit `3310c343` on `review-findings`.
+
 ### Two definitions of one id leave it conflicted
 
-**Rule.** When two scanned files define one id, the id has no text and no winner; `duplicate-id` names every file, and whatever needs the text (accept, annotate, closure, stamp, revert) refuses until one definition goes.
+**Rule.** When an id is defined twice, by two files or within one, the id has no text and no winner; `duplicate-id` names every file, and whatever needs the text (accept, annotate, closure, stamp, revert) refuses until one definition goes.
 
 **Why.** Picking one by walk order publishes a copy chosen by filename while a closure inlines the other, records acceptances against a text nobody chose, and lets an agent edit one copy while the other silently disagrees. Later, `loom inline` defined every id twice and reported "Identity test: pass".
 
-**Guard.** `loom/tests/unit/scan/test_conflicts.py::test_two_files_defining_one_id_leave_it_conflicted`, `loom/tests/unit/render/test_canon.py::test_a_conflicted_key_is_published_with_no_text`
+**Guard.** `loom/tests/unit/scan/test_conflicts.py::test_two_files_defining_one_id_leave_it_conflicted`, `loom/tests/unit/scan/test_conflicts.py::test_two_copies_in_one_file_are_conflicted_too` (branch `review-findings`), `loom/tests/unit/render/test_canon.py::test_a_conflicted_key_is_published_with_no_text`
 
 **Record.** DR-135, DR-326-ikmartin
+
+**2026-10-26.** Two definitions within one file are conflicted too. The later one used to hold the id silently; the only fix offered is a fresh id (`loom id --next`), since forking splits documents, not one file. Commit `becf7258` on `review-findings`.
 
 ### Sync never writes to the quilt's own repository
 
@@ -219,6 +233,16 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **Guard.** `loom/tests/unit/test_refs_layer.py::test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest`, `loom/tests/unit/test_digest.py::test_unverified_locators_when_the_artifact_and_the_cited_work_differ`
 
 **Record.** DR-109, DR-181
+
+### A proposal is never a dependency
+
+**Rule.** The scan makes no edge to a proposed result from outside its own file, whether by `\cite[postnote]`, `\ref` or `\uses`: `loom:cites-proposed-node` (warning) reports the citation, and verifying the proposal makes it a dependency. So nobody's unchecked statement enters a closure, a closure document or a compile (P15).
+
+**Why.** Every postnote match became an edge, proposals included, so `loom source --closure` and `loom compile KEY` carried statements nobody had vouched for, while `refs/proposals.py` promised, as "a structural guarantee", that a proposal could enter no closure. Found by the review of the relloc quilt on 2026-10-26.
+
+**Guard.** `loom/tests/unit/test_refs_layer.py::test_a_cited_proposal_is_no_dependency_until_it_is_verified` (branch `review-findings`)
+
+**Record.** Commit `3f38e7c9` on `review-findings`.
 
 ### A document is filed only on a strong match
 

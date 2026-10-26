@@ -62,6 +62,7 @@ Two markers keep the text honest:
 - **A viewer that opens on what exists.** The left panel shows the quilt's content, drafts and works alike, sized by what is there; a Library view; Review as a place. See `model.md`.
 - **Retiring the viewer's chat composer and agent launching.** Conversations happen in agent apps; the viewer shows transcripts and takes annotations. The code still carries both.
 - **A shorter agent contract.** The orientation cut to pointers, modes as tools rather than the default framing, and no per-mode scripts. See `agents.md`.
+- **Landing from branch `review-findings`:** proposals are never dependencies; one file defining an id twice leaves it conflicted; digests declare their own result environments; interrupted history steps are reported and refused. This design describes them as true; they are built once that branch merges.
 - **Later:** running code to test claims (not in the next weeks).
 
 ## Where things live

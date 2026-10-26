@@ -43,6 +43,8 @@ Let $f\colon X\to Y$ be ...
 \end{theorem}
 ```
 
+A result's environment needs no document to declare it: the optional argument `[{\cite[LOCATOR]{key}}]` marks it as a result, so the scan treats the environment as theorem-like in this file, named from the locator's first word when that names a kind of result and otherwise after the environment, and a document's own declaration wins. A quilt of digests alone therefore has their results as nodes.
+
 A result's title is its locator, with the page wherever loom found the result in the filed copy, and its body is the statement, verbatim. Proofs are never copied; a `\ref` to another result inside a dropped proof becomes a `\uses` entry.
 
 ## 3. Ids
@@ -80,7 +82,7 @@ Both sides are normalised first, by the word lists in `loom/src/loom/scan/postno
 1. Citations inside a work's own digest, whose titles all cite it, are never matched and raise nothing.
 2. A postnote the work's digest does not answer is tried against its other versions' digests (§10); `loom:postnote-from-another-version` (info) names the one that answered.
 3. No match while a digest exists is `loom:unmatched-postnote` (warning). A citekey cited with a postnote and no digest, its own or a version's, is `loom:undigested-citekey` (info).
-4. Proposals are matched too; `loom:cites-proposed-node` (warning) says the result is unverified.
+4. Proposals are matched, but a match makes no edge: `loom:cites-proposed-node` (warning) says the result is unverified, and verifying it makes the citation a dependency. The same holds for a `\ref` or `\uses` naming a proposal from outside its own file.
 
 ## 6. Which version the numbers belong to
 
@@ -97,7 +99,7 @@ A result's state is computed from its record (`state_of` in `loom/src/loom/refs/
 
 There is no `checked` state. A proposal that passed its page check has been checked, never verified: it stays `proposed` until the author verifies it. Verifying claims the copy is faithful, nothing about the mathematics, and records an acceptance, so a later change shows as `transcription-changed`. The author may correct the statement or local name while verifying; `source_text` never changes, so the anchor stays re-checkable.
 
-Nothing `\input`s `<citekey>.proposed.tex`, so no paper's compile holds a proposal; but a closure document copies every statement its key reaches, so a cited proposal (§5, item 4) appears there.
+Nothing `\input`s `<citekey>.proposed.tex`, and no edge leads to a proposal from outside it (§5, item 4), so a proposal is in no compile, no closure and no closure document.
 
 ## 8. How results arrive
 

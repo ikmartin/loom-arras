@@ -27,7 +27,7 @@ Theorem-like environments, headings and proofs are nodes. "With an id" means the
 | other environment: `equation`, `figure`, undeclared | none; its labels name regions, `KEY#LABEL` |
 | a file | none; it owns the text no node claims |
 
-An environment is theorem-like when a master declares it: by `\newtheorem` or `\declaretheorem` in its preamble or the local files the preamble loads, or by `% !LOOM environment: ENV = Name, style` in the master. The declared name is the taxon. An undeclared environment is prose, and `loom:unknown-environment` (error) if it has a common theorem-like name.
+An environment is theorem-like when a master declares it: by `\newtheorem` or `\declaretheorem` in its preamble or the local files the preamble loads, or by `% !LOOM environment: ENV = Name, style` in the master. The declared name is the taxon. An undeclared environment is prose, and `loom:unknown-environment` (error) if it has a common theorem-like name. In a digest, a result's environment declares itself: every result opens `\begin{ENV}[{\cite[LOCATOR]{key}}]`, so `ENV` is theorem-like in that file, its taxon the locator's first word when that names a kind of result and otherwise the environment's own name, and a master's declaration wins (`digests.md` §2).
 
 ### 2.1 Basis
 
@@ -72,14 +72,14 @@ A number is free only if nothing ever wrote it down; renaming an id deletes one 
 
 ### 3.3 Defined once
 
-A node is defined once and included many times. When two scanned files define one id, it is **conflicted**: `duplicate-id` (error) names each file, offering `loom fork ID --in FILE` for each. References to it resolve, but it has no text and no winner, so it cannot be accepted, annotated, compiled or reverted. Choosing a definition by walk order would fail silently:
+A node is defined once and included many times. When an id is defined twice, by two scanned files or within one, it is **conflicted**: `duplicate-id` (error) names each file, or says the id is defined twice in one file, offering `loom fork ID --in FILE` for each of two files and `loom id --next` either way. References to it resolve, but it has no text and no winner, so it cannot be accepted, annotated, compiled or reverted. Choosing a definition by walk order would fail silently:
 
 1. the viewer would publish one copy, chosen by filename, and hide the other;
 2. a closure document would follow one copy while the paper compiles the other;
 3. hashes, staleness and acceptance would rest on a text nobody chose;
 4. an agent could edit one copy while the other quietly disagrees.
 
-Two definitions in one file are `duplicate-id` but not conflicted: the later one holds the id.
+Two definitions within one file are conflicted as two files' are: forking splits documents, so they are told apart by giving one a fresh id.
 
 ## 4. Labels
 

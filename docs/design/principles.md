@@ -14,7 +14,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | set | governs | principles |
 |---|---|---|
 | P | What loom is | P1–P15 |
-| V | The viewer | V1–V6 |
+| V | The viewer | V1–V7 |
 | A | Annotations | A1–A6 |
 | T | Terminal output | T1–T8 |
 | C | Construction | C1–C5 |
@@ -45,6 +45,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | [V4](#v4-name-the-question-one-element-one-question) | Name the question. One element, one question. |
 | [V5](#v5-following-a-connection-must-not-cost-the-thing-you-followed-it-from) | Following a connection must not cost the thing you followed it from. |
 | [V6](#v6-show-less-rather-than-more-by-default) | Show less rather than more by default. |
+| [V7](#v7-show-a-thing-where-it-lives) | Show a thing where it lives. |
 | [A1](#a1-the-text-comes-first) | The text comes first. |
 | [A2](#a2-one-annotation-one-mark) | One annotation, one mark. |
 | [A3](#a3-draw-only-what-loom-knows) | Draw only what loom knows. |
@@ -164,6 +165,10 @@ The viewer's subject is how texts relate; a relation has two terms; a viewer tha
 ### V6. Show less rather than more by default.
 
 Unless something has a good reason to be shown, don't show it. Corollaries: simpler is better, and visual noise is bad.
+
+### V7. Show a thing where it lives.
+
+A statement is read in a document that holds it, a cited result on its work's page, an annotation on the words it marks. Loom's pieces exist to be addressed, not to be read apart: a view of a thing away from where it lives is only the fallback for something that lives nowhere you can open, such as a result in no document or a work with no PDF, and a preview (a hover card, the graph's inspector) is a glance, not a home. Consequence: a link to a result opens a document that holds it (the one the link stands in, else one on screen, else the one looked at last); a reference opens the work's PDF at the place it names; there is no view of all results. The principle governs the viewer: an agent's context is still the closure.
 
 ## A · Annotations
 
