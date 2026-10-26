@@ -1,5 +1,7 @@
 # 10. Arras
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 Arras is the viewer. It is a static bundle that reads a build directory conforming to `specs/` and renders it; it has no server, writes nothing, and knows nothing about LaTeX, org, loom, or mathematics. This chapter specifies what it shows, how it behaves, how it is built and deployed, and the boundary it must never cross.
 
 ## 10.1 Architecture

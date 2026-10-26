@@ -1,5 +1,7 @@
 # 4. The quilt
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 A quilt is a directory that satisfies loom's assumptions. This chapter specifies those assumptions: the layout, the two configuration files, masters, the vendored package, the portability rules, what `loom init` creates, and what loom promises never to do to the directory.
 
 ## 4.1 Layout

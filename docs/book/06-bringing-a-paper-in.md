@@ -1,5 +1,7 @@
 # 6. Bringing a paper in
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter specifies how an existing paper becomes a quilt and how a quilt is reshaped afterwards: `init --from`, `import`, `id`, `atomize`, the flattening back that `linearize` does, and the identity test that governs all of them. It ends with the two conversion fixtures: Manolache's virtual pullbacks paper as the first walk-through and ACGS's decomposition paper as the stress test.
 
 The governing rule is P7: loom never modifies an author file. Every operation here either writes copies, writes to a named destination, or prints a patch.

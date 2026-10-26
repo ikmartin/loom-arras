@@ -1,5 +1,7 @@
 # 2. Objectives
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 ## 2.1 What loom is
 
 **[decided]** Loom turns a LaTeX paper into a quilt: a directory in which every theorem-like environment and every section carries a permanent identifier, dependencies between statements are read from the `\ref`, `\cite`, and `\uses` the author writes, review decisions are recorded beside the source and checked against it, and the whole is published to a viewer. The paper compiles exactly as it did before, from the same files, with plain `pdflatex`.

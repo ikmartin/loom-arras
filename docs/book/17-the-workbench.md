@@ -1,5 +1,7 @@
 # 17. The workbench
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chapter is about the third thing a paper has: a history. It specifies the two states a document is in, the record loom keeps of the passage between them, how a key's text at a past moment is named and read back, and what loom does when the record and the files disagree.
 
 ## 17.1 The two states

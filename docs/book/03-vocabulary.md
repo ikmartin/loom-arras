@@ -1,5 +1,7 @@
 # 3. Vocabulary
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This glossary is normative. Every chapter, the specifications, the CLI help, the README, and the orientation document use these words with these meanings. A term not listed here is not a term of the system. Withdrawn terms are listed at the end so that older notes can be read.
 
 All entries are **[decided]** unless marked.

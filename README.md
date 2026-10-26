@@ -16,11 +16,12 @@ Each tool keeps its own build, tests, dependencies and release. None of them req
 
 They are the reason this repository exists, and they govern the tools rather than describing them after the fact.
 
-- `docs/book/` — the design book, in seventeen chapters plus appendices. It describes **what is implemented**, so it reads as the specification of what exists, not as a plan. `docs/book/A-decision-records.md` holds every decision, numbered, with the evidence that forced it.
-- `docs/specs/` — the loom–arras interface: the manifest shape, the HTML dialect, the conformance fixture. It wins over the book wherever shapes are concerned.
-- `docs/work-queue/` — what is **not** done, each item with an observable trigger saying when it becomes worth doing. A question of the form "what is left?" is answered here and never by a chapter.
-- `docs/deviations.md` — every place the implementation departs from a decided statement, each row pointing at its decision record.
-- `docs/plans/` — the plan for work in progress. The numbered plans below the current one are history: what was intended at the time.
+- `docs/design/` — the design: what loom is for, the three people every decision is tested against, the principles, the model, how agents take part, and the invariants that must not be lost. It records current thinking and changes as the design is discovered; what is decided but not built is marked as such.
+- `docs/specs/` — the formats: the loom–arras interface (manifest, HTML dialect, conformance fixture), the source contract, digests and diagnostics. They win over the design wherever shapes are concerned.
+- `docs/contributing.md` — how to build, test, verify and release.
+- `docs/work-queue/` — deferred work, each item with an observable trigger saying when it becomes worth doing.
+- `docs/plans/` — the plan for work in progress. Earlier plans are history: what was intended at the time.
+- `docs/book/`, `docs/deviations.md` — the original design book, its decision records and its deviations log, frozen as history on 2026-10-26.
 - `AGENTS.md` — the rules that hold for everyone working here, human or agent. Read it first.
 
 `demos/` holds example quilts: `demo/` is what `loom init --demo` writes, `synthetic/` exercises every construct of the source contract and generates the conformance fixture, and `showcase/` is the one to open when you want to see what loom does. Quilts built from real papers are gitignored, because they contain the paper sources.
@@ -60,7 +61,7 @@ The LaTeX compiles in loom's tests run with an empty `HOME` and empty TeX trees,
 
 A change that crosses the tools — a language server feature and its two editor sides, say — is one branch and one pull request. That is why they are one repository (DR-196); they were five, and nothing tied the three halves of such a change together.
 
-CI runs `scripts/verify`, one workflow per lane: `loom`, `arras` and `docs`, each triggered only by the paths its lane reads (book 14.4). `loom-nvim/` is additionally pushed to `ikmartin/loom-nvim` by the `mirror loom-nvim` workflow, because a Neovim plugin manager installs a plugin from a repository whose root is the plugin. That repository is a mirror: it takes no pull requests, and what is pushed there is exactly what `loom-nvim/` splits to, so a commit pinned in someone's `lazy-lock.json` keeps resolving.
+CI runs `scripts/verify`, one workflow per lane: `loom`, `arras` and `docs`, each triggered only by the paths its lane reads (`docs/contributing.md`). `loom-nvim/` is additionally pushed to `ikmartin/loom-nvim` by the `mirror loom-nvim` workflow, because a Neovim plugin manager installs a plugin from a repository whose root is the plugin. That repository is a mirror: it takes no pull requests, and what is pushed there is exactly what `loom-nvim/` splits to, so a commit pinned in someone's `lazy-lock.json` keeps resolving.
 
 Releases stay separate: `loom` to PyPI, `arras` to npm, the extension to the Marketplace. Publishing is done by hand, never by CI.
 

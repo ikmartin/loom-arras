@@ -1,5 +1,7 @@
 # 13. The plan
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter turns the specification into an order of work. It names the milestones, what each must demonstrate, what is cut from the MVP, how the repositories are laid out, how releases are made, and how the relative localization paper serves as the acceptance test. Estimates are absent by design: the milestones are gated by demonstrations, not dates. The plan was followed: the eight milestones were demonstrated on 2026-09-15 and 2026-09-16, the plan as approved is kept verbatim in `docs/plans/implementation-plan.md`, and each milestone below now ends with what its demonstration record holds.
 
 ## 13.1 Principles of construction

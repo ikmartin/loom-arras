@@ -1,5 +1,7 @@
 # 5. The source contract
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter specifies what loom reads from LaTeX and what an author must do for loom to read it. It is the longest chapter because it is the whole of what an author has to know, and the README's contract page is a one-page summary of it. Principle P1 governs: everything here is a label, an environment, a citation, a comment, or one of three macros.
 
 ## 5.1 What is scanned

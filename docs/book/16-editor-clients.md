@@ -1,5 +1,7 @@
 # 16. Editor clients
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 **[decided]** Three projects exist beside loom and arras: a language server and two editor plugins. They are clients. P8 holds unchanged: no loom command requires any of them, none of them is assumed by anything in this book, and a quilt edited in a plain text editor loses nothing but convenience.
 
 **[decided]** The three clients are **deprecated and breakable**. They were built before sessions, the drafting layout, the annotation log and the chat, and what follows describes them as they were built, not as loom now is. A loom change may break them, and nothing is held back to keep them working. They are reworked, not patched, once someone works seriously in a quilt and wants loom in their editor (WQ-49).

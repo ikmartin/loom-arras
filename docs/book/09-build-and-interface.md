@@ -1,5 +1,7 @@
 # 9. Build and interface
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter specifies what loom produces for a viewer and how. The product boundary (P11) is a directory: loom writes `build/`, arras reads it, and the two share no code. The normative definitions of what is in that directory are the specification files in `specs/`; this chapter says how loom fills it, what the LaTeX-to-HTML converter promises, how numbering is obtained, and what `loom serve` does. It also names the two deferred specifications, the write API and the runner contract.
 
 ## 9.1 `loom build`

@@ -1,9 +1,9 @@
-// The reference figures of book 15.9: the viewer photographed rendering the vendored fixture, so the chapter shows what exists rather than what was drawn during design.
-// Run with `npm run shots`; the images are committed beside the hand-drawn SVGs they supersede, or written to `ARRAS_SHOTS_OUT` when it is set.
+// The viewer's reference figures: arras photographed rendering the vendored fixture, so the design shows what exists rather than what was drawn.
+// Run with `npm run shots`; the images are committed under docs/design/figures/, or written to `ARRAS_SHOTS_OUT` when it is set.
 import { test, type Page } from '@playwright/test';
 import { outDir, settle, still } from './settle';
 
-const OUT = outDir('../docs/book/figures');
+const OUT = outDir('../docs/design/figures');
 
 async function shot(page: Page, name: string, path: string, opts: { theme?: 'light' | 'dark' } = {}) {
 	await page.goto('/');

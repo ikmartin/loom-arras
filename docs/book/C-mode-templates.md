@@ -1,5 +1,7 @@
 # Appendix C. Mode templates
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 `ai/rules.md` and the files loom writes into `ai/modes/` on `loom ai init`, in full, as they ship. The rules file is not a mode and is no longer filed among them: `orientation.md` says where an agent is, `rules.md` says how to work and what its output looks like, and a mode says what one particular job produces. They are derived from the author's chat rules (`docs/source/global-rules.md`) by the mapping in `docs/source/global-rules-mapping.md`. The block definitions keep the author's wording; the environment-specific text (inputs, outputs, findings, verification) is new and follows the four differences the mapping names. **[decided]** for structure, contracts, and the standing rules; the author edits wording freely, and `loom upgrade` never overwrites an edited mode file.
 
 Every mode file begins with the same "Before you begin" block, so that an agent that loads a mode without having read the orientation still knows the write policy.

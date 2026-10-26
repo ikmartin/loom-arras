@@ -1,5 +1,7 @@
 # Appendix A. Decision records
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 ## Format
 
 **[decided]** One record per decision, appended to this file, never edited afterwards (a reversal is a new record citing the old one). Fields: number, date, title, the principle(s) concerned, the decision in one or two sentences, the reason in one or two sentences, what it replaced if anything, and status (`active`, `superseded by N`). Records from the design conversations are dated by the day the conversation settled them; implementation-time records will be dated by merge.

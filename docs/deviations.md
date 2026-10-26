@@ -1,5 +1,7 @@
 # Deviations from the book
 
+> **Frozen history.** The deviations log was retired on 2026-10-26 with the design book. The design is now [`docs/design/`](design/README.md); a change explains itself in its commit message, and a change to an invariant adds a dated line in [`docs/design/invariants.md`](design/invariants.md). Do not add rows.
+
 Every place the implementation departs from a `[decided]` statement, or settles an `[assumed]` or `[deferred]` one in a way worth recording. Each row also has a decision record in `docs/book/A-decision-records.md` (DR-39 onward). The final book revision walks this table and marks each row `book updated: y`.
 
 | date | section | book says | implemented | why | DR | book updated |

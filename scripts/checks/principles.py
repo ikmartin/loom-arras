@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Book chapter 1 holds every design principle, and everything that cites one names one that exists (book 1.2; DR-323-ikmartin).
+"""docs/design/principles.md holds every design principle, and everything that cites one names one that exists.
 
 Usage:
     scripts/checks/principles.py [--write]
 
-A set is a section `## 1.N X · What it governs`; a principle is a heading `### Xn. Title` inside its set's section. The chapter's sets table and its index (between `<!-- principles:sets -->` and `<!-- principles:index -->` markers) are generated from those headings, and `--write` rewrites them. The check holds:
+A set is a section `## X · What it governs`; a principle is a heading `### Xn. Title` inside its set's section. The chapter's sets table and its index (between `<!-- principles:sets -->` and `<!-- principles:index -->` markers) are generated from those headings, and `--write` rewrites them. The check holds:
 
 - every principle heading sits in the section of its own letter, and a set's numbers run 1, 2, 3 ... without a gap or a repeat (a retired principle keeps its heading);
 - no two sets share a letter;
 - the two generated tables are what the headings say;
-- every principle name cited in the book, the specifications, AGENTS.md, CLAUDE.md, or the source or tests of loom or arras exists.
+- every principle name cited in the design, the frozen book, the specifications, the contributor guide, AGENTS.md, CLAUDE.md, or the source or tests of loom or arras exists.
 
 Exit 0 when all hold, 1 otherwise.
 """
@@ -22,17 +22,19 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CHAPTER = ROOT / "docs" / "book" / "01-design-principles.md"
+CHAPTER = ROOT / "docs" / "design" / "principles.md"
 FIX = "python3 scripts/checks/principles.py --write"
 
-SET = re.compile(r"^## (1\.\d+) ([A-Z]) · (.+?)\s*$", re.M)
+SET = re.compile(r"^## ([A-Z]) · (.+?)\s*$", re.M)
 PRINCIPLE = re.compile(r"^### ([A-Z])(\d+)\. (.+?)\s*$", re.M)
 SECTION = re.compile(r"^## ", re.M)
 CITED = re.compile(r"(?<![\w./#-])([A-Z])(\d{1,2})(?![\w./-])")
 
 #: Where a principle is cited: what people and agents read, and the comments in the code that follows them.
 CITING = [
+    *(ROOT / "docs" / "design").glob("*.md"),
     *(ROOT / "docs" / "book").glob("*.md"),
+    ROOT / "docs" / "contributing.md",
     *(ROOT / "docs" / "specs").rglob("*.md"),
     ROOT / "AGENTS.md",
     ROOT / "CLAUDE.md",
@@ -50,14 +52,14 @@ def slug(heading: str) -> str:
     return re.sub(r"\s", "-", text.strip())
 
 
-def read(text: str) -> tuple[list[tuple[str, str, str]], dict[str, list[tuple[int, str]]], list[str]]:
-    """The sets (section, letter, what it governs), each set's principles (number, title) in order, and what is wrong."""
-    sets = [(m.group(1), m.group(2), m.group(3)) for m in SET.finditer(text)]
+def read(text: str) -> tuple[list[tuple[str, str]], dict[str, list[tuple[int, str]]], list[str]]:
+    """The sets (letter, what it governs), each set's principles (number, title) in order, and what is wrong."""
+    sets = [(m.group(1), m.group(2)) for m in SET.finditer(text)]
     problems: list[str] = []
-    letters = [letter for _, letter, _ in sets]
+    letters = [letter for letter, _ in sets]
     for letter in sorted({x for x in letters if letters.count(x) > 1}):
         problems.append(f"two sets use the letter {letter}")
-    starts = {m.group(2): m.start() for m in SET.finditer(text)}
+    starts = {m.group(1): m.start() for m in SET.finditer(text)}
     bounds = sorted(m.start() for m in SECTION.finditer(text))
     found: dict[str, list[tuple[int, str]]] = {letter: [] for letter in letters}
     for m in PRINCIPLE.finditer(text):
@@ -65,7 +67,7 @@ def read(text: str) -> tuple[list[tuple[str, str, str]], dict[str, list[tuple[in
         home = max((s for s in bounds if s < m.start()), default=-1)
         owner = next((x for x, s in starts.items() if s == home), None)
         if owner != letter:
-            problems.append(f"{letter}{number} sits outside the {letter} section (`## 1.N {letter} · ...`)")
+            problems.append(f"{letter}{number} sits outside the {letter} section (`## {letter} · ...`)")
             continue
         found[letter].append((number, title))
     for letter, items in found.items():
@@ -75,15 +77,15 @@ def read(text: str) -> tuple[list[tuple[str, str, str]], dict[str, list[tuple[in
     return sets, found, problems
 
 
-def tables(sets: list[tuple[str, str, str]], found: dict[str, list[tuple[int, str]]]) -> tuple[str, str]:
+def tables(sets: list[tuple[str, str]], found: dict[str, list[tuple[int, str]]]) -> tuple[str, str]:
     """The sets table and the index, as the headings make them."""
-    rows = ["| set | governs | section | principles |", "|---|---|---|---|"]
-    for section, letter, governs in sets:
+    rows = ["| set | governs | principles |", "|---|---|---|"]
+    for letter, governs in sets:
         items = found.get(letter, [])
         span = f"{letter}1–{letter}{len(items)}" if len(items) > 1 else (f"{letter}1" if items else "none yet")
-        rows.append(f"| {letter} | {governs} | {section} | {span} |")
+        rows.append(f"| {letter} | {governs} | {span} |")
     index = ["| name | principle |", "|---|---|"]
-    for _, letter, _ in sets:
+    for letter, _ in sets:
         for number, title in found.get(letter, []):
             index.append(f"| [{letter}{number}](#{slug(f'{letter}{number}. {title}')}) | {title} |")
     return "\n".join(rows), "\n".join(index)
@@ -124,7 +126,7 @@ def main() -> int:
         for line_no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             for name in dict.fromkeys(m.group(1) + m.group(2) for m in CITED.finditer(line)):
                 if name[0] in letters and name not in known:
-                    problems.append(f"{path.relative_to(ROOT)}:{line_no} cites {name}, which chapter 1 does not hold")
+                    problems.append(f"{path.relative_to(ROOT)}:{line_no} cites {name}, which docs/design/principles.md does not hold")
     for p in problems:
         print(f"principles: {p}")
     if problems:

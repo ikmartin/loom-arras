@@ -1,5 +1,7 @@
 # 8. Digests
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 A digest is loom's index of a cited paper: the paper's results as external nodes, under the paper's own outline, in a LaTeX file that obeys the source contract. It exists so that a citation with a locator becomes a checkable edge, so that a review closure document contains the statements it cites, so that an assistant reads the digest instead of the paper, and so that a person can learn what results exist in a paper without opening it.
 
 ## 8.1 What a digest is
