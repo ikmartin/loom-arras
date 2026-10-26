@@ -134,6 +134,9 @@ class Assembly:
     directives: dict[str, list[Directive]] = field(default_factory=dict)
     digest_files: dict[str, str] = field(default_factory=dict)  # file -> citekey
     digest_prefixes: dict[str, str] = field(default_factory=dict)  # file -> the prefix its node ids carry
+    digest_taxa: dict[str, dict[str, Taxon]] = field(
+        default_factory=dict
+    )  # digest file -> the environments its results declare for themselves
     citeslugs: set[str] = field(default_factory=set)  # slugs of the bibliography's citekeys, for the id grammar
 
     def prefix_of(self, citekey: str) -> str:
@@ -180,11 +183,14 @@ def assemble(
             prefix = head.get("prefix", "").strip() or citekey_slug(head["digest"])
             asm.digest_prefixes[path] = prefix
             slugs.add(prefix)
+            own = {env: t for env, t in digest_taxa(path, src).items() if env not in taxa}
+            if own:
+                asm.digest_taxa[path] = own
     for path, src in files.items():
         if src.ignored:
             continue
         body = document_start(src) if path in closures else None
-        asm.envs[path] = scan_environments(src, theorem_names, body or 0)
+        asm.envs[path] = scan_environments(src, theorem_names | set(asm.digest_taxa.get(path, {})), body or 0)
     for master, exp in expansions.items():
         asm.sections[master] = find_sections(exp, files)
     reached_any = {f for exp in expansions.values() for f in exp.reached}
@@ -214,22 +220,77 @@ def _order(exp: Expansion | None, file: str, offset: int, files: dict[str, Sourc
     return 1e12 + idx * 1e9 + offset
 
 
+#: Display names a digest's locator may begin with, and the style each takes when no document declares the environment.
+_RESULT_WORDS = {
+    **{
+        w: "plain"
+        for w in (
+            "theorem",
+            "lemma",
+            "proposition",
+            "corollary",
+            "conjecture",
+            "claim",
+            "question",
+            "axiom",
+            "postulate",
+            "fact",
+        )
+    },
+    **{
+        w: "definition"
+        for w in (
+            "definition",
+            "example",
+            "notation",
+            "construction",
+            "convention",
+            "assumption",
+            "hypothesis",
+            "setting",
+            "condition",
+            "problem",
+            "exercise",
+        )
+    },
+    **{w: "remark" for w in ("remark", "note", "observation")},
+}
+_RESULT_ENV = re.compile(r"\\begin\{([A-Za-z@*]+)\}\s*\[\s*\{?\s*\\cite\[([^\]]*)\]")
+
+
+def digest_taxa(path: str, src: SourceFile) -> dict[str, Taxon]:
+    """The environments a digest's results are written in, each declared by its own locator.
+
+    A digest's results take whatever environment names the quilt's documents declared when it was extracted, so a quilt with no document (a reading project, say) would otherwise see none of them as results. Every result opens `\\begin{ENV}[{\\cite[LOCATOR]{key}}]`, so the environment is theorem-like by construction; its display name is the locator's first word when that names a kind of result, else the environment's own name. A document's declaration wins wherever there is one.
+    """
+    out: dict[str, Taxon] = {}
+    for m in _RESULT_ENV.finditer(src.clean):
+        env, locator = m.group(1), m.group(2)
+        if env in out or env in ("proof", "document"):
+            continue
+        first = re.match(r"[A-Za-z]+", locator.strip())
+        word = first.group(0).lower() if first else ""
+        name = word.capitalize() if word in _RESULT_WORDS else env.rstrip("*").capitalize()
+        out[env] = Taxon(env, name, _RESULT_WORDS.get(name.lower(), "plain"), False, path, m.start())
+    return out
+
+
 def _conflicted_ids(asm: Assembly, files: dict[str, SourceFile], slugs: set[str]) -> dict[str, list[str]]:
-    """Ids defined by more than one file -> the files, in path order. A node is defined once and included many times (book 5.3.5); a second definition of an id leaves it with no text rather than a winner, so the decision is made here before any record exists."""
-    defs: dict[str, dict[str, int]] = {}
+    """Ids defined more than once -> the files that define them, in path order. A node is defined once and included many times; a second definition of an id, in another file or the same one, leaves it with no text rather than a winner, so the decision is made here before any record exists."""
+    defs: dict[str, list[str]] = {}
     for path, fe in asm.envs.items():
         src = files[path]
         for env in fe.theorem_envs:
             found = labels_in(src.clean, env.own_ranges())
             first = found[0][0] if found else None
             if first and is_id_shaped(first, slugs):
-                defs.setdefault(first, {}).setdefault(path, env.start)
+                defs.setdefault(first, []).append(path)
     for units in asm.sections.values():
         for u in units:
             first = u.labels[0] if u.labels else None
             if first and is_id_shaped(first, slugs):
-                defs.setdefault(first, {}).setdefault(u.file, u.offset)
-    return {i: sorted(fs) for i, fs in defs.items() if len(fs) > 1}
+                defs.setdefault(first, []).append(u.file)
+    return {i: sorted(set(fs)) for i, fs in defs.items() if len(fs) > 1}
 
 
 def _placeholders(asm: Assembly, files: dict[str, SourceFile], conflicted: dict[str, list[str]]) -> None:
@@ -261,22 +322,33 @@ def _placeholders(asm: Assembly, files: dict[str, SourceFile], conflicted: dict[
             conflict=list(paths),
         )
         asm.nodes[node_id] = rec
-        locations = []
-        for path in paths:
-            at = next((d.start for d in demoted if d.file == path), None)
-            locations.append(Location(path, files[path].line_of(at) if at is not None else 1))
-        fixes = [Fix(f"fork the copy in {path}", f"loom fork {node_id} --in {path}") for path in paths]
+        locations = [
+            Location(d.file, files[d.file].line_of(d.start)) for d in sorted(demoted, key=lambda d: (d.file, d.start))
+        ]
+        locations = locations or [Location(path, 1) for path in paths]
+        # forking gives one document its own copy; two definitions inside one file can only be told apart by hand
+        fixes = [
+            Fix(f"fork the copy in {path}", f"loom fork {node_id} --in {path}") for path in paths if len(paths) > 1
+        ]
         fixes.append(Fix("give one copy a fresh id by hand", "loom id --next"))
         asm.diagnostics.append(
             Diagnostic(
                 "error",
                 "duplicate-id",
-                f"{node_id} is defined by {' and '.join(paths)}; it has no text until one definition remains",
+                f"{node_id} is {defined_by(paths, len(demoted))}; it has no text until one definition remains",
                 locations,
                 [node_id],
                 fixes=fixes,
             )
         )
+
+
+def defined_by(paths: list[str], definitions: int = 2) -> str:
+    """How a conflicted id's definitions read: by two files, or twice in one."""
+    if len(paths) > 1:
+        return "defined by " + " and ".join(paths)
+    times = "twice" if definitions <= 2 else f"{definitions} times"
+    return f"defined {times} in {paths[0]}"
 
 
 def _statement_nodes(
@@ -301,7 +373,7 @@ def _statement_nodes(
             if conflict_of:
                 node_id = None  # demoted: the placeholder holds the id and claims every label; this record claims none
             key = node_id or f"{path}#{env.name}:{counts[env.name]}"
-            taxon = taxa.get(env.name)
+            taxon = taxa.get(env.name) or asm.digest_taxa.get(path, {}).get(env.name)
             rec = NodeRec(
                 key=key,
                 kind="environment",

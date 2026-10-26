@@ -1242,7 +1242,9 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             "title": n.title or "",
             "state": "conflicted",
             "conflict": list(n.conflict),
-            "fixes": [f"loom fork {key} --in {path}" for path in n.conflict],
+            "fixes": [f"loom fork {key} --in {path}" for path in n.conflict]
+            if len(n.conflict) > 1
+            else ["loom id --next"],
             "incomplete": [],
             "reached_by": list(n.reached_by),
             "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0, "annotations": []},
