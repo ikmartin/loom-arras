@@ -105,6 +105,14 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     assert not any(r.startswith("Write(") for r in allow + deny)
 
 
+def test_an_agent_is_never_allowed_to_delete(tmp_path: Path) -> None:
+    """Nothing is deleted from a session's directory, since an annotation or a note may point at a file there; a shell permission cannot be confined to one directory, so `rm` is denied outright and intermediates go under `build/SESSION/` (DR-315-ikmartin)."""
+    q = bare(tmp_path)
+    data = json.loads((q / ".claude" / "settings.json").read_text())
+    assert "Bash(rm *)" in data["permissions"]["deny"]
+    assert not any(r.startswith("Bash(rm") for r in data["permissions"]["allow"])
+
+
 def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
     q = bare(tmp_path, "--skills")
     blocks = (q / "ai" / "rules.md").read_text()
