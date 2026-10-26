@@ -1,9 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Edit(/.loom/sessions/**)",
-      "Edit(/build/**)",
-      "Edit(/drafting-ai/**)",
+      "Edit(.loom/sessions/**)",
+      "Edit(build/**)",
+      "Edit(drafting-ai/**)",
       "Bash(loom ai annotations*)",
       "Bash(loom ai drafts*)",
       "Bash(loom ai orient*)",

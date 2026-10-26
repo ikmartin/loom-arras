@@ -98,7 +98,9 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
     # `.loom` is not denied wholesale: the session an agent writes in lives under it (plan 0.13 §5)
-    assert "Edit(/.loom/sessions/**)" in allow and "Edit(/build/**)" in allow
+    assert "Edit(.loom/sessions/**)" in allow and "Edit(build/**)" in allow
+    # relative to the working directory: passed with --settings, `/x` would be `.claude/x` and match nothing (DR-343-ikmartin)
+    assert not any(r.startswith("Edit(/") for r in allow)
     # Claude Code matches only `Edit` rules against paths; a `Write` rule is ignored and says so on every start
     assert not any(r.startswith("Write(") for r in allow + deny)
 

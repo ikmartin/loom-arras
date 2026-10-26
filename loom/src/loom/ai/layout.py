@@ -199,12 +199,14 @@ def permissions_json(config: QuiltConfig) -> str:
     """`.claude/settings.json` for a quilt, generated from the one table rather than written by hand.
 
     Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, rather than a list somebody remembered to extend -- and allows `AGENT_COMMANDS` themselves outright, because an agent `loom serve` starts for one turn cannot answer a permission prompt (plan 0.14). The directories are the quilt's own names (`agent_dirs`), so a quilt that renames `drafting` keeps it read-only.
+
+    The file is read twice and its two path forms are for different readings (DR-343-ikmartin): as the project's settings, `/x` is the quilt root, but an untrusted folder's allow rules are dropped there; as `--settings`, every rule holds but `/x` is under `.claude/`. So the allows are relative to the working directory, the quilt root a launched turn starts in, and the denies keep `/`, which anchors `/*.tex` to the root where a relative `*.tex` would refuse the agent's own drafts.
     """
     import json
 
     writes, readonly = agent_dirs(config)
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
-    allow = [f"Edit(/{d}/**)" for d in writes]
+    allow = [f"Edit({d}/**)" for d in writes]
     # the agent's own commands, allowed outright: an agent `loom serve` starts for a turn cannot answer a prompt
     allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
     deny = [f"Edit(/{d}/**)" for d in readonly]
