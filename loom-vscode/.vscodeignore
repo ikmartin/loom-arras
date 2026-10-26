@@ -1,8 +1,0 @@
-.vscode-test/**
-.vscode-test.mjs
-src/**
-out/test/**
-**/*.map
-**/tsconfig.json
-**/.eslintrc*
-node_modules/.bin/**

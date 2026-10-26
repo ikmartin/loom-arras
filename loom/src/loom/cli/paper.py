@@ -631,7 +631,7 @@ def _atomize_keys(
 ) -> tuple[Report, str]:
     """`atomize --key`: write the node files; the report and the patch for the source are returned to print. With --dry-run, the plan and the patch alone.
 
-    The source is never edited: the editor applies the patch (loom-lsp offers it as one workspace edit), which is what keeps undo and an unsaved buffer the author's business. The JSON carries the plan (`plan_payload`) either way.
+    The source is never edited: the author applies the patch, which is what keeps undo and an unsaved buffer the author's business. The JSON carries the plan (`plan_payload`) either way.
     """
     root = result.quilt.root
     src_rel = _rel(root, src) if src else None

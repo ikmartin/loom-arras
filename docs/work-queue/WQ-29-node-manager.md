@@ -1,6 +1,6 @@
 # WQ-29 · The node manager: forks from history, retiring, merging, renaming
 
-**Repo:** loom, arras, loom-lsp
+**Repo:** loom, arras
 
 ## Trigger
 
@@ -27,7 +27,7 @@ Arras shows a node's family (ancestors, forks, the version it was forked at) whe
 
 ## Blast radius
 
-`loom/src/loom/reshape/ids.py`, the ledger's ancestry entries, `loom-lsp/` for rename, a node-page component, Chapter 5.
+`loom/src/loom/reshape/ids.py`, the ledger's ancestry entries, a node-page component, Chapter 5.
 
 ## Related
 

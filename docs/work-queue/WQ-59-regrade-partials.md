@@ -1,6 +1,6 @@
 # WQ-59 · The re-grade's partials
 
-**Repo:** loom, loom-lsp
+**Repo:** loom
 
 ## Trigger
 

@@ -29,15 +29,14 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is |
 | [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more landmarks |
-| [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches, `bundle --with`, editor code actions | loom, editors | one run leaves ten or more payloads (**fired**: relloc, 2026-10-12, see the item) |
+| [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches and `compile --with` | loom, arras | one run leaves ten or more payloads (**fired**: relloc, 2026-10-12, see the item) |
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
-| [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename | loom, arras, loom-lsp | ten or more forks, or a fork or rename by hand goes wrong once |
+| [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename | loom, arras | ten or more forks, or a fork or rename by hand goes wrong once |
 | [WQ-30](WQ-30-history-gc.md) | `loom history gc` | loom | `.loom/history/texts/` exceeds a few thousand files or fifty megabytes |
 | [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose |
 | [WQ-38](WQ-38-digest-blocks-in-their-own-preamble.md) | a digest block rendered against the paper's own preamble | loom | a digest block the author needs shows a raw-TeX error box |
 | [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
 | [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
-| [WQ-49](WQ-49-editor-clients.md) | rework the editor clients; until then they are deprecated and may break | loom-lsp, loom-nvim, loom-vscode | someone starts to work seriously in a quilt and wants loom in their editor |
 | [WQ-50](WQ-50-publish-after-mv-test.md) | a committed test that a publish after `loom mv` keeps Overleaf's file name | loom | the next change to sync's mapping of Overleaf's main, or to `loom mv` |
 | [WQ-51](WQ-51-macro-sets-leak.md) | a view's macros stay its own: no page-wide `\renewcommand` leaking between documents | arras | a real quilt has two macro sets defining one name differently |
 | [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent documents drafted from one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |

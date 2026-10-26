@@ -1,6 +1,6 @@
 # Contributing
 
-For anyone, person or agent, changing loom, arras or the editor clients. What loom is and why lives in `docs/design/`; the loom–arras interface lives in `docs/specs/`, which wins on shapes; what is not done is in `docs/work-queue/README.md`.
+For anyone, person or agent, changing loom or arras. What loom is and why lives in `docs/design/`; the loom–arras interface lives in `docs/specs/`, which wins on shapes; what is not done is in `docs/work-queue/README.md`.
 
 ## The repository
 
@@ -10,12 +10,11 @@ One repository, five tools, each with its own build, tests and release. A change
 |---|---|
 | `loom/` | the CLI, Python, built with `uv` |
 | `arras/` | the viewer, Svelte, built with `npm` |
-| `loom-lsp/`, `loom-nvim/`, `loom-vscode/` | the editor clients, deprecated and breakable until reworked (WQ-49) |
 | `docs/` | the design, the specs, the work queue, frozen history |
 
 To set up: `uv tool install -e ./loom` puts this checkout's `loom` on your PATH; `uv sync` in `loom/` makes `loom/.venv`, which the arras write and reading suites serve with; `npm ci` and `npx playwright install chromium` in `arras/`.
 
-The workspace's documents and loom are GPL-3.0-or-later; arras and the editor clients AGPL-3.0-or-later; `loom.sty` and the demo quilt MIT (`loom/src/loom/assets/LICENSE`), so they can travel with a paper.
+The workspace's documents and loom are GPL-3.0-or-later; arras AGPL-3.0-or-later; `loom.sty` and the demo quilt MIT (`loom/src/loom/assets/LICENSE`), so they can travel with a paper.
 
 ## Verifying
 
@@ -28,7 +27,7 @@ The workspace's documents and loom are GPL-3.0-or-later; arras and the editor cl
 - `--only loom|arras|docs`: one lane, when a change touches one tool or only documents.
 - `--steps "pytest tex"`: named steps whatever their tier; CI runs the TeX tier this way.
 
-The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/`, each runnable alone and printing the command that fixes what it finds. The editor clients have no lane: `.github/workflows/clients.yml` runs their suites when a client changes, and nothing in loom waits on them. The arras perf suites (`playwright.perf.config.ts`, `playwright.perf-live.config.ts`) run by hand.
+The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/`, each runnable alone and printing the command that fixes what it finds. The arras perf suites (`playwright.perf.config.ts`, `playwright.perf-live.config.ts`) run by hand.
 
 ## How the tests work
 

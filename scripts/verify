@@ -13,7 +13,7 @@ Usage:
 
 CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (docs/contributing.md). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
 
-Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan. The editor clients are not a lane: they are deprecated and breakable (WQ-49), and `clients.yml` runs them when they change.
+Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan.
 """
 
 from __future__ import annotations
