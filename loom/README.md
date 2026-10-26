@@ -2,7 +2,7 @@
 
 A tool for atomized mathematical development. loom turns a LaTeX paper into a *quilt*: every theorem-like environment and section carries a permanent id as an ordinary `\label`, dependencies are read from the `\ref`, `\cite[postnote]`, and `\uses` you already write, acceptances are recorded with content hashes so you are told exactly what went stale and why, review comments are anchored to quoted text, and the whole is published to the [arras](https://github.com/ikmartin/arras) viewer. The paper compiles exactly as before, with plain `pdflatex`, from the same files, on Overleaf.
 
-Status: alpha; every milestone of the design book is implemented and demonstrated. The book, the interface specification, and the demonstration records live in the [loom-arras workspace](https://github.com/ikmartin/loom-arras).
+Status: alpha. The design, the interface specification and the example quilts live in the [loom-arras workspace](https://github.com/ikmartin/loom-arras).
 
 ## Install from a clone
 

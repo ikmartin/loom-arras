@@ -2,7 +2,7 @@
 
 A digest is loom's copy of one cited work's results, each a digest node with a permanent id, in a LaTeX file that obeys the source contract. This spec defines that file and the records beside it, and how a cited work's results get their ids, states and edges.
 
-The old chapter 8 is frozen at [docs/book/08-digests.md](../book/08-digests.md) for history.
+The old book's chapter 8 is in git history.
 
 ## 1. Files
 

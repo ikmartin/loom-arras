@@ -123,4 +123,4 @@ Review comparison fragments may mark changed prose with `<mark class="review-cha
 
 ## 4. Validation
 
-**[decided]** The workspace provides `specs/tools/validate-dialect.py` (a small standalone script, not shared code in the sense of P11 since it is a test tool consumed by both repositories) that checks a fragment against sections 1–3: the envelope, the allowed elements, classes, and attributes, `data-src` on blocks, and the forbidden elements. Each tool's test suite vendors it (loom at `tests/tools/`, arras through the fixture check); `refresh-fixture.sh` runs it on every regenerated fragment (settled at M2).
+**[decided]** The workspace provides `specs/tools/validate-dialect.py` (a small standalone script, not shared code in the sense of P11 since it is a test tool consumed by both codebases) that checks a fragment against sections 1–3: the envelope, the allowed elements, classes, and attributes, `data-src` on blocks, and the forbidden elements. Each codebase's test suite vendors it (loom at `tests/tools/`, arras through the fixture check); `refresh-fixture.sh` runs it on every regenerated fragment (settled at M2).

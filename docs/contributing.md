@@ -4,13 +4,15 @@ For anyone, person or agent, changing loom or arras. What loom is and why lives 
 
 ## The repository
 
-One repository, five tools, each with its own build, tests and release. A change that crosses them is one branch and one pull request.
+One repository: loom, and its viewer arras in a codebase of its own, each with its own build and tests; the viewer ships inside loom. A change that crosses them is one branch and one pull request.
 
 | directory | what it holds |
 |---|---|
 | `loom/` | the CLI, Python, built with `uv` |
 | `arras/` | the viewer, Svelte, built with `npm` |
-| `docs/` | the design, the specs, the work queue, frozen history |
+| `docs/` | the design, the specs, the work queue, the plans, frozen history |
+| `demos/` | the committed example quilts, rebuilt by `demos/build.py` |
+| `scripts/` | `verify`, and the documentation checks it runs (`scripts/checks/`) |
 
 To set up: `uv tool install -e ./loom` puts this checkout's `loom` on your PATH; `uv sync` in `loom/` makes `loom/.venv`, which the arras write and reading suites serve with; `npm ci` and `npx playwright install chromium` in `arras/`.
 
@@ -24,7 +26,7 @@ The workspace's documents and loom are GPL-3.0-or-later; arras AGPL-3.0-or-later
 - `scripts/verify full`: before a commit. Adds loom's TeX tier, an arras build, the four Playwright suites and the two figure scripts.
 - `scripts/verify paper`: the paper tier, by hand, with `LOOM_PAPER_FIXTURES` naming a directory holding `0805.2065/` and `1709.09864/`. Never in CI.
 - `scripts/verify client`: the real-client tier, by hand, after a change to what loom generates for an agent client. It runs Claude Code against the generated settings and spends on the account of whoever runs it, so it never runs in CI.
-- `--only loom|arras|docs`: one lane, when a change touches one tool or only documents.
+- `--only loom|arras|docs`: one lane, when a change touches one codebase or only documents.
 - `--steps "pytest tex"`: named steps whatever their tier; CI runs the TeX tier this way.
 
 The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/`, each runnable alone and printing the command that fixes what it finds. The arras perf suites (`playwright.perf.config.ts`, `playwright.perf-live.config.ts`) run by hand.
@@ -49,7 +51,7 @@ The construction principles C1–C5 (`docs/design/principles.md`) govern how the
 - C2, vertical slices: work runs end to end, source to arras page, not one layer at a time.
 - C3, the fixture is the contract's executable form: a change to loom's output regenerates it (`docs/specs/tools/refresh-fixture.sh`); a change to the interface changes it first.
 - C4, author files are sacred: the test comes before the command that touches a file.
-- C5, two tools sharing nothing but `docs/specs/`.
+- C5, two codebases sharing nothing but `docs/specs/`.
 
 ## Rules for every change
 
@@ -61,7 +63,7 @@ The construction principles C1–C5 (`docs/design/principles.md`) govern how the
 
 The design is still being discovered, and the previous system failed by treating it as a fixed specification. `docs/design/` records current thinking, not a contract. When implementation teaches you something, update the design document in the same change and explain why in the commit message. Open questions belong in the design document beside what they affect; the work queue holds deferred work, not design questions. Only an entry in `docs/design/invariants.md` changes deliberately, with a dated line there.
 
-Every commit message explains the why of its change. `docs/book/`, `docs/book/A-decision-records.md` and `docs/deviations.md` are frozen history: read them, never extend them.
+Every commit message explains the why of its change. `docs/design/decision-records-frozen.md` is frozen history: read it, never extend it.
 
 The work queue, whose mechanical rules `docs/work-queue/check.py` enforces:
 
@@ -71,4 +73,4 @@ The work queue, whose mechanical rules `docs/work-queue/check.py` enforces:
 
 ## Releases
 
-`loom/docs/RELEASE.md` is loom's release checklist; follow it, not a summary. It stops before publishing: publishing to PyPI or npm is the maintainer's step, never a script's or an agent's. arras ships as the bundle vendored into loom (`loom/scripts/vendor_arras.py`).
+`loom/docs/RELEASE.md` is loom's release checklist; follow it, not a summary. It stops before publishing: publishing to PyPI is the maintainer's step, never a script's or an agent's. arras is not published on its own; it ships as the bundle vendored into loom (`loom/scripts/vendor_arras.py`).

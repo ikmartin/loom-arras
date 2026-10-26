@@ -9,7 +9,7 @@ A set is a section `## X · What it governs`; a principle is a heading `### Xn. 
 - every principle heading sits in the section of its own letter, and a set's numbers run 1, 2, 3 ... without a gap or a repeat (a retired principle keeps its heading);
 - no two sets share a letter;
 - the two generated tables are what the headings say;
-- every principle name cited in the design, the frozen book, the specifications, the contributor guide, AGENTS.md, CLAUDE.md, or the source or tests of loom or arras exists.
+- every principle name cited in the design, the specifications, the contributor guide, AGENTS.md, CLAUDE.md, or the source or tests of loom or arras exists.
 
 Exit 0 when all hold, 1 otherwise.
 """
@@ -33,7 +33,6 @@ CITED = re.compile(r"(?<![\w./#-])([A-Z])(\d{1,2})(?![\w./-])")
 #: Where a principle is cited: what people and agents read, and the comments in the code that follows them.
 CITING = [
     *(ROOT / "docs" / "design").glob("*.md"),
-    *(ROOT / "docs" / "book").glob("*.md"),
     ROOT / "docs" / "contributing.md",
     *(ROOT / "docs" / "specs").rglob("*.md"),
     ROOT / "AGENTS.md",

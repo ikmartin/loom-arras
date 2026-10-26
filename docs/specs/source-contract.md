@@ -2,7 +2,7 @@
 
 This spec says exactly what loom reads from an author's LaTeX and what each construct means. Anything it does not name is ordinary LaTeX that loom passes over.
 
-The old chapter 5 is frozen at [docs/book/05-source-contract.md](../book/05-source-contract.md) for history.
+The old book's chapter 5 is in git history.
 
 ## 1. What is read
 

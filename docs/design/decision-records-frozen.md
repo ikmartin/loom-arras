@@ -1,6 +1,6 @@
-# Appendix A. Decision records
+# Decision records (frozen)
 
-> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+> **Frozen history.** These are the decision records of the design book that this directory superseded on 2026-10-26; the book itself is deleted, and git history keeps it. They are kept so that the `DR-NNN` ids cited in code and in these documents still resolve. No record is added: the why of a change goes in its commit message, and a change to an invariant gets a dated line in [`invariants.md`](invariants.md). Section numbers inside the records ("11.8", "15.3.1") name the book's sections at the time and are not kept up to date.
 
 ## Format
 

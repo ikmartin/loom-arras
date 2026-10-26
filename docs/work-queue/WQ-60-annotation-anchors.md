@@ -8,7 +8,7 @@ An annotation drawn at block level that its writer meant for a phrase, seen in u
 
 ## Why deferred
 
-[The anchoring critique](../issue-reports/annotation-anchoring-critique-from-agent-2026-10-03.md) found quotes `annotate` accepted marked as their whole paragraph or section. DR-334-ikmartin fixed its causes for the TeX the converter knows -- one reading of a quote at write time and at placement, and a paragraph's span starting at `\noindent` -- which covers every case the critique saw. What is left is structural and is not needed until a quote outside that reading turns up: a `\end{…}`, a macro of the quilt's own, a quote across an argument the converter rewrites.
+The anchoring critique found quotes `annotate` accepted marked as their whole paragraph or section. DR-334-ikmartin fixed its causes for the TeX the converter knows -- one reading of a quote at write time and at placement, and a paragraph's span starting at `\noindent` -- which covers every case the critique saw. What is left is structural and is not needed until a quote outside that reading turns up: a `\end{…}`, a macro of the quilt's own, a quote across an argument the converter rewrites.
 
 ## Rough design
 

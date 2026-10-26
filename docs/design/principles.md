@@ -64,7 +64,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | [C2](#c2-vertical-slices) | Vertical slices. |
 | [C3](#c3-the-fixture-is-the-contracts-executable-form) | The fixture is the contract's executable form. |
 | [C4](#c4-author-files-are-sacred-from-the-first-commit) | Author files are sacred from the first commit. |
-| [C5](#c5-two-tools-in-two-languages-sharing-nothing-but-specs) | Two tools, in two languages, sharing nothing but `specs/`. |
+| [C5](#c5-two-codebases-in-two-languages-sharing-nothing-but-specs) | Two codebases, in two languages, sharing nothing but `specs/`. |
 | [K1](#k1-one-action-one-command-one-name) | One action, one command, one name. |
 | [K2](#k2-one-idea-one-flag-one-meaning) | One idea, one flag, one meaning. |
 | [K3](#k3-refuse-what-is-not-understood) | Refuse what is not understood. |
@@ -264,9 +264,9 @@ Every change to loom's output regenerates the fixture, and every change to the i
 
 The tests that enforce P7 are written before any command that touches a file.
 
-### C5. Two tools, in two languages, sharing nothing but `specs/`.
+### C5. Two codebases, in two languages, sharing nothing but `specs/`.
 
-Loom and arras live in one repository, each with its own build, tests and release, and they meet only at the specifications, which is what keeps P11 a fact of the code and not only of the design.
+Loom and its viewer, arras, live in one repository, each codebase with its own build and tests, and they meet only at the specifications, which is what keeps P11 a fact of the code and not only of the design.
 
 ## K · The command line
 

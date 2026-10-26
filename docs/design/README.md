@@ -1,6 +1,6 @@
 # Loom
 
-Loom is a local command-line tool for mathematical research, and arras is the viewer it publishes to. This directory is their design: what they are for, the principles they follow, the model they share, how agents take part, and the invariants that must not be lost. It replaces the design book, which is frozen in `docs/book/` as history.
+Loom is a local command-line tool for mathematical research, and arras is the viewer it publishes to. This directory is their design: what they are for, the principles they follow, the model they share, how agents take part, and the invariants that must not be lost. It replaces the design book, whose decision records are frozen in [`decision-records-frozen.md`](decision-records-frozen.md); the book itself is deleted, and git history keeps it.
 
 ## What loom is for
 
@@ -73,6 +73,6 @@ Two markers keep the text honest:
 | what an agent is given | `loom/src/loom/assets/ai/` (orientation, rules, modes) |
 | building, testing, verifying, releasing | `docs/contributing.md` |
 | deferred work | `docs/work-queue/` |
-| history: the design book, its decision records, the deviations log, plans, reports | `docs/book/`, `docs/deviations.md`, `docs/plans/`, `docs/reports/` |
+| history: the old book's decision records, plans, reports | `docs/design/decision-records-frozen.md`, `docs/plans/`, `docs/reports/` |
 
 Where the design and a spec disagree about a shape, the spec wins; about what a thing means, the design wins. Where either disagrees with the code, one of them is wrong, and the fix is to correct whichever it is.

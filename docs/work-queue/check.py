@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check the work queue, and that the frozen book and the specs carry no unfinished-business markers.
+"""Check the work queue, and that the specs carry no unfinished-business markers.
 
-Design questions belong in docs/design/ beside what they affect, under **Open.**; this check covers the queue, the frozen book and the specs. Exits 0 when everything holds, 1 with one line per fault otherwise. `scripts/verify` runs it in the docs lane, locally and in CI (`docs.yml`, docs/contributing.md).
+Design questions belong in docs/design/ beside what they affect, under **Open.**; this check covers the queue and the specs. Exits 0 when everything holds, 1 with one line per fault otherwise. `scripts/verify` runs it in the docs lane, locally and in CI (`docs.yml`, docs/contributing.md).
 """
 
 from __future__ import annotations
@@ -60,10 +60,10 @@ def main() -> int:
             if not (path.parent / target).exists():
                 faults.append(f"{path.name}: link to {target} does not resolve")
 
-    # 5. the book carries no unfinished business.
+    # 5. the specs carry no unfinished business.
     # The marker form is bold -- **[deferred]** -- so naming a withdrawn marker in prose or in a
     # decision record, where it is written `[deferred]`, is not a fault. DR-107 does exactly that.
-    for tree in (DOCS / "book", DOCS / "specs"):
+    for tree in (DOCS / "specs",):
         for path in sorted(tree.rglob("*.md")):
             text = path.read_text(encoding="utf-8")
             for marker in ("deferred", "assumed"):
@@ -71,7 +71,7 @@ def main() -> int:
                 if n:
                     rel = path.relative_to(DOCS.parent)
                     faults.append(
-                        f"{rel}: {n} occurrence(s) of the [{marker}] marker. The book describes what is "
+                        f"{rel}: {n} occurrence(s) of the [{marker}] marker. The specs describe what is "
                         f"implemented; unfinished work belongs in the work queue with a trigger (DR-107)."
                     )
             if re.search(r"^#+\s*Open questions\s*$", text, re.M):
@@ -82,7 +82,7 @@ def main() -> int:
     if faults:
         print(f"\n{len(faults)} fault(s)", file=sys.stderr)
         return 1
-    print(f"work queue ok: {len(active)} active (cap {CAP}), {len(retired)} closed; book and specs carry no unfinished business")
+    print(f"work queue ok: {len(active)} active (cap {CAP}), {len(retired)} closed; specs carry no unfinished business")
     return 0
 
 

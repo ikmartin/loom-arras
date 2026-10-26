@@ -80,6 +80,6 @@ Two habits make the passes cheap. **Verify, do not recall**: check a command's o
 
 ## This workspace
 
-`loom-arras/` is one repository holding `loom` (Python CLI, in `loom/`), `arras` (Svelte viewer, in `arras/`), and the documents that govern them both: the design (`docs/design/`), the specifications (`docs/specs/`), the contributor guide, the work queue, the plans, and the committed example quilts under `demos/`. The old design book and its deviations log are frozen history. Each tool keeps its own build, tests and release.
+`loom-arras/` is one repository holding `loom` (the Python CLI, in `loom/`), its viewer `arras` (Svelte, in `arras/`), and the documents that govern them: the design (`docs/design/`), the specifications (`docs/specs/`), the contributor guide, the work queue, the plans, and the committed example quilts under `demos/`. The old design book is deleted; its decision records are frozen in `docs/design/decision-records-frozen.md`. Each codebase keeps its own build and tests, and the viewer ships inside loom.
 
 Start by reading `AGENTS.md`, then `docs/design/README.md`. Every design principle is in `docs/design/principles.md`, with an index, and is cited by name everywhere else. The design is still being discovered: it records current thinking, its open questions sit beside what they affect, and it is corrected in the same change as the code that taught us better. Deferred work, each item with a trigger, is in `docs/work-queue/`. The rules in `AGENTS.md` apply to every session.

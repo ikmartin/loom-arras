@@ -25,4 +25,4 @@ The full extraction is kept as a search index outside the node graph (`results.j
 
 ## Related
 
-[plan 0.18.5](../plans/0.18-the-command-line.md), whose item 4 measured it; [the refs audit](../issue-reports/refs-audit-critique-from-agent-2026-10-02.md) §1 and recommendation 2.
+[plan 0.18.5](../plans/0.18-the-command-line.md), whose item 4 measured it; the refs audit §1 and recommendation 2.

@@ -58,7 +58,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:missing-package": ("warning", False),
     "loom:digest-without-bib": ("warning", False),
     "loom:interface-version": ("error", True),
-    # added by the implementation (recorded in docs/deviations.md)
+    # added by the implementation, beyond the original specification
     "loom:non-utf8-source": ("warning", False),
     "loom:unknown-theoremstyle": ("warning", False),
     "loom:taxon-name-macro": ("info", False),

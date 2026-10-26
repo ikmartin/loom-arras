@@ -1,24 +1,24 @@
 # loom-arras
 
-One repository holding two tools and the documents that govern them. `loom` turns a LaTeX paper into a *quilt*, where every theorem-like environment and section carries a permanent id as an ordinary `\label`, dependencies are read from the `\ref`, `\cite[postnote]` and `\uses` an author already writes, acceptances are recorded with content hashes, and review comments are anchored to quoted text. `arras` is the viewer it publishes to. The paper still compiles with plain `pdflatex`, from the same files, on Overleaf.
+One repository holding loom, its viewer arras, and the documents that govern them. `loom` turns a LaTeX paper into a *quilt*, where every theorem-like environment and section carries a permanent id as an ordinary `\label`, dependencies are read from the `\ref`, `\cite[postnote]` and `\uses` an author already writes, acceptances are recorded with content hashes, and review comments are anchored to quoted text. `arras` is the viewer it publishes to. The paper still compiles with plain `pdflatex`, from the same files, on Overleaf.
 
 | directory | what it is | language |
 |---|---|---|
 | `loom/` | the CLI: scanner, reshaping commands, history, digests, build | Python |
 | `arras/` | the static viewer for a published quilt | Svelte |
 
-Each tool keeps its own build, tests, dependencies and release. `loom` never needs the viewer: a quilt edited in a plain text editor loses nothing.
+loom and its viewer are separate codebases, each with its own build, tests and dependencies, and the viewer ships inside loom. `loom` never needs the viewer: a quilt edited in a plain text editor loses nothing.
 
 ## The documents
 
-They are the reason this repository exists, and they govern the tools rather than describing them after the fact.
+They are the reason this repository exists, and they govern loom rather than describing it after the fact.
 
 - `docs/design/` — the design: what loom is for, the three people every decision is tested against, the principles, the model, how agents take part, and the invariants that must not be lost. It records current thinking and changes as the design is discovered; what is decided but not built is marked as such.
 - `docs/specs/` — the formats: the loom–arras interface (manifest, HTML dialect, conformance fixture), the source contract, digests and diagnostics. They win over the design wherever shapes are concerned.
 - `docs/contributing.md` — how to build, test, verify and release.
 - `docs/work-queue/` — deferred work, each item with an observable trigger saying when it becomes worth doing.
 - `docs/plans/` — the plan for work in progress. Earlier plans are history: what was intended at the time.
-- `docs/book/`, `docs/deviations.md` — the original design book, its decision records and its deviations log, frozen as history on 2026-10-26.
+- `docs/design/decision-records-frozen.md` — the decision records of the original design book, frozen as history on 2026-10-26 so that the `DR-NNN` ids cited in code still resolve. The book itself and its deviations log are deleted; git history keeps them.
 - `AGENTS.md` — the rules that hold for everyone working here, human or agent. Read it first.
 
 `demos/` holds example quilts: `demo/` is what `loom init --demo` writes, `synthetic/` exercises every construct of the source contract and generates the conformance fixture, and `showcase/` is the one to open when you want to see what loom does. Quilts built from real papers are gitignored, because they contain the paper sources.
@@ -55,11 +55,11 @@ The LaTeX compiles in loom's tests run with an empty `HOME` and empty TeX trees,
 
 ## Working here
 
-A change that crosses the tools — a manifest field and the viewer that reads it, say — is one branch and one pull request. That is why they are one repository (DR-196).
+A change that crosses loom and its viewer — a manifest field and the viewer code that reads it, say — is one branch and one pull request. That is why they are one repository (DR-196).
 
 CI runs `scripts/verify`, one workflow per lane: `loom`, `arras` and `docs`, each triggered only by the paths its lane reads (`docs/contributing.md`).
 
-Releases stay separate: `loom` to PyPI, `arras` to npm. Publishing is done by hand, never by CI.
+`loom` is released to PyPI, with arras vendored into it. Publishing is done by hand, never by CI.
 
 ## License
 
