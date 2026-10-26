@@ -4,7 +4,7 @@
 
 ## Trigger
 
-Extraction and `atomize` disagree about what counts as a node — a nested statement, a proof by enclosure, a label rule one honours and the other does not.
+Extraction and `atomize` disagree about what counts as a node — a nested statement, a proof by enclosure, a label rule one honours and the other does not — or extracting a reading list of twenty or more works is slow enough that someone waits on it, at one LaTeX run per work.
 
 ## Why deferred
 
@@ -24,8 +24,8 @@ A `scan_paper(dir, master)` returning an `Assembly` without requiring a `config.
 
 ## Blast radius
 
-`loom/src/loom/scan/scan.py` (a non-quilt entry point), `loom/src/loom/digest/extract.py`, `loom/src/loom/reshape/importer.py` (its staging trick becomes redundant), Chapter 8.
+`loom/src/loom/scan/scan.py` (a non-quilt entry point), `loom/src/loom/digest/extract.py`, `loom/src/loom/reshape/importer.py` (its staging trick becomes redundant), `docs/specs/digests.md`.
 
 ## Related
 
-Plan 0.5 (which established the `refs/` layout). The second half of this item — caching the `.aux` so that digesting a corpus is not one LaTeX run per work — went to **weft** with the crawl (DR-144, `docs/plans/weft-and-loom.md` §4): the cost only bites at corpus scale, and weft's copy of `digest/extract.py` is where it will be paid. What is left here is loom's, and is about correctness rather than speed.
+Plan 0.5 (which established the `refs/` layout). The second half of this item, caching the `.aux` so that digesting many works is not one LaTeX run per work, went to weft with the crawl (DR-144) and comes back here, since weft is abandoned. It bites once a Learner's library is extracted in bulk, which is why the trigger names that case.

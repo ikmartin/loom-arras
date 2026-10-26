@@ -6,6 +6,8 @@
 
 One run leaves ten or more payloads, so that copying each by hand is the slow part of a review. Until then, preview-and-copy is the intended pattern: it keeps every decision with the author and costs nothing to build.
 
+**Fired (noted 2026-10-26).** In relloc's session of 2026-10-12, simplify passes each left eleven or twelve suggestions carrying payloads (`a-2026-10-12-0039` to `0049`, `0051` to `0062`, `0102` to `0113`), applied by hand or by an agent editing its copy. Under P14 this is now worth a plan, and Review's Needs review and Incoming (plan 0.20.4) are its natural home.
+
 ## Why deferred
 
 The author chose preview-and-copy on 2026-09-17 for exactly its intentionality. Applying a suggestion automatically is the WorkspaceEdit line from WQ-23's build order, and it is only worth its machinery once a review produces more text than a person can paste.

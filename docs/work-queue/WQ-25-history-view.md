@@ -10,6 +10,10 @@ A quilt that is not a fixture or a demo holds three or more landmarks (an import
 
 The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is worth designing against a real ledger rather than an imagined one, and the manifest fields it needs — each key's version list, each step's entry — are cheap to add once the ledger's shape has survived a few weeks of use. The seeds are already published: `keys[k].version` and the "text of @N" badge; the landmarks, which plan 0.17.3 made stamps that keep their document's text, listed under Landmarks in the panel and opened as documents; and compare (plan 0.17.4), which already reads a landmark against today or another landmark.
 
+## After plan 0.20.6
+
+Plan 0.20.6 builds this item's smallest piece: a draft's history menu, a landmark shown read-only in the draft's own pane, and compare against a landmark or an agent's copy. What remains is re-expressed under V7, show a thing where it lives: a version of a result is read in the document at the landmark that holds it, so the per-node version cycle and the `/node/<key>@<step>` item below are only the fallback for a result in no document. The timeline's settings and the annotation layer stand as designed.
+
 ## Rough design
 
 One view, three settings, decided with the author on 2026-09-17:

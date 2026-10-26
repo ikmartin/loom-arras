@@ -4,7 +4,7 @@
 
 ## Trigger
 
-Before the reference layer is described as making later questions cheaper anywhere a reader outside the project will see it, for instance in a release note (WQ-19).
+Before the reference layer is described as making later questions cheaper anywhere a reader outside the project will see it, for instance in a release note (WQ-19), and not before plan 0.21.1 has replaced the orientation: measuring today's would describe a contract that is about to go.
 
 ## Why deferred
 
@@ -12,7 +12,7 @@ Plan 0.12's §13 claims each question in an area is cheaper than the last. The s
 
 ## Rough design
 
-One iteration of §15's loop on a fresh study quilt: an `ai start` run asks the survey question cold; the author verifies what it proposes; a second `ai start` run, reattached, asks the same question. Report calls, time and tokens for both, with `run.log`'s page reads.
+One iteration of §15's loop on a fresh study quilt: a fresh agent session asks the survey question cold; the author verifies what it proposes; a second session, rejoining the first with `loom ai orient --session`, asks the same question. Report calls, time and tokens for both, with `run.log`'s page reads.
 
 ## Blast radius
 
