@@ -1,5 +1,7 @@
 # Appendix F. Colophon
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This book records a design, and it should record how the design was made, in the spirit of the paper that started it (arXiv 2609.05669, §1.2, "Use of artificial intelligence").
 
 The design was developed over several days in September 2026 in a sustained conversation between Markas Hecht and Anthropic's Claude (Claude Fable 5.1), in a project workspace holding the relative localization paper and its references. The conversation began as a question about adapting one paper's block-based proof-development workflow and ended as the specification of two tools. Every decision recorded in Appendix A was made by the author; the model proposed, argued, checked names against package registries, searched for prior art (forester, the Stacks project, leanblueprint, org-transclusion, Quarto, MyST), and drafted. Several of the model's proposals were rejected outright by the author and are recorded as withdrawn terms and superseded records, which is the division of labour the source paper describes: strategy and judgement human, drafting and criticism machine.

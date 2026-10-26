@@ -4,11 +4,13 @@
 
 ## Trigger
 
-A second quilt exists whose digests another quilt wants — for instance a Gross–Siebert or virtual-localization corpus that `demos/relloc` would rather point at than re-derive.
+A second quilt exists whose digests another quilt wants — for instance a Gross–Siebert or virtual-localization corpus that `demos/relloc` would rather point at than re-derive — or a reader's library spans more than one quilt: the Learner of `docs/design/README.md`, reading across a field, wants what one reading project digested available in the next.
 
 ## Why deferred
 
 There is only one quilt at a time to test against, so nothing can exercise resolution across two, and the versioning contract cannot be validated by a single consumer.
+
+Since 2026-10-26 this is central rather than optional: loom is for the Learner as well as the Author, and a reader's library outlives any one project. A quilt holding only digests already sees their results as nodes, since a digest declares its own result environments (branch `review-findings`).
 
 **This trigger is a decision, not an observation.** Most items here wait for something to be noticed; this one waits for you to choose to build a library, which you can do in a weekend — fetch twenty papers in a subfield from arXiv, extract each at `--all`, curate. Worth knowing, because **this item is what unlocks library functionality, not [[WQ-02]]**: the crawl makes a large library cheap to assemble, but a hand-built one works the day this lands and needs no crawling at all.
 
@@ -21,7 +23,7 @@ There is only one quilt at a time to test against, so nothing can exercise resol
 libraries = ["~/math/gross-siebert"]
 ```
 
-and `\uses{Man12-prop-3.2}` resolves locally first, then into the libraries. No new concept, and the subfield object becomes publishable and collaboratively maintained rather than something every author re-derives. A library here is a *quilt* holding digests someone wrote, which is not a corpus: a crawled corpus is weft's, and weft never writes into a quilt (DR-144, `docs/plans/weft-and-loom.md` §2).
+and `\uses{Man12-prop-3.2}` resolves locally first, then into the libraries. No new concept, and the subfield object becomes publishable and collaboratively maintained rather than something every author re-derives. A library here is a *quilt* holding digests someone wrote, not a crawled corpus.
 
 Three things to settle:
 
@@ -37,4 +39,4 @@ Folded in from Chapter 8's open questions: **how a library quilt is recognized**
 
 ## Related
 
-[[WQ-01]], [[WQ-02]] (closed; its implementation went to weft); Chapter 8 §8.9. Distinct from weft in exactly the way this item's own design says: this shares *digests*, which are small, authored and valuable, and never deduplicate because two people's digests of one paper are different documents.
+[[WQ-01]], [[WQ-02]] (closed; it went to weft, which is abandoned); `docs/specs/digests.md`. This shares *digests*, which are small, authored and valuable, and never deduplicate, because two people's digests of one paper are different documents.

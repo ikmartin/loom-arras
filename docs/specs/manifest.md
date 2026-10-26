@@ -411,7 +411,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).
 
-**[decided]** `results`, by result id, is what `digests/<citekey>.results.json` records for each of the work's results (digest contract §9), as a viewer needs it:
+**[decided]** `results`, by result id, is what `digests/<citekey>.results.json` records for each of the work's results (`digests.md`), as a viewer needs it:
 
 ```json
 "Man12-thm-4.1": {"state": "extracted", "level": 3, "class": "mechanical", "page": 12, "artifact": "4b8db624054b",

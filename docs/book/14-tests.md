@@ -1,5 +1,7 @@
 # 14. Tests
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter lists the tests the MVP passes. It defines the tiers, the shim that makes the fast tier possible, the fixtures, the CI jobs, the Overleaf procedure, and then the tests themselves, grouped by chapter of the specification they verify. The names in 14.6 are the test functions and Playwright titles as they exist in the repositories, and `scripts/checks/book_tests.py` fails when one does not (14.7); where the book's original list named a test that was not written, the chapter says so.
 
 ## 14.1 Tiers

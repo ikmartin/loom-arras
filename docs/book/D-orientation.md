@@ -1,5 +1,7 @@
 # Appendix D. `ai/orientation.md`
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 The static orientation document `loom ai init` writes and `loom ai orient` prints (followed by live state). Reproduced in full. **[decided]** for content; the wording is the drafter's.
 
 ---

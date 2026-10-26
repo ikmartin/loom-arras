@@ -1,5 +1,7 @@
 # Appendix E. Specification index
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 The interface between publishers and viewers lives in `docs/specs/`, beside this book's `docs/book/`, in the workspace repository. This appendix maps the book's chapters to the specification files and states which document is authoritative where they overlap.
 
 | topic | book | specification | authority |

@@ -1,5 +1,7 @@
 # 11. The AI layer
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 Loom is not about AI; the AI layer is an optional client of loom. This chapter specifies that client: what `ai/` contains, how an agent is oriented, what a session is, what the modes are and what they must produce, how an agent writes annotations, how its output reaches the quilt, and what it may never do. The full text of the orientation document and the mode templates is in Appendices C and D.
 
 ## 11.1 Three rules

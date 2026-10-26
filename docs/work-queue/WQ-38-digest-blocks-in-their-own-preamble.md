@@ -10,6 +10,10 @@ A digest block the author needs to read shows a raw-TeX error box in arras. It d
 
 It needs a design change, not a fix. The fallback renderer composes a digest block's preamble from the author's packages plus the digest's `requires:`, and the paper's own macros used inside diagrams are neither expanded nor in the digest's macro block. So packages collide (`calrsfs` from the author against the paper's `\CMcal`) and 112 diagrams in plan 0.12's first iteration failed on undefined control sequences. Reordering the attempts was tried and made it worse (215 → 317 failures) and was reverted.
 
+## After plan 0.20.5
+
+Plan 0.20.5 sends every reference link to the PDF at its place, and a work's Digest tab leaves its views (V7), so a digest block is drawn only where there is no PDF or no located page, and beside the page while a proposal is verified. Check the trigger again once 0.20.5 lands: if no digest block a person needs to read is drawn any more, close this item as one whose trigger will not fire.
+
 ## Rough design
 
 For a digest block, compile against the cited paper's own preamble, read from its fetched source, when the source is on disk. Fall back to today's composition when it is not. Cache by the paper's preamble hash.

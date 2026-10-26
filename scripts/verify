@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the workspace's verification: one command, one table, CI's state last (plan 0.14.1, book 14.4).
+"""Run the workspace's verification: one command, one table, CI's state last (docs/contributing.md).
 
 Usage:
     scripts/verify [fast|full|paper|client] [--only loom|arras|docs]
@@ -11,7 +11,7 @@ Usage:
     client   the client tier: a quilt's generated agent configuration tried against the real Claude Code, which calls a hosted model on your account; run by hand
     --steps  exactly the named steps (the table's names without the lane, e.g. "pytest tex"), whatever their tier
 
-CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (book 14.4). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
+CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (docs/contributing.md). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
 
 Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan. The editor clients are not a lane: they are deprecated and breakable (WQ-49), and `clients.yml` runs them when they change.
 """
@@ -101,10 +101,8 @@ STEPS = [
         Step("docs", name, ".", [sys.executable, f"scripts/checks/{script}"], ("fast", "full"))
         for name, script in (
             ("principles", "principles.py"),
-            ("appendices", "appendices.py"),
             ("fixtures", "fixtures.py"),
             ("bundle", "bundle.py"),
-            ("book tests", "book_tests.py"),
             ("hard wrap", "hardwrap.py"),
         )
     ),

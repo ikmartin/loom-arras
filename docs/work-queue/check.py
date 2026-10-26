@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check the work queue and the book's freedom from unfinished business.
+"""Check the work queue, and that the frozen book and the specs carry no unfinished-business markers.
 
-Run during the end-of-round walk, alongside `docs/deviations.md`. Exits 0 when everything holds, 1 with one line per fault otherwise. `scripts/verify` runs it in the docs lane, locally and in CI (`docs.yml`, book 14.4).
+Design questions belong in docs/design/ beside what they affect, under **Open.**; this check covers the queue, the frozen book and the specs. Exits 0 when everything holds, 1 with one line per fault otherwise. `scripts/verify` runs it in the docs lane, locally and in CI (`docs.yml`, docs/contributing.md).
 """
 
 from __future__ import annotations

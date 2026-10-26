@@ -1,5 +1,7 @@
 # 1. Design principles
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter holds every design principle of loom and arras, and nothing else does: what loom is, how the viewer and its annotations look and behave, how a command's output reads, and how the project is built. Later chapters, plans, decision records and code cite a principle by its name (P7, V3) rather than restating it, so there is one place to read a principle and one place to change it. Everything in later chapters is a consequence of this one; when a later chapter and this one disagree, this one is wrong or the later chapter is, and the disagreement is a decision-record event.
 
 ## 1.1 The one idea

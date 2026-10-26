@@ -1,5 +1,7 @@
 # 7. Review
 
+> **Frozen history.** This book was superseded on 2026-10-26 by [`docs/design/`](../design/README.md), with formats in [`docs/specs/`](../specs/README.md) and contributor rules in [`docs/contributing.md`](../contributing.md). It is kept unchanged so that references to its sections and decision records still resolve. Do not edit it, and do not treat it as describing loom as it is or will be.
+
 This chapter specifies how decisions about a quilt are recorded and how the tool reports their current standing. Acceptance rows in the ledger are written only by a human through `loom accept`; review annotations are written by humans and agents. The review observation cache records when Loom first saw an active stale cause. States are computed from the records and current text.
 
 ## 7.1 The model in one paragraph
