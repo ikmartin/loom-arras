@@ -242,13 +242,8 @@ h3, h4 { font-size: 13px; }
 .muted { color: var(--ink-soft); }
 .faint { color: var(--ink-faint); }
 .problem { color: var(--state-incomplete); }
-.id-chip {
-	font-family: var(--mono);
-	font-size: 9px;
-	color: var(--link);
-}
 
-/* A rail label: 9px uppercase with tracking, the same in every shell. */
+/* A rail label: 9px uppercase with tracking. */
 .rail-label {
 	font-size: 9px;
 	text-transform: uppercase;
@@ -291,7 +286,6 @@ ul.plain li {
 .tone-stale { --tone: var(--state-stale); --tone-wash: var(--state-stale-wash); }
 .tone-draft { --tone: var(--state-draft); --tone-wash: var(--state-draft-wash); }
 .tone-incomplete { --tone: var(--state-incomplete); --tone-wash: var(--state-incomplete-wash); }
-.tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
 .tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
 
 /* The content region of every page: the shell owns the chrome, the page owns its own <main>. An item in a pane is laid out as a page is, inside the pane's scroll. */

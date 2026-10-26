@@ -102,12 +102,6 @@ def _tokenize(text: str) -> list[Tok]:
     return toks
 
 
-def iter_commands(text: str, names: set[str] | None = None) -> Iterator[Tok]:
-    for t in tokenize(text):
-        if t.kind == "cmd" and (names is None or t.value in names):
-            yield t
-
-
 def match_group(text: str, pos: int, open_ch: str = "{", close_ch: str = "}") -> int:
     """Given text[pos] == open_ch, return the offset just past the matching close_ch; escaped delimiters and inner braces are honoured. Returns -1 if unbalanced."""
     if pos >= len(text) or text[pos] != open_ch:

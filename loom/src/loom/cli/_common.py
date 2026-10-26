@@ -11,7 +11,6 @@ from typing import Any
 
 import click
 
-EXIT_OK = 0
 EXIT_CONTENT = 1
 EXIT_USAGE = 2
 

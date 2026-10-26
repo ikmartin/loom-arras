@@ -11,29 +11,6 @@ from loom.cli._common import EnvError, agent_marker, is_agent
 #: Names a person reaches for that loom answers with a reason rather than a command (K1: a refusal is a line of help); `delete_answer` says it for what was typed.
 DELETE = ("delete", "rm", "remove")
 
-#: Commands loom no longer has, by the path a person types, each answered with the command that does its work (K1).
-REMOVED = {
-    "review": "`loom build` reports what needs review, and `loom status --stale` lists it",
-    "inline": "`loom linearize SPINE` writes a document with its inclusions inlined",
-    "unravel": "`loom downstream ID` shows what depends on a node and where it is included",
-    "reach": "`loom downstream ID` shows what a node reaches and where it is included",
-    "pop": "`loom downstream ID` shows where a node is included",
-    "refs": "`loom library` reports the cited works; `loom library --help` lists its commands",
-    "digest": "`loom library` holds the results taken from cited works; `loom library --help` lists its commands",
-    "agent": "loom starts no agent: run yours in its own app, in the quilt, and `loom ai orient` shows it where it is",
-    "agent check": "loom starts no agent: run yours in its own app, in the quilt, and `loom ai orient` shows it where it is",
-    "ai start": '`loom session new --name "a name"` opens a session',
-    "ai name": '`loom session rename WHICH --name "a name"` names one',
-    "ai check": "loom cannot tell an agent's writes by their times; `loom ai drafts` lists its documents and what moved",
-    "session send": "`loom session say` sends a message, with what you marked",
-    "sync patch": "`loom sync status --patch` prints the incoming revision as a patch",
-}
-
-
-def removed_answer(path: str) -> str:
-    """The refusal for a removed command: what it was, and what does its work now."""
-    return f"`loom {path}` is gone: {REMOVED[path]}."
-
 
 def delete_answer(args: list[str]) -> str:
     """The answer to `delete`, `rm` or `remove`, naming what was typed: a result in a file of its own goes with its file and `\\input` line, one inside a document as its environment."""
@@ -109,7 +86,7 @@ def _path(ctx: click.Context) -> list[str]:
 class CommandGroup(click.Group):
     """A command group whose help lists each subcommand with its first sentence whole, as `loom --help` does (K6); every group but the top level's is one.
 
-    Named alone it prints its help with exit 0, as bare `loom` does; a removed subcommand is answered with what replaced it (`REMOVED`).
+    Named alone it prints its help with exit 0, as bare `loom` does.
     """
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
@@ -117,14 +94,6 @@ class CommandGroup(click.Group):
             click.echo(ctx.get_help(), color=ctx.color)
             ctx.exit(0)
         return super().parse_args(ctx, args)
-
-    def resolve_command(
-        self, ctx: click.Context, args: list[str]
-    ) -> tuple[str | None, click.Command | None, list[str]]:
-        typed = " ".join([*_path(ctx), args[0]]) if args else ""
-        if args and args[0] not in self.commands and typed in REMOVED:
-            raise EnvError(removed_answer(typed))
-        return super().resolve_command(ctx, args)
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         rows = [
@@ -222,10 +191,6 @@ class LoomGroup(click.Group):
     ) -> tuple[str | None, click.Command | None, list[str]]:
         if args and args[0] in DELETE:
             raise EnvError(delete_answer(args[1:]))
-        if args and args[0] not in self.commands:
-            typed = " ".join(args[:2])
-            if typed in REMOVED or args[0] in REMOVED:
-                raise EnvError(removed_answer(typed if typed in REMOVED else args[0]))
         return super().resolve_command(ctx, args)
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:

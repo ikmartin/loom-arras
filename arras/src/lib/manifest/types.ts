@@ -302,8 +302,6 @@ export interface Annotation {
   placement?: string | null;
   /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
   run: string;
-  /** @deprecated Use `run`. Kept while publishers that wrote a file path are still in use. */
-  record: string;
   discarded: boolean;
 }
 
@@ -512,7 +510,6 @@ export interface AssertedLink {
 
 export interface Manifest {
   reviewer?: { name: string; source: string };
-  legacy_review_decisions?: boolean;
   interface_version: number;
   publisher: Publisher;
   publishes: Publishes;

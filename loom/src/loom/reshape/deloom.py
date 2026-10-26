@@ -48,25 +48,6 @@ def _line(text: str, at: int) -> int:
     return text.count("\n", 0, at) + 1
 
 
-def _brace_end(clean: str, open_at: int) -> int:
-    """The offset just past the brace that closes the one at `open_at`; the text's end when it never closes."""
-    depth = 0
-    i = open_at
-    while i < len(clean):
-        ch = clean[i]
-        if ch == "\\":
-            i += 2
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return i + 1
-        i += 1
-    return len(clean)
-
-
 def deloom(text: str, ids: set[str], *, keep_ids: bool = False, keep_incomplete: bool = False) -> Delooming:
     """Take loom out of a flattened document.
 

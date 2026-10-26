@@ -25,9 +25,3 @@ export async function fetchSource(key: string): Promise<string | null> {
 	cache.set(key, text);
 	return text;
 }
-
-/** Forget what was fetched, for when the corpus underneath has changed. */
-export function forgetSource(): void {
-	cache.clear();
-}
-

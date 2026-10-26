@@ -1,7 +1,7 @@
 // Every URL arras composes carries the base the bundle was built for, and every corpus URL the data root a host set. Under the suite's own empty base a composed path and a hard-coded one are the same string, so these run under a mocked non-empty base.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { artifactUrl, dataRoot, dataUrl, route, setDataRoot } from './paths';
-import { canonUrl, docUrl, keyUrl, masterUrl, nodeUrl, readUrl, tagUrl, taxonUrl, threadUrl, workUrl } from './nav';
+import { canonUrl, keyUrl, masterUrl, nodeUrl, readUrl, tagUrl, taxonUrl, threadUrl, workUrl } from './nav';
 import { itemFromPath, pathFor, type Item } from './workspace/item';
 import { indexesOf, viewsOf } from './shell/views';
 import { fetchSource, sourceUrl } from './source';
@@ -35,7 +35,6 @@ describe('a route, under a base', () => {
 			nodeUrl: nodeUrl('sy-0003/proof'),
 			masterUrl: masterUrl('drafting/main.tex'),
 			canonUrl: canonUrl('canon/widgets-v1.tex'),
-			docUrl: docUrl(m, 'canon/widgets-v1.tex'),
 			readUrl: readUrl('drafting/main.tex', 'sy-0003'),
 			keyUrl: keyUrl(m, 'sy-0003/proof'),
 			workUrl: workUrl('Kre99'),
@@ -47,7 +46,6 @@ describe('a route, under a base', () => {
 			nodeUrl: '/sub/node/sy-0003/proof',
 			masterUrl: '/sub/master/main',
 			canonUrl: '/sub/canon/widgets-v1',
-			docUrl: '/sub/canon/widgets-v1',
 			readUrl: '/sub/master/main#sy-0003',
 			keyUrl: '/sub/node/sy-0003#sy-0003-proof',
 			workUrl: '/sub/library/Kre99',

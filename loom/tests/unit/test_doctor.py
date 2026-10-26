@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 import time
-import types
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -286,12 +285,6 @@ def env_other_interface(box: Box) -> None:
     box.mp.setenv("LOOM_ARRAS_BUNDLE", str(bundle(box.tmp / "old", stamp(interface=INTERFACE_VERSION + 1))))
 
 
-def package(box: Box) -> None:
-    box.mp.delenv("LOOM_ARRAS_BUNDLE")
-    p = bundle(box.tmp / "site" / "arras" / "build", stamp())
-    box.mp.setitem(sys.modules, "arras", types.SimpleNamespace(bundle_path=lambda: p))
-
-
 def vendored(box: Box) -> None:
     vendored_at(box, bundle(box.tmp / "site-packages" / "loom" / "assets" / "arras", stamp()))
 
@@ -325,7 +318,6 @@ BUNDLES: list[tuple[str, Case, str, str | None, str, str]] = [
         f"LOOM_ARRAS_BUNDLE, interface {INTERFACE_VERSION + 1}",
         "one release",
     ),
-    ("package", package, "ok", "arras package", "arras package, arras abc1234", ""),
     ("vendored", vendored, "ok", "vendored", "vendored, arras abc1234", ""),
     ("none", none, "fail", None, "not found: loom serve refuses", "reinstall loom"),
     ("dirty-checkout", dirty_checkout, "warn", "vendored", "vendored, stamped abc1234-dirty", "commit arras, then"),

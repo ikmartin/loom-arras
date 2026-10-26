@@ -30,14 +30,3 @@ export function reachedExternal(m: Manifest): Set<string> {
   }
   return out;
 }
-
-/** Whether a node should be shown by default: everything the corpus wrote, plus the external nodes it reaches. */
-export function isShownByDefault(
-  m: Manifest,
-  id: string,
-  reached: Set<string>,
-): boolean {
-  const node = m.nodes[id];
-  if (!node) return false;
-  return !node.external || reached.has(id);
-}

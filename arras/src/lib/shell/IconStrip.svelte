@@ -408,13 +408,6 @@
 		flex: 1;
 		min-height: 0;
 	}
-	/* **One scroll region, and it is the panel** (plan 0.13 §7). The contents tree used to be squeezed by a panel of
-	   fixed height and carry the only scrollbar; adding the Library group then pushed the sections below it off the
-	   bottom, because what was squeezed was the tree and not the column. Two scrollbars in a 252px column is also two
-	   places to look for the same list. The tree keeps its own class for the other shell, where it is the whole rail. */
-	.panel :global(.contents) {
-		overflow: visible;
-	}
 	.head .name {
 		font-size: 13px;
 		color: var(--ink);

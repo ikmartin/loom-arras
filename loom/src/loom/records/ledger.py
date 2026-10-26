@@ -23,7 +23,6 @@ class AcceptRow:
     closure: dict[str, str] = field(default_factory=dict)
     basis: str = ""  # absent in pre-DR-198 rows; future choices must be re-accepted when they change
     direct: dict[str, str] = field(default_factory=dict)  # direct statement dependencies at acceptance
-    direct_recorded: bool = True  # legacy rows have only closure; compare them conservatively
 
     dependency_version: int = 0
 
@@ -79,7 +78,6 @@ def read_ledger(root: Path) -> list[AcceptRow]:
                 closure={str(k): str(v) for k, v in dict(r.get("closure", {})).items()},
                 basis=str(r.get("basis", "")),
                 direct={str(k): str(v) for k, v in dict(r.get("direct", {})).items()},
-                direct_recorded="direct" in r,
                 dependency_version=int(r.get("dependency_version", 0)),
             )
         )

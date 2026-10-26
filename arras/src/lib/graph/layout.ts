@@ -189,10 +189,6 @@ export function downstream(m: Manifest, id: string): Set<string> {
   return relationships(m.edges.map((e) => ({ ...e, from: stmtOf(e.from), to: stmtOf(e.to) })), id, 'downstream').reached;
 }
 
-export function closureOf(m: Manifest, id: string): Set<string> {
-  return new Set(m.keys[id]?.closure.filter((k) => k !== id) ?? []);
-}
-
 type ElkNode = {
   id: string;
   width?: number;
@@ -277,15 +273,6 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
     out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts.reverse(), count: src.count });
   }
   return out;
-}
-
-/** The section a result sits in, as its number and title, for the line under a box. */
-export function sectionLabel(m: Manifest, id: string, master: string): string {
-  const sec = sectionOf(m, id, master);
-  if (!sec) return "";
-  const n = m.nodes[sec];
-  const number = n?.numbers[master]?.number;
-  return [number, n?.title ?? ""].filter(Boolean).join(" ");
 }
 
 /** The nearest section above a node in the master's tree. */

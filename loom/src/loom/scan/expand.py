@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
-from loom.scan.model import Diagnostic, Location, SourceFile, Span
+from loom.scan.model import Diagnostic, Location, SourceFile
 from loom.scan.tokenize import read_mandatory, tokenize
 
 INCLUDE_CMDS = {"input", "include", "nest"}
@@ -64,15 +64,6 @@ class Expansion:
                 hi = mid - 1
         seg = self.segments[lo]
         return seg.file, seg.file_start + (exp_offset - seg.exp_start), seg.shift
-
-    def map_range(self, a: int, b: int) -> list[Span]:
-        """File spans covering the expanded range [a, b), in order."""
-        out: list[Span] = []
-        for seg in self.segments:
-            lo, hi = max(a, seg.exp_start), min(b, seg.exp_end)
-            if lo < hi:
-                out.append(Span(seg.file, seg.file_start + (lo - seg.exp_start), seg.file_start + (hi - seg.exp_start)))
-        return out
 
     def exp_offset(self, file: str, offset: int) -> int | None:
         for seg in self.segments:

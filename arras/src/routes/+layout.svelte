@@ -10,7 +10,7 @@
 	import Palette from '$lib/components/Palette.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
-	import NavShell from '$lib/shell/NavShell.svelte';
+	import IconStrip from '$lib/shell/IconStrip.svelte';
 	import GlobalRail from '$lib/workspace/GlobalRail.svelte';
 	import Workspace from '$lib/workspace/Workspace.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
@@ -68,7 +68,7 @@
 	const warnings = $derived(m ? m.diagnostics.filter((d) => d.severity === 'warning').length : 0);
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
 
-	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context and sessions, each an item in the workspace; `/thread/<id>` is a session's old address. The tables, the graph and home render full width outside it.
+	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context and sessions, each an item in the workspace. The tables, the graph and home render full width outside it.
 	const READING = new Set(['/master/[stem]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]']);
 	const inReading = $derived(READING.has(page.route.id ?? ''));
 	$effect(() => {
@@ -131,7 +131,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<NavShell
+<IconStrip
 	label={m ? m.corpus.name : 'arras'}
 	views={viewsOf(m, workspace.canonical(m))}
 	indexes={indexesOf(m)}
@@ -161,7 +161,7 @@
 	{:else}
 		{@render children()}
 	{/if}
-</NavShell>
+</IconStrip>
 
 {#snippet pageRail()}
 	{#if rail.snippet}{@render rail.snippet()}{/if}

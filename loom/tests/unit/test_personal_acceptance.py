@@ -13,7 +13,7 @@ from loom.records.ledger import read_ledger
 from loom.records.store import Records
 from loom.render.api import ApiError, handle
 from loom.render.build import build
-from loom.review_queue import clear_accepted, decide, pending
+from loom.review_queue import decide, pending
 from loom.scan.quilt import load_quilt, resolve_author, save_author, user_config_path
 from loom.scan.scan import scan
 from tests.helpers import ok
@@ -88,9 +88,7 @@ def test_local_identity_settings_and_missing_identity(quilt):
         handle(quilt.root, "review-finish", {"reviewer": "Alice"})
     config = user_config_path()
     config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text(
-        '# keep me\n[refs]\nfetch = true\n[author]\nname = "Old"\nextra = "kept"\n[quilt]\nengine = "xelatex"\n'
-    )
+    config.write_text('# keep me\n[author]\nname = "Old"\nextra = "kept"\n[quilt]\nengine = "xelatex"\n')
     handle(quilt.root, "reviewer-settings", {"name": "  Bob  "})
     assert resolve_author(None, quilt.root)[0] == "Bob"
     assert resolve_author("Carol", quilt.root)[0] == "Carol"
@@ -101,27 +99,17 @@ def test_local_identity_settings_and_missing_identity(quilt):
     assert config.read_bytes() == before
 
 
-def test_legacy_choices_are_preserved_not_adopted_and_caches_are_partitioned(quilt):
+def test_review_caches_are_partitioned_by_reviewer(quilt):
     save_author("Bob")
     write_acceptance(scan(quilt), ["sy-0001"], "Bob")
     write_acceptance(scan(quilt), ["sy-0001"], "Alice")
-    decide(scan(quilt), "sy-0001", "ok")
-    decisions = quilt.root / ".loom/review-decisions.json"
-    legacy = json.loads(decisions.read_text())["reviewers"]["Bob"]
-    decisions.write_text(json.dumps(legacy))
-    assert pending(scan(quilt)) == []
     edit(quilt)
-    bob = build(quilt).manifest
-    assert bob["legacy_review_decisions"]
-    assert bob["unresolved"][0]["status"] == "needs-review"
+    build(quilt)
     cache = quilt.root / ".loom/review-observations.json"
     first = json.loads(cache.read_text())["reviewers"]["Bob"]
     save_author("Alice")
     build(quilt)
     assert json.loads(cache.read_text())["reviewers"]["Bob"] == first
-    decide(scan(quilt), "sy-0001", "ok")
-    clear_accepted(quilt.root, ["sy-0001"])
-    assert json.loads(decisions.read_text())["legacy"] == legacy
 
 
 def test_cli_override_selects_its_own_stale_rows_without_changing_settings(quilt, monkeypatch):

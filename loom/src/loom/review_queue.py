@@ -20,11 +20,7 @@ def _path(root: Path) -> Path:
 def _data(root: Path) -> dict[str, Any]:
     path = _path(root)
     data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-    return data if data.get("schema") == 2 else {"schema": 2, "reviewers": {}, "legacy": data}
-
-
-def has_legacy(root: Path) -> bool:
-    return bool(_data(root).get("legacy"))
+    return data if data.get("schema") == 2 else {"schema": 2, "reviewers": {}}
 
 
 def _name(root: Path, reviewer: str | None) -> str:
@@ -81,7 +77,6 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     pull_keys = set(origins)
     candidates = (
         pull_keys
-        | set(_data(root).get("legacy", {}))
         | set(decisions)
         | {key for key, entry in manifest["keys"].items() if entry.get("acceptance", {}).get("fresh") is False}
     )

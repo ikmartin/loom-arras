@@ -68,10 +68,6 @@ def materialize(text: str, result: ScanResult) -> str:
     return _CHILD.sub(repl, text)
 
 
-def has_markers(text: str) -> bool:
-    return bool(_CHILD.search(text))
-
-
 def matching_version(history: History, key: str, current_hash: str) -> Version | None:
     """The latest recorded version of `key` whose hash is `current_hash`, so a viewer can say "text of @3"."""
     for v in reversed(history.versions_of(key)):

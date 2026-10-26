@@ -83,12 +83,6 @@ def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
     after = (q / "CLAUDE.md").read_text()
     assert after.count(CLAUDE_LINE) == 1 and "Never touch canon/ without asking." in after
 
-    # an earlier version of loom's line is replaced where it stands, not appended beside
-    (q / "AGENTS.md").write_text("This directory is a quilt managed by loom. Old wording.\n\nMine.\n")
-    ok("upgrade", cwd=q)
-    agents = (q / "AGENTS.md").read_text()
-    assert agents.count(CLAUDE_LINE) == 1 and "Old wording" not in agents and "Mine." in agents
-
 
 def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     """The generated settings let the agent edit its session and `build/`, in `Edit` rules only; what it is denied is test_the_allow_list_and_the_permission_file_cannot_disagree."""

@@ -85,16 +85,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:no-readable-copy": ("warning", False),
 }
 
-SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
-
-
-def severity_of(code: str) -> str | None:
-    if code in RESERVED:
-        return RESERVED[code]
-    if code in LOOM:
-        return LOOM[code][0]
-    return None
-
 
 def can_disable(code: str) -> bool:
     return code in LOOM and not LOOM[code][1]

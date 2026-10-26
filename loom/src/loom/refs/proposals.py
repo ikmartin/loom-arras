@@ -66,7 +66,7 @@ class Result:
             source_text=str(d.get("source_text", "")),
             anchor=Anchor.from_dict(dict(d.get("anchor") or {})),
             level=int(d.get("level", 3) or 3),
-            cls=str(d.get("class", d.get("cls", "anchored"))),
+            cls=str(d.get("class", "anchored")),
             state=str(d.get("state", PROPOSED)),
             origin=list(d.get("origin", [])),
             supersedes=str(d.get("supersedes", "")),
@@ -252,17 +252,6 @@ def check_local(local: str, taxon: str | None) -> tuple[str, str]:
         raise ValueError(f"--local {local} names a {TAXON_OF.get(ab, ab)}, and --taxon says {t} ({abbrev_for(t)}-…)")
     number = m.group("number")
     return t, "" if number.startswith("star-") else number
-
-
-def make_id(prefix: str, taxon: str, number: str, taken: set[str]) -> str:
-    """A result's id: `<prefix>-<abbrev>-<number>`, or `<prefix>-<abbrev>-star-<n>` when the paper does not number it (contract §3.2)."""
-    ab = abbrev_for(taxon)
-    if number.strip():
-        return f"{prefix}-{ab}-{number.strip()}"
-    n = 1
-    while f"{prefix}-{ab}-star-{n}" in taken:
-        n += 1
-    return f"{prefix}-{ab}-star-{n}"
 
 
 def numbers_of(number: str) -> list[str]:

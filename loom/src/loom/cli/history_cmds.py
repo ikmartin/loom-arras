@@ -6,7 +6,6 @@ Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); ev
 from __future__ import annotations
 
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -60,14 +59,6 @@ def _rel(root: Path, file: str) -> str:
 
 def _history(result: ScanResult) -> History:
     return load_history(result.quilt.history_dir)
-
-
-def _confirm(yes: bool, what: str) -> None:
-    if yes:
-        return
-    if not sys.stdin.isatty():
-        raise EnvError(f"{what} needs confirmation; pass --yes")
-    click.confirm("Apply?", abort=True)
 
 
 # ---- draft ------------------------------------------------------------------

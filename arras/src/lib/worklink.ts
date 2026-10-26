@@ -63,11 +63,6 @@ export function readKeys(link: WorkLink, query: string): WorkLink {
 	return link;
 }
 
-/** The query string that names a place on a work's page in the app: what a `cited:` link becomes on this machine. */
-export function placeQuery(link: Omit<WorkLink, 'id'>): string {
-	return placeParams(link).toString();
-}
-
 /** The place keys as query parameters, in the one order the app writes them. */
 export function placeParams(link: Omit<WorkLink, 'id'>): URLSearchParams {
 	const q = new URLSearchParams();

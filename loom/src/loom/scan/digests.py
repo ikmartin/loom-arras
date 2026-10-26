@@ -31,11 +31,8 @@ def source_version(source: str) -> str | None:
 
 
 def extracted_from(header: dict[str, str]) -> str:
-    """The artifact a digest's statements and numbers came from.
-
-    `source:` is the pre-0.5 spelling and is still read, so a quilt that has not been upgraded is understood rather than reported as having no provenance at all.
-    """
-    return (header.get("extracted-from") or header.get("source") or "").strip()
+    """The artifact a digest's statements and numbers came from."""
+    return (header.get("extracted-from") or "").strip()
 
 
 def published_as(header: dict[str, str]) -> str:

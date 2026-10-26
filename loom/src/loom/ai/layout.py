@@ -277,7 +277,7 @@ ROOT_FILES = ("CLAUDE.md", "AGENTS.md")
 def ensure_root_line(root: Path, write: bool = True) -> list[str]:
     """Put loom's one line into CLAUDE.md and AGENTS.md without taking the files over; returns what was written, or with `write` false what would be.
 
-    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. An earlier version of the line is replaced in place; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
+    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. Everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
     """
     written: list[str] = []
     for name in ROOT_FILES:
@@ -289,16 +289,9 @@ def ensure_root_line(root: Path, write: bool = True) -> list[str]:
         written.append(name)
         if not write:
             continue
-        stale = [i for i, ln in enumerate(lines) if ln.startswith("This directory is a quilt managed by loom.")]
-        if stale:
-            lines[stale[0]] = CLAUDE_LINE
-            for i in reversed(stale[1:]):
-                del lines[i]
-            p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        else:
-            p.write_text(
-                existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + CLAUDE_LINE + "\n", encoding="utf-8"
-            )
+        p.write_text(
+            existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + CLAUDE_LINE + "\n", encoding="utf-8"
+        )
     return written
 
 

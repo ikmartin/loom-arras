@@ -140,8 +140,3 @@ def declare(
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps({"events": events}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return declarations(root, kind).get(key)
-
-
-def is_unreadable(root: Path, citekey: str) -> Declaration | None:
-    """The standing unreadable claim for one work, or None; the lint and the build report both ask this."""
-    return declarations(root, "unreadable").get(citekey)

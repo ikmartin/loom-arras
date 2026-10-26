@@ -37,11 +37,6 @@ export function on(m: Manifest, key: string): Annotation[] {
 	return (index(m).byTarget.get(key) ?? []).filter((a) => visible(m, a));
 }
 
-/** Every annotation on this key whatever the session selection is, for counting what the selection hides. */
-export function allOn(m: Manifest, key: string): Annotation[] {
-	return index(m).byTarget.get(key) ?? [];
-}
-
 /** Every annotation on any of these keys, replies excluded: a node is its statement and its proofs. */
 export function onAny(m: Manifest, keys: readonly string[]): Annotation[] {
 	return keys.flatMap((k) => on(m, k));

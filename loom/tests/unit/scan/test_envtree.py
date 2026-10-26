@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from loom.scan.envtree import first_body_token_is_cite, labels_in, scan_environments
+from loom.scan.envtree import labels_in, scan_environments
 from loom.scan.source import read_source
 
 THEOREMS = {"lemma", "theorem", "example", "definition"}
@@ -62,13 +62,11 @@ def test_env_body_on_begin_line_and_one_line_env(tmp_path: Path) -> None:
     assert labels_in(src.clean, fe.theorem_envs[1].own_ranges()) == [("x", text.index("\\label{x}"))]
 
 
-def test_external_node_by_leading_cite(tmp_path: Path) -> None:
+def test_a_cite_in_the_optional_argument_is_kept_whole(tmp_path: Path) -> None:
     src, fe = _fe(
         tmp_path,
         "\\begin{definition}\\cite[Def.~B.2]{GS}\n\\label{d}\nD\n\\end{definition}\n\\begin{lemma}[{\\cite[Thm 1]{K}}]\nL\n\\end{lemma}\n",
     )
-    assert first_body_token_is_cite(src.clean, fe.theorem_envs[0])
-    assert not first_body_token_is_cite(src.clean, fe.theorem_envs[1])
     assert fe.theorem_envs[1].optarg == "{\\cite[Thm 1]{K}}"
 
 

@@ -23,7 +23,7 @@ npx playwright install chromium   # once, for the end-to-end tests
 npm run test:e2e
 ```
 
-`npm run build:pip` copies `build/` into the optional pip wrapper under `python/`. loom vendors the same `build/` with its own `scripts/vendor_arras.py`.
+loom vendors `build/` with its own `scripts/vendor_arras.py`.
 
 ## License
 

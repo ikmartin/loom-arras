@@ -343,8 +343,3 @@ def _published(m: Macro) -> dict[str, object]:
 MATH_ONLY_HINTS = re.compile(
     r"\\(mathrm|mathbf|mathcal|mathbb|mathfrak|mathscr|operatorname|frac|sqrt|sum|prod|int|to|colon|widetilde|hat|bar|otimes|oplus|cdot|langle|rangle|alpha|beta|gamma|delta|Delta|epsilon|lambda|mu|nu|pi|sigma|tau|phi|psi|omega|Omega|Gamma|Sigma|infty|partial|nabla|circ|times|leq|geq|neq|subset|subseteq|in|forall|exists|left|right)\b|[\^_]"
 )
-
-
-def is_math_macro(macro: Macro) -> bool:
-    """Heuristic: a macro whose body only makes sense in math mode is left to MathJax; the converter expands the others in text."""
-    return bool(MATH_ONLY_HINTS.search(macro.body)) or macro.kind in ("operator", "delimiter")

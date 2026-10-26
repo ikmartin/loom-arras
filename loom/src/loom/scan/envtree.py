@@ -148,9 +148,3 @@ def labels_in(text: str, ranges: list[tuple[int, int]]) -> list[tuple[str, int]]
 def norm_label(label: str) -> str:
     """Labels are read as TeX reads them: runs of whitespace, including line breaks, collapse to one space."""
     return re.sub(r"\s+", " ", label).strip()
-
-
-def first_body_token_is_cite(text: str, env: Env) -> bool:
-    """True when the environment's body starts with \\cite (a citation used as attribution without brackets)."""
-    body = text[env.body_start : env.body_end]
-    return re.match(r"\s*\\cite[a-zA-Z*]*\s*[\[{]", body) is not None

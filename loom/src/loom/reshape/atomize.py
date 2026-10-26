@@ -6,8 +6,6 @@ import re
 from dataclasses import dataclass, field
 
 from loom.reshape.anchoring import anchoring_violations
-from loom.scan.directives import within
-from loom.scan.model import Env
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 
@@ -365,17 +363,3 @@ def _single_node_file(result: ScanResult, rel: str) -> bool:
     if len(nodes) == 1 and all(p.of == nodes[0].key or p.attach_via == "adjacent" for p in proofs):
         return True
     return len(nodes) == 0 and len(proofs) == 1
-
-
-def directive_lines(result: ScanResult, node: NodeRec) -> list[str]:
-    return [d.key for d in within(result.assembly.directives.get(node.file, []), node.own)]
-
-
-def env_of(result: ScanResult, node: NodeRec) -> Env | None:
-    fe = result.assembly.envs.get(node.file)
-    if not fe:
-        return None
-    for e in fe.all_envs():
-        if e.start == node.start:
-            return e
-    return None

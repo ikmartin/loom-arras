@@ -36,12 +36,6 @@ def wrong(q: Path) -> None:
     _fake_pdf(q / "wrong.pdf", "Advanced Topics in the Arithmetic of Elliptic Curves\nJoseph Silverman")
 
 
-def retired(q: Path) -> None:
-    """A config still carrying the consent keys `[library] online` replaced."""
-    cfg = q / "config.toml"
-    cfg.write_text(cfg.read_text().replace("[library]\nonline = false", "[refs]\nfetch = true\nresolve = false"))
-
-
 KIND: dict[str, str] = {
     "library update": "report",
     "library add": "report",
@@ -57,7 +51,6 @@ CASES: dict[str, list[Case]] = {
         Case(("Nobody99xyz",), exit=2, why="names no work", unchanged=True),
         Case(("--only", "polish"), exit=2, why="an unknown step", unchanged=True),
         Case(("--online",), env=AGENT, exit=2, why="an agent may not grant itself the network", unchanged=True),
-        Case((), setup=retired, exit=2, why="the retired [refs] consent keys", unchanged=True),
     ],
     "library add": [
         Case(("man12.tex", "--for", "Man12", "--as", "Tester"), tex_file),

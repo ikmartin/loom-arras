@@ -1,4 +1,4 @@
-from loom.scan.macros import expand, is_math_macro, parse_macros, to_mathjax
+from loom.scan.macros import expand, parse_macros, to_mathjax
 
 
 def test_macros_all_forms() -> None:
@@ -28,9 +28,8 @@ line and second}
     assert "second" in m["multi"].body
 
 
-def test_macros_math_classification_and_mathjax() -> None:
+def test_macros_to_mathjax() -> None:
     m = parse_macros(r"\newcommand{\Res}{\mathrm{Res}} \newcommand{\GW}{Gromov--Witten}")
-    assert is_math_macro(m["Res"]) and not is_math_macro(m["GW"])
     assert to_mathjax(m) == [
         {"name": "GW", "args": 0, "body": "Gromov--Witten"},
         {"name": "Res", "args": 0, "body": r"\mathrm{Res}"},
@@ -110,7 +109,6 @@ def test_a_paired_delimiter_is_published_as_the_declaration_itself() -> None:
     )
     assert m["ceil"].args == 1 and m["ceil"].body == r"\lceil#1\rceil" and m["ceil"].kind == "delimiter"
     assert m["abs"].body == r"\lvert#1\rvert"
-    assert is_math_macro(m["ceil"])
     assert to_mathjax({"ceil": m["ceil"]}) == [
         {"name": "ceil", "args": 0, "body": r"\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}\ceil"}
     ]

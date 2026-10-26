@@ -28,11 +28,6 @@ export function canonUrl(path: string): string {
 	return route('/canon/' + encodeURIComponent(stem));
 }
 
-/** The read route for a document, whichever kind it is: a landmark has a page of its own. */
-export function docUrl(m: { masters: { path: string }[]; canon?: { path: string }[] } | null, path: string): string {
-	return m?.canon?.some((c) => c.path === path) ? canonUrl(path) : masterUrl(path);
-}
-
 /** A cited work's page in the Library, which is where its digest, its proposals, its links and the paper itself are read. */
 export function workUrl(citekey: string): string {
 	return route('/library/' + encodeURIComponent(citekey));

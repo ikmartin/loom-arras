@@ -18,7 +18,6 @@ from loom.scan.labels import derived_of, is_id_shaped
 LEDGER = "ledger.jsonl"
 TEXTS = "texts"
 STEP_ACTIONS = ("import", "stamp", "copy", "adopt")
-ACTIONS = (*STEP_ACTIONS, "restore", "atomize", "linearize", "fork", "revert", "live", "move", "refresh")
 #: The actions that move a document, and the fields naming where from and where to; two lists pair by position. `retired` is never a destination: a retired source is gone, and the document it became is its `to`.
 MOVES: dict[str, tuple[str, str]] = {"atomize": ("from", "to"), "linearize": ("from", "to"), "move": ("from", "to")}
 

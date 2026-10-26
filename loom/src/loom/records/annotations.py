@@ -108,13 +108,6 @@ class Record:
     discarded: bool = False
     annotations: list[Annotation] = field(default_factory=list)
 
-    @property
-    def is_session(self) -> bool:
-        """Whether this record is grouped by a session, which everything written since plan 0.13 §5 is."""
-        from loom.sessions import ID
-
-        return bool(ID.match(self.rel))
-
 
 def load_records(root: Path) -> tuple[list[Record], list[str]]:
     """Every record in the quilt, replayed from `annotations/log.jsonl`, plus one problem per unreadable line."""

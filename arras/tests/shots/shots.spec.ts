@@ -7,7 +7,7 @@ const OUT = outDir('../docs/design/figures');
 
 async function shot(page: Page, name: string, path: string, opts: { theme?: 'light' | 'dark' } = {}) {
 	await page.goto('/');
-	await page.evaluate((theme) => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme, comments: 'margin' })), opts.theme ?? 'light');
+	await page.evaluate((theme) => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme, comments: 'floating' })), opts.theme ?? 'light');
 	await page.goto(path);
 	await settle(page);
 	await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });

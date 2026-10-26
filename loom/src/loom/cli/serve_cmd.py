@@ -28,7 +28,7 @@ def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | Non
         raise EnvError(f"{e}: point it at a built arras (the directory holding index.html), or unset it") from None
     if bundle is None:
         raise EnvError(
-            "the arras viewer bundle is not installed: set LOOM_ARRAS_BUNDLE, install the arras package, or use a loom checkout with the vendored bundle"
+            "the arras viewer bundle is not installed: set LOOM_ARRAS_BUNDLE, or use a loom checkout with the vendored bundle"
         )
     session = ServeSession(quilt, bundle, port, compile_masters=not no_compile)
     try:

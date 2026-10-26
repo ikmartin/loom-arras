@@ -120,7 +120,6 @@ class Records:
         self.records, self.problems = load_records(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
-        self._recovered: dict[str, str] = {}
         self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
 
     # ---- text helpers --------------------------------------------------------
@@ -175,51 +174,7 @@ class Records:
         return result.dependencies.direct(key)  # type: ignore[no-any-return]
 
     def snapshot(self, digest: str) -> str | None:
-        return self._recovered.get(digest) or read_snapshot(self.root, digest, self.history_dir)
-
-    def dependency_row(self, result: ScanResult, row: AcceptRow) -> AcceptRow:
-        """Recover exact displays from old owner snapshots without rewriting acceptance history."""
-        if row.dependency_version:
-            return row
-        from loom.records.dependencies import historical_display
-
-        deps = result.dependencies
-        closure = dict(row.closure)
-        replaced_owners: set[str] = set()
-        for target in deps.closure(row.key):
-            if not target.startswith("equation:"):
-                continue
-            candidates = {
-                owner: display
-                for owner, digest in row.closure.items()
-                if (old := self.snapshot(digest)) is not None
-                and (display := historical_display(old, target.removeprefix("equation:"))) is not None
-            }
-            replaced_owners.update(candidates)
-            displays = set(candidates.values())
-            display = next(iter(displays)) if len(displays) == 1 else None
-            if display is not None:
-                digest = hash_text(display)
-                self._recovered[digest] = normalize(display)
-                closure[target] = digest
-            else:
-                closure[target] = "unavailable"
-        direct_now = self.direct_keys(result, row.key)
-        old_direct = row.direct if row.direct_recorded else {d: closure[d] for d in direct_now if d in closure}
-        direct = {
-            d: h
-            for d, h in old_direct.items()
-            if not (d in result.nodes and result.nodes[d].kind == "section")
-            and not re.match(
-                r"\\(?:part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\s*[\[{]",
-                (self.snapshot(h) or "").lstrip(),
-            )
-            and not (d in replaced_owners and d not in direct_now)
-        }
-        for d in direct_now:
-            if d.startswith("equation:"):
-                direct[d] = closure.get(d, "unavailable")
-        return replace(row, direct=direct, closure=closure, direct_recorded=True)
+        return read_snapshot(self.root, digest, self.history_dir)
 
     def same_mathematics(self, result: ScanResult, key: str, before: str, current: str | None) -> bool:
         """Compare saved source to current mathematics, conservatively retaining missing-snapshot differences."""
@@ -264,8 +219,6 @@ class Records:
             if n.kind not in kinds:
                 continue
             row = (self.shared_latest if n.external else self.latest).get(key)
-            if row is not None:
-                row = self.dependency_row(result, row)
             ks = KeyState(key=key, state="draft", row=row)
             if n.kind == "section":
                 # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here only so that its review facts are computed, because `loom annotate` accepts a section as a target and an annotation filed on one was stored and then shown nowhere (DR-172).
@@ -291,9 +244,7 @@ class Records:
                 if row.basis and n.kind == "environment" and row.basis != n.basis:
                     ks.causes.append(Cause("basis-changed", before=row.basis, after=n.basis, when=_when(result, n)))
                 direct_now = {d: closure_now[d] for d in self.direct_keys(result, key) if d in closure_now}
-                accepted_direct = (
-                    row.direct if row.direct_recorded else {d: row.closure[d] for d in direct_now if d in row.closure}
-                )
+                accepted_direct = row.direct
                 for dep, h in accepted_direct.items():
                     if dep in result.dependencies.texts and result.dependencies.texts[dep] is None:
                         ks.causes.append(Cause("dependency-scope-unavailable", id=dep))
@@ -319,14 +270,8 @@ class Records:
                     ):
                         ks.causes.append(Cause("dependency-scope-unavailable", id=dep))
                 for dep in direct_now:
-                    if dep not in accepted_direct and (row.direct_recorded or dep not in row.closure):
+                    if dep not in accepted_direct:
                         ks.causes.append(Cause("dependency-added", id=dep))
-                if not row.direct_recorded:
-                    # An old row does not say which closure member was direct. A removed member
-                    # cannot be reached from today's graph, so retain that conservative warning.
-                    for dep, h in row.closure.items():
-                        if dep not in closure_now and dep not in accepted_direct:
-                            ks.causes.append(Cause("dependency-removed", id=dep, before=h))
                 document = self.row_document(result, row)
                 if row.master and document is None:
                     # the document the row was compiled against is gone and nothing records where it went: its preamble cannot be compared, and saying it changed would be false
@@ -852,7 +797,6 @@ class Records:
                 "discard_reason": a.discard_reason,
                 # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
                 "run": res.record.rel,
-                "record": res.record.rel,
                 "discarded": res.record.discarded,
             }
         manifest["annotations"] = anns

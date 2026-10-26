@@ -1,4 +1,4 @@
-// The views the shell offers. Every shell contains the same elements and no shell contains anything another lacks, so the list lives here and each arrangement renders it.
+// The views the shell offers, listed here so the shell renders them from one place.
 
 import type { Manifest } from '$lib/manifest/types';
 import { canonUrl, masterUrl } from '$lib/nav';
@@ -52,7 +52,7 @@ export function viewOf(path: string): string {
 	return '';
 }
 
-/** The indexes, which every shell offers below its main list. A function rather than a constant: the list depends on the corpus, and `route()` should not run at import time. */
+/** The indexes, which the shell offers below its main list. A function rather than a constant: the list depends on the corpus, and `route()` should not run at import time. */
 export function indexesOf(m: Manifest | null): Index[] {
 	const has = m?.publishes;
 	return [

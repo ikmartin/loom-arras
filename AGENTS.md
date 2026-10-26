@@ -7,6 +7,7 @@ This is one repository holding loom and the documents that govern it: `loom` its
 3. `docs/specs/`: the formats — the loom–arras interface, the source contract, digests, diagnostics. A spec wins over the design where a shape is concerned; the design wins on what a thing means.
 4. `docs/contributing.md`: how to build, test, verify and release.
 5. History, which is never normative: `docs/design/decision-records-frozen.md` (the old design book's decision records), `docs/plans/` and `docs/reports/`. Read them for why something was done, not for what to do now.
+6. `docs/ideas/`: explorations nobody has committed to building, also never normative. Its README says how an idea becomes work.
 
 Rules that are not negotiable:
 

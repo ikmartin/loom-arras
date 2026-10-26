@@ -52,20 +52,6 @@ function decorate(m: Manifest, f: Filters, input: Input, out: ForceOutput): Layo
 	};
 }
 
-/**
- * Lay the filtered graph out by simulated forces, on the page's thread.
- *
- * `seed` carries positions over from a previous layout so a filter change moves nodes rather than reshuffling them.
- *
- * See Also
- * --------
- * forceLayoutOff : The same, in a worker; what the graph page uses.
- */
-export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: number; y: number }>): Layout {
-	const input = graphInput(m, f);
-	return decorate(m, f, input, forcePositions(simInput(input, seed)));
-}
-
 /** A drawing already laid out, its labels, colours and tones read again from `m`: what a manifest that moved no node or edge changes. */
 export function redecorate(m: Manifest, f: Filters, laid: Layout): Layout {
 	const input = graphInput(m, f);

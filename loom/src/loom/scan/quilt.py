@@ -30,20 +30,8 @@ CONFIG_KEYS: dict[str, set[str]] = {
 }
 
 
-#: Keys a quilt's config no longer carries, each with what replaced it; `[library] online` is the one consent to use the network.
-RETIRED_KEYS: dict[tuple[str, str], str] = {
-    ("refs", "fetch"): "online under [library]",
-    ("refs", "resolve"): "online under [library]",
-    ("refs", "contact"): "contact under [library]",
-}
-
-
 class NoQuiltError(Exception):
     """Raised when no config.toml with a [quilt] table is found walking up from the start directory."""
-
-
-class ConfigRefused(NoQuiltError):
-    """A config.toml carrying a retired key (RETIRED_KEYS): not read until the author edits it, since reading past it would drop a consent they gave."""
 
 
 class NoAuthorError(Exception):
@@ -74,20 +62,6 @@ class QuiltConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any], user: dict[str, Any] | None = None) -> QuiltConfig:
         """The config of a quilt from its `config.toml` table, with the user config's `[quilt]` values (USER_QUILT_KEYS only) as defaults under it."""
-        retired = [
-            (t, k, new) for (t, k), new in RETIRED_KEYS.items() if isinstance(data.get(t), dict) and k in data[t]
-        ]
-        if retired:
-            named = "; ".join(f"[{t}] {k} is now {new}" for t, k, new in retired)
-            refs = data["refs"]
-            online = any(bool(refs.get(k)) for k in ("fetch", "resolve") if k in refs)
-            edit = "\n".join(
-                ["[library]", f"online = {'true' if online else 'false'}"]
-                + ([f"contact = {json.dumps(str(refs['contact']))}"] if "contact" in refs else [])
-            )
-            raise ConfigRefused(
-                f"config.toml: {named}. Replace the [refs] table with:\n{edit}\nloom reads nothing until it is edited"
-            )
         cfg = cls()
 
         def table(name: str) -> dict[str, Any]:
@@ -140,18 +114,6 @@ class QuiltConfig:
 class Quilt:
     root: Path
     config: QuiltConfig
-
-    @property
-    def config_path(self) -> Path:
-        return self.root / "config.toml"
-
-    @property
-    def main_master(self) -> Path:
-        return self.root / self.config.main
-
-    @property
-    def drafting_dir(self) -> Path:
-        return self.root / self.config.drafting
 
     @property
     def drafting_ai_dir(self) -> Path:
@@ -264,7 +226,6 @@ def reviewer_identity(cwd: Path) -> tuple[str, str]:
 
 def save_author(name: str) -> None:
     """Atomically edit only the local author name, preserving the rest of the config."""
-    import json
     import re
     import tempfile
 

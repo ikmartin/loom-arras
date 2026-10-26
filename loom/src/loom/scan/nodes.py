@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 
 from loom.scan.bib import citekey_slug
-from loom.scan.directives import HEAD_LINES, file_level, list_value, parse_directives, within
+from loom.scan.directives import HEAD_LINES, file_level, parse_directives, within
 from loom.scan.envtree import FileEnvs, labels_in, scan_environments
 from loom.scan.expand import Expansion, Segment
 from loom.scan.labels import is_id_shaped, plain_key
@@ -145,9 +145,6 @@ class Assembly:
             if ck == citekey:
                 return self.digest_prefixes.get(f, citekey_slug(citekey))
         return citekey_slug(citekey)
-
-    def statement_keys(self) -> list[str]:
-        return [k for k, n in self.nodes.items() if n.kind in ("environment", "section")]
 
     def key_of_env(self, file: str, env: Env) -> str | None:
         return self._env_keys.get((file, env.start))
@@ -764,7 +761,3 @@ def _claim(
         return
     seen[lab] = (key, file, off)
     asm.labels[lab] = key
-
-
-def tags_of(n: NodeRec) -> list[str]:
-    return list_value(n.directives.get("tags", ""))

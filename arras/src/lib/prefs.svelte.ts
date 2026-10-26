@@ -16,7 +16,7 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
 /**
  * Where an annotation stands when it is opened (plan 0.13 §7).
  *
- * `floating` opens a box over the text, anchored to the mark and inset from the window; `margin` stands it in a column beside the text; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
+ * `floating` opens a box over the text, anchored to the mark and inset from the window; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
 export type Comments = 'floating' | 'inline';
 /** Whether the focused pane's toolbar stays (`pinned`) or fades when the pointer leaves the top of the pane (`fade`); one choice for every toolbar, the pin's. */

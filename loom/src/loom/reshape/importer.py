@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 from pathlib import Path
 
-from loom.refs.identity import declared
 from loom.scan.quilt import Quilt
-from loom.scan.scan import ScanResult
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import read_args, tokenize
 
@@ -183,32 +180,3 @@ def set_main_forced(quilt: Quilt, master_rel: str) -> bool:
         cfg.write_text(new, encoding="utf-8")
         return True
     return False
-
-
-def report_counts(result: ScanResult) -> str:
-    from collections import Counter
-
-    taxa = Counter(n.taxon for n in result.nodes.values() if n.kind == "environment")
-    sections = Counter(n.taxon for n in result.nodes.values() if n.kind == "section")
-    proofs = Counter(n.attach_via for n in result.nodes.values() if n.kind == "proof")
-    dangling = sum(1 for d in result.lint if d.code == "dangling-link")
-    unmatched = sum(1 for d in result.lint if d.code in ("loom:unmatched-postnote", "loom:undigested-citekey"))
-    unknown = sum(1 for d in result.lint if d.code == "loom:unknown-environment")
-    resolved = sum(1 for e in result.bib.values() if declared(e))
-    refs_line = f"References: {dangling} dangling; {unmatched} citations with locators but no digest"
-    if result.bib:
-        refs_line += f"; {resolved} of {len(result.bib)} works carry an identifier"
-    lines = [
-        "Nodes: "
-        + ", ".join(f"{n} {t}" for t, n in sorted(taxa.items(), key=lambda x: -x[1]))
-        + ("; " + ", ".join(f"{n} {t.lower()}s" for t, n in sorted(sections.items())) if sections else ""),
-        f"Proofs: {proofs.get('adjacent', 0)} adjacent, {proofs.get('ref', 0)} by reference, {proofs.get('enclosure', 0)} by enclosure, {proofs.get('none', 0)} unattached",
-        refs_line,
-    ]
-    if unknown:
-        lines.append(f"Unknown environments: {unknown} (add % !LOOM environment: lines to the master)")
-    return "\n".join(lines)
-
-
-def has_tty() -> bool:
-    return os.isatty(0)

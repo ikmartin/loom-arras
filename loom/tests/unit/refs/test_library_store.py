@@ -91,16 +91,6 @@ def test_online_is_refused_under_an_agent_without_standing_consent(tmp_path: Pat
     ok("library", "update", "--online", "--only", "map", cwd=q)
 
 
-def test_a_config_with_the_retired_consent_keys_is_refused_by_name(tmp_path: Path) -> None:
-    """`[refs] fetch` and `resolve` merged into `[library] online`; a config still carrying them is refused, naming the new key and the edit, rather than read without its consent."""
-    q = demo(tmp_path)
-    edit(q / "config.toml", "[library]\nonline = false", '[refs]\nfetch = true\nresolve = false\ncontact = "a@b.c"')
-    r = refused("library", "update", code=2, match="[refs] fetch is now online under [library]", cwd=q)
-    assert "[refs] resolve is now online under [library]" in r.output and "contact under [library]" in r.output
-    assert '[library]\nonline = true\ncontact = "a@b.c"' in r.output
-    refused("status", code=2, match="[refs] fetch", cwd=q)
-
-
 def test_a_dry_run_says_what_each_step_would_do_and_writes_nothing(tmp_path: Path) -> None:
     q = demo(tmp_path)
     # The demo's cited work has its source in the store; a checkout may or may not carry that untracked file, so the test writes it rather than depend on it, and removes the untracked PDF a checkout may have left in refs/.

@@ -1,6 +1,6 @@
 """Locate the built arras bundle that `loom serve` serves at /, and read what its `VERSION` stamp says.
 
-Lookup order: LOOM_ARRAS_BUNDLE, the optional `arras` pip package, the copy vendored under loom/assets/arras by scripts/vendor_arras.py. The vendored copy is what makes a bare clone of the loom repository sufficient. The stamp helpers are shared by `loom doctor` and the workspace's `scripts/checks/bundle.py`, so both judge a vendored bundle alike; they use the standard library only, since that check imports them without loom's environment.
+Lookup order: LOOM_ARRAS_BUNDLE, then the copy vendored under loom/assets/arras by scripts/vendor_arras.py. The vendored copy is what makes a bare clone of the loom repository sufficient. The stamp helpers are shared by `loom doctor` and the workspace's `scripts/checks/bundle.py`, so both judge a vendored bundle alike; they use the standard library only, since that check imports them without loom's environment.
 """
 
 from __future__ import annotations
@@ -70,14 +70,6 @@ def find_bundle() -> BundleInfo | None:
         if _valid(p):
             return BundleInfo(p, "LOOM_ARRAS_BUNDLE", _read_version(p))
         raise BundleEnvError(env_problem() or f"LOOM_ARRAS_BUNDLE={env} names no bundle")
-    try:
-        import arras  # type: ignore[import-not-found]
-
-        p = Path(str(arras.bundle_path()))
-        if _valid(p):
-            return BundleInfo(p, "arras package", _read_version(p))
-    except (ImportError, AttributeError):
-        pass
     vendored = vendored_path()
     if _valid(vendored):
         return BundleInfo(vendored, "vendored", _read_version(vendored))

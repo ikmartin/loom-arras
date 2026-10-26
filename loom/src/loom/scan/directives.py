@@ -10,7 +10,6 @@ import re
 from loom.scan.model import Directive, SourceFile
 from loom.scan.source import _protected_ranges
 
-# `source` is the pre-0.5 spelling of `extracted-from` and stays known, so a quilt that has not been upgraded lints clean (DR-109)
 KNOWN_KEYS = {
     "author",
     "created",
@@ -21,7 +20,6 @@ KNOWN_KEYS = {
     "prefix",
     "extracted-from",
     "published-as",
-    "source",
     "method",
     "proofs",
     "requires",
@@ -30,7 +28,6 @@ KNOWN_KEYS = {
     "basis",
     "name",
 }
-LIST_KEYS = {"author", "tags", "see", "requires"}
 BARE_KEYS = {"ignore"}
 REGION_KEYS = {
     "macros",

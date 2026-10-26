@@ -30,17 +30,6 @@ NODE_CODES = {
 }
 
 
-def format_diagnostic(d: Diagnostic) -> str:
-    locs = ", ".join(f"{loc.file}:{loc.line}" for loc in d.locations)
-    keys = " ".join(d.keys)
-    parts = [f"{d.severity:<7} {d.code:<36} {d.message}"]
-    if locs:
-        parts.append(f"[{locs}]")
-    if keys:
-        parts.append(f"keys: {keys}")
-    return "  ".join(parts)
-
-
 def _sorted(diags: list[Diagnostic]) -> list[Diagnostic]:
     diags.sort(
         key=lambda d: (
@@ -60,11 +49,6 @@ def all_diagnostics(result: ScanResult) -> list[Diagnostic]:
     seen = {(d.code, d.message) for d in result.lint}
     walk = [d for d in verify(result, load_history(result.quilt.history_dir)) if (d.code, d.message) not in seen]
     return _sorted(list(result.lint) + extra + walk)
-
-
-def summary_line(diags: list[Diagnostic]) -> str:
-    counts = {s: sum(1 for d in diags if d.severity == s) for s in ("error", "warning", "info")}
-    return f"{counts['error']} errors, {counts['warning']} warnings, {counts['info']} infos"
 
 
 def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list[Diagnostic]], list[Diagnostic]]:

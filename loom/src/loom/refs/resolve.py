@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loom.refs.identity import WorkId, synthetic
+from loom.refs.identity import synthetic
 from loom.scan.bib import BibEntry
 from loom.version import __version__
 
@@ -343,9 +343,3 @@ def load(root: Path, entry: BibEntry) -> list[Candidate]:
         return [Candidate(**c) for c in data.get("candidates", [])]
     except (OSError, ValueError, TypeError):
         return []
-
-
-def as_workid(c: Candidate) -> WorkId:
-    """A candidate's identifier, marked as resolved rather than declared."""
-    scheme, _, value = c.id.partition(":")
-    return WorkId(scheme, value, "resolved")

@@ -103,33 +103,6 @@ def test_an_agent_may_read_the_help_of_any_command(tmp_path) -> None:  # type: i
     assert r.exit_code == 0 and r.stdout.startswith("Usage: ") and " upgrade " in r.stdout.splitlines()[0], r.output
 
 
-@pytest.mark.parametrize(
-    ("typed", "replacement"),
-    [
-        ("review", "loom build"),
-        ("review", "loom status --stale"),
-        ("inline", "loom linearize"),
-        ("unravel", "loom downstream"),
-        ("reach", "loom downstream"),
-        ("pop", "loom downstream"),
-        ("refs", "loom library"),
-        ("digest", "loom library"),
-        ("agent check", "loom starts no agent"),
-        ("ai start", "loom session new"),
-        ("ai name", "loom session rename"),
-        ("ai check", "loom ai drafts"),
-        ("session send", "loom session say"),
-        ("sync patch", "loom sync status --patch"),
-    ],
-)
-def test_a_removed_command_is_answered_by_its_replacement(typed: str, replacement: str, tmp_path) -> None:  # type: ignore[no-untyped-def]
-    """K1: a command loom no longer has is answered, exit 2, by the one that does its work."""
-    r = run(*typed.split(), "x", cwd=tmp_path)
-    assert r.exit_code == 2, r.output
-    assert r.stdout == "" and r.stderr.startswith(f"Error: `loom {typed}`"), r.output
-    assert replacement in r.stderr, r.output
-
-
 def test_delete_names_what_was_typed_and_what_to_remove(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """`delete`, `rm` and `remove` name the argument; a result inside a document is removed as its environment, one in a file of its own with the file."""
     from tests.unit._quilts import demo

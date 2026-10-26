@@ -198,7 +198,6 @@ def test_candidates_are_kept_with_the_entry_they_answer_and_forgotten_when_it_ch
     assert [c.id for c in R.load(tmp_path, EDIDIN)] == ["doi:10.1353/ajm.1998.0020"]
     edited = BibEntry(EDIDIN.key, EDIDIN.type, {**EDIDIN.fields, "year": "1999"})
     assert R.load(tmp_path, edited) == []
-    assert R.as_workid(found[0]).provenance == "resolved"
 
 
 # --- the command, lint and the manifest ---------------------------------------------------------------

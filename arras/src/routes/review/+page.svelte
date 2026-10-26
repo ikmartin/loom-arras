@@ -24,7 +24,7 @@
  const document=$derived(reviewed.find(x=>x.path===page.url.searchParams.get('document'))??reviewed.find(x=>x.default)??reviewed[0]);
  const rows=$derived(document?documentKeys(m,document.path):[]);
  const adoptions=$derived((m.contributions??[]).filter((x):x is AdoptionReview=>x.kind==='adopt'));
- let source=$state(''),local=$state(false),sync=$state(false),incorporated=$state(''),legacyDismissed=$state(false);
+ let source=$state(''),local=$state(false),sync=$state(false),incorporated=$state('');
  const selectedSource=$derived(adoptions.some(x=>x.copy===source)?source:m.incoming?'':adoptions[0]?.copy??'');
  const adoption=$derived(adoptions.find(x=>x.copy===selectedSource));
  const todo=$derived((m.unresolved??[]).filter(r=>r.status==='needs-review'));
@@ -32,7 +32,6 @@
 </script>
 <main class="page review-page">
  <header class="heading"><h1>Review</h1><span>{m.corpus.root_label || m.corpus.name}</span></header>
- {#if m.legacy_review_decisions&&!legacyDismissed}<p>Earlier pending decisions have no reviewer. Review them again under your name. <button onclick={()=>legacyDismissed=true}>Dismiss</button></p>{/if}
  {#if incomingNotice.text}<p role="status">{incomingNotice.text}</p>{/if}
 <div class="review-card"><nav class="review-tabs" aria-label="Review views"><a aria-current={view==='needs-review'?'page':undefined} class:active={view==='needs-review'} href="?show=needs-review">Needs review{todo.length?` (${todo.length})`:''}</a><a aria-current={view==='document'?'page':undefined} class:active={view==='document'} href={document?`?document=${encodeURIComponent(document.path)}`:'?show=document'}>Documents</a><a aria-current={view==='incoming'?'page':undefined} class:active={view==='incoming'} href="?show=incoming">Incoming</a><span class="reviewer">{m.reviewer?.name?`Reviewing as ${m.reviewer.name}`:'Choose your reviewer name in Settings'}</span></nav>
  {#if view==='incoming'}

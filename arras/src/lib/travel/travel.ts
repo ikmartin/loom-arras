@@ -63,28 +63,3 @@ export function travel(to: Element | null | undefined, from: Element): boolean {
 	flash(to);
 	return true;
 }
-
-/**
- * Wire single-click-selects and double-click-travels onto an element.
- *
- * A marker can be picked out without the pane moving, which is what makes a stacked tick listable rather than only
- * travellable. `Enter` travels too, because double-click is a mouse-only gesture and the rest of the viewer is reachable
- * without one.
- */
-export function onTravel(el: HTMLElement, go: () => Element | null | undefined, select?: () => void): () => void {
-	const pick = () => select?.();
-	const move = () => travel(go(), el);
-	const key = (e: KeyboardEvent) => {
-		if (e.key !== 'Enter') return;
-		e.preventDefault();
-		move();
-	};
-	el.addEventListener('click', pick);
-	el.addEventListener('dblclick', move);
-	el.addEventListener('keydown', key);
-	return () => {
-		el.removeEventListener('click', pick);
-		el.removeEventListener('dblclick', move);
-		el.removeEventListener('keydown', key);
-	};
-}

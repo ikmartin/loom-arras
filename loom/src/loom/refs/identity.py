@@ -15,7 +15,6 @@ from loom.scan.bib import BibEntry
 # Resolution order. A DOI is preferred because it names the published work, which is what a bibliography cites; an eprint names a specific preprint, which is usually what loom can actually fetch. Both are kept when both exist: they are different facts, not competing answers.
 SCHEMES = ("doi", "arxiv", "mr", "zbl", "work")
 DISPLAY = {"arxiv": "arXiv", "doi": "doi", "mr": "MR", "zbl": "Zbl", "work": "work"}
-PROVENANCE = ("declared", "resolved", "asserted")
 
 _ARXIV_URL = re.compile(r"arxiv\.org/(?:abs|pdf|e-print)/([^\s?#]+)", re.I)
 _DOI_URL = re.compile(r"(?:doi\.org/|dx\.doi\.org/)(10\.[^\s?#]+)", re.I)

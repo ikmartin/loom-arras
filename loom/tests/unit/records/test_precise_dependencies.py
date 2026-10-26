@@ -63,37 +63,6 @@ def test_whole_display_change_and_removal(tmp_path):
     assert any(c.kind == "dependency-removed" for c in rec.key_states(now)["q-0001"].causes)
 
 
-def test_legacy_owner_snapshot_recovers_exact_equation(tmp_path):
-    from loom.records.ledger import AcceptRow, append_rows
-    from loom.records.snapshots import write_snapshot
-    from loom.render.manifest import own_text
-
-    root, path = quilt(tmp_path)
-    r = scan(load_quilt(root))
-    owner = r.dependencies.owners["equation:eq:first"]
-    own, _ = write_snapshot(root, own_text(r, r.nodes["q-0001"]), r.quilt.history_dir)
-    prior, _ = write_snapshot(root, own_text(r, r.nodes[owner]), r.quilt.history_dir)
-    append_rows(
-        root,
-        [
-            AcceptRow(
-                "q-0001",
-                "Reviewer",
-                "2026-09-28T00:00:00Z",
-                own,
-                "",
-                r.default_master,
-                {owner: prior},
-                direct={owner: prior},
-            )
-        ],
-    )
-    path.write_text(path.read_text().replace("y&=2", "y&=3"))
-    now = scan(load_quilt(root))
-    causes = Records(root, now.quilt.history_dir, reviewer="Reviewer").key_states(now)["q-0001"].causes
-    assert [(c.kind, c.id) for c in causes] == [("dependency-changed", "equation:eq:first")]
-
-
 def test_equation_support_and_enclosing_statement_are_distinct(tmp_path):
     root, path = quilt(tmp_path)
     source = (
@@ -167,34 +136,3 @@ def test_section_removal_and_equation_move_do_not_change_context(tmp_path):
     assert fingerprint(now, "q-0001") == old
     assert Records(root, now.quilt.history_dir, reviewer="Reviewer").key_states(now)["q-0001"].fresh
     assert any(d.code == "dangling-link" for d in now.edges.diagnostics)
-
-
-def test_missing_legacy_evidence_is_explicit(tmp_path):
-    from loom.records.ledger import AcceptRow, append_rows
-    from loom.records.snapshots import write_snapshot
-    from loom.render.manifest import own_text
-
-    root, _ = quilt(tmp_path)
-    r = scan(load_quilt(root))
-    owner = r.dependencies.owners["equation:eq:first"]
-    own, _ = write_snapshot(root, own_text(r, r.nodes["q-0001"]), r.quilt.history_dir)
-    append_rows(
-        root,
-        [
-            AcceptRow(
-                "q-0001",
-                "Reviewer",
-                "2026-09-28T00:00:00Z",
-                own,
-                "",
-                r.default_master,
-                {owner: "sha256:" + "0" * 64},
-                direct={owner: "sha256:" + "0" * 64},
-            )
-        ],
-    )
-    state = Records(root, r.quilt.history_dir, reviewer="Reviewer").key_states(r)["q-0001"]
-    assert not state.fresh
-    assert [(c.kind, c.id) for c in state.causes] == [("dependency-baseline-unavailable", "equation:eq:first")]
-    write_acceptance(r, ["q-0001"], "Reviewer")
-    assert Records(root, r.quilt.history_dir, reviewer="Reviewer").key_states(r)["q-0001"].fresh

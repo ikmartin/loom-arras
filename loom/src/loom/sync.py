@@ -284,11 +284,6 @@ def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[s
     return documents, projected
 
 
-def source_paths(quilt: Quilt, state: SyncState) -> list[str]:
-    """Every source path in the selected document projection."""
-    return sorted(source_projection(quilt, state)[1])
-
-
 def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool = True) -> SyncState:
     """Clone the document workspace into `.loom/workspace/` and pair it with the quilt's main document.
 
