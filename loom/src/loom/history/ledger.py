@@ -6,6 +6,7 @@ Read once per scan and cached by the file's mtime and size, since a served quilt
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -69,6 +70,10 @@ class Version:
     of: str | None = None
 
 
+#: A step's directory, `NNNN-<name>`.
+_STEP_DIR = re.compile(r"^\d{4}-")
+
+
 @dataclass
 class History:
     dir: Path
@@ -96,6 +101,13 @@ class History:
             if e.step == n:
                 return e
         return None
+
+    def unrecorded_dirs(self) -> list[Path]:
+        """Step directories no ledger line names: what a step interrupted before its line was written leaves behind, which nothing reads."""
+        if not self.dir.is_dir():
+            return []
+        named = {e.dir for e in self.entries if e.dir}
+        return sorted(d for d in self.dir.iterdir() if d.is_dir() and _STEP_DIR.match(d.name) and d.name not in named)
 
     def next_step(self) -> int:
         return max((e.step or 0 for e in self.entries), default=0) + 1

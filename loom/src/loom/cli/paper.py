@@ -18,7 +18,7 @@ from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.history.ledger import actor_for, append_entry, load_history
-from loom.history.steps import FreezePlan, text_hash, write_step
+from loom.history.steps import FreezePlan, refuse_interrupted, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
@@ -295,6 +295,7 @@ def run_import(
                 raise EnvError("import needs confirmation; pass --yes. It would write:\n" + "\n".join(proposed))
             note("Nothing written yet; the import would write:\n" + "\n".join(proposed))
             click.confirm("Apply?", abort=True)
+        refuse_interrupted(load_history(quilt.history_dir))  # before anything is written
         written = apply_import(quilt, plan)
         drafted = root / plan.dest_rel
         drafted.parent.mkdir(parents=True, exist_ok=True)

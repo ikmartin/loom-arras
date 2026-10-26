@@ -70,6 +70,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:history-missing": ("error", False),
     "loom:history-edited": ("error", False),
     "loom:history-corrupt": ("error", False),
+    "loom:history-interrupted": ("warning", False),
     "loom:dangling-ancestry": ("warning", False),
     "loom:id-reused": ("error", False),
     "loom:node-recovered": ("info", False),

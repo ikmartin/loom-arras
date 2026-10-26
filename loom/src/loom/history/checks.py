@@ -120,6 +120,18 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
                 out.append(missing(f"the copy of {to['path']}", n))
             elif file_hash(p) != to["hash"]:
                 out.append(edited(f"the copy of {to['path']}", n))
+    for d in history.unrecorded_dirs():
+        rel = f"{hist_rel}/{d.name}"
+        out.append(
+            Diagnostic(
+                "warning",
+                "loom:history-interrupted",
+                f"{rel} is a step directory no ledger line names: a step interrupted before it was recorded, which nothing reads",
+                [],
+                subject="record",
+                fixes=[Fix("remove the interrupted step", f"rm -r {rel}")],
+            )
+        )
     for e in history.entries:
         if e.action == "fork":
             frm = e.get("from") or {}

@@ -106,6 +106,29 @@ def step_dirname(n: int, stem: str) -> str:
     return f"{n:04d}-{stem}"
 
 
+def refuse_interrupted(history: History) -> None:
+    """Refuse to record a step while an interrupted one's directory is still there.
+
+    A step cut short before its ledger line leaves a directory nothing reads, numbered as the next step will be; writing beside it would give two directories one number, and writing over it would repair the record behind the person's back (P13). So every command that records a step refuses first, naming the directory and the command that clears it, and changes nothing. Call it before anything else is written.
+    """
+    stray = history.unrecorded_dirs()
+    if not stray:
+        return
+    from loom.cli._common import EnvError
+
+    def shown(d: Path) -> str:
+        try:
+            return d.relative_to(Path.cwd()).as_posix()
+        except ValueError:
+            return str(d)
+
+    names = ", ".join(shown(d) for d in stray)
+    raise EnvError(
+        f"{names} holds a step that was interrupted before the history recorded it, so nothing reads it; "
+        f"remove it with `rm -r {shown(stray[0])}` and run this again"
+    )
+
+
 def write_step(
     history: History,
     action: str,
@@ -117,11 +140,10 @@ def write_step(
     document_name: str | None = None,
 ) -> Entry:
     """Create `NNNN-<stem>/` with the version files, the preamble when it changed, and the document's copy, then append the ledger line; the line is last so a step that is only half written is never in the record."""
+    refuse_interrupted(history)
     n = history.next_step()
     dirname = step_dirname(n, stem)
     step_dir = history.dir / dirname
-    if step_dir.exists():
-        raise FileExistsError(str(step_dir))
     step_dir.mkdir(parents=True)
     for key, text in plan.texts.items():
         (step_dir / version_filename(key)).write_text(text, encoding="utf-8")
