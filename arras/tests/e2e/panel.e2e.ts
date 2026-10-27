@@ -184,6 +184,19 @@ test.describe('the contents', () => {
 		await expect.poll(() => current.innerText()).toBe(first);
 	});
 
+	test('the outline scrolls under the wheel', async ({ page }) => {
+		// a box inside it that took the wheel and had nothing of its own to scroll left it stuck, though a scroll from script moved it
+		await page.setViewportSize({ width: 1440, height: 330 });
+		await page.goto('/master/main');
+		const outline = page.getByTestId('outline');
+		await expect(outline.getByRole('navigation', { name: 'Contents' })).toBeVisible();
+		expect(await outline.evaluate((e) => e.scrollHeight - e.clientHeight), 'the outline overflows its part, px').toBeGreaterThan(20);
+		const box = (await outline.boundingBox())!;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.wheel(0, 200);
+		await expect.poll(() => outline.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+	});
+
 	test('the line above the outline moves, is remembered, and the documents and the outline scroll apart', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 520 });
 		await page.goto('/master/main');

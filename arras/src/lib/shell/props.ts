@@ -2,7 +2,7 @@
 
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
-import type { CanonDoc, Master } from '$lib/manifest/types';
+import type { Master } from '$lib/manifest/types';
 import type { Index, Primary } from './views';
 
 export interface ShellProps {
@@ -14,7 +14,6 @@ export interface ShellProps {
 	/** The development shelf's indexes, which Settings offers. */
 	indexes: Index[];
 	masters: Master[];
-	canon: CanonDoc[];
 	/** The document the shell is about, by path: a master or a landmark. */
 	currentDoc: string;
 	/** Whether that document is on screen, so its row is marked and the Outline is its; elsewhere no outline is drawn. */

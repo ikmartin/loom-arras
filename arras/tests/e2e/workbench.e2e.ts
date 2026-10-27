@@ -1,16 +1,15 @@
-// The workbench in the viewer: landmarks as documents of their own, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
+// The workbench in the viewer: landmarks as documents of their own, reached from Review › History rather than the column, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
 
-test('the documents section lists the landmarks and the working drafts in two groups', async ({ page }) => {
-	// a list rather than a dropdown: a dropdown shows one name at a time, cannot say which draft is conflicted, and hides the landmarks behind a click
+test('the column lists the working drafts and no landmarks, which Review › History links', async ({ page }) => {
+	// a list rather than a dropdown: a dropdown shows one name at a time and cannot say which draft is conflicted; a landmark is reached through its draft's history
 	await page.goto('/');
 	await expect(page.getByTestId('docs-drafts')).toBeVisible();
-	const canon = page.getByTestId('docs-canon').locator('li');
-	// newest landmark first, each named by the step that wrote it
-	await expect(canon.first()).toContainText('@5');
-	await expect(canon).toHaveCount(3);
-	await page.getByTestId('docs-canon').getByRole('link', { name: /widgets-v3/ }).click();
+	await expect(page.getByTestId('column')).not.toContainText('Landmarks');
+	await expect(page.getByTestId('column').locator('a[href^="/canon/"]')).toHaveCount(0);
+	await page.goto('/review/history');
+	await page.locator('main').getByRole('link', { name: /widgets-v3/ }).first().click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 });
 
@@ -37,7 +36,6 @@ test('the corpus is named by the project, not by its directory', async ({ page }
 	await page.goto('/');
 	await expect(page).toHaveTitle('The synthetic quilt');
 	await expect(page.getByTestId('quilt-name')).toHaveText('The synthetic quilt');
-	await expect(page.getByTestId('column')).toContainText('Landmarks');
 });
 
 test('a doubly defined id has no text, and says where both definitions are', async ({ page }) => {

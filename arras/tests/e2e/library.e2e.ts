@@ -28,6 +28,10 @@ test.describe('the ledger', () => {
 		// the ledger is Review's, its section current in the column; the list of works is the Docs column's
 		await expect(page.getByTestId('section-library')).toHaveAttribute('aria-current', 'page');
 		await page.goto('/master/main');
+		// folded until opened: the documents are what the column is for
+		await expect(page.getByTestId('library-toggle')).toHaveAttribute('aria-expanded', 'false');
+		await expect(page.getByTestId('library-list')).toHaveCount(0);
+		await page.getByTestId('library-toggle').click();
 		await expect(page.getByTestId('library-list')).toBeVisible();
 		await expect(page.getByTestId('library-list').locator('a[href^="/library/"]').first()).toBeVisible();
 		await expect(page.getByTestId('ledger-link')).toHaveAttribute('href', '/review/library');
@@ -124,6 +128,7 @@ test.describe('the ledger', () => {
 			for (let i = 0; i < 40; i++) m.references[`Extra${i}`] = { ...structuredClone(one), citekey: `Extra${i}` };
 		});
 		await page.goto('/master/main');
+		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
 		await expect(list.locator('a[href^="/library/"]')).toHaveCount(Object.keys(manifest.references).length + 40);
 		await expect(list).not.toContainText('more');
@@ -132,6 +137,7 @@ test.describe('the ledger', () => {
 	test("a work's counts are stated once", async ({ page }) => {
 		// the panel says whether a copy is filed, the one thing a click cannot be guessed to give; every count is the ledger's
 		await page.goto('/master/main');
+		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
 		await expect(list.locator('.dot').first()).toBeAttached();
 		const texts = await list.locator('li').allInnerTexts();

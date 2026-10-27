@@ -139,7 +139,6 @@
 	{docsHref}
 	indexes={indexesOf(m)}
 	masters={m?.masters ?? []}
-	canon={m?.canon ?? []}
 	{currentDoc}
 	{contents}
 	{currentSection}

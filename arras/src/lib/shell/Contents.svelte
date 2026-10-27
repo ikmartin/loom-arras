@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The contents tree of the current document. Identical in both shells.
+	// The contents tree of the current document. It scrolls inside the column's outline part and is no scroll box of its own: a box with nothing to scroll and its overscroll contained takes the wheel and moves nothing.
 	import type { ContentsEntry } from '$lib/contents';
 	import { anchorId, readUrl } from '$lib/nav';
 	import Tex from '$lib/math/Tex.svelte';
@@ -7,7 +7,7 @@
 	let { entries, masterPath, current = '' }: { entries: ContentsEntry[]; masterPath: string; current?: string } = $props();
 </script>
 
-<nav class="contents rail-scroll" aria-label="Contents">
+<nav class="contents" aria-label="Contents">
 	<ul>
 		{#each entries as e (e.key)}
 			<li style="padding-left: {e.depth * 10}px">

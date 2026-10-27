@@ -187,6 +187,7 @@ test.describe('the Library in the column', () => {
 		});
 		await servePapers(page);
 		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
 		await expect(list.getByTestId('library-work-Kre99')).toHaveAttribute('href', '/library/Kre99A');
 		await expect(list.getByTestId('library-work-Kre99A')).toHaveCount(0);

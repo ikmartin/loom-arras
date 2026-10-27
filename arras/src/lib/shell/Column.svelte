@@ -1,10 +1,10 @@
 <script lang="ts">
 	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the working drafts, the agent's documents under their directory's name with the closed ones folded beneath, the Library, the landmarks — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the working drafts, the AI drafts with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import { canonUrl, masterUrl, workUrl } from '$lib/nav';
+	import { masterUrl, workUrl } from '$lib/nav';
 	import { shelf } from '$lib/library';
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -17,7 +17,7 @@
 	import { page } from '$app/state';
 	import { sectionOf, sectionsOf } from '$lib/review/sections';
 
-	let { label, primary, docsHref, indexes, masters, canon, currentDoc, onDocument, contents, currentSection, counts, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, counts, children, rail, panel, panelLabel }: ShellProps = $props();
 
 	// The problems chip answers whether anything is wrong, so it takes the colour of the worst thing it counts and says the count.
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
@@ -49,8 +49,7 @@
 		else prefs.panel = !prefs.panel;
 	}
 
-	// Documents: the drafts being worked on and the landmarks recorded, as a list rather than a dropdown, because a dropdown shows one name at a time and cannot say which draft is conflicted or which landmark a step wrote. Newest landmark first: the one a reader is most likely to want.
-	const landmarks = $derived([...canon].reverse());
+	// Documents: the drafts being worked on, as a list rather than a dropdown, because a dropdown shows one name at a time and cannot say which draft is conflicted. A landmark is reached from its draft's history and from Review › History, not listed here.
 	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory !== 'drafting-ai'));
 	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory === 'drafting-ai'));
 	const closed = $derived(masters.filter((m) => m.closed));
@@ -61,7 +60,8 @@
 	const sections = $derived(store.manifest ? sectionsOf(store.manifest) : []);
 	const here = $derived(sectionOf(page.route.id));
 
-	let libraryOpen = $state(true);
+	// folded until the reader opens it: the works are many, and the documents are what the column is for
+	let libraryOpen = $state(false);
 
 	// The line between the documents and the outline: where it stands is a preference, drawn at most once a frame while it is dragged and stored at the drop, as the pane divider is.
 	const STEP = 0.03;
@@ -167,12 +167,10 @@
 					<div class="page-panel rail-scroll">{@render panel()}</div>
 				{:else if primary === 'docs'}
 					<div class="part docs-part rail-scroll" data-testid="docs-part" style:flex={outline ? `0 0 ${share * 100}%` : '1 1 auto'}>
-					{#snippet doc(path: string, href: string, step?: string)}
+					{#snippet doc(path: string, href: string)}
 						{@const here = onDocument && path === currentDoc}
 						<li>
-							<a {href} class:here aria-current={here ? 'page' : undefined}>
-								{filename(path)}{#if step}<span class="aside"> @{Number(step)}</span>{/if}
-							</a>
+							<a {href} class:here aria-current={here ? 'page' : undefined}>{filename(path)}</a>
 						</li>
 					{/snippet}
 					{#if own.length}
@@ -182,8 +180,8 @@
 						</ul>
 					{/if}
 					{#if withAgent.length || closed.length}
-						<!-- the documents the person and an agent both edit, under the directory they live in, as the person's editor shows it -->
-						<p class="rail-label dir">{(withAgent[0] ?? closed[0]).path.split('/').slice(0, -1).join('/')}/</p>
+						<!-- the documents the person and an agent both edit -->
+						<p class="rail-label">AI Drafts</p>
 						{#if withAgent.length}
 							<ul class="plain docs" data-testid="docs-drafts-ai">
 								{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
@@ -220,12 +218,6 @@
 								<li><a href={route('/review/library')} data-testid="ledger-link">ledger</a></li>
 							</ul>
 						{/if}
-					{/if}
-					{#if landmarks.length}
-						<p class="rail-label">Landmarks</p>
-						<ul class="plain docs" data-testid="docs-canon">
-							{#each landmarks as c (c.path)}{@render doc(c.path, canonUrl(c.path), c.step)}{/each}
-						</ul>
 					{/if}
 					</div>
 					{#if outline}
@@ -467,11 +459,6 @@
 		text-transform: inherit;
 		letter-spacing: inherit;
 	}
-	/* the agent's directory, named as written, not upper-cased */
-	.rail-label.dir {
-		text-transform: none;
-		letter-spacing: 0;
-	}
 	.closed summary {
 		font-size: 10.5px;
 		color: var(--ink-faint);
@@ -558,8 +545,7 @@
 		background: var(--state-accepted);
 		box-shadow: none;
 	}
-	.library .aside,
-	.docs .aside {
+	.library .aside {
 		margin-left: 0.3em;
 		color: var(--ink-faint);
 		font-size: 0.9em;

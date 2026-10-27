@@ -477,6 +477,7 @@ readOnly('a citation opens its paper at the result, past the first page, and a \
 	await page.goto('/node/Arden24A-rem-5.3');
 	await expect(page.locator('[data-pane="0"] a.ref[data-target="Arden24A-cor-5.2"]').first()).toHaveAttribute('href', '/library/Arden24A?page=3&result=Arden24A-cor-5.2');
 	// and the work and its revision are one row of the column's Library
+	await page.getByTestId('library-toggle').click();
 	await expect(page.getByTestId('library-list').locator('a[data-testid^="library-work-Arden24"]')).toHaveCount(1);
 });
 
