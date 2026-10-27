@@ -134,21 +134,21 @@ test('the session picker is not in the column', async ({ page }) => {
 });
 
 test.describe('the contents', () => {
-	test('the contents hang open under the document in the focused pane, and are absent for anything else', async ({ page }) => {
+	test('the outline is the focused pane\'s document\'s, beneath the documents, and absent for anything else', async ({ page }) => {
 		await page.goto('/master/main' + beside('/node/sy-0003'));
 		const contents = page.getByRole('navigation', { name: 'Contents' });
 		await expect(contents).toBeVisible();
-		await expect(page.getByTestId('contents-toggle')).toHaveAttribute('aria-expanded', 'true');
+		await expect(page.getByTestId('outline-divider')).toBeVisible();
 		// the tree follows the focused pane: a node has none, and the document's comes back with the focus
 		await pane(page, 1).locator('.fragment').first().click();
 		await expect(contents).toHaveCount(0);
 		await pane(page, 0).locator('.fragment').first().click();
 		await expect(contents).toBeVisible();
-		// and a node alone shows neither the tree nor its toggle
+		// and a node alone shows neither the tree nor its divider, and the documents take the column
 		await page.goto('/node/sy-0002');
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		await expect(contents).toHaveCount(0);
-		await expect(page.getByTestId('contents-toggle')).toHaveCount(0);
+		await expect(page.getByTestId('outline-divider')).toHaveCount(0);
 	});
 
 	test('the contents tree is in document order and stops above paragraph units', async ({ page }) => {
@@ -182,6 +182,44 @@ test.describe('the contents', () => {
 		// scrolling back returns it; the document scrolls in its pane, not the window
 		await scrollPane(page, 0, 'top');
 		await expect.poll(() => current.innerText()).toBe(first);
+	});
+
+	test('the line above the outline moves, is remembered, and the documents and the outline scroll apart', async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 520 });
+		await page.goto('/master/main');
+		const line = page.getByTestId('outline-divider');
+		const docs = page.getByTestId('docs-part');
+		const outline = page.getByTestId('outline');
+		await expect(line).toBeVisible();
+		await expect(outline.getByRole('navigation', { name: 'Contents' })).toBeVisible();
+		// measured once the column has settled, so the press lands on the line
+		await line.hover();
+		const before = (await docs.boundingBox())!.height;
+		const at = (await line.boundingBox())!;
+		await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+		await expect(line).toHaveCSS('cursor', 'row-resize');
+		await page.mouse.down();
+		const start = await line.getAttribute('aria-valuenow');
+		await page.mouse.move(at.x + at.width / 2, at.y - 80, { steps: 5 });
+		// the moves are drawn a frame at a time, so the drop waits for the line to have followed them, as a hand does
+		await expect.poll(() => line.getAttribute('aria-valuenow')).not.toBe(start);
+		await expect.poll(async () => Number(await line.getAttribute('aria-valuenow'))).toBeLessThan(40);
+		await page.mouse.up();
+		await expect.poll(async () => (await docs.boundingBox())!.height).toBeLessThan(before - 40);
+		const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').outline);
+		expect(stored).toBeLessThan(0.55);
+		await page.reload();
+		await expect.poll(async () => (await page.getByTestId('docs-part').boundingBox())!.height).toBeLessThan(before - 40);
+		// each scrolls in its own box: the outline's last entry is reached by scrolling the outline
+		for (const part of [docs, outline]) expect(await part.evaluate((e) => getComputedStyle(e).overflowY)).toBe('auto');
+		const last = outline.getByRole('navigation', { name: 'Contents' }).locator('a').last();
+		await last.scrollIntoViewIfNeeded();
+		await expect(last).toBeInViewport();
+		// the keys move it too
+		await line.focus();
+		const now = Number(await line.getAttribute('aria-valuenow'));
+		await page.keyboard.press('ArrowDown');
+		await expect(line).toHaveAttribute('aria-valuenow', String(now + 3));
 	});
 });
 
@@ -303,12 +341,13 @@ test.describe('sessions', () => {
 });
 
 test.describe('sections', () => {
-	test('the column lists no results: a result is read where it lives, and found by search', async ({ page }) => {
+	test('the column lists no results: a result is read where it lives, and found by ⌘K', async ({ page }) => {
 		await page.goto('/node/sy-0003');
 		await expect(page.getByTestId('docs-drafts')).toBeVisible();
 		await expect(page.getByTestId('nodes-toggle')).toHaveCount(0);
 		await expect(page.getByTestId('nodes-list')).toHaveCount(0);
-		await expect(page.getByTestId('column-search')).toBeVisible();
+		// found by ⌘K, which is search's one way in
+		await expect(page.getByTestId('column-search')).toHaveCount(0);
 	});
 
 	test('the panel never repeats the strip', async ({ page }) => {

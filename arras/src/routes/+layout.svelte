@@ -20,7 +20,6 @@
 	import { contentsOf } from '$lib/contents';
 	import { reading } from '$lib/reading.svelte';
 	import { prefs } from '$lib/prefs.svelte';
-	import { openPalette } from '$lib/palette';
 	import { ensureMathJax } from '$lib/math/mathjax';
 	import { masterStem } from '$lib/nav';
 	import { rail } from '$lib/shell/rail.svelte';
@@ -146,7 +145,6 @@
 	{currentSection}
 	{onDocument}
 	counts={{ errors, warnings }}
-	search={openPalette}
 	rail={rail.snippet && !inReading ? pageRail : undefined}
 	panel={panel.snippet ? pagePanel : undefined}
 	panelLabel={panel.label}

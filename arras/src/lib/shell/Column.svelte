@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, search, the chip and the session's dot.
+	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds search, then a page's own panel where it registers one (the graph's filters, the problems' filters), else the documents — the working drafts, the agent's documents under their directory's name with the closed ones folded beneath, the Library, the landmarks — and then the Outline of the document in the focused pane, a section of its own. A result is read in the document that holds it (V7), so the column lists no nodes.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the working drafts, the agent's documents under their directory's name with the closed ones folded beneath, the Library, the landmarks — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, masterUrl, workUrl } from '$lib/nav';
@@ -15,7 +15,7 @@
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
-	let { label, primary, docsHref, indexes, masters, canon, currentDoc, onDocument, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, primary, docsHref, indexes, masters, canon, currentDoc, onDocument, contents, currentSection, counts, children, rail, panel, panelLabel }: ShellProps = $props();
 
 	// The problems chip answers whether anything is wrong, so it takes the colour of the worst thing it counts and says the count.
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
@@ -59,8 +59,46 @@
 	const outline = $derived(onDocument && contents.length > 0);
 
 	let libraryOpen = $state(true);
-	// Open at rest (plan 0.13.3 S2): where am I in this is the question asked most often while reading, and should not cost a click.
-	let outlineOpen = $state(true);
+
+	// The line between the documents and the outline: where it stands is a preference, drawn at most once a frame while it is dragged and stored at the drop, as the pane divider is.
+	const STEP = 0.03;
+	let sections = $state<HTMLElement | null>(null);
+	let live = $state<number | null>(null);
+	let box: DOMRect | null = null;
+	let next: number | null = null;
+	let painting = 0;
+	const clamp = (v: number) => Math.min(0.85, Math.max(0.15, v));
+	const share = $derived(live ?? prefs.outline);
+	function grab(e: PointerEvent): void {
+		if (!sections) return;
+		// the press's default would start a text selection, or a native drag of a link the line passes, which takes the pointer away mid-drag
+		e.preventDefault();
+		box = sections.getBoundingClientRect();
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		drag(e);
+	}
+	function drag(e: PointerEvent): void {
+		if (!box) return;
+		next = clamp((e.clientY - box.top) / (box.height || 1));
+		painting ||= requestAnimationFrame(() => {
+			painting = 0;
+			live = next;
+		});
+	}
+	function drop(e: PointerEvent): void {
+		if (!box) return;
+		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		cancelAnimationFrame(painting);
+		painting = 0;
+		if (next !== null) prefs.outline = next;
+		live = next = box = null;
+	}
+	function nudge(e: KeyboardEvent): void {
+		if (e.key === 'ArrowUp') prefs.outline = clamp(prefs.outline - STEP);
+		else if (e.key === 'ArrowDown') prefs.outline = clamp(prefs.outline + STEP);
+		else return;
+		e.preventDefault();
+	}
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -83,7 +121,6 @@
 		{#if !shown}
 			<!-- folded: what must stay in reach, one above the other -->
 			<button class="fold" title="Show the column" aria-label="Show the column" aria-expanded="false" data-testid="panel-fold" onclick={fold}>»</button>
-			<button class="rail-search" onclick={search} aria-label="Search" title="search"><Icon name="search" /></button>
 			<div class="rail-foot">
 				{@render chip(true)}
 				<SessionFooter compact />
@@ -109,14 +146,12 @@
 			</nav>
 			<!-- Whose review a read-only view shows is said once, under the quilt it belongs to, and never above the document. -->
 			{#if readOnly && reviewPerspective}<p class="review-perspective">{reviewPerspective}</p>{/if}
-			<div class="sections rail-scroll">
-				{#if primary === 'docs'}
-					<button class="search" onclick={search} data-testid="column-search"><Icon name="search" size={13} /><span>Search</span><kbd>⌘K</kbd></button>
-				{/if}
+			<div class="sections" bind:this={sections}>
 				{#if panel}
 					<p class="rail-label">{panelLabel}</p>
 					<div class="page-panel rail-scroll">{@render panel()}</div>
 				{:else if primary === 'docs'}
+					<div class="part docs-part rail-scroll" data-testid="docs-part" style:flex={outline ? `0 0 ${share * 100}%` : '1 1 auto'}>
 					{#snippet doc(path: string, href: string, step?: string)}
 						{@const here = onDocument && path === currentDoc}
 						<li>
@@ -177,14 +212,33 @@
 							{#each landmarks as c (c.path)}{@render doc(c.path, canonUrl(c.path), c.step)}{/each}
 						</ul>
 					{/if}
+					</div>
 					{#if outline}
-						<!-- the focused pane's document's sections, a section of their own below the documents -->
-						<p class="rail-label outline-label">
-							<button class="shelf" aria-expanded={outlineOpen} data-testid="contents-toggle" onclick={() => (outlineOpen = !outlineOpen)}>
-								{outlineOpen ? '▾' : '▸'} Outline <span class="aside">{filename(currentDoc)}</span>
-							</button>
-						</p>
-						{#if outlineOpen}<div class="outline" data-testid="outline"><Contents entries={contents} masterPath={currentDoc} current={currentSection} /></div>{/if}
+						<!-- A separator that takes focus is a widget in ARIA's own terms, with the arrow keys and aria-valuenow this one has. -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<div
+							class="outline-divider"
+							class:moving={live !== null}
+							role="separator"
+							tabindex="0"
+							aria-label="Resize the outline"
+							aria-orientation="horizontal"
+							aria-valuenow={Math.round(share * 100)}
+							aria-valuemin={15}
+							aria-valuemax={85}
+							data-testid="outline-divider"
+							onpointerdown={grab}
+							onpointermove={drag}
+							onpointerup={drop}
+							onpointercancel={drop}
+							onkeydown={nudge}
+						></div>
+						<!-- the focused pane's document's sections, beneath the documents and scrolled apart from them -->
+						<div class="part outline-part rail-scroll" data-testid="outline">
+							<p class="rail-label outline-label">Outline <span class="aside">{filename(currentDoc)}</span></p>
+							<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
+						</div>
 					{/if}
 				{/if}
 			</div>
@@ -264,35 +318,16 @@
 		flex-direction: column;
 		gap: var(--gap-hair);
 	}
-	/* **A section keeps its own height; the column scrolls.** Flex children shrink by default, and a shrunk box whose
-	   overflow is visible paints its content over whatever follows it — which is what garbled Contents into Library the
-	   moment Nodes was expanded and the panel ran past the window. The page panel is the exception: it is the whole
-	   panel on a route that brings one, so it takes the space. */
-	.sections > *:not(.page-panel) {
+	/* A label keeps its own height; the documents and the outline take the rest and scroll apart, and a page's own panel takes all of it. */
+	.sections > *:not(.page-panel):not(.part) {
 		flex: 0 0 auto;
 	}
-	/* folded: unfold, search, and at the foot the chip and the session's dot, one above the other */
+	/* folded: unfold, and at the foot the chip and the session's dot, one above the other */
 	.panel.away {
 		align-items: center;
 		padding-left: 4px;
 		padding-right: 4px;
 		gap: 12px;
-	}
-	.rail-search {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 26px;
-		color: var(--ink-faint);
-		background: none;
-		border: none;
-		border-radius: var(--rad-control);
-		cursor: pointer;
-	}
-	.rail-search:hover {
-		color: var(--ink);
-		background: var(--sheet);
 	}
 	.rail-foot {
 		margin-top: auto;
@@ -326,34 +361,6 @@
 	.primary a.on {
 		color: var(--ink);
 		box-shadow: inset 0 -2px 0 var(--accent);
-	}
-	/* search looks like a field and is a button: it opens the palette, which is the one search */
-	.search {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		width: 100%;
-		box-sizing: border-box;
-		margin: 0 0 var(--gap-tight);
-		padding: 3px 6px;
-		font: inherit;
-		font-size: 11.5px;
-		color: var(--ink-faint);
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: 4px;
-		cursor: pointer;
-		text-align: left;
-	}
-	.search span {
-		flex: 1;
-	}
-	.search kbd {
-		font: inherit;
-		font-size: 10px;
-	}
-	.search:hover {
-		color: var(--ink-soft);
 	}
 	.filter {
 		width: 100%;
@@ -456,8 +463,40 @@
 		margin: 0 0 var(--gap-hair) 6px;
 		cursor: pointer;
 	}
-	.outline {
+	/* the documents and the outline, each scrolling on its own, the line between them a few pixels of target round one hairline */
+	.part {
+		min-height: 0;
+		overflow: auto;
+	}
+	.outline-part {
+		flex: 1 1 0;
+	}
+	.outline-part :global(.contents) {
 		margin: 0 0 var(--gap-tight) 6px;
+	}
+	.outline-divider {
+		flex: none;
+		height: 9px;
+		margin: 0 -14px;
+		cursor: row-resize;
+		position: relative;
+		touch-action: none;
+	}
+	.outline-divider::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 4px;
+		border-top: 1px solid var(--rule);
+	}
+	.outline-divider:hover::before,
+	.outline-divider.moving::before,
+	.outline-divider:focus-visible::before {
+		border-top-color: var(--link);
+	}
+	.outline-divider:focus-visible {
+		outline: none;
 	}
 	.outline-label .aside {
 		text-transform: none;

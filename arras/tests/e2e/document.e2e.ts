@@ -52,9 +52,14 @@ test('a document drawn again leaves nothing of the old one in MathJax', async ({
 	const typeset = () => page.waitForFunction(() => !!document.querySelector('.fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 	await page.goto('/master/main');
 	await typeset();
+	// away to a page that typesets nothing of its own, the graph, reached from the local graph, and back
 	for (let i = 0; i < 2; i++) {
-		await page.getByTestId('primary-review').click();
-		await page.getByRole('heading', { name: 'Review', exact: true, level: 1 }).waitFor();
+		// the local graph stays open once opened, so the second time round it is open already
+		const open = page.getByTestId('local-graph-open');
+		if (await open.isVisible()) await open.click();
+		await page.getByTestId('local-graph-expand').click();
+		await page.getByTestId('open-graph').click();
+		await page.locator('svg g.node').first().waitFor();
 		await page.getByTestId('primary-docs').click();
 		await typeset();
 	}

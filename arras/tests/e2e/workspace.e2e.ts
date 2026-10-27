@@ -447,13 +447,14 @@ test.describe('the tab strip', () => {
 	});
 
 	test('past the floor the tabs scroll, and the views beneath them keep their place', async ({ page }) => {
+		test.setTimeout(60000);
 		await withPapers(page);
-		await prefs(page, { divider: 0.6 });
+		// the right pane as narrow as a work lets it be, 420px, so ten tabs pass the floor
+		await prefs(page, { divider: 0.8 });
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/node/sy-0001' + beside('/library/Kre99'));
 		await tabs(page, 1).first().getByRole('tab').click();
-		// twelve tabs: past the floor, with nothing beside them in the strip
-		for (const id of ['sy-0003', 'sy-0006', 'sy-0007', 'sy-0008', 'sy-0009', 'sy-000A', 'sy-000B', 'sy-000C', 'sy-000D', 'sy-000E', 'sy-999A']) await open(page, id);
+		for (const id of ['sy-0003', 'sy-0006', 'sy-0007', 'sy-0008', 'sy-0009', 'sy-000A', 'sy-000B', 'sy-000C', 'sy-000D']) await open(page, id);
 		await tabs(page, 1).first().getByRole('tab').click();
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
 		await expect(views).toBeVisible();

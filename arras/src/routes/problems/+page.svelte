@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The problems page: every diagnostic, grouped by code. The filters stand in the shell's left panel and live in the URL, so the home page's errors card opens it showing errors.
+	// The problems page: every diagnostic, grouped by code, each group folded to its code and count until opened, so a long list is read code by code. The filters stand in the column and live in the URL, so a link can open it showing errors, or one code with its group open. Its bar is drawn at rest, since it is read by moving through it.
 	import { page } from '$app/state';
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
@@ -26,6 +26,15 @@
 	const counts = $derived(countBySeverity(m.diagnostics));
 	const codes = $derived(groupDiagnostics(m.diagnostics).map((g) => g.code));
 
+	// a group is folded to its code and count until opened; one code asked for by the URL stands open
+	let opened = $state<Record<string, boolean>>({});
+	const isOpen = (c: string) => opened[c] ?? c === code;
+	const all = $derived(groupDiagnostics(shown).map((g) => g.code));
+	const everyOpen = $derived(all.length > 0 && all.every(isOpen));
+	function openAll(open: boolean): void {
+		opened = Object.fromEntries(all.map((c) => [c, open]));
+	}
+
 	let copied = $state('');
 	async function copy(command: string) {
 		if (await copyText(command)) {
@@ -35,19 +44,20 @@
 	}
 </script>
 
-<main class="page">
+<main class="page scrollbar-shown">
 	<h1>Problems <HelpDot label="what the problems page shows" topic="problems" /></h1>
 	<p class="lead">Everything the publisher found wrong while building this corpus, worst first. An error is something a reader would notice; a warning is probably a mistake; information is a remark.</p>
 	<p class="counts" data-testid="problem-counts">
 		{#each [['error', counts.error ?? 0, 'errors'], ['warning', counts.warning ?? 0, 'warnings'], ['info', counts.info ?? 0, 'infos']] as [name, n, plural], i (name)}
 			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={severity === name} aria-pressed={severity === name} onclick={() => pick(name as string)}>{n} {plural}</button>
 		{/each}
+		{#if all.length}<span class="sep">·</span><button class="count" data-testid="problems-expand" onclick={() => openAll(!everyOpen)}>{everyOpen ? 'fold all' : 'expand all'}</button>{/if}
 	</p>
 	{#each bySubject as sub (sub.subject)}
 	{#if subjects.length > 1}<h2 class="subject" data-testid="subject-heading">{sub.subject === 'record' ? 'The record' : 'The source'}</h2>{/if}
 	{#each sub.groups as g (g.code)}
-		<section class="group sev-{g.severity}">
-			<h2><code>{g.code}</code> <span class="muted">{g.severity} · {g.items.length}</span></h2>
+		<details class="group sev-{g.severity}" open={isOpen(g.code)} ontoggle={(e) => (opened[g.code] = e.currentTarget.open)} data-testid="problem-group">
+			<summary><h2><code>{g.code}</code> <span class="muted">{g.severity} · {g.items.length}</span></h2></summary>
 			<ul>
 				{#each g.items as d, i (i)}
 					<li>
@@ -76,7 +86,7 @@
 					</li>
 				{/each}
 			</ul>
-		</section>
+		</details>
 	{/each}
 	{:else}
 		<p class="muted">{m.diagnostics.length ? 'Nothing matches.' : 'No diagnostics.'}</p>
@@ -173,9 +183,20 @@
 		text-transform: uppercase;
 		color: var(--ink-faint);
 	}
+	.group summary {
+		cursor: pointer;
+		list-style-position: outside;
+		margin-left: 1em;
+	}
 	.group h2 {
+		display: inline;
 		font-size: 1rem;
+	}
+	.group[open] summary {
 		margin-bottom: 0.2rem;
+	}
+	.group {
+		margin: 0 0 var(--gap-tight);
 	}
 	.locs code,
 	.key {

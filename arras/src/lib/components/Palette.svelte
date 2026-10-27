@@ -4,14 +4,12 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, masterUrl, nodeUrl, threadUrl, workUrl } from '$lib/nav';
 	import { bibText } from '$lib/works';
-	import { registerPalette } from '$lib/palette';
 
 	let el: HTMLElement | undefined = $state();
 
+	// ⌘K is ninja-keys' own hotkey, and the one way in: search is not offered as a control until it does more than find by id and title
 	onMount(() => {
 		void import('ninja-keys');
-		registerPalette(() => (el as unknown as { open?: () => void } | undefined)?.open?.());
-		return () => registerPalette(null);
 	});
 
 	type Item = { id: string; title: string; section: string; keywords?: string; handler: () => void };

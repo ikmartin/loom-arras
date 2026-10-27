@@ -42,7 +42,7 @@ test('the corpus is named by the project, not by its directory', async ({ page }
 
 test('a doubly defined id has no text, and says where both definitions are', async ({ page }) => {
 	await page.goto('/problems?code=duplicate-id');
-	const item = page.locator('section.group li').first();
+	const item = page.getByTestId('problem-group').locator('li').first();
 	await expect(item).toContainText('is defined by');
 	const key = await item.locator('a.key').first().innerText();
 	await page.goto('/node/' + key);

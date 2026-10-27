@@ -340,6 +340,13 @@ main.page > h2,
 .arras .is-scrolling::-webkit-scrollbar-thumb {
 	background-color: var(--rule-strong);
 }
+/* A long list read by moving through it keeps its bar at rest, so a reader can see where they are and drag to anywhere in it: a page whose main is `scrollbar-shown` (the problems page). */
+.arras:has(main.scrollbar-shown) {
+	scrollbar-color: var(--rule-strong) transparent;
+}
+.arras:has(main.scrollbar-shown)::-webkit-scrollbar-thumb {
+	background-color: var(--rule-strong);
+}
 
 table.list {
 	border-collapse: collapse;

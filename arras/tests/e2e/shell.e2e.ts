@@ -3,11 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { pane, prefs } from '../workspace';
 import { manifest } from '../manifest';
 
-/** The Outline is the focused document's, a section of the column; open it if it is folded. */
+/** The Outline is the focused document's, beneath the documents; wait for it. */
 async function openContents(page: Page): Promise<void> {
-	const toggle = page.getByTestId('contents-toggle');
-	await toggle.waitFor({ state: 'visible' });
-	if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
 	await page.getByRole('navigation', { name: 'Contents' }).waitFor();
 }
 
@@ -23,9 +20,9 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 	await expect(primary.getByRole('link')).toHaveText(['Docs', 'Review']);
 	await expect(page.getByTestId('primary-docs')).toHaveAttribute('aria-current', 'page');
 	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review');
-	// the icon strip and its views are gone; search is the column's, and the problems chip is in its footer
+	// the icon strip and its views are gone; search is ⌘K alone, and the problems chip is in the column's footer
 	await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCount(0);
-	await expect(page.getByTestId('column-search')).toBeVisible();
+	await expect(page.getByTestId('column-search')).toHaveCount(0);
 	await expect(page.getByTestId('problems-chip')).toHaveAttribute('title', /^problems: /);
 	await expect(page.getByTestId('problems-chip')).toContainText(String(manifest.diagnostics.filter((d: { severity: string }) => d.severity === 'error' || d.severity === 'warning').length));
 });
@@ -38,12 +35,12 @@ test('Review is current on the quilt-management pages, and Docs everywhere else'
 });
 
 test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({ page }) => {
-	// one scroll region, and it is the panel: with a Library group below the contents, a column that could not scroll squeezed the tree and pushed the sections under it off the bottom
-	await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's panel cannot fit
+	// the documents scroll in their own box and the outline in its own: a column that could not scroll squeezed the tree and pushed what was under it off the bottom
+	await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's documents cannot fit
 	await page.goto('/master/main');
 	await openContents(page);
-	const sections = page.locator('.panel .sections');
-	const box = await sections.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight, overflow: getComputedStyle(el).overflowY }));
+	const docs = page.getByTestId('docs-part');
+	const box = await docs.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight, overflow: getComputedStyle(el).overflowY }));
 	expect(box.overflow).toBe('auto');
 	expect(box.scroll).toBeGreaterThan(box.client);
 	const last = page.getByRole('navigation', { name: 'Contents' }).locator('a').last();
@@ -74,7 +71,7 @@ test('a scrollbar shows only while its panel or pane is being scrolled', async (
 	await page.goto('/master/main');
 	const hidden = 'rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)';
 	const color = (el: import('@playwright/test').Locator) => el.evaluate((e) => getComputedStyle(e).scrollbarColor);
-	for (const region of [page.locator('.panel .sections'), page.getByTestId('pane-0').locator('> .body')]) {
+	for (const region of [page.getByTestId('docs-part'), page.getByTestId('pane-0').locator('> .body')]) {
 		await expect(region).toBeVisible();
 		expect(await color(region)).toBe(hidden);
 		await region.hover();

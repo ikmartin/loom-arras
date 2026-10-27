@@ -18,6 +18,7 @@ describe('the display preferences', () => {
 	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box and no ids', () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
+			outline: 0.55,
 			panel: true,
 			ids: false,
 			zoom: { pdf: 1.4 },
@@ -41,6 +42,12 @@ describe('the display preferences', () => {
 		expect(coerce({ zoom: { pdf: 9 } }).zoom).toEqual({ pdf: 3 });
 		expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
 		expect(coerce({ zoom: 0.1 }).zoom).toEqual(DEFAULTS.zoom); // zoom is kept per kind, so a bare number is not one
+	});
+
+	it('keeps the line above the outline between 0.15 and 0.85', () => {
+		expect(coerce({ outline: 0.05 }).outline).toBe(0.15);
+		expect(coerce({ outline: 0.99 }).outline).toBe(0.85);
+		expect(coerce({ outline: 'x' }).outline).toBe(DEFAULTS.outline);
 	});
 
 	it('round-trips through storage', () => {

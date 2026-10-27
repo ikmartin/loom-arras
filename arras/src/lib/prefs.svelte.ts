@@ -25,6 +25,8 @@ const KEY = 'arras.prefs';
 export interface Prefs {
 	/** The workspace's ratio: how much of the frame the left pane takes, 0.2 to 0.8, half by default since neither pane is primary. One ratio — a reader sets the shape of their screen once. */
 	divider: number;
+	/** How much of the Docs column the documents take, 0.15 to 0.85, the rest the outline beneath its divider; stored at the drop, as the pane divider is. */
+	outline: number;
 	/** Whether the left column is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
 	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
@@ -39,7 +41,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -61,6 +63,7 @@ export function coerce(raw: unknown): Prefs {
 	}
 	return {
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
+		outline: typeof o.outline === 'number' && Number.isFinite(o.outline) ? Math.min(0.85, Math.max(0.15, o.outline)) : DEFAULTS.outline,
 		panel: o.panel !== false,
 		ids: o.ids === true,
 		zoom,
@@ -105,6 +108,7 @@ export function attributes(p: Prefs): Record<string, string | null> {
 
 class PrefsState {
 	divider = $state<number>(DEFAULTS.divider);
+	outline = $state<number>(DEFAULTS.outline);
 	panel = $state<boolean>(DEFAULTS.panel);
 	ids = $state<boolean>(DEFAULTS.ids);
 	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
@@ -116,12 +120,13 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
 		const p = coerce({ ...read(), ...(override ?? {}) });
 		this.divider = p.divider;
+		this.outline = p.outline;
 		this.panel = p.panel;
 		this.ids = p.ids;
 		this.zoom = { ...p.zoom };

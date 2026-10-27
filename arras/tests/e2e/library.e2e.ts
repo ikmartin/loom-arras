@@ -145,6 +145,7 @@ test.describe('the ledger', () => {
 		await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
 		await expect(page.getByTestId('used-Kre99')).not.toHaveText('—');
 		await page.goto('/problems');
+		await page.getByTestId('problems-expand').click();
 		await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 	});
 
