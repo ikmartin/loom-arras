@@ -20,4 +20,4 @@ Allowing overlapping scopes needs a meaning for comparing two alternatives of on
 
 ## Related
 
-[Plan 0.17](../plans/0.17-ai-drafting-and-compare.md), [section drafts and responsive adoption](../plans/section-drafts-and-responsive-adoption.md).
+[DR-323-luisa](../design/decision-records-frozen.md), [plan 0.17](../plans/0.17-ai-drafting-and-compare.md), [section drafts and responsive adoption](../plans/section-drafts-and-responsive-adoption.md).

@@ -476,7 +476,7 @@ Unresolved review rows may have `cause: "adopted"`, `source_label` and `contribu
 
 Incoming may carry `affected: string[]`, the mathematical keys whose context changes across the fetched revision, including display or preamble edits outside mathematical blocks. This prospective list supplies post-incorporation provenance without making prose rows acceptance keys. Incoming changes may carry `category: "prose"`, a readable `name`, and `current`/`proposed` source fallbacks. These are inspection rows, not acceptance keys. AI `choices` may include `kept: string[]` to distinguish an explicit Keep current from no selection. `document_comparison` optionally carries `local`, `incoming`, `incoming_macros`, `current` and `proposed` for the single prose/document group; `document_diff` remains the exact source-level disclosure.
 
-## Scoped and closed AI drafts
+## Scoped and closed AI drafts (DR-323-luisa)
 
 An AI master may carry `scope: {kind: "section", key, title, level, keys}`, `scope_keys` (canonical labels in its baseline and current source subtree), `context_when`, `context_changed`, `context_document` and `macros`. The source `copy_of` remains the whole paper. Compare filters that source to the scope and the draft's own pairs. A `context_only` master is a saved paper view, outside the active-document inventory. Scoped node fragments may name `draft_macros`; external reference links carry `data-context-document` and `data-context-anchor` and open the saved context instead of current definitions.
 

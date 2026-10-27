@@ -106,7 +106,7 @@ The `adopt-decision` body optionally accepts `kept: string[]` beside `keys` and 
 
 `sync-incorporate` and `adopt-finish` optionally take `review_token` and `accept: string[]` with the effective `reviewer`. Omitting accept accepts nothing. Tokens bind the exact source, proposed patch and reviewer; foreign keys, repeated keys, changed source and stale selections are refused before application. After incorporation the selected blocks' fingerprints are checked again, applicable masters must compile and stale mathematical support must be included in the acceptance batch. The result adds `accepted` and `pending` lists. All unselected preview items remain explicitly pending. If incorporation succeeded but acceptance validation failed, the success result includes `acceptance_error` and pending mathematics; the UI reports both outcomes without suggesting that source application failed. The final server rebuild publishes the resulting review states. Prose has no acceptance action.
 
-## Section drafts and responsive choices
+## Section drafts and responsive choices (DR-323-luisa)
 
 `adopt-decision` is a metadata-only publication. The body carries the displayed contribution fingerprint and saved choice revision (initially zero); a stale revision returns 409 rather than overwriting another tab. Its returned result has `keys`, `kept`, `document`, `preamble`, `revision` and `fingerprint`. Every successful selection increments the revision; the manifest publishes the same authoritative row without rendering or compiling. The viewer applies that row immediately and ignores older rows for the same reviewer and fingerprint. A manifest poll containing only changed adoption choices preserves the loaded rendering.
 
