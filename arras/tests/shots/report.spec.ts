@@ -1,4 +1,4 @@
-// Screenshots for the workspace's feature reports (docs/reports/), as distinct from the book's reference figures in shots.spec.ts. Run with `npm run shots:report`; the images land in docs/reports/images/, or in `ARRAS_SHOTS_OUT` when it is set.
+// Screenshots for the workspace's feature reports (docs/reports/), as distinct from the reference figures in shots.spec.ts. Run with `npm run shots:report`; the images land in docs/reports/images/, or in `ARRAS_SHOTS_OUT` when it is set.
 import { expect, test, type Page } from '@playwright/test';
 import { outDir, settle, still } from './settle';
 import { viewMenu } from '../workspace';

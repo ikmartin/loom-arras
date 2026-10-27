@@ -6,7 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		<script>
-			// The stored preferences are applied before the first paint: the app renders client-side, so without this the page flashes the default theme and width (book 15.7).
+			// The stored preferences are applied before the first paint: the app renders client-side, so without this the page flashes the default theme and width.
 			try {
 				var p = JSON.parse(localStorage.getItem('arras.prefs') || '{}');
 				var e = document.documentElement;

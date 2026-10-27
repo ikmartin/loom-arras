@@ -12,7 +12,7 @@ The implemented chain covers `\section` through `\subparagraph`, which is every 
 
 ## Rough design
 
-Extend the shift chain in `loom.sty` to `\part`, and to the sectioning commands memoir and KOMA-Script add or rename. The rule the book already states holds: implement the chain, extend when a fixture needs it.
+Extend the shift chain in `loom.sty` to `\part`, and to the sectioning commands memoir and KOMA-Script add or rename. The rule stands: implement the chain, and extend it when a fixture needs it.
 
 ## Blast radius
 

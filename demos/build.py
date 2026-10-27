@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Rebuild every example quilt under demos/ (book 13.4).
+"""Rebuild every example quilt under demos/.
 
-The two committed quilts come from loom's generator, so they are what `loom init --demo` writes and what the
-conformance fixture is made from; the quilts built from real papers are rebuilt by running the commands an author
-would run, in an environment that can read nothing but the fixture directory, TeX Live and poppler, so that a macro
-defined elsewhere on this machine can never make one of them work.
+The two committed quilts come from loom's generator, so they are what `loom init --demo` writes and what the conformance fixture is made from; the quilts built from real papers are rebuilt by running the commands an author would run, in an environment that can read nothing but the fixture directory, TeX Live and poppler, so that a macro defined elsewhere on this machine can never make one of them work.
 
     python demos/build.py [--skip-papers] [--papers NAME ...]
 """

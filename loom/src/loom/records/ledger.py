@@ -1,6 +1,6 @@
 """The ledger `.loom/state.toml`: acceptance rows, appended only, written only by `loom accept`.
 
-The writer emits the book's exact `[[accept]]` block so git merges of concurrent appends to different keys are clean; the reader uses tomllib. Nothing here edits or removes a row.
+The writer emits every `[[accept]]` block in one fixed shape so git merges of concurrent appends to different keys are clean; the reader uses tomllib. Nothing here edits or removes a row.
 """
 
 from __future__ import annotations

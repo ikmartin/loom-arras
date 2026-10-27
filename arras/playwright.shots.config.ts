@@ -1,4 +1,4 @@
-// The screenshot run of book 15.9: the same fixture as the end-to-end suite, one worker, a fixed viewport, no retries.
+// The screenshot run: the same fixture as the end-to-end suite, one worker, a fixed viewport, no retries.
 import { defineConfig } from '@playwright/test';
 import { results, site } from './tests/sites';
 
