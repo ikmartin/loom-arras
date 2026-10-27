@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { incomingNotice } from '$lib/review/notice.svelte';
+	import { route } from '$lib/paths';
 	import IncomingMathQueue from '$lib/review/IncomingMathQueue.svelte';
 	import type { IncorporationMathReview, IncorporationOutcome, AdoptionReview } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
@@ -62,7 +63,7 @@
 	<p>Outstanding changes in this draft, including earlier edits. Changes left out remain available for a later incorporation.</p>
 	{#each contribution.issues as issue}<p role="alert">{issue}</p>{/each}
 	{#if error}<p role="alert">{error}</p>{/if}
-	{#if message}<p role="status">{message} <a href="?show=needs-review">Needs review</a></p>{/if}
+	{#if message}<p role="status">{message} <a href={route('/review')}>Needs review</a></p>{/if}
 	{#if writable && !reviewer}<p>Choose your reviewer name in Settings to select and incorporate changes.</p>{/if}
 	{#if !preview}
 	{#if writable && reviewer && !contribution.issues.length}

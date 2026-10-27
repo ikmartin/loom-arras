@@ -14,6 +14,8 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
+	import { page } from '$app/state';
+	import { sectionOf, sectionsOf } from '$lib/review/sections';
 
 	let { label, primary, docsHref, indexes, masters, canon, currentDoc, onDocument, contents, currentSection, counts, children, rail, panel, panelLabel }: ShellProps = $props();
 
@@ -57,12 +59,15 @@
 	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which is what the author types and what the read view's URL names them by.
 	const filename = (path: string) => path.split('/').pop() || path;
 	const outline = $derived(onDocument && contents.length > 0);
+	// Review's sections, each with what waits for the author there
+	const sections = $derived(store.manifest ? sectionsOf(store.manifest) : []);
+	const here = $derived(sectionOf(page.route.id));
 
 	let libraryOpen = $state(true);
 
 	// The line between the documents and the outline: where it stands is a preference, drawn at most once a frame while it is dragged and stored at the drop, as the pane divider is.
 	const STEP = 0.03;
-	let sections = $state<HTMLElement | null>(null);
+	let sectionsBox = $state<HTMLElement | null>(null);
 	let live = $state<number | null>(null);
 	let box: DOMRect | null = null;
 	let next: number | null = null;
@@ -70,10 +75,10 @@
 	const clamp = (v: number) => Math.min(0.85, Math.max(0.15, v));
 	const share = $derived(live ?? prefs.outline);
 	function grab(e: PointerEvent): void {
-		if (!sections) return;
+		if (!sectionsBox) return;
 		// the press's default would start a text selection, or a native drag of a link the line passes, which takes the pointer away mid-drag
 		e.preventDefault();
-		box = sections.getBoundingClientRect();
+		box = sectionsBox.getBoundingClientRect();
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 		drag(e);
 	}
@@ -105,7 +110,7 @@
 
 {#snippet chip(iconOnly: boolean)}
 	<a
-		href={route('/problems')}
+		href={route('/review/problems')}
 		class="problems"
 		class:errors={counts.errors > 0}
 		class:warnings={!counts.errors && counts.warnings > 0}
@@ -146,7 +151,19 @@
 			</nav>
 			<!-- Whose review a read-only view shows is said once, under the quilt it belongs to, and never above the document. -->
 			{#if readOnly && reviewPerspective}<p class="review-perspective">{reviewPerspective}</p>{/if}
-			<div class="sections" bind:this={sections}>
+			<div class="sections" bind:this={sectionsBox}>
+				{#if primary === 'review'}
+					<!-- the quilt's management, one section at a time, each saying what waits there -->
+					<ul class="plain review-sections" data-testid="review-sections">
+						{#each sections as x (x.id)}
+							<li>
+								<a href={x.href} class:here={here === x.id} aria-current={here === x.id ? 'page' : undefined} title={x.says} data-testid="section-{x.id}"
+									><span>{x.label}</span>{#if x.waits}<span class="waits" data-testid="section-count-{x.id}">{x.waits}</span>{/if}</a
+								>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 				{#if panel}
 					<p class="rail-label">{panelLabel}</p>
 					<div class="page-panel rail-scroll">{@render panel()}</div>
@@ -202,7 +219,7 @@
 								{:else}
 									<li class="aside">nothing matches</li>
 								{/each}
-								<li><a href={route('/library')} data-testid="ledger-link">ledger</a></li>
+								<li><a href={route('/review/library')} data-testid="ledger-link">ledger</a></li>
 							</ul>
 						{/if}
 					{/if}
@@ -473,6 +490,26 @@
 	}
 	.outline-part :global(.contents) {
 		margin: 0 0 var(--gap-tight) 6px;
+	}
+	.review-sections a {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		font-size: 12px;
+		padding: 3px 6px;
+	}
+	.review-sections a.here {
+		color: var(--ink);
+		font-weight: 600;
+	}
+	.waits {
+		font-size: 10.5px;
+		font-variant-numeric: tabular-nums;
+		color: var(--ink-soft);
+		background: var(--sheet);
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-pill);
+		padding: 0 6px;
 	}
 	.outline-divider {
 		flex: none;

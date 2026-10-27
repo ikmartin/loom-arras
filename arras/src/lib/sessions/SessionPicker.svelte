@@ -6,10 +6,10 @@
 	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the workspace.
 	import { store } from '$lib/manifest/client.svelte';
 	import { findSessions, sessionView, summary, titleOf, type View } from './sessions.svelte';
+	import { closeSession, renameSession, reopenSession } from './actions';
 	import { touched, when } from './when';
 	import { openSession } from './new';
 	import { openChat } from '$lib/workspace/links';
-	import { write } from '$lib/write';
 	import type { SessionRow } from '$lib/manifest/types';
 
 	let { onpicked, ondelete }: { onpicked: () => void; ondelete: (s: SessionRow) => void } = $props();
@@ -52,21 +52,18 @@
 		onpicked();
 	}
 
-	async function act(id: string, endpoint: string, body: Record<string, unknown> = {}): Promise<boolean> {
+	async function act(id: string, verb: () => Promise<boolean>): Promise<boolean> {
 		busy = id;
-		const res = await write(endpoint, { session: id, ...body });
+		const ok = await verb();
 		busy = '';
-		store.refresh();
-		return res.ok;
+		return ok;
 	}
 
 	async function rename(s: SessionRow): Promise<void> {
 		const want = title.trim();
 		renaming = '';
 		if (!want || want === titleOf(s)) return;
-		// shown at once; the footer drops the pending name when the manifest catches up
-		sessionView.renamed[s.id] = want;
-		if (!(await act(s.id, 'session-rename', { title: want }))) delete sessionView.renamed[s.id];
+		await act(s.id, () => renameSession(s, want));
 	}
 
 	function choose(s: SessionRow): void {
@@ -75,15 +72,11 @@
 	}
 
 	async function shut(id: string): Promise<void> {
-		if (await act(id, 'session-close')) sessionView.dropped(id);
+		await act(id, () => closeSession(id));
 	}
 
-	/** Reopen and select (S8): the refusal's wording promises this path, and a reopened session nobody selected would still refuse. */
 	async function reopen(s: SessionRow): Promise<void> {
-		if (!(await act(s.id, 'session-reopen'))) return;
-		// set directly rather than through `select`: the manifest still says closed, and that would admit every closed session's annotations
-		sessionView.selected = s.id;
-		sessionView.save();
+		if (!(await act(s.id, () => reopenSession(s.id)))) return;
 		openChat(s.id, m, false);
 		onpicked();
 	}

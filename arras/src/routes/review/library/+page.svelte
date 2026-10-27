@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The Library's ledger (DR-206; plan 0.13.3, View 4): every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
+	// Review › Library: the ledger (DR-206; plan 0.13.3, View 4), and the citation suggestions that wait for the author. The ledger is every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
 	//
 	// **The list of works has one home, and it is the left column** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
 	//
@@ -13,6 +13,7 @@
 	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
 	import { ledgerRows, needsWork, type LedgerRow } from '$lib/library';
+	import { displayNode } from '$lib/nodes/display';
 
 	const m = $derived(store.manifest!);
 	const SHOWS = [
@@ -38,6 +39,8 @@
 	const count = (v: string) => rows.filter(keep(v)).length;
 	const show = (v: string) => void setQuery(page.url, 'show', v, 'all');
 	const n = (x: number) => x || '—';
+	// a citation suggestion is an agent's annotation proposing a work for a place in the text; it is decided where it stands, which its link opens
+	const citations = $derived(Object.values(m.annotations ?? {}).filter((a) => a.kind === 'citation' && !a.in_reply_to && !a.discarded && a.status === 'open'));
 </script>
 
 <main class="page">
@@ -89,6 +92,16 @@
 	</table>
 	{#if !shown.length}
 		<p class="muted">Nothing here. {#if filter !== 'all'}<button class="as-link" onclick={() => show('all')}>Show every work</button>{/if}</p>
+	{/if}
+	{#if citations.length}
+		<section class="citations" data-testid="citation-suggestions">
+			<h2>Citation suggestions <span class="n">{citations.length}</span></h2>
+			<ul>
+				{#each citations as a (a.id)}
+					<li><a href={`quilt:${a.id}`}>{displayNode(m, a.target.key).name}</a>{#if a.payload} <span class="muted">· {a.payload.slice(0, 80)}</span>{/if}</li>
+				{/each}
+			</ul>
+		</section>
 	{/if}
 </main>
 
@@ -175,5 +188,11 @@
 	.dot.filed {
 		background: var(--state-accepted);
 		box-shadow: none;
+	}
+	.citations {
+		margin-top: var(--gap-wide);
+	}
+	.citations h2 {
+		font-size: 1rem;
 	}
 </style>

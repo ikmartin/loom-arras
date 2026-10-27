@@ -20,14 +20,17 @@ function linkInComment(m: typeof manifest, href: string): void {
 
 test.describe('the ledger', () => {
 	test('the library list has one home, and the ledger lists the cited works', async ({ page }) => {
-		await page.goto('/library');
+		await page.goto('/review/library');
 		await expect(page.getByTestId('library-works')).toBeVisible();
 		await expect(page.getByTestId('library-works')).toContainText('Kre99');
 		// the route is a ledger, a table of what each work needs, and never a second list of works to navigate by
 		await expect(page.locator('main ul a[href*="/library/"]')).toHaveCount(0);
-		// the list is the panel's, and it stands beside the ledger rather than being displaced by it
+		// the ledger is Review's, its section current in the column; the list of works is the Docs column's
+		await expect(page.getByTestId('section-library')).toHaveAttribute('aria-current', 'page');
+		await page.goto('/master/main');
 		await expect(page.getByTestId('library-list')).toBeVisible();
 		await expect(page.getByTestId('library-list').locator('a[href^="/library/"]').first()).toBeVisible();
+		await expect(page.getByTestId('ledger-link')).toHaveAttribute('href', '/review/library');
 	});
 
 	test('the ledger says what needs work', async ({ page }) => {
@@ -35,7 +38,7 @@ test.describe('the ledger', () => {
 			m.references.Kre99.results = { 'Kre99-x': { state: 'proposed' } };
 			m.references.Man12.reading = { total: 2, open: 1 };
 		});
-		await page.goto('/library');
+		await page.goto('/review/library');
 		const filters = page.getByRole('group', { name: 'which works' }).getByRole('button');
 		await expect(filters).toHaveText([/^all/, /^needs work/, /^proposed/, /^verified/, /^extracted/]);
 		await page.getByTestId('show-needs-work').click();
@@ -52,7 +55,7 @@ test.describe('the ledger', () => {
 		await serve(page, (m) => {
 			m.references.Kre99.results = { 'Kre99-thm-9.9': { state: 'proposed', level: 1, class: 'anchored', page: 1, artifact: 'x', origin: [] } };
 		});
-		await page.goto('/library');
+		await page.goto('/review/library');
 		await page.getByTestId('show-proposed').click();
 		await expect(page).toHaveURL(/show=proposed/);
 		await expect(page.getByTestId('pending-Kre99')).toHaveText('1');
@@ -68,7 +71,7 @@ test.describe('the ledger', () => {
 			};
 			m.references.Man12.results = { 'Man12-y': { ...base, state: 'extracted' } };
 		});
-		await page.goto('/library');
+		await page.goto('/review/library');
 		const head = page.getByTestId('library-works').locator('thead th');
 		await expect(head).toContainText(['verified', 'proposed']);
 		await expect(head.filter({ hasText: 'unvouched' })).toHaveCount(0);
@@ -96,7 +99,7 @@ test.describe('the ledger', () => {
 			};
 			m.references.Kre99.versions = [{ citekey: 'Kre99A', work: 'arXiv:math/9810166v1', artifacts: { dir: 'x', pdf: false, source: false } }];
 		});
-		await page.goto('/library');
+		await page.goto('/review/library');
 		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(Object.keys(manifest.references).length);
 		await expect(page.getByTestId('ledger-Kre99A')).toHaveCount(0);
 		await expect(page.getByTestId('versions-Kre99')).toContainText('Kre99A');
@@ -120,7 +123,7 @@ test.describe('the ledger', () => {
 			const one = m.references.Kre99;
 			for (let i = 0; i < 40; i++) m.references[`Extra${i}`] = { ...structuredClone(one), citekey: `Extra${i}` };
 		});
-		await page.goto('/library');
+		await page.goto('/master/main');
 		const list = page.getByTestId('library-list');
 		await expect(list.locator('a[href^="/library/"]')).toHaveCount(Object.keys(manifest.references).length + 40);
 		await expect(list).not.toContainText('more');
@@ -140,17 +143,17 @@ test.describe('the ledger', () => {
 		await digestTab(page);
 		const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
 		await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
-		await page.goto('/library');
+		await page.goto('/review/library');
 		// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Digest view
 		await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
 		await expect(page.getByTestId('used-Kre99')).not.toHaveText('—');
-		await page.goto('/problems');
+		await page.goto('/review/problems');
 		await page.getByTestId('problems-expand').click();
 		await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 	});
 
 	test('the ledger links each work out by its identifier', async ({ page }) => {
-		await page.goto('/library');
+		await page.goto('/review/library');
 		const links = page.getByTestId('work-links-Man12').locator('a');
 		await expect(links).toHaveCount(1);
 		await expect(links.first()).toHaveAttribute('href', 'https://arxiv.org/abs/0805.2065v2');
@@ -164,7 +167,7 @@ test.describe('the ledger', () => {
 		await serve(page, (m) => {
 			m.references.Har77.candidates = [{ id: 'doi:10.1007/978-1-4757-3849-0', source: 'zbMATH Open, Crossref', confidence: 1, strength: 'strong', title: 'Algebraic geometry' }];
 		});
-		await page.goto('/library');
+		await page.goto('/review/library');
 		const c = page.getByTestId('candidate-Har77');
 		await expect(c).toHaveText('doi?');
 		await expect(c).toHaveAttribute('href', 'https://doi.org/10.1007/978-1-4757-3849-0');

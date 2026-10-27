@@ -28,7 +28,7 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 });
 
 test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
-	for (const [path, on] of [['/review', 'review'], ['/problems', 'review'], ['/graph', 'docs'], ['/library', 'docs'], ['/master/main', 'docs']] as const) {
+	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/review/library', 'review'], ['/review/sessions', 'review'], ['/review/history', 'review'], ['/master/main', 'docs']] as const) {
 		await page.goto(path);
 		await expect(page.getByTestId(`primary-${on}`), path).toHaveAttribute('aria-current', 'page');
 	}
@@ -120,7 +120,7 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 });
 
 test('no route reaches an unknown key from review or the problems page', async ({ page }) => {
-	for (const start of ['/review', '/problems']) {
+	for (const start of ['/review', '/review/problems']) {
 		await page.goto(start);
 		await expect(page.locator('main a[href^="/node/"]').first()).toBeAttached();
 		const hrefs = await page.locator('main a[href^="/node/"]').evaluateAll((els) => [...new Set(els.map((e) => (e as HTMLAnchorElement).getAttribute('href')!))]);

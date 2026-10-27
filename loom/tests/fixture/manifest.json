@@ -356,7 +356,8 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "34f34204a593b1b588cea143dd192ca51f5589ce5e4d766f91ec8245102a14d7",
+   "hash": "c0df18ef5598b0d87e4aa496112ca584c5ddf1540186f35efa3839cb2817f5c8",
+   "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
    "name": "widgets-v1",
@@ -368,7 +369,8 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "41df230d7af84508d9247c46297ff2a79dc6d21911e99ded88b5bc53fd0a1820",
+   "hash": "08ab6374d30707e64c451ffd4c6cf4436b803795e95b4540e038cd17516b1a46",
+   "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
    "name": "widgets-v2",
@@ -380,7 +382,8 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "e3148069486a214acac6a6591e0fb30a8db0bba6ed02991b980052e3f304f145",
+   "hash": "390610ec9027306fc17c864420bf7e48b9b74678068a6a2459a418b79a364531",
+   "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
    "name": "widgets-v3",
@@ -1798,6 +1801,68 @@
   }
  ],
  "generated": "2026-09-16T00:00:00Z",
+ "history": {
+  "steps": [
+   {
+    "action": "stamp",
+    "actor": "The synthetic quilt",
+    "document": "drafting/main.tex",
+    "in": "drafting/main.tex",
+    "landmark": ".loom/history/0001-widgets-v1/widgets-v1.tex",
+    "message": "widgets-v1",
+    "name": "widgets-v1",
+    "step": 1,
+    "when": "2026-09-13T09:00:00Z"
+   },
+   {
+    "action": "stamp",
+    "actor": "The synthetic quilt",
+    "message": "Referee points",
+    "name": "stamp-referee-points",
+    "step": 2,
+    "when": "2026-09-15T11:00:00Z"
+   },
+   {
+    "action": "stamp",
+    "actor": "The synthetic quilt",
+    "document": "drafting/main.tex",
+    "in": "drafting/main.tex",
+    "landmark": ".loom/history/0003-widgets-v2/widgets-v2.tex",
+    "message": "widgets-v2",
+    "name": "widgets-v2",
+    "step": 3,
+    "when": "2026-09-15T13:00:00Z"
+   },
+   {
+    "action": "stamp",
+    "actor": "The synthetic quilt",
+    "message": "Talk prepared",
+    "name": "stamp-talk-prepared",
+    "step": 4,
+    "when": "2026-09-15T15:00:00Z"
+   },
+   {
+    "action": "stamp",
+    "actor": "The synthetic quilt",
+    "document": "drafting/main.tex",
+    "in": "drafting/main.tex",
+    "landmark": ".loom/history/0005-widgets-v3/widgets-v3.tex",
+    "message": "widgets-v3",
+    "name": "widgets-v3",
+    "step": 5,
+    "when": "2026-09-15T16:00:00Z"
+   },
+   {
+    "action": "copy",
+    "actor": "The synthetic quilt",
+    "document": "drafting-ai/aidoc.tex",
+    "in": "drafting-ai/aidoc.tex",
+    "name": "copy-aidoc",
+    "step": 6,
+    "when": "2026-09-16T10:00:00Z"
+   }
+  ]
+ },
  "inclusion": {
   "drafting-ai/aidoc.tex": {
    "children": [

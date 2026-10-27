@@ -270,7 +270,7 @@ test('a review decision needs no session', async ({ page }) => {
 		decided = route.request().postDataJSON().key;
 		await route.fulfill({ json: { ok: true, result: '' } });
 	});
-	await page.goto('/review?show=needs-review');
+	await page.goto('/review');
 	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations cannot be written/);
 	const ok = page.getByRole('button', { name: 'Mark OK', exact: true });
 	await expect(ok).toBeEnabled();
@@ -358,7 +358,7 @@ test.describe('sections', () => {
 			await expect(page.getByTestId('docs-drafts')).toBeVisible();
 		}
 		// the Library fills the panel with its own filters, which is the other half of the same rule
-		await page.goto('/library');
+		await page.goto('/review/library');
 		await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
 		await expect(page.getByTestId('show-proposed')).toBeVisible();
 	});

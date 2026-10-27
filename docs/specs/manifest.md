@@ -17,6 +17,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "corpus": {"name": "Relative localization", "root_label": "Relative virtual localization"},
   "masters": [ ... ],
   "canon": [ ... ],
+  "history": { "steps": [ ... ] },
   "nodes": { "rl-0004": { ... }, "drafting/main.tex#section:3": { ... } },
   "keys": { "rl-0004": { ... }, "rl-0004/proof": { ... } },
   "regions": { "rl-0004#eq:main": { ... } },
@@ -63,7 +64,9 @@ The values are properties of the publisher and its corpora, not of this corpus's
 ]
 ```
 
-`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `in` is the live document the landmark's step was about (the draft a stamp kept, the working document an import drafted), where the history's moves have taken it; it is absent when no live document leads to the landmark. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+
+`history` lists the history's steps, oldest first: `{steps: [{step, action, name, when, actor?, message?, document?, in?, landmark?}]}`. `action` is `import`, `stamp`, `copy` or `adopt`; `document` is the document the step concerns as the ledger names it, and `in` that document where it is now, absent when it is no longer live; `landmark` is the path of the landmark the step kept, matching a `canon` entry's `path`. A step of the whole quilt (a `loom stamp` with no document) has no `document`.
 
 ## 2a. Masters
 

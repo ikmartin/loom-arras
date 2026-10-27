@@ -52,6 +52,24 @@ export interface CanonDoc {
 	when?: string;
 	/** The macro set to typeset it with: a landmark renders with its own preamble's macros, whatever the drafting documents have since become. */
 	macros?: string;
+	/** The live document its step was about, where the history's moves have taken it; absent when no live document leads to it. */
+	in?: string;
+}
+
+/** One step of the history: an import, a stamp, an agent document's copy or an adoption. */
+export interface HistoryStep {
+	step: number;
+	action: string;
+	name: string;
+	when: string;
+	actor?: string;
+	message?: string;
+	/** The document the step concerns, as the ledger names it; absent for a stamp of the whole quilt. */
+	document?: string;
+	/** That document where it is now, when it is still live. */
+	in?: string;
+	/** The landmark the step kept, a `canon` entry's path. */
+	landmark?: string;
 }
 
 export interface Master {
@@ -552,6 +570,7 @@ export interface Manifest {
   incoming?: IncomingReview;
   contributions?: (AdoptionReview | StartContribution | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
+  history?: { steps: HistoryStep[] };
   review_covered?: {key: string; via: string[]}[];
   regions: Record<string, Region>;
   relations?: Relation[];

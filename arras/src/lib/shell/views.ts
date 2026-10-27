@@ -12,9 +12,9 @@ export interface Index {
 /** Docs is reading and writing; Review is the quilt's management. The column's two tabs choose one. */
 export type Primary = 'docs' | 'review';
 
-/** Which primary view a page is under, by its route id: Review holds `/review` and `/problems`, and every other page is read under Docs. */
+/** Which primary view a page is under, by its route id: Review holds `/review` and its sections, and every other page is read under Docs. */
 export function primaryOf(routeId: string | null): Primary {
-	return routeId === '/review' || routeId === '/problems' ? 'review' : 'docs';
+	return routeId === '/review' || (routeId ?? '').startsWith('/review/') ? 'review' : 'docs';
 }
 
 /**

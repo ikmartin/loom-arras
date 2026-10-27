@@ -20,7 +20,7 @@ test('the reference figures', async ({ page }) => {
 	await shot(page, 'page-read-master', '/master/main');
 	await shot(page, 'page-node', '/node/sy-0003');
 	await shot(page, 'page-review', '/review');
-	await shot(page, 'page-problems', '/problems');
+	await shot(page, 'page-problems', '/review/problems');
 
 	await page.goto('/graph');
 	await settle(page);

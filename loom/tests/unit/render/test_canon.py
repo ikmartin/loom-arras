@@ -128,3 +128,29 @@ def test_a_key_whose_text_a_landmark_recorded_carries_its_version(tmp_path: Path
     m2 = manifest(q)
     assert m2["keys"]["pp-0002"]["version"] == {"step": "0002", "name": "main-v1"}  # the statement did not move
     assert "version" not in m2["keys"]["pp-0002/proof"]  # the proof did
+
+
+def test_the_history_publishes_every_step_and_each_landmark_its_live_draft(tmp_path: Path) -> None:
+    """Review's History lists the steps from `history.steps`, and flags a landmark whose `in` is absent: no live draft leads to it."""
+    import shutil
+
+    from tests.unit._quilts import REPO
+
+    q = tmp_path / "synthetic"
+    shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q, ignore=shutil.ignore_patterns("build"))
+    build(load_quilt(q))  # the synthetic quilt carries errors on purpose, so `loom build` exits 1
+    m = manifest(q)
+    steps = m["history"]["steps"]
+    assert [s["step"] for s in steps] == sorted(s["step"] for s in steps)
+    stamped = next(s for s in steps if s["name"] == "widgets-v3")
+    assert stamped["action"] == "stamp" and stamped["in"] == "drafting/main.tex"
+    assert stamped["landmark"] == ".loom/history/0005-widgets-v3/widgets-v3.tex"
+    whole = next(s for s in steps if s["name"] == "stamp-referee-points")
+    assert "document" not in whole and "landmark" not in whole  # a stamp of the whole quilt concerns no one document
+    assert {c["path"]: c.get("in") for c in m["canon"]}[
+        ".loom/history/0005-widgets-v3/widgets-v3.tex"
+    ] == "drafting/main.tex"
+    # the draft gone: its landmarks lead to no live draft
+    (q / "drafting" / "main.tex").unlink()
+    build(load_quilt(q))
+    assert all("in" not in c for c in manifest(q)["canon"])

@@ -34,7 +34,7 @@ for (const width of [736, 1100, 1440]) {
   // preview, incorporate, a close that builds the quilt first and a reopen: past the default 30 s on a CI runner
   test.setTimeout(90000);
   await page.setViewportSize({width, height:1000});
-  await page.goto('/review?show=incoming');
+  await page.goto('/review/incoming');
   await expect(page.getByLabel('Contribution')).toContainText('first-scope');
   await page.getByLabel('Contribution').selectOption('drafting-ai/first-scope.tex');
   const row = page.getByTestId('adoption-sy-0A01');

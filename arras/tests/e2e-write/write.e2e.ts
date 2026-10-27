@@ -390,6 +390,24 @@ test('deleting a session from the picker tombstones it in the index, and its ann
 	await expect(page.getByTestId(`session-${id}`)).toHaveCount(0);
 });
 
+test('Review\'s Sessions closes, reopens and deletes a session through the same verbs as the picker', async ({ page, served }) => {
+	await page.goto('/node/sy-0003');
+	const id = await intoASession(page, served);
+	await page.goto('/review/sessions');
+	const row = page.getByTestId(`session-row-${id}`);
+	await expect(row).toContainText('open');
+	await page.getByTestId(`sessions-close-${id}`).click();
+	await expect(row).toContainText('closed');
+	expect(served.openSessions()).not.toContain(id);
+	await page.getByTestId(`sessions-reopen-${id}`).click();
+	await expect(row).toContainText('open');
+	await expect.poll(() => served.openSessions()).toContain(id);
+	await page.getByTestId(`sessions-delete-${id}`).click();
+	await page.getByTestId('delete-session').getByTestId('delete-confirm').click();
+	await expect.poll(() => sessionIndex(served).filter((e) => e.event === 'deleted' && e.id === id).length).toBe(1);
+	await expect(row).toHaveCount(0);
+});
+
 /**
  * Stage a proposed result of Kre99 into the copy: hand-written page text for the work (no PDF behind it) and a `loom library propose` quoting it.
  *
@@ -486,7 +504,7 @@ function decisions(served: Served): Record<string, { status: string }> {
 
 /** Open a key of the Needs review queue and mark it OK, as the guided review does. */
 async function markOk(page: import('@playwright/test').Page, key: string): Promise<void> {
-	await page.goto('/review?show=needs-review');
+	await page.goto('/review');
 	const name = key === 'sy-0001' ? 'Widget' : 'Orbits';
 	await page.getByRole('button', { name, exact: true }).click();
 	const guided = page.getByTestId('guided-review');
@@ -553,7 +571,7 @@ test('AI contributions preview selected changes before incorporation and leave m
 	served.loom(['draft', document, '--ai', 'adoption-proposal']);
 	const copy = join(served.root, 'drafting-ai/adoption-proposal.tex');
 	writeFileSync(copy, readFileSync(copy, 'utf8').replace('Original statement.', 'Proposed statement.'));
-	await page.goto('/review?show=incoming');
+	await page.goto('/review/incoming');
 	await expect(page.getByLabel('Contribution')).toContainText('adoption-proposal');
 	await page.getByLabel('Contribution').selectOption('drafting-ai/adoption-proposal.tex');
 	const row = page.getByTestId('adoption-sy-0900');
@@ -567,6 +585,6 @@ test('AI contributions preview selected changes before incorporation and leave m
 	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
 	// no git: the quilt is not a repository, and what the document was is kept as a landmark instead
 	await expect(page.locator('main')).toContainText('The document as it was is kept as adoption-test-before-adopt-adoption-proposal.');
-	await page.goto('/review?show=needs-review');
+	await page.goto('/review');
 	await expect(page.locator('main')).toContainText('sy-0900');
 });

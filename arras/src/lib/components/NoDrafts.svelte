@@ -28,7 +28,7 @@
 			>{#if landmarks.length > 1}, and {landmarks.length - 1} older{/if}.
 		{/if}
 		{#if problems && !never}
-			<a href={route('/problems')}>Problems</a> says what the publisher reported.
+			<a href={route('/review/problems')}>Problems</a> says what the publisher reported.
 		{/if}
 	</p>
 </div>

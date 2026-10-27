@@ -6,15 +6,18 @@ const routes: [string, string][] = [
 	['/node/sy-0003', 'Parity'],
 	['/node/sy-0200', 'Results'],
 	['/master/main', 'Widgets, gadgets'],
-	['/review', 'Review'],
-	['/problems', 'Problems'],
+	['/review', 'Needs review'],
+	['/review/incoming', 'Incoming'],
+	['/review/sessions', 'Sessions'],
+	['/review/history', 'History'],
+	['/review/problems', 'Problems'],
 	['/graph', 'Graph'],
 	['/threads', 'Threads'],
 	['/tags', 'Tags'],
 	['/tag/orbits', '#orbits'],
 	['/taxa', 'Taxa'],
 	['/taxon/lemma', 'Lemma'],
-	['/library', 'Library'],
+	['/review/library', 'Library'],
 	['/loose', 'Not in any document']
 ];
 
@@ -36,7 +39,7 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ ids: true })));
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('.fragment .node-margin', { hasText: 'mysterious' }).first()).toBeVisible();
-	await page.goto('/problems');
+	await page.goto('/review/problems');
 	await expect(page.locator('main h2 code', { hasText: 'other:code' })).toBeVisible();
 });
 

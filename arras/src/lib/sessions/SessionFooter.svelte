@@ -7,7 +7,7 @@
 	import SessionPicker from './SessionPicker.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { selected, sessionView, summary, titleOf, writable } from './sessions.svelte';
-	import { write } from '$lib/write';
+	import { deleteSession } from './actions';
 	import type { SessionRow } from '$lib/manifest/types';
 
 	let { compact = false }: { compact?: boolean } = $props();
@@ -26,9 +26,7 @@
 
 	async function remove(s: SessionRow): Promise<void> {
 		doomed = null;
-		const res = await write('session-delete', { session: s.id });
-		store.refresh();
-		if (res.ok) sessionView.dropped(s.id);
+		await deleteSession(s.id);
 	}
 
 	// A pending rename is dropped once the manifest carries it.

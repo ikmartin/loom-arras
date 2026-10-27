@@ -3,13 +3,13 @@ import { expect, test } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
 test('the problems page lists every diagnostic code', async ({ page }) => {
-	await page.goto('/problems');
+	await page.goto('/review/problems');
 	const codes = new Set<string>(manifest.diagnostics.map((d: { code: string }) => d.code));
 	for (const code of codes) await expect(page.locator(`main h2 code`, { hasText: code }).first()).toBeVisible();
 });
 
 test('the problems page filters by severity from the URL, with its filters in the panel', async ({ page }) => {
-	await page.goto('/problems?severity=error');
+	await page.goto('/review/problems?severity=error');
 	await expect(page.getByTestId('filter-severity')).toHaveValue('error');
 	const errorCodes = new Set((manifest.diagnostics as { severity: string; code: string }[]).filter((d) => d.severity === 'error').map((d) => d.code));
 	await expect(page.getByTestId('problem-group')).toHaveCount(errorCodes.size);
@@ -28,7 +28,7 @@ test('the problems page groups by subject and copies a fix', async ({ page, cont
 			fixes: [{ label: 'record where it went', command: 'loom mv drafting/draft0.tex NEW' }]
 		});
 	});
-	await page.goto('/problems');
+	await page.goto('/review/problems');
 	const headings = page.getByTestId('subject-heading');
 	await expect(headings.first()).toHaveText('The source');
 	await expect(headings.nth(1)).toHaveText('The record');
@@ -48,7 +48,7 @@ test('the problems page groups by subject and copies a fix', async ({ page, cont
 
 test('each code is folded to its count until opened, one at a time or all at once, and the bar shows at rest', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 500 });
-	await page.goto('/problems');
+	await page.goto('/review/problems');
 	const groups = page.getByTestId('problem-group');
 	await expect(groups.first()).toBeVisible();
 	const n = await groups.count();
@@ -62,7 +62,7 @@ test('each code is folded to its count until opened, one at a time or all at onc
 	await expect(page.getByTestId('problems-expand')).toHaveText('fold all');
 	// a code the URL names stands open
 	const code = manifest.diagnostics[0].code;
-	await page.goto('/problems?code=' + encodeURIComponent(code));
+	await page.goto('/review/problems?code=' + encodeURIComponent(code));
 	await expect(page.getByTestId('problem-group').first()).toHaveAttribute('open');
 	// the page is read by moving through it, so its bar is drawn at rest
 	expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarColor)).not.toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');

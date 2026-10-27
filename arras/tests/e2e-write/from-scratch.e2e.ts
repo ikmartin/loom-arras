@@ -14,7 +14,7 @@ test.use({
 });
 
 test('Incoming starts a working document from an agent document written from scratch', async ({page, served}) => {
- await page.goto('/review?show=incoming');
+ await page.goto('/review/incoming');
  await page.getByLabel('Contribution').selectOption('drafting-ai/survey.tex');
  const form = page.getByTestId('start-contribution');
  const field = form.getByLabel('New working document');

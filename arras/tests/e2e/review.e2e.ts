@@ -7,9 +7,11 @@ test('Review defaults to the named reviewer’s mathematical queue', async ({pag
  await serve(page, m => {m.reviewer={name:'Luisa',source:'local'};m.unresolved=[row('sy-0001')];});
  await page.goto('/review');
  await expect(page.getByText('Reviewing as Luisa')).toBeVisible();
- const tabs=page.getByRole('navigation',{name:'Review views'});
- await expect(tabs.getByRole('link')).toHaveText(['Needs review (1)','Documents','Incoming']);
- await expect(tabs.getByRole('link',{name:'Needs review (1)'})).toHaveAttribute('aria-current','page');
+ const tabs=page.getByRole('navigation',{name:'Needs review views'});
+ await expect(tabs.getByRole('link')).toHaveText(['Queue (1)','Documents']);
+ await expect(tabs.getByRole('link',{name:'Queue (1)'})).toHaveAttribute('aria-current','page');
+ // and the column says it in the section's count
+ await expect(page.getByTestId('section-count-needs-review')).toHaveText('1');
  await expect(page.getByTestId('guided-review')).toBeVisible();
  await expect(page.locator('main table')).toHaveCount(0);
 });
@@ -57,7 +59,7 @@ test('narrow layouts collapse the queue before stacking the comparison', async (
 
 test('prose is inspected in Incoming without mathematical acceptance controls', async ({page}) => {
  await serve(page,m=>{m.contributions=[];m.incoming={workspace:'https://git.overleaf.com/0123',branch:'master',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[{status:'M',path:'drafting/main.tex',diff:'-Old prose\n+New prose'}],changes:[{key:'prose:setup',name:'Introduction',category:'prose',kind:'edited',local_changed:false,conflict:false,already_local:false,current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',kind:'edited',current:'Old definition',proposed:'New definition',local_changed:false,conflict:false,already_local:false,affected:[]}]};});
- await page.goto('/review?show=incoming');
+ await page.goto('/review/incoming');
  await expect(page.getByText('Old prose',{exact:true})).toBeVisible();
  await expect(page.getByText('New prose',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Mark OK'})).toHaveCount(0);
@@ -109,7 +111,7 @@ test('Incoming accepts only explicitly chosen mathematics while incorporating th
  await page.route('**/build/incorporation-review/example.html',route=>route.fulfill({contentType:'text/html',body:'<div class="env"><p>Inspected mathematics.</p></div>'}));
  await page.route('**/_api/sync-preview',route=>route.fulfill({json:{ok:true,result:{token:'preview',reviewer:'Luisa',items:[{key:'sy-0001',name:'Lemma',reason:'Statement changed',local:fragment,proposed:fragment,unavailable:''},{key:'sy-0001:proof',name:'Existing proof',reason:'Existing proof · statement changed in this pull',local:fragment,proposed:fragment,unavailable:''}]}}}));
  await page.route('**/_api/sync-incorporate',async route=>{submitted=route.request().postDataJSON();await route.fulfill({json:{ok:true,result:{accepted:['sy-0001'],pending:['sy-0001:proof']}}});});
- await page.goto('/review?show=incoming');
+ await page.goto('/review/incoming');
  await expect(page.getByRole('heading',{name:'Introduction',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Next change',exact:true}).click();

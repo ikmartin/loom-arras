@@ -557,6 +557,7 @@ def build_manifest(
         manifest["search"].append({"key": doc.path, "title": doc.title, "kind": "canon", "aliases": [], "tags": []})
     if history is not None:
         _versions(result, manifest, history)
+        _history(result, manifest, history)
     closure = result.closures.get(dm) if dm else None
     mathjax_macros = {
         k: v
@@ -639,6 +640,50 @@ def _conflict_key(n: NodeRec) -> dict[str, Any]:
         "previous_key_match": None,
         "conflict": list(n.conflict),
     }
+
+
+def _history(result: ScanResult, manifest: dict[str, Any], history: Any) -> None:
+    """`history.steps`, every step oldest first with the document it concerns; and each landmark's `in`, the live draft its step's document now is.
+
+    A document is followed through the history's moves, so a renamed draft still leads to its landmarks; `in` is absent where no live draft does (the draft retired, or a stamp of the whole quilt).
+    """
+    live = result.masters
+
+    def document(e: Any) -> str | None:
+        if e.action == "import":
+            d = (e.get("drafted") or {}).get("path")
+        elif e.action == "copy":
+            d = e.get("to")
+        elif e.action == "adopt":
+            d = e.get("copy")
+        else:
+            d = e.get("in")
+        return str(d) if isinstance(d, str) and d else None
+
+    steps = []
+    leads: dict[str, str] = {}
+    for e in history.steps():
+        row: dict[str, Any] = {"step": e.step, "action": e.action, "name": e.name, "when": e.when}
+        if e.actor:
+            row["actor"] = e.actor
+        if e.message:
+            row["message"] = e.message
+        doc = document(e)
+        if doc:
+            row["document"] = doc
+            now = history.current_document(doc, live)
+            if now:
+                row["in"] = now
+        if e.get("landmark"):
+            landmark = history.landmark_path(e).relative_to(result.quilt.root).as_posix()
+            row["landmark"] = landmark
+            if row.get("in"):
+                leads[landmark] = row["in"]
+        steps.append(row)
+    manifest["history"] = {"steps": steps}
+    for entry in manifest["canon"]:
+        if entry["path"] in leads:
+            entry["in"] = leads[entry["path"]]
 
 
 def _versions(result: ScanResult, manifest: dict[str, Any], history: Any) -> None:

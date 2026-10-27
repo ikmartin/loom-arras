@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture-minimal/manifest.json', 'utf8'));
 
-const FIXED = ['/', '/review', '/problems', '/graph', '/threads', '/tags', '/taxa', '/library', '/loose'];
+const FIXED = ['/', '/review', '/review/problems', '/graph', '/threads', '/tags', '/taxa', '/review/library', '/loose'];
 const NAMED = [
 	...Object.keys(manifest.nodes ?? {}).map((k) => '/node/' + encodeURIComponent(k)),
 	...Object.keys(manifest.tags ?? {}).map((t) => '/tag/' + encodeURIComponent(t)),

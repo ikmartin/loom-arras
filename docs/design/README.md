@@ -59,7 +59,7 @@ Two markers keep the text honest:
 - **Notes.** Fleeting and durable notes attached to any key, a work's page or a session, with fading computed from age and links. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.
-- **The viewer's Library and Review.** A Library view of the works, and Review as the management of everything in the quilt; the frame they stand in is built. See `model.md` and plan 0.20.
+- **The viewer's Library.** A Library view of the works; the frame it stands in, and Review as the quilt's management, are built. See `model.md` and plan 0.20.
 - **A shorter agent contract.** The orientation cut to pointers, modes as tools rather than the default framing, and no per-mode scripts. See `agents.md`.
 - **Later:** running code to test claims (not in the next weeks).
 
