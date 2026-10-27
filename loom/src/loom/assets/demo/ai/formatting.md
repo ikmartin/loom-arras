@@ -21,8 +21,8 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 
 ## Proposed text
 
-- **Propose text as a suggestion, never as a file.** `loom annotate KEY "why" --kind suggestion --payload "the new text" --placement replace` puts the proposed LaTeX in the viewer beside what it would replace, where the author reads and applies it. A file in your session's directory is not displayed.
-- **Propose a dependency the same way.** When one result uses another that its source does not declare, write a suggestion on it whose payload is the edge, `\uses{sh-0004}`, placed `after`. Loom never writes an edge into the author's source; the author applies the suggestion.
+- **Propose text as a suggestion, never as a file.** `loom annotate KEY "why" --kind suggestion --quote "the old text" --payload "the new text" --placement replace` shows the key in the viewer with the new text in place of exactly the quoted words, where the author reads and applies it. A file in your session's directory is not displayed.
+- **Propose a dependency the same way.** When one result uses another that its source does not declare, write a suggestion on it with no quote whose payload is the edge, `\uses{sh-0004}`, placed `before`: it goes at the head of the body, beside the others. Loom never writes an edge into the author's source; the author applies the suggestion.
 
 ## What renders what
 

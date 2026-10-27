@@ -38,6 +38,7 @@ KIND: dict[str, str] = {
     "search": "report",
     "serve": "running",
     "source": "raw",
+    "suggestion": "raw",
     "status": "report",
     "upgrade": "report",
 }
@@ -63,6 +64,11 @@ CASES: dict[str, list[Case]] = {
         Case(("--stale", "--force"), setup=stale, exit=2, why="confirmation, off a terminal, needs --yes"),
         Case(("--all-live", "--yes", "--force"), setup=author, exit=1, why="an incomplete proof is in scope"),
         Case(("dm-0002",), setup=author, env=FAIL_TEX, exit=1, why="its document does not compile"),
+    ],
+    "suggestion": [
+        Case(("a-2026-09-16-0002",), unchanged=True),
+        Case(("a-2026-09-16-0001",), exit=1, unchanged=True, why="a suggestion that carries no text"),
+        Case(("a-2026-09-16-9999",), exit=2, unchanged=True, why="no such annotation"),
     ],
     "annotate": [
         Case(("dm-0002", "Which orbits?", "--as", "Tester")),

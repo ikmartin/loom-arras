@@ -245,12 +245,26 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--edit` `ID` | Restate an annotation: a new body, --severity, --payload or --placement; never its anchor. |
 | `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
 | `--severity` | How bad the fault is, not how keen you are. |
-| `--payload` | Suggested text the author may preview and copy. |
-| `--placement` | Where the payload goes, as a hint. |
+| `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words. |
+| `--placement` | Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment. |
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
 | `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
+| `--applied` | With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--dry-run` | Say what would be written, and write nothing, not even a session. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom suggestion`
+
+`loom suggestion [OPTIONS] ANNOTATION`
+
+Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now; the file is the author's to change.
+
+`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it.
+
+| option | description |
+|---|---|
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

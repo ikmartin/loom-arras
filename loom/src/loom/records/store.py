@@ -795,6 +795,9 @@ class Records:
                 "payload": a.payload,
                 "placement": a.placement,
                 "discard_reason": a.discard_reason,
+                "resolved_why": a.resolved_why,
+                # a suggestion resolved as applied: the hash its key had once it was taken
+                "applied": a.applied,
                 # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
                 "run": res.record.rel,
                 "discarded": res.record.discarded,

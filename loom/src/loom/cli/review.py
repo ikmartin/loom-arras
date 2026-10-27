@@ -21,6 +21,7 @@ from loom.records.annotations import (
     KINDS,
     PLACEMENTS,
     SEVERITIES,
+    Annotation,
     find_annotation,
     full_kind,
     next_id,
@@ -400,6 +401,22 @@ def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | No
     return digest
 
 
+def _applied_hash(result: ScanResult, ann: Annotation) -> str:
+    """The hash of a suggestion's key once it reads as the suggestion taken; refused while it does not."""
+    from loom.records.suggestions import SUGGESTION, is_taken
+
+    if ann.kind != SUGGESTION or ann.payload is None:
+        raise EnvError(
+            f"{ann.id} is no suggestion carrying text, so nothing of it can be applied; resolve it without --applied"
+        )
+    if not is_taken(result, ann):
+        raise ContentError(
+            f"{ann.target_key} does not yet read as {ann.id} taken; `loom suggestion {ann.id}` prints the patch that takes it"
+        )
+    region = result.assembly.regions.get(ann.target_key)
+    return key_hash(result, region.container if region else ann.target_key)
+
+
 def _append(root: Path, event: dict[str, Any], dry_run: bool) -> None:
     """`records.log.append`, unless this is a dry run."""
     if not dry_run:
@@ -423,6 +440,7 @@ def _one_comment(
     rects: list[list[float]] | None = None,
     in_doc: str | None = None,
     *,
+    applied: bool = False,
     dry_run: bool = False,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records.
@@ -455,8 +473,10 @@ def _one_comment(
         event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
         if undo:
             event["undo"] = True
+        if applied:
+            event["applied"] = {"hash": _applied_hash(result, parent)}
         _append(root, event, dry_run)
-        return f"{'reopened' if undo else 'resolved'} {resolve}"
+        return f"{'reopened' if undo else 'resolved as applied' if applied else 'resolved'} {resolve}"
 
     if reply:
         if not (message or "").strip():
@@ -523,8 +543,15 @@ def _one_comment(
         raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
     if placement is not None and placement not in PLACEMENTS:
         raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
-    if placement and not payload:
+    if placement and payload is None:
         raise EnvError("--placement says where a payload goes; give --payload too")
+    # where a suggestion's text goes is what makes it a change loom can show in place and print as a patch
+    if kind == "suggestion" and payload is not None and placement is None:
+        raise EnvError(
+            "a suggestion's --payload needs --placement: replace (exactly the quoted words), after or before them"
+        )
+    if payload == "" and placement != "replace":
+        raise EnvError("an empty --payload deletes the quoted words, so it goes with --placement replace")
     ann_id = next_id(records, date)
     _append(
         root,
@@ -915,9 +942,16 @@ def _rects(box: str) -> list[list[float]]:
 @click.option(
     "--severity", type=click.Choice(list(SEVERITIES)), default=None, help="How bad the fault is, not how keen you are."
 )
-@click.option("--payload", default=None, help="Suggested text the author may preview and copy.")
 @click.option(
-    "--placement", type=click.Choice(list(PLACEMENTS)), default=None, help="Where the payload goes, as a hint."
+    "--payload",
+    default=None,
+    help="A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words.",
+)
+@click.option(
+    "--placement",
+    type=click.Choice(list(PLACEMENTS)),
+    default=None,
+    help="Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment.",
 )
 @click.option(
     "--in",
@@ -930,6 +964,11 @@ def _rects(box: str) -> list[list[float]]:
     "--undo",
     is_flag=True,
     help="With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+)
+@click.option(
+    "--applied",
+    is_flag=True,
+    help="With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
 )
 @click.option(
     "--batch",
@@ -957,6 +996,7 @@ def annotate(
     placement: str | None,
     in_doc: str | None,
     undo: bool,
+    applied: bool,
     batch: bool,
     dry_run: bool,
     as_json: bool,
@@ -973,6 +1013,8 @@ def annotate(
         message, target = target, None
     if undo and not (discard_id or resolve):
         raise EnvError("--undo applies to --resolve or --discard")
+    if applied and (not resolve or undo):
+        raise EnvError("--applied says how a suggestion was resolved, so it goes with --resolve and not --undo")
     verbs = [
         f"--{n}" for n, v in (("reply", reply), ("resolve", resolve), ("edit", edit), ("discard", discard_id)) if v
     ]
@@ -1044,6 +1086,7 @@ def annotate(
                 page=page,
                 rects=_rects(box) if box else None,
                 in_doc=in_doc,
+                applied=applied,
                 dry_run=dry_run,
             ),
             target=target,

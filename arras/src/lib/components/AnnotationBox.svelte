@@ -2,6 +2,8 @@
 	// An annotation's box: a title line of the kind in its hue, and the severity after an objection's or a suggestion's, with the × when the box can be closed; the body; then what its kind adds -- a suggestion's proposed text at a rule in the suggestion's hue, a citation's work at one in the citation's -- then one meta line of author, date and the verbs. The kind is both the title and the stripe's hue; an open box is open, severity is the mark's weight, and an anchored annotation's quote is its mark. A settled box (resolved or withdrawn) has its stripe at half strength, its body softened, and the outcome once on the meta line.
 	import TexProse from '$lib/math/TexProse.svelte';
 	import TexHtml from '$lib/math/TexHtml.svelte';
+	import DiffView from '$lib/components/DiffView.svelte';
+	import { fetchFragment } from '$lib/fragments/fetch';
 	import VerbRow from '$lib/review/VerbRow.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
@@ -26,6 +28,7 @@
 			if (store.manifest?.reference_notes?.some((n) => n.from?.annotation === a.id)) return 'accepted';
 			if (decided[a.id]) return decided[a.id];
 		}
+		if (a.applied) return 'applied';
 		return a.status === 'open' ? '' : a.status;
 	}
 	const outcome = $derived(outcomeOf(annotation));
@@ -44,8 +47,24 @@
 		travel(from.closest('[data-pane]')?.querySelector(sel) ?? document.querySelector(sel), from);
 	}
 
-	/** Whether the proposed text is shown as written rather than rendered; rendered is what opens, the source one link away. */
-	let verbatim = $state(false);
+	/** How the proposed text is shown: rendered (what opens), as written, the key with it in place, or the patch that takes it. */
+	let view = $state<'rendered' | 'verbatim' | 'place' | 'patch'>('rendered');
+	const change = $derived(annotation.status === 'open' ? annotation.change : undefined);
+	const ready = $derived(change?.state === 'ready' ? change : undefined);
+	/** The key as it would read with the suggestion taken, fetched when first asked for. */
+	let inPlace = $state('');
+	$effect(() => {
+		const path = view === 'place' ? ready?.fragment : undefined;
+		if (!path) return;
+		let dropped = false;
+		void fetchFragment(path, store.hash)
+			.then((html) => !dropped && (inPlace = html))
+			.catch(() => !dropped && (inPlace = ''));
+		return () => {
+			dropped = true;
+		};
+	});
+	const pick = (v: typeof view) => (view = view === v ? 'rendered' : v);
 </script>
 
 <article class="box k-{annotation.kind}" class:settled={done} id="ann-{annotation.id}" data-annotation-id={annotation.id} ondblclick={go}>
@@ -62,17 +81,35 @@
 			<!-- the work proposed, as prose; the body above is the claim it would support -->
 			<div class="cite" data-testid="work"><TexProse text={annotation.payload} /></div>
 		{/if}
-	{:else if annotation.payload}
-		<!-- Text the annotation proposes, where its `placement` says it would go. A preview only: nothing here applies anything. -->
+	{:else if annotation.payload != null}
+		<!-- Text the annotation proposes, where its `placement` says it goes: the payload itself, as written, the key with it in place, or the patch that takes it. Loom applies nothing; the author does. -->
 		<div class="pay" data-testid="payload" data-placement={word}>
-			<!-- the switch stands with the word, so it keeps its place whichever way the text is shown -->
-			<p class="head"><span class="word">{word}</span> <button type="button" class="as-link verbatim" aria-pressed={verbatim} data-testid="payload-view" onclick={() => (verbatim = !verbatim)}>· {verbatim ? 'rendered' : 'verbatim'}</button></p>
-			{#if verbatim}
+			<!-- the switches stand with the word, so they keep their place whichever way the text is shown -->
+			<p class="head">
+				<span class="word">{word}</span>
+				<button type="button" class="as-link switch" aria-pressed={view === 'verbatim'} data-testid="payload-view" onclick={() => (view = view === 'rendered' ? 'verbatim' : 'rendered')}>· {view === 'rendered' ? 'verbatim' : 'rendered'}</button>
+				{#if ready}
+					<button type="button" class="as-link switch" aria-pressed={view === 'place'} data-testid="payload-in-place" onclick={() => pick('place')}>· in place</button>
+					<button type="button" class="as-link switch" aria-pressed={view === 'patch'} data-testid="payload-patch" onclick={() => pick('patch')}>· patch</button>
+				{/if}
+			</p>
+			{#if change?.state === 'taken'}
+				<p class="said" data-testid="payload-taken">The text now reads as this suggestion taken.</p>
+			{:else if change?.state === 'unplaced'}
+				<p class="said" data-testid="payload-unplaced">Not shown in place: {change.why}.</p>
+			{/if}
+			{#if view === 'place' && ready}
+				<!-- the key as it would read, its changed words marked as Review marks them -->
+				{#if ready.moved}<p class="said" data-testid="payload-moved">The text has changed since this was written; the words it quotes still stand.</p>{/if}
+				<div class="in-place" data-testid="payload-in-place-view"><TexHtml html={inPlace} /></div>
+			{:else if view === 'patch' && ready}
+				<div data-testid="payload-patch-view"><DiffView path={ready.diff} /></div>
+			{:else if view === 'verbatim'}
 				<!-- the source as written: one block, its line breaks and indentation kept, since it is what would be pasted -->
 				<pre data-testid="payload-verbatim">{annotation.payload}</pre>
 			{:else}
-				<!-- rendered by the publisher where it could be, since a proposal may be a whole theorem and its proof -->
-				<div data-testid="payload-rendered">{#if annotation.payload_html}<TexHtml html={annotation.payload_html} />{:else}<TexProse text={annotation.payload} />{/if}</div>
+				<!-- rendered by the publisher where it could be, since a proposal may be a whole theorem and its proof; a deletion has nothing to render -->
+				<div data-testid="payload-rendered">{#if annotation.payload === ''}<span class="said">the quoted words, deleted</span>{:else if annotation.payload_html}<TexHtml html={annotation.payload_html} />{:else}<TexProse text={annotation.payload} />{/if}</div>
 			{/if}
 		</div>
 	{/if}
@@ -181,7 +218,7 @@
 		font-size: 0.8em;
 		line-height: 1.45;
 	}
-	.verbatim {
+	.switch {
 		font-family: var(--sans);
 		font-size: 0.8em;
 		color: var(--ink-faint);
@@ -190,8 +227,23 @@
 		padding: 0;
 		cursor: pointer;
 	}
-	.verbatim:hover {
+	.switch:hover,
+	.switch[aria-pressed='true'] {
 		color: var(--ink-soft);
+	}
+	.said {
+		margin: 2px 0;
+		font-family: var(--sans);
+		font-size: 0.8em;
+		color: var(--ink-soft);
+	}
+	/* the key with the suggestion taken: what it adds washed in the accepted state's hue, as Review washes a change */
+	.in-place :global(mark.review-changed) {
+		color: inherit;
+		background: color-mix(in srgb, var(--state-accepted) 18%, transparent);
+	}
+	.in-place :global(.math.review-changed) {
+		background-color: color-mix(in srgb, var(--state-accepted) 18%, transparent);
 	}
 	/* One line: who and when at the left, the verbs at the right, the verbs dropping to their own line when the box is narrow; a reply, a restatement or a reason being written takes the full width beneath them. */
 	.meta {

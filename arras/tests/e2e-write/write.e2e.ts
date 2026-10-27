@@ -571,6 +571,32 @@ test('compare asks the publisher, which narrows a changed node to its changed wo
 	expect(cached()).toEqual(first);
 });
 
+test('a suggestion taken in the source is offered as applied, which records the hash its key then has', async ({ page, served }) => {
+	const session = served.openSessions().at(-1)!;
+	const said = await served.api('annotate', { target: 'sy-0002', kind: 'suggestion', message: 'Say how many.', quote: 'one or two points', payload: 'at most two points', placement: 'replace', session });
+	const id = said.split(/\s+/)[0];
+	await page.goto('/node/sy-0002');
+	await pickSession(page, session);
+	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
+	await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
+	// before it is taken: the key with it in place, and no applied to offer
+	await box.getByTestId('payload-in-place').click();
+	await expect(box.getByTestId('payload-in-place-view').locator('mark.review-changed').first()).toBeVisible();
+	await expect(box.getByTestId('verb-applied')).toHaveCount(0);
+	// the author takes it in their editor; the publisher rebuilds, and the key now reads as it taken
+	const file = join(served.root, 'nodes/sy-0002.tex');
+	writeFileSync(file, readFileSync(file, 'utf8').replace('one or two points', 'at most two points'));
+	await expect(async () => {
+		await page.reload();
+		await page.locator(`[data-annotation~="${id}"]`).first().click();
+		await expect(box.getByTestId('payload-taken')).toBeVisible({ timeout: 1000 });
+	}).toPass({ timeout: 20000 });
+	await box.getByTestId('verb-applied').click();
+	const resolution = () => served.log().filter((e) => e.event === 'resolved' && e.id === id);
+	await expect.poll(() => resolution().length).toBe(1);
+	expect((resolution()[0].applied as { hash?: string } | undefined)?.hash).toMatch(/^sha256:/);
+});
+
 test('AI contributions preview selected changes before incorporation and leave mathematics for review', async ({ page, served }) => {
 	const document = 'drafting/adoption-test.tex';
 	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';

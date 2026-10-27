@@ -44,7 +44,11 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
         "Make and find nodes, and see what state each is in.",
         ("new", "id", "lint", "status", "source", "search", "link"),
     ),
-    ("Review", "Annotate, accept, and see what rests on what.", ("annotate", "accept", "deps", "downstream")),
+    (
+        "Review",
+        "Annotate, accept, and see what rests on what.",
+        ("annotate", "suggestion", "accept", "deps", "downstream"),
+    ),
     (
         "History",
         "Record steps, read and restore earlier text, and move documents.",

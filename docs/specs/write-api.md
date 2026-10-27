@@ -16,7 +16,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 |---|---|---|---|
 | `POST` | `/_api/annotate` | `{target, message, session, quote?, kind?, severity?, payload?, placement?, in?, page?, rects?, author?}` | writes one annotation; with `page`, one on that page of the cited work `target` names, anchored by `quote` (text on it) or `rects` (drawn); `in` names the document a claim about a node is read in, and is refused when that document does not hold the node |
 | `POST` | `/_api/reply` | `{annotation, message, session, author?}` | answers one |
-| `POST` | `/_api/resolve` | `{annotation, session, message?, undo?, author?}` | closes one that is met; with `undo`, reopens it |
+| `POST` | `/_api/resolve` | `{annotation, session, message?, undo?, applied?, author?}` | closes one that is met; with `undo`, reopens it; with `applied`, on a suggestion whose key reads as it taken, records the key's hash |
 | `POST` | `/_api/edit` | `{annotation, session, message?, severity?, payload?, placement?, author?}` | restates one that still stands |
 | `POST` | `/_api/discard` | `{annotation, session, reason?, undo?, author?}` | withdraws one that should not have been raised; with `undo`, puts it back |
 | `POST` | `/_api/library-cite` | `{annotation, session, decision: "accept" \| "reject", why?, author?}` | records a citation suggestion's outcome and resolves it in `session`: `loom library verify` and `discard` on its id, through the one function both use, so the note names the payload as the work and the body as the claim |
@@ -46,6 +46,8 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 **[decided]** `discard` takes an **annotation**, not a record. Until the annotation log there was a file per review and discarding meant discarding the file; there is one log now, and what a person withdraws is a finding. Discarding a whole session is not served here: it is the author's own housekeeping and has no viewer affordance.
 
 **[decided]** `undo: true` on `resolve` or `discard` puts the finding back (DR-174). It appends another event rather than removing one, so the record still says that it was resolved or withdrawn, when and by whom, and that it was reopened. A viewer offers it in place of the verb that fired, which is what lets those two act on a single click: a wrong one is one click back.
+
+**[decided]** `applied: true` on `resolve` says a suggestion was taken. It is refused unless the suggestion's key reads as it taken, and the event records the key's hash then, which the manifest publishes as the annotation's `applied`. Nothing in the write API applies a suggestion: the author edits the source, and loom reads that it was done.
 
 **[decided]** `resolve` and `discard` are different acts and the API keeps them apart, as the log does. Resolved means the fault was addressed; discarded means it should not have been raised. Collapsing them loses the only record of which agent findings were worth having.
 

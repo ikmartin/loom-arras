@@ -343,12 +343,18 @@ export interface Annotation {
   discard_reason?: string | null;
   /** How bad the fault is, not how strongly it is felt: `major` | `moderate` | `minor`. */
   severity?: string | null;
-  /** Text the annotation proposes. Preview and copy only; nothing here applies it. */
+  /** Text a suggestion proposes, which the author applies; '' with `replace` deletes the quoted words. On a citation, the work. */
   payload?: string | null;
   /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
   payload_html?: string | null;
-  /** Where the payload would go relative to the anchor: `replace` | `after` | `before`. A hint, not an instruction. */
+  /** Where the payload goes: `replace` takes exactly the quoted words' place, `after` and `before` go right beside them; with no quote, of the key's body. */
   placement?: string | null;
+  /** An open suggestion's key as it would read with the suggestion taken: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why the payload has no place. */
+  change?: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string };
+  /** Why it was resolved, when it was. */
+  resolved_why?: string | null;
+  /** A suggestion resolved as applied: its key's hash once the suggestion was taken. */
+  applied?: { hash: string } | null;
   /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
   run: string;
   discarded: boolean;

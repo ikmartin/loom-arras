@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The verbs an annotation offers, as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
+	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a suggestion whose key already reads as it taken also offers resolve as applied, which records the key's hash; a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
@@ -118,6 +118,8 @@
 	const edit = () => text.trim() && send('edit', { message: text.trim(), severity: severity || undefined });
 	const discard = () => send('discard', { reason: text.trim() || undefined });
 	const resolve = () => send('resolve', {});
+	const applied = () => send('resolve', { applied: true });
+	const taken = $derived(annotation.change?.state === 'taken');
 	const reopen = () => send(gone ? 'discard' : 'resolve', { undo: true });
 	const decide = async (decision: 'accept' | 'reject') => {
 		if (await send('library-cite', { decision })) decided[annotation.id] = decision === 'accept' ? 'accepted' : 'rejected';
@@ -144,6 +146,9 @@
 			{/if}
 			{#if allowed.reply}
 				<button type="button" class="verb" onclick={() => show('reply')} aria-expanded={open === 'reply'} data-testid="verb-reply">reply</button>
+			{/if}
+			{#if !citation && allowed.resolve && taken}
+				<button type="button" class="verb" onclick={applied} disabled={busy} title="The text now reads as this suggestion taken; its hash is recorded" data-testid="verb-applied">resolve as applied</button>
 			{/if}
 			{#if !citation && allowed.resolve}
 				<button type="button" class="verb" onclick={resolve} disabled={busy} data-testid="verb-resolve">resolve</button>

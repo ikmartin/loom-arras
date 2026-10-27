@@ -75,7 +75,7 @@ An annotation is the one record of review, written only by `loom annotate` and a
 | citation | a work worth citing |
 | note | an explanation or aside that asks nothing |
 
-Objections and suggestions carry a severity. A suggestion may carry a payload, the proposed text, and a placement (replace, after, before); the author reads it beside what it would replace and applies it if they want it.
+Objections and suggestions carry a severity. A suggestion may carry a payload, the proposed text, and a placement: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them; a suggestion with no quote is about the key's body. The viewer shows the key with the suggestion in place, `loom suggestion` prints the patch that takes it, and the author applies it; loom then sees that the key reads as the suggestion taken, and it is resolved as applied.
 
 A **target** is a key, a labelled equation, a whole document, or a page of a cited work. An annotation on text is anchored by a quote: the exact words, with a little context before and after, resolved inside the target's own text, so moving text between files never moves an annotation. When the quoted words are gone, the annotation is **detached**: never deleted, never drawn at a guessed place (A3), listed with its quote. An annotation is **settled** when someone resolves or withdraws it; settled annotations are hidden until the reader asks for them (A6). A re-check edits its own earlier finding rather than replying to itself.
 

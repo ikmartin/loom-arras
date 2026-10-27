@@ -19,7 +19,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 ## Output
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
 2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
-3. One suggestion annotation per simplification, anchored to the old text.
+3. One suggestion annotation per simplification: its quote exactly the old text, its payload the new, placed `replace`.
 4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check

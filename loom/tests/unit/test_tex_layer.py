@@ -154,19 +154,22 @@ def test_compile_failure_reports_first_error(tmp_path: Path, monkeypatch) -> Non
     assert "! LaTeX Error" in exits(1, "compile", cwd=d).output
 
 
-def test_with_names_a_file_first_and_then_an_annotation(tmp_path: Path) -> None:
-    """`--with` gave a bare FileNotFoundError traceback, and an annotation's payload is the proposal it could not take (F15)."""
+def test_with_names_a_file_first_and_then_a_suggestion(tmp_path: Path) -> None:
+    """`--with` gave a bare FileNotFoundError traceback (F15); a suggestion's payload is compiled in its quote's place, as `loom suggestion` prints it."""
     d = demo(tmp_path)
     missing = refused(
         "compile", "dm-0002", "--with", "nope.tex", cwd=d, code=2, match="no such file, and no annotation has that id"
     )
     assert "Traceback" not in missing.output
 
-    text = (d / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
-    c = ok("annotate", "dm-0002", "Tighten it", "--payload", text, "--as", "Tom", cwd=d)
+    c = ok(
+        "annotate", "dm-0002", "Tighten it", "--kind", "suggestion", "--quote", "one or two points",
+        "--payload", "at most two points", "--placement", "replace", "--as", "Tom", cwd=d,
+    )  # fmt: skip
     ann = c.stdout.split()[0]
     ok("compile", "dm-0002", "--with", ann, cwd=d)
-    assert "at most two points" in (d / "build" / "closures" / "dm-0002.tex").read_text()
+    closure = (d / "build" / "closures" / "dm-0002.tex").read_text()
+    assert "at most two points" in closure and "one or two points" not in closure
 
     refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="is on dm-0002, not dm-0003")
 

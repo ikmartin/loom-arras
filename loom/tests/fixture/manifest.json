@@ -2,6 +2,7 @@
  "annotations": {
   "a-2026-09-16-0001": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -22,6 +23,7 @@
    "placement": null,
    "quote": "finite widget",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": "major",
    "status": "open",
@@ -34,6 +36,7 @@
   },
   "a-2026-09-16-0002": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -49,11 +52,12 @@
    "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
-   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0002:0:60\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits.</p>",
+   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-0002:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
    "placement": "replace",
-   "quote": "disjoint union of orbits",
+   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": "minor",
    "status": "resolved",
@@ -66,6 +70,7 @@
   },
   "a-2026-09-16-0003": {
    "anchored": false,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -86,6 +91,7 @@
    "placement": null,
    "quote": null,
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": "moderate",
    "status": "open",
@@ -98,6 +104,7 @@
   },
   "a-2026-09-16-0004": {
    "anchored": false,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -118,6 +125,7 @@
    "placement": null,
    "quote": null,
    "recorded": true,
+   "resolved_why": "accepted",
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "resolved",
@@ -130,6 +138,7 @@
   },
   "a-2026-09-16-0005": {
    "anchored": false,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -150,6 +159,7 @@
    "placement": null,
    "quote": null,
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -162,6 +172,7 @@
   },
   "a-2026-09-16-0006": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -182,6 +193,7 @@
    "placement": null,
    "quote": "one or two points",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -194,6 +206,7 @@
   },
   "a-2026-09-16-0007": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -214,6 +227,7 @@
    "placement": null,
    "quote": "Every orbit of a widget",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -226,6 +240,7 @@
   },
   "a-2026-09-16-0008": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -246,6 +261,7 @@
    "placement": null,
    "quote": "finite widget",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -258,6 +274,7 @@
   },
   "a-2026-09-16-0009": {
    "anchored": true,
+   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -276,8 +293,9 @@
    "payload": null,
    "payload_html": null,
    "placement": null,
-   "quote": "disjoint union of orbits",
+   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -290,6 +308,7 @@
   },
   "a-2026-09-16-0010": {
    "anchored": false,
+   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -310,6 +329,7 @@
    "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -322,6 +342,7 @@
   },
   "a-2026-09-16-0011": {
    "anchored": false,
+   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -342,6 +363,7 @@
    "placement": null,
    "quote": null,
    "recorded": true,
+   "resolved_why": null,
    "run": "s-2026-09-15-0001",
    "severity": null,
    "status": "open",
@@ -356,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c0df18ef5598b0d87e4aa496112ca584c5ddf1540186f35efa3839cb2817f5c8",
+   "hash": "5d9e3de59840a09401f8256de1bc1b58a9293360b514686e23f096a63312f9ba",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -369,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "08ab6374d30707e64c451ffd4c6cf4436b803795e95b4540e038cd17516b1a46",
+   "hash": "3e72617ed436ded22908c48738bf361d82104ab108278dd89f51dfd30c5ebdce",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -382,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "390610ec9027306fc17c864420bf7e48b9b74678068a6a2459a418b79a364531",
+   "hash": "fe454cc0e88e88239c746d427f08182e2431f969c37b5e5940eefcd1756dfcbb",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",

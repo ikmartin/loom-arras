@@ -31,7 +31,7 @@ TRIGGERS = {
 AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
-        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify",
+        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion",
         "ai annotations", "ai drafts", "ai refresh", "ai orient",
         # the agent opens and names the session it works in, and parks, reads and answers in it; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
         "session new", "session rename", "session list", "session next", "session say", "session watch",

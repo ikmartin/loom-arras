@@ -615,6 +615,78 @@ test.describe('the box', () => {
 		expect(Math.abs(view!.y - word!.y)).toBeLessThan(6);
 	});
 
+	test('a suggestion shows its key with it in place, its new words marked, and the patch that takes it', async ({ page }) => {
+		// the publisher renders both at build: the key with the payload in place of exactly the quoted words, and the patch `loom suggestion` prints
+		const id = 'a-2026-09-16-0002';
+		await serve(page, (m) => {
+			m.annotations[id].status = 'open';
+			m.annotations[id].change = { state: 'ready', fragment: 'fragments/suggestions/s.html', diff: 'fragments/suggestions/s.diff', moved: true };
+		});
+		await page.route('**/fragments/suggestions/s.html', (r) =>
+			r.fulfill({ contentType: 'text/html', body: '<div class="env env-proof"><p>By Lemma 1.2, <mark class="review-changed">\\(X\\) is the</mark> disjoint union of orbits of size one or two.</p></div>' })
+		);
+		await page.route('**/fragments/suggestions/s.diff', (r) =>
+			r.fulfill({
+				contentType: 'text/plain',
+				body: '--- a/nodes/sy-0003.tex\n+++ b/nodes/sy-0003.tex\n@@ -10 +10 @@\n-By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.\n+By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.\n'
+			})
+		);
+		const box = await openBox(page, '/node/sy-0004', id);
+		await box.getByTestId('payload-in-place').click();
+		await expect(box.getByTestId('payload-in-place').getAttribute('aria-pressed')).resolves.toBe('true');
+		await expect(box.getByTestId('payload-in-place-view').locator('mark.review-changed')).toBeVisible();
+		// the key changed since the suggestion was written, though the words it quotes still stand
+		await expect(box.getByTestId('payload-moved')).toBeVisible();
+		await box.getByTestId('payload-patch').click();
+		await expect(box.getByTestId('payload-patch-view')).toContainText('the set $X$ is a disjoint union');
+		await expect(box.getByTestId('payload-patch-view')).toContainText('$X$ is the disjoint union');
+		// the view shown, chosen again, gives the payload back
+		await box.getByTestId('payload-patch').click();
+		await expect(box.getByTestId('payload-rendered')).toBeVisible();
+	});
+
+	test('a suggestion with no place in the text says why, and one already taken offers resolve as applied', async ({ page }) => {
+		const id = 'a-2026-09-16-0002';
+		await serve(page, (m) => {
+			m.annotations[id].status = 'open';
+			m.annotations[id].change = { state: 'unplaced', why: 'the text a-2026-09-16-0002 quotes no longer stands in sy-0004' };
+		});
+		let box = await openBox(page, '/node/sy-0004', id);
+		await expect(box.getByTestId('payload-unplaced')).toContainText('no longer stands');
+		await expect(box.getByTestId('payload-in-place')).toHaveCount(0);
+		await expect(box.getByTestId('payload-rendered')).toBeVisible();
+
+		await page.unroute('**/build/manifest.json');
+		await writes(page, ['resolve']);
+		let sent: Record<string, unknown> | null = null;
+		await page.route('**/_api/resolve', async (r) => {
+			sent = JSON.parse(r.request().postData() ?? '{}');
+			await r.fulfill({ json: { ok: true, result: `resolved as applied ${id}` } });
+		});
+		await serve(page, (m) => {
+			m.annotations[id].status = 'open';
+			m.annotations[id].change = { state: 'taken' };
+		});
+		await page.goto('/node/sy-0004');
+		await pickSession(page, REFEREE);
+		box = await openBox(page, '/node/sy-0004', id);
+		await expect(box.getByTestId('payload-taken')).toHaveText('The text now reads as this suggestion taken.');
+		await box.getByTestId('verb-applied').click();
+		await expect.poll(() => sent).toMatchObject({ annotation: id, applied: true });
+	});
+
+	test('a suggestion resolved as applied says so once', async ({ page }) => {
+		const id = 'a-2026-09-16-0002';
+		await serve(page, (m) => (m.annotations[id].applied = { hash: 'abc' }));
+		// settled, so drawn only while settled annotations are shown
+		await page.goto('/node/sy-0004');
+		await viewMenu(page);
+		await page.getByTestId('toggle-settled').click();
+		await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
+		const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
+		await expect(box.getByTestId('outcome')).toHaveText(' · applied');
+	});
+
 	test("a citation's work stands at a rule in the citation's hue; accept and reject are its verbs, and once decided the box says so once and they go", async ({ page }) => {
 		// the publisher resolves the annotation and leaves a reference note naming it; the manifest served after the write says so
 		const id = 'a-2026-09-16-0005';

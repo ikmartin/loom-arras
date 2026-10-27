@@ -22,9 +22,9 @@ from loom.tex.bundle import (
     build_bundle,
     bundle_filename,
     draft_bundle,
+    region_from_text,
     region_text,
     substituted_region,
-    substituted_region_text,
 )
 from loom.tex.runner import ENGINE_FLAGS, CompileResult, compile_tex, normalise_engine
 
@@ -157,12 +157,13 @@ def compile(  # noqa: A001
 
 
 def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
-    """Resolve `--with`: a file on disk, else an annotation id whose payload is the proposal it names.
+    """Resolve `--with`: a file on disk, else a suggestion's id, its payload taken in place as `loom suggestion` prints it.
 
-    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. An annotation is accepted because the payload **is** the proposal — it is what `loom annotate --payload` was for — and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
+    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. A suggestion is accepted because its payload **is** the proposal, and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
     """
     from loom.records.annotations import find_annotation
     from loom.records.store import Records
+    from loom.records.suggestions import Unplaced, place, taken_file
 
     root = result.quilt.root
     p = Path(with_file).expanduser()
@@ -173,11 +174,13 @@ def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
         if found is None:
             raise EnvError(f"--with {with_file}: no such file, and no annotation has that id")
         _, ann = found
-        if not ann.payload:
-            raise ContentError(f"--with {with_file}: that annotation proposes no text")
-        if ann.target_key != key:
-            raise ContentError(f"--with {with_file}: that annotation is on {ann.target_key}, not {key}")
-        return substituted_region_text(result, key, ann.payload)
+        try:
+            placed = place(result, ann)
+        except Unplaced as exc:
+            raise ContentError(f"--with {with_file}: {exc}") from exc
+        if placed.key != key:
+            raise ContentError(f"--with {with_file}: that suggestion is on {placed.key}, not {key}")
+        return region_from_text(result, key, taken_file(result, placed), result.nodes[key])
     except OSError as exc:
         raise EnvError(f"--with {with_file}: {exc.strerror or exc}") from exc
     except ValueError as exc:

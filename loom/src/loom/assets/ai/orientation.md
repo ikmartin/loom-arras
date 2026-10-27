@@ -87,7 +87,7 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 Recording what you found:
 
 - `loom annotate KEY "message" --quote "exact text" --kind objection|suggestion|question|citation|note --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
-- `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author, in text only; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
+- `--severity major|moderate|minor` grades the fault; on a suggestion, `--payload` carries text you are proposing and `--placement` says where it goes: `replace` exactly the quoted words, `after` or `before` them (rule 6); `--reply ID` answers the author, in text only; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
 
 Your session:
 

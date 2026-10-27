@@ -42,7 +42,8 @@
       "Bash(loom session say*)",
       "Bash(loom session watch*)",
       "Bash(loom source*)",
-      "Bash(loom status*)"
+      "Bash(loom status*)",
+      "Bash(loom suggestion*)"
     ],
     "deny": [
       "Edit(/drafting/**)",

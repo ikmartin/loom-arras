@@ -643,7 +643,14 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return _one_comment(
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
-        return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
+        applied = body.get("applied") is True
+        if applied and (endpoint != "resolve" or undo):
+            raise ApiError(
+                "bad-field", "applied says how a suggestion was resolved, so it goes with resolve and not undo"
+            )
+        return _one_comment(
+            result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo, applied=applied
+        )
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except ContentError as exc:

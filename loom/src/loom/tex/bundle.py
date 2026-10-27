@@ -154,10 +154,11 @@ def substituted_region_text(result: ScanResult, key: str, raw: str, diff: bool =
         patched = apply_unified_diff(result.files[n.file].text, raw)
     else:
         patched = raw
-    return _region_from_text(result, key, patched, n)
+    return region_from_text(result, key, patched, n)
 
 
-def _region_from_text(result: ScanResult, key: str, text: str, n: NodeRec) -> str:
+def region_from_text(result: ScanResult, key: str, text: str, n: NodeRec) -> str:
+    """The environment of `key` (or its proof) as `text`, a version of its file, has it: what `--with` puts in place of the key's own text."""
     fake = SourceFile(
         n.file, result.files[n.file].abspath, text, blank_comments(text), "utf-8", False, line_starts(text)
     )
