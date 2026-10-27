@@ -10,13 +10,13 @@
 	import Palette from '$lib/components/Palette.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
-	import IconStrip from '$lib/shell/IconStrip.svelte';
-	import GlobalRail from '$lib/workspace/GlobalRail.svelte';
+	import Column from '$lib/shell/Column.svelte';
 	import Workspace from '$lib/workspace/Workspace.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { interceptLinks } from '$lib/workspace/links';
 	import { revealWhileScrolling } from '$lib/shell/scrollbars';
-	import { indexesOf, viewsOf, viewOf } from '$lib/shell/views';
+	import { indexesOf, primaryOf, readingAddress } from '$lib/shell/views';
+	import { remember, rememberedIn } from '$lib/workspace/remember';
 	import { contentsOf } from '$lib/contents';
 	import { reading } from '$lib/reading.svelte';
 	import { prefs } from '$lib/prefs.svelte';
@@ -113,10 +113,13 @@
 	$effect(() => {
 		if (!m || !inReading) return;
 		const next = workspace.canonical(m);
+		if (next) remember(m.corpus.name, next);
 		if (!next || next === untrack(here)) return;
 		written = next;
 		void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
 	});
+	// Docs returns to what was open, as it was left: this visit's workspace, else the one remembered from an earlier visit (`/` resolves the same way)
+	const docsHref = $derived(m ? readingAddress(m, workspace.canonical(m) || rememberedIn(m)) : '');
 	onMount(() =>
 		interceptLinks(
 			() => inReading,
@@ -131,11 +134,11 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<IconStrip
+<Column
 	label={m ? m.corpus.name : 'arras'}
-	views={viewsOf(m, workspace.canonical(m))}
+	primary={primaryOf(page.route.id)}
+	{docsHref}
 	indexes={indexesOf(m)}
-	currentView={viewOf(page.url.pathname)}
 	masters={m?.masters ?? []}
 	canon={m?.canon ?? []}
 	{currentDoc}
@@ -156,12 +159,11 @@
 	{:else if !m}
 		<main class="page"><p class="muted">Loading manifest…</p></main>
 	{:else if inReading}
-		<GlobalRail />
 		<Workspace />
 	{:else}
 		{@render children()}
 	{/if}
-</IconStrip>
+</Column>
 
 {#snippet pageRail()}
 	{#if rail.snippet}{@render rail.snippet()}{/if}

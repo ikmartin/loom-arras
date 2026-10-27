@@ -20,7 +20,6 @@ const m = {
 beforeEach(() => {
 	sessionView.selected = null;
 	sessionView.view = 'all';
-	sessionView.displaced = null;
 	sessionView.showClosed = false;
 });
 
@@ -104,44 +103,12 @@ describe('what the page draws', () => {
 		expect(hidden(m, [note('a', 's-open'), note('c', 's-shut')])).toBe(1);
 	});
 
-	it('under `off`, nothing, whatever is selected or admitted', () => {
-		sessionView.select('s-open', m);
-		sessionView.showClosed = true;
-		sessionView.view = 'off';
-		expect(drawn()).toEqual([]);
-	});
-});
-
-describe('compare and the filter', () => {
-	it('turns annotations off, and puts back what was chosen when it ends', () => {
-		sessionView.view = 'current';
-		sessionView.suspend();
-		expect(sessionView.view).toBe('off');
-		// the reader may choose again while comparing; releasing still restores what was chosen before
-		sessionView.view = 'all';
-		sessionView.resume();
-		expect(sessionView.view).toBe('current');
-		expect(sessionView.displaced).toBeNull();
-	});
-
-	it('keeps what it set aside across a reload', () => {
-		const kept = new Map<string, string>();
+	it('reads a stored view it no longer has as all', () => {
+		const kept = new Map<string, string>([['arras.session-view', JSON.stringify({ view: 'off' })]]);
 		vi.stubGlobal('localStorage', { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v) });
-		sessionView.view = 'current';
-		sessionView.suspend();
-		sessionView.view = 'all';
-		sessionView.displaced = null;
 		sessionView.load();
-		expect(sessionView.view).toBe('off');
-		expect(sessionView.displaced).toBe('current');
-		vi.unstubAllGlobals();
-	});
-
-	it('does not set aside `off` itself when pressed twice', () => {
-		sessionView.suspend();
-		sessionView.suspend();
-		sessionView.resume();
 		expect(sessionView.view).toBe('all');
+		vi.unstubAllGlobals();
 	});
 });
 

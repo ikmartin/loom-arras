@@ -23,6 +23,8 @@ export interface WireOptions {
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
 	/** Where an opened box stands: over the text, anchored to the mark, rather than in place. Nothing about how it opens. */
 	floating?: boolean;
+	/** Every annotation hidden, as the pane the fragment stands in asks: its marks read as plain text, and none goes on a label. */
+	hide?: boolean;
 }
 
 /** One annotation and where it stands beside the node it is about.
@@ -212,7 +214,7 @@ export function wire(
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key], section[data-key], section[data-id]')) {
 			if (el.dataset.wiredComments) continue;
 			const key = el.dataset.key ?? el.dataset.id ?? '';
-			const placements = key ? opts.comments(key) : [];
+			const placements = key && !opts.hide ? opts.comments(key) : [];
 			if (!placements.length) continue;
 			el.dataset.wiredComments = '1';
 			// **One annotation, one mark**. An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its hue, opening its box like any mark; several share one label mark whose box lists them. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
@@ -253,7 +255,7 @@ export function wire(
 			if (first.severity) want.add('s-' + first.severity);
 		}
 		if (judged.length > 0 && judged.every(settled)) want.add('settled');
-		if (judged.length > 0 && !judged.some((a) => visible(manifest, a))) want.add('hidden');
+		if (judged.length > 0 && (opts.hide || !judged.some((a) => visible(manifest, a)))) want.add('hidden');
 		for (const c of [...mark.classList]) if (/^(k|s)-|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
 		for (const c of want) if (!mark.classList.contains(c)) mark.classList.add(c);
 		set(mark, 'tabindex', inert(mark) ? '-1' : '0');

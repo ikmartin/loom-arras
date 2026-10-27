@@ -36,7 +36,8 @@ test('a landmark is a document, with no identity and nothing to review', async (
 test('the corpus is named by the project, not by its directory', async ({ page }) => {
 	await page.goto('/');
 	await expect(page).toHaveTitle('The synthetic quilt');
-	await expect(page.locator('main')).toContainText('Landmarks');
+	await expect(page.getByTestId('quilt-name')).toHaveText('The synthetic quilt');
+	await expect(page.getByTestId('column')).toContainText('Landmarks');
 });
 
 test('a doubly defined id has no text, and says where both definitions are', async ({ page }) => {
@@ -56,18 +57,19 @@ test('without working documents, document views point at landmarks and the graph
 	await serve(page, (m) => {
 		m.masters = [];
 	});
-	for (const path of ['/', '/review', '/master/main']) {
+	for (const path of ['/review', '/master/main']) {
 		await page.goto(path);
 		await expect(page.getByTestId('no-drafts')).toBeVisible();
 		await expect(page.getByTestId('no-drafts')).toContainText('Nothing is being worked on');
 	}
+	// `/` and Docs open the newest landmark, which stands in for the document
+	await page.goto('/');
+	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
+	await expect(page.getByTestId('primary-docs')).toHaveAttribute('href', '/canon/widgets-v3');
 	await page.goto('/graph');
 	await expect(page.getByTestId('gnode-sy-0003')).toBeVisible();
 	await expect(page.getByTestId('no-drafts')).toHaveCount(0);
 	await expect(page.getByLabel('Scope', { exact: true }).locator('option')).toHaveText(['Whole quilt']);
-	// the read icon falls back to the newest landmark
-	const read = page.locator('a[aria-label="read"], a[title="read"]').first();
-	if (await read.count()) await expect(read).toHaveAttribute('href', '/canon/widgets-v3');
 });
 
 test('a landmark\'s formulas typeset with its own macros: no formula falls back to its source', async ({ page }) => {

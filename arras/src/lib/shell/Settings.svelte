@@ -1,10 +1,13 @@
 <script lang="ts">
-	// Display preferences persist in this browser; reviewer identity is saved through the local publisher and refreshes the manifest. Static viewers offer display preferences only.
+	// Display preferences persist in this browser; reviewer identity is saved through the local publisher and refreshes the manifest. Static viewers offer display preferences only. The development shelf (threads, tags, taxa, what is in no document) is at its foot: scaffolding kept while building, not part of the interface a reader is meant to learn.
 	import { prefs, type Face, type Size, type Width, type Theme, type Format, type Comments } from '$lib/prefs.svelte';
 	import { onMount } from 'svelte';
 	import { can, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
 	import Popover from '$lib/components/Popover.svelte';
+	import type { Index } from './views';
+
+	let { indexes = [] }: { indexes?: Index[] } = $props();
 
 	let editable = $state(false);
 	let name = $state('');
@@ -54,8 +57,8 @@
 	];
 </script>
 
-<!-- Above its control: the control stands at the foot of a full-height column, so a panel hung below it would open past the bottom of the window. -->
-<Popover placement="above" testid="settings-panel">
+<!-- Below its control, which stands in the column's header. -->
+<Popover placement="below" testid="settings-panel">
 	{#snippet trigger({ open, toggle })}
 		<button class="toggle" aria-label="Display settings" aria-expanded={open} title="Display settings" onclick={toggle} data-testid="settings-toggle">⚙</button>
 	{/snippet}
@@ -104,6 +107,14 @@
 			(v) => (prefs.ids = v === 'yes'),
 			'ids'
 		)}
+		{#if indexes.length}
+			<div class="dev" data-testid="settings-development">
+				<span class="lbl">Development</span>
+				<ul>
+					{#each indexes as x (x.href)}<li><a href={x.href}>{x.label}</a></li>{/each}
+				</ul>
+			</div>
+		{/if}
 	</div>
 </Popover>
 
@@ -189,5 +200,19 @@
 	/* A selected option's neighbour keeps a divider it can be told apart by: the wash is lighter than the rule. */
 	.opts button.on + button {
 		border-left-color: var(--link);
+	}
+	.dev {
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 1px solid var(--rule);
+		font-size: 11.5px;
+	}
+	.dev ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		margin: 4px 0 0;
+		padding: 0;
+		list-style: none;
 	}
 </style>

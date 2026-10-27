@@ -1,11 +1,11 @@
 <script lang="ts">
-	// The session picker (plan 0.13.3 S7): what the side panel's footer opens. A session is somewhere you go rather than something kept open, so the list lives here and the panel carries only the write target (DR-229-ikmartin).
+	// The session picker (plan 0.13.3 S7): what the column's footer opens. A session is somewhere you go rather than something kept open, so the list lives here and the panel carries only the write target (DR-229-ikmartin).
 	//
 	// **One selection, and it is where writes land.** Open and closed sessions share it: there is a selected session, or none, and `select none` is the only way to have none.
 	//
 	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the workspace.
 	import { store } from '$lib/manifest/client.svelte';
-	import { findSessions, sessionView, summary, titleOf } from './sessions.svelte';
+	import { findSessions, sessionView, summary, titleOf, type View } from './sessions.svelte';
 	import { touched, when } from './when';
 	import { openSession } from './new';
 	import { openChat } from '$lib/workspace/links';
@@ -93,6 +93,11 @@
 		sessionView.save();
 	}
 
+	function scope(v: View): void {
+		sessionView.view = v;
+		sessionView.save();
+	}
+
 	/** Everything a row does not draw, for the pointer that lingers on it. */
 	function about(s: SessionRow): string {
 		const it = summary(m, s.id);
@@ -176,6 +181,33 @@
 		</li>
 	{/snippet}
 
+	<!-- whose annotations the page shows, in one place beside the session they are relative to: this session or all, and whether closed sessions count among all -->
+	<div class="settings" data-testid="session-settings">
+		<p class="setting">
+			<span>showing annotations from</span>
+			<span class="choice" role="group" aria-label="which annotations the page shows">
+				<button
+					type="button"
+					class:on={sessionView.view === 'current'}
+					aria-pressed={sessionView.view === 'current'}
+					disabled={!sessionView.selected}
+					title={sessionView.selected ? 'only the selected session' : 'Nothing is selected yet'}
+					data-testid="show-current"
+					onclick={() => scope('current')}>this session</button
+				><button type="button" class:on={sessionView.view === 'all'} aria-pressed={sessionView.view === 'all'} data-testid="show-all" onclick={() => scope('all')}>all</button>
+			</span>
+		</p>
+		{#if groups.closedCount}
+			<p class="setting">
+				<span>closed sessions' annotations</span>
+				<span class="choice" role="group" aria-label="display closed sessions">
+					<button type="button" class:on={!sessionView.showClosed} data-testid="closed-no" onclick={() => closedShown(false)}>no</button
+					><button type="button" class:on={sessionView.showClosed} data-testid="closed-yes" onclick={() => closedShown(true)}>yes</button>
+				</span>
+			</p>
+		{/if}
+	</div>
+
 	<p class="band">Writing into</p>
 	<ul class="rows" data-testid="session-list">
 		{#each groups.open as s (s.id)}{@render row(s)}{:else}
@@ -190,13 +222,6 @@
 			</button>
 		</p>
 		{#if closedOpen}
-			<p class="setting">
-				<span>show their annotations</span>
-				<span class="choice" role="group" aria-label="display closed sessions">
-					<button type="button" class:on={!sessionView.showClosed} data-testid="closed-no" onclick={() => closedShown(false)}>no</button
-					><button type="button" class:on={sessionView.showClosed} data-testid="closed-yes" onclick={() => closedShown(true)}>yes</button>
-				</span>
-			</p>
 			<ul class="rows" data-testid="closed-list">
 				{#each groups.closed as s (s.id)}{@render row(s)}{/each}
 			</ul>
@@ -414,6 +439,15 @@
 	.chev.down {
 		transform: rotate(45deg);
 		margin-bottom: 3px;
+	}
+	.settings {
+		padding: 6px 0 4px;
+		border-bottom: 1px solid var(--rule);
+		margin-bottom: 4px;
+	}
+	.choice button:disabled {
+		color: var(--ink-faint);
+		cursor: not-allowed;
 	}
 	.setting {
 		display: flex;

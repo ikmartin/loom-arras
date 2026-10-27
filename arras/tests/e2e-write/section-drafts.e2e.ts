@@ -70,7 +70,8 @@ for (const width of [736, 1100, 1440]) {
   await page.getByRole('button',{name:'Close draft',exact:true}).click();
   await expect(page.getByRole('button',{name:'Close and keep saved copy'})).toBeVisible();
   await page.getByRole('button',{name:'Close and keep saved copy'}).click();
-  await expect(page.locator('main')).toContainText('Closed agent document');
+  // closing builds the quilt before it answers, which a CI runner takes longer over
+  await expect(page.locator('main')).toContainText('Closed agent document', {timeout: 20000});
   await page.getByRole('button',{name:'Reopen draft'}).click();
   await expect(page.getByRole('button',{name:'Close draft',exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

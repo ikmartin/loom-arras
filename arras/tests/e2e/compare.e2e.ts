@@ -2,7 +2,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane } from '../workspace';
 
-const compare = (page: Page) => page.getByTestId('rail-compare');
+// compare is in the focused pane's toolbar, the one control there that acts on both panes
+const compare = (page: Page) => page.getByTestId('pane-compare');
 
 async function open(page: Page, left: string, right: string): Promise<void> {
 	await page.goto(left + beside(right));
@@ -21,10 +22,12 @@ async function open(page: Page, left: string, right: string): Promise<void> {
 const top = async (page: Page, index: number, pair: string) => (await pane(page, index).locator(`[data-pair="${pair}"]`).first().boundingBox())!.y;
 
 test('compare is disabled, saying why, until two things that pair stand side by side', async ({ page }) => {
+	// one pane has nothing to compare with, so there is no compare
 	await page.goto('/master/main');
-	await expect(compare(page)).toBeDisabled();
-	await expect(compare(page)).toHaveAttribute('title', /Open a second document/);
+	await expect(pane(page, 0).getByTestId('item-controls')).toBeVisible();
+	await expect(compare(page)).toHaveCount(0);
 	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
+	await expect(compare(page)).toBeDisabled();
 	await expect(compare(page)).toHaveAttribute('title', /Nothing in a session pairs/);
 	await page.goto('/node/sy-0002' + beside('/master/main'));
 	await expect(compare(page)).toHaveAttribute('title', 'A node compares with a node, a document with a document');
@@ -33,12 +36,12 @@ test('compare is disabled, saying why, until two things that pair stand side by 
 	await expect(compare(page)).toHaveAttribute('title', /too narrow/);
 });
 
-test('pressing compare turns annotations off, and releasing it puts back what was chosen', async ({ page }) => {
+test('pressing compare hides annotations in both panes, and releasing it puts back what each had', async ({ page }) => {
 	await open(page, '/master/main', '/master/aidoc');
-	await expect(page.getByTestId('show-off')).toHaveAttribute('aria-pressed', 'true');
+	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toBeVisible();
 	await expect(page).toHaveURL(/compare=1/);
 	await compare(page).click();
-	await expect(page.getByTestId('show-all')).toHaveAttribute('aria-pressed', 'true');
+	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toHaveCount(0);
 	await expect(page.getByTestId('compare-steps')).toHaveCount(0);
 	await expect(page).not.toHaveURL(/compare=/);
 });
@@ -97,5 +100,6 @@ test('a changed tab ends compare', async ({ page }) => {
 	await expect(pane(page, 1).getByTestId('item-tab').filter({ hasText: 'talk.tex' })).toHaveCount(1);
 	await expect(compare(page)).toHaveAttribute('aria-pressed', 'false');
 	await expect(page.locator('.compare-mark')).toHaveCount(0);
-	await expect(page.getByTestId('show-all')).toHaveAttribute('aria-pressed', 'true');
+	// and each pane has its annotations back
+	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toHaveCount(0);
 });

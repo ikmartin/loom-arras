@@ -528,8 +528,8 @@ test('finishing review records an acceptance for each pending OK, and clears the
 
 test('compare asks the publisher, which narrows a changed node to its changed words, washed by side, and renders nothing twice', async ({ page, served }) => {
 	await page.goto('/master/main?beside=' + encodeURIComponent('/master/aidoc'));
-	await expect(page.getByTestId('rail-compare')).toBeEnabled();
-	await page.getByTestId('rail-compare').click();
+	await expect(page.getByTestId('pane-compare')).toBeEnabled();
+	await page.getByTestId('pane-compare').click();
 	// the agent changed sy-0002: its rendering replaces the node in each pane, the source's words red, the copy's green
 	const left = page.locator('[data-pane="0"] .compare-swap.compare-del[data-swap-for="sy-0002"]');
 	const right = page.locator('[data-pane="1"] .compare-swap.compare-add[data-swap-for="sy-0002"]');
@@ -540,8 +540,8 @@ test('compare asks the publisher, which narrows a changed node to its changed wo
 	const cached = () => readdirSync(join(served.root, 'build', 'compare')).sort();
 	const first = cached();
 	expect(first.length).toBeGreaterThan(0);
-	await page.getByTestId('rail-compare').click();
-	await page.getByTestId('rail-compare').click();
+	await page.getByTestId('pane-compare').click();
+	await page.getByTestId('pane-compare').click();
 	await expect(right.locator('mark.review-changed').first()).toBeVisible();
 	expect(cached()).toEqual(first);
 });

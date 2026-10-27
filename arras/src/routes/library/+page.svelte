@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The Library's ledger (DR-206; plan 0.13.3, View 4): every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
 	//
-	// **The list of works has one home, and it is the side panel** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
+	// **The list of works has one home, and it is the left column** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
 	//
 	// The backlog is this page filtered to `proposed` (DR-206). The filters answer "which of these need me", then "which has a person vouched for" and "which hold only loom's own reading": a column already says which are filed or digested, and a filter that restated it would be one fact said twice.
 	import { page } from '$app/state';

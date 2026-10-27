@@ -19,15 +19,13 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
  * `floating` opens a box over the text, anchored to the mark and inset from the window; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
 export type Comments = 'floating' | 'inline';
-/** Whether the focused pane's toolbar stays (`pinned`) or fades when the pointer leaves the top of the pane (`fade`); one choice for every toolbar, the pin's. */
-export type Controls = 'pinned' | 'fade';
 
 const KEY = 'arras.prefs';
 
 export interface Prefs {
 	/** The workspace's ratio: how much of the frame the left pane takes, 0.2 to 0.8, half by default since neither pane is primary. One ratio — a reader sets the shape of their screen once. */
 	divider: number;
-	/** Whether the side panel is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
+	/** Whether the left column is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
 	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
 	zoom: Record<string, number>;
@@ -39,10 +37,9 @@ export interface Prefs {
 	theme: Theme;
 	format: Format;
 	comments: Comments;
-	controls: Controls;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating', controls: 'pinned' };
+export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -50,7 +47,6 @@ const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
 const FORMATS: Format[] = ['p1', 'p2', 'b1', 'b2'];
 const COMMENTS: Comments[] = ['floating', 'inline'];
-const CONTROLS: Controls[] = ['pinned', 'fade'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {
@@ -73,8 +69,7 @@ export function coerce(raw: unknown): Prefs {
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
 		theme: pick(o.theme, THEMES, DEFAULTS.theme),
 		format: pick(o.format, FORMATS, DEFAULTS.format),
-		comments: pick(o.comments, COMMENTS, DEFAULTS.comments),
-		controls: pick(o.controls, CONTROLS, DEFAULTS.controls)
+		comments: pick(o.comments, COMMENTS, DEFAULTS.comments)
 	};
 }
 
@@ -119,10 +114,9 @@ class PrefsState {
 	theme = $state<Theme>(DEFAULTS.theme);
 	format = $state<Format>(DEFAULTS.format);
 	comments = $state<Comments>(DEFAULTS.comments);
-	controls = $state<Controls>(DEFAULTS.controls);
 
 	get current(): Prefs {
-		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments, controls: this.controls };
+		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -137,7 +131,6 @@ class PrefsState {
 		this.theme = p.theme;
 		this.format = p.format;
 		this.comments = p.comments;
-		this.controls = p.controls;
 	}
 
 	/** Apply to <html> and persist. Called from one effect in the layout. */

@@ -26,7 +26,7 @@ test('Incoming starts a working document from an agent document written from scr
  expect(readFileSync(join(served.root,'drafting/survey-notes.tex'),'utf8')).toContain('\\label{sy-0C00}');
  // started, it leaves Incoming, and the new document is listed with the person's own
  await expect(page.getByTestId('start-contribution')).toHaveCount(0);
- await expect(page.getByTestId('docs-drafts')).toContainText('survey-notes.tex');
  await notice.getByRole('link', {name: 'survey-notes.tex'}).click();
  await expect(page.locator('main')).toContainText('A survey remark');
+ await expect(page.getByTestId('docs-drafts')).toContainText('survey-notes.tex');
 });

@@ -64,3 +64,8 @@ export function setPane(ctx: PaneContext): void {
 export function getPane(): PaneContext {
 	return getContext<PaneContext>(PANE) ?? { index: 0, scroller: () => null, frame: () => null };
 }
+
+/** The pane a renderer stands in, or null outside every pane (a hover card, the Review page). */
+export function paneOf(): PaneContext | null {
+	return getContext<PaneContext>(PANE) ?? null;
+}

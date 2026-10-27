@@ -65,10 +65,11 @@ test('live reload follows the manifest only', async ({ page }) => {
 		if (version > 0) m.corpus.root_label = 'Renamed corpus';
 		await route.fulfill({ json: m });
 	});
-	await page.goto('/');
-	await expect(page.locator('main h1')).toHaveText('Widgets, gadgets, and their fixed loci');
+	await page.goto('/review');
+	const named = page.locator('main .heading span');
+	await expect(named).toHaveText('Widgets, gadgets, and their fixed loci');
 	version = 1;
-	await expect(page.locator('main h1')).toHaveText('Renamed corpus', { timeout: 5000 });
+	await expect(named).toHaveText('Renamed corpus', { timeout: 5000 });
 });
 
 test('a session opens on its Chat, and reads also as what it did', async ({ page }) => {

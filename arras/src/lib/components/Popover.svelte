@@ -1,7 +1,7 @@
 <script lang="ts">
 	// One floating surface (plan 0.13.3): a control that opens a box beside itself, or a modal dialog over the page. Both close on a press outside the box or on Escape through `dismiss` (DR-121), and appear and go without animation.
 	//
-	// The anchored box is `position: fixed`, placed from its control's rectangle, so a box opened from inside a column that clips its overflow (the side panel, the icon strip) is not cut to that column. A box hung from a control is otherwise sized by the control's containing block, which in the 44px strip is nothing.
+	// The anchored box is `position: fixed`, placed from its control's rectangle, so a box opened from inside a column that clips its overflow (the left column, its folded rail) is not cut to that column. A box hung from a control is otherwise sized by the control's containing block, which in the 44px folded rail is nothing.
 	import type { Snippet } from 'svelte';
 	import { dismiss } from '$lib/dismiss';
 	import { portal } from '$lib/portal';

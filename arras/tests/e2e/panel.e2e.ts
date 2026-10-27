@@ -41,16 +41,16 @@ test('the write target is stated once', async ({ page }) => {
 	expect(naming).toBe(1);
 });
 
-test('annotations are filtered from one control', async ({ page }) => {
+test("whose annotations the page shows is chosen in one place, the picker, and said in a word in the footer", async ({ page }) => {
 	for (const at of ['/master/main' + beside('/node/sy-0003'), '/node/sy-0002' + beside('/context/sy-0002'), '/library/Kre99']) {
 		await page.goto(at);
-		await expect(page.getByTestId('reading-rail')).toBeVisible();
-		await expect(page.getByTestId('show-current')).toHaveCount(1);
-		await expect(page.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(1);
-		// and the picker, which lists sessions, does not also filter what the page draws
+		await expect(page.getByTestId('session-footer-scope')).toHaveText('· all');
+		await expect(page.getByTestId('show-current')).toHaveCount(0);
 		await openPicker(page);
-		await expect(page.getByTestId('show-current')).toHaveCount(1);
-		await expect(page.getByTestId('session-picker').getByTestId('show-current')).toHaveCount(0);
+		const picker = page.getByTestId('session-picker');
+		await expect(picker.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(1);
+		await expect(page.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(1);
+		await expect(picker.getByTestId('show-all')).toHaveAttribute('aria-pressed', 'true');
 		await page.keyboard.press('Escape');
 	}
 });
@@ -265,8 +265,10 @@ test.describe('sessions', () => {
 		});
 		await page.goto('/node/sy-0002');
 		// nothing is selected at rest and the page shows everything
+		await openPicker(page);
 		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
 		await expect(page.getByTestId('show-current')).toBeDisabled();
+		await page.keyboard.press('Escape');
 
 		// sy-0002 is now annotated from both sessions: its annotation with no mark, from the referee, is a mark on its label
 		const counted = pane(page, 0).locator('.fragment mark.annotation-label');
@@ -280,36 +282,33 @@ test.describe('sessions', () => {
 		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
 		await page.keyboard.press('Escape');
 
-		// narrowing is the toggle's job, and it is available now that something is selected: the referee's label mark goes, and the quick session's mark on the text is what is drawn
+		// narrowing is the picker's setting, available now that something is selected: the referee's label mark goes, the quick session's mark on the text is what is drawn, and the footer says so
+		await openPicker(page);
 		await page.getByTestId('show-current').click();
 		await expect(counted).toHaveCount(0);
+		await expect(page.getByTestId('session-footer-scope')).toHaveText('· this session');
 
 		// and back to everything
 		await page.getByTestId('show-all').click();
 		await expect(counted).toHaveCount(1);
+		await page.keyboard.press('Escape');
 
-		// `off` draws no annotation at all, whatever is selected
-		await page.getByTestId('show-off').click();
-		await expect(page.getByTestId('show-off')).toHaveAttribute('aria-pressed', 'true');
+		// the pane's `a` draws no annotation at all in it, whatever is selected
+		await pane(page, 0).locator('.fragment').first().press('a');
 		await expect(counted).toHaveCount(0);
 		await expect(pane(page, 0).locator('.fragment mark.annotation:not(.hidden)')).toHaveCount(0);
-		await page.getByTestId('show-all').click();
+		await pane(page, 0).locator('.fragment').first().press('a');
 		await expect(counted).toHaveCount(1);
 	});
 });
 
 test.describe('sections', () => {
-	test('the panel has a Nodes section, folded, narrowed by what is typed', async ({ page }) => {
+	test('the column lists no results: a result is read where it lives, and found by search', async ({ page }) => {
 		await page.goto('/node/sy-0003');
-		await expect(page.getByTestId('nodes-list')).toHaveCount(0); // folded: a corpus of a hundred results would otherwise be the panel
-		await page.getByTestId('nodes-toggle').click();
-		await expect(page.getByTestId('nodes-list')).toBeVisible();
-		await page.getByTestId('nodes-filter').fill('parity');
-		const rows = page.getByTestId('nodes-list').locator('li a');
-		await expect(rows.first()).toContainText('sy-0003');
-		await expect(rows).toHaveCount(1);
-		await page.getByTestId('nodes-filter').fill('zzz');
-		await expect(page.getByTestId('nodes-list')).toContainText('nothing matches');
+		await expect(page.getByTestId('docs-drafts')).toBeVisible();
+		await expect(page.getByTestId('nodes-toggle')).toHaveCount(0);
+		await expect(page.getByTestId('nodes-list')).toHaveCount(0);
+		await expect(page.getByTestId('column-search')).toBeVisible();
 	});
 
 	test('the panel never repeats the strip', async ({ page }) => {

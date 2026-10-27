@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The side panel's footer (plan 0.13.3 S5–S8): where annotations will be written, pinned outside the panel's scroll so a reader never goes looking for it. It carries only the state — a dot, the session's name, what is new in it — and opens the picker; the sentence explaining a refusal stands beside the refused control, not here.
+	// The column's footer (plan 0.13.3 S5–S8): where annotations will be written, pinned outside the column's scroll so a reader never goes looking for it. It carries only the state — a dot, the session's name, whose annotations the page shows in a word, what is new — and opens the picker, where that scope is chosen; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
 	//
 	// Its tone is `writable()`'s answer, which concerns annotations only: review decisions and incorporating a pull name no session, so an amber footer never means nothing can be written.
 	import Popover from '$lib/components/Popover.svelte';
@@ -10,11 +10,15 @@
 	import { write } from '$lib/write';
 	import type { SessionRow } from '$lib/manifest/types';
 
+	let { compact = false }: { compact?: boolean } = $props();
+
 	const m = $derived(store.manifest);
 	const here = $derived(selected(m));
 	const why = $derived(writable(m));
 	const fresh = $derived(here ? summary(m, here.id).fresh : 0);
 	const name = $derived(here ? titleOf(here) : 'no session selected');
+	// seeing one session's annotations only is a state that should not be hidden behind the picker
+	const scope = $derived(sessionView.view === 'current' ? 'this session' : 'all');
 
 	let open = $state(false);
 	// The confirmation stands outside the picker: a press inside a dialog is a press outside the picker, which would close it and take the dialog with it.
@@ -35,7 +39,7 @@
 	});
 </script>
 
-<div class="footer" class:refused={!!why}>
+<div class="footer" class:refused={!!why} class:compact>
 	<Popover bind:open placement="above" width={320} block label="Sessions">
 		{#snippet trigger({ open, toggle })}
 			<button
@@ -44,13 +48,17 @@
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				aria-label={why ? `annotations cannot be written: ${why}` : `annotations are written into ${name}`}
+				title={compact ? `${name} · showing ${scope}` : undefined}
 				data-testid="session-footer"
 				onclick={toggle}
 			>
 				<span class="dot" aria-hidden="true"></span>
-				<span class="name" data-testid="session-footer-name">{name}</span>
-				{#if fresh}<span class="fresh" title="{fresh} new since you last opened it">{fresh}</span>{/if}
-				<span class="chev" aria-hidden="true"></span>
+				{#if !compact}
+					<span class="name" data-testid="session-footer-name">{name}</span>
+					<span class="scope" title="showing annotations from {scope === 'all' ? 'every session' : 'this session only'}" data-testid="session-footer-scope">· {scope}</span>
+					{#if fresh}<span class="fresh" title="{fresh} new since you last opened it">{fresh}</span>{/if}
+					<span class="chev" aria-hidden="true"></span>
+				{/if}
 			</button>
 		{/snippet}
 		<SessionPicker
@@ -103,6 +111,14 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.scope {
+		flex: none;
+		color: var(--ink-faint);
+	}
+	.compact .state {
+		justify-content: center;
+		padding: 10px 0;
 	}
 	.fresh {
 		flex: none;

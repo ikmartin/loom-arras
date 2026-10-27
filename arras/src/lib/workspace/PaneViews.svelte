@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A pane's active item's views (plan 0.16, decision 10; DR-303-ikmartin), leading its tab strip before the first tab: plain words, the current one underlined in the accent, one that cannot be read now greyed. Drawn on both panes and never fading, since which reading to see is asked on arriving at an item, whichever pane it is in; the default view — the first that can be read — is kept out of its address.
+	// A pane's active item's views, at the left of the pane's toolbar: plain words, the current one underlined in the accent, one that cannot be read now greyed. Drawn on both panes, since which reading to see is asked on arriving at an item, whichever pane it is in; the default view — the first that can be read — is kept out of its address.
 	import { store } from '$lib/manifest/client.svelte';
 	import { itemKey } from './item';
 	import { kinds, nameOf } from './registry';
@@ -40,14 +40,14 @@
 {/if}
 
 <style>
-	/* a rule after the views parts them from the first tab, which starts where they end */
+	/* the views lead the toolbar, the current one underlined on the toolbar's own floor */
 	.views {
 		flex: none;
+		align-self: stretch;
 		display: flex;
 		align-items: stretch;
 		gap: 12px;
-		padding: 0 14px 0 12px;
-		border-right: 1px solid var(--rule);
+		padding: 0 12px;
 		font-family: var(--sans);
 		font-size: 12.5px;
 		white-space: nowrap;

@@ -113,9 +113,9 @@ test.describe('the one rule', () => {
 		const tabs = async () => [0, 1].map(async (i) => (await pane(page, i).getByTestId('item-tab').allInnerTexts()).join('|'));
 		const before = await Promise.all(await tabs());
 
-		await page.getByTestId('view-review').click();
+		await page.getByTestId('primary-review').click();
 		await expect(page).toHaveURL(/\/review/);
-		await page.getByTestId('view-read').click();
+		await page.getByTestId('primary-docs').click();
 
 		await expect(pane(page, 0).locator('.fragment mjx-container').first()).toBeAttached();
 		expect(await Promise.all(await tabs())).toEqual(before);

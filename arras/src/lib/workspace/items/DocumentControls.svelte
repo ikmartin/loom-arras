@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A document's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar where a publisher serves writes; under *view*, `show all annotations` and `show settled annotations` with their keys, then `open the PDF`, the cheap escape from a manual latexmk. `e`, `h` and `s` do what the two annotation lines do from the keyboard, inside the document. A landmark has none.
+	// A document's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar where a publisher serves writes; under *view*, `show all annotations` and `show settled annotations` with their keys, then `open the PDF`, the cheap escape from a manual latexmk. `e`, `h` and `s` do what the two annotation lines do from the keyboard, inside the document. A landmark, and a closed or context-only agent document, has the toolbar with none of these.
 	import { store } from '$lib/manifest/client.svelte';
 	import { dataUrl } from '$lib/paths';
 	import { isLandmark, type Item } from '../item';
@@ -56,4 +56,6 @@
 			<ToolbarItem label="open the PDF" name="open the PDF of {name}" href={master.pdf ? dataUrl(master.pdf) : undefined} off={master.pdf ? undefined : 'This document has no compiled PDF'} testid="open-pdf" />
 		{/snippet}
 	</ItemToolbar>
+{:else}
+	<ItemToolbar {name} />
 {/if}

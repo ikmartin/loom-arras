@@ -12,6 +12,8 @@
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
+	import { paneOf } from '$lib/workspace/state.svelte';
+	import { workspace } from '$lib/workspace/store.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
 	import { keep, take } from './kept';
 	import { parse, patch } from './patch';
@@ -147,6 +149,9 @@
 	}
 
 	const floats = (): boolean => prefs.comments === 'floating' || !authoring;
+	// a fragment in a pane hides every annotation while its pane does; one outside every pane never does
+	const pane = paneOf();
+	const hide = $derived(pane ? workspace.hidesNotes(pane.index) : false);
 
 	/** Wire the fragment again under the comments controller it has: what the manifest decides is read afresh, and nothing already bound is bound twice. */
 	function rewire(root: HTMLElement): void {
@@ -158,7 +163,8 @@
 			keyless: standalone,
 			comments,
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
-			floating: floats()
+			floating: floats(),
+			hide
 		});
 	}
 
@@ -188,8 +194,9 @@
 		onmounted?.(el);
 	});
 
-	// The session filter and the settled control govern the marks: a change of either re-wires the fragment, which puts `hidden` on every mark whose annotation the filter excludes and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
+	// The session filter, the pane's hiding and the settled control govern the marks: a change of any re-wires the fragment, which puts `hidden` on every mark whose annotation is not drawn and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
 	$effect(() => {
+		void hide;
 		void sessionView.view;
 		void sessionView.selected;
 		void sessionView.showClosed;
@@ -457,7 +464,7 @@
 		allOpen = false;
 	}
 
-	// `e`, `h` and `s` only while the content has focus, so they never fight the composer. Not on a modifier and not global: a key that works everywhere is a key that fires while somebody is typing. `s` flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts).
+	// `e`, `h` and `s` only while the content has focus, so they never fire while somebody is typing in a field. Not on a modifier and not global. `s` flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts); `a`, which hides every annotation, is the pane's (Pane.svelte).
 	function keys(e: KeyboardEvent): void {
 		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
 		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;

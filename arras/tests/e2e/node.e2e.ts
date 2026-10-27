@@ -16,11 +16,10 @@ test('a node draws its statement, typeset, and its proofs, and nothing about the
 	await expect(page.getByTestId('annotation-list')).toHaveCount(0);
 	await expect(page.getByTestId('closure-open')).toHaveCount(0);
 	await expect(page.getByTestId('reference-notes')).toHaveCount(0);
-	// the statement leads: its first line within a few lines of the tab strip, past the room a pinned toolbar keeps
-	const head = (await pane(page, 0).getByTestId('pane-head-0').boundingBox())!;
-	const room = await pane(page, 0).locator('> .body').evaluate((b) => parseFloat(getComputedStyle(b).paddingTop));
+	// the statement leads: its first line within a few lines of the pane's toolbar
+	const bar = (await pane(page, 0).getByTestId('item-controls').boundingBox())!;
 	const top = (await statement.boundingBox())!;
-	expect(top.y - (head.y + head.height + room), 'the statement top below the tab strip and the room, px').toBeLessThan(60);
+	expect(top.y - (bar.y + bar.height), 'the statement top below the toolbar, px').toBeLessThan(60);
 });
 
 test('a node can be read as it was written', async ({ page }) => {

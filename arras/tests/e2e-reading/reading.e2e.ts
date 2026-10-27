@@ -276,11 +276,13 @@ test('the session selection governs the page: a note the view hides is not drawn
 	await page.getByTestId('session-new-title').press('Enter');
 	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
 	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting', { timeout: 10000 });
+	await openPicker(page);
 	await page.getByTestId('show-current').click();
 	await expect(page.getByTestId(`mark-${id}`)).toHaveCount(0);
 	expect(await page.locator('[data-testid="pdf-page-2"] .mark.note').count()).toBeLessThan(before);
-	// a hidden mark needs no notice: the filter is in the rail, and the page draws what it admits
+	// a hidden mark needs no notice: the scope is the picker's, said in a word in the footer, and the page draws what it admits
 	await expect(page.getByTestId('reading-hidden')).toHaveCount(0);
+	await expect(page.getByTestId('session-footer-scope')).toHaveText('· this session');
 	await page.getByTestId('show-all').click();
 	// `all` still hides the showcase's own notes, which sit in a closed session; what changes is that the one written above comes back
 	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note')).toHaveCount(before);
@@ -396,7 +398,7 @@ test('a selection records the lines it covers and nothing else', async ({ page, 
 });
 
 readOnly('the page and the zoom are typed into, and take exactly what was typed', async ({ page, served }) => {
-	// The controls live on the view's one rail rather than in a toolbar of the renderer's own, and both boxes are editable the way a desktop viewer's are: `+` twelve times is not how a reader reaches page 12. Typing over a box is the case that broke -- the field held `140`, the reader typed `150`, and `140150` clamped to the maximum -- so each assertion below is that the value taken is exactly the value typed.
+	// The controls live on the pane's toolbar rather than in a toolbar of the renderer's own, and both boxes are editable the way a desktop viewer's are: `+` twelve times is not how a reader reaches page 12. Typing over a box is the case that broke -- the field held `140`, the reader typed `150`, and `140150` clamped to the maximum -- so each assertion below is that the value taken is exactly the value typed.
 	await opened(page, served);
 	const zoom = page.getByTestId('zoom-at');
 	const at = page.getByTestId('page-at');

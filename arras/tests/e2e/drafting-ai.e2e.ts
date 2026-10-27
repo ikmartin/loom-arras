@@ -1,13 +1,13 @@
-// The documents an agent edits (15.2, plan 0.17.1): the fixture's agent document, drafted from main.tex, `drafting-ai/aidoc.tex`, is listed apart under its own directory, is never given a Review tab or a place among the home page's documents, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
+// The documents an agent edits (15.2, plan 0.17.1): the fixture's agent document, drafted from main.tex, `drafting-ai/aidoc.tex`, is listed apart under its own directory, is never given a Review tab, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
 import { expect, test } from '@playwright/test';
 
 test("an agent's document is listed under its own directory, apart from the working drafts", async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByTestId('docs-drafts')).not.toContainText('aidoc.tex');
 	await expect(page.getByTestId('docs-drafts-ai')).toContainText('aidoc.tex');
-	await expect(page.getByText('drafting-ai/', { exact: true })).toBeVisible();
-	// the home page's documents are the person's
-	await expect(page.locator('main ul').first().getByRole('link', { name: 'Widgets, gadgets, and their fixed loci' })).toHaveCount(1);
+	await expect(page.getByTestId('column').getByText('drafting-ai/', { exact: true })).toBeVisible();
+	// `/` opens the person's default document, never the agent's
+	await expect(page).toHaveURL(/\/master\/main$/);
 });
 
 test("Review gives an agent's document no tab", async ({ page }) => {

@@ -7,6 +7,8 @@
 	import { artifactUrl, dataUrl } from '$lib/paths';
 	import { store } from '$lib/manifest/client.svelte';
 	import { visible } from '$lib/sessions/sessions.svelte';
+	import { paneOf } from '$lib/workspace/state.svelte';
+	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { ui } from '$lib/ui.svelte';
 	import { inlineComments, type InlineComments } from '$lib/fragments/expand';
@@ -119,6 +121,10 @@
 		};
 	});
 
+	// a work's pages in a pane hide every annotation while the pane does
+	const holder = paneOf();
+	const hide = $derived(holder ? workspace.hidesNotes(holder.index) : false);
+
 	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean };
 	/** Every anchor's geometry, by the page it is on: the work's results, the annotations the selection shows -- stacked where they share a place, settled where every one of them is -- and the lit locator. The document view draws what belongs to each page it renders. */
 	const drawn = $derived.by<Drawn[]>(() => {
@@ -128,7 +134,7 @@
 		const stacked = new Map<string, Drawn>();
 		for (const a of notes) {
 			const rects = spans?.marks?.[a.id];
-			if (!rects || !visible(store.manifest, a)) continue;
+			if (!rects || hide || !visible(store.manifest, a)) continue;
 			const key = `${a.target.page}:` + rects.map((r) => r.map((v) => Math.round(v)).join(',')).join(';');
 			const same = stacked.get(key);
 			if (same) {

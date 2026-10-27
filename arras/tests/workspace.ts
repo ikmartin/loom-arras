@@ -24,9 +24,21 @@ export async function prefs(page: Page, p: Record<string, unknown>): Promise<voi
 	await page.addInitScript((v) => localStorage.setItem('arras.prefs', JSON.stringify(v)), p);
 }
 
-/** Open the focused pane's *view* menu, where a toolbar keeps every control but its bar's; open already, it is left open. */
-export async function viewMenu(page: Page): Promise<void> {
-	const view = page.getByTestId('toolbar-view');
+/** Open a pane's *view* menu, where a toolbar keeps every control but its bar's: the focused pane's by default; open already, it is left open. */
+export async function viewMenu(page: Page, index?: number): Promise<void> {
+	const at = index ?? (await page.locator('[data-pane].focused').count() ? Number(await page.locator('[data-pane].focused').getAttribute('data-pane')) : 0);
+	const view = pane(page, at).getByTestId('toolbar-view');
 	if ((await view.getAttribute('aria-expanded')) !== 'true') await view.click();
 	await page.getByTestId('toolbar-menu').waitFor();
+}
+
+/** Open an item in the focused pane as a link outside the panes does (the column's, the palette's): the column lists no results, so the link is made for the test and clicked. */
+export async function openHere(page: Page, href: string): Promise<void> {
+	await page.evaluate((h) => {
+		const a = document.createElement('a');
+		a.href = h;
+		document.querySelector('[data-testid="column"]')!.appendChild(a);
+		a.click();
+		a.remove();
+	}, href);
 }

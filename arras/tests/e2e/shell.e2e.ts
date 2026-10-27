@@ -1,9 +1,9 @@
-// The shell: the icon strip, the side panel's frame, the key gutter Show ids opens, and a window the whole of it fits. What the panel holds is in panel.e2e.ts. Each test is named for the rule it holds.
+// The shell: the column's frame (its head, the two primary views, its footer), the key gutter Show ids opens, and a window the whole of it fits. What the column holds is in panel.e2e.ts, the frame at each width in frame.e2e.ts. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { pane, prefs } from '../workspace';
 import { manifest } from '../manifest';
 
-/** The contents hang off the open document behind a `show` disclosure; open it if it is folded. */
+/** The Outline is the focused document's, a section of the column; open it if it is folded. */
 async function openContents(page: Page): Promise<void> {
 	const toggle = page.getByTestId('contents-toggle');
 	await toggle.waitFor({ state: 'visible' });
@@ -11,28 +11,30 @@ async function openContents(page: Page): Promise<void> {
 	await page.getByRole('navigation', { name: 'Contents' }).waitFor();
 }
 
-test('the strip offers each view once, each drawn rather than a glyph, beside search and the problems glyph, and the panel the documents and contents', async ({ page }) => {
+test('the column leads with the quilt, Settings and the fold, then Docs and Review, and holds no list of views', async ({ page }) => {
 	await page.goto('/master/main');
 	await expect(page.getByTestId('docs-drafts')).toBeVisible();
 	await openContents(page);
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
-	const strip = page.getByRole('navigation', { name: 'Views' });
-	await expect(page.getByRole('link', { name: 'graph', exact: true })).toBeVisible();
-	// every icon an SVG and no text: unicode marks rendered at whatever weight and baseline a font chose, so a column of them sat unevenly
-	const links = strip.locator('a');
-	const n = await links.count();
-	expect(n).toBeGreaterThan(3);
-	for (let i = 0; i < n; i++) {
-		await expect(links.nth(i).locator('svg')).toHaveCount(1);
-		expect((await links.nth(i).innerText()).trim()).toBe('');
+	await expect(page.getByTestId('quilt-name')).toHaveText(manifest.corpus.name);
+	await expect(page.getByTestId('settings-toggle')).toBeVisible();
+	await expect(page.getByTestId('panel-fold')).toBeVisible();
+	const primary = page.getByRole('navigation', { name: 'Primary views' });
+	await expect(primary.getByRole('link')).toHaveText(['Docs', 'Review']);
+	await expect(page.getByTestId('primary-docs')).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review');
+	// the icon strip and its views are gone; search is the column's, and the problems chip is in its footer
+	await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCount(0);
+	await expect(page.getByTestId('column-search')).toBeVisible();
+	await expect(page.getByTestId('problems-chip')).toHaveAttribute('title', /^problems: /);
+	await expect(page.getByTestId('problems-chip')).toContainText(String(manifest.diagnostics.filter((d: { severity: string }) => d.severity === 'error' || d.severity === 'warning').length));
+});
+
+test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
+	for (const [path, on] of [['/review', 'review'], ['/problems', 'review'], ['/graph', 'docs'], ['/library', 'docs'], ['/master/main', 'docs']] as const) {
+		await page.goto(path);
+		await expect(page.getByTestId(`primary-${on}`), path).toHaveAttribute('aria-current', 'page');
 	}
-	await expect(page.getByRole('button', { name: 'Search' })).toBeVisible();
-	await expect(strip.getByRole('button', { name: 'Search' }).locator('svg')).toHaveCount(1);
-	// no two icons go to the same place, and home is one of them
-	const hrefs = await strip.locator('a[href]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
-	expect(hrefs.filter((h, i) => hrefs.indexOf(h) !== i), `the strip's hrefs: ${hrefs.join(', ')}`).toEqual([]);
-	expect(hrefs).toContain('/');
-	await expect(page.getByTestId('problems-glyph')).toHaveAttribute('title', /^problems: /);
 });
 
 test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({ page }) => {
@@ -86,12 +88,12 @@ test('a scrollbar shows only while its panel or pane is being scrolled', async (
 test('the shell fits the window: nothing in a rail falls below the fold', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
 	await page.goto('/');
-	await page.waitForSelector('main h1');
+	await page.waitForSelector('[data-testid="pane-0"]');
 	const fit = await page.evaluate(() => ({ inner: window.innerHeight, scroll: document.documentElement.scrollHeight }));
 	expect(fit.scroll).toBeLessThanOrEqual(fit.inner); // a rail is `height: 100vh`, and its padding must count inside that
 	// the things at the foot of the shell are reachable without scrolling
 	await expect(page.getByTestId('settings-toggle')).toBeInViewport();
-	await expect(page.getByTestId('problems-glyph')).toBeInViewport();
+	await expect(page.getByTestId('problems-chip')).toBeInViewport();
 	await expect(page.getByTestId('session-footer')).toBeInViewport();
 });
 

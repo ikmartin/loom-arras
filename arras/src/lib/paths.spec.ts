@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { artifactUrl, dataRoot, dataUrl, route, setDataRoot } from './paths';
 import { canonUrl, keyUrl, masterUrl, nodeUrl, readUrl, tagUrl, taxonUrl, threadUrl, workUrl } from './nav';
 import { itemFromPath, pathFor, type Item } from './workspace/item';
-import { indexesOf, viewsOf } from './shell/views';
+import { indexesOf, readingAddress } from './shell/views';
 import { fetchSource, sourceUrl } from './source';
 import { fetchFragment } from './fragments/fetch';
 import { store } from './manifest/client.svelte';
@@ -76,8 +76,8 @@ describe('a route, under a base', () => {
 		expect(itemFromPath(m, '/sub/master/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });
 	});
 
-	it('links every view and index of the shell under the base', () => {
-		expect(viewsOf(m).map((v) => v.href)).toEqual(['/sub/', '/sub/master/main', '/sub/graph', '/sub/review', '/sub/problems']);
+	it('links the reading address and every index of the shell under the base', () => {
+		expect(readingAddress(m)).toBe('/sub/master/main');
 		expect(indexesOf(m).map((x) => x.href)).toEqual(['/sub/threads', '/sub/tags', '/sub/taxa', '/sub/loose']);
 	});
 });

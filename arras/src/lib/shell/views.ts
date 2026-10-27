@@ -1,4 +1,4 @@
-// The views the shell offers, listed here so the shell renders them from one place.
+// The column's two primary views, the reading address Docs returns to, and the development shelf's indexes.
 
 import type { Manifest } from '$lib/manifest/types';
 import { canonUrl, masterUrl } from '$lib/nav';
@@ -9,50 +9,26 @@ export interface Index {
 	href: string;
 }
 
-export interface View {
-	id: string;
-	label: string;
-	href: string;
-	/** The icon strip's drawing for this view, by name; see `$lib/components/Icon.svelte`. Every one also carries its label as an aria-label. */
-	icon: string;
+/** Docs is reading and writing; Review is the quilt's management. The column's two tabs choose one. */
+export type Primary = 'docs' | 'review';
+
+/** Which primary view a page is under, by its route id: Review holds `/review` and `/problems`, and every other page is read under Docs. */
+export function primaryOf(routeId: string | null): Primary {
+	return routeId === '/review' || routeId === '/problems' ? 'review' : 'docs';
 }
 
-export function viewsOf(m: Manifest | null, reading = ''): View[] {
-	const master = m?.masters.find((x) => x.default) ?? m?.masters[0];
-	// a corpus whose drafting directory is empty is still worth reading: the newest landmark stands in for the document
+/**
+ * The address Docs returns to: what was open, as it was left (`reading`, the workspace's own address or the one remembered from an earlier visit); else the default document; else the newest landmark, since a corpus whose drafting directory is empty is still worth reading; `''` when there is nothing to read.
+ */
+export function readingAddress(m: Manifest | null, reading = ''): string {
+	if (reading) return reading;
+	const master = m?.masters.find((x) => x.default) ?? m?.masters.find((x) => x.directory !== 'drafting-ai' && !x.closed && !x.context_only);
+	if (master) return masterUrl(master.path);
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;
-	// back to reading is back to what was open, as it was left (`reading`, the workspace's own address); the default document only on a first visit
-	const read = reading || (master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : route('/'));
-	const has = m?.publishes;
-	// `undefined` keeps a view: before the manifest loads there is nothing to go on, and a shell that draws six items
-	// and then removes two is worse than one that never had them. A declared `false` is the only thing that removes.
-	return [
-		{ id: 'home', label: 'home', href: route('/'), icon: 'home', when: true },
-		{ id: 'read', label: 'read', href: read, icon: 'read', when: has?.documents },
-		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph', when: true },
-		{ id: 'review', label: 'review', href: route('/review'), icon: 'review', when: has?.review },
-		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true }
-	]
-		.filter((v) => v.when !== false)
-		.map(({ when: _when, ...v }) => v);
+	return newest ? canonUrl(newest.path) : '';
 }
 
-/** Which view a path belongs to, for marking the current item. */
-export function viewOf(path: string): string {
-	if (path === '/') return 'home';
-	if (path.startsWith('/master') || path.startsWith('/canon')) return 'read';
-	// The Library left the strip: a work is a document, it is navigated to from the panel's Library section, and the read view is where every document is read.
-	if (path.startsWith('/library')) return 'read';
-	if (path.startsWith('/node')) return 'read';
-	// a session is read beside the work it was done in, so it lights the view its annotations point into
-	if (path.startsWith('/session')) return 'read';
-	if (path.startsWith('/graph')) return 'graph';
-	if (path.startsWith('/review')) return 'review';
-	if (path.startsWith('/problems')) return 'problems';
-	return '';
-}
-
-/** The indexes, which the shell offers below its main list. A function rather than a constant: the list depends on the corpus, and `route()` should not run at import time. */
+/** The indexes, which the development shelf in Settings offers. A function rather than a constant: the list depends on the corpus, and `route()` should not run at import time. */
 export function indexesOf(m: Manifest | null): Index[] {
 	const has = m?.publishes;
 	return [

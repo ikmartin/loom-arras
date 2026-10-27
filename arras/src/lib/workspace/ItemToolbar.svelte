@@ -1,11 +1,12 @@
 <script lang="ts">
-	// The focused pane's toolbar (plan 0.16 decisions 7–9): one line at the pane's top right, on the pane's own layer — the kind's bar, then **view ▾**, the Popover holding every other control in full words, then the pin. Each kind's controls draw one, so the pane that is not focused draws none.
-	//
-	// **It floats.** It shows while the pointer is in a band across the top of the pane's body — 96px tall, inset 96px from the left and 4px from the right, clamped so it always holds the bar — and fades over 0.4s when the pointer leaves; it is held while the pointer is on it, while its menu is open, while keyboard focus is in it, and while pinned. Keyboard focus anywhere in the pane shows it for a while. Nothing draws the band. Pinned, its pane keeps room for it above the text (Pane); faded, none.
+	// A pane's toolbar: one row in the pane's own flow beneath its tabs, drawn by every pane for every kind, dimmer in the one not focused. At its left the item's views; at its right the kind's bar, compare in the focused pane while two are open, then **view ▾**, the Popover holding every other control in full words, which always ends with hiding every annotation in this pane (`a`). Each control acts on its own pane only; compare is the one that reaches across, until the history menu replaces it.
 	import { tick, type Snippet } from 'svelte';
 	import Popover from '$lib/components/Popover.svelte';
-	import { prefs } from '$lib/prefs.svelte';
+	import CompareControls from './CompareControls.svelte';
+	import PaneViews from './PaneViews.svelte';
+	import ToolbarItem from './ToolbarItem.svelte';
 	import { getPane } from './state.svelte';
+	import { workspace } from './store.svelte';
 
 	let {
 		name,
@@ -17,95 +18,18 @@
 		name: string;
 		/** What stands on the bar before *view*; omitted when nothing does, and then no divider is drawn. */
 		bar?: Snippet;
-		/** The lines of the *view* menu (ToolbarItem), an `hr` between groups. */
-		view: Snippet;
+		/** The kind's lines of the *view* menu (ToolbarItem), an `hr` between groups; the pane's own line follows them. */
+		view?: Snippet;
 		/** A mode inside *view* is on: the dot on *view* says so. */
 		on?: boolean;
 	} = $props();
 
-	const BAND = { height: 96, left: 96, right: 4 };
-	const TIP = {
-		pinned: 'Fade: let these controls fade when the pointer leaves the top of the pane.',
-		fade: "Don't fade: keep these controls showing until you click again."
-	};
-
 	const pane = getPane();
-	const uid = $props.id();
-	let root = $state<HTMLElement | null>(null);
 	let viewButton = $state<HTMLButtonElement | null>(null);
 	let list = $state<HTMLElement | null>(null);
 	let menu = $state(false);
-	let shown = $state(true);
-	const pinned = $derived(prefs.controls === 'pinned');
-
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	let over = false;
-	let inside = false;
-
-	const held = () => pinned || menu || over || !!root?.querySelector(':focus-visible');
-	function show(): void {
-		clearTimeout(timer);
-		shown = true;
-	}
-	function hide(): void {
-		if (!held()) shown = false;
-	}
-	function arm(ms: number): void {
-		clearTimeout(timer);
-		timer = setTimeout(hide, ms);
-	}
-
-	/** Whether the pointer is in the band: measured from the pane's body each time, so a resized pane or a wider bar needs no bookkeeping. */
-	function within(e: PointerEvent): boolean {
-		const body = pane.scroller();
-		if (!body || !root) return false;
-		const o = body.getBoundingClientRect();
-		const b = root.getBoundingClientRect();
-		const right = Math.min(BAND.right, Math.max(0, o.right - b.right - 4));
-		const left = Math.min(BAND.left, Math.max(0, b.left - o.left - 4));
-		const height = Math.max(BAND.height, b.bottom - o.top + 8);
-		return e.clientY >= o.top && e.clientY <= o.top + Math.min(height, o.height) && e.clientX >= o.left + left && e.clientX <= o.right - right;
-	}
-
-	$effect(() => {
-		const el = pane.frame();
-		if (!el) return;
-		const move = (e: PointerEvent) => {
-			const now = within(e);
-			if (now) show();
-			else if (inside) arm(0);
-			inside = now;
-		};
-		const leave = () => {
-			inside = false;
-			arm(0);
-		};
-		// keyboard focus only: a press on the text also focuses, and must not wake the bar
-		const focus = (e: FocusEvent) => {
-			if (!(e.target instanceof Element) || !e.target.matches(':focus-visible')) return;
-			show();
-			if (!root?.contains(e.target)) arm(2500);
-		};
-		el.addEventListener('pointermove', move);
-		el.addEventListener('pointerleave', leave);
-		el.addEventListener('focusin', focus);
-		return () => {
-			el.removeEventListener('pointermove', move);
-			el.removeEventListener('pointerleave', leave);
-			el.removeEventListener('focusin', focus);
-			clearTimeout(timer);
-		};
-	});
-
-	// pinned or with its menu open it stays; otherwise it is shown a moment, so a reader sees where it went, and then fades unless the pointer holds it
-	$effect(() => {
-		if (pinned || menu) show();
-		else arm(600);
-	});
-
-	function flip(): void {
-		prefs.controls = pinned ? 'fade' : 'pinned';
-	}
+	const hidden = $derived(workspace.hidesNotes(pane.index));
+	const comparing = $derived(workspace.panes.length === 2 && workspace.focus === pane.index);
 
 	function items(): HTMLElement[] {
 		return [...(list?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
@@ -141,89 +65,87 @@
 	}
 </script>
 
-<div
-	class="toolbar"
-	class:gone={!shown}
-	role="group"
-	aria-label="controls for {name}"
-	data-testid="item-controls"
-	data-shown={shown}
-	bind:this={root}
-	onpointerenter={() => (over = true)}
-	onpointerleave={() => {
-		over = false;
-		if (!inside) arm(0);
-	}}
-	onfocusout={() => arm(2500)}
->
-	{#if bar}<span class="bar">{@render bar()}</span>{/if}
-	<Popover bind:open={menu} placement="below" align="end" width={230} onclose={close}>
-		{#snippet trigger()}
-			<span class="end">
+<div class="toolbar" role="group" aria-label="controls for {name}" data-testid="item-controls">
+	<PaneViews index={pane.index} />
+	<span class="end">
+		{#if bar}<span class="bar">{@render bar()}</span>{/if}
+		{#if comparing}<CompareControls />{/if}
+		<Popover bind:open={menu} placement="below" align="end" width={230} onclose={close}>
+			{#snippet trigger()}
 				<button
 					type="button"
 					class="view"
-					class:divided={!!bar}
+					class:divided={!!bar || comparing}
 					aria-haspopup="menu"
 					aria-expanded={menu}
 					aria-label="view menu for {name}"
 					data-testid="toolbar-view"
 					bind:this={viewButton}
 					onclick={toggle}
-					>view{#if on}<span class="dot" aria-hidden="true" data-testid="toolbar-view-on"></span>{/if}<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"
+					>view{#if on || hidden}<span class="dot" aria-hidden="true" data-testid="toolbar-view-on"></span>{/if}<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"
 						><path d="M4.5 6.5 L8 10 L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg
 					></button
-				><button type="button" class="pin" aria-pressed={pinned} aria-label={pinned ? 'fade' : "don't fade"} aria-describedby="{uid}-tip" data-testid="toolbar-pin" onclick={flip}
-					><svg viewBox="0 0 16 16" aria-hidden="true"
-						><path class="head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round" /><path class="needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round" /></svg
-					><span class="tip" role="tooltip" id="{uid}-tip" data-testid="toolbar-pin-tip">{pinned ? TIP.pinned : TIP.fade}</span></button
 				>
-			</span>
-		{/snippet}
-		<!-- svelte-ignore a11y_click_events_have_key_events (a menu item is a button or a link, whose Enter and Space arrive as clicks) -->
-		<div class="menu" role="menu" tabindex="-1" aria-label="view of {name}" data-testid="toolbar-menu" bind:this={list} onkeydown={keys} onclick={chosen}>
-			{@render view()}
-		</div>
-	</Popover>
+			{/snippet}
+			<!-- svelte-ignore a11y_click_events_have_key_events (a menu item is a button or a link, whose Enter and Space arrive as clicks) -->
+			<div class="menu" role="menu" tabindex="-1" aria-label="view of {name}" data-testid="toolbar-menu" bind:this={list} onkeydown={keys} onclick={chosen}>
+				{#if view}{@render view()}<hr />{/if}
+				<ToolbarItem
+					label="annotations off in this pane"
+					name="annotations off in the pane showing {name}"
+					key="a"
+					checked={hidden}
+					testid="toggle-hide-notes"
+					onclick={() => workspace.hideNotes(pane.index, !hidden)}
+				/>
+			</div>
+		</Popover>
+	</span>
 </div>
 
 <style>
-	/* over the page on the pane's own layer, never in the body that scrolls; below the head, or at the top of a pane that has none */
+	/* a row in the pane's flow under its tabs, never over the page: the views at its left, the controls at its right */
 	.toolbar {
-		position: absolute;
-		top: var(--toolbar-top, 8px);
-		right: 16px;
-		z-index: 30;
+		flex: none;
 		display: flex;
 		align-items: center;
-		gap: 2px;
+		justify-content: space-between;
+		gap: 12px;
 		box-sizing: border-box;
-		height: var(--toolbar-h, 32px);
-		padding: 2px;
+		height: var(--toolbar-h);
+		padding: 0 8px 0 0;
 		font-family: var(--sans);
 		font-size: 12.5px;
 		color: var(--ink-soft);
 		white-space: nowrap;
 		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-control);
-		box-shadow: var(--float-shadow);
-		transition: opacity 0.4s ease;
+		border-bottom: 1px solid var(--rule);
+		transition: opacity 0.15s ease;
 	}
-	.toolbar.gone {
-		opacity: 0;
-		pointer-events: none;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.toolbar {
-			transition: none;
-		}
-	}
-	.bar,
+	/* in a narrow pane the bar gives way first, clipped at its left, so view ▾ is always whole */
 	.end {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 2px;
+		min-width: 0;
+		overflow: hidden;
+	}
+	.bar {
 		display: flex;
 		align-items: center;
 		gap: 2px;
+		min-width: 0;
+		overflow: hidden;
+		flex: 0 1 auto;
+		direction: rtl;
+	}
+	.bar > :global(*) {
+		direction: ltr;
+	}
+	.end > :global(:not(.bar)) {
+		flex: none;
 	}
 	.view {
 		display: inline-flex;
@@ -251,71 +173,10 @@
 		border-radius: 50%;
 		background: var(--link);
 	}
-	.pin {
-		position: relative;
-		display: inline-grid;
-		place-items: center;
-		width: 24px;
-		height: 22px;
-		margin-left: 2px;
-		padding: 0 0 0 2px;
-		color: var(--ink-faint);
-		background: none;
-		border: 0;
-		border-left: 1px solid var(--rule);
-		cursor: pointer;
-	}
-	/* off: a loose pin, tilted, a thin outline in the faint ink; on: upright, filled and heavier, in the link's colour on its wash */
-	.pin svg {
-		width: 14px;
-		height: 14px;
-		fill: none;
-		stroke-width: 1.2px;
-		transform: rotate(35deg);
-		transition: transform 0.15s;
-	}
-	.pin:hover {
-		color: var(--ink-soft);
-	}
-	.pin[aria-pressed='true'] {
-		color: var(--link);
-		background: var(--link-wash);
-		border-radius: 0 6px 6px 0;
-	}
-	.pin[aria-pressed='true'] svg {
-		transform: none;
-		stroke-width: 1.8px;
-	}
-	.pin[aria-pressed='true'] .head {
-		fill: currentColor;
-	}
-	.view:focus-visible,
-	.pin:focus-visible {
+	.view:focus-visible {
 		outline: 2px solid var(--link);
 		outline-offset: 2px;
 		border-radius: 4px;
-	}
-	.tip {
-		position: absolute;
-		top: calc(100% + 8px);
-		right: -4px;
-		width: 220px;
-		padding: 6px 9px;
-		font-size: 11.5px;
-		line-height: 1.4;
-		text-align: left;
-		white-space: normal;
-		color: var(--paper);
-		background: var(--ink);
-		border-radius: 6px;
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 0.12s;
-		z-index: 5;
-	}
-	.pin:hover .tip,
-	.pin:focus-visible .tip {
-		opacity: 1;
 	}
 	.menu {
 		padding: 6px 0;

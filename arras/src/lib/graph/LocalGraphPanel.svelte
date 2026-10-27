@@ -6,6 +6,7 @@
 	import LocalGraph from './LocalGraph.svelte';
 	import LocalBoxGraph from './LocalBoxGraph.svelte';
 	import { shortLabel } from './local';
+	import { route } from '$lib/paths';
 
 	let {
 		center,
@@ -63,6 +64,8 @@
 		<div class="bar">
 			<span class="title">Local Graph</span>
 			{@render controls()}
+			<!-- the whole graph is reached from here, the one way to it -->
+			<a class="whole" href={route('/graph')} data-testid="open-graph">the whole graph</a>
 			<button class="icon" onclick={() => (expanded = false)} aria-label="Close" title="close"><Icon name="close" size={14} /></button>
 		</div>
 		{#if drawAs === 'box'}
@@ -141,5 +144,10 @@
 	}
 	.dialog .bar {
 		font-size: 12px;
+	}
+	.whole {
+		font-size: 11.5px;
+		margin-left: auto;
+		margin-right: 6px;
 	}
 </style>

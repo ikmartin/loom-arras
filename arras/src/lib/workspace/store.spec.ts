@@ -145,3 +145,37 @@ describe('the workspace', () => {
 		expect(w.stateOf(itemKey(work('Kre99')), () => ({ n: 2 })).n).toBe(2);
 	});
 });
+
+describe('hiding annotations in a pane', () => {
+	let w: Workspace;
+	beforeEach(() => {
+		w = new Workspace();
+		w.here(doc('drafting/main.tex'));
+		w.beside(doc('drafting/talk.tex'), 0);
+	});
+
+	it('is one pane\'s, and moves with the pane when the other closes', () => {
+		w.hideNotes(1, true);
+		expect([w.hidesNotes(0), w.hidesNotes(1)]).toEqual([false, true]);
+		w.close(0, itemKey(doc('drafting/main.tex')));
+		expect(w.panes.length).toBe(1);
+		expect(w.hidesNotes(0)).toBe(true);
+	});
+
+	it('is what compare chooses for both panes, and each gets its own back when compare ends', () => {
+		w.hideNotes(1, true);
+		w.suspendNotes();
+		expect([w.hidesNotes(0), w.hidesNotes(1)]).toEqual([true, true]);
+		// the reader may choose again while comparing; the end still puts back what each pane had before
+		w.hideNotes(1, false);
+		w.resumeNotes();
+		expect([w.hidesNotes(0), w.hidesNotes(1)]).toEqual([false, true]);
+	});
+
+	it('sets nothing aside twice when compare begins twice', () => {
+		w.suspendNotes();
+		w.suspendNotes();
+		w.resumeNotes();
+		expect([w.hidesNotes(0), w.hidesNotes(1)]).toEqual([false, false]);
+	});
+});

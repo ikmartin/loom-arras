@@ -1,11 +1,14 @@
 <script lang="ts">
 	// The workspace (plan 0.13.3 W1, W6): one pane, or two of equal rank with one divider between them. Neither is primary — *what I am working on* is a fact about the reader's intent, not a property of a document, and a layout that encoded it would assert something only the reader knows.
 	//
-	// **One ratio, remembered.** A reader sets the shape of their screen once, so the ratio is a preference; it defaults to half, snaps at the middle and nowhere else, and a double-click puts it back there. The divider is one 3px rule, with a wider target than it draws, beneath the panes so what they open over the text stands over it. While a work is in either pane the divider stops short of squeezing its reading controls below about 420px (K5). **Below 700px one pane shows at a time**, under one strip led by the shown item's views and holding both panes' tabs: two panes on a phone are two unusable panes, and a switch above the strip would name the same item twice.
+	// **One ratio, remembered.** A reader sets the shape of their screen once, so the ratio is a preference; it defaults to half, snaps at the middle and nowhere else, and a double-click puts it back there. The divider is one 3px rule, with a wider target than it draws, beneath the panes so what they open over the text stands over it. While a work is in either pane the divider stops short of squeezing its reading controls below about 420px (K5). **Below 700px one pane shows at a time**, under one strip holding both panes' tabs, the shown pane's toolbar beneath it: two panes on a phone are two unusable panes.
+	//
+	// **Compare is the workspace's.** The button is in the focused pane's toolbar, but what compare does to the panes stands here, mounted whichever pane is focused: both panes hide their annotations while it is pressed, so its washes and colours mean one thing each, and get back what they had when it is released; it ends when it can no longer be drawn; the publisher is asked once per pair; `[` and `]` step through the differences.
+	import { untrack } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import Pane from './Pane.svelte';
 	import PaneHead from './PaneHead.svelte';
-	import PaneViews from './PaneViews.svelte';
+	import { comparison, uncomparable } from './compare.svelte';
 	import { workspace } from './store.svelte';
 	import { settle, SNAP } from './divider';
 
@@ -31,6 +34,37 @@
 	$effect(() => {
 		workspace.narrow = narrow;
 	});
+
+	const comparing = $derived(workspace.comparing);
+	const why = $derived(uncomparable(workspace.narrow));
+	// both panes hide their annotations while compare is pressed, and get back what they had once it is not
+	$effect(() => {
+		const pressed = comparing;
+		untrack(() => (pressed ? workspace.suspendNotes() : workspace.resumeNotes()));
+	});
+	// a comparison that can no longer be drawn ends: the window narrowed, or a tab became something that does not pair
+	$effect(() => {
+		if (comparing && why) workspace.release();
+	});
+	// what one comparison found is forgotten when it ends, and the publisher is asked once per pair of items
+	$effect(() => {
+		const left = workspace.active(0);
+		const right = workspace.active(1);
+		if (!comparing || !left || !right) {
+			comparison.reset();
+			return;
+		}
+		void comparison.ask(left, right);
+	});
+
+	function steps(e: KeyboardEvent): void {
+		if (!comparing || e.metaKey || e.ctrlKey || e.altKey) return;
+		if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
+		if (e.key === ']') comparison.step(1);
+		else if (e.key === '[') comparison.step(-1);
+		else return;
+		e.preventDefault();
+	}
 
 	/** Move the divider. */
 	function set(next: number, snap = true): void {
@@ -75,17 +109,16 @@
 	}
 </script>
 
-<svelte:window onresize={() => (width = frame?.clientWidth ?? width)} />
+<svelte:window onresize={() => (width = frame?.clientWidth ?? width)} onkeydown={steps} />
 
 <main class="workspace" class:dragging class:narrow bind:this={frame} bind:clientWidth={width} data-testid="workspace">
 	{#if !workspace.panes.length}
 		<p class="muted empty">Nothing is open. Choose a document in the panel.</p>
 	{:else if narrow && two}
 		<div class="strip" data-testid="narrow-strip">
-			<PaneViews index={workspace.focus} />
 			<div class="parts">
 				{#each [0, 1] as i (i)}
-					<div class="part" class:away={workspace.focus !== i}><PaneHead index={i} views={false} /></div>
+					<div class="part" class:away={workspace.focus !== i}><PaneHead index={i} /></div>
 				{/each}
 			</div>
 		</div>
@@ -125,7 +158,7 @@
 		display: flex;
 		align-items: stretch;
 		min-width: 0;
-		height: calc(100vh - var(--reading-rail));
+		height: 100vh;
 		overflow: hidden;
 	}
 	.workspace.narrow {

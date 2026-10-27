@@ -53,9 +53,9 @@ test('a document drawn again leaves nothing of the old one in MathJax', async ({
 	await page.goto('/master/main');
 	await typeset();
 	for (let i = 0; i < 2; i++) {
-		await page.getByTestId('view-graph').click();
-		await page.locator('svg g.node').first().waitFor();
-		await page.getByTestId('view-read').click();
+		await page.getByTestId('primary-review').click();
+		await page.getByRole('heading', { name: 'Review', exact: true, level: 1 }).waitFor();
+		await page.getByTestId('primary-docs').click();
 		await typeset();
 	}
 	const { gone, shown } = await page.evaluate(() => {

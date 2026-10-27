@@ -145,3 +145,13 @@ def test_a_diagnostic_on_a_result_the_author_reaches_is_the_authors(tmp_path: Pa
     assert r.output.splitlines()[0].startswith("1 error, ")  # the demo's own warning and infos follow it
     assert "error dangling-link (1)" in r.output.splitlines()
     assert "in cited works" not in r.output
+
+
+def test_a_quilt_with_nothing_to_read_says_how_to_begin(tmp_path: Path) -> None:
+    """With no document and no landmark, the viewer's how-to-start page is these fixes: a paper being written, a paper being read."""
+    q = tmp_path / "empty"
+    ok("init", str(q), "--ai", "none", cwd=tmp_path)
+    (q / "drafting" / "main.tex").unlink()
+    found = [d for d in json_of("lint", "--json", cwd=q)["diagnostics"] if d["code"] == "loom:no-live-document"]
+    assert [f["command"] for f in found[0]["fixes"]] == ["loom import FILE", "loom library add FILE"]
+    assert "\\documentclass" in found[0]["message"]

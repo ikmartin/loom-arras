@@ -15,6 +15,10 @@ export interface Pane {
 	items: Item[];
 	/** The active item's key. */
 	active: string;
+	/** Whether the pane hides every annotation, so its text is read clean (its `view ▾`, key `a`). The pane's own, and it moves with the pane. */
+	hide?: boolean;
+	/** What the reader had chosen before compare hid this pane's annotations, put back when compare ends. */
+	hideBefore?: boolean;
 }
 
 export class Workspace {
@@ -58,6 +62,35 @@ export class Workspace {
 	/** Stop comparing. */
 	release(): void {
 		this.compared = null;
+	}
+
+	/** Whether a pane hides every annotation. */
+	hidesNotes(pane: number): boolean {
+		return !!this.panes[pane]?.hide;
+	}
+
+	/** Hide or show every annotation in one pane. */
+	hideNotes(pane: number, hide: boolean): void {
+		const p = this.panes[pane];
+		if (p) p.hide = hide;
+	}
+
+	/** Compare begins: every pane hides its annotations, so its washes and colours mean one thing each; what each pane had is set aside. */
+	suspendNotes(): void {
+		for (const p of this.panes) {
+			if (p.hideBefore !== undefined) continue;
+			p.hideBefore = !!p.hide;
+			p.hide = true;
+		}
+	}
+
+	/** Compare ends: each pane gets back what it had before, whatever was chosen during it. */
+	resumeNotes(): void {
+		for (const p of this.panes) {
+			if (p.hideBefore === undefined) continue;
+			p.hide = p.hideBefore;
+			p.hideBefore = undefined;
+		}
 	}
 
 	/** A comparison ends when either pane's front tab changes, since it was of those two items; going back to them does not restart it. */

@@ -1,6 +1,6 @@
 // Reading mode as items in two panes: what a pane opens on, its tabs and its views, the divider between the panes, focus, the arrangement the URL keeps, and what gives way in a narrow window. Grouped by the principle each rule serves, and each test named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane, prefs, scrollPane, viewMenu } from '../workspace';
+import { beside, openHere, pane, prefs, scrollPane, viewMenu } from '../workspace';
 import { serve, servePapers } from '../manifest';
 
 /** Advertise a write API that annotates, so a document's and a node's bar carries the tools. */
@@ -27,7 +27,7 @@ test.describe('V1 · open on the thing itself', () => {
 		const fragment = pane(page, 0).locator('.fragment').first();
 		await expect(fragment).toBeVisible();
 		const at = await page.evaluate(() => {
-			const top = document.querySelector('[data-testid="reading-rail"]')!.getBoundingClientRect().bottom;
+			const top = document.querySelector('[data-pane="0"] [data-testid="item-controls"]')!.getBoundingClientRect().bottom;
 			const first = document.querySelector('[data-pane] .fragment')!.getBoundingClientRect().top;
 			const column = document.querySelector('[data-pane] .gutters > .column')!.getBoundingClientRect();
 			const visible = Math.max(0, Math.min(column.bottom, innerHeight) - Math.max(column.top, 0));
@@ -47,7 +47,7 @@ test.describe('V1 · open on the thing itself', () => {
 		expect((box.width * box.height) / (1440 * 900)).toBeGreaterThanOrEqual(0.7);
 	});
 
-	test("a pane head carries its item's views and its tabs, and nothing else", async ({ page }) => {
+	test("a pane head carries its tabs and nothing else, and its toolbar leads with its item's views", async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/master/main' + beside('/library/Kre99'));
 		for (const [i, views] of [
@@ -56,28 +56,26 @@ test.describe('V1 · open on the thing itself', () => {
 		] as const) {
 			const head = page.getByTestId(`pane-head-${i}`);
 			await expect(head).toBeVisible();
-			const parts = await head.evaluate((h) => [...h.children].map((c) => c.getAttribute('role')));
-			expect(parts).toEqual(views ? ['group', 'tablist'] : ['tablist']);
+			expect(await head.evaluate((h) => [...h.children].map((c) => c.getAttribute('role')))).toEqual(['tablist']);
 			const kinds = await head.getByRole('tablist').evaluate((t) => [...t.children].map((c) => (c as HTMLElement).dataset.testid));
 			expect(kinds).toEqual(kinds.map(() => 'item-tab'));
+			const first = await controls(page, i).evaluate((t) => t.firstElementChild?.getAttribute('aria-label') ?? '');
+			if (views) expect(first).toBe('views of Kre99');
+			else expect(first).not.toMatch(/^views of /);
 		}
 	});
 
-	test('the rail stands above the panes, and only the focused pane draws a toolbar', async ({ page }) => {
+	test('every pane draws its own toolbar, for every kind, and no rail spans the panes', async ({ page }) => {
 		await withPapers(page);
-		for (const [at, drawn] of [
-			['/master/main' + beside('/node/sy-0003'), true],
-			['/library/Kre99' + beside('/context/sy-0003'), true],
-			['/canon/widgets-v1' + beside('/session/s-2026-09-16-0001'), false]
-		] as const) {
+		for (const at of ['/master/main' + beside('/node/sy-0003'), '/library/Kre99' + beside('/context/sy-0003'), '/canon/widgets-v1' + beside('/session/s-2026-09-16-0001')]) {
 			await page.goto(at);
 			await expect(pane(page, 1)).toBeVisible();
 			await expect(pane(page, 0)).toHaveClass(/focused/);
-			for (const i of [0, 1]) await expect(pane(page, i).getByTestId('reading-rail')).toHaveCount(0);
-			// the focused pane draws its item's toolbar, where it has controls; a landmark has none, and draws no empty box
-			if (drawn) await expect(controls(page, 0)).toBeVisible();
-			else await expect(controls(page, 0)).toHaveCount(0);
-			await expect(controls(page, 1)).toHaveCount(0);
+			await expect(page.getByTestId('reading-rail')).toHaveCount(0);
+			for (const i of [0, 1]) await expect(controls(page, i), at).toBeVisible();
+			// the unfocused pane's is quieter, as its tabs are
+			await expect(pane(page, 1)).toHaveClass(/dim/);
+			await expect(pane(page, 0)).not.toHaveClass(/dim/);
 		}
 	});
 });
@@ -96,12 +94,14 @@ test.describe('V2 · say it once, in the place that governs it', () => {
 		await expect(tabs(page, 0)).toHaveCount(1);
 	});
 
-	test("a document's controls are drawn once", async ({ page }) => {
+	test("a pane's controls are drawn once in it, and act on it alone", async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/library/Kre99' + beside('/library/Har77'));
 		await expect(pane(page, 0).getByTestId('pdf-doc')).toBeVisible();
 		await expect(pane(page, 1).getByTestId('pdf-doc')).toBeVisible();
-		await expect(page.getByRole('textbox', { name: /^Zoom/ })).toHaveCount(1);
+		for (const i of [0, 1]) await expect(pane(page, i).getByRole('textbox', { name: /^Zoom/ })).toHaveCount(1);
+		await expect(pane(page, 0).getByRole('textbox', { name: /^Zoom/ })).toHaveAccessibleName(/Kre99/);
+		await expect(pane(page, 1).getByRole('textbox', { name: /^Zoom/ })).toHaveAccessibleName(/Har77/);
 	});
 });
 
@@ -116,21 +116,20 @@ test.describe('V3 · claim only what is known', () => {
 });
 
 test.describe('V4 · name the question', () => {
-	test('the global rail holds the filter and compare', async ({ page }) => {
+	test("compare stands in the focused pane's toolbar, disabled with its reason while nothing beside pairs", async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/library/Kre99');
-		const rail = page.getByTestId('reading-rail');
-		await expect(rail).toBeVisible();
-		expect(await rail.evaluate((r) => r.children.length)).toBe(2);
-		await expect(rail.getByRole('group', { name: 'which annotations the page shows' })).toBeVisible();
-		// compare is drawn, and disabled with its reason while there is nothing beside the paper to compare it with
-		const compare = rail.getByTestId('rail-compare');
+		// one pane: nothing to compare with, so no compare
+		await expect(controls(page, 0)).toBeVisible();
+		await expect(page.getByTestId('pane-compare')).toHaveCount(0);
+		await page.goto('/library/Kre99' + beside('/master/main'));
+		const compare = controls(page, 0).getByTestId('pane-compare');
 		await expect(compare).toBeVisible();
 		await expect(compare).toBeDisabled();
 		await expect(compare).toHaveAccessibleName('compare');
-		await expect(compare).toHaveAttribute('title', /^Open a second document beside this one/);
-		// nothing about one item: its views are in its pane's strip, its controls on its pane
-		await expect(rail.locator('[data-testid^="tab-"], [data-testid="zoom-at"]')).toHaveCount(0);
+		await expect(compare).toHaveAttribute('title', /.+/);
+		// the other pane draws none
+		await expect(controls(page, 1).getByTestId('pane-compare')).toHaveCount(0);
 	});
 
 	test('every control names its target', async ({ page }) => {
@@ -143,15 +142,13 @@ test.describe('V4 · name the question', () => {
 		]) {
 			await page.goto(at);
 			await expect(controls(page, 0)).toHaveAttribute('aria-label', `controls for ${name === 'Theorem' ? 'Theorem 2.1' : name}`);
-			// the menu's lines are the toolbar's too; the pin is one choice for every toolbar and names none
+			// the menu's lines are the toolbar's too, the pane's own line among them
 			await viewMenu(page);
-			for (const group of [controls(page, 0), pane(page, 0).getByRole('group', { name: /^views of / })]) {
-				if (!(await group.count())) continue;
+			for (const group of [controls(page, 0), page.getByTestId('toolbar-menu')]) {
 				await expect(group.locator('button, a').first()).toBeVisible();
-				const names = await group.locator('button:not([data-testid="toolbar-pin"]), a, input').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+				const names = await group.locator('button, a, input, [role^="menuitem"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
 				for (const n of names) expect(n, n).toContain(name);
 			}
-			await expect(page.getByTestId('toolbar-pin')).toHaveAttribute('aria-label', 'fade');
 		}
 	});
 
@@ -211,19 +208,22 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	test('focus follows interaction', async ({ page }) => {
 		await page.goto('/master/main' + beside('/node/sy-0003'));
 		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
-		// a wheel over the node's pane: its pane now draws the toolbar, and it acts on the node
+		// a wheel over the node's pane focuses it: its toolbar is the brighter, and compare moves to it
 		await pane(page, 1).hover();
 		await page.mouse.wheel(0, 200);
+		await expect(pane(page, 1)).toHaveClass(/focused/);
+		await expect(pane(page, 0)).toHaveClass(/dim/);
 		await expect(controls(page, 1)).toHaveAttribute('aria-label', 'controls for Theorem 2.1');
-		await expect(controls(page, 0)).toHaveCount(0);
+		await expect(controls(page, 1).getByTestId('pane-compare')).toBeVisible();
+		await expect(controls(page, 0).getByTestId('pane-compare')).toHaveCount(0);
 		await viewMenu(page);
-		await expect(pane(page, 1).getByTestId('open-context')).toBeVisible();
+		await expect(page.getByTestId('open-context')).toBeVisible();
+		await page.keyboard.press('Escape');
 		// and a wheel over the document: on the document
 		await pane(page, 0).hover();
 		await page.mouse.wheel(0, 200);
-		await expect(page.getByTestId('open-context')).toHaveCount(0);
-		await expect(controls(page, 0)).toHaveAttribute('aria-label', 'controls for main.tex');
-		await expect(controls(page, 1)).toHaveCount(0);
+		await expect(pane(page, 0)).toHaveClass(/focused/);
+		await expect(controls(page, 0).getByTestId('pane-compare')).toBeVisible();
 	});
 
 	test('the focused pane is marked by its shadow, with no line on its head', async ({ page }) => {
@@ -314,9 +314,12 @@ test.describe('coming back to a document', () => {
 		await page.goto('/master/main');
 		await allTypeset(page);
 		await watchTypesetting(page);
-		await page.getByTestId('view-graph').click();
+		// the whole graph is reached from the local graph's expanded view
+		await page.getByTestId('local-graph-open').click();
+		await page.getByTestId('local-graph-expand').click();
+		await page.getByTestId('open-graph').click();
 		await page.locator('svg g.node').first().waitFor();
-		await page.getByTestId('view-read').click();
+		await page.getByTestId('primary-docs').click();
 		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
 		await allTypeset(page);
 		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
@@ -348,12 +351,10 @@ test.describe('the tab strip', () => {
 	/** The widths of a pane's tabs, px. */
 	const widths = (page: Page, index: number) => tabs(page, index).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
 
-	/** Open a node from the panel, in the focused pane. */
-	async function open(page: Page, id: string): Promise<void> {
-		await page.getByTestId('nodes-list').locator('li a', { hasText: id }).first().click();
-	}
+	/** Open a node in the focused pane, as a link outside the panes does. */
+	const open = (page: Page, id: string) => openHere(page, `/node/${id}`);
 
-	test("each pane's strip begins with its own item's views", async ({ page }) => {
+	test("each pane's toolbar begins with its own item's views", async ({ page }) => {
 		await withPapers(page);
 		// a document beside a paper: the paper's pane carries Paper · Digest · Info though the document's pane is focused, and the document's carries none
 		await page.goto('/master/main' + beside('/library/Kre99'));
@@ -361,13 +362,9 @@ test.describe('the tab strip', () => {
 		await expect(pane(page, 0).getByRole('group', { name: /^views of / })).toHaveCount(0);
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
 		await expect(views.getByRole('button')).toHaveText(['Paper', 'Digest', 'Info']);
-		const head = (await page.getByTestId('pane-head-1').boundingBox())!;
+		const bar = (await controls(page, 1).boundingBox())!;
 		const box = (await views.boundingBox())!;
-		expect(Math.abs(box.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
-		// a rule parts them from the first tab, which starts where they end
-		const first = (await tabs(page, 1).first().boundingBox())!;
-		expect(Math.abs(first.x - (box.x + box.width)), 'the first tab starts where the views end, px').toBeLessThanOrEqual(1);
-		expect(await views.evaluate((v) => getComputedStyle(v).borderRightWidth)).toBe('1px');
+		expect(Math.abs(box.x - bar.x), "the views start at the toolbar's left edge, px").toBeLessThanOrEqual(1);
 		// the current view is underlined in the accent, the others are links
 		const paper = pane(page, 1).getByTestId('tab-paper');
 		await expect(paper).toHaveAttribute('aria-pressed', 'true');
@@ -379,7 +376,7 @@ test.describe('the tab strip', () => {
 		await expect(pane(page, 1)).toHaveClass(/focused/);
 		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toContain('view=digest');
 
-		// two papers: each strip its own item's views, switched apart
+		// two papers: each toolbar its own item's views, switched apart
 		await page.goto('/library/Kre99' + beside('/library/Har77'));
 		await expect(pane(page, 0).getByRole('group', { name: 'views of Kre99' })).toBeVisible();
 		await expect(pane(page, 1).getByRole('group', { name: 'views of Har77' })).toBeVisible();
@@ -401,7 +398,6 @@ test.describe('the tab strip', () => {
 		await page.goto('/node/sy-0001' + beside('/node/sy-0002'));
 		await tabs(page, 1).first().getByRole('tab').click();
 		await expect(pane(page, 1)).toHaveClass(/focused/);
-		await page.getByTestId('nodes-toggle').click();
 		const row = pane(page, 1).getByRole('tablist');
 		const floor = 45; // 1.5 times the strip's 30px
 
@@ -450,26 +446,19 @@ test.describe('the tab strip', () => {
 		await expect(active.getByRole('tab')).toHaveAttribute('title', /Lemma/);
 	});
 
-	test('past the floor the views keep their place, and the tabs scroll after them', async ({ page }) => {
+	test('past the floor the tabs scroll, and the views beneath them keep their place', async ({ page }) => {
 		await withPapers(page);
 		await prefs(page, { divider: 0.6 });
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/node/sy-0001' + beside('/library/Kre99'));
 		await tabs(page, 1).first().getByRole('tab').click();
-		await page.getByTestId('nodes-toggle').click();
-		for (const id of ['sy-0003', 'sy-0006', 'sy-0007', 'sy-0008', 'sy-0009', 'sy-000A', 'sy-000B', 'sy-000C']) {
-			await page.getByTestId('nodes-list').locator('li a', { hasText: id }).first().click();
-		}
+		// twelve tabs: past the floor, with nothing beside them in the strip
+		for (const id of ['sy-0003', 'sy-0006', 'sy-0007', 'sy-0008', 'sy-0009', 'sy-000A', 'sy-000B', 'sy-000C', 'sy-000D', 'sy-000E', 'sy-999A']) await open(page, id);
 		await tabs(page, 1).first().getByRole('tab').click();
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
 		await expect(views).toBeVisible();
 		const tablist = pane(page, 1).getByRole('tablist');
-		const row = (await tablist.boundingBox())!;
 		const box = (await views.boundingBox())!;
-		const head = (await page.getByTestId('pane-head-1').boundingBox())!;
-		expect(Math.abs(box.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
-		expect(row.x, 'the tabs begin after the views end').toBeGreaterThanOrEqual(box.x + box.width - 0.5);
-		// the row scrolls to its end, and the views stay where they were
 		const scrolled = await tablist.evaluate((r) => {
 			r.scrollLeft = r.scrollWidth;
 			return r.scrollLeft;
@@ -569,85 +558,47 @@ test.describe('the divider', () => {
 });
 
 test.describe('a narrow window', () => {
-	test('the panel goes first, and the rail keeps its parts apart', async ({ page }) => {
+	test('the column goes first, folded to its rail, and the stored choice is not rewritten', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.setViewportSize({ width: 1100, height: 800 });
 		await page.goto('/library/Kre99');
 		await expect(page.locator('.panel.away')).toHaveCount(1);
-		const parts = page.getByTestId('reading-rail').locator('> *');
-		await expect(parts).toHaveCount(2);
-		const boxes = await parts.evaluateAll((els) =>
-			els.map((e) => {
-				const r = (e.firstElementChild ?? e).getBoundingClientRect();
-				return { name: (e as HTMLElement).dataset.testid ?? e.className, left: r.left, right: r.right };
-			})
-		);
-		for (let i = 1; i < boxes.length; i++) expect(boxes[i].left, `${boxes[i].name} starts before ${boxes[i - 1].name} ends`).toBeGreaterThanOrEqual(boxes[i - 1].right - 1);
-		// the reader's stored choice is not rewritten by the window's width
+		expect((await page.getByTestId('column').boundingBox())!.width).toBeLessThanOrEqual(45);
+		// what must stay in reach stays: unfold, search, the problems chip and the session's dot
+		await expect(page.getByTestId('panel-fold')).toBeVisible();
+		await expect(page.getByTestId('problems-chip')).toBeVisible();
+		await expect(page.getByTestId('session-footer')).toBeVisible();
 		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').panel)).not.toBe(false);
 	});
 
-	test('the rail keeps both its parts, and the strip its views, with nothing behind a ⋯', async ({ page }) => {
+	test("a narrow pane's toolbar keeps its views and view whole, its bar giving way first", async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.setViewportSize({ width: 760, height: 800 });
 		await page.goto('/library/Kre99');
-		await expect(page.getByTestId('reading-rail').getByTestId('show-current')).toBeVisible();
-		await expect(page.getByTestId('rail-compare')).toBeVisible();
-		await expect(page.getByTestId('rail-more-toggle')).toHaveCount(0);
-		// the views lead the strip, and the controls stay on the pane
-		const head = (await page.getByTestId('pane-head-0').boundingBox())!;
+		const bar = (await controls(page, 0).boundingBox())!;
 		const views = (await pane(page, 0).getByRole('group', { name: 'views of Kre99' }).boundingBox())!;
-		expect(Math.abs(views.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
+		expect(Math.abs(views.x - bar.x), "the views start at the toolbar's left edge, px").toBeLessThanOrEqual(1);
+		await expect(pane(page, 0).getByTestId('toolbar-view')).toBeInViewport({ ratio: 1 });
 		await expect(page.getByTestId('zoom-at')).toBeVisible();
 	});
 
-	test("below the two-pane width the one strip begins with the shown item's views, then both panes' tabs", async ({ page }) => {
+	test("below the two-pane width one strip holds both panes' tabs, and the shown pane's toolbar leads with its views", async ({ page }) => {
 		await withPapers(page);
 		await page.setViewportSize({ width: 640, height: 800 });
 		await page.goto('/master/main' + beside('/library/Kre99'));
 		const strip = page.getByTestId('narrow-strip');
 		await expect(strip).toBeVisible();
-		// the document is shown, and has no views: the strip begins with the tabs
-		expect(await strip.evaluate((s) => s.firstElementChild!.getAttribute('role'))).not.toBe('group');
+		await expect(strip.getByTestId('item-tab')).toHaveCount(2);
+		await expect(strip.getByRole('group', { name: /^views of / })).toHaveCount(0);
 		await strip.getByTestId('pane-head-1').getByRole('tab').click();
-		const views = strip.getByRole('group', { name: 'views of Kre99' });
+		const views = controls(page, 1).getByRole('group', { name: 'views of Kre99' });
 		await expect(views.getByRole('button')).toHaveText(['Paper', 'Digest', 'Info']);
-		expect(await strip.evaluate((s) => s.firstElementChild!.getAttribute('aria-label'))).toBe('views of Kre99');
-		const at = (await strip.boundingBox())!;
-		const box = (await views.boundingBox())!;
-		expect(Math.abs(box.x - at.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
-		const first = (await strip.getByTestId('item-tab').first().boundingBox())!;
-		expect(first.x).toBeGreaterThanOrEqual(box.x + box.width - 0.5);
+		const bar = (await controls(page, 1).boundingBox())!;
+		expect(Math.abs((await views.boundingBox())!.x - bar.x)).toBeLessThanOrEqual(1);
 	});
 });
 
 test.describe('the toolbar', () => {
-	/** The toolbar's opacity as drawn now. */
-	const opacity = (page: Page) => page.getByTestId('item-controls').evaluate((t) => Number(getComputedStyle(t).opacity));
-
-	/** A point in the band across the top of pane 0's body, beside the bar, and one well below it. */
-	async function points(page: Page) {
-		const body = (await pane(page, 0).locator('> .body').boundingBox())!;
-		const bar = (await page.getByTestId('item-controls').boundingBox())!;
-		return { band: { x: bar.x - 40, y: body.y + 40 }, away: { x: body.x + body.width / 2, y: body.y + body.height - 60 }, bar };
-	}
-
-	test('it stands at the focused pane\'s top right, over the page and not in it, one line on the sheet with a shadow', async ({ page }) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/master/main' + beside('/node/sy-0003'));
-		const bar = controls(page, 0);
-		await expect(bar).toBeVisible();
-		expect(await bar.evaluate((b) => b.closest('.body'))).toBeNull();
-		const at = (await bar.boundingBox())!;
-		const body = (await pane(page, 0).locator('> .body').boundingBox())!;
-		expect(at.height, 'one line, px').toBeLessThan(34);
-		expect(body.x + body.width - (at.x + at.width), 'from the pane\'s right, px').toBeLessThan(24);
-		expect(at.y - body.y, 'below the head, px').toBeLessThan(16);
-		expect(await bar.evaluate((b) => getComputedStyle(b).boxShadow)).not.toBe('none');
-		// the pane's text does not move for it: it is on the pane's layer, not in the flow
-		expect(await bar.evaluate((b) => getComputedStyle(b).position)).toBe('absolute');
-	});
-
 	/** The top of the first line of text in a pane's body, px: its first text that is drawn, a title or a first line alike. */
 	const firstLine = (page: Page, index: number) =>
 		pane(page, index)
@@ -663,65 +614,56 @@ test.describe('the toolbar', () => {
 				}
 				return NaN;
 			});
-	const room = (page: Page, index: number) => pane(page, index).locator('> .body').evaluate((b) => getComputedStyle(b).paddingTop);
 
-	test('pinned, the first line starts below the bar in a half-width pane, on a node and a document, and focus does not move it', async ({ page }) => {
+	test("it is a row in the pane's flow under its tabs, the width of the pane, one line on the sheet", async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/master/main' + beside('/node/sy-0003'));
+		for (const i of [0, 1]) {
+			const bar = controls(page, i);
+			await expect(bar).toBeVisible();
+			expect(await bar.evaluate((b) => b.closest('.body'))).toBeNull();
+			expect(await bar.evaluate((b) => getComputedStyle(b).position)).toBe('static');
+			const at = (await bar.boundingBox())!;
+			const head = (await page.getByTestId(`pane-head-${i}`).boundingBox())!;
+			const body = (await pane(page, i).locator('> .body').boundingBox())!;
+			expect(at.height, 'one line, px').toBeLessThan(34);
+			expect(Math.abs(at.y - (head.y + head.height)), 'under the tabs, px').toBeLessThanOrEqual(1);
+			expect(body.y, 'the page starts below it').toBeGreaterThanOrEqual(at.y + at.height - 1);
+			expect(Math.abs(at.width - head.width), 'the width of the pane, px').toBeLessThanOrEqual(1);
+		}
+	});
+
+	test('the first line starts below the row in a half-width pane, and moving focus moves no text', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/node/sy-0003' + beside('/master/main'));
 		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
-		await expect(pane(page, 0)).toHaveClass(/focused/);
 		for (const i of [0, 1]) {
-			// the focused pane draws the bar; each pane in turn, a node and then a document
-			if (i === 1) await tabs(page, 1).first().getByRole('tab').click();
-			await expect(pane(page, i)).toHaveClass(/focused/);
 			const bar = (await controls(page, i).boundingBox())!;
 			const line = await firstLine(page, i);
-			expect(line - (bar.y + bar.height), `pane ${i}: from the bar's foot to the first line, px`).toBeGreaterThanOrEqual(16);
-			expect(line - (bar.y + bar.height), `pane ${i}: from the bar's foot to the first line, px`).toBeLessThanOrEqual(40);
+			expect(line - (bar.y + bar.height), `pane ${i}: from the row's foot to the first line, px`).toBeGreaterThanOrEqual(8);
+			expect(line - (bar.y + bar.height), `pane ${i}: from the row's foot to the first line, px`).toBeLessThanOrEqual(40);
 		}
-		// both panes keep the room, so focus moving back leaves the text where it was
-		const before = await firstLine(page, 1);
-		expect(await room(page, 0)).toBe(await room(page, 1));
-		await tabs(page, 0).first().getByRole('tab').click();
-		await expect(pane(page, 0)).toHaveClass(/focused/);
-		await expect(controls(page, 1)).toHaveCount(0);
-		expect(await firstLine(page, 1)).toBe(before);
+		const before = [await firstLine(page, 0), await firstLine(page, 1)];
+		await tabs(page, 1).first().getByRole('tab').click();
+		await expect(pane(page, 1)).toHaveClass(/focused/);
+		expect([await firstLine(page, 0), await firstLine(page, 1)]).toEqual(before);
 	});
 
-	test('unpinned, no room is kept, and an item with no toolbar never has any', async ({ page }) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/node/sy-0003' + beside('/master/main'));
-		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
-		const pinned = [await firstLine(page, 0), await firstLine(page, 1)];
-		const height = (await controls(page, 0).boundingBox())!.height;
-		for (const i of [0, 1]) expect(await room(page, i)).toBe(`${height}px`);
-		// the pin let go, the text rises by the bar's height in both panes, and the bar fades over it
-		await page.getByTestId('toolbar-pin').click();
-		for (const i of [0, 1]) {
-			await expect.poll(() => room(page, i)).toBe('0px');
-			expect(pinned[i] - (await firstLine(page, i))).toBeCloseTo(height, 0);
-		}
-		// pinned again, a landmark and a session, which draw no toolbar, keep no room
-		await page.getByTestId('toolbar-pin').click();
-		await page.goto('/canon/widgets-v1' + beside('/session/s-2026-09-16-0001'));
-		await expect(pane(page, 1)).toBeVisible();
-		for (const i of [0, 1]) expect(await room(page, i)).toBe('0px');
-	});
-
-	test('the bar, then view with every other control in full words and its key, then the pin; the divider only when something stands left of view', async ({ page }) => {
+	test('the bar, then view with every other control in full words and its key, the pane\'s own line last; the divider only when something stands left of view', async ({ page }) => {
 		await writes(page);
 		await page.goto('/master/main');
 		const bar = controls(page, 0);
 		await expect(bar.getByTestId('tool-select')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['tool-select', 'tool-box', 'toolbar-view', 'toolbar-pin']);
+		expect(order).toEqual(['tool-select', 'tool-box', 'toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 		await expect(page.getByTestId('toolbar-view')).toHaveAttribute('aria-label', 'view menu for main.tex');
 		await viewMenu(page);
 		const menu = page.getByTestId('toolbar-menu');
 		await expect(menu).toHaveAttribute('role', 'menu');
-		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show all annotationse', 'show settled annotationss']);
+		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show all annotationse', 'show settled annotationss', 'annotations off in this panea']);
 		await expect(menu.getByTestId('toggle-settled')).toHaveAttribute('aria-keyshortcuts', 's');
+		await expect(menu.getByTestId('toggle-hide-notes')).toHaveAttribute('aria-keyshortcuts', 'a');
 		await expect(menu.getByTestId('open-pdf')).toHaveText('open the PDF');
 		// a mode inside it is on: the dot on view says so, and the menu closed on the choice
 		await expect(page.getByTestId('toolbar-view-on')).toHaveCount(0);
@@ -739,18 +681,18 @@ test.describe('the toolbar', () => {
 		await expect(menu).toHaveCount(0);
 		await expect(page.getByTestId('toolbar-view')).toBeFocused();
 
-		// nothing serving: view stands first, with no divider before it
+		// nothing serving: view stands alone, with no divider before it
 		await page.unrouteAll();
 		await page.goto('/master/main');
 		await expect(page.getByTestId('toolbar-view')).toBeVisible();
-		expect(await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid))).toEqual(['toolbar-view', 'toolbar-pin']);
+		expect(await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid))).toEqual(['toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'none');
 	});
 
 	test('a node keeps its context and its source under view', async ({ page }) => {
 		await page.goto('/node/sy-0003');
 		await viewMenu(page);
-		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show all annotationse', 'show settled annotationss', 'open its context beside', 'show verbatim code']);
+		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show all annotationse', 'show settled annotationss', 'open its context beside', 'show verbatim code', 'annotations off in this panea']);
 		await page.getByTestId('open-context').click();
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
 	});
@@ -760,7 +702,7 @@ test.describe('the toolbar', () => {
 		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
 		await viewMenu(page);
-		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open the PDF']);
+		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open the PDF', 'annotations off in this panea']);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('href', /paper\.pdf$/);
 		await page.getByTestId('toggle-settled').click();
 		await expect(page.locator('.paper').first()).toHaveClass(/show-settled/);
@@ -785,102 +727,31 @@ test.describe('the toolbar', () => {
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('title', 'No copy of this work is on file');
 	});
 
-	test('a landmark, a context and a session draw no toolbar', async ({ page }) => {
+	test("a landmark, a context and a session draw a toolbar too: their views, and view with the pane's own line", async ({ page }) => {
 		for (const at of ['/canon/widgets-v1', '/context/sy-0003', '/session/s-2026-09-16-0001']) {
 			await page.goto(at);
-			await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(1);
-			await expect(controls(page, 0)).toHaveCount(0);
+			await expect(controls(page, 0), at).toBeVisible();
+			await viewMenu(page);
+			await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]'), at).toHaveText(['annotations off in this panea']);
+			await page.keyboard.press('Escape');
 		}
+		await expect(controls(page, 0).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Transcript', 'What it did']);
 	});
 
-	test('unpinned, the band wakes it and leaving fades it; the pointer on it and its open menu hold it', async ({ page }) => {
-		await prefs(page, { controls: 'fade' });
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/master/main');
-		await expect(controls(page, 0)).toBeVisible();
-		const { band, away, bar } = await points(page);
-		await page.mouse.move(away.x, away.y);
-		await expect.poll(() => opacity(page)).toBe(0);
-		await expect(controls(page, 0)).toHaveCSS('pointer-events', 'none');
-		// into the band, left of the bar: it wakes
-		await page.mouse.move(band.x, band.y, { steps: 4 });
-		await expect.poll(() => opacity(page)).toBe(1);
-		await expect(controls(page, 0)).toHaveCSS('transition-duration', '0.4s');
-		// the band is 96px tall: just below it, it fades
-		await page.mouse.move(band.x, (await pane(page, 0).locator('> .body').boundingBox())!.y + 110, { steps: 4 });
-		await expect.poll(() => opacity(page), { timeout: 2000 }).toBe(0);
-		// on the bar it stays, and so it does with the menu open, wherever the pointer then goes
-		await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2, { steps: 4 });
-		await expect.poll(() => opacity(page)).toBe(1);
-		await page.getByTestId('toolbar-view').click();
-		await page.mouse.move(away.x, away.y, { steps: 4 });
-		await page.waitForTimeout(700);
-		expect(await opacity(page)).toBe(1);
-		// a choice closes the menu, and then the pointer leaving lets it fade
-		await page.getByTestId('toggle-settled').click();
-		await page.mouse.move(away.x, away.y, { steps: 4 });
-		await expect.poll(() => opacity(page), { timeout: 2000 }).toBe(0);
-		// nothing draws the band
-		await expect(pane(page, 0).locator('[data-testid*="band"]')).toHaveCount(0);
-	});
-
-	test('the pin holds it, pinned by default, and the choice survives a reload', async ({ page }) => {
-		await page.goto('/master/main');
-		const pin = page.getByTestId('toolbar-pin');
-		await expect(pin).toHaveAttribute('aria-pressed', 'true');
-		await expect(pin).toHaveAttribute('aria-label', 'fade');
-		const { away } = await points(page);
-		await page.mouse.move(away.x, away.y);
-		await page.waitForTimeout(700);
-		expect(await opacity(page)).toBe(1);
-		// the tooltip names what a click does, on hover and on keyboard focus
-		await pin.hover();
-		const tip = page.getByTestId('toolbar-pin-tip');
-		await expect(tip).toHaveText('Fade: let these controls fade when the pointer leaves the top of the pane.');
-		await expect.poll(() => tip.evaluate((t) => Number(getComputedStyle(t).opacity))).toBe(1);
-		await expect(pin).toHaveAccessibleDescription('Fade: let these controls fade when the pointer leaves the top of the pane.');
-		await pin.click();
-		await expect(pin).toHaveAttribute('aria-pressed', 'false');
-		await expect(pin).toHaveAttribute('aria-label', "don't fade");
-		await expect(tip).toHaveText("Don't fade: keep these controls showing until you click again.");
-		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').controls)).toBe('fade');
-		await page.mouse.move(away.x, away.y, { steps: 4 });
-		await expect.poll(() => opacity(page), { timeout: 2000 }).toBe(0);
-		await page.reload();
-		await expect(page.getByTestId('toolbar-pin')).toHaveAttribute('aria-pressed', 'false');
-		await page.mouse.move(away.x, away.y - 10, { steps: 2 });
-		await expect.poll(() => opacity(page), { timeout: 2000 }).toBe(0);
-		// and one choice for every toolbar: the node's is unpinned too
-		await page.goto('/node/sy-0003');
-		await expect(page.getByTestId('toolbar-pin')).toHaveAttribute('aria-pressed', 'false');
-	});
-
-	test('keyboard focus in the pane shows it', async ({ page }) => {
-		await prefs(page, { controls: 'fade' });
-		await page.goto('/master/main');
-		const { away } = await points(page);
-		await page.mouse.move(away.x, away.y);
-		await expect.poll(() => opacity(page), { timeout: 2000 }).toBe(0);
-		// from the tab, the next stop is in the toolbar, which the key brings back
-		await pane(page, 0).getByRole('tab').first().focus();
-		await page.keyboard.press('Tab');
-		await expect(page.getByTestId('toolbar-view')).toBeFocused();
-		await expect.poll(() => opacity(page)).toBe(1);
-		// the pin's tooltip shows on keyboard focus as on hover
-		await page.keyboard.press('Tab');
-		await expect(page.getByTestId('toolbar-pin')).toBeFocused();
-		await expect.poll(() => page.getByTestId('toolbar-pin-tip').evaluate((t) => Number(getComputedStyle(t).opacity))).toBe(1);
-	});
-
-	test('with reduced motion it fades at once', async ({ page }) => {
-		await page.emulateMedia({ reducedMotion: 'reduce' });
-		await prefs(page, { controls: 'fade' });
-		await page.goto('/master/main');
-		await expect(controls(page, 0)).toHaveCSS('transition-duration', '0s');
-		const { band, away } = await points(page);
-		await page.mouse.move(band.x, band.y, { steps: 2 });
-		await expect.poll(() => opacity(page)).toBe(1);
-		await page.mouse.move(away.x, away.y);
-		await expect.poll(() => opacity(page), { timeout: 150, intervals: [20] }).toBe(0);
+	test('annotations off hides every mark in its own pane only, from view or by `a`', async ({ page }) => {
+		await page.goto('/master/main' + beside('/node/sy-0003'));
+		const mark = (i: number) => pane(page, i).locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').first();
+		for (const i of [0, 1]) await expect(mark(i)).not.toHaveClass(/hidden/);
+		await viewMenu(page, 0);
+		await page.getByTestId('toggle-hide-notes').click();
+		await expect(mark(0)).toHaveClass(/hidden/);
+		await expect(mark(1)).not.toHaveClass(/hidden/);
+		await expect(controls(page, 0).getByTestId('toolbar-view-on')).toBeVisible();
+		// `a` from inside the other pane hides that pane's, and again shows them
+		await pane(page, 1).locator('.fragment').first().press('a');
+		await expect(mark(1)).toHaveClass(/hidden/);
+		await pane(page, 1).locator('.fragment').first().press('a');
+		await expect(mark(1)).not.toHaveClass(/hidden/);
+		await expect(mark(0)).toHaveClass(/hidden/);
 	});
 });

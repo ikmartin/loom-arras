@@ -19,11 +19,15 @@ test('a corpus that has none of it', async ({ page }) => {
 	// the claim the images are evidence for: no read view, no review, no bibliography, no discussions
 	await page.goto('/');
 	await settle(page);
-	// the strip offers no read or review view, and the panel no Library
-	for (const gone of ['read', 'review']) await expect(page.getByTestId(`view-${gone}`)).toHaveCount(0);
+	// it opens on how to start, with no publisher's advice to give; Review is not offered, the column holds no Library, and the development shelf no threads
+	await expect(page.getByTestId('how-to-start')).toBeVisible();
+	await expect(page.getByTestId('start-step')).toHaveCount(0);
+	await expect(page.getByTestId('primary-review')).toHaveCount(0);
 	await expect(page.getByTestId('library-toggle')).toHaveCount(0);
-	await expect(page.getByRole('navigation', { name: 'Views' }).getByRole('link', { name: 'threads', exact: true })).toHaveCount(0);
-	// while home, graph and problems stand
-	for (const kept of ['home', 'graph']) await expect(page.getByTestId(`view-${kept}`)).toBeVisible();
-	await expect(page.getByTestId('problems-glyph')).toBeVisible();
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByTestId('settings-development').getByRole('link', { name: 'threads', exact: true })).toHaveCount(0);
+	await expect(page.getByTestId('settings-development').getByRole('link', { name: 'tags', exact: true })).toBeVisible();
+	// while Docs and the problems chip stand
+	await expect(page.getByTestId('primary-docs')).toBeVisible();
+	await expect(page.getByTestId('problems-chip')).toBeVisible();
 });

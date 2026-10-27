@@ -77,8 +77,7 @@
 	--rad-card: 12px;
 	--rail-left: 252px;
 	--rail-right: 236px;
-	--strip: 44px;
-	--reading-rail: 34px; /* the global rail above the workspace (plan 0.13.3 F1) */
+	--rail-folded: 44px; /* the column folded to its rail */
 	--tab-h: 30px; /* a pane's tab strip; a tab narrows to 1.5 times this before the strip scrolls */
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;

@@ -2,7 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/manifest/client.svelte';
-	import { canonUrl, masterUrl, nodeUrl, threadUrl } from '$lib/nav';
+	import { canonUrl, masterUrl, nodeUrl, threadUrl, workUrl } from '$lib/nav';
+	import { bibText } from '$lib/works';
 	import { registerPalette } from '$lib/palette';
 
 	let el: HTMLElement | undefined = $state();
@@ -18,7 +19,15 @@
 	const data = $derived.by((): Item[] => {
 		const m = store.manifest;
 		if (!m) return [];
-		return m.search.map((s) => {
+		// the cited works too, by key and title, each opening its paper: the palette is the one search, and a work is a thing a reader opens
+		const works = Object.values(m.references ?? {}).map((r) => ({
+			id: `work:${r.citekey}`,
+			title: `${r.citekey} · ${bibText(r.bib.title) || r.citekey}`,
+			section: 'work',
+			keywords: bibText(r.bib.author ?? ''),
+			handler: () => void goto(workUrl(r.citekey))
+		}));
+		const found = m.search.map((s) => {
 			const url =
 				s.kind === 'master'
 					? masterUrl(s.key)
@@ -35,6 +44,7 @@
 				handler: () => void goto(url)
 			};
 		});
+		return [...found, ...works];
 	});
 
 	$effect(() => {
