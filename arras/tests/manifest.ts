@@ -36,7 +36,15 @@ export const PDF = `%PDF-1.4
 trailer<</Root 1 0 R>>
 %%EOF`;
 
-/** Answer every filed paper with `PDF`; the manifest must also say the paper is filed (`artifacts.pdf`), which `serve` does. */
-export async function servePapers(page: Page): Promise<void> {
-	await page.route('**/paper.pdf', (route) => route.fulfill({ body: PDF, contentType: 'application/pdf' }));
+/** Five blank letter-sized pages: a paper long enough that landing on page 4 is not landing on page 1. */
+export const PDF5 = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R 4 0 R 5 0 R 6 0 R 7 0 R]/Count 5>>endobj
+${[3, 4, 5, 6, 7].map((n) => `${n} 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj`).join('\n')}
+trailer<</Root 1 0 R>>
+%%EOF`;
+
+/** Answer every filed paper with `body`, by default `PDF`; the manifest must also say the paper is filed (`artifacts.pdf`), which `serve` does. */
+export async function servePapers(page: Page, body: string = PDF): Promise<void> {
+	await page.route('**/paper.pdf', (route) => route.fulfill({ body, contentType: 'application/pdf' }));
 }

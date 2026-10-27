@@ -4,7 +4,7 @@
 	// A panel and not a route: a closure is a way of looking at a node, not a place to go, and the graph that answers the opposite question sits beside it on the same page.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import { nodeUrl } from '$lib/nav';
+	import { keyUrl } from '$lib/nav';
 	import { stack } from './closure';
 
 	let { center }: { center: string } = $props();
@@ -31,7 +31,7 @@
 				{@const node = m.nodes[m.keys[k]?.node ?? k]}
 				<li class:centre={k === center} data-key={k}>
 					<p class="who">
-						<a href={nodeUrl(m.keys[k]?.node ?? k)}>{node?.taxon ?? ''} {node?.title ?? k}</a>
+						<a href={keyUrl(m, m.keys[k]?.node ?? k)}>{node?.taxon ?? ''} {node?.title ?? k}</a>
 						<code>{k}</code>
 					</p>
 					{#if node?.fragment}<Fragment path={node.fragment} macroSet={node.digest ?? ''} />{/if}

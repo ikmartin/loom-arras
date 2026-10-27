@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Manifest } from '$lib/manifest/types';
 import { reachedExternal } from '$lib/reached';
-import { ledgerRow, ledgerRows, needsWork, readFrom } from './library';
+import { ledgerRow, ledgerRows, needsWork, readFrom, shelf } from './library';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 
@@ -73,5 +73,22 @@ describe('the ledger', () => {
 		const r = ledgerRow(fixture, fixture.references.Har77, new Set());
 		expect(r.digest).toBe(0);
 		expect(r.used).toBe(0);
+	});
+});
+
+describe('the shelf', () => {
+	it('lists a work once, by title, opening the copy filed: its own, else a version\'s', () => {
+		const m = structuredClone(fixture);
+		m.references.Kre99A = { ...structuredClone(m.references.Kre99), citekey: 'Kre99A', version_of: 'Kre99', bib: { title: 'A preprint', author: 'Kresch, A.' }, artifacts: { dir: 'x', pdf: true, source: false } };
+		const rows = shelf(m);
+		expect(rows.map((r) => r.citekey).sort()).toEqual(Object.keys(fixture.references).sort());
+		expect(rows.map((r) => r.title)).toEqual([...rows.map((r) => r.title)].sort((a, b) => a.localeCompare(b)));
+		const kre = rows.find((r) => r.citekey === 'Kre99')!;
+		expect(kre).toMatchObject({ filed: true, opens: 'Kre99A' });
+		// a filter finds the work by its version's key or title
+		expect(kre.text).toContain('kre99a');
+		expect(kre.text).toContain('a preprint');
+		m.references.Kre99.artifacts!.pdf = true;
+		expect(shelf(m).find((r) => r.citekey === 'Kre99')!.opens).toBe('Kre99');
 	});
 });

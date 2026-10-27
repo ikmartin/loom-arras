@@ -5,7 +5,7 @@
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, masterUrl, workUrl } from '$lib/nav';
-	import { bibText } from '$lib/works';
+	import { shelf } from '$lib/library';
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { onMount } from 'svelte';
@@ -22,10 +22,8 @@
 	// The problems chip answers whether anything is wrong, so it takes the colour of the worst thing it counts and says the count.
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
 	const problemCount = $derived(counts.errors + counts.warnings);
-	// The Library in the column: a work is one thing a reader opens, so the column lists them. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
-	const works = $derived(
-		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
-	);
+	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs. A choice opens in the focused pane, as every choice in the column does.
+	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
 	onMount(() => { void can('review-decision').then((yes) => readOnly = !yes); });
 	const reviewPerspective = $derived(store.manifest?.reviewer?.name
@@ -34,7 +32,7 @@
 	let workFilter = $state('');
 	const library = $derived.by(() => {
 		const q = workFilter.trim().toLowerCase();
-		return q ? works.filter((r) => `${r.citekey} ${bibText(r.bib.title)} ${bibText(r.bib.author ?? '')}`.toLowerCase().includes(q)) : works;
+		return q ? works.filter((r) => r.text.includes(q)) : works;
 	});
 
 	// **On a narrow window the column goes first** (plan 0.13 §7): below 1200px the workspace needs the width, so the column shows folded whatever the reader's stored choice, and the fold opens it for this visit without rewriting that choice. A window widened again shows the stored choice.
@@ -207,12 +205,12 @@
 							</button>
 						</p>
 						{#if libraryOpen}
-							{#if works.length > 6}<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />{/if}
+							<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />
 							<ul class="plain library" data-testid="library-list">
 								{#each library as r (r.citekey)}
 									<li>
-										<a href={workUrl(r.citekey)}
-											><span class="dot" class:filed={!!r.artifacts?.pdf} role="img" aria-label={r.artifacts?.pdf ? 'filed here' : 'not filed here'}></span>{bibText(r.bib.title) || r.citekey}</a
+										<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}"
+											><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span>{r.title}</a
 										>
 										{#if r.unreadable}<span class="aside">unreadable</span>{/if}
 									</li>

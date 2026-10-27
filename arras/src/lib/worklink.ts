@@ -133,14 +133,26 @@ export function pageOf(locator: string | undefined): number | undefined {
 	return m ? Number(m[1]) : undefined;
 }
 
+/** A cited result at the place it is read: its work, the page it is printed on, and the result, whose rectangles the work's sidecar carries. */
+export interface ResultPlace {
+	citekey: string;
+	page: number;
+	result: string;
+}
+
 /**
- * The link into the artifact a digest was extracted from, at a result's page, when that artifact is on file.
+ * Where a cited result is read: its paper, at its page (V7). Every link to a result asks this, so a citation, a `\ref`, a graph, a locator and a hover all name one place.
  *
- * A digest's numbers and pages are those of the version it was extracted from, so a page link must open that version and no other.
+ * The page is the one its anchor was read from on the copy filed, else the one its locator names. A locator's page is the extraction's, so it is used only where the copy filed is the version extracted. Null where no copy is filed, no page is known, or the page is another version's; the digest node's own page is then the place.
  */
-export function digestPageLink(ref: Reference | undefined, locator: string | undefined): WorkLink | null {
-	const page = pageOf(locator);
-	const from = ref?.digest?.extracted_from;
-	if (!page || !from || !ref?.artifacts?.pdf || !ref.work || normalId(ref.work) !== normalId(from)) return null;
-	return { id: normalId(from), page };
+export function resultPlace(m: (Pick<Manifest, 'nodes'> & Partial<Pick<Manifest, 'references'>>) | null, key: string): ResultPlace | null {
+	const node = m?.nodes[key];
+	const ref = node?.digest ? m?.references?.[node.digest] : undefined;
+	if (!node || !ref?.artifacts?.pdf) return null;
+	const record = ref.results?.[key];
+	const read = record && record.page > 0 ? record.page : undefined;
+	const from = ref.digest?.extracted_from;
+	const otherVersion = !!record?.version || ref.version_mismatch || (!!from && (!ref.work || normalId(ref.work) !== normalId(from)));
+	const page = read ?? (otherVersion ? undefined : pageOf(node.locator));
+	return page ? { citekey: ref.citekey, page, result: key } : null;
 }

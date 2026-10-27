@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The proposed results waiting for the author, across the library (WQ-55): one queue, grouped by work, each work's count beside it, and one result at a time at full width. ↑ ↓ move through it; v verifies, e edits and d discards the one shown; after a verb the queue moves to the next. `?work=` opens it at that work's first, which a work's Digest view and the ledger link to.
+	// The proposed results waiting for the author, across the library (WQ-55): one queue, grouped by work, each work's count beside it, and one result at a time at full width. ↑ ↓ move through it; v verifies, e edits and d discards the one shown; after a verb the queue moves to the next. `?work=` opens it at that work's first, which a work's Info and the ledger link to.
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';

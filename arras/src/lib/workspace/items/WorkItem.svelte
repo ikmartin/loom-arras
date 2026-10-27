@@ -1,10 +1,10 @@
 <script lang="ts">
 	// A cited work (plan 0.13.3 K1–K5): the paper, the digest read off it, and what the corpus knows about it.
 	//
-	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on the first view that can be. A work in the Library is a document a reader came to read, and the digest is a derived index of it — useful, and never the thing you meant when you clicked the title. The three views stand at the end of the pane's tab strip, and everything that is *about* the work rather than *of* it stands behind **Info**, so the reading surface is the paper and nothing else, full bleed in its pane.
+	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on Info. A work in the Library is a document a reader came to read, and the digest is a derived index of it — what locates a result on its page, and never the thing you meant when you clicked the title. The two views, Paper · Info, stand in the pane's toolbar, and everything that is *about* the work rather than *of* it stands behind **Info**: its entry, the results the corpus uses, and, for a work with no readable copy, the digest's own text, the one place it is read. So the reading surface is the paper and nothing else, full bleed in its pane.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import { keyUrl, nodeUrl, workUrl } from '$lib/nav';
+	import { keyUrl, workUrl } from '$lib/nav';
 	import { reachedExternal } from '$lib/reached';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
@@ -14,7 +14,7 @@
 	import { route } from '$lib/paths';
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
-	import type { WorkLink } from '$lib/worklink';
+	import { resultPlace, type WorkLink } from '$lib/worklink';
 	import type { Item } from '../item';
 	import { workState } from '../state.svelte';
 	import { currentView, workViews } from '../views';
@@ -50,13 +50,16 @@
 			.filter(Boolean)
 			.join(', ');
 	});
-	/** The page to open at: whatever the item's place names, else the first. A paper always opens somewhere. */
-	const reading = $derived(item.place?.page || 1);
+	/** The page to open at: whatever the item's place names, the page of the result it names, else the first. A paper always opens somewhere. */
+	const reading = $derived(item.place?.page || (item.place?.result ? resultPlace(m, item.place.result)?.page : undefined) || 1);
 	// The place the item points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
 	const locator = $derived<WorkLink | null>(ref?.work ? { id: ref.work, ...(item.place ?? {}) } : null);
 
-	/** Which of the three views is open: the item's, else the first that can be read — the paper, unless no copy of it can be. */
-	const tab = $derived(currentView(workViews(m, item.id), item.view) ?? 'paper');
+	/** Which view is open: the item's, else the first that can be read — the paper, unless no copy of it can be. */
+	const views = $derived(workViews(m, item.id));
+	const tab = $derived(currentView(views, item.view) ?? 'paper');
+	/** No copy can be read, so the digest's text is read on Info instead. */
+	const paperless = $derived(!!views[0].off);
 	/** The reader's view of the paper, shared with the controls, which the focused pane draws for its item. */
 	const pdf = $derived(workState(item).pdf);
 
@@ -100,47 +103,17 @@
 	<div class="page item work" class:reading={tab === 'paper'}>
 		{#if tab === 'paper'}
 			<div class="reader" data-testid="reader">
-				<Reading {citekey} {ref} page={reading} {locator} view={pdf} />
-			</div>
-		{:else if tab === 'digest'}
-			<div class="prose">
-				{#if proposals.length}
-					<p class="proposals" data-testid="proposals">
-						{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.
-					</p>
-				{/if}
-				{#if ref.digest}
-					<Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" />
-					<h2>Results used here</h2>
-					{#if used.length}
-						<ul>
-							{#each used as id (id)}
-								<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
-							{/each}
-						</ul>
-					{:else}
-						<p class="muted">Nothing here depends on this reference yet.</p>
-					{/if}
-					{#if rest.length}
-						<h2>
-							<button class="fold" onclick={() => (showAll = !showAll)} aria-expanded={showAll} data-testid="digest-rest">
-								{showAll ? '▾' : '▸'} {rest.length} further result{rest.length === 1 ? '' : 's'} nothing here uses
-							</button>
-						</h2>
-						{#if showAll}
-							<ul>
-								{#each rest as id (id)}
-									<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}</li>
-								{/each}
-							</ul>
-						{/if}
-					{/if}
-				{/if}
+				<Reading {citekey} {ref} page={reading} seq={item.place ? item.seq : 0} {locator} view={pdf} />
 			</div>
 		{:else}
 			<div class="prose info" data-testid="work-info">
 				<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 				<p class="links"><code>{citekey}</code> <WorkLinks {ref} /></p>
+				{#if proposals.length}
+					<p class="proposals" data-testid="proposals">
+						{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.
+					</p>
+				{/if}
 
 				<!-- Read as a list, taken as BibTeX. The list is for the eye; the entry is what goes into a `.bib`, and
 				     retyping it from a rendered list is exactly the thing a reader should never have to do. -->
@@ -185,6 +158,38 @@
 				{/if}
 				{#if ref.unreadable}
 					<p class="muted">Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}.</p>
+				{/if}
+
+				{#if ref.digest}
+					<!-- each result links where every link to it goes: the paper at its page, else loom's record of it -->
+					<h2>Results used here</h2>
+					{#if used.length}
+						<ul data-testid="results-used">
+							{#each used as id (id)}
+								<li><a href={keyUrl(m, id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {id} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="muted">Nothing here depends on this reference yet.</p>
+					{/if}
+					{#if rest.length}
+						<h2>
+							<button class="fold" onclick={() => (showAll = !showAll)} aria-expanded={showAll} data-testid="digest-rest">
+								{showAll ? '▾' : '▸'} {rest.length} further result{rest.length === 1 ? '' : 's'} nothing here uses
+							</button>
+						</h2>
+						{#if showAll}
+							<ul>
+								{#each rest as id (id)}
+									<li><a href={keyUrl(m, id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {id} locator={m.nodes[id].locator} />){/if}</li>
+								{/each}
+							</ul>
+						{/if}
+					{/if}
+					{#if paperless}
+						<h2>Digest</h2>
+						<div data-testid="work-digest"><Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" /></div>
+					{/if}
 				{/if}
 
 				<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />

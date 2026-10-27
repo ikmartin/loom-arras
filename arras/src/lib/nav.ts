@@ -1,6 +1,8 @@
 // Routes. Keys may contain / and #; they travel in the rest segment of /node/, with # percent-encoded.
 // Every route is composed from the configured base path, never written origin-absolute (plan 0.9.5 R1).
+import type { Manifest } from '$lib/manifest/types';
 import { route } from '$lib/paths';
+import { placeParams, resultPlace } from '$lib/worklink';
 export function nodeUrl(key: string): string {
 	return route('/node/' + key.split('/').map(encodeURIComponent).join('/'));
 }
@@ -61,18 +63,17 @@ export function readUrl(masterPath: string, key?: string): string {
 }
 
 /**
- * A page for `key`, resolved through its owner when the key has no page of its own.
+ * Where a link to `key` goes: a cited result to its paper at its page, anything else to its page, resolved through its owner when the key has no page of its own.
  *
- * An unlabelled proof gets a review key but no node entry, so linking it directly lands on "Unknown key"; `keys[key].node` names the statement that owns it, and the proof is an anchor within that page.
+ * An unlabelled proof gets a review key but no node entry, so linking it directly lands on "Unknown key"; `keys[key].node` names the statement that owns it, and the proof is an anchor within that page. A result with no paper to open at a page goes to its digest node's page, which is also where `nodeUrl` always goes.
  */
 export function keyUrl(m: KeyIndex | null, key: string): string {
+	const at = resultPlace(m, key);
+	if (at) return workUrl(at.citekey) + '?' + placeParams({ page: at.page, result: at.result }).toString();
 	return keyTarget(m, key) ?? nodeUrl(key);
 }
 
-interface KeyIndex {
-	nodes: Record<string, unknown>;
-	keys?: Record<string, { node?: string }>;
-}
+type KeyIndex = Pick<Manifest, 'nodes'> & Partial<Pick<Manifest, 'keys' | 'references'>>;
 
 /**
  * The page for `key`, or `null` when nothing in the manifest has one.

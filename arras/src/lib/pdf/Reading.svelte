@@ -29,12 +29,15 @@
 		citekey,
 		ref,
 		page,
+		seq = 0,
 		locator = null,
 		view,
 	}: {
 		citekey: string;
 		ref: Reference;
 		page: number;
+		/** Changed each time the reader is sent to the place, so being sent again lands again. */
+		seq?: number;
 		/** A place the URL points at: `span`, `box`, `quote` are lit transiently; `annot` focuses a note's mark. */
 		locator?: WorkLink | null;
 		/** The reader's view, when the page draws the controls in a rail of its own. */
@@ -111,10 +114,11 @@
 			return;
 		}
 		let dropped = false;
-		const body: Record<string, unknown> = l.span ? { citekey, page: at, span: l.span } : { citekey, page: at, text: l.quote };
-		void write('locate', body).then((res: WriteResult & { anchor?: { quads?: number[][] } }) => {
+		// a quote with no page is looked for across the work, and lit on the page loom finds it on
+		const body: Record<string, unknown> = l.span ? { citekey, page: at, span: l.span } : { citekey, ...(l.page ? { page: l.page } : {}), text: l.quote };
+		void write('locate', body).then((res: WriteResult & { page?: number; anchor?: { quads?: number[][] } }) => {
 			if (dropped) return;
-			lit = res.ok && res.anchor?.quads?.length ? { page: at, rects: res.anchor.quads } : null;
+			lit = res.ok && res.anchor?.quads?.length ? { page: res.page ?? at, rects: res.anchor.quads } : null;
 		});
 		return () => {
 			dropped = true;
@@ -225,6 +229,7 @@
 			<PdfDoc
 				{url}
 				{page}
+				{seq}
 				{view}
 				spans={drawn}
 				focus={focusOn}

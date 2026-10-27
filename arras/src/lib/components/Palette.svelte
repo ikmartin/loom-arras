@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/manifest/client.svelte';
-	import { canonUrl, masterUrl, nodeUrl, threadUrl, workUrl } from '$lib/nav';
-	import { bibText } from '$lib/works';
+	import { canonUrl, keyUrl, masterUrl, threadUrl, workUrl } from '$lib/nav';
+	import { shelf } from '$lib/library';
 
 	let el: HTMLElement | undefined = $state();
 
@@ -17,13 +17,13 @@
 	const data = $derived.by((): Item[] => {
 		const m = store.manifest;
 		if (!m) return [];
-		// the cited works too, by key and title, each opening its paper: the palette is the one search, and a work is a thing a reader opens
-		const works = Object.values(m.references ?? {}).map((r) => ({
+		// the cited works too, by key and title, each opening its paper: the palette is the one search, and a work is a thing a reader opens, once however many documents it has
+		const works = shelf(m).map((r) => ({
 			id: `work:${r.citekey}`,
-			title: `${r.citekey} · ${bibText(r.bib.title) || r.citekey}`,
+			title: `${r.citekey} · ${r.title}`,
 			section: 'work',
-			keywords: bibText(r.bib.author ?? ''),
-			handler: () => void goto(workUrl(r.citekey))
+			keywords: r.text,
+			handler: () => void goto(workUrl(r.opens))
 		}));
 		const found = m.search.map((s) => {
 			const url =
@@ -33,7 +33,7 @@
 						? canonUrl(s.key)
 						: s.kind === 'thread'
 							? threadUrl(s.key)
-							: nodeUrl(s.key);
+							: keyUrl(m, s.key);
 			return {
 				id: s.key,
 				title: `${s.key} ${s.title && s.title !== s.key ? '· ' + s.title : ''}`,

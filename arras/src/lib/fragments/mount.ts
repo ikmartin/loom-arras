@@ -1,5 +1,5 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
-import { anchorId, masterUrl, workUrl, keyUrl, nodeUrl } from '$lib/nav';
+import { anchorId, masterUrl, workUrl, keyTarget, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
 import { pageOf } from '$lib/worklink';
 import { taxonTone } from '$lib/taxonomy';
@@ -98,11 +98,6 @@ export function inert(mark: HTMLElement): boolean {
 	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
 }
 
-/**
- * Where a cited result is in the work itself: its page, and the result whose rectangles the sidecar carries.
- *
- * Empty when no copy is filed or the locator names no page, in which case the caller falls back to the digest node.
- */
 /** An annotation's card, looked for in the pane the mark stands in before anywhere else: two open items can both hold a card for one annotation. */
 export function card(root: HTMLElement, id: string): HTMLElement | null {
 	const scope = root.closest('[data-pane]');
@@ -112,15 +107,6 @@ export function card(root: HTMLElement, id: string): HTMLElement | null {
 /** The annotation's box, or the reply inside one, open in the pane the mark stands in; null when none is. A box carries `ann-<id>` wherever it is placed, so this is one query. */
 export function boxFor(root: HTMLElement, id: string): HTMLElement | null {
 	return (root.closest('[data-pane]') ?? root).querySelector<HTMLElement>(`:is(article.box, article.reply)[id="ann-${CSS.escape(id)}"]`);
-}
-
-function atResult(manifest: Manifest | null, node: string): string {
-	const nd = manifest?.nodes[node];
-	const ck = nd?.digest;
-	const ref = ck ? manifest?.references[ck] : undefined;
-	const at = pageOf(nd?.locator);
-	if (!ref?.artifacts?.pdf || !at) return '';
-	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}`;
 }
 
 /**
@@ -156,12 +142,13 @@ export function wire(
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
 		set(a, 'href', here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : ''));
 	}
-	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited, with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
+	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that work, so the link goes where every link to the result goes (`keyUrl`): the work at the result's page where a copy is filed, else the digest node's page, loom's record of it. A citation with no digest node behind it opens the work at the page its postnote names, or at its front; a citekey the manifest does not know stays text.
 	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
 		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;
 		const citekey = c.dataset.citekey ?? '';
-		const href = (target ? atResult(manifest, target) : '') || (target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '');
+		const page = pageOf(c.dataset.postnote);
+		const href = target ? keyUrl(manifest, target) : manifest?.references[citekey] ? workUrl(citekey) + (page ? `?page=${page}` : '') : '';
 		if (!href) continue;
 		const a = document.createElement('a');
 		a.href = href;
@@ -195,7 +182,8 @@ export function wire(
 				margin.appendChild(idEl);
 				el.prepend(margin);
 			}
-			set(margin.querySelector<HTMLElement>('a.mid')!, 'href', keyUrl(manifest, key));
+			// the key's own page, a cited result's too: the margin and the heading link name the record, not the place it is read
+			set(margin.querySelector<HTMLElement>('a.mid')!, 'href', keyTarget(manifest, key) ?? nodeUrl(key));
 			let st = margin.querySelector<HTMLElement>('span.mstate');
 			if (!entry) {
 				st?.remove();
@@ -301,7 +289,7 @@ export function wire(
 			if (!key) continue;
 			const a = document.createElement('a');
 			a.className = 'heading-link';
-			a.href = keyUrl(manifest, key);
+			a.href = keyTarget(manifest, key) ?? nodeUrl(key);
 			a.textContent = '¶';
 			a.title = key;
 			a.setAttribute('aria-label', `the page for ${key}`);

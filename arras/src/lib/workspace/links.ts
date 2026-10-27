@@ -8,8 +8,8 @@ import { goto } from '$app/navigation';
 import type { Manifest } from '$lib/manifest/types';
 import { pdf } from '$lib/pdf.svelte';
 import { sessionView } from '$lib/sessions/sessions.svelte';
-import { isWorkLink, locate, pageOf, parseWorkLink } from '$lib/worklink';
-import { anchorId, keyUrl } from '$lib/nav';
+import { isWorkLink, locate, parseWorkLink, resultPlace } from '$lib/worklink';
+import { anchorId, keyTarget, keyUrl, nodeUrl } from '$lib/nav';
 import { isDocument } from '$lib/review/run';
 import { itemFromPath, itemKey, pathFor, type Item } from './item';
 import { workspace } from './store.svelte';
@@ -31,8 +31,9 @@ export function itemForHref(m: Manifest, href: string): Item | null {
 		const link = parseWorkLink(href);
 		const where = link ? locate(m, link) : null;
 		if (!link || !where?.local || !where.ref) return null;
+		// a quote with no page is looked for across the work's pages, so the page is left unnamed rather than taken as the first
 		const { id: _id, ...place } = link;
-		return { kind: 'work', id: where.ref.citekey, place: { ...place, page: place.page ?? 1 } };
+		return { kind: 'work', id: where.ref.citekey, place };
 	}
 	let url: URL;
 	try {
@@ -69,13 +70,11 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 }
 
 /**
- * A result read off a cited work, as the paper at the page it is printed on: what a citation of it opens, so a link to it opens the same place (study F9). Null for anything else, or where no copy is filed or no page is known.
+ * A result read off a cited work, as the paper at the page it is printed on (`resultPlace`): what a citation of it opens, so every link to it opens the same place (study F9). Null for anything else, or where the result has no paper to open at a page.
  */
 export function paperAt(m: Manifest, key: string): Item | null {
-	const node = m.nodes[key];
-	const work = node?.digest ? m.references[node.digest] : undefined;
-	const page = pageOf(node?.locator);
-	return work?.artifacts?.pdf && page ? { kind: 'work', id: work.citekey, place: { page, result: key } } : null;
+	const at = resultPlace(m, key);
+	return at ? { kind: 'work', id: at.citekey, place: { page: at.page, result: at.result } } : null;
 }
 
 /** The note a reply answers, and so on up: a box opens on a thread, by the note that began it. */
@@ -96,7 +95,9 @@ function noteItem(m: Manifest, id: string, target: { key: string; page?: number 
 	const work = Object.values(m.references).find((r) => r.work === target.key || r.works?.includes(target.key));
 	if (work) return { kind: 'work', id: work.citekey, place: { page: target.page ?? 1, annot: id } };
 	if (isDocument(m, target.key)) return { kind: 'document', id: target.key, note: id };
-	const at = itemFromPath(m, keyUrl(m, m.regions?.[target.key]?.container ?? target.key));
+	// a note on a cited result is on loom's record of it, so it opens there rather than on the paper
+	const key = m.regions?.[target.key]?.container ?? target.key;
+	const at = itemFromPath(m, keyTarget(m, key) ?? nodeUrl(key));
 	return at ? { ...at, note: id } : null;
 }
 

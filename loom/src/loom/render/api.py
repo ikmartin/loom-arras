@@ -413,7 +413,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """Turn a reader's selection on a page into the anchor loom would record (plan 0.13 item 2).
 
-    Body: `citekey`, `page`, and either `text` -- what the reader selected -- or `rects`, the rectangles they drew when there was no text worth selecting. The answer carries the anchor and, beside it, the line a person would read.
+    Body: `citekey`, `page`, and either `text` -- what the reader selected -- or `rects`, the rectangles they drew when there was no text worth selecting. `page` may be left out with `text`, for a link that quotes without a page: the first page whose committed text holds the quote is used. The answer carries the anchor, the page, and beside them the line a person would read.
 
     **Mapping happens here and not in the viewer.** The client's text layer is a third extraction of the page, after the committed page text and the word boxes; only loom holds the other two, and only loom can say what the committed text says, which is what an anchor is checked against. The client never decides what the anchor is.
 
@@ -422,13 +422,14 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     from loom.refs.anchoring import anchor_on_page
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
+    from loom.refs.search import grep_work
 
     citekey = _str(body, "citekey", required=True) or ""
     page = body.get("page")
-    if not isinstance(page, int) or page < 1:
-        raise ApiError("bad-field", "page must be a positive integer")
     rects = [[float(v) for v in r] for r in body.get("rects") or []]
     text = _str(body, "text")
+    if not (page is None and text) and (not isinstance(page, int) or page < 1):
+        raise ApiError("bad-field", "page must be a positive integer")
     raw_span = body.get("span")
     span = (int(raw_span[0]), int(raw_span[1])) if isinstance(raw_span, list) and len(raw_span) == 2 else None
     if not text and not rects and not span:
@@ -440,11 +441,17 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     home = work_dir(root, result.bib[citekey])
     if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ApiError("not-readable", f"{citekey} has no copy on this machine", status=404)
+    if page is None:
+        hits = grep_work(home, citekey, text or "")
+        if not hits:
+            raise ApiError("not-found", f"no page of {citekey} holds that text", status=404)
+        page = min(h.page for h in hits)
     placed = anchor_on_page(home, page, text, rects, span)
     box = placed.page_box
     return {
         "ok": True,
         "result": f"{citekey} p.{page} anchored by {placed.said}, {len(placed.anchor.quads or [])} line(s)",
+        "page": page,
         "anchor": _anchor_json(placed.anchor),
         "text": placed.selector.exact,
         "page_box": {"width": box[0], "height": box[1]} if box else None,

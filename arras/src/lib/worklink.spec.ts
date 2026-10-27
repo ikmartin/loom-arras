@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { digestPageLink, externalUrl, locate, normalId, pageOf, parseWorkLink } from './worklink';
+import { externalUrl, locate, normalId, pageOf, parseWorkLink, resultPlace } from './worklink';
+import { keyUrl } from './nav';
 import type { Manifest, Reference } from './manifest/types';
 
 const ref = (over: Partial<Reference>): Reference => ({ citekey: 'X', bib: {}, digest: null, version_mismatch: false, cited_by: [], ...over });
@@ -44,12 +45,37 @@ describe('a digest locator', () => {
 		expect(pageOf('Theorem A, pp. 4–6')).toBe(4);
 		expect(pageOf('Theorem 2.1')).toBeUndefined();
 	});
+});
 
-	it('links to that page only in the artifact the digest was extracted from', () => {
-		const onFile = ref({ work: 'arXiv:2207.01652', artifacts: { dir: 'refs/arxiv/2207.01652', pdf: true, source: true }, digest: { file: '', fragment: '', source: 'arXiv:2207.01652', extracted_from: 'arXiv:2207.01652', method: 'extract', nodes: [] } });
-		expect(digestPageLink(onFile, 'Construction 1.7, p.~13')).toEqual({ id: 'arxiv:2207.01652', page: 13 });
-		const published = { ...onFile, work: 'doi:10.1/x' };
-		expect(digestPageLink(published, 'Construction 1.7, p.~13')).toBeNull();
-		expect(digestPageLink({ ...onFile, artifacts: { dir: '', pdf: false, source: false } }, 'p. 13')).toBeNull();
+describe("a cited result's place", () => {
+	const digest = { file: '', fragment: '', source: 'arXiv:2207.01652', extracted_from: 'arXiv:2207.01652', method: 'extract', nodes: ['Z22-c1.7'] };
+	const filed = { dir: 'refs/arxiv/2207.01652', pdf: true, source: true };
+	const at = (over: Partial<Reference> = {}, locator = 'Construction 1.7, p.~13', page = 0) =>
+		({
+			nodes: { 'Z22-c1.7': { digest: 'Z22', locator } },
+			references: { Z22: ref({ citekey: 'Z22', work: 'arXiv:2207.01652', artifacts: filed, digest, results: { 'Z22-c1.7': { state: 'extracted', page } as never }, ...over }) }
+		}) as unknown as Manifest;
+
+	it('is its paper at the page its anchor was read from, else the page its locator names', () => {
+		expect(resultPlace(at({}, 'Construction 1.7, p.~13', 14), 'Z22-c1.7')).toEqual({ citekey: 'Z22', page: 14, result: 'Z22-c1.7' });
+		expect(resultPlace(at(), 'Z22-c1.7')).toEqual({ citekey: 'Z22', page: 13, result: 'Z22-c1.7' });
+		expect(keyUrl(at(), 'Z22-c1.7')).toBe('/library/Z22?page=13&result=Z22-c1.7');
+	});
+
+	it("is its digest node's page where no paper is filed, no page is known, or the locator's page is another version's", () => {
+		expect(resultPlace(at({ artifacts: { ...filed, pdf: false } }), 'Z22-c1.7')).toBeNull();
+		expect(keyUrl(at({ artifacts: { ...filed, pdf: false } }), 'Z22-c1.7')).toBe('/node/Z22-c1.7');
+		expect(resultPlace(at({}, 'Construction 1.7'), 'Z22-c1.7')).toBeNull();
+		expect(resultPlace(at({ work: 'doi:10.1/x' }), 'Z22-c1.7')).toBeNull();
+		expect(resultPlace(at({ version_mismatch: true }), 'Z22-c1.7')).toBeNull();
+		const other = at();
+		other.references.Z22.results!['Z22-c1.7'].version = { extracted_from: 'arXiv:2207.01652v1', cited: 'doi:10.1/x' };
+		expect(resultPlace(other, 'Z22-c1.7')).toBeNull();
+		// a page read off the copy filed is that copy's, whatever version the digest was extracted from
+		expect(resultPlace(at({ work: 'doi:10.1/x' }, 'p. 13', 2), 'Z22-c1.7')?.page).toBe(2);
+	});
+
+	it('is nothing for a key that is not a cited result', () => {
+		expect(resultPlace(at(), 'sy-0001')).toBeNull();
 	});
 });

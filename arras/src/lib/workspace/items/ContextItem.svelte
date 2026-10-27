@@ -121,7 +121,7 @@
 			<RailList label="from">
 				{#if node.external && node.digest}
 					<p class="line">
-						<a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}
+						<a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator id={key} locator={node.locator} />{/if}
 					</p>
 				{/if}
 				{#each versions as v (v.key)}<p class="line" data-testid="version"><code>{v.key}</code> {v.label}</p>{/each}
@@ -210,7 +210,7 @@
 		{/if}
 
 		<!-- Last and small: the lists answer the questions a reader brings, and the graph is the picture of them, one expand away from full size. Under its own title, which names it once; `hrefFor` makes it navigable (plan 0.11 Part D). -->
-		<section class="graph"><LocalGraphPanel center={key} height={150} hrefFor={(id) => nodeUrl(id)} /></section>
+		<section class="graph"><LocalGraphPanel center={key} height={150} hrefFor={(id) => keyUrl(m, id)} /></section>
 	{/if}
 </div>
 

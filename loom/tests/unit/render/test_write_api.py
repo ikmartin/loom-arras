@@ -439,7 +439,18 @@ def _locate(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     text = "The median orders of a weighted digraph are in bijection with the vertices"
     said = succeeds(s, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})
     assert said["anchor"]["basis"] == "text" and said["anchor"]["page"] == 2 and said["text"] == text, said
+    # a quote with no page: the page that holds it
+    found = succeeds(s, "locate", {"citekey": "Bellamy19", "text": text})
+    assert found["page"] == 2 and found["anchor"]["page"] == 2, found
     refuses(s, "locate", {"citekey": "Nope", "page": 1, "text": "x"}, 404, "no-such-work", "Nope")
+    refuses(
+        s,
+        "locate",
+        {"citekey": "Bellamy19", "text": "words on no page of it"},
+        404,
+        "not-found",
+        "no page of Bellamy19",
+    )
 
 
 @case("session-use")

@@ -174,7 +174,7 @@ test('ten proposals are gone through by key alone, the queue wrapping at its end
 	await expect(page.getByTestId('queue-at')).toHaveText('1 of 10');
 });
 
-test('the queue opens at a work the address names, and a work\'s Digest view and the ledger link there', async ({ page }) => {
+test('the queue opens at a work the address names, and a work\'s Info and the ledger link there', async ({ page }) => {
 	await serve(page, (m) => {
 		propose(m, 'Har77', 'Har77-prop-1.1');
 		propose(m, 'Kre99', 'Kre99-thm-9.9');
@@ -182,7 +182,7 @@ test('the queue opens at a work the address names, and a work\'s Digest view and
 	await page.goto('/review/library?work=Kre99');
 	await expect(card(page)).toHaveAttribute('data-id', 'Kre99-thm-9.9');
 	await expect(page.getByTestId('pending-Kre99')).toHaveAttribute('href', '/review/library?work=Kre99#queue');
-	await page.goto('/library/Kre99?view=digest');
+	await page.goto('/library/Kre99?view=info');
 	await expect(page.getByTestId('proposals')).toContainText('1 proposed result of this work waits to be verified');
 	await expect(page.getByTestId('proposals-queue-link')).toHaveAttribute('href', '/review/library?work=Kre99#queue');
 	await expect(page.getByTestId('proposal')).toHaveCount(0);

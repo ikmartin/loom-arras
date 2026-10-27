@@ -20,6 +20,7 @@
 	let {
 		url,
 		page = 1,
+		seq = 0,
 		spans = [],
 		focus = '',
 		scale,
@@ -34,6 +35,8 @@
 		url: string;
 		/** The page to open at; changing it scrolls there. */
 		page?: number;
+		/** Changed each time the reader is sent to `page` or `focus`, so being sent to the place already shown lands there again. */
+		seq?: number;
 		/** What to draw, by page: a work's results, and the annotations on its pages, which carry their kind, severity, basis and whether they are settled, and are marked `note`. */
 		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
@@ -159,6 +162,7 @@
 		const target = column.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
 		here = n;
+		keep = { page: n, share: 0 };
 		toPage(target, 'smooth');
 		onpage?.({ page: n });
 	});
@@ -181,12 +185,31 @@
 	// fight the reader for the scrollbar.
 	$effect(() => {
 		const want = page;
+		void seq;
 		if (!column || !count) return;
-		const target = column.querySelector(`[data-holder="${Math.min(Math.max(want, 1), count)}"]`);
+		const n = Math.min(Math.max(want, 1), count);
+		const target = column.querySelector(`[data-holder="${n}"]`);
 		if (target) {
-			here = Math.min(Math.max(want, 1), count);
+			// `n`, not `here`: reading what the scroll handler writes would land again at every scroll
+			here = n;
 			toPage(target);
+			keep = { page: n, share: 0, top: column.scrollTop };
 		}
+	});
+
+	/** Where the reader is: the page at the column's top, how far down it as a share of its height, and the scroll offset that was. Pages drawn again at another size all move, so this is put back after; otherwise a landing made before the zoom settled ends a page or more away from where it was sent. */
+	let keep: { page: number; share: number; top?: number } | null = null;
+	$effect(() => {
+		void drawAt;
+		void sizes;
+		const holder = keep && column?.querySelector<HTMLElement>(`[data-holder="${keep.page}"]`);
+		if (!column || !keep || !holder) return;
+		// moved since it was kept, and not by the browser holding the offset inside a column grown shorter: the reader scrolled, and their place is the one to keep
+		const end = column.scrollHeight - column.clientHeight;
+		if (keep.top !== undefined && column.scrollTop !== keep.top && !(keep.top > end && column.scrollTop >= end - 1)) return;
+		const next = holder.nextElementSibling as HTMLElement | null;
+		column.scrollTop = holder.offsetTop + keep.share * ((next?.offsetTop ?? column.scrollHeight) - holder.offsetTop);
+		keep = { ...keep, top: column.scrollTop };
 	});
 
 	$effect(() => {
@@ -196,6 +219,8 @@
 		// a redraw at another zoom or width moves the result: land again, which also re-reads whether the text now fits
 		void drawAt;
 		void columnWidth;
+		// sent there again: land again
+		void seq;
 		// a moving divider changes the width every frame; land once it is put down
 		if (!id || !column || workspace.resizing) return;
 		const at = spans.find((s) => s.id === id);
@@ -242,6 +267,7 @@
 		const target = column?.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
 		here = n;
+		keep = { page: n, share: 0 };
 		toPage(target, 'smooth');
 		onpage?.({ page: n });
 	}
@@ -276,6 +302,12 @@
 			} else hi = mid - 1;
 		}
 		const best = last >= 0 ? last + 1 : here;
+		// the page at the top, and how far into it: what a redraw at another size puts back
+		const top = column.scrollTop;
+		let at = 0;
+		while (at + 1 < tops.length && tops[at + 1] <= top) at++;
+		const height = (tops[at + 1] ?? column.scrollHeight) - tops[at];
+		if (tops.length) keep = { page: at + 1, share: height > 0 ? Math.max(0, (top - tops[at]) / height) : 0, top };
 		if (best !== here) {
 			here = best;
 			onpage?.({ page: best });

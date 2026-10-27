@@ -59,7 +59,7 @@ describe('a route, under a base', () => {
 		const items: Item[] = [
 			{ kind: 'document', id: 'drafting/main.tex', anchor: 'sy-0003' },
 			{ kind: 'document', id: 'canon/widgets-v1.tex' },
-			{ kind: 'work', id: 'Kre99', view: 'digest' },
+			{ kind: 'work', id: 'Kre99', view: 'info' },
 			{ kind: 'node', id: 'sy-0003', note: 'a-2026-09-16-0001' },
 			{ kind: 'context', id: 'sy-0003' },
 			{ kind: 'session', id: 's-2026-09-16-0001', view: 'did' }
@@ -67,7 +67,7 @@ describe('a route, under a base', () => {
 		expect(items.map((i) => pathFor(m, i))).toEqual([
 			'/sub/master/main#sy-0003',
 			'/sub/canon/widgets-v1',
-			'/sub/library/Kre99?view=digest',
+			'/sub/library/Kre99?view=info',
 			'/sub/node/sy-0003?note=a-2026-09-16-0001',
 			'/sub/context/sy-0003',
 			'/sub/session/s-2026-09-16-0001?view=did'

@@ -22,7 +22,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/library-cite` | `{annotation, session, decision: "accept" \| "reject", why?, author?}` | records a citation suggestion's outcome and resolves it in `session`: `loom library verify` and `discard` on its id, through the one function both use, so the note names the payload as the work and the body as the claim |
 | `POST` | `/_api/library-verify` | `{node, statement?, local?, taxon?, author?}` | verifies a proposed result, editing the rendering first when `statement` is given |
 | `POST` | `/_api/library-discard` | `{node, why, author?}` | discards a proposed result, keeping why |
-| `POST` | `/_api/locate` | `{citekey, page, text? , rects?, span?}` | answers with the anchor loom would record; **writes nothing** |
+| `POST` | `/_api/locate` | `{citekey, page?, text? , rects?, span?}` | answers with the anchor loom would record and its page; **writes nothing** |
 | `POST` | `/_api/compare` | `{left, right}` | answers with the differing pairs of two items, each a live document's path, a landmark (its path, `DOC@STEP`, its name, its step) or a live node's key, each side rendered with its changed words; **writes nothing** a record holds, its renderings cached under `build/compare/` by their inputs |
 | `POST` | `/_api/session-use` | `{session, author?}` | makes one session the one writing lands in, resuming it when closed |
 | `POST` | `/_api/session-rename` | `{session, title, author?}` | retitles one; the id does not change, because it is the address |
@@ -39,7 +39,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 **[decided]** `session-purge` is **not** an endpoint and will not become one. Purging rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
 
-**[decided]** `annotate` with `page` records a note on a page of a cited work (DR-209) through the same mapping `locate` previews — one function on the publisher, so what the viewer showed is what the log says. `locate` with `span` maps offsets into the page's committed text, which is what a `span=` locator in a URL carries.
+**[decided]** `annotate` with `page` records a note on a page of a cited work (DR-209) through the same mapping `locate` previews — one function on the publisher, so what the viewer showed is what the log says. `locate` with `span` maps offsets into the page's committed text, which is what a `span=` locator in a URL carries. `locate` with `text` and no `page` maps the quote on the first page whose committed text holds it, which is what a `quote=` locator with no `page=` carries; it is refused with `not-found`, 404, when no page does.
 
 **[decided]** `locate` maps a selection to an anchor **on the publisher**, never in the browser. The client's text layer is a third extraction of a page, after the committed page text and the word boxes; only the publisher holds the other two, and only the publisher can say what the page says. The client sends the selected string and never a decision about what the anchor is. Geometry-only anchors are legal and are never refused.
 

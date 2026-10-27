@@ -1,11 +1,11 @@
-// The Library: the ledger of cited works and the panel's one list of them, a work opened on its paper or its digest, a proposal read against its page, and the links into a cited work from what the corpus says about it. Each test is named for the rule it holds.
+// The Library: the ledger of cited works and the panel's one list of them, a work opened on its paper or its Info, a proposal read against its page, and the links into a cited work from what the corpus says about it. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { pane } from '../workspace';
 import { manifest, serve, servePapers } from '../manifest';
 
-/** A work opens on its paper; a test about its digest asks for that view. */
-async function digestTab(page: Page): Promise<void> {
-	await page.getByTestId('tab-digest').click();
+/** A work opens on its paper; a test about what is known of it asks for Info. */
+async function infoTab(page: Page): Promise<void> {
+	await page.getByTestId('tab-info').click();
 }
 
 /** A node lists no annotations; its first mark opens the objection whose body the tests below put a link in. */
@@ -140,11 +140,11 @@ test.describe('the ledger', () => {
 
 	test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {
 		await page.goto('/library/Kre99');
-		await digestTab(page);
+		await infoTab(page);
 		const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
 		await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
 		await page.goto('/review/library');
-		// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Digest view
+		// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Info
 		await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
 		await expect(page.getByTestId('used-Kre99')).not.toHaveText('—');
 		await page.goto('/review/problems');
@@ -179,7 +179,7 @@ test.describe('the ledger', () => {
 
 test.describe('a work', () => {
 	test('a filed paper opens on the paper, whether or not anything is anchored to it yet', async ({ page }) => {
-		// a paper filed and not yet extracted from is the state every newly filed paper is in; it opens on the paper, and with no digest there is no Digest view to hide it behind
+		// a paper filed and not yet extracted from is the state every newly filed paper is in; it opens on the paper
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			m.references.Kre99.results = {};
@@ -188,7 +188,6 @@ test.describe('a work', () => {
 		await servePapers(page);
 		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
-		await expect(page.getByTestId('tab-digest')).toHaveCount(0);
 	});
 
 	test("a work's Info says who stands behind its results, and when they were read off another version", async ({ page }) => {
@@ -277,22 +276,22 @@ trailer<</Root 1 0 R>>
 });
 
 test.describe('the digest', () => {
-	test('a digest result links its page into the version it was extracted from, and the viewer closes on an outside press', async ({ page }) => {
+	test("a digest result's page links to the result on its paper, in the pane", async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await servePapers(page);
 		await page.goto('/library/Kre99');
-		await digestTab(page);
+		await infoTab(page);
 		const link = page.getByTestId('page-link').first();
 		await expect(link).toHaveText('p. 4');
+		await expect(link).toHaveAttribute('href', '/library/Kre99?page=4&result=Kre99-thm-2.1');
 		await link.click();
-		await expect(page.getByTestId('pdf-frame')).toBeVisible();
-		await page.mouse.click(5, 5);
+		await expect(page.getByTestId('tab-paper')).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0);
 	});
 
 	test('with no copy on file a digest page is plain text', async ({ page }) => {
 		await page.goto('/library/Kre99');
-		await digestTab(page);
+		await infoTab(page);
 		await expect(page.locator('main')).toContainText('Theorem 2.1, p. 4');
 		await expect(page.getByTestId('page-link')).toHaveCount(0);
 	});
@@ -326,7 +325,7 @@ test.describe('links into cited works', () => {
 		await expect(page.getByTestId('pdf-frame')).toHaveCount(0);
 	});
 
-	test('a link to another version of the work warns before opening the copy on file', async ({ page }) => {
+	test('a link to another version of the work warns before opening the copy on file, and the viewer closes on an outside press', async ({ page }) => {
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			m.references.Kre99.works = ['arXiv:math/9810166v2', 'doi:10.1007/s002220050351'];
@@ -340,6 +339,8 @@ test.describe('links into cited works', () => {
 		await expect(page.getByTestId('pdf-frame')).toHaveCount(0);
 		await page.getByTestId('pdf-open-anyway').click();
 		await expect(page.getByTestId('pdf-frame')).toBeVisible();
+		await page.mouse.click(5, 5);
+		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0);
 	});
 
 	test('a quote anchor travels in the URL, in the same keys the app uses', async ({ page }) => {
@@ -352,7 +353,8 @@ test.describe('links into cited works', () => {
 		await page.goto('/node/sy-0003');
 		await openFirstMark(page);
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
-		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/library/Kre99?page=1&quote=Artin+stacks');
+		// a quote with no page names no page: the publisher looks for it across the work
+		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/library/Kre99?quote=Artin+stacks');
 		await expect(pane(page, 1).getByTestId('pdf-doc')).toBeVisible();
 	});
 });

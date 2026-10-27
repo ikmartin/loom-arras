@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { displayNode } from '$lib/nodes/display';
 	import NodePreview from '$lib/workspace/items/NodePreview.svelte';
 	import { relationships, scopedDrawing } from '$lib/graph/relationships';
@@ -14,7 +15,7 @@
 	import PagePanel from '$lib/shell/PagePanel.svelte';
 	import PageRail from '$lib/shell/PageRail.svelte';
 	import RailList from '$lib/components/RailList.svelte';
-	import { workUrl, keyUrl, nodeUrl, readUrl } from '$lib/nav';
+	import { workUrl, keyUrl, readUrl } from '$lib/nav';
 	import { route } from '$lib/paths';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import { bibText } from '$lib/works';
@@ -65,7 +66,8 @@
 	let dotsKey = '';
 	$effect(() => { mode = scopedDrawing(mode, master); });
 	const paper = $derived(selected.startsWith(PAPER) ? m.references[selected.slice(PAPER.length)] : undefined);
-	const open = (id: string) => (id.startsWith(PAPER) ? workUrl(id.slice(PAPER.length)) : nodeUrl(id));
+	// a cited result opens its paper at its page, as every link to it does
+	const open = (id: string) => (id.startsWith(PAPER) ? workUrl(id.slice(PAPER.length)) : keyUrl(m, id));
 
 	/** Nodes within `depth` steps of the selection in the corpus's dependency graph, ignoring direction; 0 means the whole scope. */
 	const scope = $derived.by(() => {
@@ -337,7 +339,7 @@
 							onpointerenter={() => (hover = r.id)}
 							onpointerleave={() => (hover = hover === r.id ? '' : hover)}
 							onclick={() => (selected = r.kind === 'result' ? r.id : '')}
-							ondblclick={() => (location.href = open(r.id))}
+							ondblclick={() => void goto(open(r.id))}
 							role="button"
 							tabindex="0"
 							onkeydown={(e) => e.key === 'Enter' && (selected = r.id)}
@@ -395,7 +397,7 @@
 									down(e);
 								}}
 								onclick={() => (selected = m.nodes[c.id] ? c.id : '')}
-								ondblclick={() => m.nodes[c.id] && (location.href = open(c.id))}
+								ondblclick={() => m.nodes[c.id] && void goto(open(c.id))}
 								role="button"
 								tabindex="0"
 								onkeydown={(e) => e.key === 'Enter' && m.nodes[c.id] && (selected = c.id)}
@@ -420,7 +422,7 @@
 										}}
 										ondblclick={(e) => {
 											e.stopPropagation();
-											location.href = open(r.id);
+											void goto(open(r.id));
 										}}
 										role="button"
 										tabindex="0"
@@ -465,7 +467,7 @@
 								onfocus={() => hover = n.id}
 								onblur={() => hover = ''}
 								aria-label={displayNode(m, n.id, master).accessible}
-								ondblclick={() => (location.href = open(n.id))}
+								ondblclick={() => void goto(open(n.id))}
 								role="button"
 								tabindex="0"
 								onkeydown={(e) => e.key === 'Enter' && (selected = n.id)}

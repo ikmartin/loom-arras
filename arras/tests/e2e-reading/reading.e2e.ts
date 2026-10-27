@@ -465,6 +465,27 @@ readOnly('the preview lands on its mark, and a scroll inside it does not dismiss
 	await expect(card).toBeVisible();
 });
 
+readOnly('a citation opens its paper at the result, past the first page, and a \\ref to a result goes where its citation goes', async ({ page }) => {
+	// `Theorem 5.1` is read off Arden24's revision, Arden24A, on its third page: the introduction's citation of it opens that document there, with the result in view
+	await page.goto('/node/sh-0100');
+	const cite = page.locator('[data-pane="0"] span.cite[data-target="Arden24A-thm-5.1"] a').first();
+	await expect(cite).toHaveAttribute('href', '/library/Arden24A?page=3&result=Arden24A-thm-5.1');
+	await cite.click();
+	await expect(page.locator('[data-pane="1"] [data-mark="Arden24A-thm-5.1"]').first()).toBeInViewport({ timeout: 15000 });
+	await expect(page.getByTestId('pane-1').getByTestId('page-at')).toHaveValue('3');
+	// a remark of the revision refers to its Corollary 5.2 by `\ref`, which opens the paper at that result too
+	await page.goto('/node/Arden24A-rem-5.3');
+	await expect(page.locator('[data-pane="0"] a.ref[data-target="Arden24A-cor-5.2"]').first()).toHaveAttribute('href', '/library/Arden24A?page=3&result=Arden24A-cor-5.2');
+	// and the work and its revision are one row of the column's Library
+	await expect(page.getByTestId('library-list').locator('a[data-testid^="library-work-Arden24"]')).toHaveCount(1);
+});
+
+readOnly('a link that quotes a work without a page is lit on the page the publisher finds it on', async ({ page }) => {
+	await page.goto('/library/Bellamy19?quote=' + encodeURIComponent('The median orders of a weighted digraph are in bijection with the vertices'));
+	await expect(page.locator('[data-mark="_locator"]').first()).toBeInViewport({ timeout: 15000 });
+	await expect(page.getByTestId('page-at')).toHaveValue('2');
+});
+
 readOnly('a mark round a formula leaves the formula typeset', async ({ page }) => {
 	// the quote `underlying graph has $c$ connected components` is TeX; its mark takes the formula whole, so MathJax still reads it (phase 4)
 	await page.goto('/node/sh-0009');

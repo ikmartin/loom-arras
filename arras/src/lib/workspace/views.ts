@@ -9,12 +9,11 @@ export interface View {
 	off?: string;
 }
 
-/** A work's views, paper first (K1): the digest only where there is one, or a proposal to judge; the paper greyed where no copy can be read. */
+/** A work's views, Paper · Info (K1): the paper greyed where no copy can be read, and what is known of the work, its digest's results among it, behind Info. */
 export function workViews(m: Manifest, citekey: string): View[] {
 	const ref = m.references[citekey];
-	const proposals = (ref?.proposed?.nodes ?? []).some((id) => !!ref?.results?.[id]);
 	const off = ref?.unreadable ? `Declared unreadable: ${ref.unreadable.why}` : !ref?.artifacts?.pdf ? 'No copy of this work is on file' : undefined;
-	return [{ id: 'paper', label: 'Paper', ...(off ? { off } : {}) }, ...(ref?.digest || proposals ? [{ id: 'digest', label: 'Digest' }] : []), { id: 'info', label: 'Info' }];
+	return [{ id: 'paper', label: 'Paper', ...(off ? { off } : {}) }, { id: 'info', label: 'Info' }];
 }
 
 /** The item's default view: its first that can be read, so a paper with no copy opens on what is known of it. */

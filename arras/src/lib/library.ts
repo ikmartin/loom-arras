@@ -87,6 +87,50 @@ export function ledgerRows(m: Manifest, reached: Set<string>): LedgerRow[] {
 	return [...rows.values()];
 }
 
+/** A work as the column and the palette list it: one row, whichever of its documents is filed. */
+export interface ShelfRow {
+	citekey: string;
+	title: string;
+	/** A copy of one of its documents is filed here. */
+	filed: boolean;
+	/** The citekey a choice opens: the work's own where its copy is filed, else a version's that is. */
+	opens: string;
+	unreadable: boolean;
+	/** What a filter matches, lowercased: every document's key, title and authors. */
+	text: string;
+}
+
+/**
+ * The works a reader opens, one row each by title: a version is folded into its work, as the ledger folds it.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ *
+ * Returns
+ * -------
+ * ShelfRow[]
+ *     Sorted by title; a version whose work is not in the manifest keeps a row of its own.
+ */
+export function shelf(m: Manifest): ShelfRow[] {
+	const refs = Object.values(m.references ?? {});
+	return refs
+		.filter((r) => !r.version_of || !m.references[r.version_of])
+		.map((r) => {
+			const all = [r, ...refs.filter((v) => v.version_of === r.citekey)];
+			const copy = all.find((x) => x.artifacts?.pdf);
+			return {
+				citekey: r.citekey,
+				title: bibText(r.bib.title) || r.citekey,
+				filed: !!copy,
+				opens: (copy ?? r).citekey,
+				unreadable: !!r.unreadable,
+				text: all.map((x) => `${x.citekey} ${bibText(x.bib.title)} ${bibText(x.bib.author ?? '')}`).join(' ').toLowerCase()
+			};
+		})
+		.sort((a, b) => a.title.localeCompare(b.title));
+}
+
 /** How many of a work's results are in each state a reader is told: extracted by loom, verified by a person, proposed by an agent. */
 export function resultCounts(ref: Reference): { extracted: number; verified: number; proposed: number } {
 	const states = Object.values(ref.results ?? {}).map((r) => r.state);

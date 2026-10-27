@@ -47,9 +47,10 @@
 		const citekey = item.id;
 		void can('locate').then((ok) => {
 			if (!ok || dropped) return;
-			const body = place.span ? { citekey, page: at, span: place.span } : { citekey, page: at, text: place.quote };
-			return write('locate', body).then((res: WriteResult & { anchor?: { quads?: number[][] } }) => {
-				if (!dropped && res.ok && res.anchor?.quads?.length) lit = { page: at, rects: res.anchor.quads };
+			// a quote with no page is looked for across the work, as a click on the link looks for it
+			const body = place.span ? { citekey, page: at, span: place.span } : { citekey, ...(place.page ? { page: place.page } : {}), text: place.quote };
+			return write('locate', body).then((res: WriteResult & { page?: number; anchor?: { quads?: number[][] } }) => {
+				if (!dropped && res.ok && res.anchor?.quads?.length) lit = { page: res.page ?? at, rects: res.anchor.quads };
 			});
 		});
 		return () => {
@@ -80,7 +81,7 @@
 	<div class="page-card" class:cropped={!!statement} style={statement ? `height: ${Math.min(cropHeight, 39.6 * 16)}px` : undefined} data-testid="preview-page">
 		<PdfDoc
 			{url}
-			page={statement?.page ?? at}
+			page={statement?.page ?? lit?.page ?? at}
 			scale={statement ? CARD_SCALE : 0.99}
 			window={0}
 			spans={statement

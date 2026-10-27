@@ -301,8 +301,9 @@ export class Workspace {
 		const p = this.panes[pane];
 		const i = p.items.findIndex((x) => itemKey(x) === key);
 		const was = p.items[i];
-		// the new place replaces the old rather than merging with it: revealing without a place keeps the reader where they were
-		p.items[i] = this.#stamp({ ...item, view: item.view ?? was.view });
+		// the new place replaces the old rather than merging with it: revealing without a place keeps the reader where they were. A place on a work's pages is read on its paper, so it takes the default view rather than the one kept.
+		const onPages = item.kind === 'work' && !!item.place && Object.keys(item.place).length > 0;
+		p.items[i] = this.#stamp({ ...item, view: item.view ?? (onPages ? undefined : was.view) });
 	}
 
 	#drop(pane: number, key: string): void {

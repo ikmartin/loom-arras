@@ -6,7 +6,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyUrl } from '$lib/nav';
 	import { pageOf } from '$lib/worklink';
-	import { itemForHref, paneOfElement } from '$lib/workspace/links';
+	import { itemForHref, paneOfElement, paperAt } from '$lib/workspace/links';
 	import { itemFromPath, itemKey, type Item } from '$lib/workspace/item';
 	import { kinds } from '$lib/workspace/registry';
 	import { workspace } from '$lib/workspace/store.svelte';
@@ -41,13 +41,8 @@
 			const n = m.keys[k]?.node ?? k;
 			return m.nodes[n] ? n : null;
 		};
-		/** **A digest node previews the paper, not the digest**: a result read off a cited work is a transcription of a page, and a reader hovering a citation wants the page. With no copy filed, or no page in the locator, the transcription is the best there is. */
-		const nodeOrPaper = (n: string): Item => {
-			const nd = m.nodes[n];
-			const work = nd?.digest ? m.references[nd.digest] : undefined;
-			const at = pageOf(nd?.locator);
-			return work?.artifacts?.pdf && at ? { kind: 'work', id: work.citekey, place: { page: at, result: n } } : { kind: 'node', id: n };
-		};
+		/** **A digest node previews the paper, not the digest**: a result read off a cited work is a transcription of a page, and a reader hovering a citation wants the page, the one a click opens. With no paper to open at a page, the transcription is the best there is. */
+		const nodeOrPaper = (n: string): Item => paperAt(m, n) ?? { kind: 'node', id: n };
 		const named = a.getAttribute('data-preview-key') ?? (a.matches('a.ref[data-target]') ? a.getAttribute('data-target') : a.closest<HTMLElement>('span.cite[data-target]')?.dataset.target);
 		let item: Item | null = null;
 		if (named) {

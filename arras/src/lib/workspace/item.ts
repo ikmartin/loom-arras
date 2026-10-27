@@ -16,7 +16,7 @@ export interface Item {
 	kind: ItemKind;
 	/** A document's path, a work's citekey, a node's key, a session's id. */
 	id: string;
-	/** An internal view: a work's `digest` or `info`; absent means the first. */
+	/** An internal view: a work's `info`; absent means the first. */
 	view?: string;
 	/** An element to scroll to, by its published id: a document's section or result, a node's proof. */
 	anchor?: string;
