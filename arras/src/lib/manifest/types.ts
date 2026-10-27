@@ -54,6 +54,8 @@ export interface CanonDoc {
 	macros?: string;
 	/** The live document its step was about, where the history's moves have taken it; absent when no live document leads to it. */
 	in?: string;
+	/** Why loom kept it itself, before writing over its draft: `adopt` or `sync`. Absent for a landmark the author stamped or imported. */
+	kept_for?: 'adopt' | 'sync' | (string & {});
 }
 
 /** One step of the history: an import, a stamp, an agent document's copy or an adoption. */

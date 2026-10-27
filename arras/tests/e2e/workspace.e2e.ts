@@ -116,20 +116,14 @@ test.describe('V3 · claim only what is known', () => {
 });
 
 test.describe('V4 · name the question', () => {
-	test("compare stands in the focused pane's toolbar, disabled with its reason while nothing beside pairs", async ({ page }) => {
+	test("compare is asked of a draft's history, not of the two panes", async ({ page }) => {
 		await withPapers(page);
-		await page.goto('/library/Kre99');
-		// one pane: nothing to compare with, so no compare
-		await expect(controls(page, 0)).toBeVisible();
-		await expect(page.getByTestId('pane-compare')).toHaveCount(0);
 		await page.goto('/library/Kre99' + beside('/master/main'));
-		const compare = controls(page, 0).getByTestId('pane-compare');
-		await expect(compare).toBeVisible();
-		await expect(compare).toBeDisabled();
-		await expect(compare).toHaveAccessibleName('compare');
-		await expect(compare).toHaveAttribute('title', /.+/);
-		// the other pane draws none
-		await expect(controls(page, 1).getByTestId('pane-compare')).toHaveCount(0);
+		await expect(controls(page, 0)).toBeVisible();
+		// no control compares whatever two panes hold; a draft's history says what it compares with
+		await expect(page.getByTestId('pane-compare')).toHaveCount(0);
+		await expect(controls(page, 0).getByTestId('toolbar-history')).toHaveCount(0);
+		await expect(controls(page, 1).getByTestId('toolbar-history')).toHaveAccessibleName('history menu for main.tex');
 	});
 
 	test('every control names its target', async ({ page }) => {
@@ -208,14 +202,12 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	test('focus follows interaction', async ({ page }) => {
 		await page.goto('/master/main' + beside('/node/sy-0003'));
 		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
-		// a wheel over the node's pane focuses it: its toolbar is the brighter, and compare moves to it
+		// a wheel over the node's pane focuses it: its toolbar is the brighter
 		await pane(page, 1).hover();
 		await page.mouse.wheel(0, 200);
 		await expect(pane(page, 1)).toHaveClass(/focused/);
 		await expect(pane(page, 0)).toHaveClass(/dim/);
 		await expect(controls(page, 1)).toHaveAttribute('aria-label', 'controls for Theorem 2.1');
-		await expect(controls(page, 1).getByTestId('pane-compare')).toBeVisible();
-		await expect(controls(page, 0).getByTestId('pane-compare')).toHaveCount(0);
 		await viewMenu(page);
 		await expect(page.getByTestId('open-context')).toBeVisible();
 		await page.keyboard.press('Escape');
@@ -223,7 +215,6 @@ test.describe('V5 · following a connection must not cost the thing you followed
 		await pane(page, 0).hover();
 		await page.mouse.wheel(0, 200);
 		await expect(pane(page, 0)).toHaveClass(/focused/);
-		await expect(controls(page, 0).getByTestId('pane-compare')).toBeVisible();
 	});
 
 	test('the focused pane is marked by its shadow, with no line on its head', async ({ page }) => {
@@ -657,7 +648,7 @@ test.describe('the toolbar', () => {
 		const bar = controls(page, 0);
 		await expect(bar.getByTestId('tool-select')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['tool-select', 'tool-box', 'toolbar-view']);
+		expect(order).toEqual(['tool-select', 'tool-box', 'toolbar-history', 'toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 		await expect(page.getByTestId('toolbar-view')).toHaveAttribute('aria-label', 'view menu for main.tex');
 		await viewMenu(page);
@@ -683,9 +674,9 @@ test.describe('the toolbar', () => {
 		await expect(menu).toHaveCount(0);
 		await expect(page.getByTestId('toolbar-view')).toBeFocused();
 
-		// nothing serving: view stands alone, with no divider before it
+		// nothing serving, and a draft with no history: view stands alone, with no divider before it
 		await page.unrouteAll();
-		await page.goto('/master/main');
+		await page.goto('/master/talk');
 		await expect(page.getByTestId('toolbar-view')).toBeVisible();
 		expect(await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid))).toEqual(['toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'none');

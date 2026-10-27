@@ -612,7 +612,7 @@ def _stamp(
         suffix = 2
         while history.landmark(landmark) is not None:
             landmark, suffix = f"{base}-{suffix}", suffix + 1
-        stamp_document(result, history, document, landmark, message.format(document=document), actor)
+        stamp_document(result, history, document, landmark, message.format(document=document), actor, kept_for="sync")
         landmarks.append(landmark)
     return landmarks
 

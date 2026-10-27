@@ -150,6 +150,8 @@ def test_the_history_publishes_every_step_and_each_landmark_its_live_draft(tmp_p
     assert {c["path"]: c.get("in") for c in m["canon"]}[
         ".loom/history/0005-widgets-v3/widgets-v3.tex"
     ] == "drafting/main.tex"
+    # every landmark here is one the author stamped: none says loom kept it
+    assert all("kept_for" not in c for c in m["canon"])
     # the draft gone: its landmarks lead to no live draft
     (q / "drafting" / "main.tex").unlink()
     build(load_quilt(q))

@@ -8,7 +8,7 @@ A quilt that is not a fixture or a demo holds three or more landmarks (an import
 
 ## Why deferred
 
-The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is worth designing against a real ledger rather than an imagined one, and the manifest fields it needs — each key's version list, each step's entry — are cheap to add once the ledger's shape has survived a few weeks of use. The seeds are already published: `keys[k].version` and the "text of @N" badge; the landmarks, which plan 0.17.3 made stamps that keep their document's text, listed under Landmarks in the panel and opened as documents; and compare (plan 0.17.4), which already reads a landmark against today or another landmark.
+The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is worth designing against a real ledger rather than an imagined one, and the manifest fields it needs — each key's version list, each step's entry — are cheap to add once the ledger's shape has survived a few weeks of use. The seeds are already published: `keys[k].version` and the "text of @N" badge; the landmarks, which plan 0.17.3 made stamps that keep their document's text, opened as documents and, since plan 0.20.6, listed in their draft's history menu; and compare (plan 0.17.4), which already reads a landmark against today or another landmark.
 
 ## After plan 0.20.6
 

@@ -180,11 +180,17 @@ def plan_document_stamp(result: ScanResult, history: History, doc: str) -> tuple
 
 
 def stamp_document(
-    result: ScanResult, history: History, doc: str, name: str, message: str, actor: str | None
+    result: ScanResult,
+    history: History,
+    doc: str,
+    name: str,
+    message: str,
+    actor: str | None,
+    kept_for: str | None = None,
 ) -> tuple[Entry, FreezePlan]:
     """Stamp a live drafting document: the keys it reaches that moved, and its flat text kept as the landmark `name`.
 
-    Shared by `loom stamp DOCUMENT` and adoption, which stamps the document it is about to write. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
+    Shared by `loom stamp DOCUMENT`, adoption and sync incorporation, which stamp the document they are about to write and say so in `kept_for` (`adopt`, `sync`), so a viewer can tell loom's own landmarks from the author's. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
     """
     plan, text = plan_document_stamp(result, history, doc)
     extra: dict[str, Any] = {
@@ -194,6 +200,8 @@ def stamp_document(
         "to": {"path": f"{name}.tex", "hash": text_hash(text)},
         "reaches": plan.reaches,
     }
+    if kept_for:
+        extra["kept_for"] = kept_for
     entry = write_step(
         history, "stamp", name, plan, actor, extra=extra, document_text=text, document_name=f"{name}.tex"
     )

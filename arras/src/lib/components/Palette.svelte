@@ -4,6 +4,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, keyUrl, masterUrl, threadUrl, workUrl } from '$lib/nav';
 	import { shelf } from '$lib/library';
+	import { landmarkName } from '$lib/workspace/history';
 
 	let el: HTMLElement | undefined = $state();
 
@@ -34,9 +35,11 @@
 						: s.kind === 'thread'
 							? threadUrl(s.key)
 							: keyUrl(m, s.key);
+			// a landmark by the name its tab carries, `main.tex · widgets-v2`: its path and its paper's title say the same thing for every version
+			const landmark = s.kind === 'canon' ? m.canon?.find((c) => c.path === s.key) : undefined;
 			return {
 				id: s.key,
-				title: `${s.key} ${s.title && s.title !== s.key ? '· ' + s.title : ''}`,
+				title: landmark ? landmarkName(m, landmark) : `${s.key} ${s.title && s.title !== s.key ? '· ' + s.title : ''}`,
 				section: s.taxon || s.kind || 'node',
 				keywords: [...(s.aliases ?? []), ...(s.tags ?? []), s.excerpt ?? ''].join(' '),
 				handler: () => void goto(url)

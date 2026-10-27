@@ -60,11 +60,11 @@ The values are properties of the publisher and its corpora, not of this corpus's
   {"path": ".loom/history/0002-paper-v1/paper-v1.tex", "stem": "paper-v1", "title": "Relative virtual localization",
    "fragment": "fragments/canon/paper-v1.html", "hash": "3f9a...",
    "step": "0002", "name": "paper-v1", "message": "Submitted to the Journal", "when": "2026-09-13T09:00:00Z",
-   "macros": "canon:paper-v1"}
+   "in": "drafting/paper.tex", "macros": "canon:paper-v1"}
 ]
 ```
 
-`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `in` is the live document the landmark's step was about (the draft a stamp kept, the working document an import drafted), where the history's moves have taken it; it is absent when no live document leads to the landmark. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `in` is the live document the landmark's step was about (the draft a stamp kept, the working document an import drafted), where the history's moves have taken it; it is absent when no live document leads to the landmark. `kept_for` says loom kept the landmark itself, before writing over its draft: `adopt` before an adoption, `sync` before incorporating a pull; it is absent for a landmark the author stamped or imported. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
 
 `history` lists the history's steps, oldest first: `{steps: [{step, action, name, when, actor?, message?, document?, in?, landmark?}]}`. `action` is `import`, `stamp`, `copy` or `adopt`; `document` is the document the step concerns as the ledger names it, and `in` that document where it is now, absent when it is no longer live; `landmark` is the path of the landmark the step kept, matching a `canon` entry's `path`. A step of the whole quilt (a `loom stamp` with no document) has no `document`.
 

@@ -1,18 +1,14 @@
-// Compare, on the static fixture: no publisher answers, so a node that differs is marked on every line, which is what a static host shows. Its washed words are the write suite's (e2e-write/write.e2e.ts).
+// Compare, on the static fixture: no publisher answers, so a node that differs is marked on every line, which is what a static host shows. Its washed words are the write suite's (e2e-write/write.e2e.ts). A draft's history menu starts it (history.e2e.ts); here the address does, which also reaches the comparisons no menu offers, two of the author's documents among them.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane } from '../workspace';
 
-// compare is in the focused pane's toolbar, the one control there that acts on both panes
-const compare = (page: Page) => page.getByTestId('pane-compare');
-
+/** The two items side by side and compared, as the address `?compare=1` asks. */
 async function open(page: Page, left: string, right: string): Promise<void> {
-	await page.goto(left + beside(right));
+	await page.goto(left + beside(right) + '&compare=1');
 	// both panes typeset, so that nothing reflows under a step
 	for (const i of [0, 1]) await expect(pane(page, i).locator('.fragment mjx-container').first()).toBeAttached();
 	await page.evaluate(() => document.fonts.ready);
-	await expect(compare(page)).toBeEnabled();
-	await compare(page).click();
-	await expect(compare(page)).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByTestId('compare-count')).toBeVisible();
 	// the comparison drawn in both panes before anything is measured against it
 	await expect(pane(page, 0).locator('.compare-mark').first()).toBeAttached();
 	await expect(pane(page, 1).locator('.compare-mark').first()).toBeAttached();
@@ -21,26 +17,27 @@ async function open(page: Page, left: string, right: string): Promise<void> {
 /** A node's top in the viewport, in one pane. */
 const top = async (page: Page, index: number, pair: string) => (await pane(page, index).locator(`[data-pair="${pair}"]`).first().boundingBox())!.y;
 
-test('compare is disabled, saying why, until two things that pair stand side by side', async ({ page }) => {
-	// one pane has nothing to compare with, so there is no compare
-	await page.goto('/master/main');
-	await expect(pane(page, 0).getByTestId('item-controls')).toBeVisible();
-	await expect(compare(page)).toHaveCount(0);
-	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
-	await expect(compare(page)).toBeDisabled();
-	await expect(compare(page)).toHaveAttribute('title', /Nothing in a session pairs/);
-	await page.goto('/node/sy-0002' + beside('/master/main'));
-	await expect(compare(page)).toHaveAttribute('title', 'A node compares with a node, a document with a document');
+test('an address that compares two things that do not pair is let go, and nothing offers compare but a history', async ({ page }) => {
+	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001') + '&compare=1');
+	await expect(pane(page, 1).getByTestId('item-controls')).toBeVisible();
+	await expect(page.getByTestId('compare-count')).toHaveCount(0);
+	await expect(page).not.toHaveURL(/compare=/);
+	await page.goto('/node/sy-0002' + beside('/master/main') + '&compare=1');
+	await expect(pane(page, 1).getByTestId('item-controls')).toBeVisible();
+	await expect(page.getByTestId('compare-count')).toHaveCount(0);
+	await expect(page.getByTestId('pane-compare')).toHaveCount(0);
+	// and in a window too narrow for two panes
 	await page.setViewportSize({ width: 600, height: 800 });
-	await page.goto('/master/main' + beside('/master/aidoc'));
-	await expect(compare(page)).toHaveAttribute('title', /too narrow/);
+	await page.goto('/master/main' + beside('/master/aidoc') + '&compare=1');
+	await expect(page.getByTestId('narrow-strip')).toBeVisible();
+	await expect(page.getByTestId('compare-count')).toHaveCount(0);
 });
 
-test('pressing compare hides annotations in both panes, and releasing it puts back what each had', async ({ page }) => {
+test('comparing hides annotations in both panes, and stopping puts back what each had', async ({ page }) => {
 	await open(page, '/master/main', '/master/aidoc');
 	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toBeVisible();
 	await expect(page).toHaveURL(/compare=1/);
-	await compare(page).click();
+	await page.getByTestId('compare-stop').click();
 	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toHaveCount(0);
 	await expect(page.getByTestId('compare-steps')).toHaveCount(0);
 	await expect(page).not.toHaveURL(/compare=/);
@@ -98,7 +95,7 @@ test('a changed tab ends compare', async ({ page }) => {
 	await pane(page, 1).locator('.fragment').first().click();
 	await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
 	await expect(pane(page, 1).getByTestId('item-tab').filter({ hasText: 'talk.tex' })).toHaveCount(1);
-	await expect(compare(page)).toHaveAttribute('aria-pressed', 'false');
+	await expect(page.getByTestId('compare-stop')).toHaveCount(0);
 	await expect(page.locator('.compare-mark')).toHaveCount(0);
 	// and each pane has its annotations back
 	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toHaveCount(0);

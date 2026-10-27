@@ -215,4 +215,7 @@ def canon_entry(doc: CanonDoc, fragment: str, hashed: str) -> dict[str, Any]:
         if doc.step.message:
             entry["message"] = doc.step.message
         entry["when"] = doc.step.when
+        # a landmark loom kept itself, before an adoption or a sync wrote over the draft, rather than one the author stamped
+        if doc.step.data.get("kept_for"):
+            entry["kept_for"] = doc.step.data["kept_for"]
     return entry

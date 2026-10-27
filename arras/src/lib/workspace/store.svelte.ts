@@ -183,6 +183,32 @@ export class Workspace {
 		this.focus = this.panes.indexOf(p);
 	}
 
+	/**
+	 * Put `item` in the place of the tab `from` in its pane, made active and focused: a draft turned to one of its landmarks, or back, is read in the same tab's place (plan 0.20.6). Where `item` is already open it is revealed there instead, and `from` stays.
+	 *
+	 * Parameters
+	 * ----------
+	 * pane : number
+	 *     The pane `from` stands in.
+	 * from : str
+	 *     The key of the tab replaced.
+	 * item : Item
+	 *     What takes its place, at its place: the anchor it is read from.
+	 */
+	turn(pane: number, from: string, item: Item): void {
+		const key = itemKey(item);
+		const p = this.panes[pane];
+		const i = p?.items.findIndex((x) => itemKey(x) === from) ?? -1;
+		if (this.paneOf(key) >= 0 || !p || i < 0) return this.openIn(item, pane);
+		p.items[i] = this.#stamp(item);
+		this.#state.delete(from);
+		this.scrolls.delete(from);
+		// the place it is turned to is the anchor it carries, not where it was last left
+		this.scrolls.delete(key);
+		this.#front(p, key);
+		this.focus = pane;
+	}
+
 	/** Make a tab the active one of its pane, and focus the pane. */
 	activate(pane: number, key: string): void {
 		const p = this.panes[pane];

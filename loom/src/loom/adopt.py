@@ -931,7 +931,13 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
 
     try:
         stamp_document(
-            result, history, data["source"], landmark, f"{data['source']} before adopting {data['copy']}", who
+            result,
+            history,
+            data["source"],
+            landmark,
+            f"{data['source']} before adopting {data['copy']}",
+            who,
+            kept_for="adopt",
         )
         for rel, text in saved["overlay"].items():
             target = root / rel

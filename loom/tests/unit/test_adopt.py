@@ -352,6 +352,13 @@ def test_the_document_as_it_was_is_a_landmark(quilt):
     steps = list(load_history(quilt.history_dir).steps())
     assert [e.action for e in steps[-2:]] == ["stamp", "adopt"] and answer["step"] == steps[-1].step
     assert steps[-2].get("landmark") == "main-before-adopt-proposal.tex"
+    # loom kept it, not the author, and the published landmark says so
+    assert steps[-2].get("kept_for") == "adopt"
+    from loom.render.canon import canon_entry, load_canon
+
+    canon = load_canon(quilt, scan(quilt), load_history(quilt.history_dir))
+    kept = next(d for d in canon if d.stem == "main-before-adopt-proposal")
+    assert canon_entry(kept, "", "")["kept_for"] == "adopt"
     shown = ok("history", "show", "main-before-adopt-proposal", cwd=quilt.root).stdout
     assert "Author prose since the copy." in shown and "First statement." in shown
     assert shown == before

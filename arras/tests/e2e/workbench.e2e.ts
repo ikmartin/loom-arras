@@ -16,8 +16,8 @@ test('the column lists the working drafts and no landmarks, which Review › His
 test('a landmark is a document, with no identity and nothing to review', async ({ page }) => {
 	await page.goto('/canon/widgets-v1');
 	await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toContainText('Widgets');
-	// its step is its identity, so it stands in its tab
-	await expect(page.getByTestId('item-tab')).toContainText('widgets-v1 @1');
+	// it is a version of its draft, so its tab says which draft and which version
+	await expect(page.getByTestId('item-tab')).toContainText('main.tex · widgets-v1');
 	const fragment = page.locator('.fragment');
 	await expect(fragment.locator('.env').first()).toBeVisible();
 	await expect(fragment.locator('.env[data-key], .env[data-id]')).toHaveCount(0); // no theorem in a landmark is a node

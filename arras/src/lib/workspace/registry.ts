@@ -2,9 +2,9 @@
 
 import type { Component } from 'svelte';
 import type { Manifest } from '$lib/manifest/types';
-import { masterStem } from '$lib/nav';
 import { titleOf } from '$lib/sessions/sessions.svelte';
-import { isLandmark, type Item, type ItemKind } from './item';
+import type { Item, ItemKind } from './item';
+import { landmarkName } from './history';
 import { shortLocator } from './names';
 import { workViews, type View } from './views';
 import DocumentItem from './items/DocumentItem.svelte';
@@ -39,12 +39,10 @@ export interface Kind {
 	prefetch?(item: Item, m: Manifest): void;
 }
 
-/** A document's name as its author types it: the file, and a landmark's step, which is its identity rather than a note about it (D1). */
+/** A document's name as its author types it: the file; a landmark as a version of its draft, `main.tex · widgets-v2`, or by its step where no live draft leads to it (D1). */
 function documentTab(item: Item, m: Manifest): string {
-	const file = item.id.split('/').pop() ?? item.id;
-	if (!isLandmark(m, item.id)) return file;
 	const c = m.canon?.find((x) => x.path === item.id);
-	return c?.step ? `${masterStem(file)} @${Number(c.step)}` : file;
+	return c ? landmarkName(m, c) : (item.id.split('/').pop() ?? item.id);
 }
 
 /** A node by how a reader refers to it: its taxon and number where the default document numbers it; a result read off a cited work as that work's citekey and the result's short name; else its id. */
