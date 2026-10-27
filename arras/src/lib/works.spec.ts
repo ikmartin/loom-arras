@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bibText, resolve, workLinks } from './works';
+import { bibText, resolve, surnames, workLinks } from './works';
 import type { Reference } from './manifest/types';
 
 const ref = (over: Partial<Reference>): Reference => ({ citekey: 'X', bib: {}, digest: null, version_mismatch: false, cited_by: [], ...over });
@@ -46,5 +46,15 @@ describe('a bibliography field reads as text', () => {
 
 	it('leaves mathematics for the typesetter', () => {
 		expect(bibText('The $\\mathbb{G}_m$-action')).toBe('The $\\mathbb{G}_m$-action');
+	});
+});
+
+describe('surnames', () => {
+	it('names one, two, or the first and et al.', () => {
+		expect(surnames('Romagny, Matthieu')).toBe('Romagny');
+		expect(surnames('Cyril Manolache')).toBe('Manolache');
+		expect(surnames('Kresch, A. and Vistoli, A.')).toBe('Kresch and Vistoli');
+		expect(surnames('Abramovich, D. and Corti, A. and Vistoli, A.')).toBe('Abramovich et al.');
+		expect(surnames(undefined)).toBe('');
 	});
 });

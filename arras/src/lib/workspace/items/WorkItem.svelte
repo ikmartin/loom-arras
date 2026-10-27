@@ -11,7 +11,7 @@
 	import { bibText } from '$lib/works';
 	import { readFrom, resultCounts } from '$lib/library';
 	import Locator from '$lib/components/Locator.svelte';
-	import ProposalBox from '$lib/review/ProposalBox.svelte';
+	import { route } from '$lib/paths';
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
 	import type { WorkLink } from '$lib/worklink';
@@ -32,7 +32,7 @@
 	const used = $derived((ref?.digest?.nodes ?? []).filter((id) => reached.has(id)));
 	const rest = $derived((ref?.digest?.nodes ?? []).filter((id) => !reached.has(id)));
 	let showAll = $state(false);
-	// Proposals are merged into the page they are about rather than queued somewhere else: an author meets one while already thinking about the subject it pertains to, which is when they are best placed to judge it (§5.2).
+	// A work's proposals are judged in Review's one queue, at full width, a result at a time; the work says how many wait there and links to its first.
 	const proposals = $derived(
 		(ref?.proposed?.nodes ?? [])
 			.map((id) => ({ id, record: ref?.results?.[id] }))
@@ -105,13 +105,9 @@
 		{:else if tab === 'digest'}
 			<div class="prose">
 				{#if proposals.length}
-					<section class="proposals" data-testid="proposals">
-						<!-- the heading and its count alone: each proposal carries its own `proposed` flag, and what a proposal is is loom's to say, not the view's -->
-						<h2>Proposed <span class="muted">{proposals.length}</span></h2>
-						{#each proposals as p (p.id)}
-							<ProposalBox id={p.id} record={p.record} {citekey} />
-						{/each}
-					</section>
+					<p class="proposals" data-testid="proposals">
+						{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.
+					</p>
 				{/if}
 				{#if ref.digest}
 					<Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" />

@@ -833,8 +833,16 @@ def test_words_the_page_does_not_have_are_named(tmp_path: Path) -> None:
 
 
 def test_a_pending_proposal_carries_the_words_its_page_does_not_have(tmp_path: Path) -> None:
+    """Compared with the page round the quote, not the quote: the agent quoted a clause, and the words after it on the page are the paper's own."""
     q, ck = mapped(tmp_path)
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Let $f$ be a nice DM-type morphism")
+    propose(
+        q,
+        ck,
+        "thm-1.1",
+        1,
+        "Let $f$ be a DM-type morphism",
+        "Let $f$ be a nice DM-type morphism with a perfect obstruction theory",
+    )
     ok("build", cwd=q)
     manifest = json.loads((q / "build" / "manifest.json").read_text())
     _, row = the(

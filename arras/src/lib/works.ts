@@ -91,3 +91,18 @@ function prose(text: string): string {
 	t = t.replace(/\\&/g, '&').replace(/---/g, '—').replace(/--/g, '–').replace(/~/g, ' ');
 	return t.replace(/(?<!\\)[{}]/g, '');
 }
+
+/**
+ * A work's authors as a reader names it: one surname, two joined by "and", three or more as the first and "et al.".
+ *
+ * A BibTeX author list is names joined by `and`, each `Surname, Given` or `Given Surname`; braces and TeX are cleaned by `bibText` first.
+ */
+export function surnames(author: string | number | undefined): string {
+	const names = bibText(author ?? '')
+		.split(/\s+and\s+/)
+		.map((n) => n.trim())
+		.filter(Boolean)
+		.map((n) => (n.includes(',') ? n.split(',')[0].trim() : (n.split(/\s+/).pop() ?? n)));
+	if (names.length > 2) return `${names[0]} et al.`;
+	return names.join(' and ');
+}

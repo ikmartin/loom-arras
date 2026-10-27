@@ -321,7 +321,9 @@
 		min-height: 0;
 		height: 100%;
 	}
+	/* its own offset parent: `follow()` measures each page's holder from it, and measured from whatever positioned ancestor stood above it instead (a pane's body, when a page is shown inside a card), every page's top was off by the card's own offset, the wrong page was drawn and the right one left blank */
 	.column {
+		position: relative;
 		flex: 1 1 auto;
 		overflow: auto;
 		display: flex;

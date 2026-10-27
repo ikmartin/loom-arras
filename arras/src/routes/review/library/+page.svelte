@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Library: the ledger (DR-206; plan 0.13.3, View 4), and the citation suggestions that wait for the author. The ledger is every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
+	// Review › Library: the proposed results waiting to be verified, one queue across the library (ProposalQueue); the ledger (DR-206; plan 0.13.3, View 4); and the citation suggestions that wait for the author. The ledger is every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
 	//
 	// **The list of works has one home, and it is the left column** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
 	//
@@ -14,6 +14,8 @@
 	import { reachedExternal } from '$lib/reached';
 	import { ledgerRows, needsWork, type LedgerRow } from '$lib/library';
 	import { displayNode } from '$lib/nodes/display';
+	import { route } from '$lib/paths';
+	import ProposalQueue from '$lib/review/ProposalQueue.svelte';
 
 	const m = $derived(store.manifest!);
 	const SHOWS = [
@@ -44,6 +46,7 @@
 </script>
 
 <main class="page">
+	<ProposalQueue />
 	<header class="head">
 		<h1>Library</h1>
 		<p class="filters" role="group" aria-label="which works">
@@ -82,7 +85,7 @@
 					<td class="num" data-testid="used-{r.citekey}">{n(r.used)}</td>
 					<td class="num" data-testid="verified-{r.citekey}">{n(r.verified)}</td>
 					<td class="num">
-						{#if r.proposed}<a class="pending" href={workUrl(r.citekey) + '?view=digest'} data-testid="pending-{r.citekey}">{r.proposed}</a>{:else}—{/if}
+						{#if r.proposed}<a class="pending" href={route('/review/library') + '?work=' + encodeURIComponent(r.citekey) + '#queue'} data-testid="pending-{r.citekey}">{r.proposed}</a>{:else}—{/if}
 					</td>
 					<td class="num" data-testid="open-{r.citekey}">{n(r.open)}</td>
 					<td><WorkLinks {ref} /></td>

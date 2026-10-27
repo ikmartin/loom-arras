@@ -119,7 +119,8 @@ def _results_for(root: Path, citekey: str, version: OtherVersion | None = None) 
             context, found = page_context(root, r)
             if found:
                 row["page_text"] = context
-            added = words_not_on_page(r.statement, r.source_text)
+            # the rendering's words the page does not have: against the page around the quote where it was found, since an agent quotes a clause and renders the statement round it, and the quote alone would flag the paper's own words
+            added = words_not_on_page(r.statement, context if found else r.source_text)
             if added:
                 row["not_on_page"] = added
             if r.supersedes:
