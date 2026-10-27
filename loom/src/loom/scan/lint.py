@@ -98,26 +98,27 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
 
 
 def _agent_documents(result: ScanResult) -> list[Diagnostic]:
-    """`loom:agent-document-not-a-copy` and `loom:plain-id-in-drafting-ai`: the agent's drafting directory holds copies, and a copy defines derived ids only.
+    """`loom:agent-document-unrecorded` and `loom:plain-id-in-drafting-ai`: every document in the agent's drafting directory was made by a step, and defines derived ids only.
 
-    A document no `copy` step made has no source to be adopted into and no bases to refresh from; a plain id defined there writes into the person's id space from a file no adoption reads.
+    A document no step made has no record of where it came from, so it can be neither adopted nor refreshed; a plain id defined there writes into the person's id space from a file no adoption reads.
     """
     ai = result.quilt.config.drafting_ai.rstrip("/")
     record = result.history
-    copies = record.copies(result.masters) if record is not None else {}
+    recorded = set(record.copies(result.masters)) | set(record.written(result.masters)) if record is not None else set()
     source = result.default_master or "DOC"
     out: list[Diagnostic] = []
     for m in sorted(result.masters):
-        if result.document_role(m) != "drafting-ai" or m in copies:
+        if result.document_role(m) != "drafting-ai" or m in recorded:
             continue
         out.append(
             Diagnostic(
                 "error",
-                "loom:agent-document-not-a-copy",
-                f"{m} is in {ai}/ but no copy step made it, so it has no source to be adopted into and no bases to refresh from; an agent's document starts as a copy of one of the person's",
+                "loom:agent-document-unrecorded",
+                f"{m} is in {ai}/ but no step made it, so it can be neither adopted nor refreshed; an agent document starts as a copy of one of the person's, or from scratch with --new",
                 [Location(m, 1)],
                 fixes=[
-                    Fix("copy the document it works from, NAME being a new file", f"loom draft {source} --ai NAME.tex")
+                    Fix("copy the document it works from, NAME being a new file", f"loom draft {source} --ai NAME.tex"),
+                    Fix("or start one from scratch", "loom draft --ai NAME.tex --new"),
                 ],
             )
         )

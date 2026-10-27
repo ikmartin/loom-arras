@@ -147,7 +147,7 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No document in this corpus is <code>{item.id}</code>.</p>
 	{:else}
-		{#if master.copy_of}<DraftActions {master}/>{/if}
+		{#if master.copy_of || master.from_scratch}<DraftActions {master}/>{/if}
 		<div class:with-comparison={hasComparison} class="review-layout">
 			<div class="gutters-host">
 				<div class="gutters">

@@ -28,7 +28,7 @@ def closed_drafts(history: History) -> dict[str, dict[str, Any]]:
 def resolve_copy(result: ScanResult, given: str, *, closed: bool = False) -> str:
     """Resolve a full path, filename or unique stem among active or closed copies."""
     history = load_history(result.quilt.history_dir)
-    pool = closed_drafts(history) if closed else history.copies(result.masters)
+    pool = closed_drafts(history) if closed else [*history.copies(result.masters), *history.written(result.masters)]
     if given in pool:
         return given
     found = [p for p in pool if given in (Path(p).name, Path(p).stem)]
@@ -47,14 +47,22 @@ def close_draft(
 
     copy = resolve_copy(result, copy)
     issue = ""
-    try:
-        data = comparison(result, copy)
-        count = (
-            sum(r["offered"] for r in data["changes"]) + int(data["document_changed"]) + int(data["preamble_changed"])
-        )
-    except SyncError as exc:
-        count = 1
-        issue = str(exc)
+    history = load_history(result.quilt.history_dir)
+    if copy in history.written(result.masters):
+        # written from scratch: what is left unapplied is the whole document until a working document is started from it
+        count = 0 if copy in history.started(result.masters) else 1
+        issue = "written from scratch"
+    else:
+        try:
+            data = comparison(result, copy)
+            count = (
+                sum(r["offered"] for r in data["changes"])
+                + int(data["document_changed"])
+                + int(data["preamble_changed"])
+            )
+        except SyncError as exc:
+            count = 1
+            issue = str(exc)
 
     if count and not confirmed:
         return {
@@ -62,7 +70,9 @@ def close_draft(
             "confirmation_required": True,
             "unapplied": count,
             "message": (
-                f"Close this draft with unresolved changes ({issue})?"
+                "Close this draft? No working document has been started from it."
+                if issue == "written from scratch"
+                else f"Close this draft with unresolved changes ({issue})?"
                 if issue
                 else f"Close this draft with {count} unapplied changes?"
             )
@@ -148,10 +158,12 @@ def reopen_draft(result: ScanResult, copy: str, reviewer: str, *, write: bool = 
             "The retained draft file was changed or removed while closed; restore its saved source before reopening"
         )
     meta = record["metadata"]
-    source = history.current_document(str(meta["source"]), result.masters)
-    if not source:
-        raise SyncError("The source paper is unavailable; restore it before reopening")
-    check_overlap(result, source, meta["scope"])
+    # one written from scratch has no source and reserves no part of one
+    if meta["scope"].get("kind") != "new":
+        source = history.current_document(str(meta["source"]), result.masters)
+        if not source:
+            raise SyncError("The source paper is unavailable; restore it before reopening")
+        check_overlap(result, source, meta["scope"])
     # Inspect identities from the saved snapshot without making the draft live.
     from loom.scan.labels import LABEL_DEF
 
@@ -164,6 +176,8 @@ def reopen_draft(result: ScanResult, copy: str, reviewer: str, *, write: bool = 
     if not write:
         return {"copy": copy, "closed": False, "message": "Would reopen the retained agent document."}
     append_entry(history.dir, "draft-reopen", {"copy": copy}, reviewer)
+    if meta["scope"].get("kind") == "new":
+        return {"copy": copy, "closed": False, "message": "Draft reopened."}
     return {"copy": copy, "closed": False, "message": "Draft reopened. Compare its proposals with the current paper."}
 
 

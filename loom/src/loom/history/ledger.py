@@ -245,15 +245,37 @@ class History:
         return end if end in live else None
 
     def copies(self, live: Collection[str]) -> dict[str, str]:
-        """Every agent document still live -> the document it copies, each where the history's moves have taken it."""
+        """Every agent document still live -> the document it copies, each where the history's moves have taken it; one written from scratch is not a copy (`written`)."""
         out: dict[str, str] = {}
         for e in self.entries:
-            if e.action != "copy":
+            if e.action != "copy" or not e.get("from"):
                 continue
             copy = self.current_document(str(e.get("to", "")), live)
             if copy:
                 source = str(e.get("from", ""))
                 out[copy] = self.current_document(source, live) or source
+        return out
+
+    def written(self, live: Collection[str]) -> list[str]:
+        """Every live agent document a step wrote from scratch (`loom draft --ai NAME --new`), where the history's moves have taken it."""
+        out = []
+        for e in self.entries:
+            if e.action == "copy" and not e.get("from"):
+                path = self.current_document(str(e.get("to", "")), live)
+                if path:
+                    out.append(path)
+        return sorted(set(out))
+
+    def started(self, live: Collection[str]) -> dict[str, str]:
+        """Every live agent document written from scratch that a working document was started from -> that document's path as `loom adopt NAME --to FILE` wrote it."""
+        out: dict[str, str] = {}
+        for e in self.entries:
+            if e.action == "start":
+                copy = self.current_document(str(e.get("copy", "")), live)
+                to = e.get("to") or {}
+                if copy:
+                    path = str(to.get("path", ""))
+                    out[copy] = self.current_document(path, live) or path
         return out
 
     def copy_of(self, copy: str, live: Collection[str]) -> str | None:

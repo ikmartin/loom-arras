@@ -17,27 +17,32 @@
  import AdoptionContribution from '$lib/components/AdoptionContribution.svelte';
  import ReviewWorkspace from '$lib/review/ReviewWorkspace.svelte';
  import IncomingPull from '$lib/review/IncomingPull.svelte';
- import type { AdoptionReview } from '$lib/manifest/types';
+ import StartContribution from '$lib/review/StartContribution.svelte';
+ import type { AdoptionReview, StartContribution as Start } from '$lib/manifest/types';
  const m=$derived(store.manifest!);
  const view=$derived(page.url.searchParams.has('document')?'document':page.url.searchParams.get('show')??'needs-review');
  const reviewed=$derived(m.masters.filter(x=>!x.closed && !x.context_only && x.directory!=='drafting-ai'));
  const document=$derived(reviewed.find(x=>x.path===page.url.searchParams.get('document'))??reviewed.find(x=>x.default)??reviewed[0]);
  const rows=$derived(document?documentKeys(m,document.path):[]);
  const adoptions=$derived((m.contributions??[]).filter((x):x is AdoptionReview=>x.kind==='adopt'));
- let source=$state(''),local=$state(false),sync=$state(false),incorporated=$state('');
- const selectedSource=$derived(adoptions.some(x=>x.copy===source)?source:m.incoming?'':adoptions[0]?.copy??'');
+ const starts=$derived((m.contributions??[]).filter((x):x is Start=>x.kind==='start'));
+ const offered=$derived([...adoptions,...starts]);
+ let source=$state(''),local=$state(false),sync=$state(false),incorporated=$state(''),started=$state(''),startable=$state(false);
+ const selectedSource=$derived(offered.some(x=>x.copy===source)?source:m.incoming?'':offered[0]?.copy??'');
  const adoption=$derived(adoptions.find(x=>x.copy===selectedSource));
+ const starting=$derived(starts.find(x=>x.copy===selectedSource));
  const todo=$derived((m.unresolved??[]).filter(r=>r.status==='needs-review'));
- onMount(()=>{void can('review-decision').then(x=>local=x);void can('sync-incorporate').then(x=>sync=x);});
+ onMount(()=>{void can('review-decision').then(x=>local=x);void can('sync-incorporate').then(x=>sync=x);void can('adopt-start').then(x=>startable=x);});
 </script>
 <main class="page review-page">
  <header class="heading"><h1>Review</h1><span>{m.corpus.root_label || m.corpus.name}</span></header>
  {#if incomingNotice.text}<p role="status">{incomingNotice.text}</p>{/if}
 <div class="review-card"><nav class="review-tabs" aria-label="Review views"><a aria-current={view==='needs-review'?'page':undefined} class:active={view==='needs-review'} href="?show=needs-review">Needs review{todo.length?` (${todo.length})`:''}</a><a aria-current={view==='document'?'page':undefined} class:active={view==='document'} href={document?`?document=${encodeURIComponent(document.path)}`:'?show=document'}>Documents</a><a aria-current={view==='incoming'?'page':undefined} class:active={view==='incoming'} href="?show=incoming">Incoming</a><span class="reviewer">{m.reviewer?.name?`Reviewing as ${m.reviewer.name}`:'Choose your reviewer name in Settings'}</span></nav>
  {#if view==='incoming'}
+  {#if started}<p role="status">Started <a href={masterUrl(started)}>{started.split('/').pop()}</a> from the agent document.</p>{/if}
   {#if incorporated}<p role="status">{#if !incomingNotice.text}Changes incorporated. {/if}<a href="?show=needs-review">Review affected mathematics</a>{#if incorporated!=='pull'} · <a href={masterUrl(incorporated)}>The agent document and its annotations</a>{/if}</p>{/if}
-  {#if adoptions.length+(m.incoming?1:0)>1}<label>Contribution <select value={selectedSource} onchange={e=>source=e.currentTarget.value}>{#if m.incoming}<option value="">Fetched pull</option>{/if}{#each adoptions as a}<option value={a.copy}>{a.label}</option>{/each}</select></label>{/if}
-  {#if adoption}{#key adoption.copy}<AdoptionContribution contribution={adoption} onincorporated={copy=>incorporated=copy}/>{/key}{:else if m.incoming}{#key m.incoming.commit}<IncomingPull incoming={m.incoming} label={m.contributions?.find(c=>c.kind==='workspace')?.label??`Incoming from ${m.incoming.workspace}`} writable={sync} onincorporated={()=>incorporated='pull'}/>{/key}{:else}<p>No incoming contribution is waiting for incorporation.</p>{/if}
+  {#if offered.length+(m.incoming?1:0)>1}<label>Contribution <select value={selectedSource} onchange={e=>source=e.currentTarget.value}>{#if m.incoming}<option value="">Fetched pull</option>{/if}{#each offered as a}<option value={a.copy}>{a.label}</option>{/each}</select></label>{/if}
+  {#if starting}{#key starting.copy}<StartContribution contribution={starting} writable={startable&&!!m.reviewer?.name} onstarted={path=>started=path}/>{/key}{:else if adoption}{#key adoption.copy}<AdoptionContribution contribution={adoption} onincorporated={copy=>incorporated=copy}/>{/key}{:else if m.incoming}{#key m.incoming.commit}<IncomingPull incoming={m.incoming} label={m.contributions?.find(c=>c.kind==='workspace')?.label??`Incoming from ${m.incoming.workspace}`} writable={sync} onincorporated={()=>incorporated='pull'}/>{/key}{:else}<p>No incoming contribution is waiting for incorporation.</p>{/if}
  {:else if !reviewed.length}<NoDrafts what="blocks to review"/>
  {:else if view==='document'}
   {#if document}<label for="review-document">Document</label> <select id="review-document" value={document.path} onchange={e=>goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each reviewed as d}<option value={d.path}>{d.path.split('/').pop()}</option>{/each}</select>{/if}

@@ -10,7 +10,7 @@ import click
 
 from loom.cli._common import EnvError, agent_marker
 from loom.cli._quilt import open_scan, quilt_option
-from loom.cli.report import Progress, Report, counted
+from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.scan.quilt import NoAuthorError
 from loom.sync import SyncError
 
@@ -27,7 +27,7 @@ from loom.sync import SyncError
     "output",
     default=None,
     metavar="FILE",
-    help="Write the preview's patch to FILE without incorporating; never among the quilt's sources.",
+    help="Write the preview's patch to FILE without incorporating; never among the quilt's sources. For an agent document written from scratch, the working document to start from it.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
@@ -44,10 +44,10 @@ def adopt(
 ) -> None:
     """Preview an agent document's changes to the working document it was drafted from, and incorporate them once confirmed; mathematics is never accepted.
 
-    The preview is the dry run: without a terminal to confirm on, or with --json or --to, adopt stops there and names the `--incorporate TOKEN` that applies exactly it.
+    The preview is the dry run: without a terminal to confirm on, or with --json or --to, adopt stops there and names the `--incorporate TOKEN` that applies exactly it. An agent document written from scratch (`loom draft --ai NAME --new`) has no working document to incorporate into: `--to FILE` starts one from it, every id it defines made plain.
     """
+    from loom.adopt import from_scratch, prepare, start
     from loom.adopt import incorporate as apply
-    from loom.adopt import prepare
     from loom.cli._common import destination
 
     if agent_marker():
@@ -59,19 +59,50 @@ def adopt(
     try:
         with Progress("scanning") as progress:
             result = open_scan(quilt_path)
-            target = destination(result.quilt, output) if output else None
-            if incorporate:
-                progress.next_stage("checking the preview against the quilt")
-                answer = apply(result, document, incorporate)
+            scratch = from_scratch(result, document)
+            if scratch:
+                drafting = result.quilt.config.drafting
+                if keys or document_changes or document_only or preamble_changes or incorporate:
+                    raise EnvError(
+                        f"{document} was written from scratch, so it has no changes to choose among; --to FILE starts a working document from it"
+                    )
+                if not output:
+                    raise EnvError(
+                        f"{document} was written from scratch, so it has no working document to incorporate into; --to {drafting}/NAME.tex names the one to start from it"
+                    )
+                written = destination(result.quilt, output, drafting=True)
+                progress.next_stage(f"writing {written.name}")
+                started = start(result, scratch, written.relative_to(Path(result.quilt.root).resolve()).as_posix())
             else:
-                preview = prepare(
-                    result,
-                    document,
-                    [] if document_only else list(keys) if keys else None,
-                    document_changes or document_only,
-                    preamble=preamble_changes,
-                    stage=progress.next_stage,
-                )
+                target = destination(result.quilt, output) if output else None
+                if incorporate:
+                    progress.next_stage("checking the preview against the quilt")
+                    answer = apply(result, document, incorporate)
+                else:
+                    preview = prepare(
+                        result,
+                        document,
+                        [] if document_only else list(keys) if keys else None,
+                        document_changes or document_only,
+                        preamble=preamble_changes,
+                        stage=progress.next_stage,
+                    )
+        if scratch:
+            Report(
+                started["message"],
+                ok=not started["twice"],
+                groups=[
+                    Group(
+                        "defined twice, with no text until loom fork or retiring one document resolves each",
+                        [Item("", key=k, fixes=[f"loom fork {k} --in {started['to']}"]) for k in started["twice"]],
+                        problem=True,
+                    )
+                ]
+                if started["twice"]
+                else [],
+                data=started,
+            ).emit(as_json)
+            return
         if incorporate:
             Report(answer["message"], data=answer).emit(as_json)
             return

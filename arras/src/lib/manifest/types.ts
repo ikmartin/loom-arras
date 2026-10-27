@@ -67,6 +67,10 @@ export interface Master {
   directory?: "drafting" | "drafting-ai" | null;
   /** An agent document's source document, where the history's moves have taken it. */
   copy_of?: string;
+  /** An agent document written from scratch, drafted from none of the person's documents, so it has no source. */
+  from_scratch?: boolean;
+  /** The working document started from an agent document written from scratch, once one has been. */
+  started?: string;
   scope?: {kind: string; key?: string; title?: string; keys?: string[]};
   scope_keys?: string[];
   context_when?: string;
@@ -173,6 +177,14 @@ export interface IncomingReview {
   files: { status: string; path: string; diff?: string }[];
   issues?: string[];
   prepared?: { patch: string; root: string; incoming: string; paths: string[] };
+}
+
+/** An agent document written from scratch that no working document has been started from yet; `to` is the file Incoming suggests. */
+export interface StartContribution {
+  kind: 'start';
+  copy: string;
+  label: string;
+  to: string;
 }
 
 export interface AdoptionReview {
@@ -538,7 +550,7 @@ export interface Manifest {
   keys: Record<string, Key>;
   /** Fetched source waiting for incorporation; never changes a key's recorded state. */
   incoming?: IncomingReview;
-  contributions?: (AdoptionReview | (IncomingReview & {kind: 'workspace'; label: string}))[];
+  contributions?: (AdoptionReview | StartContribution | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
   review_covered?: {key: string; via: string[]}[];
   regions: Record<string, Region>;

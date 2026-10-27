@@ -25,6 +25,9 @@
  }
 </script>
 <div class="draft-actions">
+ {#if master.from_scratch}
+  <p>agent document written from scratch.{#if master.started} <a href={masterUrl(master.started)}>{master.started}</a> was started from it.{:else} Incoming starts a working document from it.{/if}</p>
+ {/if}
  {#if master.scope?.kind === 'section'}
   <p>agent document of <strong>{master.scope.title}</strong> in <a href={masterUrl(master.copy_of!)}>{master.copy_of}</a>. References outside this section use context saved {master.context_when?.slice(0,10)}.{#if master.context_document} <a href={masterUrl(master.context_document)}>Read saved paper context</a>.{/if}</p>
   {#if master.context_changed && !master.closed}<p role="status">The paper context has changed. Refresh to bring in current context while keeping the draft’s edits.</p>{/if}
@@ -32,7 +35,7 @@
  {#if writable && store.manifest?.reviewer?.name}
   {#if master.closed}<button disabled={busy} onclick={() => action('adopt-reopen')}>Reopen draft</button>
   {:else}
-   <button disabled={busy} onclick={() => action('adopt-refresh')}>Update draft from paper</button>
+   {#if !master.from_scratch}<button disabled={busy} onclick={() => action('adopt-refresh')}>Update draft from paper</button>{/if}
    {#if master.scope?.kind === 'section'}<button disabled={busy} onclick={() => action('adopt-paper')}>Preview in paper</button>{/if}
    <button disabled={busy} onclick={() => action('adopt-close')}>Close draft</button>
   {/if}

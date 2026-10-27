@@ -40,6 +40,7 @@ CAPABILITIES = [
     "adopt-reopen",
     "adopt-refresh",
     "adopt-paper",
+    "adopt-start",
     "adopt-decision",
     "adopt-preview",
     "adopt-finish",
@@ -197,6 +198,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "adopt-reopen",
         "adopt-refresh",
         "adopt-paper",
+        "adopt-start",
     ):
         from loom.adopt import comparison, decisions, incorporate, prepare
         from loom.adopt import decide as adopt_decide
@@ -229,6 +231,17 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 from loom.section_drafts import preview_in_paper
 
                 answer = preview_in_paper(result, copy)
+            elif endpoint == "adopt-start":
+                import click
+
+                from loom.adopt import start
+                from loom.cli._common import destination
+
+                try:
+                    target = destination(result.quilt, _str(body, "to", required=True) or "", drafting=True)
+                except click.ClickException as exc:
+                    raise ApiError("bad-field", exc.message, status=409) from exc
+                answer = start(result, copy, target.relative_to(root.resolve()).as_posix(), reviewer)
             elif endpoint == "adopt-finish":
                 from loom.incorporation_review import finish, validate
 

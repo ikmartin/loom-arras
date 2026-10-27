@@ -316,19 +316,112 @@ def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
     assert "aidoc.tex" in ok("ai", "drafts", cwd=q, env={"CLAUDECODE": "1"}).stdout
 
 
-def test_the_agents_directory_holds_copies_that_define_derived_ids(tmp_path: Path) -> None:
-    """A document written straight into the directory has no copy step, so nothing can be adopted or refreshed from it, and a plain id defined there writes into the person's id space; lint refuses both, and adoption says why."""
+def test_the_agents_directory_holds_documents_a_step_made_that_define_derived_ids(tmp_path: Path) -> None:
+    """A document written straight into the directory has no step, so nothing can be adopted or refreshed from it, and a plain id defined there writes into the person's id space; lint refuses both, and adoption says why."""
     q = demo(tmp_path)
     (q / "drafting-ai").mkdir(exist_ok=True)
     (q / "drafting-ai" / "scratch.tex").write_text(
         AIDOC.replace("dm-0005-ai", "dm-0901").replace("dm-0004-ai", "dm-0900-ai"), encoding="utf-8"
     )
     found = {d["code"]: d for d in codes(q, code=1)}
-    assert (
-        found["loom:agent-document-not-a-copy"]["fixes"][0]["command"] == "loom draft drafting/main.tex --ai NAME.tex"
-    )
+    assert [f["command"] for f in found["loom:agent-document-unrecorded"]["fixes"]] == [
+        "loom draft drafting/main.tex --ai NAME.tex",
+        "loom draft --ai NAME.tex --new",
+    ]
     assert "dm-0901 is defined in drafting-ai/scratch.tex" in found["loom:plain-id-in-drafting-ai"]["message"]
     refused("adopt", "drafting-ai/scratch.tex", "--json", cwd=q, code=2, match="is not a copy")
+
+
+# ---- written from scratch (plan 0.20.2) ------------------------------------------------------------------------
+
+SURVEY = "\\begin{remark}\\label{dm-0900-ai}\nA survey remark.\n\\end{remark}\n"
+
+
+def with_survey(tmp_path: Path) -> Path:
+    """The demo quilt with `drafting-ai/survey.tex`, written from scratch by an agent, holding one remark of its own."""
+    q = demo(tmp_path)
+    ok("draft", "--ai", "survey.tex", "--new", "--as", "Survey Agent", cwd=q, env={"CLAUDECODE": "1"})
+    path = q / "drafting-ai" / "survey.tex"
+    path.write_text(path.read_text().replace("\\begin{document}\n", "\\begin{document}\n" + SURVEY), encoding="utf-8")
+    return q
+
+
+def test_draft_new_writes_the_default_documents_preamble_over_an_empty_body_and_a_step_with_no_source(
+    tmp_path: Path,
+) -> None:
+    q = demo(tmp_path)
+    said = json_of("draft", "--ai", "survey.tex", "--new", "--json", *AS, cwd=q)
+    text = (q / "drafting-ai" / "survey.tex").read_text()
+    main = (q / "drafting" / "main.tex").read_text()
+    assert text.split("\\begin{document}")[0].rstrip() == main.split("\\begin{document}")[0].rstrip()
+    assert text.endswith("\\begin{document}\n\n\\end{document}\n")
+    assert said["action"] == "copy" and "from" not in said and said["scope"] == {"kind": "new"} and not said["froze"]
+    history = scan(load_quilt(q)).history
+    assert history is not None
+    assert history.written(scan(load_quilt(q)).masters) == ["drafting-ai/survey.tex"] and not history.copies(
+        scan(load_quilt(q)).masters
+    )
+
+
+def test_draft_takes_a_document_or_new_and_never_both(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    refused("draft", "drafting/main.tex", "--ai", "x.tex", "--new", cwd=q, code=2, match="drop drafting/main.tex")
+    refused("draft", "--ai", "x.tex", "--new", "--section", "dm-0001", cwd=q, code=2, match="has none")
+    refused("draft", "--ai", "x.tex", cwd=q, code=2, match="or --new")
+    assert not (q / "drafting-ai" / "x.tex").exists()
+
+
+def test_one_written_from_scratch_lints_clean_is_never_stale_and_has_nothing_to_refresh_from(tmp_path: Path) -> None:
+    q = with_survey(tmp_path)
+    assert not [d for d in codes(q) if "drafting-ai/survey.tex" in json.dumps(d) and d["severity"] == "error"]
+    rows = json_of("ai", "drafts", "--json", cwd=q)["copies"]
+    assert rows == [{"copy": "drafting-ai/survey.tex", "source": None, "from_scratch": True, "started": None}]
+    assert "drafting-ai/survey.tex  written from scratch" in ok("ai", "drafts", cwd=q).stdout
+    refused("ai", "refresh", "survey.tex", cwd=q, code=2, match="written from scratch")
+    # it reserves no part of any document, so a copy of the whole working document is still drafted
+    ok("draft", "drafting/main.tex", "--ai", "aidoc.tex", *AS, cwd=q)
+
+
+def test_one_written_from_scratch_is_closed_and_reopened(tmp_path: Path) -> None:
+    q = with_survey(tmp_path)
+    asked = json_of("ai", "close", "survey.tex", "--json", cwd=q)
+    assert asked["confirmation_required"] and "No working document has been started from it" in asked["message"]
+    ok("ai", "close", "survey.tex", "--yes", cwd=q)
+    assert "drafting-ai/survey.tex" in ok("ai", "drafts", "--closed", cwd=q).stdout
+    assert json_of("ai", "reopen", "survey.tex", "--json", cwd=q)["message"] == "Draft reopened."
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"][0]["copy"] == "drafting-ai/survey.tex"
+
+
+def test_adopt_to_starts_a_working_document_from_one_with_every_id_made_plain(tmp_path: Path) -> None:
+    q = with_survey(tmp_path)
+    path = q / "drafting-ai" / "survey.tex"
+    # dm-0004 is the person's, so the agent's dm-0004-ai is no counterpart here and takes a fresh id
+    path.write_text(
+        path.read_text().replace(
+            "\\end{document}",
+            "\\begin{remark}\\label{dm-0004-ai}\nA second, after Remark~\\ref{dm-0900-ai}.\n\\end{remark}\n\\end{document}",
+        ),
+        encoding="utf-8",
+    )
+    said = json_of("adopt", "survey.tex", "--to", "drafting/survey-notes.tex", "--json", cwd=q)
+    text = (q / "drafting" / "survey-notes.tex").read_text()
+    fresh = said["renamed"]["dm-0004-ai"]
+    assert "\\label{dm-0900}" in text and f"\\label{{{fresh}}}" in text and "\\ref{dm-0900}" in text
+    assert "-ai}" not in text and fresh not in ("dm-0004", "dm-0900")
+    assert said["action"] == "start" and said["to"] == "drafting/survey-notes.tex"
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"][0]["started"] == "drafting/survey-notes.tex"
+    assert "drafting-ai/survey.tex -> drafting/survey-notes.tex" in " ".join(ok("history", cwd=q).stdout.split())
+
+
+def test_adopt_refuses_what_a_document_written_from_scratch_cannot_take(tmp_path: Path) -> None:
+    q = with_survey(tmp_path)
+    refused("adopt", "survey.tex", cwd=q, code=2, match="--to drafting/NAME.tex")
+    refused("adopt", "survey.tex", "dm-0900-ai", "--to", "drafting/s.tex", cwd=q, code=2, match="no changes to choose")
+    refused("adopt", "survey.tex", "--to", "drafting/survey.tex", cwd=q, code=2, match="already named survey")
+    refused("adopt", "survey.tex", "--to", "drafting/main.tex", cwd=q, code=2, match="exists")
+    refused("adopt", "survey.tex", "--to", "notes/s.tex", cwd=q, code=2, match="directly in drafting/")
+    refused("adopt", "survey.tex", "--to", "drafting/s.tex", cwd=q, code=2, match="author's", env={"CLAUDECODE": "1"})
+    assert not (q / "drafting" / "s.tex").exists()
 
 
 # ---- the interface other plans build on (phase 3) -------------------------------------------------------------

@@ -711,6 +711,36 @@ def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyP
     succeeds(s, "adopt-reopen", body)
 
 
+@case("adopt-start")
+def _start(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Incoming offers an agent document written from scratch until a working document is started from it, at the file it suggests or another the author names."""
+    from loom.scan.quilt import save_author
+    from tests.helpers import ok
+
+    root = demo(tmp_path)
+    save_author(WHO)
+    ok("draft", "--ai", "survey.tex", "--new", cwd=root)
+    draft = root / "drafting-ai/survey.tex"
+    draft.write_text(
+        draft.read_text().replace(
+            "\\begin{document}\n", "\\begin{document}\n\\begin{remark}\\label{dm-0900-ai}\nA remark.\n\\end{remark}\n"
+        )
+    )
+    s = serve(root)
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    offered = [c for c in manifest["contributions"] if c["kind"] == "start"]
+    assert [(c["copy"], c["to"]) for c in offered] == [("drafting-ai/survey.tex", "drafting/survey-1.tex")]
+    body = {"copy": "drafting-ai/survey.tex", "reviewer": WHO, "to": "drafting/survey-1.tex"}
+    refuses(s, "adopt-start", {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
+    refuses(s, "adopt-start", {**body, "to": "notes/survey.tex"}, 409, "bad-field", "directly in drafting/")
+    assert succeeds(s, "adopt-start", body)["result"]["to"] == "drafting/survey-1.tex"
+    assert "\\label{dm-0900}" in (root / "drafting/survey-1.tex").read_text()
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert not [c for c in manifest["contributions"] if c["kind"] == "start"]
+    master = next(m for m in manifest["masters"] if m["path"] == "drafting-ai/survey.tex")
+    assert master["from_scratch"] and master["started"] == "drafting/survey-1.tex" and "copy_of" not in master
+
+
 def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
     """A copy of loom's synthetic quilt, served (which builds it)."""
     root = tmp_path / "synthetic"

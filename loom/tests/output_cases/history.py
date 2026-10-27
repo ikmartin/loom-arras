@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.output_cases.base import Case, ai_copy, solo_spine
+from tests.output_cases.base import Case, ai_copy, ai_new, solo_spine
 
 PAPER = r"""\documentclass{amsart}
 \newtheorem{lemma}{Lemma}
@@ -114,6 +114,9 @@ CASES: dict[str, list[Case]] = {
         Case(("drafting/main.tex", "--ai", "aidoc.tex")),
         Case(("drafting/main.tex", "--ai", "aidoc.tex", "--dry-run"), unchanged=True),
         Case(("drafting/absent.tex", "--ai", "aidoc.tex"), exit=2, unchanged=True, why="no such document"),
+        Case(("--ai", "survey.tex", "--new")),
+        Case(("--ai", "survey.tex", "--new", "--dry-run"), unchanged=True),
+        Case(("drafting/main.tex", "--ai", "survey.tex", "--new"), exit=2, unchanged=True, why="a document and --new"),
     ],
     "stamp": [
         Case(("--message", "m")),
@@ -181,6 +184,8 @@ CASES: dict[str, list[Case]] = {
         Case(("contribution", "--to", "build/adopt.patch"), ai_copy),
         Case(("contribution", "--to", "drafting/adopt.tex"), ai_copy, exit=2, unchanged=True, why="among the sources"),
         Case(("absent",), exit=2, unchanged=True, why="no such agent document"),
+        Case(("survey", "--to", "drafting/survey-notes.tex"), ai_new),
+        Case(("survey",), ai_new, exit=2, unchanged=True, why="written from scratch, so --to is required"),
         Case(
             ("contribution",), ai_copy, exit=2, env=(("AI_AGENT", "1"),), unchanged=True, why="adoption is the author's"
         ),

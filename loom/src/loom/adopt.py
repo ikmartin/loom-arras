@@ -159,9 +159,14 @@ def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
             copy = matches[0]
     if result.document_role(copy) != "drafting-ai":
         raise SyncError(f"{copy} is not a live agent document in {result.quilt.config.drafting_ai}/")
-    source = _history(result).copy_of(copy, result.masters)
+    history = _history(result)
+    source = history.copy_of(copy, result.masters)
+    if not source and copy in history.written(result.masters):
+        raise SyncError(
+            f"{copy} was written from scratch, so it has no working document to be incorporated into or updated from; `loom adopt {Path(copy).name} --to {result.quilt.config.drafting}/NAME.tex` starts one from it"
+        )
     if not source:
-        # a document written straight into the directory has no copy step, so no source and no bases (loom:agent-document-not-a-copy)
+        # a document written straight into the directory has no step, so no source and no bases (loom:agent-document-unrecorded)
         raise SyncError(
             f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an agent document drafted from one starts as `loom draft DOC --ai NAME`"
         )
@@ -608,6 +613,111 @@ def prepare(
     home.mkdir(parents=True, exist_ok=True)
     (home / (prepared["token"] + ".json")).write_text(json.dumps(prepared, indent=2) + "\n")
     return prepared
+
+
+def from_scratch(result: ScanResult, name: str) -> str | None:
+    """The live agent document written from scratch that `name` (a path, file name or unique stem) names; None for any other."""
+    written = _history(result).written(result.masters)
+    if name in written:
+        return name
+    matches = [m for m in written if name in (Path(m).name, Path(m).stem)]
+    return matches[0] if len(matches) == 1 else None
+
+
+def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None) -> dict[str, Any]:
+    """Start a working document from an agent document written from scratch, every id it defines made plain.
+
+    Parameters
+    ----------
+    result : ScanResult
+        Current quilt scan.
+    copy : str
+        Agent document path, filename or unique stem; one `loom draft --ai NAME --new` wrote.
+    dest_rel : str
+        The new working document, quilt-relative and directly in the drafting directory; the caller has applied `--to`'s rule (`cli._common.destination`).
+    actor : str, optional
+        Who starts it, for the ledger; default the configured author.
+
+    Returns
+    -------
+    dict
+        `copy`, `to`, `renamed` (derived id -> fresh id, for each whose plain id was taken), `inserted` (ids given to nodes that had none), `twice` (keys another live document also defines), `message`, and the `start` ledger line.
+
+    See Also
+    --------
+    prepare : incorporating a copy's changes into the document it was drafted from.
+    """
+    from loom.history.ledger import actor_for
+    from loom.reshape.canon import plan_draft
+    from loom.scan.alloc import visible_locals
+    from loom.scan.labels import LABEL_DEF, derived_of
+    from loom.scan.quilt import load_quilt
+
+    quilt = result.quilt
+    history = _history(result)
+    copy = from_scratch(result, copy) or copy
+    if copy not in history.written(result.masters):
+        if history.copy_of(copy, result.masters):
+            raise SyncError(
+                f"{copy} is a copy of {history.copy_of(copy, result.masters)}; `loom adopt {Path(copy).name}` incorporates its changes there, and a working document is started only from an agent document written from scratch"
+            )
+        raise SyncError(f"{copy} is not a live agent document written from scratch in {quilt.config.drafting_ai}/")
+    if Path(dest_rel).parent.as_posix() != quilt.config.drafting or not dest_rel.endswith(".tex"):
+        raise SyncError(
+            f"a working document goes directly under {quilt.config.drafting}/ as a .tex file, not at {dest_rel}"
+        )
+    if (quilt.root / dest_rel).exists():
+        raise SyncError(f"{dest_rel} exists; loom does not overwrite it")
+    taken = [m for m in result.masters if Path(m).stem == Path(dest_rel).stem]
+    if taken:
+        raise SyncError(
+            f"{taken[0]} is already named {Path(dest_rel).stem}; the viewer and the build tell documents apart by name"
+        )
+    text = flatten(quilt.root, copy).text
+    # a derived id whose plain id a live document defines, or the history has recorded, takes a fresh id: the plain one belongs to another result
+    recorded = history.recorded_ids()
+    reserved = visible_locals(result, quilt.config.prefix)
+    renamed: dict[str, str] = {}
+    for name in sorted({m.group(2) for m in LABEL_DEF.finditer(text)}):
+        plain = derived_of(name)
+        if plain and (plain in result.nodes or plain in recorded):
+            fresh = quilt.config.prefix + "-" + next_local(reserved)
+            reserved.add(fresh.split("-", 1)[1])
+            renamed[name] = fresh
+    text = rename_labels(_rename(text, renamed), plain=True)
+    plan = plan_draft(result, text, dest_rel)
+    if plan.violations or plan.spans:
+        raise SyncError(
+            f"{copy} cannot be started as a working document as it is: "
+            + "; ".join(plan.spans or [f"line {v.line}" for v in plan.violations])
+        )
+    (quilt.root / dest_rel).write_text(plan.text, encoding="utf-8")
+    entry = append_entry(
+        quilt.history_dir,
+        "start",
+        {"copy": copy, "to": {"path": dest_rel, "hash": text_hash(plan.text)}, "renamed": renamed},
+        actor if actor is not None else actor_for(quilt.root),
+    )
+    twice = sorted(
+        k for k, n in scan(load_quilt(quilt.root)).nodes.items() if n.kind == "conflict" and dest_rel in n.conflict
+    )
+    message = f"wrote {dest_rel} from {copy}, every id it defines made plain" + (
+        "; "
+        + ", ".join(f"{old} became {new}" for old, new in renamed.items())
+        + ", the plain id being another result's"
+        if renamed
+        else ""
+    )
+    return {
+        **entry.to_dict(),
+        "line": entry.line,
+        "copy": copy,
+        "to": dest_rel,
+        "renamed": renamed,
+        "inserted": len(plan.insertions),
+        "twice": twice,
+        "message": message,
+    }
 
 
 def nothing_to_incorporate(prepared: dict[str, Any]) -> str:

@@ -83,7 +83,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. `directory` is `"drafting"` for a document in the drafting directory and `"drafting-ai"` for one in the agent's drafting directory; only a `"drafting"` master is the default, has a Review tab, or is selected by the document workspace. The list holds the `"drafting"` masters first. An agent's copy also carries `copy_of`, the document it was copied from, where the history's moves have taken it.
+`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. `directory` is `"drafting"` for a document in the drafting directory and `"drafting-ai"` for one in the agent's drafting directory; only a `"drafting"` master is the default, has a Review tab, or is selected by the document workspace. The list holds the `"drafting"` masters first. An agent's copy also carries `copy_of`, the document it was copied from, where the history's moves have taken it. An agent document written from scratch carries `from_scratch: true` and no `copy_of`, and `started`, the working document started from it, once one has been.
 
 ## 3. Nodes
 
@@ -462,7 +462,7 @@ Unknown metadata remains optional for backward compatibility. Static viewers lab
 
 ## Incoming contribution inventory
 
-`contributions` is an optional array of incoming sources. The existing optional `incoming` workspace-pull object remains available for compatible clients. Its inventory entry has `kind: "workspace"` and a readable `label`, plus the existing pull fields. AI entries have `kind: "adopt"`, `copy`, `source`, `label`, a comparison `fingerprint`, `issues`, `changes`, `document_changed`, `document_conflict`, `document_diff`, and `choices: {keys, document}` for the displayed reviewer. An unreadable AI contribution carries its copy, label, empty changes and issues; clients must not offer writes for it.
+`contributions` is an optional array of incoming sources. The existing optional `incoming` workspace-pull object remains available for compatible clients. Its inventory entry has `kind: "workspace"` and a readable `label`, plus the existing pull fields. AI entries have `kind: "adopt"`, `copy`, `source`, `label`, a comparison `fingerprint`, `issues`, `changes`, `document_changed`, `document_conflict`, `document_diff`, and `choices: {keys, document}` for the displayed reviewer. An unreadable AI contribution carries its copy, label, empty changes and issues; clients must not offer writes for it. An agent document written from scratch that no working document has been started from is an entry `{kind: "start", copy, label, to}`, `to` the file a client suggests for `adopt-start` (write API); it has nothing to compare.
 
 Each AI change contains `key`, `name`, `class`, `current`, `proposed`, `base`, `offered`, `math_changed`, `documents`, nullable rendered-fragment paths `local` and `incoming`, and `affected: [{key, citation}]`. Classes distinguish unchanged, identical, author-only, proposal-only, conflict, new, removed and separate-result; only offered rows are published. The document diff uses node placeholders to distinguish prose and ordering from node bodies. The preview endpoint returns the final patch restoring actual source representation.
 

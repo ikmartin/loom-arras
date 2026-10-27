@@ -38,6 +38,15 @@ def ai_copy(q: Path) -> None:
     ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=q)
 
 
+def ai_new(q: Path) -> None:
+    """An agent document written from scratch, `drafting-ai/survey.tex`, which `adopt --to` starts a working document from."""
+    from loom.scan.quilt import save_author
+    from tests.helpers import ok
+
+    save_author("Tester")
+    ok("draft", "--ai", "survey.tex", "--new", cwd=q)
+
+
 def author(_: Path) -> None:
     """A local author name, which the commands that record who acted need."""
     from loom.scan.quilt import save_author
