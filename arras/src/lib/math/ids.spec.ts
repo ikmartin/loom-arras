@@ -14,3 +14,8 @@ describe('bare ids in prose', () => {
 		expect(parts('lem:rl-0003 and xrl-0003y and rl-0003-b')).toEqual(['lem:rl-0003 and xrl-0003y and rl-0003-b']);
 	});
 });
+
+it('recognizes numbered section-copy identities and qualified proof keys', () => {
+ const known = new Set(['zk-0001-ai-01', 'zk-0001-ai-02/proof/2']);
+ expect(idParts('Compare zk-0001-ai-01 with zk-0001-ai-02/proof/2.', key => known.has(key))).toEqual(['Compare ', {id:'zk-0001-ai-01'}, ' with ', {id:'zk-0001-ai-02/proof/2'}, '.']);
+});

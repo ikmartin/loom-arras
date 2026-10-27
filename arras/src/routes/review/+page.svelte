@@ -20,7 +20,7 @@
  import type { AdoptionReview } from '$lib/manifest/types';
  const m=$derived(store.manifest!);
  const view=$derived(page.url.searchParams.has('document')?'document':page.url.searchParams.get('show')??'needs-review');
- const reviewed=$derived(m.masters.filter(x=>x.directory!=='drafting-ai'));
+ const reviewed=$derived(m.masters.filter(x=>!x.closed && !x.context_only && x.directory!=='drafting-ai'));
  const document=$derived(reviewed.find(x=>x.path===page.url.searchParams.get('document'))??reviewed.find(x=>x.default)??reviewed[0]);
  const rows=$derived(document?documentKeys(m,document.path):[]);
  const adoptions=$derived((m.contributions??[]).filter((x):x is AdoptionReview=>x.kind==='adopt'));

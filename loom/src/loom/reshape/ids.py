@@ -64,7 +64,9 @@ def plan_insertions(
                 # directly after the heading's arguments, ahead of any existing label, so the id is the first label
                 candidates.append((after, node.key, "section"))
         for offset, key, _kind in sorted(candidates):
-            new_id = f"{prefix}-{base36_encode(counter)}"
+            from loom.section_drafts import metadata
+
+            new_id = f"{prefix}-{base36_encode(counter)}" + metadata(result, file).get("suffix", "")
             counter += 1
             out.append(Insertion(file, offset, f"\\label{{{new_id}}}", key, src.line_of(offset)))
     return out

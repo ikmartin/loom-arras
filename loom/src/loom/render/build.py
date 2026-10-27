@@ -513,6 +513,12 @@ def build(
     )
     told("recording")
     records.apply(result, manifest, build_dir)
+    from loom.draft_lifecycle import attach_closed
+
+    attach_closed(result, manifest, files)
+    from loom.section_drafts import attach_context
+
+    attach_context(result, manifest, files)
     from loom.render.review_compare import attach_comparisons
 
     _attach_spans(result.quilt.root, manifest, files)

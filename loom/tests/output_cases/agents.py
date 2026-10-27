@@ -27,6 +27,8 @@ KIND: dict[str, str] = {
     "ai init": "report",
     "ai orient": "raw",
     "ai drafts": "report",
+    "ai close": "report",
+    "ai reopen": "report",
     "ai annotations": "report",
     "ai refresh": "report",
     "sync init": "report",
@@ -36,6 +38,13 @@ KIND: dict[str, str] = {
     "sync incorporate": "report",
     "sync publish": "report",
 }
+
+
+def closed_copy(q: Path) -> None:
+    from tests.helpers import ok
+
+    ai_copy(q)
+    ok("ai", "close", "contribution.tex", "--yes", cwd=q)
 
 
 def no_ai(q: Path) -> None:
@@ -174,7 +183,15 @@ CASES: dict[str, list[Case]] = {
         Case(("--dry-run", "--skills"), unchanged=True),
     ],
     "ai orient": [Case(()), Case(NOWHERE, exit=2, why="names no session")],
-    "ai drafts": [Case(()), Case((), setup=ai_copy)],
+    "ai drafts": [Case(()), Case((), setup=ai_copy), Case(("--closed",), setup=closed_copy)],
+    "ai close": [
+        Case(("contribution.tex", "--yes"), setup=ai_copy),
+        Case(("contribution.tex", "--dry-run"), setup=ai_copy, unchanged=True),
+    ],
+    "ai reopen": [
+        Case(("contribution.tex",), setup=closed_copy),
+        Case(("contribution.tex", "--dry-run"), setup=closed_copy, unchanged=True),
+    ],
     "ai annotations": [
         Case(("--session", S2)),
         Case(("--session", S2, "--kind", "objection", "--severity", "major", "--status", "open")),

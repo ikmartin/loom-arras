@@ -170,7 +170,9 @@ def test_api_choices_are_pinned_and_never_accept(quilt):
     handle(quilt.root, "adopt-decision", {**base, "keys": ["zk-0001"], "document": False})
     preview = handle(quilt.root, "adopt-preview", base)["result"]
     assert (quilt.root / DOC).read_text() == TEXT
-    answer = handle(quilt.root, "adopt-decision", {**base, "keys": [], "document": False, "kept": ["zk-0001"]})
+    answer = handle(
+        quilt.root, "adopt-decision", {**base, "revision": 1, "keys": [], "document": False, "kept": ["zk-0001"]}
+    )
     assert answer["result"]["kept"] == ["zk-0001"]
     with pytest.raises(ApiError, match="Selection changed"):
         handle(quilt.root, "adopt-finish", {**base, "token": preview["token"]})

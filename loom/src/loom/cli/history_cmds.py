@@ -80,21 +80,41 @@ def _history(result: ScanResult) -> History:
     metavar="NAME",
     help="Who drafts it; an agent names itself, including Agent or AI.",
 )
+@click.option("--section", metavar="ID", help="Copy only this section or subsection and its descendants.")
 @click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def draft(
-    document: str, ai_name: str, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
+    document: str,
+    ai_name: str,
+    declared: str | None,
+    section: str | None,
+    dry_run: bool,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
     """Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
     A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
     """
-    _draft_ai(open_scan(quilt_path), document, ai_name, declared, dry_run, as_json)
+    from loom.sync import SyncError
+
+    try:
+        _draft_ai(open_scan(quilt_path), document, ai_name, declared, dry_run, as_json, section)
+    except (ValueError, SyncError) as exc:
+        raise EnvError(str(exc)) from exc
 
 
-def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, dry_run: bool, as_json: bool) -> None:
-    """`loom draft SOURCE --ai NAME`: one agent document per working document, never over an existing file or a taken name."""
+def _draft_ai(
+    result: ScanResult,
+    source: str,
+    name: str,
+    declared: str | None,
+    dry_run: bool,
+    as_json: bool,
+    section: str | None = None,
+) -> None:
+    """`loom draft SOURCE --ai NAME`: one agent document per non-overlapping scope, never over an existing file or a taken name."""
     from loom.reshape.copy import plan_copy
 
     quilt = result.quilt
@@ -122,15 +142,19 @@ def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, 
         )
     history = _history(result)
     refuse_interrupted(history)  # before the copy is written, so a refusal leaves nothing behind
-    existing = [c for c, s in history.copies(result.masters).items() if s == source_rel]
-    if existing:
-        raise EnvError(f"{source_rel} already has an agent document, {existing[0]}; an agent works in that one")
     conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and source_rel in n.reached_by)
     if conflicted:
         raise ContentError(
             f"{source_rel} reaches {', '.join(conflicted)}, defined by two files each; an agent document needs one text per key"
         )
-    plan = plan_copy(result, history, source_rel, dest_rel)
+    plan = plan_copy(result, history, source_rel, dest_rel, section)
+    from loom.section_drafts import capture_context, check_overlap
+    from loom.sync import SyncError
+
+    try:
+        check_overlap(result, source_rel, plan.scope)
+    except SyncError as exc:
+        raise EnvError(str(exc)) from exc
 
     def detail(step: int) -> list[str]:
         kept = counted(len(plan.freeze.froze), "result")
@@ -148,6 +172,7 @@ def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, 
             data={"action": "copy", "step": step, "from": source_rel, "to": dest_rel, "bases": plan.bases},
         ).emit(as_json)
         return
+    context = capture_context(result, source_rel) if section else None
     dest = root / dest_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(plan.text, encoding="utf-8")
@@ -157,7 +182,14 @@ def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, 
         f"copy-{Path(dest_rel).stem}",
         plan.freeze,
         actor,
-        extra={"from": source_rel, "to": dest_rel, "bases": plan.bases},
+        extra={
+            "from": source_rel,
+            "to": dest_rel,
+            "bases": plan.bases,
+            "scope": plan.scope,
+            "suffix": plan.suffix,
+            "context": context,
+        },
         document_text=plan.source_text,
         document_name=Path(source_rel).name,
     )

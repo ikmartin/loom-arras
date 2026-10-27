@@ -28,7 +28,7 @@
 
 {#snippet tools()}<ToolPair holder={documentState(item)} of={name} />{/snippet}
 
-{#if master}
+{#if master && !master.closed && !master.context_only}
 	<ItemToolbar {name} bar={writes ? tools : undefined} on={notes.allOpen || ui.showSettled}>
 		{#snippet view()}
 			{#if notes.ready}

@@ -68,9 +68,10 @@
 	// dropdown shows one name at a time and cannot say which draft is conflicted or which landmark a step wrote.
 	// Newest landmark first: the one a reader is most likely to want.
 	const landmarks = $derived([...canon].reverse());
-	const own = $derived(masters.filter((m) => m.directory !== 'drafting-ai'));
-	const withAgent = $derived(masters.filter((m) => m.directory === 'drafting-ai'));
-	const docCount = $derived(masters.length + canon.length);
+	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory !== 'drafting-ai'));
+	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory === 'drafting-ai'));
+	const closed = $derived(masters.filter((m) => m.closed));
+	const docCount = $derived(masters.filter((m) => !m.context_only).length + canon.length);
 	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which
 	// is what the author types and what `--master` and the read view's URL name them by.
 	const filename = (path: string) => path.split('/').pop() || path;
@@ -192,6 +193,14 @@
 						<ul class="plain docs" data-testid="docs-drafts-ai">
 							{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
 						</ul>
+					{/if}
+					{#if closed.length}
+						<details>
+							<summary>Closed agent documents</summary>
+							<ul class="plain">
+								{#each closed as doc (doc.path)}<li><a href={masterUrl(doc.path)}>{filename(doc.path)}</a></li>{/each}
+							</ul>
+						</details>
 					{/if}
 					{#if landmarks.length}
 						<p class="group">Landmarks</p>

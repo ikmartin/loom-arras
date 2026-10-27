@@ -29,14 +29,23 @@ class Flattened:
 
 
 def flatten(
-    root: Path, rel: str, skip: set[str] | None = None, marker: Callable[[str], str] | None = None
+    root: Path,
+    rel: str,
+    skip: set[str] | None = None,
+    marker: Callable[[str], str] | None = None,
+    *,
+    overlay: dict[str, str] | None = None,
 ) -> Flattened:
     """The flattened text of `rel` under `root`. Missing and system files leave the inclusion command as written."""
     skip = skip or set()
     out = Flattened(text="")
 
     def rec(rel: str, shift: int, stack: tuple[str, ...]) -> str:
-        raw = (root / rel).read_text(encoding="utf-8", errors="replace")
+        raw = (
+            overlay[rel]
+            if overlay is not None and rel in overlay
+            else (root / rel).read_text(encoding="utf-8", errors="replace")
+        )
         clean = blank_comments(raw)
         pieces: list[str] = []
         pos = 0

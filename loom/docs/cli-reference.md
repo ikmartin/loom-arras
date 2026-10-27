@@ -743,6 +743,7 @@ A copy step records what each of its nodes began from, and who drafted it: `--as
 |---|---|
 | `--ai` `NAME` | The agent document to write, directly in the agent's drafting directory. |
 | `--as` `NAME` | Who drafts it; an agent names itself, including Agent or AI. |
+| `--section` `ID` | Copy only this section or subsection and its descendants. |
 | `--dry-run` | Say what would be written, and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -757,7 +758,8 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 
 | option | description |
 |---|---|
-| `--document-changes` | Include proposed prose, preamble and ordering changes. |
+| `--document-changes` | Include proposed prose and ordering changes. |
+| `--preamble-changes` | Include the separately reviewed preamble changes. |
 | `--document-only` | Include document-level changes while keeping every node version. |
 | `--incorporate` `TOKEN` | Incorporate exactly the previously inspected preview. |
 | `--to` `FILE` | Write the preview's patch to FILE without incorporating; never among the quilt's sources. |
@@ -929,6 +931,19 @@ An agent re-reading its own annotations is the common case — a re-check resolv
 | `--json` | Print the annotations as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+#### `loom ai close`
+
+`loom ai close [OPTIONS] DOCUMENT`
+
+Close an agent document, retaining its text and annotations and releasing its scope.
+
+| option | description |
+|---|---|
+| `--yes` | Close even when unapplied changes remain; text and annotations are kept. |
+| `--dry-run` | Say what would change and write nothing. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 #### `loom ai discard`
 
 `loom ai discard [OPTIONS] SESSION`
@@ -957,6 +972,7 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 | option | description |
 |---|---|
+| `--closed` | List retained closed agent documents instead of active ones. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -997,6 +1013,18 @@ Update an agent document from the working document it was drafted from, keeping 
 | option | description |
 |---|---|
 | `--dry-run` | Say what would be refreshed and write nothing. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai reopen`
+
+`loom ai reopen [OPTIONS] DOCUMENT`
+
+Reopen a retained agent document when its scope and identities are available.
+
+| option | description |
+|---|---|
+| `--dry-run` | Say what would change and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

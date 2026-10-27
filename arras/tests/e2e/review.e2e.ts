@@ -47,10 +47,12 @@ test('narrow layouts collapse the queue before stacking the comparison', async (
  await page.goto('/review');
  await expect(page.locator('aside[aria-label="Review queue"] details').first()).not.toHaveAttribute('open');
  const pair=page.getByTestId('guided-review');
- const left=await pair.locator(':scope > section').first().boundingBox();
- const right=await pair.locator(':scope > section').last().boundingBox();
- expect(right!.x).toBeGreaterThan(left!.x);
- expect(Math.abs(right!.y-left!.y)).toBeLessThan(2);
+ await expect.poll(() => pair.evaluate(node => {
+  const sections = node.querySelectorAll(':scope > section');
+  const left = sections[0].getBoundingClientRect();
+  const right = sections[sections.length-1].getBoundingClientRect();
+  return right.x > left.x && Math.abs(right.y-left.y) < 2;
+ })).toBe(true);
 });
 
 test('prose is inspected in Incoming without mathematical acceptance controls', async ({page}) => {

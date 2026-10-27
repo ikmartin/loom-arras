@@ -26,7 +26,7 @@ from loom.tex.aux import read_cite_labels, read_numbers
 
 CACHE = "compare"
 # a derived label made plain inside a token, so `\ref{zk-0001-ai}` and `\ref{zk-0001}` are the same word
-_DERIVED_IN_TOKEN = re.compile(r"-ai(?=[},\]/\s]|$)")
+_DERIVED_IN_TOKEN = re.compile(r"-ai(?:-[0-9A-Z]{2,})?(?=[},\]/\s]|$)")
 
 
 class CompareError(Exception):

@@ -267,20 +267,54 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 
 
 @ai.command(name="drafts")
+@click.option("--closed", is_flag=True, help="List retained closed agent documents instead of active ones.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
-def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
+def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
     """List each agent document drafted from a working document, and what has moved in that document since.
 
     Before a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against.
     """
     from loom.cli._quilt import open_scan
+    from loom.draft_lifecycle import closed_drafts
     from loom.drafts import copy_states
     from loom.history.ledger import load_history
+    from loom.section_drafts import context_changed, metadata
 
     result = open_scan(quilt_path)
+    if closed:
+        rows = [
+            {"copy": copy, "closed": True, "when": row["when"], "snapshot": row["snapshot"]}
+            for copy, row in sorted(closed_drafts(load_history(result.quilt.history_dir)).items())
+        ]
+        Report(
+            counted(len(rows), "closed agent document"),
+            groups=[
+                Group(
+                    "closed agent documents",
+                    [
+                        Item(f"{row['copy']}  closed {row['when']}", fixes=[f"loom ai reopen {row['copy']}"])
+                        for row in rows
+                    ],
+                    limit=None,
+                )
+            ]
+            if rows
+            else [],
+            data={"copies": rows},
+        ).emit(as_json)
+        return
     states = sorted(copy_states(result, load_history(result.quilt.history_dir)), key=lambda st: st.copy)
-    data = {"copies": [st.to_dict() for st in states]}
+    data = {
+        "copies": [
+            {
+                **st.to_dict(),
+                **metadata(result, st.copy),
+                "context_changed": context_changed(result, metadata(result, st.copy).get("context") or {}),
+            }
+            for st in states
+        ]
+    }
     if not states:
         Report(
             f"no agent documents drafted from a working document: loom draft DOC --ai NAME writes one into {result.quilt.config.drafting_ai}/",
@@ -497,3 +531,55 @@ def refresh_draft(document: str, dry_run: bool, as_json: bool, quilt_path: str |
     else:
         verdict = f"refreshed {copy}: {counted(len(updated), 'node')} updated"
     Report(verdict, dry_run=dry_run, groups=done, data=answer).emit(as_json)
+
+
+@ai.command(name="close")
+@click.argument("document")
+@click.option("--yes", is_flag=True, help="Close even when unapplied changes remain; text and annotations are kept.")
+@click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
+@quilt_option
+def close_draft(document: str, yes: bool, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Close an agent document, retaining its text and annotations and releasing its scope."""
+    from loom.cli._common import agent_marker, whoever
+    from loom.cli._quilt import open_scan
+    from loom.draft_lifecycle import close_draft as close
+    from loom.sync import SyncError
+
+    if agent_marker():
+        raise EnvError("Closing drafts is an author action")
+    result = open_scan(quilt_path)
+    try:
+        answer = close(result, document, whoever(result.quilt.root), confirmed=yes or dry_run, write=not dry_run)
+        if answer.get("confirmation_required") and not as_json and not dry_run:
+            if click.confirm(answer["message"]):
+                answer = close(open_scan(quilt_path), document, whoever(result.quilt.root), confirmed=True)
+        Report(answer["message"], ok=not answer.get("confirmation_required", False), dry_run=dry_run, data=answer).emit(
+            as_json
+        )
+    except (SyncError, ValueError, OSError) as exc:
+        raise EnvError(str(exc)) from exc
+
+
+@ai.command(name="reopen")
+@click.argument("document")
+@click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
+@quilt_option
+def reopen_draft(document: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Reopen a retained agent document when its scope and identities are available."""
+    from loom.cli._common import agent_marker, whoever
+    from loom.cli._quilt import open_scan
+    from loom.draft_lifecycle import reopen_draft as reopen
+    from loom.sync import SyncError
+
+    if agent_marker():
+        raise EnvError("Reopening drafts is an author action")
+    result = open_scan(quilt_path)
+    try:
+        answer = reopen(result, document, whoever(result.quilt.root), write=not dry_run)
+        Report(answer["message"], ok=not answer.get("confirmation_required", False), dry_run=dry_run, data=answer).emit(
+            as_json
+        )
+    except (SyncError, ValueError, OSError) as exc:
+        raise EnvError(str(exc)) from exc

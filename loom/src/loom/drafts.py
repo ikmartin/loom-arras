@@ -77,6 +77,9 @@ def copy_states(result: ScanResult, history: History) -> list[CopyState]:
         state = CopyState(copy, source)
         # Incorporation and refresh carry current raw node and document bases, including author versions not yet frozen.
         if any(
+            e.action == "copy" and e.get("to") == copy and e.get("scope", {}).get("kind") == "section"
+            for e in history.entries
+        ) or any(
             e.action in ("adopt", "refresh")
             and e.get("adoption_base")
             and history.current_document(str(e.get("copy", "")), result.masters) == copy

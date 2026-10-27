@@ -168,6 +168,11 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
     for rel in paths:
         result.files[rel] = read_source(root, rel, overlay.get(rel))
     history = result.history = load_history(quilt.history_dir)
+    from loom.draft_lifecycle import closed_drafts
+
+    for rel in closed_drafts(history):
+        if rel in result.files:
+            result.files[rel].ignored = True
     for rel, entry in sorted(history.superseded_paths().items()):
         src = result.files.get(rel)
         if src is None:
