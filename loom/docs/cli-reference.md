@@ -1081,6 +1081,19 @@ Reopen a retained agent document when its scope and identities are available.
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom mcp`
+
+`loom mcp [OPTIONS]`
+
+Serve this quilt's agent commands as MCP tools over stdio, for an agent's app to start; it runs until the app closes it.
+
+One tool per agent command, named for it (`loom status` is `loom_status`), its options its arguments; the author's commands are not tools. Each call runs the command it names, as NAME, and its result is that command's report. The instructions tell the agent to call `loom_ai_orient` first. A result too long for a reply is written under `build/agent/` and the tool returns its path.
+
+| option | description |
+|---|---|
+| `--as` `NAME` | The agent this server serves, with Agent or AI in the name; every write is recorded under it. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## Publish
 
 Build the site and the PDFs, serve them, and exchange sources with a workspace.

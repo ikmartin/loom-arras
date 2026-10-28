@@ -113,6 +113,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom library why`
   - `loom link`
   - `loom lint`
+  - `loom mcp`
   - `loom new`
   - `loom search`
   - `loom serve`

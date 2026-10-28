@@ -59,6 +59,24 @@ def mode_index(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
+def instructions(root: Path, name: str) -> str:
+    """What `loom mcp` tells a client when it attaches: who the agent is, to call `loom_ai_orient` first, how tools map to commands, then the mode index.
+
+    Short by design: Claude Code keeps the first 4,096 characters of a server's instructions and Codex reads the first 512 as a summary, so the opening stands alone and the orientation, the rules and the quilt's state are a tool call away rather than cut off.
+    """
+    from loom.scan.quilt import load_quilt
+
+    quilt = load_quilt(root)
+    opening = (
+        f"This is loom, serving the quilt {quilt.name}: a research project, usually mathematical, kept as LaTeX. "
+        f"You are attached as {name}. Before anything else, and again whenever your context has been compacted, "
+        "call loom_ai_orient: it is your orientation, the rules, the modes and the quilt's state. Each tool is the "
+        "loom command of the same name (loom_status is `loom status`), with its options as arguments; the author's "
+        "commands are not tools."
+    )
+    return opening + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
+
+
 def _research_state(result: ScanResult) -> list[str]:
     """The research state as `ai orient` prints it: its path and hash, who last wrote it, and the page itself; or how to start one."""
     from loom.pages import read, state_page, text_hash, writes

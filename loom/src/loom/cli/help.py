@@ -58,7 +58,7 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
     (
         "Agents",
         "Hand a document to an agent, take its changes back, the sessions you both work in, and the pages you both keep.",
-        ("draft", "adopt", "session", "write", "ai"),
+        ("draft", "adopt", "session", "write", "ai", "mcp"),
     ),
     (
         "Publish",

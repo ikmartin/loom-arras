@@ -24,6 +24,7 @@ from loom.cli.history_cmds import (
 from loom.cli.library import library
 from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
+from loom.cli.mcp_cmd import mcp_command
 from loom.cli.nodes import new, search
 from loom.cli.page import write
 from loom.cli.paper import atomize, deloom_command, id_command, import_command
@@ -83,6 +84,7 @@ main.add_command(mv)
 main.add_command(linearize)
 main.add_command(history)
 main.add_command(write)
+main.add_command(mcp_command)
 main.add_command(sync)
 
 __all__ = ["main"]

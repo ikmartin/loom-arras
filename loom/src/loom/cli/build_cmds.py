@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,8 @@ def log_run(session: str | None, command: str, root: Path | None = None) -> None
 
     The same resolver every other `--session` uses, and it never creates one: an unmatched value used to be mkdir'd at the quilt root, and the directory that left behind then shadowed the real run for every later command, so a whole sitting's annotations were filed under a run that did not exist.
     """
-    if not session or root is None:
+    if not session or root is None or os.environ.get("LOOM_LOGGED") == "1":
+        # under `loom mcp` the server logs each call itself, once, as the command it ran
         return
     from loom.sessions import files_dir
 

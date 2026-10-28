@@ -33,6 +33,7 @@
       "Bash(loom library why*)",
       "Bash(loom link*)",
       "Bash(loom lint*)",
+      "Bash(loom mcp*)",
       "Bash(loom new*)",
       "Bash(loom search*)",
       "Bash(loom serve*)",

@@ -27,8 +27,35 @@ AGENT_COMMANDS = frozenset(
         # the library's readers and an agent's tools; filing a document (`library add`, `import`) and every decision are the author's
         "library", "library update", "library review", "library read", "library search", "library why",
         "library propose", "library locate", "library relate", "library check",
+        # the MCP server an agent's app starts, often from a shell that already marks an agent
+        "mcp",
     }
 )  # fmt: skip
+#: What each agent command does to the quilt, which is what an MCP tool's hints say (`loom.mcp.tools.hints`): `read` changes nothing but loom's own command log; `derive` rewrites what `build/` derives; `write` adds to a record, a session, a document of the agent's or the library; `replace` puts new text in place of a page's. Every command in `AGENT_COMMANDS` is here, and nothing else.
+ACTS: dict[str, str] = {
+    **dict.fromkeys(
+        (
+            "deps", "doctor", "downstream", "history", "history show", "history verify", "link", "lint", "search",
+            "source", "status", "suggestion", "ai annotations", "ai drafts", "ai mode", "ai orient", "session list",
+            "library", "library check", "library locate", "library read", "library review", "library search",
+            "library why",
+        ),
+        "read",
+    ),
+    **dict.fromkeys(("build", "check", "compile", "id", "serve"), "derive"),
+    **dict.fromkeys(
+        (
+            "annotate", "draft", "new", "ai refresh", "session new", "session rename", "session say", "session next",
+            "session watch", "library propose", "library relate", "library update", "mcp",
+        ),
+        "write",
+    ),
+    "write": "replace",
+}  # fmt: skip
+#: Agent commands that are no MCP tool: the server itself, `serve`, which runs until stopped, and the inbox's waiting, which the bridge replaces (plan 0.21.8).
+NOT_TOOLS = frozenset({"mcp", "serve", "session next", "session watch"})
+#: The one agent command that may reach the network, when the quilt's config allows it.
+NETWORK = frozenset({"library update"})
 AGENT_WRITES = (
     ".loom/sessions",
     "build",

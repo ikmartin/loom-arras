@@ -5,6 +5,7 @@ A command builds a `Report` and calls `emit`. The text leads with the verdict (T
 
 from __future__ import annotations
 
+import os
 import sys
 import textwrap
 import threading
@@ -311,7 +312,9 @@ class Progress:
         return "  ".join(parts)
 
     def tick(self, force: bool = False) -> None:
-        """Write the line if it is due: after the quiet period, and off a terminal at most every `every` seconds or at a stage."""
+        """Write the line if it is due: after the quiet period, and off a terminal at most every `every` seconds or at a stage; never under `LOOM_PROGRESS=off`, which `loom mcp` sets, since a tool's result is its report and not its progress."""
+        if os.environ.get("LOOM_PROGRESS") == "off":
+            return
         with self._lock:
             now = self.clock()
             if now - self.started < self.quiet:

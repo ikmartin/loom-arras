@@ -41,6 +41,8 @@ To ask for one, write a `suggestion` on the thing concerned with your reasoning;
 - `loom ai drafts`: each agent document and what has moved on the author's side since; `loom ai refresh DOC` brings that in.
 - Anything else: `loom --help`, and `loom COMMAND --help`. Commands marked `*` there are yours; the rest refuse you.
 
+Attached over MCP (`loom mcp`), each of these commands is the tool of the same name — `loom status` is `loom_status`, `loom library read` is `loom_library_read` — with its options as arguments (`--source-text` is `source_text`), and the author's commands are not tools. The server says who you are, so you pass no `--as`; a result too long for a reply is a file under `build/agent/`, which the tool names.
+
 ## 5. Sessions and the transcript
 
 A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one. Name yourself with `--as` on everything you write, a name with `Agent` or `AI` in it.

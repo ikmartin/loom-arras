@@ -1,0 +1,1593 @@
+[
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom ai annotations",
+  "description": "List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "all": {
+     "description": "Include withdrawn annotations, with the reason they were withdrawn.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the annotations as JSON.",
+     "type": "boolean"
+    },
+    "kind": {
+     "description": "Only annotations of this kind.",
+     "enum": [
+      "objection",
+      "suggestion",
+      "question",
+      "citation",
+      "note"
+     ],
+     "type": "string"
+    },
+    "session": {
+     "description": "The session to report on.",
+     "type": "string"
+    },
+    "severity": {
+     "description": "Only annotations of this severity.",
+     "enum": [
+      "major",
+      "moderate",
+      "minor"
+     ],
+     "type": "string"
+    },
+    "status": {
+     "description": "Only annotations in this state.",
+     "enum": [
+      "open",
+      "resolved"
+     ],
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_ai_annotations"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom ai drafts",
+  "description": "List each agent document: the working document it was drafted from and what has moved there since, or that it was written from scratch.\n\nBefore a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against. One written from scratch is never stale, and names the working document started from it, if any.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "closed": {
+     "description": "List retained closed agent documents instead of active ones.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_ai_drafts"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom ai mode",
+  "description": "Print mode NAME in full: when it fits, what it is for, and what its report shows.\n\nThe quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "type": "object"
+  },
+  "name": "loom_ai_mode"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom ai orient",
+  "description": "Print the orientation documents followed by the quilt's live state, and with --session the end of that session's chat.\n\nThis is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and the last messages of that session's chat with its command log, which is what a later sitting resumes from.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "session": {
+     "description": "Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_ai_orient"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom ai refresh",
+  "description": "Update an agent document from the working document it was drafted from, keeping its outstanding proposals.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "document": {
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Say what would be refreshed and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "document"
+   ],
+   "type": "object"
+  },
+  "name": "loom_ai_refresh"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom annotate",
+  "description": "Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.\n\nA note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "applied": {
+     "description": "With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
+     "type": "boolean"
+    },
+    "batch": {
+     "description": "Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
+     "type": "boolean"
+    },
+    "box": {
+     "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
+     "type": "string"
+    },
+    "discard": {
+     "description": "Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Say what would be written, and write nothing, not even a session.",
+     "type": "boolean"
+    },
+    "edit": {
+     "description": "Restate an annotation: a new body, --severity, --payload or --placement; never its anchor.",
+     "type": "string"
+    },
+    "in": {
+     "description": "A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere.",
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "kind": {
+     "description": "What the annotation is; any unambiguous prefix. Default note.",
+     "type": "string"
+    },
+    "message": {
+     "type": "string"
+    },
+    "page": {
+     "description": "A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
+     "type": "integer"
+    },
+    "payload": {
+     "description": "A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin.",
+     "type": "string"
+    },
+    "placement": {
+     "description": "Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment.",
+     "enum": [
+      "replace",
+      "after",
+      "before"
+     ],
+     "type": "string"
+    },
+    "quote": {
+     "description": "Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page.",
+     "type": "string"
+    },
+    "reply": {
+     "description": "Answer annotation ID; the message is the reply.",
+     "type": "string"
+    },
+    "resolve": {
+     "description": "Mark annotation ID resolved, with the message as why.",
+     "type": "string"
+    },
+    "session": {
+     "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
+     "type": "string"
+    },
+    "severity": {
+     "description": "How bad the fault is, not how keen you are.",
+     "enum": [
+      "major",
+      "moderate",
+      "minor"
+     ],
+     "type": "string"
+    },
+    "target": {
+     "type": "string"
+    },
+    "undo": {
+     "description": "With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_annotate"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom build",
+  "description": "Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nRendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "force": {
+     "description": "Render every block again, ignoring the cache and retrying remembered SVG failures.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "keys": {
+     "description": "Limit rendering to these keys and their masters; the manifest is always complete.",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_build"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom check",
+  "description": "Lint, then compile every document, then the closures asked for. Exit 1 on any failure; the CI command.\n\n`loom lint` is the same check without LaTeX.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "closures": {
+     "default": "stale",
+     "description": "Which statements' closures to compile after the documents: all of them, or none; stale compiles none yet.",
+     "enum": [
+      "all",
+      "stale",
+      "none"
+     ],
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_check"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom compile",
+  "description": "Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "draft": {
+     "description": "Compile a node file not yet in the quilt.",
+     "type": "string"
+    },
+    "engine": {
+     "description": "Override the document's engine.",
+     "enum": [
+      "latex",
+      "lualatex",
+      "pdflatex",
+      "xelatex"
+     ],
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "target": {
+     "type": "string"
+    },
+    "with": {
+     "description": "Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_compile"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom deps",
+  "description": "Show what KEY depends on directly, through its statement and through its proof.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "closure": {
+     "description": "The transitive statement closure in dependency order.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "key": {
+     "type": "string"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "key"
+   ],
+   "type": "object"
+  },
+  "name": "loom_deps"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom doctor",
+  "description": "Check the TeX toolchain and what loom needs of it, poppler, git, the author name and the arras bundle; inside a quilt, also its engine, its generated files, its .gitignore and its config.\n\nEach item is ok, warn (works, but you will hit it) or fail (a command you need will refuse), with the command that fixes it. Exits 0 when nothing fails and 2 when anything does; under --strict a warning counts as a failure. Writes nothing; a tool is run only to ask its version or test what loom needs of it, and one that has not answered in 10 s is reported as hung.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Machine-readable report on stdout.",
+     "type": "boolean"
+    },
+    "strict": {
+     "description": "Count a warning as a failure: exit 2 when any item warns.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_doctor"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom downstream",
+  "description": "Show everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing.\n\nWith --proofs, only the proofs that cite ID themselves: where a hypothesis or a lemma is consumed, rather than everything that rests on it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "id_": {
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "proofs": {
+     "description": "Only the proofs that cite ID directly, each with the statement it proves.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id_"
+   ],
+   "type": "object"
+  },
+  "name": "loom_downstream"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom draft",
+  "description": "Draft an agent document NAME from a live working document, or with --new from scratch: flat, in the agent's drafting directory, with every label it defines derived.\n\nA copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document written from scratch has a step too, with no source, and is taken in with `loom adopt NAME --to FILE`. Starting a document from an old version of one is `loom history restore`.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "ai": {
+     "description": "The agent document to write, directly in the agent's drafting directory.",
+     "type": "string"
+    },
+    "document": {
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Say what would be written, and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "new": {
+     "description": "Write it from scratch, drafted from no document: the default document's preamble and an empty body.",
+     "type": "boolean"
+    },
+    "section": {
+     "description": "Copy only this section or subsection and its descendants.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "ai"
+   ],
+   "type": "object"
+  },
+  "name": "loom_draft"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom history",
+  "description": "List the steps and stamps of this quilt, one per line; `loom history KEY` lists that key's versions and whether the head equals one.\n\nA landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP`.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "key": {
+     "description": "A key, to list its recorded versions and whether its text now is one; with none, the history's steps.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_history"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom history show",
+  "description": "Print a landmark's text.\n\nThe text of the landmark NAME as its step kept it, raw; with --plain, the paper without loom.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "name": {
+     "type": "string"
+    },
+    "plain": {
+     "description": "The paper without loom, its package line swapped for the macro block.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "type": "object"
+  },
+  "name": "loom_history_show"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom history verify",
+  "description": "Check the history against its ledger.\n\nEvery step directory is walked against the ledger: missing or edited version files, preambles, copies, and ancestry that no longer resolves.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_history_verify"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom id",
+  "description": "Print a patch inserting \\label{<id>} on every untagged theorem-like environment and section in FILE, or write the patched copy with --to; with --next, print the next free id.\n\nFILE is never modified.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "all_levels": {
+     "description": "Also label paragraphs and subparagraphs.",
+     "type": "boolean"
+    },
+    "file": {
+     "type": "string"
+    },
+    "fix_anchoring": {
+     "description": "Include line-anchoring repairs in the patch or written copy.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object; for a FILE, the patch is in it.",
+     "type": "boolean"
+    },
+    "next": {
+     "description": "Print the next free id and nothing else; inserts nothing.",
+     "type": "boolean"
+    },
+    "prefix": {
+     "description": "The id prefix (default: the quilt's).",
+     "type": "string"
+    },
+    "sections": {
+     "default": true,
+     "description": "Also label sections through subsubsection (default on).",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "to": {
+     "description": "Write the patched copy here instead of printing a diff; never among the quilt's sources.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_id"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library",
+  "description": "Report what the quilt's cited works need: from you, from an agent, and in review; `loom library WORK` reports one work.\n\nA WORK is a citekey, a fragment of one or of its author or title, or one of its result ids.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "work": {
+     "description": "A work, by citekey, a fragment of one or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_library"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library check",
+  "description": "Check the library for what has gone wrong, each problem with its fix.\n\nRe-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF that does not show plainly it is its work, or shows it is another's, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "works": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_library_check"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library locate",
+  "description": "An agent's tool: print the region of WORK's page PAGE that TEXT occupies, so an anchor need not compute geometry.\n\nToken geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer **at the place** -- `?page=4&span=812-871` -- so that following it lights the quotation rather than leaving it to be found by eye.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the anchor as JSON.",
+     "type": "boolean"
+    },
+    "page": {
+     "description": "The page the text is on.",
+     "minimum": 1,
+     "type": "integer"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    },
+    "work": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "work",
+    "text",
+    "page"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_locate"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom library propose",
+  "description": "An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.\n\nThe only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Check the quotation and say what would be proposed, storing nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the stored record as JSON.",
+     "type": "boolean"
+    },
+    "level": {
+     "default": "3",
+     "description": "1 is a main result.",
+     "enum": [
+      "1",
+      "3"
+     ],
+     "type": "string"
+    },
+    "local": {
+     "description": "The paper's own name for the result: thm-4.1, cor-2.3.1, eq-1, thm-star-2.",
+     "type": "string"
+    },
+    "number": {
+     "description": "The paper's numbers when it states several results together: '3.2, 3.3'.",
+     "type": "string"
+    },
+    "page": {
+     "description": "The page the statement is on, or 353-354 if it runs over.",
+     "type": "string"
+    },
+    "session": {
+     "description": "The session proposing this.",
+     "type": "string"
+    },
+    "source_file": {
+     "description": "Quote the work's LaTeX source instead of a page: a file under the directory `loom library read WORK --where src` prints.",
+     "type": "string"
+    },
+    "source_text": {
+     "description": "The paper's own words, verbatim; checked against the page or file. `-` reads stdin.",
+     "type": "string"
+    },
+    "statement": {
+     "description": "The same result as LaTeX, in the paper's words only; the author verifies it. `-` reads stdin.",
+     "type": "string"
+    },
+    "supersedes": {
+     "description": "Re-propose something discarded, recording the chain.",
+     "type": "string"
+    },
+    "taxon": {
+     "description": "theorem, lemma, definition, equation, …; read off --local when omitted.",
+     "type": "string"
+    },
+    "work": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "work",
+    "local",
+    "source_text",
+    "statement"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_propose"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library read",
+  "description": "Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.\n\nThe page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the pages, the overview or the location as one JSON object.",
+     "type": "boolean"
+    },
+    "pages": {
+     "type": "string"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "where": {
+     "description": "Print where the work's directory, PDF, source or overview is kept, instead of reading it.",
+     "enum": [
+      "dir",
+      "pdf",
+      "src",
+      "overview"
+     ],
+     "type": "string"
+    },
+    "work": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "work"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_read"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom library relate",
+  "description": "Assert a typed relation between two results, FROM and TO, with a reason; with --undo LINK_ID, remove one.\n\n**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it: `--as`, else you as the quilt's reviewer. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Check everything and say what would change, writing nothing.",
+     "type": "boolean"
+    },
+    "frm": {
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "kind": {
+     "description": "How FROM relates to TO; required unless --undo.",
+     "enum": [
+      "contradicts",
+      "depends-on",
+      "generalises",
+      "same-notion",
+      "specialises"
+     ],
+     "type": "string"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "to": {
+     "type": "string"
+    },
+    "undo": {
+     "description": "Remove this relation instead; an agent removes only an agent's.",
+     "type": "string"
+    },
+    "why": {
+     "description": "One or two sentences: what you read six months later, or why a relation is removed.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "why"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_relate"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library review",
+  "description": "List what waits for you to review: proposed results and open citation suggestions, one line each with its id.\n\nWith WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "work": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_library_review"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library search",
+  "description": "Search the library's results for every word of TEXT, ignoring case, best match first; with --pages, its page text.\n\nA word in a result's locator, its local name or its work's title counts three, one in its statement one; a main result (level 1) and each citation of it in your documents count more. **Every answer says how much of the library it could search**, because a search over a partly digested corpus is a search over silence. Page text is mathematics after a text layer, so a page hit is a pointer and never a quotation: read the page with `loom library read`, and quote from that.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "limit": {
+     "default": 20,
+     "description": "Show at most this many hits; everything is still searched.",
+     "minimum": 1,
+     "type": "integer"
+    },
+    "pages": {
+     "description": "Search the page text of every mapped work, not the results digested from them.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    },
+    "work": {
+     "description": "Search only this work; repeatable.",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "text"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_search"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": false
+  },
+  "command": "loom library update",
+  "description": "Make what a machine can about the cited works: gather the bibliography, look up, fetch, extract digests, map pages.\n\nEach step is a no-op where its work is done, so a second run does only what is new. WORK narrows every step to the works it names (a citekey, a fragment of one or of an author or title, or a result id); naming works leaves gathering out, since it reads the whole bibliography. Looking up and fetching use the network only under `[library] online = true` or `--online`, and an agent only under the config's: it may not grant itself the network. Offline, every local step still runs. Progress shows on stderr.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Say what each step would act on, from what is on disk; no network, nothing written.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "no_candidates": {
+     "description": "Fetch only on identifiers an entry declares, never on a lookup's candidate.",
+     "type": "boolean"
+    },
+    "no_compile": {
+     "description": "Extract without compiling each paper; its numbering is emulated, and the digest says so.",
+     "type": "boolean"
+    },
+    "online": {
+     "description": "Let this run look identifiers up and fetch documents, without setting [library] online in config.toml.",
+     "type": "boolean"
+    },
+    "only": {
+     "description": "Run one step: gather (the bibliography, from the landmarks and refs/), resolve, fetch, extract or map.",
+     "enum": [
+      "gather",
+      "resolve",
+      "fetch",
+      "extract",
+      "map"
+     ],
+     "type": "string"
+    },
+    "redo": {
+     "description": "Do the steps again where they are done: ask the lookups again, re-extract, re-map; verified results are kept.",
+     "type": "boolean"
+    },
+    "work_args": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_library_update"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom library why",
+  "description": "Show where a result came from, what state it is in and who changed it, then its relations to other results.\n\nProvenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "depth": {
+     "default": 1,
+     "description": "Follow its relations this many hops out.",
+     "minimum": 1,
+     "type": "integer"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "target": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "target"
+   ],
+   "type": "object"
+  },
+  "name": "loom_library_why"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom link",
+  "description": "Print a markdown link to THING that the viewer can follow.\n\nTHING is a node or any key in it, a document's path, an annotation id, a session id, or a cited work's citekey or identifier. The link's text is empty: the viewer names the thing itself, as `Theorem 3.1`, and keeps the name right when the document is renumbered; write your own words between the brackets to show those instead. A thing the viewer does not show is refused, with why.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "at": {
+     "description": "A key inside the document or node: link to that place in it.",
+     "type": "string"
+    },
+    "page": {
+     "description": "A page of a cited work, from 1.",
+     "type": "integer"
+    },
+    "quote": {
+     "description": "Text on that page to find.",
+     "type": "string"
+    },
+    "thing": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "thing"
+   ],
+   "type": "object"
+  },
+  "name": "loom_link"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom lint",
+  "description": "Scan and print every diagnostic. Fast; no LaTeX runs.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "nodes": {
+     "description": "One block per node id: what is wrong with its identity, and the superseded files.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_lint"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom new",
+  "description": "Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.\n\nThe node's `% !LOOM author:` line is whoever writes it: `--as`, else the configured author; an agent that has not named itself is refused.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Say which id and file would be written, and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "prefix": {
+     "description": "Allocate under this prefix instead of [quilt] prefix.",
+     "type": "string"
+    },
+    "print": {
+     "description": "Print the skeleton without allocating an id or writing a file.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "taxon": {
+     "type": "string"
+    },
+    "title": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "taxon"
+   ],
+   "type": "object"
+  },
+  "name": "loom_new"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom search",
+  "description": "Find ids by id, alias, title, taxon, tag, or citekey; exact matches first.\n\nA number as a reader sees it -- `Theorem 3.4`, `3.4`, `(3)` -- finds what each drafting document numbers so, the default document's first and marked; `--in DOC` asks one document only.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "in": {
+     "description": "Resolve a number like `Theorem 3.4` in this document only.",
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "kind": {
+     "description": "Only matches of this kind.",
+     "enum": [
+      "node",
+      "digest",
+      "master",
+      "thread"
+     ],
+     "type": "string"
+    },
+    "query": {
+     "type": "string"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "query"
+   ],
+   "type": "object"
+  },
+  "name": "loom_search"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom session list",
+  "description": "List this quilt's sessions, newest last, with the active one marked.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "all": {
+     "description": "Include closed and deleted sessions.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print as JSON.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_session_list"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom session new",
+  "description": "Open a session and make it the active one.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Say what would change and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "name": {
+     "description": "What to call it; default untitled.",
+     "type": "string"
+    },
+    "no_use": {
+     "description": "Create it without making it the active session.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_session_new"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom session rename",
+  "description": "Change a session's title. Nothing moves: the id is the address and does not change.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Say what would change and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "name": {
+     "description": "The new title.",
+     "type": "string"
+    },
+    "which": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "which",
+    "name"
+   ],
+   "type": "object"
+  },
+  "name": "loom_session_rename"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom session say",
+  "description": "Say TEXT in a session's chat, with what you marked since your last message; `-` reads TEXT from stdin.\n\nThe same post the viewer's composer makes, for a person and an agent alike: it carries the annotations you made since your last message, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past the message when you had read everything before it, so `next` does not hand you your own words.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Say what would change and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "The session to speak in.",
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_session_say"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom source",
+  "description": "Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.\n\nThis is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit. A section's key prints the section with everything in it.\n\nWith --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one. With --at REF, the key's text as it stood then: the text an annotation was written against, the text last accepted, or a step of the history; --diff shows what has changed since.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "at": {
+     "description": "The key's text at REF instead: an annotation's id, `accepted` (or `accepted:NAME`), or a step of the history.",
+     "type": "string"
+    },
+    "closure": {
+     "description": "Everything TARGET depends on, in dependency order, then TARGET itself.",
+     "type": "boolean"
+    },
+    "diff": {
+     "description": "With --at: a unified diff from that text to the key's text now.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "target": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "target"
+   ],
+   "type": "object"
+  },
+  "name": "loom_source"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom status",
+  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nNotes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "detached": {
+     "description": "Keys whose annotations no longer find their quoted text.",
+     "type": "boolean"
+    },
+    "draft": {
+     "description": "Keys never accepted.",
+     "type": "boolean"
+    },
+    "explain": {
+     "description": "Why KEY is in its state, with the diff of what moved.",
+     "type": "string"
+    },
+    "in_order": {
+     "description": "With --master: the document's keys in the order it prints them, sections and an agent document's own among them, each with its state.",
+     "type": "boolean"
+    },
+    "include_digests": {
+     "description": "Also list the digest keys nothing in this quilt depends on; they are left out by default.",
+     "type": "boolean"
+    },
+    "incomplete": {
+     "description": "Keys marked \\incomplete.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "kind": {
+     "description": "Keys carrying an annotation of this kind.",
+     "type": "string"
+    },
+    "loose": {
+     "description": "Keys no live document reaches.",
+     "type": "boolean"
+    },
+    "master": {
+     "description": "Keys this document reaches.",
+     "type": "string"
+    },
+    "reading": {
+     "description": "List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
+     "type": "boolean"
+    },
+    "retired": {
+     "description": "Keys accepted once and defined by no document now.",
+     "type": "boolean"
+    },
+    "runs": {
+     "description": "Every session on record, with its annotations.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "severity": {
+     "description": "Keys carrying an annotation of this severity.",
+     "enum": [
+      "major",
+      "moderate",
+      "minor"
+     ],
+     "type": "string"
+    },
+    "stale": {
+     "description": "Accepted keys whose text, closure or preamble moved since.",
+     "type": "boolean"
+    },
+    "status": {
+     "description": "Keys carrying an annotation in this state.",
+     "enum": [
+      "open",
+      "resolved"
+     ],
+     "type": "string"
+    },
+    "tag": {
+     "description": "Keys carrying this tag.",
+     "type": "string"
+    },
+    "undigested": {
+     "description": "Works cited with a locator and not digested.",
+     "type": "boolean"
+    },
+    "unmatched_cites": {
+     "description": "Located citations of a digested work that match no digest node.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_status"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom suggestion",
+  "description": "Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now; the file is the author's to change.\n\n`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "annotation": {
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "annotation"
+   ],
+   "type": "object"
+  },
+  "name": "loom_suggestion"
+ },
+ {
+  "annotations": {
+   "destructive_hint": true,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom write",
+  "description": "Write a page: TARGET `state`, the quilt's research state, or a WORK, that work's overview; `-` reads TEXT from stdin.\n\nA page is a reading the person edits directly and an agent writes here, never by hand; it says who wrote it, and it is never a source. Once the page exists, --base must be the hash it had when you read it -- `loom ai orient` prints the research state's, `loom library read WORK` an overview's -- so an edit you have not seen is never overwritten: a stale base is refused, with that edit shown. A link that names nothing the viewer shows is refused, as in a message. Every write is recorded in the history, with who made it.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "base": {
+     "description": "The page's hash as you read it; required once the page exists.",
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Check everything and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "session": {
+     "description": "Log this call to the session.",
+     "type": "string"
+    },
+    "target": {
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "target",
+    "text"
+   ],
+   "type": "object"
+  },
+  "name": "loom_write"
+ }
+]

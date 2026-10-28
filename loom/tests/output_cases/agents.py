@@ -23,6 +23,7 @@ KIND: dict[str, str] = {
     "session say": "report",
     "session next": "raw",
     "session watch": "running",
+    "mcp": "running",
     "ai discard": "report",
     "ai init": "report",
     "ai orient": "raw",
