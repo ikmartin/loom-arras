@@ -19,14 +19,13 @@ def static_text(root: Path) -> str:
 
     Printed together because the alternative is a two-part instruction — run a command, then read a file — whose second half fails silently. A command either ran or it did not.
     """
+    from loom.ai.layout import tracked_docs
+
+    shipped = tracked_docs()  # as `ai init` writes them: the rules with their list of allowed commands filled in
     out: list[str] = []
     for name in STATIC:
         p = root / "ai" / name
-        text = (
-            p.read_text(encoding="utf-8")
-            if p.is_file()
-            else resources.files("loom").joinpath("assets", "ai", name).read_text(encoding="utf-8")
-        )
+        text = p.read_text(encoding="utf-8") if p.is_file() else shipped[f"ai/{name}"]
         out.append(text.rstrip("\n"))
     return "\n\n---\n\n".join(out) + "\n"
 
@@ -58,6 +57,29 @@ def mode_index(root: Path) -> str:
         )
         lines.append(f"- **{name}**: {fits}" if fits else f"- **{name}**")
     return "\n".join(lines) + "\n"
+
+
+def _research_state(result: ScanResult) -> list[str]:
+    """The research state as `ai orient` prints it: its path and hash, who last wrote it, and the page itself; or how to start one."""
+    from loom.pages import read, state_page, text_hash, writes
+
+    root = result.quilt.root
+    page = state_page(result.quilt.config)
+    text = read(root, page)
+    if text is None:
+        return [f'- research state: none yet, at `{page.path}`; `loom write state - --as "…"` writes one']
+    done = writes(root, result.quilt.history_dir, page)
+    last = done[-1] if done else None
+    by = f"; last written by {last.actor} on {last.when[:10]}" if last else ""
+    edited = "; edited by hand since" if last is None or last.get("to") != text_hash(text) else ""
+    return [
+        "",
+        "# Research state",
+        "",
+        f'`{page.path}`, {text_hash(text)}{by}{edited}. Write it with `loom write state - --base HASH --as "…"`.',
+        "",
+        text.rstrip("\n"),
+    ]
 
 
 def open_sessions(root: Path, include_closed: bool = False) -> list[tuple[str, str, str, bool]]:
@@ -105,6 +127,7 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
             lines.append(f"  - `{sid}` ({title}, opened {created})" + ("  <- active" if sid == here else ""))
     else:
         lines.append("- open sessions: none")
+    lines += _research_state(result)
     if run is not None:
         rel = run.relative_to(root).as_posix() if run.is_absolute() else run.as_posix()
         lines += ["", f"# Your session: `{rel}`", ""]

@@ -27,6 +27,7 @@ KIND: dict[str, str] = {
     "ai init": "report",
     "ai orient": "raw",
     "ai mode": "raw",
+    "write": "report",
     "ai drafts": "report",
     "ai close": "report",
     "ai reopen": "report",
@@ -182,6 +183,20 @@ CASES: dict[str, list[Case]] = {
         Case(("--dry-run",), setup=no_ai, unchanged=True),
     ],
     "ai orient": [Case(()), Case(NOWHERE, exit=2, why="names no session")],
+    "write": [
+        Case(("state", "Goals: the parity theorem.", *AGENT)),
+        Case(("Calloway14", "## [overview]\nA reading of the paper.", *AGENT), why="a work's overview"),
+        Case(("state", "Goals.", "--dry-run", *AGENT), unchanged=True),
+        Case(
+            ("state", "Goals.", "--base", "sha256:00", *AGENT),
+            exit=2,
+            unchanged=True,
+            why="a page not yet written takes no --base",
+        ),
+        Case(("state", "See [](quilt:dm-9999).", *AGENT), exit=1, unchanged=True, why="a link that names nothing"),
+        Case(("Nobody99", "Goals.", *AGENT), exit=2, unchanged=True, why="names no work"),
+        Case(("state", " ", *AGENT), exit=2, unchanged=True, why="nothing to write"),
+    ],
     "ai mode": [
         Case(("flow",)),
         Case(("referee",), setup=no_ai, why="no ai/: the shipped copy"),

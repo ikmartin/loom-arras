@@ -16,7 +16,7 @@ from loom.cli.report import Group, Item, Report, counted, table
 from loom.scan.bib import BibEntry
 
 #: What `--where` prints: the work's directory in the store, its PDF, or its unpacked source.
-WHERE = ("dir", "pdf", "src")
+WHERE = ("dir", "pdf", "src", "overview")
 #: Syntax a literal search would match nothing with: an agent searched "A\|B.*C", found nothing and read that as an absence.
 #: A `\label{…}` in a statement, which a snippet leaves out: it is the id, said again.
 LABEL = re.compile(r"\\label\{[^}]*\}\s*")
@@ -69,7 +69,7 @@ def _entry(quilt_path: str | None, needle: str) -> tuple[Path, dict[str, BibEntr
     "--where",
     type=click.Choice(WHERE),
     default=None,
-    help="Print where the work's directory, PDF or source is kept, instead of reading it.",
+    help="Print where the work's directory, PDF, source or overview is kept, instead of reading it.",
 )
 @click.option(
     "--json", "as_json", is_flag=True, help="Print the pages, the overview or the location as one JSON object."
@@ -80,9 +80,9 @@ def _entry(quilt_path: str | None, needle: str) -> tuple[Path, dict[str, BibEntr
 def read_command(
     ctx: click.Context, work: str, pages: str | None, where: str | None, as_json: bool, quilt_path: str | None
 ) -> None:
-    """Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its digest's Overview.
+    """Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
+    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
     """
     if where is not None and pages is not None:
         raise EnvError("--where prints where the work is kept; give PAGES or --where, not both")
@@ -93,7 +93,14 @@ def read_command(
 
     home = home_in(root, bib, ck)
     if where is not None:
-        target = {"dir": home, "pdf": home / "paper.pdf", "src": home / "src"}[where]
+        from loom.pages import overview_page
+
+        target = {
+            "dir": home,
+            "pdf": home / "paper.pdf",
+            "src": home / "src",
+            "overview": root / overview_page(root, bib, ck).path,
+        }[where]
         there = target.exists()
         if as_json:
             Report(
@@ -145,31 +152,59 @@ def read_command(
         click.echo(page["text"])
 
 
-def _overview(result: Any, ck: str, as_json: bool) -> None:
-    """Print `ck`'s digest's Overview, warning on stderr when the digest was read off another version than the one cited."""
+def _opening(result: Any, ck: str) -> str | None:
+    """`ck`'s digest's extracted opening, the paper's own first paragraphs, which the digest file heads `\\section*{Overview}`; None with no digest or none there."""
     from loom.refs.proposals import digest_path
-    from loom.scan.digests import other_version_of
 
     path = digest_path(result.quilt.root, ck)
     if not path.is_file():
-        raise ContentError(f"{ck} has no digest; loom library {ck} says what it has")
+        return None
     m = re.search(
         r"\\section\*\{Overview\}(.*?)(?=\\section|\\begin\{(?:theorem|lemma|proposition|definition|corollary)|\Z)",
         path.read_text(encoding="utf-8"),
         re.S,
     )
+    return m.group(1).strip() if m and m.group(1).strip() else None
+
+
+def _overview(result: Any, ck: str, as_json: bool) -> None:
+    """Print `ck`'s overview with its hash, the page an agent writes with `loom write`; with none, its digest's opening, saying that is what it printed."""
+    from loom.pages import overview_page, read, text_hash
+    from loom.scan.digests import other_version_of
+
+    page = overview_page(result.quilt.root, result.bib, ck)
+    text = read(result.quilt.root, page)
+    opening = _opening(result, ck)
     v = other_version_of(result.assembly, ck)
     if v is not None:
         note(
             f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom library read {ck} PAGES"
         )
-    if not m or not m.group(1).strip():
-        raise ContentError(f"{ck}'s digest has no Overview")
-    text = m.group(1).strip()
+    if text is None and opening is None:
+        raise ContentError(
+            f"{ck} has no overview, and no digest opening to fall back on; `loom write {ck} -` writes an overview"
+        )
+    data = {
+        "citekey": ck,
+        "overview": text,
+        "hash": text_hash(text) if text is not None else None,
+        "path": page.path,
+        "opening": opening,
+    }
     if as_json:
-        Report(f"{ck}'s overview", data={"citekey": ck, "overview": text}).emit(True)
+        said = (
+            f"{page.name}" if text is not None else f"{ck} has no overview; its digest's opening, the paper's own words"
+        )
+        Report(said, data=data).emit(True)
         return
-    click.echo(text)
+    if text is not None:
+        note(f"{page.name}, {data['hash']}: a reading, not the paper")
+        click.echo(text.rstrip("\n"))
+        return
+    note(
+        f"{ck} has no overview yet (`loom write {ck} -` writes one); this is its digest's opening, the paper's own words"
+    )
+    click.echo(opening)
 
 
 @click.command(name="search")

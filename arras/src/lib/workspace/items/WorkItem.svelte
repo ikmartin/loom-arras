@@ -21,6 +21,8 @@
 
 	let { item }: { item: Item } = $props();
 	import { slotsFor } from '$lib/fragments/slots';
+	import Prose from '$lib/math/Prose.svelte';
+	import PageMeta from './PageMeta.svelte';
 
 	const m = $derived(store.manifest!);
 	const slots = slotsFor(() => m);
@@ -109,6 +111,14 @@
 			<div class="prose info" data-testid="work-info">
 				<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 				<p class="links"><code>{citekey}</code> <WorkLinks {ref} /></p>
+				{#if ref.overview}
+					<!-- the work's overview (plan 0.21.3): a reading an agent or the person wrote, never the paper; first, since it is what a reader comes to Info for -->
+					<section class="overview" data-testid="work-overview">
+						<h2>Overview</h2>
+						<PageMeta page={ref.overview} />
+						<Prose html={ref.overview.body_html} macroSet={ref.digest ? citekey : undefined} />
+					</section>
+				{/if}
 				{#if proposals.length}
 					<p class="proposals" data-testid="proposals">
 						{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.

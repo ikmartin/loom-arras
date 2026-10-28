@@ -304,6 +304,13 @@ def build_manifest(
         "macros": {"default": [], "sets": {}},
         "search": [],
     }
+    # the quilt's research state, a page (plan 0.21.3); absent until one is written, and additive
+    from loom.pages import published as page_published
+    from loom.pages import state_page
+
+    research_state = page_published(result, state_page(result.quilt.config))
+    if research_state is not None:
+        manifest["research_state"] = research_state
     # an agent document's source and each derived node's base, read from the history the scan loaded
     record = result.history
     copies = record.copies(result.masters) if record is not None else {}
@@ -534,6 +541,14 @@ def build_manifest(
         said = unreadable.get(ck)
         if said is not None:
             manifest["references"][ck]["unreadable"] = {"why": said.why, "who": said.who, "when": said.when}
+        # the work's overview, a reading an agent or the person wrote (plan 0.21.3); additive, the interface version unchanged
+        if bib is not None and ck not in tops:
+            from loom.pages import overview_page
+            from loom.pages import published as page_published
+
+            ov = page_published(result, overview_page(result.quilt.root, result.bib, ck))
+            if ov is not None:
+                manifest["references"][ck]["overview"] = ov
         # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity
         if bib is not None and not declared(bib):
             found = load_candidates(result.quilt.root, bib)

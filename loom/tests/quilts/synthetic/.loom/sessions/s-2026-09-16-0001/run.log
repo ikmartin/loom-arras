@@ -5,6 +5,7 @@
 2026-09-16T00:00:00Z  loom annotate sy-0002 --kind citation → a-2026-09-16-0005
 2026-09-16T00:00:00Z  loom annotate sy-0002 --quote --kind question → a-2026-09-16-0006
 2026-09-16T00:00:00Z  loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex → a-2026-09-16-0007
+2026-09-16T00:00:00Z  loom write state
 2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-0001 → a-2026-09-16-0008
 2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-0002 → a-2026-09-16-0009
 2026-09-16T00:00:00Z  loom annotate --resolve a-2026-09-16-0002 → a-2026-09-16-0002

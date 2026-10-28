@@ -1,6 +1,6 @@
 # Mode: ingest
 
-When it fits: a cited paper whose digest is to be trusted — the mechanically extracted digest checked against the paper itself, or the results of a paper with no source proposed from its pages.
+When it fits: a cited paper to trust or to understand — its digest checked against the paper itself, the results of a paper with no source proposed from its pages, or an overview of what it proves and how.
 
 ## What it is for
 
@@ -28,9 +28,20 @@ Some works exist only as a PDF. There is nothing to extract, and a digest you ty
 - A result the extractor missed in a work that has a source is quoted from the source, not the PDF: `--source-file main.tex` in place of `--page`, with the LaTeX as `--source-text`.
 - A proposal that passed the check is **waiting for the author**, not verified. One the author discarded is refused if you make it again, with the reason; pass `--supersedes` only if you are answering it.
 
+## Understanding
+
+What a reader needs from a paper before reading it, written as the work's overview with `loom write WORK - --as "…"` (and `--base` once it exists; `loom library read WORK` prints it with its hash). Four blocks, each under `## [name]`:
+
+- [overview]: the main results and what is new about them, and the hardest part of the argument;
+- [proof-basics]: the key definitions and results, each linked by its digest id, with the strategy of each proof;
+- [dependencies]: which results rest on which, and where each hypothesis is used;
+- [reconstruction-plan]: the order in which to rebuild the main proofs, with the identities they turn on.
+
+It is a reading: what you could not follow is said, every claim carries its label, and it quotes the paper only through `loom library read`. Where the digest lacks a result the overview needs, propose the result first.
+
 ## Report
 
-Core: [summary], then one section per check above, by the paper's own numbers, and what you could not determine and why.
+Core: [summary], then one section per check above, by the paper's own numbers, and what you could not determine and why. For an overview, the [summary] says what was written, and links the work; the overview itself is the page.
 
 ## Where changes go
 

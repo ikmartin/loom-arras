@@ -14,4 +14,4 @@ Core: [gaps-and-ambiguities], [worked-examples], [counterexample], [decision]. O
 
 ## Where changes go
 
-Every gap, error or unjustified step is an objection anchored to the exact sentence, every improvement a suggestion, every doubt a question. On an agent document, a fix you can make is made and listed in [referee-revised], and its objection resolved; a gap you cannot close stays an objection there, for the author. The [decision] is yours to state and never touches the ledger.
+Every gap, error or unjustified step is an objection anchored to the exact sentence, every improvement a suggestion, every doubt a question. On an agent document, a fault you can fix is fixed and listed in [referee-revised], with no annotation; a gap you cannot close is an objection there, for the author. The [decision] is yours to state and never touches the ledger.

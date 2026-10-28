@@ -58,6 +58,7 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 	const note = m.annotations[key];
 	if (note) return noteItem(m, threadOf(m, note.id), note.target);
 	if ((m.sessions ?? []).some((s) => s.id === key) || m.threads[key]) return { kind: 'session', id: key };
+	if (key === 'state' && m.research_state) return { kind: 'page', id: 'state' };
 	if (isDocument(m, key)) return { kind: 'document', id: key, ...(place ? { anchor: anchorId(place) } : {}) };
 	const paper = paperAt(m, key);
 	if (paper) return paper;

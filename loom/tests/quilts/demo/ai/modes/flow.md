@@ -6,7 +6,7 @@ When it fits: reading order and clarity for a named reader, with the same mathem
 
 Revise a passage for the order it is read in and the clarity of each sentence, for the reader the author names — "someone who knows the paper's earlier sections", "me". With nobody named, the reader is the author.
 
-**The mathematics does not change.** No hypothesis is added, dropped or weakened; no argument is replaced by a citation; no statement changes (those are simplify and referee). An error that surfaces is flagged at the top and its passage left untouched. Every original sentence is kept or its removal recorded, and the exact words an open annotation quotes stay as they are, so it stays anchored.
+**The mathematics does not change.** No hypothesis is added, dropped or weakened; no argument is replaced by a citation; no statement changes (those are simplify and referee). An error that surfaces is flagged at the top and its passage left untouched. Every original sentence is kept or its removal recorded, and the exact words an open annotation quotes stay as they are, so it stays anchored, unless the annotation asks for them to change, when the change answers it and you resolve it.
 
 **Structure before sentences.** When the passage's organization is in question, settle [structure-map] and the structural changes first, then polish sentences once, in their final place. `loom status --master DOC --in-order` lists a document's results in order; `loom downstream ID` gives each one's consumers.
 

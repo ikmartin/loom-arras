@@ -633,13 +633,13 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 
 `loom library read [OPTIONS] WORK [PAGES]`
 
-Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its digest's Overview.
+Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
+The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
 
 | option | description |
 |---|---|
-| `--where` | Print where the work's directory, PDF or source is kept, instead of reading it. |
+| `--where` | Print where the work's directory, PDF, source or overview is kept, instead of reading it. |
 | `--json` | Print the pages, the overview or the location as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
@@ -749,7 +749,7 @@ Provenance names every party, not just the first: a record that credits an agent
 
 ## Agents
 
-Hand a document to an agent, take its changes back, and the sessions you both work in.
+Hand a document to an agent, take its changes back, the sessions you both work in, and the pages you both keep.
 
 ### `loom draft`
 
@@ -926,6 +926,23 @@ For a person. It delivers nothing and assigns nothing -- it blocks on the log, p
 | option | description |
 |---|---|
 | `--as` | Who is watching. An agent names itself, including Agent or AI. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom write`
+
+`loom write [OPTIONS] TARGET TEXT`
+
+Write a page: TARGET `state`, the quilt's research state, or a WORK, that work's overview; `-` reads TEXT from stdin.
+
+A page is a reading the person edits directly and an agent writes here, never by hand; it says who wrote it, and it is never a source. Once the page exists, --base must be the hash it had when you read it -- `loom ai orient` prints the research state's, `loom library read WORK` an overview's -- so an edit you have not seen is never overwritten: a stale base is refused, with that edit shown. A link that names nothing the viewer shows is refused, as in a message. Every write is recorded in the history, with who made it.
+
+| option | description |
+|---|---|
+| `--base` `HASH` | The page's hash as you read it; required once the page exists. |
+| `--as` | Who is writing. An agent names itself, including Agent or AI. |
+| `--session` | Log this call to the session. |
+| `--dry-run` | Check everything and write nothing. |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai`

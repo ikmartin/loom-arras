@@ -12,6 +12,7 @@
 2026-09-16T11:00:00Z  loom annotate sh-0008 --kind objection → a-2026-09-16-0012
 2026-09-16T11:00:00Z  loom annotate sh-000B --kind suggestion → a-2026-09-16-0013
 2026-09-16T11:00:00Z  loom annotate sh-0007/proof --quote --kind objection → a-2026-09-16-0014
+2026-09-16T11:00:00Z  loom write state
 2026-09-16T11:40:00Z  loom annotate --discard a-2026-09-16-0012 → a-2026-09-16-0012
 2026-09-16T11:40:00Z  loom annotate --edit a-2026-09-16-0013 → a-2026-09-16-0013
 2026-09-16T15:00:00Z  loom annotate --reply a-2026-09-16-0001 → a-2026-09-16-0015

@@ -12,6 +12,7 @@ It writes only through loom's records and its own places:
 - **Proposed library results**, each quotation checked against the page before it is stored, waiting for the author to verify.
 - **Relations** between results, each with its reason.
 - **Agent documents** in `drafting-ai/`, copies it makes with `loom draft DOC --ai NAME` and edits there; the author adopts what they want.
+- **Pages**, through `loom write`: the quilt's research state, its goals, open problems, conventions and decisions, and each cited work's overview, a reading of the paper. The author edits a page directly; an agent writes one only through the command, which refuses a write from a stale read (`--base`) and records who wrote what in the history. A page says who wrote it and is never a source.
 - **Notes** about the mathematics (not built yet, see [README](README.md#decided-not-yet-built)).
 - **The session's transcript**, with `loom session say` (below).
 - **Files it hands the author** in its session's directory, which is never deleted from, and intermediates in `build/SESSION/`, which it may overwrite.

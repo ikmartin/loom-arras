@@ -173,6 +173,13 @@
 							<a {href} class:here aria-current={here ? 'page' : undefined}>{filename(path)}</a>
 						</li>
 					{/snippet}
+					{#if store.manifest?.research_state}
+						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
+						{@const onState = page.route.id === '/page/[id]'}
+						<ul class="plain docs state" data-testid="docs-state">
+							<li><a href={route('/page/state')} class:here={onState} aria-current={onState ? 'page' : undefined}>Research state</a></li>
+						</ul>
+					{/if}
 					{#if own.length}
 						<p class="rail-label">Documents</p>
 						<ul class="plain docs" data-testid="docs-drafts">

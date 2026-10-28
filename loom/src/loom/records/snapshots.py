@@ -32,3 +32,21 @@ def write_snapshot(root: Path, text: str, history_dir: Path | None = None) -> tu
 def read_snapshot(root: Path, digest: str, history_dir: Path | None = None) -> str | None:
     p = snapshots_dir(root, history_dir) / f"{digest.split(':', 1)[-1]}.tex"
     return p.read_text(encoding="utf-8") if p.is_file() else None
+
+
+def write_raw(root: Path, text: str, history_dir: Path | None = None) -> str:
+    """Store `text` exactly, as `<hex>.md`, and return its hash: a page's Markdown, which `normalize` would change (it drops `%` lines and the trailing spaces of a hard break)."""
+    from loom.scan.hashing import sha256
+
+    digest = sha256(text)
+    d = snapshots_dir(root, history_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / f"{digest.split(':', 1)[1]}.md"
+    if not p.exists():
+        p.write_text(text, encoding="utf-8")
+    return digest
+
+
+def read_raw(root: Path, digest: str, history_dir: Path | None = None) -> str | None:
+    p = snapshots_dir(root, history_dir) / f"{digest.split(':', 1)[-1]}.md"
+    return p.read_text(encoding="utf-8") if p.is_file() else None

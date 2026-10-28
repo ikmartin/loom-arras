@@ -15,6 +15,7 @@ import NodeItem from './items/NodeItem.svelte';
 import NodeControls from './items/NodeControls.svelte';
 import ContextItem from './items/ContextItem.svelte';
 import SessionItem from './items/SessionItem.svelte';
+import PageItem from './items/PageItem.svelte';
 import PlainControls from './items/PlainControls.svelte';
 import NodePreview from './items/NodePreview.svelte';
 import WorkPreview from './items/WorkPreview.svelte';
@@ -92,7 +93,9 @@ export const kinds: Record<ItemKind, Kind> = {
 			{ id: 'chat', label: 'Transcript' },
 			{ id: 'did', label: 'What it did' }
 		]
-	}
+	},
+	// a page loom keeps (plan 0.21.3); the research state is the one a quilt has, and a work's overview is read on the work's Info
+	page: { tab: () => 'Research state', renderer: PageItem, controls: PlainControls }
 };
 
 /** The tab label of an item. */

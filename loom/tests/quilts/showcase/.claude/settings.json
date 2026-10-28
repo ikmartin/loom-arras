@@ -44,7 +44,8 @@
       "Bash(loom session watch*)",
       "Bash(loom source*)",
       "Bash(loom status*)",
-      "Bash(loom suggestion*)"
+      "Bash(loom suggestion*)",
+      "Bash(loom write*)"
     ],
     "deny": [
       "Edit(/drafting/**)",
@@ -62,6 +63,7 @@
       "Edit(/reference-notes.jsonl)",
       "Edit(/.loom/state.toml)",
       "Edit(/.loom/sessions/index.jsonl)",
+      "Edit(/research-state.md)",
       "Edit(/*.tex)",
       "Edit(/*.sty)",
       "Edit(/*.bib)",

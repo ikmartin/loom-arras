@@ -68,7 +68,7 @@
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
 
 	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context and sessions, each an item in the workspace. The tables, the graph and home render full width outside it.
-	const READING = new Set(['/master/[stem]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]']);
+	const READING = new Set(['/master/[stem]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]', '/page/[id]']);
 	const inReading = $derived(READING.has(page.route.id ?? ''));
 	$effect(() => {
 		workspace.onScreen = inReading;

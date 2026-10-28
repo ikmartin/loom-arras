@@ -1183,6 +1183,11 @@ def _detail(e: Entry) -> str:
             "" if e.get("moved") else (" (renamed in a pull)" if e.get("via") == "sync" else " (renamed outside loom)")
         )
         return f"{frm} -> {to}{how}"
+    if e.action == "page-write":
+        what = "the research state" if e.get("page") == "state" else f"{e.get('work')}'s overview"
+        return f"{what} written by {e.actor or 'someone'}" + (
+            ", over an edit made outside loom" if e.get("outside") else ""
+        )
     return ""
 
 

@@ -1,6 +1,6 @@
 """Links an agent or a person writes into what the viewer shows (plan 0.14 phase 3, specs/dialect.md §2.13).
 
-Two schemes and one grammar. `quilt:KEY[#PLACE]` names something this quilt owns by its fixed key -- a node, a document, an annotation, a session -- and `cited:SCHEME:VALUE[?page=N&quote=…]` names a place in a cited work by its global identifier. **Only what the viewer can show is linkable**: an included file that is no document, a session's drafts, a deleted session are refused, because a link to something the viewer does not display is a link to nothing.
+Two schemes and one grammar. `quilt:KEY[#PLACE]` names something this quilt owns by its fixed key -- a node, a document, an annotation, a session, the research state (`quilt:state`) -- and `cited:SCHEME:VALUE[?page=N&quote=…]` names a place in a cited work by its global identifier. **Only what the viewer can show is linkable**: an included file that is no document, a session's drafts, a deleted session are refused, because a link to something the viewer does not display is a link to nothing.
 
 A link is checked when it is posted (`loom session say`, `loom annotate`) and printed correctly by `loom link`, so an agent never composes one by hand.
 """
@@ -27,7 +27,7 @@ class LinkError(ValueError):
 class Target:
     """What a link names: its kind, the key it is addressed by, and the place in it, if any."""
 
-    kind: str  # node | document | annotation | session | work
+    kind: str  # node | document | annotation | session | work | page
     key: str
     place: str = ""
     href: str = ""
@@ -85,6 +85,13 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
         if key not in sessions(root):
             raise LinkError(f"{href}: no session {key}")
         return Target("session", key, href=href)
+    if key == "state":
+        # the quilt's research state, a page (plan 0.21.3): before landmarks and labels, so `state` always means it
+        if place:
+            raise LinkError(f"{href}: the research state is linked whole")
+        if not (root / result.quilt.config.research_state).is_file():
+            raise LinkError(f"{href}: this quilt has no research state yet")
+        return Target("page", "state", href=href)
     landmarks = {**{Path(p).stem: p for p in result.canon_files}, **{p: p for p in result.canon_files}}
     if key in landmarks:
         if place:

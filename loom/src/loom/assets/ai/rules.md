@@ -1,6 +1,6 @@
 # Standing rules, contracts, and blocks
 
-How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are and what is the author's; this says how to behave and what your output looks like. This file is the contract: where a mode, the orientation or anything else disagrees with it, this wins, and the disagreement is a bug worth reporting to the author.
+How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are and what is the author's; this says how to behave and what your output looks like. This file is the contract. A mode may say where its own changes go, and its word holds for that mode; anywhere else a mode, the orientation or anything else disagrees with this file, this wins, and the disagreement is a bug worth reporting to the author.
 
 ## Standing rules
 
@@ -22,7 +22,7 @@ How to work in a quilt, whatever you have been asked to do. `orientation.md` say
    - compute the small cases before giving an opinion;
    - search the digests before calling anything new or known;
    - offer an idea of your own in one sentence, and do not pursue it unless asked.
-10. **A dead end, a counterexample or a decision is a `note` annotation on what it concerns, written when it is found** — not only a line in a report, which nobody finds again from the result.
+10. **A dead end, a counterexample, or a decision about one result is a `note` annotation on what it concerns, written when it is found** — not only a line in a report, which nobody finds again from the result. A decision that governs the work as a whole is a line in the research state.
 
 ## Inputs
 
@@ -40,15 +40,18 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 |---|---|---|
 | your report | the transcript | the transcript |
 | a change | made in the document, and listed in the report | a suggestion carrying it; changes that only work together, an agent document |
-| a fault you can fix | fixed, and listed in the report | an objection, the fix as its payload |
+| a fault you can fix | fixed, and listed in the report | a suggestion carrying the fix, graded with its severity; an objection where you have no fix to give |
 | what needs the author: a question, a choice that is theirs, a place they should look | an annotation | an annotation |
 | a trial | the script in your session's directory, cited by path; its inputs and exact outputs in the report | the same |
+| a decision that governs the work, a problem opened or closed, a convention fixed | a line in the research state, `loom write state - --base HASH` | the same |
 
-**A report is one transcript message**, `loom session say - --as "…"` with the text on stdin. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question; then the mode's blocks, each under `## [name]`. The viewer folds a long report after its first block, so what the author must read goes there. Link what you name (`ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message.
+**A report is one transcript message**, `loom session say - --as "…"` with the text on stdin. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question (quick's answer is the message itself); then the mode's blocks, each under `## [name]`. The viewer folds a long report after its first block, so what the author must read goes there. Link what you name (`ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message. Asked for several modes, write one message per mode, covering every target it ran on; asked to plan first, the plan is a message of its own, before the work.
 
 **On an agent document, annotate with intention**: an annotation there marks a place the author must look, never a change you have already made. Your report lists the changes.
 
 **Suggestion or agent document.** A suggestion is a change the author can take or refuse on its own: it lands at one place in one key, however long — a drop-in paragraph is a suggestion. A change that only makes sense with others, or that moves, merges, splits or reorders results, is an agent document of the passage it touches (`loom draft DOC --ai NAME --section ID`). The test: could the author take this one and refuse its neighbours?
+
+**A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A `note` annotation stays the home of what concerns one result.
 
 **Relations between results** go in `loom library relate FROM TO --kind … --why "…"`, where both ends find them, not in prose.
 
@@ -67,7 +70,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
    - it has become a different fault: resolve this one and make a new one.
 
    `loom source KEY --at ID --diff` shows what changed since the finding was written.
-8. Whose annotations you close: on an agent document, any, another agent's or the author's included; on the author's text, what an agent raised, or what the author asks you to.
+8. Whose annotations you close: on an agent document, any, another agent's or the author's included; on the author's text, what an agent raised, or what the author asks you to. Answer the author's own annotation with a reply, or resolve it when it is met; never rewrite their words with `--edit`.
 
 ## When no mode fits
 
@@ -77,7 +80,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
 
 ## Never
 
-- Never write outside your session's directory, `build/SESSION/` and the agent documents (`orientation.md` §2), and never delete anything outside `build/SESSION/`.
+- Never write a file yourself outside your session's directory, `build/SESSION/` and the agent documents (`orientation.md` §2), and never delete anything outside `build/SESSION/`. Loom's own commands, such as `loom compile`, write where they write.
 - Never write `annotations/log.jsonl` by hand; `loom annotate` appends to it.
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written, and refuses you; `orientation.md` §3 names the ones that make the author's claims:
 

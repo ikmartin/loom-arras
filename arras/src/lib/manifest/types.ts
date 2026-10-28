@@ -468,6 +468,19 @@ export interface ResultRecord {
   version?: { extracted_from: string; cited: string };
 }
 
+/** A page loom keeps for one thing, the research state or a work's overview (plan 0.21.3): a reading, never a source. */
+export interface Page {
+  path: string;
+  hash: string;
+  body_html: string;
+  /** Who last wrote it through loom, and when; absent when nobody has. */
+  by?: { kind: "agent" | "person" | (string & {}); id: string };
+  when?: string;
+  /** Changed by hand since the last write through loom, or never written through it. */
+  edited_since: boolean;
+  links: { broken: { href: string; why: string }[]; moved: { href: string; key: string }[] };
+}
+
 export interface Reference {
   citekey: string;
   slug?: string;
@@ -479,6 +492,8 @@ export interface Reference {
   artifacts?: { dir: string; pdf: boolean; source: boolean };
   /** The author's standing claim that no document can be held for this work: the Stacks Project is a living work with no fixed version. Nothing in a bibliography entry says so, so it is declared and never inferred, and the reading view says it rather than showing an empty pane. */
   unreadable?: { why: string; who: string; when: string };
+  /** The work's overview, a reading an agent or the person wrote (plan 0.21.3); absent until one is. */
+  overview?: Page;
   /** Where the work's anchor geometry is published, and its hash. Beside the manifest rather than in it: the manifest is loaded whole on every poll, and rectangles are wanted for the one paper being read. Absent when no copy of the paper is on the publishing machine, which is the honest state — the viewer then has nothing to draw. */
   spans?: { path: string; sha256: string };
   /** The notes on this work's pages: how many, and how many still await an answer. They are in no key's row and count toward no total, so this is where a list says a paper has been read. */
@@ -565,6 +580,8 @@ export interface Manifest {
   tags: Record<string, string[]>;
   taxa: Record<string, Taxon>;
   references: Record<string, Reference>;
+  /** The quilt's research state (plan 0.21.3); absent until one is written. */
+  research_state?: Page;
   /** Asserted relations between two results, each with a reason. Nobody verifies these and every surface that shows one says so: they are navigation, not mathematics, and are never citable and never in a closure. */
   links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };

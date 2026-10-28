@@ -16,7 +16,7 @@ A referee aiming to improve the source rather than to reject it. Where referee h
 - **grammar and wording**: grammar, punctuation, awkward phrasing.
 - **clarity**: unclear writing, with a suggested fix.
 
-**Every finding is graded** with `--severity`, by how bad the fault is, and carries a `--payload` wherever you are proposing text: drop-in text for every change you suggest. Errors and prose both go in [referee-review], which already groups by severity and carries a location, a fix and an annotation id per item. There is no compiled LaTeX or PDF pair: the annotations carry the findings, and the viewer draws them in place.
+**Every objection and suggestion is graded** with `--severity`, by how bad the fault is, and a fault you can fix is a suggestion carrying the fix as its `--payload`: drop-in text for every change you suggest. Errors and prose both go in [referee-review], which already groups by severity and carries a location, a fix and an annotation id per item. There is no compiled LaTeX or PDF pair: the annotations carry the findings, and the viewer draws them in place.
 
 ## Report
 

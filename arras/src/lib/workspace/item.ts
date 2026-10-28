@@ -7,7 +7,7 @@ import { canonUrl, keyFromParam, masterStem, masterUrl, nodeUrl, workUrl } from 
 import { route } from '$lib/paths';
 import { placeParams, readKeys, type WorkLink } from '$lib/worklink';
 
-export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session';
+export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session' | 'page';
 
 /** A place on a work's page: the work-link keys without the work's identifier, which the item already names. */
 export type Place = Omit<WorkLink, 'id'>;
@@ -103,6 +103,8 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 			return { kind: 'context', id: keyFromParam(tail) };
 		case 'session':
 			return { kind: 'session', id: safe(tail), ...(query.get('view') ? { view: query.get('view')! } : {}) };
+		case 'page':
+			return { kind: 'page', id: safe(tail) };
 		default:
 			return null;
 	}
@@ -144,6 +146,8 @@ export function pathFor(m: Documents | null, item: Item): string {
 			return route('/context/' + item.id.split('/').map(encodeURIComponent).join('/'));
 		case 'session':
 			return route('/session/' + encodeURIComponent(item.id)) + (item.view ? '?view=' + encodeURIComponent(item.view) : '');
+		case 'page':
+			return route('/page/' + encodeURIComponent(item.id));
 	}
 }
 

@@ -8,11 +8,9 @@ A load-bearing audit. Assume the mathematics is correct; do not hunt for errors 
 
 Read the closure once completely (`loom source KEY --closure`). For a hypothesis that is a node, `loom downstream ID --proofs` lists the proofs that consume it. Read each proof sentence by sentence and ask what fact it invokes; one that no `\ref`, `\uses` or matched citation names is a finding. Search the digests before declaring anything unlocated, and the web only where no digest exists, saying so.
 
-Report the ledgers the question asks for: a question about one hypothesis wants that ledger alone.
-
 ## Report
 
-Core: [hypothesis-ledger], [citation-ledger], [self-containedness]. Optional: [uses-ledger], [sharpenings], [patch-list].
+Core: the ledgers the question asks for, and for an audit asked for whole, [hypothesis-ledger], [citation-ledger] and [self-containedness]. Optional: [uses-ledger], [sharpenings], [patch-list].
 
 ## Where changes go
 

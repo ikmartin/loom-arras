@@ -218,6 +218,32 @@ test.describe('a work', () => {
 		await expect(page.getByTestId('read-from')).toHaveCount(0);
 	});
 
+	test("a work's overview tops its Info, a reading that says who wrote it", async ({ page }) => {
+		// plan 0.21.3: an agent's reading of the paper, never the paper; written with `loom write`
+		await serve(page, (m) => {
+			m.references.Kre99.overview = {
+				path: 'digests/storage/arxiv/math_9810166v2/overview.md',
+				hash: 'sha256:0',
+				body_html: '<section data-block="overview"><h2>overview</h2><p>Kresch builds cycle groups for Artin stacks; <span class="math inline">\\(A_*\\)</span> is the hard part.</p></section>',
+				by: { kind: 'agent', id: 'Survey Agent' },
+				when: '2026-10-28T10:00:00Z',
+				edited_since: false,
+				links: { broken: [], moved: [] }
+			};
+		});
+		await page.goto('/library/Kre99');
+		await page.getByTestId('tab-info').click();
+		const overview = page.getByTestId('work-overview');
+		await expect(overview).toContainText('Kresch builds cycle groups for Artin stacks');
+		await expect(overview.getByTestId('page-meta')).toContainText('written by Survey Agent');
+		await expect(overview.locator('mjx-container')).toHaveCount(1);
+		// a work with none shows no overview
+		await page.goto('/library/Man12');
+		await page.getByTestId('tab-info').click();
+		await expect(page.getByTestId('work-info')).toBeVisible();
+		await expect(page.getByTestId('work-overview')).toHaveCount(0);
+	});
+
 	test('a fetched PDF is offered only when the manifest says it is there', async ({ page }) => {
 		await serve(page, (m) => (m.references.Man12.artifacts.pdf = true));
 		await page.goto('/library/Man12');

@@ -605,3 +605,13 @@ readOnly('a paper drawn again at a new zoom never shows a render refused', async
 	}
 	await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 });
+
+readOnly("Bellamy19's overview, written by the survey agent through `loom write`, tops its Info with its result links named", async ({ page }) => {
+	// plan 0.21.3: the showcase's survey session writes the overview; the publisher renders it with its blocks and says who wrote it
+	await page.goto('/library/Bellamy19?view=info');
+	const overview = page.getByTestId('work-overview');
+	await expect(overview).toContainText('Bellamy counts the lattice points of the median polytope');
+	await expect(overview.getByTestId('page-meta')).toContainText('written by Survey Agent');
+	await expect(overview.locator('section[data-block="proof-basics"] h2')).toHaveText('proof-basics');
+	await expect(overview.locator('a').filter({ hasText: /3\.2/ }).first()).toBeVisible();
+});

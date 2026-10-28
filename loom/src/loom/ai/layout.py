@@ -20,7 +20,7 @@ RULES = "rules.md"  # `ai/rules.md`: not a mode, and no longer filed among them
 AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
-        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion",
+        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion", "write",
         "ai annotations", "ai drafts", "ai refresh", "ai orient", "ai mode",
         # the agent opens and names the session it works in, and parks, reads and answers in it; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
         "session new", "session rename", "session list", "session next", "session say", "session watch",
@@ -200,6 +200,8 @@ def permissions_json(config: QuiltConfig) -> str:
     allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
     deny = [f"Edit(/{d}/**)" for d in readonly]
     deny += [f"Edit(/{f})" for f in AGENT_READONLY_FILES]
+    # the research state is a page: an agent writes it through `loom write`, which records the write, never by hand
+    deny.append(f"Edit(/{config.research_state})")
     deny += [f"Edit(/*.{ext})" for ext in ("tex", "sty", "bib")]
     deny += [f"Bash(loom {c}*)" for c in author_commands()]
     deny.append("Bash(rm *)")

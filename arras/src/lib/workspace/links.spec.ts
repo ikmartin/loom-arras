@@ -29,7 +29,8 @@ const m = {
 		'a-2026-09-23-0004': { id: 'a-2026-09-23-0004', kind: 'question', target: { key: 'sy-0003#eq:fix' }, in_reply_to: 'a-2026-09-23-0002' }
 	},
 	sessions: [{ id: 's-2026-09-16-0001', title: 'referee' }],
-	threads: {}
+	threads: {},
+	research_state: { path: 'research-state.md', hash: 'sha256:0', body_html: '<p>Goals.</p>', edited_since: false, links: { broken: [], moved: [] } }
 } as unknown as Manifest;
 
 describe('a quilt: link', () => {
@@ -37,6 +38,7 @@ describe('a quilt: link', () => {
 		expect(itemForQuilt(m, 'sy-0003')).toMatchObject({ kind: 'node', id: 'sy-0003' });
 		expect(itemForQuilt(m, 'drafting/main.tex#sy-0003')).toEqual({ kind: 'document', id: 'drafting/main.tex', anchor: 'sy-0003' });
 		expect(itemForQuilt(m, 's-2026-09-16-0001')).toEqual({ kind: 'session', id: 's-2026-09-16-0001' });
+		expect(itemForQuilt(m, 'state')).toEqual({ kind: 'page', id: 'state' }); // the research state, a page (plan 0.21.3)
 		expect(itemForQuilt(m, 'canon/main-v1.tex')).toEqual({ kind: 'document', id: 'canon/main-v1.tex' }); // a landmark, not an unknown node
 		expect(itemForQuilt(m, 'sy-9999')).toMatchObject({ kind: 'node', id: 'sy-9999' }); // an unknown key still has a page, which says so
 	});
@@ -64,6 +66,7 @@ describe('an empty link', () => {
 		expect(linkName(m, 'quilt:a-2026-09-16-0001')).toBe('objection on Theorem 2.1');
 		expect(linkName(m, 'quilt:a-2026-09-23-0004')).toBe('reply on (4) in Theorem 2.1'); // not `question on`, which reads as a new one
 		expect(linkName(m, 'quilt:s-2026-09-16-0001')).toBe('referee');
+		expect(linkName(m, 'quilt:state')).toBe('the research state');
 		expect(linkName(m, 'cited:arxiv:math/9810166v2?page=3')).toBe('Kre99 p. 3');
 		expect(linkName(m, 'quilt:sy-9999')).toBe('sy-9999');
 	});

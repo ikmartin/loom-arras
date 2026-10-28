@@ -335,6 +335,16 @@ def build_synthetic(dest: Path) -> None:
     _say_report(
         g, referee, "Referee Agent", "Mode: referee, on sy-0003.", _synthetic_report(objection, suggestion, document)
     )
+    g.run(
+        "write",
+        "state",
+        "## Goals\n- The parity theorem, [](quilt:sy-0003), for finite widgets.\n\n## Decisions\n- Widgets are finite throughout; the statement will say so.\n\n## Open\n- Whether the involution must be a bijection.\n",
+        "--session",
+        referee,
+        "--as",
+        "Referee Agent",
+        agent=True,
+    )
     g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--as", AUTHOR)
     g.run("annotate", "--reply", suggestion, "Done in the next revision.", "--as", AUTHOR)
     g.run("annotate", "--resolve", suggestion, "--as", AUTHOR)
@@ -795,6 +805,8 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     _say_report(g, survey, "Survey Agent", "Mode: ingest, on Bellamy19.", _showcase_survey_report())
+    # the work's overview, ingest's understanding half (plan 0.21.3): a reading, written through loom and linking results by id
+    g.run("write", "Bellamy19", _showcase_bellamy_overview(), "--session", survey, "--as", "Survey Agent", agent=True)
 
     # ---- The author decides on each proposal. ------------------------------------------------------------
     # Verified, verified with the rendering corrected, left pending, and discarded with a reason: the four
@@ -1094,6 +1106,8 @@ def build_showcase(dest: Path) -> None:
         "Mode: referee, on sh-0009.",
         _showcase_referee_report(formula=formula, expand=expand, integrality=integrality, document=document),
     )
+    # the quilt's research state, which the referee leaves for whoever picks the work up (plan 0.21.3)
+    g.run("write", "state", _showcase_state(), "--session", referee, "--as", "Referee (Agent)", agent=True)
     # The run withdraws one finding of its own and restates another: a discard is not a resolution, and an
     # edit is not a reply (DR-171, DR-174).
     g.at("2026-09-16T11:40:00Z")
@@ -1444,6 +1458,37 @@ The rank theorem is correct and its proof is complete. The counting theorem is n
 
 ## [decision]
 Minor Revision for the rank theorem; the counting theorem needs the integrality lemma before it can be accepted.
+"""
+
+
+def _showcase_bellamy_overview() -> str:
+    """Bellamy19's overview, mode 1 in four blocks: what an agent writes for a reader before they open the paper."""
+    return """## [overview]
+Bellamy counts the lattice points of the median polytope $M(D)$ of a weighted digraph $D$. The main result, [](quilt:Bellamy19-thm-3.2), says the count $L(k)$ of points in $kM(D)$ is a polynomial in $k$ when $D$ is balanced; the hardest step is the integrality of the vertices of $M(D)$, [](quilt:Bellamy19-thm-2.3).
+
+## [proof-basics]
+- [](quilt:Bellamy19-thm-2.3): every vertex of $M(D)$ is integral, by total unimodularity of the incidence matrix (memory-grade: the paper's argument was read from its page 4).
+- [](quilt:Bellamy19-thm-3.2): Ehrhart's theorem applied to an integral polytope gives the polynomial.
+
+## [dependencies]
+- [](quilt:Bellamy19-thm-3.2) rests on [](quilt:Bellamy19-thm-2.3); balance is used only there.
+
+## [reconstruction-plan]
+1. Prove integrality of the vertices from total unimodularity.
+2. Apply Ehrhart's theorem.
+"""
+
+
+def _showcase_state() -> str:
+    """The showcase's research state: goals, decisions and what is open, linking the results they concern."""
+    return """## Goals
+- The rank theorem, [](quilt:sh-0009), and the counting theorem, [](quilt:sh-000C).
+
+## Decisions
+- A loop counts once in the rank formula.
+
+## Open
+- The integrality lemma the counting theorem needs is still incomplete.
 """
 
 

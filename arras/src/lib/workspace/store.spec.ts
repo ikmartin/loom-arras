@@ -23,7 +23,8 @@ describe('an item and its address', () => {
 			'/master/main?note=a-2026-09-16-0004',
 			'/context/sy-0002',
 			'/session/s-2026-09-16-0001',
-			'/session/s-2026-09-16-0001?view=did'
+			'/session/s-2026-09-16-0001?view=did',
+			'/page/state'
 		]) {
 			const item = itemFromPath(m, href)!;
 			expect(item, href).not.toBeNull();
