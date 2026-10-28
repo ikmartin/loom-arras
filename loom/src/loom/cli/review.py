@@ -1442,6 +1442,12 @@ def filter_keys(
 @click.option("--retired", "f_retired", is_flag=True, help="Keys accepted once and defined by no document now.")
 @click.option("--runs", "f_runs", is_flag=True, help="Every session on record, with its annotations.")
 @click.option("--master", "f_master", default=None, metavar="DOC", help="Keys this document reaches.")
+@click.option(
+    "--in-order",
+    "f_in_order",
+    is_flag=True,
+    help="With --master: the document's keys in the order it prints them, sections and an agent document's own among them, each with its state.",
+)
 @click.option("--tag", "f_tag", default=None, help="Keys carrying this tag.")
 @click.option(
     "--severity",
@@ -1487,6 +1493,7 @@ def status(
     f_retired: bool,
     f_runs: bool,
     f_master: str | None,
+    f_in_order: bool,
     f_tag: str | None,
     f_severity: str | None,
     f_kind: str | None,
@@ -1503,6 +1510,8 @@ def status(
 
     Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
     """
+    if f_in_order and f_master is None:
+        raise EnvError("--in-order lists one document's keys; name it with --master DOC")
     result = open_scan(quilt_path)
     f_kind, f_master, f_tag = _check_filters(result, f_kind, f_master, f_tag)
     if explain:
@@ -1538,7 +1547,10 @@ def status(
     payload["summary"] = summarise(result, payload["keys"])
     payload["unmatched"] = unmatched_cites(result)
     filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_severity, f_kind, f_status, f_detached))
-    if f_reading:
+    if f_in_order:
+        assert f_master is not None
+        out, payload["in_order"] = _in_order_report(result, records, f_master)
+    elif f_reading:
         out = _reading_report(payload)
     elif explain:
         out = _explain_report(result, records, payload, explain)
@@ -1591,6 +1603,54 @@ def status(
         out = _status_report(result, payload, filtered, f_digests, hidden)
     out.data = payload
     out.emit(as_json)
+
+
+def _in_order_report(result: ScanResult, records: Records, master: str) -> tuple[Report, list[dict[str, Any]]]:
+    """`status --master DOC --in-order`: DOC's keys in the order it prints them, each with its state and its open annotations.
+
+    Read from the scan rather than from status's rows, which leave out a section without findings and an agent document's own nodes, both of which a reader of the document's structure wants.
+    """
+    exp = result.expansions.get(master)
+    states = records.key_states(result)
+    placed = []
+    for key, n in result.nodes.items():
+        if n.kind not in ("environment", "section", "proof") or n.conflict_of or n.external:
+            continue
+        at = exp.exp_offset(n.file, n.start) if exp is not None else None
+        if at is not None:
+            placed.append((at, key, n))
+    rows: list[tuple[tuple[str, ...], str]] = []
+    data: list[dict[str, Any]] = []
+    for _, key, n in sorted(placed, key=lambda r: r[0]):
+        ks = states.get(key)
+        opened = {k: v for k, v in (ks.open if ks else {}).items() if v}
+        title = n.title or ""
+        rows.append(
+            (
+                (
+                    n.taxon or n.kind,
+                    title if len(title) <= 32 else title[:31] + "…",
+                    ks.label if ks else "",
+                    ", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()),
+                ),
+                key,
+            )
+        )
+        data.append(
+            {
+                "key": key,
+                "kind": n.kind,
+                "taxon": n.taxon or "",
+                "title": title,
+                "state": ks.label if ks else "",
+                "open": opened,
+            }
+        )
+    report = Report(
+        f"{counted(len(rows), 'key')} in {master}, in the order it prints them" if rows else f"{master} holds no keys",
+        groups=[Group("", keyed(rows), limit=None)] if rows else [],
+    )
+    return report, data
 
 
 def _check_filters(

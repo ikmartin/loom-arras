@@ -161,6 +161,7 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 | `--retired` | Keys accepted once and defined by no document now. |
 | `--runs` | Every session on record, with its annotations. |
 | `--master` `DOC` | Keys this document reaches. |
+| `--in-order` | With --master: the document's keys in the order it prints them, sections and an agent document's own among them, each with its state. |
 | `--tag` | Keys carrying this tag. |
 | `--severity` | Keys carrying an annotation of this severity. |
 | `--kind` `objection|suggestion|question|citation|note` | Keys carrying an annotation of this kind. |
@@ -179,13 +180,15 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 
 Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.
 
-This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit. A section's key prints the section with everything in it.
 
-With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one.
+With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one. With --at REF, the key's text as it stood then: the text an annotation was written against, the text last accepted, or a step of the history; --diff shows what has changed since.
 
 | option | description |
 |---|---|
 | `--closure` | Everything TARGET depends on, in dependency order, then TARGET itself. |
+| `--at` `REF` | The key's text at REF instead: an annotation's id, `accepted` (or `accepted:NAME`), or a step of the history. |
+| `--diff` | With --at: a unified diff from that text to the key's text now. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -306,8 +309,11 @@ Show what KEY depends on: direct statement-edges and proof-edges, grouped.
 
 Show everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing.
 
+With --proofs, only the proofs that cite ID themselves: where a hypothesis or a lemma is consumed, rather than everything that rests on it.
+
 | option | description |
 |---|---|
+| `--proofs` | Only the proofs that cite ID directly, each with the statement it proves. |
 | `--json` | Print the report as one JSON object. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -1001,9 +1007,21 @@ The permission files say what agents may run, for Claude Code (.claude/settings.
 
 | option | description |
 |---|---|
-| `--skills` | Also write skill stubs and slash commands for Claude Code. |
 | `--dry-run` | Say what would be written and write nothing. |
 | `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai mode`
+
+`loom ai mode [OPTIONS] NAME`
+
+Print mode NAME in full: when it fits, what it is for, and what its report shows.
+
+The quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.
+
+| option | description |
+|---|---|
+| `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai orient`

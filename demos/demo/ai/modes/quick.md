@@ -1,16 +1,15 @@
 # Mode: quick
 
-## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`.
+When it fits: a question asked in passing whose answer is worth finding again — a definition recalled, a step explained, a constant checked ("what is $W_\chi$ a subscheme of?").
 
-## Purpose
-A short, durable answer. Use quick when the author asks something in passing that is worth re-reading in a week but does not deserve a document: a definition recalled, a step explained, a constant checked. Prioritize brevity, clarity and accuracy, in that order, and double-check the answer before writing it.
+## What it is for
 
-If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a defect, annotate it and say so.
+A short, durable answer. Prioritize brevity, clarity and accuracy, in that order, and check the answer once against the source or a digest before writing it.
 
-## Output
-`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. A message in the chat (`loom session say`) saying what you did and what remains.
+If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a fault, record it as `ai/rules.md` says (on an agent document, fix it) and say so.
 
-## Checklist
-- [ ] The answer was checked once against the source or a digest.
-- [ ] Nothing was written outside your session's directory.
+## Report
+
+Core: [answer]. Optional: [follow-up].
+
+The report is the message itself, with no [summary]: a summary of a quick answer is longer than the answer.

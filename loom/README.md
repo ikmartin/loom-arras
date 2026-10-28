@@ -55,7 +55,7 @@ loom canonize drafting/spine.tex -m "Submitted"  # a landmark, and a record of w
 loom accept rl-0004 --proofs                    # record what you have checked; later edits show up as stale
 loom annotate rl-0004/proof "Why closed?" --quote "the diagonal is closed" --kind question
 loom digest extract Man12 ~/papers/manolache/virtual6.tex  # a cited paper's results as nodes; \cite[Theorem 4.1]{Man12} becomes an edge
-loom ai init --skills --permissions             # the optional AI layer: orientation, modes, runs, permission settings
+loom ai init                                    # the optional AI layer: orientation, rules, modes, permission settings
 ```
 
 Every command is described in [docs/cli-reference.md](docs/cli-reference.md), generated from the command tree. `loom <command> --help` says the same.

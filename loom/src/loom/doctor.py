@@ -461,7 +461,7 @@ def check_permissions(root: Path) -> Item:
     layer = (root / "ai").is_dir()
     if not layer and not present:
         return Item("permissions", OK, QUILT, "no ai/ (loom ai init writes it and them)")
-    shipped = vendor_files(quilt_config(root), True, False, True)
+    shipped = vendor_files(quilt_config(root), True, True)
     stale = [rel for rel in present if (root / rel).read_text(encoding="utf-8") != shipped[rel]]
     absent = [rel for rel in wanted if rel not in present] if layer else []
     if not stale and not absent:
@@ -473,7 +473,7 @@ def check_permissions(root: Path) -> Item:
 
 
 def check_ai_files(root: Path) -> Item:
-    """The mode files, orientation and skills against what `loom upgrade` would write, by its own dry run; the permission files are the item above."""
+    """The mode files and the orientation against what `loom upgrade` would write, by its own dry run; the permission files are the item above."""
     from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, read_versions, sha, tracked_docs, upgrade_layer
 
     if not (root / "ai").is_dir():

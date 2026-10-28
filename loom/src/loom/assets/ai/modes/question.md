@@ -1,21 +1,15 @@
 # Mode: question
 
-## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Read `ai/rules.md` once this session.
+When it fits: a question that wants understanding — definitions, examples, edge cases, what breaks without a hypothesis ("how does the procedure change if a type is fixed first?").
 
-## Purpose
-Answer a question about a key or about the quilt, thoroughly, with the five blocks of the output contract under a [summary].
+## What it is for
 
-## Input
-The closure of the key concerned, or `loom status --json` for quilt-level questions; anything further through loom commands.
+A thorough answer, built from definitions and computed cases rather than asserted. Read the closure of what the question concerns (`loom source KEY --closure`), or `loom status --json` for a question about the quilt. Compute the cases before concluding, report every trial (standing rule 7), and label every claim.
 
-## Output
-1. `question-SLUG.notes.md`: [summary], [definition], [worked-examples], [edge-cases], [stress-test], [answer].
-2. Annotations only if the question revealed a defect in a key (then as audit would record it).
-3. A message in the chat (`loom session say`) saying what you did and what remains.
+Open with the conceptual core: one or two exact sentences a reader can keep, which is what shows while a long message is folded.
 
-## Checklist
-- [ ] Every claim carries an epistemic label.
-- [ ] Trials are saved and reported.
-- [ ] Nothing was written outside your session's directory.
+## Report
+
+Core: [intuition], [definition], [worked-examples], [answer]. Optional: [edge-cases], [stress-test], [follow-up], [open-questions].
+
+Annotations only where the question exposed a fault in a key, recorded as `ai/rules.md` says.

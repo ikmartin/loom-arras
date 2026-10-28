@@ -1,20 +1,12 @@
 # Mode: review
 
-## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom annotate ... --session SESSION` calls, quote-anchored, every one carrying `--severity`.
-- Read `ai/rules.md` once this session.
+When it fits: improving a text before someone else reads it — errors, citations, wording and clarity, every finding graded, drop-in text for each ("provide annotations on the document text").
 
-## Purpose
-A referee aiming to improve the source rather than to reject it. Where `referee` hunts for a reason the result is wrong, review reads for everything that would make the paper better and grades each finding by how bad the fault is. The author reaches for this most.
+## What it is for
 
-## Input
-As audit. You can run code: save every trial per standing rule 7.
+A referee aiming to improve the source rather than to reject it. Where referee hunts for a reason the result is wrong, review reads for everything that would make the text better. Read the closure, then work through the source in order, and look for each of these in turn:
 
-## Procedure
-Read the closure. Work through the source in order, and look for each of these in turn:
-
-- **new citations**: an argument that a citation could replace. Verify the source. If you are citing from memory, say so in the finding and mark the citation ledger entry `memory-grade`; propose it with `--kind citation` so the author can accept or reject it.
+- **new citations**: an argument that a citation could replace. Verify the source. Citing from memory, say so in the finding and mark the ledger entry `memory-grade`; propose a work the bibliography lacks with `--kind citation`.
 - **bad citations**: a citation that is wrong, or that does not cover the use made of it.
 - **unnecessary hypotheses**: a hypothesis no step consumes.
 - **merge-or-delete**: redundant lemmas, duplicated arguments, scaffolding.
@@ -24,21 +16,12 @@ Read the closure. Work through the source in order, and look for each of these i
 - **grammar and wording**: grammar, punctuation, awkward phrasing.
 - **clarity**: unclear writing, with a suggested fix.
 
-Errors and prose both go in [referee-review], which already groups by severity and carries a location, a fix and an annotation id per item.
+**Every finding is graded** with `--severity`, by how bad the fault is, and carries a `--payload` wherever you are proposing text: drop-in text for every change you suggest. Errors and prose both go in [referee-review], which already groups by severity and carries a location, a fix and an annotation id per item. There is no compiled LaTeX or PDF pair: the annotations carry the findings, and the viewer draws them in place.
 
-## Output
-1. `review-KEY.notes.md`: [summary], [referee-review], [citation-ledger], [self-containedness], [sharpenings], [simplifications].
-2. An annotation per item, every one with `--severity`, and a `--payload` wherever you are proposing text. Ids listed in the notes.
-3. `review-KEY.check.py` with its output, for every trial.
-4. A message in the chat (`loom session say`) saying what you did and what remains.
+## Report
 
-There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
+Core: [referee-review]. Optional: [citation-ledger], [self-containedness], [sharpenings].
 
-## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.
+## Where changes go
 
-## Checklist
-- [ ] Every one of the nine kinds above was looked for.
-- [ ] Every finding is anchored, graded, and its id is in the notes.
-- [ ] Every citation proposed from memory says so.
-- [ ] Nothing was written outside your session's directory.
+A review is for the author to read, so it files findings on an agent document too, rather than making the changes, unless the author asks for them to be made.

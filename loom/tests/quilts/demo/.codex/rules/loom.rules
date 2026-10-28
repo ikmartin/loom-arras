@@ -2,6 +2,7 @@
 # Rules of your own go in another file in this directory, which loom never touches.
 prefix_rule(pattern = ["loom", "ai", "annotations"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "drafts"], decision = "allow")
+prefix_rule(pattern = ["loom", "ai", "mode"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "orient"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "refresh"], decision = "allow")
 prefix_rule(pattern = ["loom", "annotate"], decision = "allow")

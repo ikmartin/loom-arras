@@ -26,6 +26,7 @@ KIND: dict[str, str] = {
     "ai discard": "report",
     "ai init": "report",
     "ai orient": "raw",
+    "ai mode": "raw",
     "ai drafts": "report",
     "ai close": "report",
     "ai reopen": "report",
@@ -177,12 +178,15 @@ CASES: dict[str, list[Case]] = {
     ],
     "ai init": [
         Case((), setup=no_ai),
-        Case(("--skills",), setup=no_ai),
         Case((), why="ai/ exists: refreshes it"),
         Case(("--dry-run",), setup=no_ai, unchanged=True),
-        Case(("--dry-run", "--skills"), unchanged=True),
     ],
     "ai orient": [Case(()), Case(NOWHERE, exit=2, why="names no session")],
+    "ai mode": [
+        Case(("flow",)),
+        Case(("referee",), setup=no_ai, why="no ai/: the shipped copy"),
+        Case(("brainstorm",), exit=2, unchanged=True, why="a mode loom does not ship"),
+    ],
     "ai drafts": [Case(()), Case((), setup=ai_copy), Case(("--closed",), setup=closed_copy)],
     "ai close": [
         Case(("contribution.tex", "--yes"), setup=ai_copy),

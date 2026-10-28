@@ -253,19 +253,52 @@ def downstream_payload(result: ScanResult, key: str) -> dict[str, Any]:
     }
 
 
+def proofs_citing(result: ScanResult, payload: dict[str, Any]) -> list[dict[str, str]]:
+    """The proofs among `payload`'s dependents that cite its key directly, each with the statement it proves.
+
+    The statement comes from the scan (`statement_key`), never from stripping `/proof`: a proof with its own label proves the statement it names.
+    """
+    assert result.graph is not None
+    return [
+        {"key": e["key"], "statement": result.graph.statement_key(e["key"]), "via": e["via"]}
+        for e in payload["dependents"]
+        if e["kind"] == "proof" and e["via"] != "transitive"
+    ]
+
+
 @click.command(name="downstream")
 @click.argument("id_", metavar="ID")
+@click.option(
+    "--proofs", is_flag=True, help="Only the proofs that cite ID directly, each with the statement it proves."
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
-def downstream(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
-    """Show everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing."""
+def downstream(id_: str, proofs: bool, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
+    """Show everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing.
+
+    With --proofs, only the proofs that cite ID themselves: where a hypothesis or a lemma is consumed, rather than everything that rests on it.
+    """
     result = open_scan(quilt_path)
     key = resolve_key(result, id_)
-    log_run(run_dir, f"loom downstream {id_}", result.quilt.root)
+    log_run(run_dir, f"loom downstream {id_}" + (" --proofs" if proofs else ""), result.quilt.root)
     payload = downstream_payload(result, key)
+    if proofs:
+        citing = sorted(proofs_citing(result, payload), key=lambda e: natural(e["key"]))
+        Report(
+            f"{counted(len(citing), 'proof')} cite{'s' if len(citing) == 1 else ''} {key} directly"
+            if citing
+            else f"no proof cites {key} directly",
+            groups=[
+                Group("proofs", keyed([((f"proves {e['statement']}", f"via {e['via']}"), e["key"]) for e in citing]))
+            ]
+            if citing
+            else [],
+            data={"id": key, "proofs": citing},
+        ).emit(as_json)
+        return
     dependents = sorted(payload["dependents"], key=lambda e: natural(e["key"]))
     references = sorted(payload["references"], key=lambda e: (natural(e["file"]), e["line"]))
     inclusions = sorted(payload["inclusions"], key=lambda e: (natural(e["file"]), e["line"]))

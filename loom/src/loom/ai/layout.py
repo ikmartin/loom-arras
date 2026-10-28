@@ -13,26 +13,15 @@ from pathlib import Path
 
 from loom.scan.quilt import QuiltConfig
 
-MODES = ["audit", "referee", "review", "simplify", "question", "quick", "draft", "ingest", "brainstorm"]
+#: The modes loom ships, in the order the index lists them. Each file's `When it fits:` line is the index's entry for it, the one copy; a file in a quilt's `ai/modes/` whose name is not here is not a mode, so one loom no longer ships is inert.
+MODES = ["quick", "question", "audit", "referee", "review", "simplify", "flow", "draft", "ingest"]
 RULES = "rules.md"  # `ai/rules.md`: not a mode, and no longer filed among them
-TARGET_MODES = ["audit", "referee", "review", "simplify", "draft", "ingest"]
-TRIGGERS = {
-    "audit": "when the user asks to audit a key of this quilt: its hypotheses, citations, uses, or self-containedness",
-    "review": "a referee reading to improve the source: citations, hypotheses, errors, wording, each finding graded by severity; the author reaches for this most",
-    "referee": "when the user asks to referee, review, or find gaps or errors in a node of this quilt",
-    "simplify": "when the user asks to shorten, tighten, or simplify a node's text without changing its mathematics",
-    "question": "when the user asks a thorough question about a key or about the quilt",
-    "quick": "when the user wants a brief answer about a key or the quilt",
-    "draft": "when the user asks to write a node from a plan they supply",
-    "ingest": "when the user asks to digest a cited paper into digests/",
-    "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
-}
 # The one list: every loom command an agent may run, by its full path in the command tree. Everything else loom offers is the author's, so a command added later is denied until it is named here -- which an enumeration of forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion",
-        "ai annotations", "ai drafts", "ai refresh", "ai orient",
+        "ai annotations", "ai drafts", "ai refresh", "ai orient", "ai mode",
         # the agent opens and names the session it works in, and parks, reads and answers in it; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
         "session new", "session rename", "session list", "session next", "session say", "session watch",
         # the library's readers and an agent's tools; filing a document (`library add`, `import`) and every decision are the author's
@@ -243,23 +232,13 @@ def codex_rules() -> str:
     return "\n".join(head + body) + "\n"
 
 
-def vendor_files(config: QuiltConfig, permissions: bool, skills: bool, codex: bool = False) -> dict[str, str]:
+def vendor_files(config: QuiltConfig, permissions: bool, codex: bool = False) -> dict[str, str]:
     """Quilt-relative path -> text for the files loom owns whole in a quilt with `config`; the agent root files are not among them (see `ensure_root_line`)."""
     out: dict[str, str] = {}
     if permissions:
         out[CLAUDE_SETTINGS] = permissions_json(config)
     if codex:
         out[CODEX_RULES] = codex_rules()
-    if skills:
-        skill = _asset("vendor", "claude", "SKILL.md")
-        command = _asset("vendor", "claude", "command.md")
-        for m in MODES:
-            target_line = " The target is `$ARGUMENTS`." if m in TARGET_MODES else ""
-            out[f".claude/skills/loom-{m}/SKILL.md"] = (
-                skill.replace("{mode}", m).replace("{trigger}", TRIGGERS[m]).replace("{target_line}", target_line)
-            )
-        for m in TARGET_MODES:
-            out[f".claude/commands/{m}.md"] = command.replace("{mode}", m)
     return out
 
 
@@ -295,7 +274,7 @@ def ensure_root_line(root: Path, write: bool = True) -> list[str]:
     return written
 
 
-def init_layer(root: Path, skills: bool = False) -> LayerReport:
+def init_layer(root: Path) -> LayerReport:
     """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
     ai = root / "ai"
     if ai.exists():
@@ -317,7 +296,7 @@ def init_layer(root: Path, skills: bool = False) -> LayerReport:
         {**texts, STY: shipped_sty()} if sty.is_file() and sty.read_text(encoding="utf-8") == shipped_sty() else texts,
     )
     rep.written.append(f"ai/{VERSION_FILE}")
-    for rel, text in vendor_files(quilt_config(root), True, skills, True).items():
+    for rel, text in vendor_files(quilt_config(root), True, True).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
@@ -382,8 +361,7 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
         else:
             rep.unchanged.append(f"ai/{name}")
     # a quilt with ai/ has both permission files, so a missing one is written like a stale one
-    skills = (root / ".claude" / "skills").is_dir() or (root / ".claude" / "commands").is_dir()
-    for rel, text in vendor_files(quilt_config(root), True, skills, True).items():
+    for rel, text in vendor_files(quilt_config(root), True, True).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
             rep.unchanged.append(rel)

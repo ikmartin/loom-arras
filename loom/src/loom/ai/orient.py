@@ -31,6 +31,35 @@ def static_text(root: Path) -> str:
     return "\n\n---\n\n".join(out) + "\n"
 
 
+def mode_text(root: Path, name: str) -> str:
+    """Mode `name`'s file, the quilt's own copy where it has one, else the shipped one; `name` is one of `MODES`."""
+    p = root / "ai" / "modes" / f"{name}.md"
+    if p.is_file():
+        return p.read_text(encoding="utf-8")
+    return resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")
+
+
+def mode_index(root: Path) -> str:
+    """The modes, one line each, from each file's `When it fits:` line: what `loom ai orient` prints after the documents, and the server's instructions after it.
+
+    Drawn from `MODES` rather than the directory, so a file loom no longer ships is not offered; a quilt copy edited to drop the line shows the mode with no description rather than none.
+    """
+    from loom.ai.layout import MODES
+
+    lines = ["", "---", "", "# Modes", "", "`loom ai mode NAME` prints one in full.", ""]
+    for name in MODES:
+        fits = next(
+            (
+                ln.removeprefix("When it fits:").strip()
+                for ln in mode_text(root, name).splitlines()
+                if ln.startswith("When it fits:")
+            ),
+            "",
+        )
+        lines.append(f"- **{name}**: {fits}" if fits else f"- **{name}**")
+    return "\n".join(lines) + "\n"
+
+
 def open_sessions(root: Path, include_closed: bool = False) -> list[tuple[str, str, str, bool]]:
     """(id, title, created, closed) for every session, oldest first; closed ones only when asked."""
     from loom.sessions import sessions

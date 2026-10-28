@@ -1,33 +1,22 @@
 # Mode: simplify
 
-## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`.
-- The revised text is a diff the author applies; you apply nothing.
-- Read `ai/rules.md` once this session.
+When it fits: shorter text with the same mathematics ("simplify", "tighten this").
 
-## Purpose
-Revise the text of one key to be simpler and shorter while preserving mathematical content exactly. Assume the mathematics is correct; do not perform in-depth verification (that is referee). Citation verification is required for any argument you replace with a citation. If an error surfaces incidentally, flag it in [summary] and as an objection, and leave that passage unsimplified rather than propagating it.
+## What it is for
 
-## Input
-- `loom source KEY --closure --session SESSION`.
-- If `audit-KEY.notes.md` exists in this session, its [patch-list] is your starting list.
-- Digest nodes for candidate citations (standing rule 5).
+Revise the text to be simpler and shorter while preserving its mathematical content exactly. Assume the mathematics is correct; do not perform in-depth verification (that is referee).
 
-## Procedure
-For each candidate change: classify it; for a new-citation, verify against a digest node or record it under [rejected]; for an unnecessary hypothesis, confirm no step in the closure consumes it; make the change in a copy of the node's text; check meaning. Then produce the diff and compile it with the change applied.
+- **A new citation** replaces an argument only when it is verified against a digest node; otherwise the argument stays and the candidate goes in [rejected].
+- **An unnecessary hypothesis** is removed only with a demonstration that no step consumes it (`loom downstream ID --proofs` where it is a node). If removing it would need a new argument, propose it in [rejected] instead.
+- **An error** that surfaces incidentally is flagged in [summary] and as an objection, and its passage is left unsimplified rather than propagated.
+- **What earlier passes added stays**: every justification a referee added, and the exact words an open annotation quotes, so it stays anchored.
 
-## Output
-1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
-2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
-3. One suggestion annotation per simplification: its quote exactly the old text, its payload the new, placed `replace`.
-4. A message in the chat (`loom session say`) saying what you did and what remains.
+If an audit of the target is in the transcript, its [patch-list] is where you start.
 
-## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
+## Report
 
-## Checklist
-- [ ] Every new-citation names a digest node id and is marked verified.
-- [ ] Every removed hypothesis has an absence-of-use demonstration.
-- [ ] The diff applies cleanly and the result compiles.
-- [ ] [meaning-drift-check] covers every modified passage.
-- [ ] Nothing was written outside your session's directory.
+Core: [simplifications], [rejected], [meaning-drift-check]. Optional: [revised].
+
+## Where changes go
+
+On the author's text, one suggestion per simplification, its quote exactly the old text and its payload the new. A merge-or-delete across results is an agent document of the passage (`ai/rules.md`, Suggestion or agent document).

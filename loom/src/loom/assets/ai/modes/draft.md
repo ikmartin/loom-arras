@@ -1,28 +1,20 @@
 # Mode: draft
 
-## Before you begin
-- Write only under your session's directory, unless the author asks you to draft into an agent document in `drafting-ai/`: then run `loom ai drafts` first, make one with `loom draft DOC --ai NAME --as "Draft Agent"` if there is none (or `loom draft --ai NAME --new --as "Draft Agent"` when the author wants a document of your own, drafted from none of theirs), and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
-- Read `ai/rules.md` once this session.
+When it fits: new mathematics or text from the author's plan or request ("implement each example in section 8", "restate Section 7 for $M(X,\tau)$, marking what still needs proof").
 
-## Purpose
-Write a complete node from a plan the author supplies. The plan states the intended statement, its role, and a proof plan with the estimates, computations, case division, and conclusion. You complete the local argument. You do not change the plan's strategy; where the plan is wrong, say so in the notes and stop at that step with `\incomplete`.
+## What it is for
 
-## Input
-- The plan: `plan-ID.md` in your session's directory, or the author's message; if absent, ask for it and stop.
-- `loom new TAXON "Title" --print` for the skeleton in the quilt's environment names, or the id of a skeleton file the author created.
-- `loom source DEP --closure --session SESSION` for each intended dependency, so the statements you rely on are in front of you.
+Write complete nodes from what the author asked: the intended statement, its role, and the proof plan, which the author's message is. You complete the local argument; you do not change the plan's strategy. Where the plan is wrong, say so and stop at that step with `\incomplete{…}`.
 
-## Procedure
-Write the statement first and check it against the plan. Then the proof: cite each fact used by `\ref{ID}` and list all dependencies in `\uses`; mark every step you could not complete with `\incomplete{...}`. Then `loom compile --draft draft-ID.tex --session SESSION` compiles it against the quilt's preamble; fix compile errors; record the result.
+Write the statement first and check it against the plan. Then the proof: cite each fact used by `\ref{ID}`, list every dependency in `\uses`, and mark every step you could not complete with `\incomplete{…}`. `loom source DEP --closure` puts each intended dependency in front of you. Compile what you wrote (`loom compile DOC`) and fix what fails.
 
-## Output
-1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).
-2. `draft-ID.notes.md`: [summary]; what the plan asked; what you did; what you could not do and why; every trial.
-3. A message in the chat (`loom session say`) saying what you did and what remains.
+## Report
 
-## Checklist
-- [ ] The statement matches the plan.
-- [ ] Every fact used is a `\ref` or `\uses` to an existing id or a digest node.
-- [ ] Every incomplete step is marked `\incomplete`.
-- [ ] The draft compiles.
-- [ ] Nothing was written outside your session's directory. The one exception is a node drafted into the agent document in `drafting-ai/` the author named.
+Core: [could-not-do]. Optional: [worked-examples].
+
+## Where changes go
+
+- **Into an agent document**, by default: `loom ai drafts` first, and if there is none to write in, make one — `loom draft DOC --ai NAME --as "…"`, or `--new` for a document of your own. Each node you write takes the next free id with the suffix (`loom id --next`, then `-ai`).
+- **Into the author's text**, only when asked: one node is a suggestion carrying it, placed where it goes; several are an agent document.
+
+Never write a node file: `loom new TAXON "Title" --print` prints a skeleton in the quilt's environment names.

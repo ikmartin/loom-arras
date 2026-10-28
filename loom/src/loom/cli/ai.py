@@ -130,15 +130,13 @@ def discard(
     ).emit(as_json)
 
 
-def install_layer(root: Path, *, skills: bool = False, write: bool = True) -> LayerReport:
+def install_layer(root: Path, *, write: bool = True) -> LayerReport:
     """Write the agent layer into a quilt, or refresh it where `ai/` exists.
 
     Parameters
     ----------
     root : Path
         The quilt root.
-    skills : bool, default False
-        Also write the Claude Code skills and slash commands; where `ai/` exists they are refreshed when present either way.
     write : bool, default True
         False writes nothing and reports what would be written.
 
@@ -164,37 +162,27 @@ def install_layer(root: Path, *, skills: bool = False, write: bool = True) -> La
 
     if not (root / "ai").exists():
         if write:
-            rep = init_layer(root, skills=skills)
+            rep = init_layer(root)
         else:
             rep = LayerReport(written=[*tracked_docs(), "ai/README.md", f"ai/{VERSION_FILE}"])
-            rep.written += [*vendor_files(quilt_config(root), True, skills, True), *ensure_root_line(root, False)]
+            rep.written += [*vendor_files(quilt_config(root), True, True), *ensure_root_line(root, False)]
     else:
         rep = upgrade_layer(root, write=write)
-        if skills:
-            for rel, text in vendor_files(quilt_config(root), False, True, False).items():
-                p = root / rel
-                if rel in rep.written or (p.is_file() and p.read_text(encoding="utf-8") == text):
-                    continue
-                if write:
-                    p.parent.mkdir(parents=True, exist_ok=True)
-                    p.write_text(text, encoding="utf-8")
-                rep.written.append(rel)
     return rep
 
 
 @ai.command(name="init")
-@click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
 @click.option("--dry-run", is_flag=True, help="Say what would be written and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
-def ai_init(skills: bool, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+def ai_init(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
 
     The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
     """
     quilt = open_quilt(quilt_path)
     existed = (quilt.root / "ai").is_dir()
-    rep = install_layer(quilt.root, skills=skills, write=not dry_run)
+    rep = install_layer(quilt.root, write=not dry_run)
     written = sorted(dict.fromkeys(str(rel) for rel in rep.written))
     by_dir: dict[str, list[str]] = {}
     for rel in written:
@@ -250,7 +238,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 
     This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and the last messages of that session's chat with its command log, which is what a later sitting resumes from.
     """
-    from loom.ai.orient import live_text, static_text
+    from loom.ai.orient import live_text, mode_index, static_text
     from loom.cli._quilt import open_scan
     from loom.cli.build_cmds import log_run
     from loom.records.store import Records
@@ -262,8 +250,32 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
     found = find_session(root, session) if session else None
     where = files_dir(root, found) if found else None
     click.echo(static_text(root), nl=False)
+    click.echo(mode_index(root), nl=False)
     click.echo(live_text(result, Records(root, result.quilt.history_dir), where, found.id if found else None), nl=False)
     log_run(found.id if found else None, "loom ai orient", root)
+
+
+@ai.command(name="mode")
+@click.argument("name")
+@click.option(
+    "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="Log this call to the session."
+)
+@quilt_option
+def ai_mode(name: str, session: str | None, quilt_path: str | None) -> None:
+    """Print mode NAME in full: when it fits, what it is for, and what its report shows.
+
+    The quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.
+    """
+    from loom.ai.layout import MODES
+    from loom.ai.orient import mode_text
+    from loom.cli.build_cmds import log_run
+
+    quilt = open_quilt(quilt_path)
+    if name not in MODES:
+        raise NotFoundError("mode", f"no mode {name!r}; the modes are {', '.join(MODES)}")
+    found = find_session(quilt.root, session) if session else None
+    click.echo(mode_text(quilt.root, name), nl=False)
+    log_run(found.id if found else None, f"loom ai mode {name}", quilt.root)
 
 
 @ai.command(name="drafts")

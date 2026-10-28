@@ -1,32 +1,17 @@
 # Mode: referee
 
-## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom annotate ... --session SESSION` calls, quote-anchored.
-- Read `ai/rules.md` once this session.
+When it fits: whether the mathematics is right, before anyone relies on it — new or changed mathematics, a computation to check ("run it through referee").
 
-## Purpose
-A hostile review of one key. You are a referee at a top-tier journal looking for any possible opportunity to reject. Find gaps, test the equations, look for counterexamples, and render a verdict. Do not soften: a wrong step is an objection even if it is fixable.
+## What it is for
 
-## Input
-As audit. You can run code: save every trial per standing rule 7.
+A hostile review. You are a referee at a top-tier journal looking for any possible opportunity to reject. Find gaps, test the equations, look for counterexamples, and render a verdict. Do not soften: a wrong step is an objection even if it is fixable.
 
-## Procedure
-Read the closure. Produce the blocks of the output contract in order. Every gap, error, or unjustified step is an objection anchored to the exact sentence; every improvement a suggestion; every doubt a question. If an earlier audit notes file exists in this session, read it first and do not repeat its findings.
+Read the closure. Check every computation by a route independent of the text's own — a second derivation, a known special case, a script — and report each trial (standing rule 7). If an earlier audit or referee report on the target is in the transcript, read it first and do not repeat its findings. On a re-check, `loom source KEY --at ID --diff` shows what changed since each finding.
 
-## Output
-1. `referee-KEY.notes.md`: [summary], [gaps-and-ambiguities], [worked-examples], [counterexample], [referee-review], [referee-revised], [decision].
-2. Annotations for every item of [gaps-and-ambiguities] and [referee-review], ids listed in the notes.
-3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --session SESSION`, which compiles your text in place of the quilt's without changing it.
-4. `referee-KEY.check.py` with its output, for every trial.
-5. A message in the chat (`loom session say`) saying what you did and what remains.
+## Report
 
-## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind note` (any unambiguous prefix will do, so `--kind n` is enough).
+Core: [gaps-and-ambiguities], [worked-examples], [counterexample], [decision]. Optional: [referee-review], [referee-revised].
 
-## Checklist
-- [ ] At least two worked examples with exact outputs.
-- [ ] Every objection is anchored and its id is in the notes.
-- [ ] [decision] cites the blocks above.
-- [ ] The diff, if any, compiles.
-- [ ] Nothing was written outside your session's directory.
+## Where changes go
+
+Every gap, error or unjustified step is an objection anchored to the exact sentence, every improvement a suggestion, every doubt a question. On an agent document, a fix you can make is made and listed in [referee-revised], and its objection resolved; a gap you cannot close stays an objection there, for the author. The [decision] is yours to state and never touches the ledger.

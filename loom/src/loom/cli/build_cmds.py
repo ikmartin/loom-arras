@@ -8,7 +8,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, find_session, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, find_session, note
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
@@ -431,25 +431,116 @@ def document_rel(result: ScanResult, target: str) -> str | None:
     return rel if rel in result.files else None
 
 
+#: Where a document's back matter starts: a section's text stops before it, so the last section does not carry the bibliography.
+_BACK_MATTER = re.compile(
+    r"^[ \t]*\\(?:bibliographystyle|bibliography|printbibliography|appendix)\b|^[ \t]*\\begin\{thebibliography\}", re.M
+)
+
+
+def section_text(result: ScanResult, key: str) -> str | None:
+    """A section key's text with everything inside it, its inclusions expanded, up to the next section of its level; None when no document holds it.
+
+    The section's own span in its file stops at an `\\input`; this reads it from the flattened document instead, the default one first, as `loom draft --section` does.
+    """
+    from loom.section_drafts import section
+
+    masters = sorted(result.masters, key=lambda m: m != result.default_master)
+    for m in masters:
+        flat = flatten(result.quilt.root, m).text
+        try:
+            unit = section(flat, key)
+        except Exception:  # noqa: BLE001 -- not in this document, or not uniquely: try the next
+            continue
+        text = flat[unit.exp_start : unit.exp_end]
+        back = _BACK_MATTER.search(text)
+        return text[: back.start()] if back else text
+    return None
+
+
+def text_at(result: ScanResult, key: str, ref: str) -> tuple[str, str]:
+    """(what REF names, the key's normalised text then) for `loom source KEY --at REF`.
+
+    REF is an annotation's id (the text it was written against), `accepted` or `accepted:NAME` (the text NAME, by default this reviewer, last accepted), or a step of the history (a number or a landmark's name). NotFoundError when REF names nothing; ContentError when it does and no text was kept.
+    """
+    from loom.history.versions import read_version, version_at
+    from loom.records.annotations import find_annotation, load_records
+    from loom.records.ledger import latest_rows
+    from loom.records.snapshots import read_snapshot
+    from loom.records.store import Records
+    from loom.scan.hashing import normalize
+
+    root, history_dir = result.quilt.root, result.quilt.history_dir
+    if re.fullmatch(r"a-\d{4}-\d{2}-\d{2}-\d+", ref):
+        found = find_annotation(load_records(root)[0], ref)
+        if found is None:
+            raise NotFoundError("annotation", f"no annotation {ref}")
+        ann = found[1]
+        on = (
+            result.assembly.regions[ann.target_key].container
+            if ann.target_key in result.assembly.regions
+            else ann.target_key
+        )
+        if on != key:
+            raise EnvError(f"{ref} is on {ann.target_key}, not {key}")
+        before = read_snapshot(root, ann.target_hash, history_dir) if ann.target_hash else None
+        if before is None:
+            raise ContentError(f"no text was kept of {key} as {ref} was written against it")
+        return f"{key} as {ref} was written against it", before
+    if ref == "accepted" or ref.startswith("accepted:"):
+        records = Records(root, history_dir)
+        name = ref.partition(":")[2] or records.reviewer
+        row = latest_rows(records.rows, name).get(key)
+        if row is None:
+            raise NotFoundError("acceptance", f"{key} was never accepted by {name}")
+        before = records.snapshot(row.text)
+        if before is None:
+            raise ContentError(f"no text was kept of {key} as {name} accepted it on {row.date}")
+        return f"{key} as {name} accepted it on {row.date}", before
+    from loom.cli.history_cmds import _history
+
+    history = _history(result)
+    try:
+        v, raw = read_version(history, key, ref)
+    except LookupError as exc:
+        if version_at(history, key, ref) is None:
+            raise NotFoundError("version", str(exc)) from exc
+        raise ContentError(str(exc)) from exc
+    return f"{key}@{v.step} ({v.name})", normalize(raw)
+
+
 @click.command()
 @click.argument("target", metavar="TARGET")
 @click.option("--closure", is_flag=True, help="Everything TARGET depends on, in dependency order, then TARGET itself.")
 @click.option(
+    "--at",
+    "at",
+    default=None,
+    metavar="REF",
+    help="The key's text at REF instead: an annotation's id, `accepted` (or `accepted:NAME`), or a step of the history.",
+)
+@click.option("--diff", is_flag=True, help="With --at: a unified diff from that text to the key's text now.")
+@click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
-def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | None) -> None:
+def source(target: str, closure: bool, at: str | None, diff: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.
 
-    This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+    This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit. A section's key prints the section with everything in it.
 
-    With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one.
+    With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one. With --at REF, the key's text as it stood then: the text an annotation was written against, the text last accepted, or a step of the history; --diff shows what has changed since.
     """
+    if diff and at is None:
+        raise EnvError("--diff compares with --at REF; name what to compare with")
+    if at is not None and closure:
+        raise EnvError("--at is the text of one key; --closure does not apply to it")
     result = open_scan(quilt_path)
     doc = document_rel(result, target)
     if doc is not None:
         if closure:
             raise EnvError(f"--closure is for a key; {doc} is a document and already carries what it includes")
+        if at is not None:
+            raise EnvError(f"--at is for a key; {doc} is a document, whose landmarks `loom history show` prints")
         log_run(run_dir, f"loom source {doc}", result.quilt.root)
         click.echo(flatten(result.quilt.root, doc).text.rstrip("\n"))
         return
@@ -471,9 +562,40 @@ def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | No
         note(
             f"{key} is read off {ck}'s digest, which {v.why}; its number and page are unverified, so check them with loom library read {ck}"
         )
-    log_run(run_dir, f"loom source {key}" + (" --closure" if closure else ""), result.quilt.root)
+    log_run(
+        run_dir,
+        f"loom source {key}"
+        + (" --closure" if closure else "")
+        + (f" --at {at}" if at else "")
+        + (" --diff" if diff else ""),
+        result.quilt.root,
+    )
+    if at is not None:
+        import difflib
+
+        from loom.render.manifest import own_text
+        from loom.scan.hashing import normalize
+
+        what, before = text_at(result, key, at)
+        if not diff:
+            note(f"printing {what}")
+            click.echo(before.rstrip("\n"))
+            return
+        now = normalize(own_text(result, result.nodes[key]))
+        lines = list(
+            difflib.unified_diff(
+                before.splitlines(keepends=True), now.splitlines(keepends=True), fromfile=f"{key}@{at}", tofile=key
+            )
+        )
+        if not lines:
+            click.echo(f"{key} reads as it did: {what}; nothing has changed since")
+            return
+        note(f"from {what} to {key} now")
+        click.echo("".join(lines), nl=False)
+        return
     if not closure:
-        click.echo(region_text(result, key).rstrip("\n"))
+        whole = section_text(result, key) if result.nodes[key].kind == "section" else None
+        click.echo((whole if whole is not None else region_text(result, key)).rstrip("\n"))
         return
     if not result.masters:
         raise ContentError("the quilt has no master; a closure document needs a preamble")

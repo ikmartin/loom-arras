@@ -9,7 +9,7 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 - **`loom link THING` prints a correct link.** Use it rather than composing one: THING is a node or any key in it (`sh-0009`, an equation's label, `sh-0009/proof`), a document's path (`drafting/main.tex`, with `--at KEY` for a place in it), an annotation's id (`a-2026-09-16-0003`), a session's id, or a cited work's citekey (with `--page N` and `--quote TEXT` for a place on its pages).
 - **Two forms.** `[](quilt:KEY)` names something this quilt owns; `[](cited:SCHEME:VALUE?page=N)` names a place in a cited work by its identifier, never by a citekey.
 - **Empty text is named by the viewer.** `[](quilt:sh-0009)` reads `Theorem 3.1`, and stays right when the document is renumbered. `[the rank theorem](quilt:sh-0009)` reads as you wrote it. Which to use is your choice.
-- **Link only what the viewer shows.** A session's drafts, notes and diffs are files the viewer does not display, so they are not linkable; a link to one is refused when you post it, and so is a link to a key that does not exist. The message names the bad link, and nothing is written.
+- **Link only what the viewer shows.** A file in a session's directory, such as a script, is not displayed, so it is not linkable: cite it by its path. A link to one is refused when you post it, and so is a link to a key that does not exist. The message names the bad link, and nothing is written.
 - **Link the annotations you write.** When you tell the author what you found, a link to each annotation takes them to it with its box open.
 - **Working in a copy, link the copy.** A plain key opens the author's version of a node, in their document; while you and the author are editing a copy in `drafting-ai/`, link what is in it: `loom link drafting-ai/NAME.tex --at KEY-ai` for the place in the copy, which is usually what the author wants to see, or `loom link KEY-ai` for the copy's node alone. Link a plain key only when you mean the author's text rather than the copy's.
 
@@ -18,10 +18,11 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 - Write inline mathematics as `$…$` and display mathematics as `$$…$$`. It is typeset by MathJax with this quilt's own macros, so `\Hom`, `\mathcal{O}` and the rest mean what they mean in the source.
 - `\ref`, `\eqref` and `\cite` are not resolved in a message or an annotation's body; they would show as raw TeX. Link instead: `loom link eq:rank` prints a link to the equation, which the viewer names as the document numbers it.
 - Keep notation inside the dollars. A letter written as plain text is not the same symbol to a reader.
+- Define a symbol where you introduce it, or link the node that defines it: a link reads as that node's name and shows its statement on hover, so the reader never scrolls back to learn what $W_\chi$ is.
 
 ## Proposed text
 
-- **Propose text as a suggestion, never as a file.** `loom annotate KEY "why" --kind suggestion --quote "the old text" --payload "the new text" --placement replace` shows the key in the viewer with the new text in place of exactly the quoted words, where the author reads and applies it. A file in your session's directory is not displayed.
+- **On the author's text, propose text as a suggestion, never as a file.** (On an agent document you edit it yourself.) `loom annotate KEY "why" --kind suggestion --quote "the old text" --payload "the new text" --placement replace` shows the key in the viewer with the new text in place of exactly the quoted words, where the author reads and applies it. A file in your session's directory is not displayed.
 - **Propose a dependency the same way.** When one result uses another that its source does not declare, write a suggestion on it with no quote whose payload is the edge, `\uses{sh-0004}`, placed `before`: it goes at the head of the body, beside the others. Loom never writes an edge into the author's source; the author applies the suggestion.
 
 ## What renders what

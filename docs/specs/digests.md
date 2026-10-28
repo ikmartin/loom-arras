@@ -105,7 +105,7 @@ Nothing `\input`s `<citekey>.proposed.tex`, and no edge leads to a proposal from
 
 **Proposals.** For a work with only a PDF, or a result extraction missed, an agent reads pages with `loom library read` and records each result with `loom library propose`. The quotation must be on the named page (or in the LaTeX, with `--source-file`), folding only whitespace, line-end hyphens and ligatures (`loom/src/loom/refs/search.py`); otherwise nothing is stored. The rendering is the body only, in the work's words, and loom names each prose word the quotation lacks.
 
-**Ingest.** Ingest is an agent mode (`loom/src/loom/assets/ai/modes/ingest.md`), not a command. It checks extraction's output against the paper and never replaces it, handing the author a diff, notes and findings. Nothing is typed from a PDF; a work without source is read and proposed.
+**Ingest.** Ingest is an agent mode (`loom ai mode ingest`), not a command. It checks extraction's output against the paper and never replaces it, handing the author its corrections as suggestions on the digest's nodes, with its report in the transcript. Nothing is typed from a PDF; a work without source is read and proposed.
 
 ## 9. Relations
 

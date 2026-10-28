@@ -39,7 +39,7 @@ def cause_entry(result: ScanResult, cause: str) -> tuple[str, str]:
 #: What a cited work whose document loom has not yet read is waiting for; nobody's judgement, only a run.
 UNREAD = ("not read yet: a document with no page text, or a source with no digest", "loom library update reads them")
 #: Where an agent is told to go for a work with pages and no digest.
-INGEST = "an agent digests them in ingest mode (ai/modes/ingest.md)"
+INGEST = "an agent proposes their results from the pages in ingest mode (`loom ai mode ingest`)"
 
 
 @dataclass

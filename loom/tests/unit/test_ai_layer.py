@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from loom.ai.layout import MODES, TARGET_MODES
+from loom.ai.layout import MODES
 from tests.helpers import exits, json_of, ok, refused
 from tests.unit._quilts import demo
 
@@ -106,47 +106,33 @@ def test_an_agent_is_never_allowed_to_delete(tmp_path: Path) -> None:
     assert not any(r.startswith("Bash(rm") for r in data["permissions"]["allow"])
 
 
-def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
-    q = bare(tmp_path, "--skills")
-    blocks = (q / "ai" / "rules.md").read_text()
-    block_names = re.findall(r"^- \[([a-z-]+)\]", blocks, re.M)
-    assert len(block_names) > 20
-    for mode in MODES:
-        stub = q / ".claude" / "skills" / f"loom-{mode}" / "SKILL.md"
-        text = stub.read_text()
-        assert text.startswith("---\n") and f"name: loom-{mode}\n" in text and "description: " in text
-        assert f"ai/modes/{mode}.md" in text and "loom ai orient" in text
-        assert len(text.splitlines()) < 12
-        for name in block_names:
-            assert f"[{name}]" not in text, (mode, name)  # a stub points at the mode file; it never duplicates it
-        assert ("$ARGUMENTS" in text) == (mode in TARGET_MODES)
-    for mode in TARGET_MODES:
-        cmd = (q / ".claude" / "commands" / f"{mode}.md").read_text()
-        assert "$ARGUMENTS" in cmd and f"ai/modes/{mode}.md" in cmd and "argument-hint" in cmd
-    assert not (q / ".claude" / "commands" / "question.md").exists()
-    # brainstorm takes no single target, so it gets a skill and no slash command (plan 0.2 §3.4)
-    assert (q / ".claude" / "skills" / "loom-brainstorm" / "SKILL.md").exists()
-    assert not (q / ".claude" / "commands" / "brainstorm.md").exists()
-    for name in ("candidates", "dead-ends", "known-results", "open-questions"):
-        assert f"- [{name}]" in blocks
-
-
 def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
+    """Every mode says in one line when it fits, names its report's blocks from the catalogue, and carries none of the ceremony the contract cut removed (plan 0.21.1)."""
     q = bare(tmp_path)
-    assert len(MODES) == 9  # rules.md is not a mode
+    assert len(MODES) == 9 and "flow" in MODES and "brainstorm" not in MODES  # rules.md is not a mode
     assert not (q / "ai" / "modes" / "blocks.md").exists()
     rules = (q / "ai" / "rules.md").read_text()
     assert rules.startswith("# Standing rules, contracts, and blocks") and "## Never" in rules
+    catalogue = set(re.findall(r"^- \[([a-z-]+)\]", rules, re.M))
+    assert {
+        "summary",
+        "intuition",
+        "structure-map",
+        "flow-edits",
+        "rubric",
+        "fresh-reader",
+        "could-not-do",
+    } <= catalogue
+    assert not {"candidates", "dead-ends"} & catalogue  # brainstorm's, gone with it; a dead end is a note
     for mode in MODES:
         text = (q / "ai" / "modes" / f"{mode}.md").read_text()
-        assert text.startswith(f"# Mode: {mode}\n\n## Before you begin\n")
-        assert "## Checklist" in text
-        # the write policy is stated in every template, so a mode read without the orientation still carries it; it names the session's directory, not $LOOM_SESSION, which is set only for a turn `loom serve` launches
-        assert re.search(r"^- \[ \] Nothing was written outside your session's directory\.", text, re.M)
-        assert "$LOOM_SESSION" not in text
-        if mode not in ("quick",):
-            # the account of the work goes in the chat, the one transcript
-            assert "## Output" in text and "loom session say" in text
+        assert text.startswith(f"# Mode: {mode}\n\nWhen it fits: "), mode
+        assert "## Report" in text, mode
+        report = text.split("## Report", 1)[1].split("\n## ", 1)[0]
+        named = set(re.findall(r"\[([a-z-]+)\]", report))
+        assert named and named <= catalogue, (mode, named - catalogue)
+        for gone in ("## Before you begin", "## Checklist", ".notes.md", ".check.py", "proposal-"):
+            assert gone not in text, (mode, gone)
 
 
 def test_upgrade_preserves_edited_modes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -217,12 +203,36 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
         assert wanted in text, wanted
     assert "--severity" in text and "--payload" in text
     assert "[referee-review]" in text  # reused, not a new block: blocks are structures, modes are procedures
-    assert "There is no compiled LaTeX or PDF pair." in text
-    assert "review-KEY.2.notes.md" in text  # a re-check's report is a new numbered pass
+    assert "There is no compiled LaTeX or PDF pair" in text
 
     blocks = (q / "ai" / "rules.md").read_text()
     assert "a reply is for talking to the author" in blocks  # the edit-not-reply rule
     assert "`citation` for a work" in blocks
+
+
+def test_ai_mode_prints_the_quilts_copy_and_refuses_what_loom_does_not_ship(tmp_path: Path) -> None:
+    """`loom ai mode NAME` is how an agent reads a mode, so an author's edit holds; a mode loom no longer ships is refused even where its old file was left behind."""
+    q = bare(tmp_path)
+    flow = q / "ai" / "modes" / "flow.md"
+    assert ok("ai", "mode", "flow", cwd=q).stdout == flow.read_text()
+    flow.write_text(flow.read_text().replace("When it fits: ", "When it fits: (house) ", 1))
+    assert "(house)" in ok("ai", "mode", "flow", cwd=q).stdout
+    (q / "ai" / "modes" / "brainstorm.md").write_text("# Mode: brainstorm\n\nWhen it fits: never.\n")
+    refused("ai", "mode", "brainstorm", cwd=q, code=2, match="no mode 'brainstorm'")
+    shutil.rmtree(q / "ai")
+    assert ok("ai", "mode", "flow", cwd=q).stdout.startswith("# Mode: flow\n\nWhen it fits: reading order")
+
+
+def test_orient_ends_with_the_index_of_the_modes(tmp_path: Path) -> None:
+    """Each mode's `When it fits:` line is its entry, read from the quilt's copy; a file loom does not ship is not offered."""
+    q = bare(tmp_path)
+    quick = q / "ai" / "modes" / "quick.md"
+    quick.write_text(quick.read_text().replace("When it fits: ", "When it fits: (house) ", 1))
+    (q / "ai" / "modes" / "brainstorm.md").write_text("# Mode: brainstorm\n\nWhen it fits: never.\n")
+    out = ok("ai", "orient", cwd=q).stdout
+    index = out.split("# Modes", 1)[1].split("# Live state", 1)[0]
+    assert [ln.split("**")[1] for ln in index.splitlines() if ln.startswith("- **")] == MODES
+    assert "- **quick**: (house) " in index and "brainstorm" not in index
 
 
 def test_orient_static_plus_live(tmp_path: Path) -> None:
@@ -509,6 +519,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "upgrade",
         "session use",
         "adopt",  # the orientation names incorporation as author-only
+        "history restore",
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
     assert told <= named_to_refuse, sorted(told - named_to_refuse)

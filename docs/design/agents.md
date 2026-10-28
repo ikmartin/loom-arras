@@ -41,7 +41,7 @@ MCP is the intended way for any agent to attach (not built yet, see [README](REA
 - **A server per conversation.** `loom mcp` runs as a local subprocess the agent's app starts, with no daemon, no key and no model. It exposes one tool per agent command, generated from the same table, its schema from the command's options and its result the command's own output. Text is the default; JSON is there when the agent needs fields.
 - **The author's acts are absent.** They are not tools at all, and the shell refusal stays behind them as a second line.
 - **Large results go to a file** in the session's build area, and the tool returns its path, so the agent's own file tools can search it. Every result, and `run.log`, records the equivalent `loom …` command, so a person can rerun it.
-- **Read-only tools say so,** so clients can skip approval prompts for them. A skill file teaches agents both MCP and the command line.
+- **Read-only tools say so,** so clients can skip approval prompts for them. The server's instructions carry the orientation and the index of the modes, so an agent attached over MCP needs no shell to be oriented.
 - **The agent's name is set per client** in the configuration loom generates, which is never committed and never one someone else wrote.
 - **Two commands are the bridge** that replaces the chat composer as the way a person points an agent at something (plan 0.21.8):
   - *where the person is looking*: the document and block, down to the selected words or the PDF page and region, from the viewer tab touched last. The viewer reports it to `loom serve`, which keeps it in memory only.
@@ -71,14 +71,17 @@ The viewer's chat composer, and loom launching an agent for one turn when a mess
 
 ## What an agent is told
 
-What an agent reads at the start is generated from `loom/src/loom/assets/ai/`: the orientation, the standing rules, and mode templates (review, referee, audit, simplify, draft, ingest, brainstorm and others). Those files are the agent's contract, and they are the one copy; nothing else restates them.
+What an agent reads at the start is generated from `loom/src/loom/assets/ai/`, and `loom ai orient` prints it: the orientation (where the agent is, where it may write, what only the author does, where to look), the standing rules (how to work, where its work goes, the blocks a report is built from), the formatting rules for what the author reads, and an index of the modes. Those files are the agent's contract, and they are the one copy; nothing else restates them. An author may edit any of them, and `loom upgrade` keeps the edit.
 
-The contract is being cut (not built yet, see [README](README.md#decided-not-yet-built)):
+**Modes are reached for, not assigned.** A mode is a way of doing one kind of work well — quick, question, audit, referee, review, simplify, flow, draft, ingest — and each file opens with one line saying when it fits. The index is those lines, so an agent picks a mode itself when one fits, composes blocks when none does, and says in one line of its reply which it used; `loom ai mode NAME` prints one in full. A mode names the blocks its report always has and the ones it may, never a checklist, and its target is whatever the author named. Nothing is shaped for one vendor's skill or command files.
 
-- **The orientation becomes pointers,** to `loom --help`, `loom status` and the tools, rather than a restated command reference.
-- **Modes become tools** an agent or person reaches for inside a session, not the default framing of every request.
-- **No per-mode check scripts.** A per-mode script rebuilds the same computations each time.
-- **Epistemic labels only on durable claims,** not on every sentence of a chat.
-- **Report blocks and checklists** only where a report is read later.
+**Where an agent's work goes** is one rule, because what the viewer does not show is never seen:
+
+- its report is a message in the session's transcript, the mode's blocks under their headings;
+- on an agent document it makes its changes and lists them in the report, annotating only where the author must look, and it may resolve any annotation there; it never merges the document into the author's (that is `loom adopt`);
+- on the author's text, a change is a suggestion the author can take on its own, however long, and changes that only work together, or that move or reorder results, are an agent document of the passage;
+- a dead end, a counterexample or a decision is a `note` annotation on what it concerns.
+
+Epistemic labels are on claims in reports and annotations, not on every sentence of conversation, and a script a report cites is saved in the session's directory, named for what it computes.
 
 What stays is the boundary above, identity on every write, page-checked quotations, agent documents kept apart from the author's, and loom as the only writer of its records.
