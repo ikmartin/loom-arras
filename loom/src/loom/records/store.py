@@ -569,18 +569,21 @@ class Records:
         diags: list[Diagnostic] = []
         for p in self.problems:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid review record: {p}", []))
-        detached: dict[str, int] = {}
+        detached: dict[str, list[str]] = {}
         for res in self.resolved(result):
-            if res.detached and not res.record.discarded:
-                detached[res.target] = detached.get(res.target, 0) + 1
-        for key, n in sorted(detached.items()):
+            # one resolved or withdrawn needs nothing more, so the finding counts the open ones its fix acts on
+            if res.detached and not res.record.discarded and res.annotation.status == "open":
+                detached.setdefault(res.target, []).append(res.annotation.id)
+        for key, ids in sorted(detached.items()):
             diags.append(
                 Diagnostic(
                     "info",
                     "loom:detached-annotation",
-                    f"{n} annotation(s) on {key} no longer match its text",
+                    f"{len(ids)} annotation(s) on {key} no longer match its text",
                     [],
                     [key],
+                    # resolved once its point is met, or written again on the text as it is now
+                    fixes=[Fix("resolve it if its point is met", f'loom annotate --resolve {i} "…"') for i in ids],
                 )
             )
         diags.extend(self._gone_documents(result, states))

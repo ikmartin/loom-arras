@@ -91,7 +91,7 @@ def relate_command(
         Report(
             f"would relate {made_id}: {frm} {kind} {to}",
             dry_run=True,
-            lines=[f"asserted by {by}; would be written to digests/links.jsonl"],
+            lines=[f"asserted by {by}; nothing recorded yet"],
             data={"link": {"id": made_id, "from": frm, "to": to, "kind": kind, "why": why.strip(), "by": by}},
         ).emit(as_json)
         return

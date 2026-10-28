@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from loom.refs.proposals import EXTRACTED, PROPOSED, VERIFIED, Result, state_of
-from tests.helpers import json_of, ok, refused
+from tests.helpers import json_of, ok, refused, said
 from tests.unit._quilts import demo, propose, work_home
 
 CK = "Calloway14"
@@ -101,12 +101,13 @@ def test_a_person_verifying_an_extracted_result_makes_it_verified_through_a_redo
     assert json_of("library", "why", RID, "--json", cwd=q)["state"] == "verified"
 
 
-def test_discard_refuses_an_extracted_result_and_names_the_redo(tmp_path: Path) -> None:
+def test_discard_refuses_an_extracted_result_and_names_the_correction(tmp_path: Path) -> None:
+    """T3: the refusal named `update --redo`, which extracts the same text again; a wrong extracted result is corrected by the author's own rendering."""
     q = demo(tmp_path)
     before = _results_bytes(q)
     r = refused("library", "discard", RID, "--why", "r", "--as", "A. Author", code=1, match="extracted", cwd=q)
-    assert f"loom library update {CK} --redo" in r.output
-    assert _results_bytes(q) == before
+    assert said(f"loom library verify {RID} --statement '…' records the right rendering", r.output)
+    assert "--redo" not in r.output and _results_bytes(q) == before
 
 
 def test_a_result_read_off_a_preprint_carries_the_version(tmp_path: Path) -> None:

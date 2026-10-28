@@ -8,7 +8,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, from_stdin
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library._works import home, logged, one_work, present
 from loom.cli.library.read import no_pages, page_range
@@ -33,9 +33,15 @@ WRAPPER = re.compile(
     metavar="FILE",
     help="Quote the work's LaTeX source instead of a page: a file under the directory `loom library read WORK --where src` prints.",
 )
-@click.option("--source-text", required=True, help="The paper's own words, verbatim; checked against the page or file.")
 @click.option(
-    "--statement", required=True, help="The same result as LaTeX, in the paper's words only; the author verifies it."
+    "--source-text",
+    required=True,
+    help="The paper's own words, verbatim; checked against the page or file. `-` reads stdin.",
+)
+@click.option(
+    "--statement",
+    required=True,
+    help="The same result as LaTeX, in the paper's words only; the author verifies it. `-` reads stdin.",
 )
 @click.option("--taxon", default=None, help="theorem, lemma, definition, equation, …; read off --local when omitted.")
 @click.option("--number", default="", help="The paper's numbers when it states several results together: '3.2, 3.3'.")
@@ -98,10 +104,11 @@ def propose_command(
 
     if (page_spec is None) == (source_file is None):
         raise EnvError("give --page for a page of the PDF, or --source-file for the work's LaTeX source: one of them")
+    source_text, statement = (t or "" for t in from_stdin({"--source-text": source_text, "--statement": statement}))
     try:
         taxon, local_number = check_local(local, taxon)
     except ValueError as exc:
-        raise ContentError(str(exc)) from exc
+        raise EnvError(str(exc)) from exc
     run_dir = session(open_quilt(quilt_path).root, run_dir)
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -133,7 +140,7 @@ def propose_command(
             raise EnvError(f"{page_spec} spans {last - page_no + 1} pages; a statement is anchored to at most four")
         page_text = read_pages(where_home, page_no, last)
         if page_text is None:
-            raise ContentError(f"{citekey} has {m.pages} pages; {page_spec} runs past the end")
+            raise NotFoundError("page", f"{citekey} has {m.pages} pages; {page_spec} runs past the end")
         where = f"p.{page_no}" if last == page_no else f"pp.{page_no}-{last}"
         if not find_in_page(page_text, source_text):
             # the page itself, so the quotation can be corrected in the same turn
@@ -231,13 +238,13 @@ def propose_command(
             "your report."
         )
     if dry_run:
-        lines = [f"would be written to digests/{citekey}.proposed.tex"]
+        lines = ["would wait for review"]
     elif agent_marker():
         # the author's verb is not the agent's next step, and "verified" is the author's word (plan 0.12 §5.6)
-        lines = [f"in digests/{citekey}.proposed.tex, waiting for the author, who verifies or discards it"]
+        lines = ["waiting for the author's review, who verifies or discards it"]
     else:
         lines = [
-            f"in digests/{citekey}.proposed.tex, which nothing inputs until you verify it",
+            "waiting for your review: it is in no digest until you verify it",
             f"next: loom library verify {rid}, or loom library discard {rid} --why '…'",
         ]
     Report(
@@ -340,8 +347,11 @@ def locate_command(work: str, text: str, page_no: int, as_json: bool, quilt_path
     y1s = [q[3] for q in quads] or [0.0]
     lines = f"{len(quads)} line{'s' if len(quads) != 1 else ''}"
     words = len(placed.selector.exact.split())
+    # the verdict first; the geometry after it, for the anchor that needs it (T1, T4)
+    matched = "in its text layer" if anchor.basis == "text" else "by its region"
+    click.echo(f"found on {citekey} p.{page_no}: {words} words on {lines}, matched {matched}")
     click.echo(
-        f"{citekey} p.{page_no}  {anchor.basis}  {min(xs):.1f} {min(ys):.1f} {max(x1s):.1f} {max(y1s):.1f}  ({words} words, {lines})"
+        f"  the box {min(xs):.1f} {min(ys):.1f} to {max(x1s):.1f} {max(y1s):.1f}, in points from the page's top left"
     )
     # A quad is four numbers; what anyone wants next is to see the place on the page. The line is printed only when a server is actually listening, because a dead link is worse than none.
     from loom.render.serve import open_url

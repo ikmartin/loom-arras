@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError, find_session, writer
+from loom.cli._common import ContentError, EnvError, find_session, from_stdin, writer
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.report import Report, counted
@@ -35,13 +35,12 @@ def write(
 
     A page is a reading the person edits directly and an agent writes here, never by hand; it says who wrote it, and it is never a source. Once the page exists, --base must be the hash it had when you read it -- `loom ai orient` prints the research state's, `loom library read WORK` an overview's -- so an edit you have not seen is never overwritten: a stale base is refused, with that edit shown. A link that names nothing the viewer shows is refused, as in a message. Every write is recorded in the history, with who made it.
     """
-    import sys
-
     from loom.links import refuse_bad_links
     from loom.pages import STATE, overview_page, read, state_page, text_hash
     from loom.pages import write as write_page
 
-    body = sys.stdin.read() if text == "-" else text
+    (given,) = from_stdin({"TEXT": text})
+    body = given or ""
     if not body.strip():
         raise EnvError("nothing to write: a page needs words")
     if not body.endswith("\n"):
@@ -64,13 +63,14 @@ def write(
         )
     if current is not None and base != text_hash(current):
         from loom.records.snapshots import read_raw
-        from loom.tex.bundle import unified_diff
+        from loom.reshape.ids import unified_diff
 
         seen = read_raw(root, base or "", result.quilt.history_dir)
         changed = unified_diff(seen, current, page.path) if seen is not None else ""
         raise ContentError(
             f"{page.name} has changed since you read it; it is now {text_hash(current)}. Read it again, and write over what is there now"
-            + (f":\n{changed}" if changed else ".")
+            + (":" if changed else "."),
+            verbatim=f"\n{changed}" if changed else "",
         )
     refuse_bad_links(result, root, body)
     name, _kind = writer(root, declared)

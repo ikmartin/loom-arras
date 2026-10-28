@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from loom.scan.quilt import NO_AUTHOR_MESSAGE
-from tests.helpers import edit, exits, json_of, ok, refused, the
+from tests.helpers import edit, exits, flat, json_of, ok, refused, the
 
 REPO = Path(__file__).resolve().parents[3]
 AUTHOR = ["--author", "Markas Hecht"]
@@ -366,7 +366,8 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     s = status_json(d)
     assert "dependency-removed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
     row = status_row(ok("status", cwd=d).output, "dm-0002/proof")
-    assert row.startswith("stale (") and "dependency-removed" in row, row
+    assert row.startswith("stale (") and "equation eq:fix is no longer available" in row, row
+    assert "\\ref" not in row and "-removed" not in row  # the reader's words, not the cause's code (T4)
 
 
 def test_status_stale_lists_the_stale_rows_and_accept_stale_reaccepts_them(tmp_path: Path) -> None:
@@ -439,12 +440,12 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
         "no such words here",
         *AS,
         cwd=d,
-        code=1,
-        match="quote not found in dm-0003/proof",
+        code=2,
+        match="quote not found in dm-0003/proof; `loom source dm-0003/proof` prints its text",
     )
-    refused("annotate", "dm-0003/proof", "x", "--quote", "the", *AS, cwd=d, code=1, match="ambiguous")
+    refused("annotate", "dm-0003/proof", "x", "--quote", "the", *AS, cwd=d, code=2, match="ambiguous")
     # the quote lies in the proof, outside the statement's own text
-    refused("annotate", "dm-0003", "x", "--quote", "closedness", *AS, cwd=d, code=1, match="quote not found in dm-0003")
+    refused("annotate", "dm-0003", "x", "--quote", "closedness", *AS, cwd=d, code=2, match="quote not found in dm-0003")
     r5 = ok("annotate", "dm-0003", "Read; fine.", "--kind", "note", *AS, cwd=d)
     assert "  note  " in r5.output
     s = status_json(d)
@@ -871,7 +872,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "equation:eq:fix"
     explain = ok("status", "--explain", "dm-0002/proof", cwd=d)
     diff = [ln.strip() for ln in explain.output.splitlines()]
-    assert "dependency-changed equation:eq:fix" in explain.output
+    assert "equation eq:fix changed" in explain.output
     assert any(ln.startswith("-") and r"\sigma x = x" in ln for ln in diff), explain.output
     assert any(ln.startswith("+") and r"\sigma(x) = x" in ln for ln in diff), explain.output
     ok("build", cwd=d)
@@ -977,7 +978,7 @@ BATCH = [
         [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"},
          {"target": "dm-0002", "message": "two", "quote": "NOPE"},
          {"target": "dm-0002", "message": "three"}],
-        1, "batch line 2", [],
+        2, "batch line 2", [],
         id="checks-every-line-before-writing-any",
     ),
     pytest.param(
@@ -1170,7 +1171,7 @@ def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) ->
 
 def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    ann = ok("annotate", "dm-0002", "A finding", *AS, cwd=d).output.split()[0]
+    ann = ok("annotate", "dm-0002", "A finding", "--kind", "objection", *AS, cwd=d).output.split()[0]
     before = len(events(d))
 
     refused("annotate", "--reply", ann, *AS, cwd=d, code=2, match="a reply with no message")
@@ -1271,8 +1272,8 @@ def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
     p = q / "digests" / "Kre99.tex"
     p.write_text(p.read_text().replace("is well defined", "is well-defined", 1))
     e = ok("status", "--explain", "Kre99-thm-2.1", cwd=q).output
-    assert "transcription verified, stale" in e and "transcription-changed" in e
-    assert "own-text-changed" not in e
+    assert "transcription verified, stale" in e and "its transcription changed" in e
+    assert "edited" not in e
 
 
 def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> None:
@@ -1428,7 +1429,7 @@ def test_a_document_deleted_by_hand_is_gone_not_changed(tmp_path: Path) -> None:
     (d / "drafting" / "main.tex").unlink()
     causes = status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"]
     assert causes == [{"kind": "document-gone", "id": "drafting/main.tex", "diff": None, "when": causes[0]["when"]}]
-    assert "document-gone drafting/main.tex" in ok("status", cwd=d).output
+    assert "drafting/main.tex, which it was accepted in, is unavailable" in flat(ok("status", cwd=d).output)
     gone = [x for x in json_of("lint", "--json", cwd=d)["diagnostics"] if x["code"] == "loom:document-gone"]
     assert gone == [
         {
@@ -1584,3 +1585,54 @@ def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_a
         ("discarded", other): "Simplify Agent",
     }
     refused("accept", "sy-0001", "--as", "Simplify Agent", cwd=q, env=AGENT, code=2, match="may not run")
+
+
+def test_status_rows_read_as_the_reader_reads_them(tmp_path: Path) -> None:
+    """T4: the re-grade's `status` printed raw, cut LaTeX titles (`Proof of Lemma~\\ref{lem:indepen…`), causes as codes and no theorem numbers; a row's title is plain, and its kind carries the number the last build printed."""
+    d = demo(tmp_path)
+    edit(d / "nodes" / "dm-0002.tex", "\\begin{lemma}[Orbits]", "\\begin{lemma}[\\emph{Orbits} of $\\sigma$]")
+    aux = d / "build" / "main" / "main.aux"
+    aux.parent.mkdir(parents=True, exist_ok=True)
+    aux.write_text("\\newlabel{dm-0002}{{2.1}{3}}\n")
+    row = status_row(ok("status", cwd=d).output, "dm-0002")
+    assert "Lemma 2.1" in row and "Orbits of $\\sigma$" in row and "\\emph" not in row, row
+    aux.unlink()
+    assert "Lemma 2.1" not in status_row(ok("status", cwd=d).output, "dm-0002")  # no build, no number
+
+
+def test_accept_says_what_it_did_and_what_it_did_not(tmp_path: Path) -> None:
+    """T7: the re-grade's `accept dm-0001` twice wrote two rows and said "accepted" both times, and `--force` over a failing compile said only "accepted"; T3: `--all-live` refused for an incomplete key and named no way to accept the rest."""
+    d = demo(tmp_path)
+    first = ok("accept", "dm-0001", "--force", *AS, cwd=d)
+    assert "without compiling drafting/main.tex, as --force asks" in flat(first.output), first.output
+    rows = (d / ".loom" / "state.toml").read_text()
+    again = ok("accept", "dm-0001", "--force", *AS, cwd=d)
+    assert "already accepted as Markas Hecht: dm-0001; nothing written" in flat(again.output), again.output
+    assert (d / ".loom" / "state.toml").read_text() == rows
+    r = refused("accept", "--all-live", "--yes", "--force", *AS, cwd=d, code=1, match="dm-0005/proof")
+    rest = flat(r.output).split("Accept the rest by key: ")[1].split()
+    assert rest[:2] == ["loom", "accept"] and "dm-0005/proof" not in rest, rest
+    ok(*rest[1:], "--force", *AS, cwd=d)  # the command it names accepts them
+
+
+def test_a_reply_and_an_edit_are_checked_as_a_new_annotation_is(tmp_path: Path) -> None:
+    """K3 (DR-334): a reply's `--kind` was stored as given, unchecked against the five kinds or their prefixes, and `--edit --severity` was accepted on a kind that takes none."""
+    d = demo(tmp_path)
+    note = ok("annotate", "dm-0002", "Read; fine.", "--kind", "note", *AS, cwd=d).output.split()[0]
+    before = len(events(d))
+    refused("annotate", "--reply", note, "Why?", "--kind", "bogus", *AS, cwd=d, code=2, match="kind must be one of")
+    refused("annotate", "--edit", note, "--severity", "major", *AS, cwd=d, code=2, match="claims none")
+    assert len(events(d)) == before
+    ok("annotate", "--reply", note, "Which orbits?", "--kind", "obj", *AS, cwd=d)
+    assert events(d)[-1]["annotation_kind"] == "objection"
+
+
+def test_cited_works_nothing_depends_on_are_one_line(tmp_path: Path) -> None:
+    """T2: on relloc `status` ended with 52 rows of "N not counted  CITEKEY", the same sentence 52 times."""
+    from tests.unit._quilts import showcase
+
+    q = showcase(tmp_path)
+    out = ok("status", cwd=q).stdout
+    cited = out.split("in cited works", 1)[1]
+    idle = [ln for ln in cited.splitlines() if "none you depend on, not counted" in ln]
+    assert len(idle) == 1 and not any(re.match(r"^\s+\d+ not counted\s", ln) for ln in cited.splitlines()), cited

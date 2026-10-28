@@ -11,7 +11,7 @@ import pytest
 from loom.ai.layout import AGENT_COMMANDS, command_tree
 from loom.cli import main
 from loom.cli.help import SECTIONS
-from tests.helpers import run
+from tests.helpers import ok, run
 
 
 def commands(cmd: click.Command, path: list[str]) -> Iterator[tuple[str, click.Command]]:
@@ -124,3 +124,11 @@ def test_outside_a_quilt_names_how_to_get_into_one(tmp_path) -> None:  # type: i
     r = run("status", cwd=tmp_path)
     assert r.exit_code == 2 and r.stderr.startswith("Error: not inside a quilt"), r.output
     assert "cd " in r.stderr and "loom init DIR" in r.stderr, r.stderr
+
+
+def test_the_librarys_help_is_a_map_of_its_work() -> None:
+    """K6: `loom library --help` listed its fifteen subcommands alphabetically, the person's not first and upkeep not marked."""
+    out = ok("library", "--help").stdout
+    heads = [ln.rstrip(":") for ln in out.splitlines() if ln and not ln.startswith(" ") and ln.endswith(":")]
+    assert heads[-4:] == ["Read", "Decide", "Fill", "Upkeep"], heads
+    assert "  propose*" in out and "  verify " in out and out.rstrip().endswith("(ai/rules.md lists which).")

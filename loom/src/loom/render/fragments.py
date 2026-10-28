@@ -616,6 +616,15 @@ def plain_text(latex: str) -> str:
     return re.sub(r"\s+", " ", "".join(out)).strip()
 
 
+def plain_title(latex: str, width: int = 60) -> str:
+    """`plain_text(latex)`, cut at a word with `…` past `width`: a title in a terminal row (T4), where an identifier is never cut but a title may be."""
+    title = plain_text(latex)
+    if len(title) <= width:
+        return title
+    cut = title.rfind(" ", 0, width - 1)
+    return title[: cut if cut > 0 else width - 1].rstrip(",;:") + "…"
+
+
 def digest_macro_set(result: ScanResult, file: str) -> list[dict[str, object]]:
     from loom.scan.macros import parse_macros, to_mathjax
 

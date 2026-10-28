@@ -177,12 +177,12 @@ def check(result: Any, root: Path, text: str) -> list[str]:
 
 
 def refuse_bad_links(result: Any, root: Path, text: str) -> None:
-    """Raise ContentError naming every bad link in `text`, with the command that prints a good one."""
-    from loom.cli._common import ContentError
+    """Raise EnvError naming every bad link in `text`, with the command that prints a good one: a link that names nothing is an argument that names nothing, exit 2."""
+    from loom.cli._common import EnvError
 
     bad = check(result, root, text)
     if bad:
-        raise ContentError(
+        raise EnvError(
             "links that name nothing the viewer shows:\n  "
             + "\n  ".join(bad)
             + "\n`loom link THING` prints a correct one"

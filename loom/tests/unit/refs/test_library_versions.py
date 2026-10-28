@@ -9,7 +9,7 @@ from loom.refs.scan import versions_of
 from loom.scan.bib import parse_bib
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from tests.helpers import json_of, ok
+from tests.helpers import json_of, ok, run
 from tests.unit._quilts import demo, work_home
 
 BIB = "digests/bibliography.bib"
@@ -80,7 +80,7 @@ def test_an_identical_document_is_recorded_as_a_duplicate_and_not_filed(tmp_path
     stated = _fake_pdf(tmp_path / "stated.pdf", OLSSON + "doi:10.1016/olsson.03\fand a page the first lacks")
     r = ok("library", "add", same, stated, "--for", "olsson03", "--as", "A. Author", cwd=q)
     said = " ".join(r.stdout.split())
-    assert said.startswith("2 documents: 0 filed, 2 skipped"), said
+    assert said.startswith("2 documents: 0 filed, 2 already in loom's store, 0 skipped"), said
     assert "same.pdf: the same document as olsson03's: same title, authors and 1 page" in said, said
     assert (
         "stated.pdf: the same document as olsson03's: it states doi:10.1016/olsson.03, olsson03's own identifier"
@@ -239,3 +239,23 @@ def test_check_reports_existing_duplicates_once_per_work(tmp_path: Path) -> None
     out = json_of("library", "check", "--json", cwd=q, code=1)
     dups = [p for p in out["problems"] if p["problem"] == "duplicate-document"]
     assert [(p["work"], p["key"]) for p in dups] == [("olsson03", "olsson03, olsson03A, olsson03B")], dups
+
+
+def test_a_works_versions_are_counted_once_wherever_works_are_counted(tmp_path: Path) -> None:
+    """K7 and T5: the re-grade's `library` counted works with versions folded while `update`, `check` and `search` counted entries, and the ambiguity refusal said "'romagny' names 4 works" where two were versions of one."""
+    from tests.helpers import refused
+
+    q = _versioned(tmp_path)
+    entries, works = len(parse_bib((q / BIB).read_text())), len(json_of("library", "--json", cwd=q)["works"])
+    assert entries > works  # the bibliography holds a version
+    update = ok("library", "update", "--only", "extract", cwd=q).stdout
+    assert f" of {works} works digested" in update, update
+    assert json.loads(run("library", "check", "--json", cwd=q).stdout)["works"] == works
+    search = ok("library", "search", "Hausdorff closed", cwd=q).stdout.splitlines()[0]
+    assert search.endswith(f" of {works} works digested"), search
+    # a fragment naming two works, one of them with a version: two works, the version named with its own
+    with (q / BIB).open("a", encoding="utf-8") as fh:
+        fh.write("\n@article{Calloway99, author = {Calloway, Imogen}, title = {Another paper}, year = {1999}}\n")
+    refused(
+        "library", "read", "Calloway", cwd=q, code=2, match=f"names 2 works: {CK} (with its version {V}), Calloway99"
+    )

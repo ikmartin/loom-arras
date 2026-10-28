@@ -237,7 +237,7 @@ def test_an_empty_tracked_author_does_not_override_local_identity(box: Box) -> N
     with (q / "config.toml").open("a", encoding="utf-8") as fh:
         fh.write('\n[author]\nname = ""\n')
     got = item(doctor(box, cwd=q), "author")
-    assert got["status"] == "ok" and "tracked quilt author ignored" in got["detail"]
+    assert got["status"] == "ok" and "the author config.toml names is ignored" in got["detail"]
 
 
 # ---- machine: the bundle, from each source
@@ -299,7 +299,7 @@ def dirty_checkout(box: Box) -> None:
 
 BUNDLES: list[tuple[str, Case, str, str | None, str, str]] = [
     # id, setup, status, source, detail starts with, remedy contains
-    ("env", env_valid, "ok", "LOOM_ARRAS_BUNDLE", "LOOM_ARRAS_BUNDLE, arras abc1234", ""),
+    ("env", env_valid, "ok", "LOOM_ARRAS_BUNDLE", "the viewer LOOM_ARRAS_BUNDLE names, built from arras abc1234", ""),
     ("env-invalid", env_invalid, "fail", None, "LOOM_ARRAS_BUNDLE=", "unset it"),
     ("env-invalid-alone", env_invalid_alone, "fail", None, "LOOM_ARRAS_BUNDLE=", "unset it"),
     (
@@ -307,7 +307,7 @@ BUNDLES: list[tuple[str, Case, str, str | None, str, str]] = [
         env_unversioned,
         "warn",
         "LOOM_ARRAS_BUNDLE",
-        "LOOM_ARRAS_BUNDLE, unversioned: its interface",
+        "the viewer LOOM_ARRAS_BUNDLE names, unversioned: its interface",
         "vendor_arras.py",
     ),
     (
@@ -315,12 +315,19 @@ BUNDLES: list[tuple[str, Case, str, str | None, str, str]] = [
         env_other_interface,
         "fail",
         "LOOM_ARRAS_BUNDLE",
-        f"LOOM_ARRAS_BUNDLE, interface {INTERFACE_VERSION + 1}",
+        f"the viewer LOOM_ARRAS_BUNDLE names, interface {INTERFACE_VERSION + 1}",
         "one release",
     ),
-    ("vendored", vendored, "ok", "vendored", "vendored, arras abc1234", ""),
+    ("vendored", vendored, "ok", "vendored", "the viewer loom ships, built from arras abc1234", ""),
     ("none", none, "fail", None, "not found: loom serve refuses", "reinstall loom"),
-    ("dirty-checkout", dirty_checkout, "warn", "vendored", "vendored, stamped abc1234-dirty", "commit arras, then"),
+    (
+        "dirty-checkout",
+        dirty_checkout,
+        "warn",
+        "vendored",
+        "the viewer loom ships, stamped abc1234-dirty",
+        "commit arras, then",
+    ),
 ]
 
 
@@ -579,8 +586,10 @@ def test_exit_codes_and_the_summary(box: Box) -> None:
 def test_the_text_report_lines_up(box: Box) -> None:
     box.drop("pdfinfo")
     lines = ok("doctor", cwd=quilt(box)).stdout.splitlines()
-    checks = [m for ln in lines if (m := re.match(r"^  (?:ok|warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
-    assert len(checks) == 15 + 6  # the machine's items and the quilt's
+    # what is fine is counted on one line a section, naming each check; what is not is listed, aligned, its fix beneath (T2)
+    fine = [int(m.group(1)) for ln in lines if (m := re.match(r"^  ok    (\d+) checks?: ", ln))]
+    checks = [m for ln in lines if (m := re.match(r"^  (?:warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
+    assert len(fine) == 2 and sum(fine) + len(checks) == 15 + 6, lines  # the machine's items and the quilt's
     assert len({m.end() for m in checks}) == 1, "the details do not start in one column"
     at = lines.index(next(ln for ln in lines if ln.startswith("  warn  pdfinfo")))
     assert lines[at + 1] == f"    fix: {item(doctor(box), 'pdfinfo')['remedy']}"  # beneath the item it fixes
@@ -588,3 +597,19 @@ def test_the_text_report_lines_up(box: Box) -> None:
     # each directory a tool was found in is said once, with the tools found there
     found = lines[lines.index(next(ln for ln in lines if ln.startswith("found in ("))) + 1 :]
     assert "latexmk" in found[0] and str(box.bin.name) in " ".join(found)
+
+
+def test_a_remedy_several_checks_share_is_said_once(box: Box) -> None:
+    """T2: with no TeX the re-grade's `doctor` printed one `fix:` line under ten items; it is said once, under the last of them."""
+    box.drop("latexmk", "dvisvgm")
+    lines = exits(2, "doctor", cwd=box.tmp / "away").stdout.splitlines()
+    shared = item(doctor(box), "latexmk")["remedy"]
+    assert shared == item(doctor(box), "dvisvgm")["remedy"]
+    assert sum(1 for ln in lines if ln.strip() == f"fix: {shared}") == 1, lines
+
+
+def test_a_quilt_path_with_no_quilt_at_it_names_loom_init(box: Box) -> None:
+    """T3: `doctor --quilt /nonexistent/q` advised fixing a config.toml there is none of."""
+    missing = box.tmp / "nowhere" / "q"
+    got = next(i for i in json_of("doctor", "--quilt", str(missing), "--json", code=2)["items"] if i["name"] == "quilt")
+    assert got["remedy"].startswith(f"loom init {missing} makes a quilt there"), got

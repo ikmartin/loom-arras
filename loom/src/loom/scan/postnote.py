@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from loom.scan.model import Diagnostic, Location
+from loom.scan.model import Diagnostic, Fix, Location
 
 if TYPE_CHECKING:
     from loom.scan.edges import EdgeResult
@@ -253,5 +253,7 @@ def postnote_edges(asm: Assembly, res: EdgeResult, versions: dict[str, list[str]
                     f"\\cite[{c.postnote}]{{{c.citekey}}} names no result in the digest of {' or of '.join(digests)}",
                     [Location(c.file, c.line)],
                     [c.src],
+                    # the locator is mistyped, or the digest lacks the result: the work's report says which
+                    fixes=[Fix("see what its digest holds", f"loom library {digests[0]}")] if digests else [],
                 )
             )

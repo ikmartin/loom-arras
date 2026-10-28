@@ -124,7 +124,7 @@ def test_propose_records_who_proposed_it_with_as(tmp_path: Path) -> None:
     rec = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
     act = rec["origin"][0]
     assert act["act"] == "proposed" and act["by"] == "Reader Agent" and act["session"] == sid
-    assert "proposed  Reader Agent" in ok("library", "why", f"{ck}-thm-1.1", cwd=q).stdout
+    assert "proposed Reader Agent" in " ".join(ok("library", "why", f"{ck}-thm-1.1", cwd=q).stdout.split())
     # a drop by session still finds it
     assert json_of("library", "drop", "--session", sid, "--yes", "--json", cwd=q)["dropped"]
 
@@ -323,7 +323,7 @@ def test_check_names_a_stored_document_that_is_not_its_work_by_the_strong_rule(t
     q = _olsson_holding_the_handbook(tmp_path)
     out = " ".join(exits(1, "library", "check", "olsson03", cwd=q).stdout.split())
     assert "documents that may not be their work (1)" in out, out
-    assert "its title is not olsson03's in full and Olsson does not lead its byline olsson03" in out
+    assert "its title is not olsson03's in full and Olsson does not lead its byline" in out
     assert (
         "loom library ignore WORK --why '…' sets it aside, then loom library add FILE --for WORK files the right one"
         in out
@@ -563,3 +563,79 @@ def test_the_session_log_holds_the_command_as_typed(tmp_path: Path) -> None:
         "loom library search involution --limit 1",
         f"loom library relate {CK}-def-3.1 {RID} --kind same-notion --why 'x y' --as 'A. Author'",
     ]
+
+
+# --- 0.21.4: the re-grade's partials
+
+
+def test_titles_and_postnotes_are_said_in_the_readers_words(tmp_path: Path) -> None:
+    """T4: `library` printed `\\textit{Stacks Project}` and `library WORK` `[Thm.~4.3]`; and the "cited by" heading counted places where the verdict counted keys (T5)."""
+    q = demo(tmp_path)
+    node = q / "nodes" / "dm-0003.tex"
+    node.write_text(node.read_text() + "\nCompare \\cite{Har77}.\n")
+    bib = q / "refs.bib"
+    bib.write_text(
+        bib.read_text().replace("title     = {Algebraic Geometry}", "title     = {\\textit{Algebraic} Geometry}")
+    )
+    out = ok("library", cwd=q).output
+    assert "Algebraic Geometry" in out and "\\textit" not in out, out
+    work = ok("library", CK, cwd=q).output
+    assert "where it is cited (" in work and "~" not in work and "cited by (" not in work, work
+
+
+def test_update_says_each_way_of_numbering_and_each_environment_once() -> None:
+    """T2: `update --redo` repeated "numbering from the paper's .aux, except N counted by emulation" on every work, and "environment X is not declared" once per work and environment, 26 times."""
+    from loom.digest.extract import ExtractReport
+    from loom.refs.build import BuildReport, WorkState
+
+    hint = "\\newtheorem{claim}[theorem]{Claim}"
+
+    def work(ck: str, numbering: str) -> WorkState:
+        r = ExtractReport(ck, ck, numbering=numbering, by_taxon={"Theorem": 2}, unknown_envs={"claim": hint})
+        return WorkState(ck, digest=True, extraction=r)
+
+    text = (
+        BuildReport([work("A", "aux"), work("B", "aux"), work("C", "emulated")], steps=("extract",)).report().render()
+    )
+    assert text.count("numbered as the paper's own compile numbers them") == 1
+    assert text.count("numbered by counting the results in order") == 1
+    assert text.count("environment claim is not declared") == 1 and "A, B, C" in text, text
+    assert ".aux" not in text and "emulation" not in text  # the reader's words (T4)
+
+
+def test_a_verified_result_counts_toward_a_digest_that_is_not_thin(tmp_path: Path) -> None:
+    """T5: after the author verified a proposal, `library WORK` showed "verified 1" over "a digest too thin to trust: 0 results over 28 pages"."""
+    from loom.refs.build import in_digest
+
+    q, ck = mapped(tmp_path)
+    assert in_digest(q, ck) == 0
+    propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
+    assert in_digest(q, ck) == 0  # a proposal is not in the digest until it is verified
+    ok("library", "verify", f"{ck}-thm-4.1", "--yes", *AS, cwd=q)
+    assert in_digest(q, ck) == 1
+
+
+def test_why_says_where_a_result_was_read_in_words_and_answers_a_citekey(tmp_path: Path) -> None:
+    """T4: `why` said "anchor digests/X.tex (tex, level 3, mechanical)"; T3: given a citekey it suggested a search."""
+    q = demo(tmp_path)
+    out = ok("library", "why", RID, cwd=q).stdout
+    assert f"read from  p.1 of {CK}'s PDF" in out and "mechanical" not in out and "level" not in out, out
+    refused("library", "why", CK, cwd=q, code=2, match=f"{CK} is a work, not a result; loom library {CK} reports it")
+
+
+def test_where_a_thing_would_go_is_said_with_the_way_to_fill_it(tmp_path: Path) -> None:
+    """T3: `read --where src` advised `update --online` for a work with no arXiv id to fetch on; an overview is written, not fetched."""
+    q = demo(tmp_path)
+    r = exits(1, "library", "read", "Har77", "--where", "src", cwd=q)
+    assert "--online" not in r.stderr and "loom library add DIR --for Har77" in " ".join(r.stderr.split()), r.stderr
+    r = exits(1, "library", "read", CK, "--where", "overview", cwd=q)
+    assert f"loom write {CK} - writes it" in r.stderr, r.stderr
+
+
+def test_a_cut_search_names_a_command_that_searches_the_same_works(tmp_path: Path) -> None:
+    """T3: the hint for a search cut by `--limit` dropped `--work`, so the command it named searched every work."""
+    q = demo(tmp_path)
+    out = ok("library", "search", "fixed", "--work", CK, "--limit", "1", cwd=q).stdout
+    assert f"--work {CK} --limit" in " ".join(out.split()), out
+    hits = json_of("library", "search", "fixed", "--json", cwd=q)["hits"]
+    assert all(h["page"] != 0 for h in hits), hits  # a result read off no page has none, not page 0 (T8)

@@ -65,9 +65,15 @@ def _landmarks(quilt: Quilt, names: list[str]) -> list[str]:
     return out
 
 
-def _short(revision: str) -> str:
-    """A revision as text shows it: 7 characters, the full one staying in the JSON."""
-    return revision[:7]
+def _rev(quilt: Quilt, revision: str) -> str:
+    """A revision as text names it, by when it was made; its hash stays in the JSON (T4)."""
+    from loom.sync import SyncError, revision_time, workspace
+
+    try:
+        when = revision_time(workspace(quilt.root), revision) if revision else ""
+    except SyncError:  # no clone yet, as before a pairing
+        when = ""
+    return f"the revision of {when}" if when else "its latest revision"
 
 
 @sync.command("init")
@@ -90,7 +96,7 @@ def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_p
 
     unignored = (quilt.root / ".git").exists() and f"{WORKSPACE}/" in missing(quilt.root)
     Report(
-        f"{'would pair' if dry_run else 'paired'} with {source_label(url)} ({state.branch}) at {_short(state.integrated)}; {state.master} {'would publish' if dry_run else 'publishes'} as {state.published_main}",
+        f"{'would pair' if dry_run else 'paired'} with {source_label(url)} ({state.branch}) at {_rev(quilt, state.integrated)}; {state.master} {'would publish' if dry_run else 'publishes'} as {state.published_main}",
         ok=not unignored,
         dry_run=dry_run,
         groups=[
@@ -122,10 +128,14 @@ def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_p
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
-    """Fetch document workspace changes for Incoming review without changing author files."""
+    """Fetch the document workspace's changes for review in the viewer's Incoming panel, without changing your files."""
     from loom.render.build import build
 
     quilt = open_quilt(quilt_path)
+
+    before = _run(lambda: SyncState.read(quilt.root))
+    assert isinstance(before, SyncState)
+    seen = before.incoming
 
     def action() -> SyncState:
         return fetch(quilt, SyncState.read(quilt.root))
@@ -142,22 +152,31 @@ def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
     }
     if state.incoming == state.prepared:
         Report(
-            f"nothing incoming: {label} holds the publication prepared here, {_short(state.incoming)}", data=data
+            f"nothing incoming: {label} holds the publication prepared here, {_rev(quilt, state.incoming)}", data=data
         ).emit(as_json)
     elif state.incoming == state.integrated:
-        Report(f"nothing incoming: {label} is at {_short(state.incoming)}, already incorporated", data=data).emit(
+        Report(f"nothing incoming: {label} is at {_rev(quilt, state.incoming)}, already incorporated", data=data).emit(
             as_json
         )
     else:
+        from loom.sync import changed_files, workspace
+
+        changed = len(changed_files(workspace(quilt.root), state.integrated, state.incoming))
+        new = state.incoming != seen  # a fetch that brought nothing new says so, not "fetched" over the last one (T7)
         Report(
-            f"fetched {_short(state.incoming)} from {label}, observed {state.observed}; it waits for review in Incoming",
+            (
+                f"fetched {_rev(quilt, state.incoming)} from {label}: {counted(changed, 'file')} changed"
+                if new
+                else f"nothing new from {label} since {state.observed}: {_rev(quilt, state.incoming)}, {counted(changed, 'file')} changed"
+            )
+            + "; it waits for review in the viewer's Incoming panel",
             ok=False,
             groups=[
                 Group(
                     "to review",
                     [
                         Item(
-                            f"the pull {_short(state.incoming)}",
+                            f"the pull, {_rev(quilt, state.incoming)}",
                             fixes=["loom sync status --patch", "loom sync incorporate"],
                         )
                     ],
@@ -205,18 +224,20 @@ def status_sync(patch: bool, to: Path | None, as_json: bool, quilt_path: str | N
     files = sorted(report["files"], key=lambda f: f["path"])
     incoming, integrated = str(report["incoming"]), str(report["integrated"])
     if incoming != integrated:
-        verdict = f"{label} ({report['branch']}): {counted(len(files), 'file')} incoming at {_short(incoming)}, waiting for review"
+        verdict = f"{label} ({report['branch']}): {counted(len(files), 'file')} incoming at {_rev(quilt, incoming)}, waiting for review"
     else:
-        verdict = f"{label} ({report['branch']}): nothing incoming; the quilt has incorporated {_short(integrated)}"
+        verdict = (
+            f"{label} ({report['branch']}): nothing incoming; the quilt has incorporated {_rev(quilt, integrated)}"
+        )
     lines = [
         "",
         f"workspace:   {report['url']}",
-        f"integrated:  {_short(integrated)}",
-        f"incoming:    {_short(incoming)}",
+        f"integrated:  {_rev(quilt, integrated)}",
+        f"incoming:    {_rev(quilt, incoming)}",
     ]
     if report["prepared"]:
         lines.append(
-            f"prepared:    {_short(str(report['prepared']))}, stamped as {', '.join(_landmarks(quilt, list(report['prepared_landmarks'])))}"
+            f"prepared:    {_rev(quilt, str(report['prepared']))}, stamped as {', '.join(_landmarks(quilt, list(report['prepared_landmarks'])))}"
         )
     Report(
         verdict,
@@ -261,8 +282,12 @@ def documents_sync(
     elif document is None:
         raise EnvError(f"loom sync documents {action} needs DOCUMENT")
     else:
+        had = list(state.documents or [state.master])
         state = _run(lambda: update_documents(quilt, state, action, document, write=not dry_run))
-        if dry_run:
+        if list(state.documents or [state.master]) == had:
+            # a selection that already says so is answered, not "added" again (T7)
+            verdict = f"{document} {'is already selected' if action == 'add' else 'was not selected'}; nothing changed"
+        elif dry_run:
             verdict = f"would {action} {document}; nothing saved"
         else:
             verdict = f"{'added' if action == 'add' else 'removed'} {document}; the selection is saved, not published"
@@ -277,7 +302,8 @@ def documents_sync(
         for d in selected_now
     ]
     Report(
-        verdict or f"{counted(len(rows), 'document')} publish to {source_label(state.url)}",
+        verdict
+        or f"{counted(len(rows), 'document')} {'publishes' if len(rows) == 1 else 'publish'} to {source_label(state.url)}",
         dry_run=dry_run and bool(verdict),
         groups=[
             Group(
@@ -296,7 +322,7 @@ def documents_sync(
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Apply the fetched pull to the quilt's files, stamping first each document it reaches; Incoming does the same."""
+    """Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Incoming panel does the same."""
     from loom.cli._common import refuse_under_agent
 
     refuse_under_agent(
@@ -314,7 +340,7 @@ def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> No
         assert isinstance(after, dict)
         documents = _reaching(quilt.root, current_selection(state, scan(quilt))[1], set(after))
         Report(
-            f"would incorporate {_short(pulled)} from {source_label(state.url)} into {counted(len(after), 'file')}",
+            f"would incorporate {_rev(quilt, pulled)} from {source_label(state.url)} into {counted(len(after), 'file')}",
             dry_run=True,
             groups=[
                 Group("files that would change", [Item("", key=p) for p in sorted(after)], limit=None),
@@ -326,7 +352,7 @@ def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> No
     result = _run(lambda: incorporate(quilt, state))
     assert isinstance(result, dict)
     Report(
-        f"incorporated {_short(pulled)} from {source_label(state.url)} into {counted(len(result['paths']), 'file')}; its mathematics remains to be reviewed",
+        f"incorporated {_rev(quilt, pulled)} from {source_label(state.url)} into {counted(len(result['paths']), 'file')}; its mathematics remains to be reviewed",
         ok=False,
         groups=[
             Group("files changed", [Item("", key=p) for p in sorted(result["paths"])], limit=None),
@@ -378,7 +404,7 @@ def publish_sync(push: bool, dry_run: bool, as_json: bool, quilt_path: str | Non
     files = f"{counted(len(publication.paths), 'file')} for {', '.join(state.documents)}"
     if dry_run:
         if publication.reused:
-            verdict = f"the revision prepared earlier, {_short(publication.commit)}, holds these {files}" + (
+            verdict = f"the revision prepared earlier, {_rev(quilt, publication.commit)}, holds these {files}" + (
                 f"; it would be pushed to {label}" if push else "; nothing new would be prepared"
             )
         else:
@@ -410,10 +436,12 @@ def publish_sync(push: bool, dry_run: bool, as_json: bool, quilt_path: str | Non
     if push:
         _run(lambda: push_publication(quilt, state, publication.commit))
         data["pushed"] = True
-        Report(f"published {_short(publication.commit)} to {label}: {files}", groups=[stamped], data=data).emit(as_json)
+        Report(f"published {_rev(quilt, publication.commit)} to {label}: {files}", groups=[stamped], data=data).emit(
+            as_json
+        )
         return
     Report(
-        f"prepared {_short(publication.commit)}: {files}; {label} is unchanged until loom sync publish --push sends it",
+        f"prepared {_rev(quilt, publication.commit)}: {files}; {label} is unchanged until loom sync publish --push sends it",
         ok=False,
         groups=[stamped],
         data=data,

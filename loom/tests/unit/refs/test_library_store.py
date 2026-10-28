@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from loom.scan.bib import parse_bib
-from tests.helpers import edit, json_of, ok, refused
+from tests.helpers import edit, json_of, ok, refused, said
 from tests.unit._quilts import demo, propose, work_home
 
 BIB = "digests/bibliography.bib"
@@ -141,7 +141,7 @@ def test_a_pdf_naming_another_work_is_refused_and_force_records_the_override(tmp
     _olsson(q, handbook_entry=True)
     handbook = _fake_pdf(tmp_path / "Handbook of Moduli.pdf", HANDBOOK)
     r = refused("library", "add", handbook, "--for", "olsson03", code=2, match="it is abramovich16's", cwd=q)
-    assert "pass --force with --for olsson03" in r.output and not (work_home(q, "olsson03") / "paper.pdf").exists()
+    assert said("pass --force with --for olsson03", r.output) and not (work_home(q, "olsson03") / "paper.pdf").exists()
     refused("library", "add", handbook, "--force", code=2, match="--force applies only with --for", cwd=q)
     ok("library", "add", handbook, "--for", "olsson03", "--force", "--as", "A. Author", cwd=q)
     assert (work_home(q, "olsson03") / "paper.pdf").is_file()
@@ -170,5 +170,5 @@ def test_a_second_document_is_filed_beside_the_first_and_keeps_its_pdf(tmp_path:
     assert b"first copy" in (work_dir(q, entries["olsson03"]) / "paper.pdf").read_bytes()
     assert b"second copy" in (work_dir(q, sibling) / "paper.pdf").read_bytes()
     again = ok("library", "add", two, "--for", "olsson03", cwd=q)
-    assert again.stdout.startswith("1 document: 0 filed, 1 skipped"), again.output
+    assert again.stdout.startswith("1 document: 0 filed, 1 already in loom's store, 0 skipped"), again.output
     assert "olsson03B" not in (q / BIB).read_text()

@@ -167,16 +167,23 @@ def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None
         problems += uncited_lint(result, all_diagnostics(result), scope)
     by_kind: dict[str, list[Item]] = {}
     for p in problems:
-        by_kind.setdefault(p.kind, []).append(Item(p.why, key=p.key, data={"work": p.work, "problem": p.kind}))
+        # the keys go last unless the reason already names each of them (T2)
+        named = all(k in p.why for k in p.key.split(", "))
+        by_kind.setdefault(p.kind, []).append(
+            Item(p.why, key=None if named else p.key, data={"work": p.work, "problem": p.kind, "key": p.key})
+        )
+    from loom.refs.scan import primary_of
+
+    tops = primary_of(result.bib)  # a work's versions are counted once with it, as `loom library` counts (K7)
     faults = [p for p in problems if p.kind not in NOT_FAULTS]
     uncited = len(problems) - len(faults)
-    affected = len({p.work for p in faults})
+    affected = len({tops.get(p.work, p.work) for p in faults})
     reread = counted(checked, "verified anchor")
     Report(
         (
             f"{counted(len(faults), 'problem')} in {counted(affected, 'work')}; {reread} re-read"
             if faults
-            else f"nothing wrong in {counted(len(scope), 'work')}; {reread} re-read"
+            else f"nothing wrong in {counted(len({tops.get(ck, ck) for ck in scope}), 'work')}; {reread} re-read"
         )
         + (f"; {counted(uncited, 'work')} nothing cites with lint diagnostics" if uncited else ""),
         ok=not faults,
@@ -194,7 +201,7 @@ def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None
         ],
         data={
             "checked": checked,
-            "works": len(scope),
+            "works": len({tops.get(ck, ck) for ck in scope}),
             "problems": [{"problem": p.kind, "key": p.key, "work": p.work, "why": p.why} for p in problems],
         },
     ).emit(as_json)
@@ -245,7 +252,16 @@ def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool,
             )
         )
     if plan.citekey not in result.bib:
-        warnings.append(Item(f"{plan.citekey} is not in the bibliography", key="loom:digest-without-bib"))
+        # lint says the same and fixes nothing; what fixes it is an entry, or a citekey that has one (T3)
+        warnings.append(
+            Item(
+                f"{plan.citekey} is not in the bibliography",
+                key="loom:digest-without-bib",
+                fixes=[
+                    f"add an entry for {plan.citekey} to your bibliography, or import it with --name and a citekey it has"
+                ],
+            )
+        )
     renamed = plan.citekey != plan.old_citekey
     Report(
         f"{'would write' if dry_run else 'wrote'} {rel}"
@@ -253,7 +269,7 @@ def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool,
         + (f"; {counted(len(warnings), 'warning')}" if warnings else ""),
         ok=not warnings,
         dry_run=dry_run,
-        groups=[Group("warnings", warnings, limit=None, next="loom lint")] if warnings else [],
+        groups=[Group("warnings", warnings, limit=None, problem=True)] if warnings else [],
         data={
             "digest": rel,
             "citekey": plan.citekey,

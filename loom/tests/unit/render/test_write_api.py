@@ -263,9 +263,9 @@ def index(q: Path, sid: str) -> list[dict[str, Any]]:
     return [e for e in map(json.loads, filter(None, lines)) if e.get("id") == sid]
 
 
-def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.") -> str:
-    """Write one note on dm-0003 over the wire; its id."""
-    succeeds(s, "annotate", {"session": sid, "target": "dm-0003", "message": body, "author": WHO})
+def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.", kind: str = "note") -> str:
+    """Write one annotation on dm-0003 over the wire, a note unless `kind` says otherwise; its id."""
+    succeeds(s, "annotate", {"session": sid, "target": "dm-0003", "message": body, "kind": kind, "author": WHO})
     return the(log(q), lambda e: e.get("body") == body and e["event"] == "created", body)["id"]  # type: ignore[no-any-return]
 
 
@@ -326,7 +326,7 @@ def _resolve(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 @case("edit")
 def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
-    ann = noted(s, q, sid)
+    ann = noted(s, q, sid, kind="objection")  # a kind a severity grades
     succeeds(s, "edit", {"session": sid, "annotation": ann, "message": "Restated.", "severity": "minor", "author": WHO})
     edited = events(q, ann)[-1]
     assert (edited["event"], edited["body"], edited["severity"]) == ("edited", "Restated.", "minor"), edited

@@ -106,7 +106,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "Referee Agent",
         cwd=q,
         env=agent,
-        code=1,
+        code=2,
         match="dm-9999",
     )
     assert "loom link" in bad.output
@@ -125,7 +125,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "Referee Agent",
         cwd=q,
         env=agent,
-        code=1,
+        code=2,
         match="dm-9999",
     )
     # a person's comment is their own business

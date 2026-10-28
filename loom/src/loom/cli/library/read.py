@@ -9,7 +9,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_bib, open_scan, quilt_option
 from loom.cli.library._works import find_result, is_suggestion, logged, one_work, present, works
 from loom.cli.report import Group, Item, Report, counted, table
@@ -112,10 +112,8 @@ def read_command(
             return
         click.echo(target)
         if not there:
-            # printed anyway: the path is where it *would* go
-            note(
-                f"nothing there yet; loom library update {ck} --online fetches it, or loom library add FILE --for {ck}"
-            )
+            # printed anyway: the path is where it *would* go; the way to fill it is the work's own (T3)
+            note(f"nothing there yet; {_fills(result if result is not None else open_scan(quilt_path), ck, where)}")
             ctx.exit(EXIT_CONTENT)
         return
     if pages is None:
@@ -127,7 +125,7 @@ def read_command(
     if m is None:
         raise ContentError(f"{ck} has no page text yet; {no_pages(home, ck)}")
     if lo > m.pages:
-        raise ContentError(f"{ck} has {m.pages} pages; {lo} is past the end")
+        raise NotFoundError("page", f"{ck} has {m.pages} pages; {lo} is past the end")
     out = []
     for n in range(lo, min(hi, m.pages) + 1):
         text = read_page(home, n)
@@ -152,19 +150,35 @@ def read_command(
         click.echo(page["text"])
 
 
+def _fills(result: Any, ck: str, where: str) -> str:
+    """The command that puts something where `--where` points, for this work: an overview is written, a source fetched only on an arXiv id, and anything else filed from a copy you hold."""
+    from loom.refs.build import survey
+
+    if where == "overview":
+        return f"loom write {ck} - writes it"
+    w = next((x for x in survey(result) if x.citekey == ck), None)
+    online = (
+        f"loom library update {ck} --online fetches it, or " if w is not None and (w.declared or w.candidate) else ""
+    )
+    held = "DIR" if where == "src" else "FILE"
+    return f"{online}loom library add {held} --for {ck} files one you hold"
+
+
 def _opening(result: Any, ck: str) -> str | None:
-    """`ck`'s digest's extracted opening, the paper's own first paragraphs, which the digest file heads `\\section*{Overview}`; None with no digest or none there."""
+    """`ck`'s digest's extracted opening, the paper's own first paragraphs, which the digest file heads `\\section*{Overview}`, as the reader reads them: up to the paper's first heading, each paragraph's LaTeX made plain and its mathematics kept. None with no digest or none there."""
     from loom.refs.proposals import digest_path
+    from loom.render.fragments import plain_text
 
     path = digest_path(result.quilt.root, ck)
     if not path.is_file():
         return None
     m = re.search(
-        r"\\section\*\{Overview\}(.*?)(?=\\section|\\begin\{(?:theorem|lemma|proposition|definition|corollary)|\Z)",
+        r"\\section\*\{Overview\}(.*?)(?=\\(?:sub)*section|\\paragraph|\\begin\{(?:theorem|lemma|proposition|definition|corollary)|\Z)",
         path.read_text(encoding="utf-8"),
         re.S,
     )
-    return m.group(1).strip() if m and m.group(1).strip() else None
+    paragraphs = [plain_text(p) for p in re.split(r"\n\s*\n", m.group(1))] if m else []
+    return "\n\n".join(p for p in paragraphs if p) or None
 
 
 def _overview(result: Any, ck: str, as_json: bool) -> None:
@@ -177,9 +191,7 @@ def _overview(result: Any, ck: str, as_json: bool) -> None:
     opening = _opening(result, ck)
     v = other_version_of(result.assembly, ck)
     if v is not None:
-        note(
-            f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom library read {ck} PAGES"
-        )
+        note(f"{ck}: the digest {v.why}; its numbers and pages are unverified: loom library read {ck} N shows page N")
     if text is None and opening is None:
         raise ContentError(
             f"{ck} has no overview, and no digest opening to fall back on; `loom write {ck} -` writes an overview"
@@ -307,7 +319,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
                     "state": state_of(r),
                     "said": said_state(r),
                     "level": r.level,
-                    "page": r.anchor.page,
+                    "page": r.anchor.page if r.anchor.kind == "pdf" else None,
                     "class": r.cls,
                     "citations": cites.get(rid, 0),
                     "same": re.sub(r"[^0-9a-z]+", "", statement.casefold()),
@@ -326,6 +338,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
         for v in h["versions"]:
             also.setdefault(h["work"], {})[v] = also.get(h["work"], {}).get(v, 0) + 1
     q = shlex.quote(text)
+    scope = "".join(f" --work {ck}" for ck in sorted(wanted)) if wanted else ""  # the hint searches what this did
     cut = len(hits) > len(shown)
     # a digest's version is its extraction's, so it is said for a work whose extracted results were hit
     mechanical = dict.fromkeys(h["work"] for h in shown if h["class"] == "mechanical")
@@ -333,7 +346,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
     return Report(
         f"{counted(len(hits), 'result')} in {counted(in_works, 'work')}"
         + (f", showing {len(shown)}" if cut else "")
-        + f"; {len(digested)} of {len(result.bib)} works digested",
+        + f"; {_digested_works(result, digested)} works digested",
         lines=[] if hits else [f"next: loom library search {q} --pages searches the page text"],
         groups=present(
             *[
@@ -343,7 +356,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
                     count=sum(1 for h in hits if h["said"] == said),
                     limit=None,
                     next=(
-                        f"loom library search {q} --limit {len(hits)} shows every one"
+                        f"loom library search {q}{scope} --limit {len(hits)} shows every one"
                         if cut
                         else "loom library why ID says where one came from"
                     )
@@ -392,6 +405,14 @@ def _once_per_work(hits: list[dict[str, Any]], bib: Any) -> list[dict[str, Any]]
     return list(kept.values())
 
 
+def _digested_works(result: Any, digested: list[str]) -> str:
+    """`N of M`: works with a digest of the bibliography's works, a work's versions counted once with it (K7)."""
+    from loom.refs.scan import primary_of
+
+    tops = primary_of(result.bib)
+    return f"{len({tops.get(ck, ck) for ck in digested})} of {len({tops.get(ck, ck) for ck in result.bib})}"
+
+
 def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, limit: int) -> Report:
     """The page search: pages ranked by how often the terms occur on them, every work's best page shown before any work's second.
 
@@ -406,11 +427,9 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
     tops = primary_of(result.bib)
     pool = [w for w in survey(result) if wanted is None or w.citekey in wanted]
     found = []
-    searched = 0
     for w in pool:
         if not w.pages:
             continue
-        searched += 1
         found.extend(search_pages(work_dir(root, result.bib[w.citekey]), w.citekey, terms))
     found.sort(key=lambda h: (h.citekey in tops, -h.score, h.citekey, h.page))
     hits = []
@@ -457,8 +476,15 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
         f"{counted(len(hits), 'hit')} in {len(per_work)} of {counted(works_with_pages, 'work')} with page text"
         + (f", showing {len(shown)}" if cut else "")
     )
-    if searched < len(pool):
-        verdict += f"; {len(pool) - searched} of {len(pool)} have none to search (loom library)"
+    from loom.cli.diagnostics import cited_works
+
+    with_pages = {tops.get(w.citekey, w.citekey) for w in pool if w.pages}
+    unsearched = {tops.get(w.citekey, w.citekey) for w in pool} & {tops.get(c, c) for c in cited_works(result)}
+    if unsearched - with_pages:
+        # counted as `loom library` counts what it lists: cited works, versions folded
+        verdict += (
+            f"; {counted(len(unsearched - with_pages), 'cited work')} with none to search: loom library lists them"
+        )
     return Report(
         verdict,
         groups=present(
@@ -483,8 +509,8 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
         if shown
         else [],
         data={
-            "searched": searched,
-            "of": len(pool),
+            "searched": works_with_pages,
+            "of": len({tops.get(w.citekey, w.citekey) for w in pool}),
             "truncated": cut,
             "hits": [
                 {"work": h.citekey, "page": h.page, "section": h.section, "context": h.context, "score": h.score}
@@ -520,15 +546,18 @@ def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) 
     state = said_state(r)
     # the numbers of an extracted result are its digest's, read off whatever version was extracted
     version = other_version_of(result.assembly, citekey) if r.cls == "mechanical" else None
+    # where it was read, in the reader's words (T4)
     if r.anchor.kind == "pdf":
         last = f"-{r.anchor.last}" if r.anchor.last > r.anchor.page else ""
         anchor = f"p.{r.anchor.page}{last} of {citekey}'s PDF"
+    elif r.cls == "mechanical":
+        anchor = f"{citekey}'s LaTeX source, as loom extracted it"
     else:
-        anchor = f"{r.anchor.path or citekey + ' (its source)'}"
+        anchor = f"{r.anchor.path or 'its LaTeX source'} in {citekey}'s source"
     rows = [
         ("state", state),
         *([("version", version.read_from)] if version is not None else []),
-        ("anchor", f"{anchor} ({r.anchor.kind}, level {r.level}, {r.cls})"),
+        ("read from", anchor + ("; a main result" if str(r.level) == "1" else "")),
         *((str(o.get("act", "")), f"{o.get('by') or '—'}  {str(o.get('when', ''))[:19]}") for o in r.origin),
     ]
     if r.supersedes:
@@ -548,7 +577,11 @@ def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) 
         lines=["", *(f"  {line}" for line in table(rows))],
         groups=present(
             # what the author changed, which is what a later proposer should learn from
-            Group("the author's edit (- proposed, + verified)", [Item(line) for line in edit_diff(r)], limit=None),
+            Group(
+                f"the author's edit (- {'extracted' if r.cls == 'mechanical' else 'proposed'}, + verified)",
+                [Item(line) for line in edit_diff(r)],
+                limit=None,
+            ),
             Group(f"relations within {hops}: asserted, not checked", related, limit=None),
         ),
         data={

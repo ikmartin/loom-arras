@@ -59,7 +59,7 @@ CASES: dict[str, list[Case]] = {
         Case(("Calloway14",), why="the digest's Overview"),
         Case(("Calloway14", "--where", "dir")),
         Case(("Man12", "--where", "pdf"), exit=1, unchanged=True, why="nothing there yet"),
-        Case(("Calloway14", "99"), exit=1, unchanged=True, why="past the end"),
+        Case(("Calloway14", "99"), exit=2, unchanged=True, why="past the end"),
         Case(("Calloway14", "x"), exit=2, unchanged=True, why="not a page"),
         Case(("Calloway14", "1", "--where", "pdf"), exit=2, unchanged=True, why="PAGES and --where"),
         Case(("Calloway14", "--where", "paper"), exit=2, unchanged=True, why="not a place"),

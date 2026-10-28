@@ -144,7 +144,7 @@ def grep_work(home: Path, citekey: str, needle: str) -> list[Hit]:
         if not find_in_page(text, needle):
             continue
         n = int(path.stem)
-        sec = m.section_of(n) if m else None
+        sec = m.section_of(n) if m and not m.suspect else None
         label = f"{sec.n} {sec.title}".strip() if sec else ""
         out.append(Hit(citekey=citekey, page=n, section=label, context=_context(text, needle)))
     return out
@@ -218,7 +218,8 @@ def search_pages(home: Path, citekey: str, terms: list[str]) -> list[Hit]:
         if not all(t in folded for t in terms):
             continue
         n = int(path.stem)
-        sec = m.section_of(n) if m else None
+        # a map that is a guess names no section, rather than a misread line as one
+        sec = m.section_of(n) if m and not m.suspect else None
         label = f"{sec.n} {sec.title}".strip() if sec else ""
         hit = Hit(citekey=citekey, page=n, section=label, context=snippet(text, terms, 70))
         hit.score = sum(folded.count(t) for t in terms)

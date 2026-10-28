@@ -606,7 +606,7 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
     # a declared agent is refused whatever shell it is in: the guard is on the identity, not the door
     refused("accept", "dm-0002", "--as", "Referee Agent", code=2, match="is an agent", cwd=q)
     # and under the marker the author's name is refused too: a name cannot be checked, and an agent typing it is the case to stop (DR-325-ikmartin)
-    refused("accept", "dm-0002", "--as", "A. Author", code=2, match="whatever --author or --as says", cwd=q)
+    refused("accept", "dm-0002", "--as", "A. Author", code=2, match="whatever --as says", cwd=q)
     # proposing is the agent's, and still works
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     # and nothing was recorded as verified by anyone
@@ -622,7 +622,9 @@ def test_verifying_on_a_terminal_shows_both_texts_first(tmp_path: Path) -> None:
     assert "--- the page" in r.output and "Theorem 4.1. Every widget is a gadget" in r.output
     assert "--- rendered as ---" in r.output
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    refused("library", "verify", f"{ck}-thm-1.1", "--as", "x", code=2, match="pass --yes", cwd=q)  # not a tty, no --yes
+    refused(
+        "library", "verify", f"{ck}-thm-1.1", "--as", "x", code=2, match="--yes verifies once you have", cwd=q
+    )  # not a tty, no --yes
 
 
 def test_the_page_around_the_quote_is_what_a_rendering_is_judged_against(tmp_path: Path) -> None:
@@ -798,6 +800,16 @@ def test_a_book_length_map_with_almost_no_sections_says_it_is_a_guess() -> None:
     assert book.suspect and not paper.suspect
 
 
+def test_a_map_whose_titles_read_as_sentences_says_it_is_a_guess() -> None:
+    """T4: `search --pages` printed section labels such as "[1 If Y has irreducible components Y1 ,]", and `check` called only one map a guess."""
+    from loom.refs.pages import PageMap, Section
+
+    misread = [Section("1", "If Y has irreducible components Y1 ,", 2), Section("2", "Let X be a scheme", 4)]
+    titled = [Section("1", "Introduction", 1), Section("2", "Virtual pullbacks", 4), Section("3", "Functoriality", 9)]
+    assert PageMap(sha256="x", pages=20, sections=[*misread, Section("3", "Functoriality", 9)]).suspect
+    assert not PageMap(sha256="x", pages=20, sections=titled).suspect
+
+
 def test_a_folio_number_at_a_page_join_is_not_part_of_the_text(tmp_path: Path) -> None:
     """Alper's book: a quotation over pp.353-354 matched only once the agent typed the printed page number "345" into it."""
     from loom.refs.pages import read_pages
@@ -869,10 +881,11 @@ def test_a_work_with_no_pdf_gets_no_geometry(tmp_path: Path) -> None:
 def test_local_names_are_the_papers_numbering(tmp_path: Path) -> None:
     """Brion numbers corollaries within a subsection; the agent split 2.3's two and invented `cor-2.3-quotient`, which no citation by number can find (contract §3.2)."""
     q, ck = mapped(tmp_path)
-    bad = propose(q, ck, "cor-2.3-quotient", 1, "Let $f$ be a DM-type morphism", "S", code=1, match="cor-2.3.1")
+    # a value the command does not understand: refused by name, exit 2 (K3)
+    bad = propose(q, ck, "cor-2.3-quotient", 1, "Let $f$ be a DM-type morphism", "S", code=2, match="cor-2.3.1")
     assert "star-" in bad.output
     propose(
-        q, ck, "thm-quotient", 1, "Let $f$ be a DM-type morphism", "S", code=1, match="is not the paper's own number"
+        q, ck, "thm-quotient", 1, "Let $f$ be a DM-type morphism", "S", code=2, match="is not the paper's own number"
     )
     for local in ("cor-2.3.1", "thm-A", "prop-A.2", "lem-star-1", "thm-7.5.11"):
         propose(q, ck, local, 1, "Let $f$ be a DM-type morphism", "S")
@@ -1278,7 +1291,7 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
     # nor does the author's name pass under the marker
     refused(
         "library", "ignore", "Calloway14", "--as", "A. Author", "--why", "no fixed version",
-        code=2, match="whatever --author or --as says", cwd=q,
+        code=2, match="whatever --as says", cwd=q,
     )  # fmt: skip
     # and a declared agent is refused whichever surface it came through
     refused(
@@ -1706,7 +1719,10 @@ def test_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> None:
     # a quotation found on the word boxes and not in the committed text is a box, and names its rectangle instead
     edit(q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt", "The function L is a", "The map L is a")
     drawn = ok("library", "locate", "Bellamy19", "The function L is a quasi-polynomial", "--page", "2", cwd=q).output
-    assert "  box  " in drawn and "&box=" in drawn and "span=" not in drawn, drawn
+    assert "matched by its region" in drawn and "&box=" in drawn and "span=" not in drawn, drawn
+    assert said.startswith("found on Bellamy19 p.2: 2 words on 1 line, matched in its text layer"), (
+        said
+    )  # the verdict first (T1)
 
 
 @pytest.mark.poppler
@@ -1864,7 +1880,7 @@ def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped
     assert (rows["a.pdf"]["citekey"], rows["a.pdf"]["outcome"]) == ("Man12", "filed")
     assert rows["a.pdf"]["strong"][0]["how"] == "arXiv:0805.2065v2 is on its first pages"
     hart = rows["Hartshorne - 1977 - Algebraic Geometry.pdf"]
-    assert hart["outcome"] == "skipped" and hart["reason"].startswith("Har77 is the nearest entry, on first-author")
+    assert hart["outcome"] == "skipped" and hart["reason"].startswith("Har77 is the nearest entry, by its first author")
     assert (rows["b.pdf"]["citekey"], rows["b.pdf"]["outcome"]) == ("Har77", "filed")
     assert (rows["c.pdf"]["outcome"], rows["c.pdf"]["sibling"]) == ("filed", "Calloway14A")
     assert (rows["d.pdf"]["outcome"], rows["d.pdf"]["reason"]) == ("skipped", "nothing in the bibliography matches it")

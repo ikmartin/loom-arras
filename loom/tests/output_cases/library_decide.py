@@ -56,7 +56,7 @@ KIND: dict[str, str] = {
 CASES: dict[str, list[Case]] = {
     "library verify": [
         Case(("Calloway14-rem-9.1", "--yes", *AS), proposed),
-        Case(("Calloway14-prop-3.2", "--yes", *AS), why="verifying an extracted result"),
+        Case(("Calloway14-prop-3.2", "--yes", *AS), why="verifying an extracted result", shown=True),
         Case((SUGGESTION, *AS), suggested, why="accepting a citation suggestion"),
         Case(("Calloway14-rem-9.1", SUGGESTION, "--yes", *AS), both, why="a result and a suggestion at once"),
         Case(("Calloway14-rem-9.1", "--dry-run", *AS), proposed, unchanged=True),

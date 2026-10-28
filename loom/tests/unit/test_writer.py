@@ -45,7 +45,7 @@ def test_the_authors_verbs_refuse_a_declared_agent_whatever_shell_it_is_in(tmp_p
     # and under an agent marker the author's name does not pass either: a name cannot be checked, and an agent typing the author's is the case to stop (DR-325-ikmartin)
     refused(
         "library", "ignore", "Bellamy19", "--why", "a study", "--as", "A. Author", "--quilt", str(q),
-        code=2, match="whatever --author or --as says", env={"AI_AGENT": "1"},
+        code=2, match="whatever --as says", env={"AI_AGENT": "1"},
     )  # fmt: skip
     # without the marker the author, named, is the author
     ok("library", "ignore", "Bellamy19", "--why", "a study", "--as", "A. Author", "--quilt", str(q), env=unmarked)

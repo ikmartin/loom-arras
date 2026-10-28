@@ -113,8 +113,9 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
     from loom.cli.review import agent_line
 
     lines.append(f"- agent documents: {agent_line(payload) or 'none'}")
-    errors = sum(1 for d in result.lint if d.severity == "error")
-    lines.append(f"- lint: {errors} error(s); run `loom lint` for the list")
+    from loom.cli.diagnostics import tally
+
+    lines.append(f"- lint: {tally(result.lint, result)}; run `loom lint` for the list")
     und = payload["undigested"]
     lines.append("- undigested citekeys: " + (", ".join(und) if und else "none"))
     from loom.sessions import active

@@ -105,7 +105,7 @@ def _split_diff(diff: str) -> list[list[str]]:
 
 
 def _apply(root: Path, lines: list[str]) -> tuple[str, str]:
-    rel = lines[0][4:].strip()
+    rel = lines[0][4:].strip().removeprefix("a/")  # loom prints every patch for `git apply` at its default -p1
     text = (root / rel).read_text(encoding="utf-8").splitlines(keepends=True)
     out: list[str] = []
     pos = 0
@@ -182,7 +182,7 @@ def build_synthetic(dest: Path) -> None:
     # The talk needs its own version of the two-proof lemma.
     g.at("2026-09-15T12:00:00Z")
     out = g.run("fork", "sy-0006", "--in", "drafting/talk.tex")
-    g.apply_patch(out[out.index("--- drafting/talk.tex") :])
+    g.apply_patch(out[out.index("--- a/drafting/talk.tex") :])
     forked = re.search(r"nodes/(sy-[0-9A-Z]{4})\.tex", out)
     assert forked, out
     fork_id = forked.group(1)
@@ -194,7 +194,7 @@ def build_synthetic(dest: Path) -> None:
     g.edit("nodes/sy-0002.tex", "one or two points", "at most two points")
     g.at("2026-09-15T14:00:00Z")
     out = g.run("revert", "sy-0002@1")
-    g.apply_patch(out[out.index("--- nodes/sy-0002.tex") :])
+    g.apply_patch(out[out.index("--- a/nodes/sy-0002.tex") :])
 
     # The talk's own copy is shortened for the slide; a stamp records it, the only key that moved.
     g.edit(
@@ -1381,13 +1381,13 @@ def build_showcase(dest: Path) -> None:
     g.edit("nodes/sh-0008.tex", "an honest dimension count", "a dimension count one can trust")
     g.at("2026-09-17T11:05:00Z")
     out = g.run("revert", "sh-0008@1")
-    g.apply_patch(out[out.index("--- nodes/sh-0008.tex") :])
+    g.apply_patch(out[out.index("--- a/nodes/sh-0008.tex") :])
 
     # ---- A second master, and a node forked for it. -------------------------------------------------------
     _later("showcase", "drafting/talk.tex", dest)
     g.at("2026-09-17T12:00:00Z")
     out = g.run("fork", "sh-0006", "--in", "drafting/talk.tex")
-    g.apply_patch(out[out.index("--- drafting/talk.tex") :])
+    g.apply_patch(out[out.index("--- a/drafting/talk.tex") :])
     forked = re.search(r"nodes/(sh-[0-9A-Z]{4})\.tex", out)
     assert forked, out
     # The talk's copy is shortened for the slide, and loses the reference the slide cannot show.

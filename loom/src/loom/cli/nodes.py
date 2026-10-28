@@ -289,9 +289,11 @@ def search(
     if found is not None and not bare:
         if not found:
             where = only or "any drafting document"
+            # the command names the document it would refresh, not a placeholder (T3)
+            doc = only or result.default_master or "DOCUMENT"
             Report(
                 f"nothing is numbered {asked} in {where}",
-                lines=["a document numbers only what its last compile saw: loom compile DOCUMENT refreshes it"],
+                lines=[f"a document numbers only what its last compile saw: loom compile {doc} refreshes it"],
                 data={"matches": []},
             ).emit(as_json)
             return
@@ -329,9 +331,13 @@ def search(
             for e in part
         ]
         if rows:
-            groups.append(Group(heading, keyed(rows), limit=20, next=more if len(rows) > 20 else None))
+            # the cited works' results by their words are the library's search; each names the other (K7)
+            other = f"loom library search {shlex.quote(query)} searches their results by every word"
+            later = more if len(rows) > 20 else other if heading == "in cited works" else None
+            groups.append(Group(heading, keyed(rows), limit=20, next=later))
     Report(
         f"{counted(len(entries), 'match', 'matches')} for {asked!r}" if entries else f"nothing matches {asked!r}",
+        lines=[] if entries else [f"next: loom library search {shlex.quote(query)} searches the cited works' results"],
         groups=groups,
         data={"matches": entries},
     ).emit(as_json)

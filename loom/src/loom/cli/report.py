@@ -15,7 +15,7 @@ from typing import Any, TextIO
 
 import click
 
-from loom.cli._common import emit_json
+from loom.cli._common import emit_json, fit
 
 #: The width text output keeps within (T5).
 WIDTH = 100
@@ -164,7 +164,7 @@ class Report:
     def emit(self, as_json: bool = False) -> None:
         """Print the report, notes to stderr, and end the command with its exit code."""
         for n in self.notes:
-            click.echo(n, err=True)
+            click.echo(fit(n), err=True)
         if as_json:
             emit_json(self.to_json())
         else:
@@ -255,12 +255,17 @@ class Progress:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True) if ticking else None
 
+    #: How many are running, so that a step that shows progress of its own (`open_scan`) stays quiet inside a command's.
+    running = 0
+
     def __enter__(self) -> Progress:
+        Progress.running += 1
         if self._thread is not None:
             self._thread.start()
         return self
 
     def __exit__(self, *exc: object) -> None:
+        Progress.running -= 1
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2)

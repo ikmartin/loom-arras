@@ -8,6 +8,7 @@ from typing import Any
 from loom.cli.library._works import one_work, present
 from loom.cli.report import LIMIT, Group, Item, Report, counted, table
 from loom.refs.build import WorkState
+from loom.render.fragments import plain_text, plain_title
 from loom.scan.scan import ScanResult
 
 #: Why a cited work needs the person, each with the command that clears it (`WORK` and `FILE` stand for the work and a document).
@@ -328,7 +329,12 @@ def work_report(result: ScanResult, citekey: str) -> Report:
             if c.citekey == citekey and c.file not in result.assembly.digest_files
         }
     )
-    groups.append(Group("cited by", [Item(f"[{pn}]" if pn else "", key=src) for src, pn in sites], limit=None))
+    # each place it is cited, so the heading counts places where the verdict counts keys
+    groups.append(
+        Group(
+            "where it is cited", [Item(f"[{plain_text(pn)}]" if pn else "", key=src) for src, pn in sites], limit=None
+        )
+    )
     title = _fold(str(result.bib[citekey].fields.get("title") or ""))
     accepted = [
         n
@@ -350,7 +356,15 @@ def work_report(result: ScanResult, citekey: str) -> Report:
         else ("set aside" if w.unreadable else "not digested")
     )
     needs = (
-        "needs you" if row.cause else ("waits for review" if row.waiting else ("done" if row.done else "in progress"))
+        "needs you"
+        if row.cause
+        else "waits for review"
+        if row.waiting
+        else "its numbers and pages unverified"
+        if row.other_version is not None
+        else "done"
+        if row.done
+        else "in progress"
     )
     verdict = f"{citekey}: cited by {counted(row.cited, 'key')}, {state}; {needs}"
     said = (
@@ -403,7 +417,7 @@ def _cause_text(result: ScanResult, r: Row) -> str:
             if w.candidate
             else ("arXiv id declared" if w.declared else "identifier declared")
         )
-    return str(result.bib[w.citekey].fields.get("title") or "")[:60]
+    return plain_title(str(result.bib[w.citekey].fields.get("title") or ""))
 
 
 def _unread_text(r: Row) -> str:

@@ -23,14 +23,14 @@ from loom.scan.scan import scan
 @click.option(
     "--force",
     is_flag=True,
-    help="Render every fragment again, ignoring the cache and retrying remembered SVG failures.",
+    help="Render every block again, ignoring the cache and retrying remembered SVG failures.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def build_command(keys: tuple[str, ...], force: bool, as_json: bool, quilt_path: str | None) -> None:
     """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
-    Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
+    Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
     """
     quilt = open_quilt(quilt_path)
     with Progress("scanning") as progress:
@@ -40,7 +40,7 @@ def build_command(keys: tuple[str, ...], force: bool, as_json: bool, quilt_path:
         report = build(quilt, wanted, force=force, reuse=result, progress=progress.told)
     errors = [d for d in report.diagnostics if d.severity == "error"]
     bad = has_errors(errors, report.result)
-    done = f"published build/: {counted(len(report.rendered), 'fragment')} rendered, {len(report.skipped)} unchanged"
+    done = f"published build/: {counted(len(report.rendered), 'block')} rendered, {len(report.skipped)} unchanged"
     Report(
         done + (f"; {tally(errors, report.result)}" if bad else ""),
         ok=not bad,

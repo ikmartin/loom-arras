@@ -103,3 +103,18 @@ def test_search_names_a_cited_result_by_its_locator_and_lists_the_authors_result
     assert [g["heading"] for g in payload["groups"]] == ["in your documents", "in cited works"]
     digest = next(m for m in payload["matches"] if m["key"] == "Calloway14-prop-3.2")
     assert digest["name"] == "Proposition 3.2 of Calloway" and digest["title"].startswith("{\\cite[")
+
+
+def test_deps_and_downstream_say_how_in_the_readers_words(tmp_path: Path) -> None:
+    """T4: `deps` said `via uses,ref` and `via postnote`, `downstream` said `via transitive`; T2: two references on one line printed as identical rows."""
+    q = demo(tmp_path)
+    deps = ok("deps", "dm-0003", cwd=q).stdout
+    assert "listed in \\uses" in deps and "via " not in deps, deps
+    proof = q / "nodes" / "dm-0003.tex"
+    proof.write_text(
+        proof.read_text().replace("By Lemma~\\ref{lem:orbits}", "By Lemma~\\ref{lem:orbits} (that is, \\ref{dm-0002})")
+    )
+    down = ok("downstream", "dm-0002", cwd=q).stdout
+    rows = [ln for ln in down.splitlines() if "nodes/dm-0003.tex:" in ln]
+    assert len(rows) == len(set(rows)) >= 2 and any("lem:orbits" in r for r in rows), down
+    assert "via transitive" not in down and "transitive" not in down

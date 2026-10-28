@@ -13,7 +13,7 @@ import click
 
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli.paper import check_prefix
-from loom.cli.report import Group, Item, Report
+from loom.cli.report import Group, Item, Report, counted
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -275,7 +275,7 @@ def init(
     here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
     target = Path(directory).expanduser() if directory else Path.cwd()
     if is_quilt_root(target) or any(is_quilt_root(p) for p in target.resolve().parents):
-        raise EnvError(f"{target} is already inside a quilt")
+        raise EnvError(f"{target} is already inside a quilt; loom import FILE brings a paper into it")
     paper = Path(from_file).expanduser().resolve() if from_file else None
     if paper is not None and not paper.is_file():
         raise NotFoundError("file", f"{from_file} is not a file")
@@ -325,8 +325,9 @@ def init(
     _, said_ai = setup_ai(target, choice)
     gitted = git_init and _git_init(target)
     groups = list(imported.groups) if imported else []
-    groups.append(Group("wrote .gitignore, which ignores", [Item(line) for line in GITIGNORE], limit=None))
-    setup = [Item(line) for line in said_ai]
+    # one line, not one per glob: the file says them for whoever wants them (T2)
+    setup = [Item(f"wrote .gitignore: {counted(len(GITIGNORE), 'pattern')} for what loom regenerates or keeps local")]
+    setup += [Item(line) for line in said_ai]
     if gitted:
         setup.append(Item(f"ran git init in {target}, as --git asked; loom itself reads no history"))
     here_now = target.resolve() == Path.cwd().resolve()

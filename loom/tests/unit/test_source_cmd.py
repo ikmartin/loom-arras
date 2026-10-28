@@ -66,3 +66,10 @@ def test_source_on_an_equation_label_prints_what_holds_it(tmp_path: Path) -> Non
     )
     r = ok("source", "Calloway14-eqx", cwd=d)
     assert "inside" in r.output and "x=y" in r.output, r.output
+
+
+def test_a_closure_is_called_a_closure(tmp_path: Path) -> None:
+    """K7 and T7: `source --closure` wrote nothing and said "% Bundle written by loom" under a "Bundle for" heading."""
+    q = demo(tmp_path)
+    out = ok("source", "dm-0003", "--closure", cwd=q).stdout
+    assert "Bundle" not in out and "written by" not in out and "\\section*{The closure of dm-0003}" in out, out[:400]

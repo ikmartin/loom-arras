@@ -19,6 +19,22 @@ class _LibraryGroup(CommandGroup):
     A word followed by another argument cannot be a WORK, so one close to a subcommand's name is refused as a mistyped command there; a lone word that names no work is refused the same way by `_show`.
     """
 
+    # the person's reading and deciding first, then filling the library, then upkeep (K6)
+    sections = (
+        ("Read", "What the library holds, and what waits for you.", ("review", "read", "search", "why")),
+        ("Decide", "Your decisions about what the library holds.", ("verify", "discard", "ignore", "relate")),
+        (
+            "Fill",
+            "Bring documents in and digest what a machine can; an agent proposes and locates the rest.",
+            ("update", "add", "propose", "locate"),
+        ),
+        (
+            "Upkeep",
+            "Check what is stored, bring a digest in, and clear what is not wanted.",
+            ("check", "import", "drop"),
+        ),
+    )
+
     def resolve_command(
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:

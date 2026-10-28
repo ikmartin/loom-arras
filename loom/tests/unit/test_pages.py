@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.helpers import edit, exits, json_of, ok, refused
-from tests.unit._quilts import showcase
+from tests.helpers import edit, exits, json_of, ok, refused, said
+from tests.unit._quilts import demo, showcase
 
 AGENT = ("--as", "Test Agent")
 
@@ -51,7 +51,7 @@ def test_a_link_that_names_nothing_is_refused_and_nothing_is_written(tmp_path: P
     before = (q / "research-state.md").read_text()
     refused(
         "write", "state", "See [](quilt:sh-9999).", "--base", hash_of(q, "research-state.md"), *AGENT,
-        cwd=q, code=1, match="no key sh-9999",
+        cwd=q, code=2, match="no key sh-9999",
     )  # fmt: skip
     assert (q / "research-state.md").read_text() == before
 
@@ -59,13 +59,13 @@ def test_a_link_that_names_nothing_is_refused_and_nothing_is_written(tmp_path: P
 def test_a_works_overview_lives_in_its_store_directory_and_library_read_prints_it(tmp_path: Path) -> None:
     q = showcase(tmp_path)
     read = ok("library", "read", "Bellamy19", cwd=q)
-    assert read.stdout.startswith("## [overview]") and "a reading, not the paper" in read.stderr
+    assert read.stdout.startswith("## [overview]") and said("a reading, not the paper", read.stderr)
     data = json_of("library", "read", "Bellamy19", "--json", cwd=q)
     assert data["path"].endswith("/overview.md") and data["hash"] == hash_of(q, data["path"])
     assert ok("library", "read", "Bellamy19", "--where", "overview", cwd=q).stdout.strip() == str(q / data["path"])
     # a work with no overview prints its digest's opening, and says so
     opening = ok("library", "read", "Arden24", cwd=q)
-    assert "has no overview yet" in opening.stderr and "the paper's own words" in opening.stderr
+    assert "has no overview yet" in opening.stderr and said("the paper's own words", opening.stderr)
 
 
 def test_the_manifest_publishes_each_page_with_who_wrote_it_and_its_links_that_moved_or_broke(tmp_path: Path) -> None:
@@ -102,3 +102,13 @@ def test_an_agent_may_not_edit_the_research_state_by_hand(tmp_path: Path) -> Non
 
     assert "Edit(/research-state.md)" in settings_deny_paths(QuiltConfig())
     assert "Edit(/notes/state.md)" in settings_deny_paths(QuiltConfig(research_state="notes/state.md"))
+
+
+def test_the_papers_opening_ends_at_its_first_heading_and_reads_plain(tmp_path: Path) -> None:
+    """T4: with no overview, `library read WORK` printed the extracted section raw and ran on into `\\paragraph{Notation and conventions.}`."""
+    q = demo(tmp_path)
+    digest = q / "digests" / "Calloway14.tex"
+    edit(digest, "Section 2 fixes conventions.", "\\paragraph{Notation and conventions.} Section 2 fixes conventions.")
+    out = ok("library", "read", "Calloway14", cwd=q).stdout
+    assert out.startswith("Let $X$ be a topological space") and "The fixed locus $\\operatorname{Fix}(\\sigma)$" in out
+    assert "\\emph" not in out and "Notation" not in out and "Section 2" not in out, out

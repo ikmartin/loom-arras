@@ -278,6 +278,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                         f"{key} references {rk} but its \\uses does not list it",
                         [_loc(result, n)],
                         [key],
+                        fixes=[Fix("list it", f"add {rk} to the \\uses of {key}")],
                     )
                 )
         for uk in sorted(k for k in use_keys - ref_keys if k):
@@ -423,6 +424,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 f"{ck} is cited with a locator but has no digest",
                 [],
                 sorted(set(srcs)),
+                fixes=[Fix("digest it", f"loom library update {ck}")],
             )
         )
     # a cited work with no global identifier can never be deduplicated, fetched, or matched against another quilt's
@@ -498,7 +500,17 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             continue
         if not any(path in e.reached for e in result.expansions.values()):
             node_keys = [k for k, n in asm.nodes.items() if n.file == path and n.kind in ("environment", "section")]
-            diags.append(Diagnostic("info", "unreachable", f"no master reaches {path}", [Location(path, 1)], node_keys))
+            stem = path.removesuffix(".tex")
+            diags.append(
+                Diagnostic(
+                    "info",
+                    "unreachable",
+                    f"no master reaches {path}",
+                    [Location(path, 1)],
+                    node_keys,
+                    fixes=[Fix("read it, or let it go", f"\\input{{{stem}}} in a document, or remove {path}")],
+                )
+            )
     # dependency cycles
     for cyc in graph.cycles():
         diags.append(

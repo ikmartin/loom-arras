@@ -126,7 +126,7 @@ class History:
         return [e for e in self.steps() if e.get("landmark")]
 
     def landmark(self, ref: str) -> Entry | None:
-        """A landmark by its name (`widgets-v3`), its step's number, or `DOC@STEP` (`main@5`, the document's stem and the step).
+        """A landmark by its name (`widgets-v3`), its step's number, or `DOC@STEP` (`main@5` or `drafting/main.tex@5`, the document by stem or path, and the step).
 
         Parameters
         ----------
@@ -144,7 +144,7 @@ class History:
             e = self.step(int(n))
             if e is None or not e.get("landmark"):
                 return None
-            named = {Path(str(e.get("in") or "")).stem, Path(str(e.get("landmark"))).stem}
+            named = {Path(str(e.get("in") or "")).stem, Path(str(e.get("landmark"))).stem, str(e.get("in") or "")}
             return e if not stem or stem in named else None
         for e in reversed(self.landmarks()):
             if ref in (Path(str(e.get("landmark"))).stem, e.name, e.dir, str(e.step), f"{e.step:04d}"):

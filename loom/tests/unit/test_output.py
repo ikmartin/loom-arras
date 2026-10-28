@@ -1,6 +1,6 @@
 """The terminal principles, held for every command (plan 0.18.3).
 
-Every leaf command in the tree has a kind and its cases in `tests/output_cases`; each case runs on a fresh demo quilt, as text and, when the command takes it, with `--json`. A report leads with its verdict, keeps within 100 columns, and names no storage path and no hash; a refusal says `Error:` on stderr and nothing on stdout; `--json` is one envelope on stdout, on failure as on success; and every exit code is the one the case expects.
+Every leaf command in the tree has a kind and its cases in `tests/output_cases`; each case runs on a fresh demo quilt, as text and, when the command takes it, with `--json`. A report leads with its verdict, keeps within 100 columns on both streams, and names no storage path and no hash; a refusal says `Error:` on stderr and nothing on stdout; `--json` is one envelope on stdout, on failure as on success; and every exit code is the one the case expects.
 """
 
 from __future__ import annotations
@@ -93,6 +93,12 @@ def test_the_text_leads_with_its_verdict_and_fits(path: str, i: int, case: Case,
         after = files_of(q)
         changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
         assert changed == [], f"wrote {changed}" + describe(argv, r)
+    if not case.shown:
+        # a word longer than the width (a path) stands alone on its line, which is as narrow as it can be
+        long_err = [
+            ln for ln in r.stderr.split("\n") if len(ln) > WIDTH and len(ln.removeprefix("Error: ").split()) > 1
+        ]
+        assert long_err == [], f"stderr lines over {WIDTH} columns" + describe(argv, r)
     if not r.stdout.strip():
         # nothing on stdout: a refusal, said once on stderr in the one error style
         assert r.exit_code != 0, "succeeded and said nothing" + describe(argv, r)

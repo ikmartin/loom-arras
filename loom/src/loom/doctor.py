@@ -148,7 +148,7 @@ class Report:
 
     def report(self) -> OutReport:
         """The report `loom doctor` prints: the summary as its verdict, an item per check, machine first, with a `fix:` line under each item that is not ok, then the directories the tools were found in."""
-        from loom.cli.report import Group, Report
+        from loom.cli.report import Group, Report, counted
         from loom.cli.report import Item as Line
 
         width = max(len(i.name) for i in self.items)
@@ -159,9 +159,13 @@ class Report:
         ):
             if not items:
                 continue
-            lines = []
-            for i in items:
-                fixes = [_home(i.remedy)] if i.status != OK and i.remedy else []
+            # what is fine is counted and named on one line; what is not is listed, each remedy said once under the last item it fixes (T2)
+            fine = [i for i in items if i.status == OK]
+            lines = [Line(f"ok    {counted(len(fine), 'check')}: {', '.join(i.name for i in fine)}")] if fine else []
+            rest = [i for i in items if i.status != OK]
+            for n, i in enumerate(rest):
+                later = any(j.remedy == i.remedy for j in rest[n + 1 :])
+                fixes = [_home(i.remedy)] if i.remedy and not later else []
                 said = f"{i.status:<4}  {i.name:<{width}}  {_home(i.detail)}".rstrip()
                 lines.append(Line(said, fixes=fixes, data=i.to_dict()))
             groups.append(Group(section, lines, limit=None, problem=True))
@@ -183,6 +187,27 @@ class Report:
             groups=groups,
             data=data,
         )
+
+
+def _bundle_words(source: str, version: str) -> str:
+    """Which viewer `loom serve` serves, in words: where it comes from, the arras commit it was built from and when, and the interface it reads."""
+    from loom.arras_bundle import STAMP
+
+    whose = _whose(source)
+    m = STAMP.fullmatch(version.strip())
+    when = re.search(r"vendored (\d{4}-\d{2}-\d{2})", version)
+    if m is None:
+        return f"{whose}, {version}" if version else whose
+    return (
+        f"{whose}, built from arras {m.group(1)}"
+        + (f" on {when.group(1)}" if when else "")
+        + f", interface {m.group(2)}"
+    )
+
+
+def _whose(source: str) -> str:
+    """Where the viewer `loom serve` serves comes from, as a reader says it."""
+    return "the viewer loom ships" if source == "vendored" else f"the viewer {source} names"
 
 
 def _home(text: str) -> str:
@@ -375,7 +400,7 @@ def check_author(quilt: Any) -> Item:
         remedy = f'add name = "Your Name" under [author] in {user_config_path()}, or git config --global user.name "Your Name"'
         return Item("author", WARN, OPTIONAL, "none: accept and annotate refuse without one", remedy)
     note = (
-        "; tracked quilt author ignored; configure the reviewer in local Settings"
+        "; the author config.toml names is ignored, since the reviewer is whoever runs loom: set yours in the viewer's Settings"
         if quilt is not None and quilt.config.author_declared
         else ""
     )
@@ -405,7 +430,7 @@ def check_bundle() -> Item:
         "path": str(info.path) if info else None,
         "interface": stamp[1] if stamp else None,
     }
-    item = Item("arras bundle", OK, REQUIRED, f"{info.source}, {info.version}" if info else "", "", extra)
+    item = Item("arras bundle", OK, REQUIRED, _bundle_words(info.source, info.version) if info else "", "", extra)
     bad_env = env_problem()
     if bad_env:
         item.status = FAIL
@@ -422,12 +447,12 @@ def check_bundle() -> Item:
         item.remedy = "use a bundle loom/scripts/vendor_arras.py stamped"
     elif stamp[1] != INTERFACE_VERSION:
         item.status = FAIL
-        item.detail = f"{info.source}, interface {stamp[1]}, but loom writes interface {INTERFACE_VERSION}: the viewer misreads the manifest"
+        item.detail = f"{_whose(info.source)}, interface {stamp[1]}, but loom writes interface {INTERFACE_VERSION}: the viewer misreads the manifest"
         item.remedy = VENDOR if checkout else "install the loom and the arras of one release"
     elif checkout is not None:
         why = staleness(checkout, stamp[0], PROBE_TIMEOUT)
         if why:
-            item.status, item.detail = WARN, f"vendored, {'; '.join(why)}"
+            item.status, item.detail = WARN, f"{_whose('vendored')}, {'; '.join(why)}"
             # vendor_arras.py refuses an arras with uncommitted changes
             item.remedy = ("commit arras, then " if stamp[0].endswith("-dirty") else "") + VENDOR
     return item
@@ -561,13 +586,17 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
     report.items += check_tools()
     report.items += [check_author(quilt), check_bundle()]
     if bad_quilt is not None:
+        # a path with no quilt at it has no config.toml to fix
+        none_there = bool(quilt_path) and bad_quilt.startswith("not inside a quilt")
         report.items.append(
             Item(
                 "quilt",
                 FAIL,
                 QUILT,
                 bad_quilt,
-                "fix config.toml: every command but init and doctor refuses until it reads",
+                f"loom init {quilt_path} makes a quilt there, or give --quilt a quilt's root"
+                if none_there
+                else "fix config.toml: every command but init and doctor refuses until it reads",
             )
         )
     if quilt is not None:

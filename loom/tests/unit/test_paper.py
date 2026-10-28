@@ -11,7 +11,7 @@ from loom.history.steps import text_hash
 from loom.reshape.anchoring import anchoring_violations, fix_anchoring
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from tests.helpers import exits, json_of, ok, refused, run, templated, the
+from tests.helpers import exits, flat, json_of, ok, refused, run, templated, the
 
 PAPER = r"""\documentclass{amsart}
 \usepackage{amsthm}
@@ -167,6 +167,13 @@ def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends
     p = tmp_path / "paper"
     r = refused("import", str(p / "main.tex"), "--yes", cwd=q, code=2, match="import never overwrites a document")
     assert f"loom import {p / 'main.tex'} --to drafting/main-2.tex" in said(r)
+    # the dry run and the confirmation name the step this import will be, not the first
+    dry = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--dry-run", cwd=q)
+    assert "kept as received in step 0002" in said(dry) and "step 0001" not in said(dry)
+    asked = refused(
+        "import", str(p / "main.tex"), "--to", "drafting/main-2.tex", cwd=q, code=2, match="needs confirmation"
+    )
+    assert "kept as received in step 0002" in said(asked)
     r2 = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--yes", cwd=q)
     assert (q / "drafting" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
     assert r2.stdout.rstrip().splitlines()[-1].strip() == "next: loom lint; loom build"
@@ -286,7 +293,7 @@ def test_id_fix_anchoring_combines_repairs_and_labels_without_editing_source(tmp
     )
     source.write_text(authored)
     refused = run("id", "drafting/note.tex", cwd=q)
-    assert refused.exit_code == 1 and "pass --fix-anchoring" in refused.output
+    assert refused.exit_code == 1 and "pass --fix-anchoring" in flat(refused.output)
 
     patch = run("id", "drafting/note.tex", "--fix-anchoring", cwd=q)
     assert patch.exit_code == 0, patch.output
@@ -330,6 +337,9 @@ def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
     assert len(node_files) == 3  # the definition, the lemma with its adjacent proof, the theorem
     assert any("\\begin{definition}[Widget]" in f.read_text() for f in node_files)
     assert "drafting/spine.tex typesets to the same text as drafting/main.tex" in said(r2)
+    assert f"{len(list((q / 'nodes').glob('*.tex')))} node files in nodes/" in said(
+        r2
+    )  # the written group says them (T5)
     assert (q / "drafting" / "main.tex").read_text().count("\\begin{definition}") == 1  # SRC untouched on disk
     lemma = next(f for f in node_files if "Alpha" in f.read_text())
     assert "\\begin{proof}\nObvious." in lemma.read_text()  # adjacent proof travels with its statement
@@ -518,6 +528,15 @@ def test_atomize_one_key_writes_the_node_and_leaves_the_source_to_the_author(tmp
     assert node_file.is_file() and key in node_file.read_text()
     assert (q / "drafting" / "main.tex").read_text() == before, "loom never edits the source"
     assert f"+\\input{{nodes/{key}}}" in r.output and f"-\\begin{{definition}}[Widget]\\label{{{key}}}" in r.output
+    # run again before the patch is applied, it prints the same patch, where it once said "nothing to move" (T3)
+    files = sorted((q / "nodes").glob("*.tex"))
+    again = ok("atomize", "--key", key, cwd=q)
+    assert "already written" in said(again) and again.output.split("\n\n", 1)[-1] == r.output.split("\n\n", 1)[-1]
+    assert sorted((q / "nodes").glob("*.tex")) == files  # and writes nothing more
+    # until it is applied, `status` and `lint` name that rerun, not a fork that would leave both copies (T3)
+    assert json_of("status", "--json", cwd=q)["keys"][key]["fixes"] == [f"loom atomize drafting/main.tex --key {key}"]
+    dup = the(json_of("lint", "--json", cwd=q, code=1)["diagnostics"], lambda d: d["code"] == "duplicate-id", "dup")
+    assert [f["command"] for f in dup["fixes"]] == [f"loom atomize drafting/main.tex --key {key}"]
 
     # applying the patch is the author's act; afterwards the quilt holds one definition and every state is where it was
     patched = before.replace(node_file.read_text().rstrip("\n"), f"\\input{{nodes/{key}}}")

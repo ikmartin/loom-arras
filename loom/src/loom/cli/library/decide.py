@@ -121,6 +121,10 @@ def verify(
         raise EnvError("--statement, --local and --taxon correct a result; a citation suggestion takes none")
     who = _who(root, as_name)
     if dry_run:
+        # the dry run is where both texts can be read without answering for them
+        for kind, tid, what in targets:
+            if kind == "result":
+                _show_both_texts(result, what, tid, statement)
         items = [
             Item(f"{what}: its transcription" if kind == "result" else f"file {_short(what.payload)}", key=tid)
             for kind, tid, what in targets
@@ -133,10 +137,13 @@ def verify(
         ).emit(as_json)
         return
     if any(k == "result" for k, _, _ in targets) and not yes and not sys.stdin.isatty():
-        raise EnvError("verifying needs you to have read both texts; pass --yes once you have")
+        raise EnvError(
+            "verifying needs you to have read both texts; --dry-run shows them, and --yes verifies once you have"
+        )
     lines: list[str] = []
     done: list[dict[str, Any]] = []
     items = []
+    declined: list[str] = []
     for kind, tid, what in targets:
         if kind == "citation":
             decide_citation(root, tid, "accept", None, who, None)
@@ -144,8 +151,9 @@ def verify(
             done.append({"kind": kind, "id": tid, "work": what.payload})
         else:
             _show_both_texts(result, what, tid, statement)
-            if not yes:
-                click.confirm(f"\nis the rendering of {tid} faithful to the page?", abort=True, err=True)
+            if not yes and not click.confirm(f"\nis the rendering of {tid} faithful to the page?", err=True):
+                declined.append(tid)  # a "no" is an answer, not a failure: nothing is recorded for it
+                continue
             try:
                 said = verify_result(result, tid, statement, who, local=local, taxon=taxon)
             except LookupError as exc:
@@ -153,12 +161,31 @@ def verify(
             done.append({"kind": kind, "id": tid, "work": what})
         items.append(Item(said[0]))
         lines += said[1:]
-    one = len(targets) == 1
+    if not items:
+        Report(
+            f"not verified: {', '.join(declined)}; nothing recorded",
+            groups=[
+                Group(
+                    "to set a proposal aside, with the reason the next proposer is told",
+                    [Item("", key=t, fixes=[f"loom library discard {t} --why '…'"]) for t in declined],
+                    counted=False,
+                )
+            ],
+            data={"verified": [], "declined": declined, "author": who},
+        ).emit(as_json)
+        return
+    one = len(items) == 1 and not declined
+    if one:
+        verdict = items[0].text
+    elif declined:
+        verdict = f"verified {len(items)} of {len(targets)}; not {', '.join(declined)}, as you answered"
+    else:
+        verdict = f"verified {_counted(targets)}"
     Report(
-        items[0].text if one else f"verified {_counted(targets)}",
+        verdict,
         lines=lines if one else [],
         groups=[] if one else [Group("verified", items, limit=None)],
-        data={"verified": done, "author": who},
+        data={"verified": done, "declined": declined, "author": who},
     ).emit(as_json)
 
 
@@ -177,7 +204,7 @@ def discard(
     `loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. A rejected suggestion is resolved with the reason on the resolve event and records nothing. Nothing is deleted: the log keeps it and `loom library why` reports it.
     """
     from loom.refs.notes import decide_citation
-    from loom.refs.proposals import discard_refusal, discard_result, load_results
+    from loom.refs.proposals import DISCARDED, discard_refusal, discard_result, discarded_locals, load_results, state_of
 
     refuse_under_agent("loom library discard", "Discard in the digest view or in your own terminal.", as_name)
     result = open_scan(quilt_path)
@@ -187,6 +214,20 @@ def discard(
         refusal = discard_refusal(load_results(root, ck)[tid], ck) if kind == "result" else ""
         if refusal:
             raise ContentError(refusal)
+    # one discarded already keeps the reason the next proposer is told; discarding it again would replace it (T7)
+    already: dict[str, str] = {}
+    for kind, tid, ck in targets:
+        r = load_results(root, ck)[tid] if kind == "result" else None
+        if r is not None and state_of(r) == DISCARDED:
+            already[tid] = discarded_locals(root, ck).get(r.local, "no reason given")
+    targets = [t for t in targets if t[1] not in already]
+    if not targets:
+        Report(
+            "already discarded: " + "; ".join(f"{t}, {why}" for t, why in already.items()) + "; nothing written",
+            dry_run=dry_run,
+            data={"discarded": [], "already": already, "why": why},
+        ).emit(as_json)
+        return
     who = _who(root, as_name)
     items = [
         Item(
@@ -260,10 +301,15 @@ def ignore(
         )
     else:
         said = f"{_shown(key)} {_STATE[kind]}: {why}"
+    from loom.refs.build import cited_counts
+
+    cited = cited_counts(result).get(key, 0) if not undo else 0
     Report(
         ("would record: " if dry_run else "") + said,
         dry_run=dry_run,
-        data={"key": key, "declaration": kind, "why": why, "undo": undo, "author": who},
+        # setting aside a work the paper cites is allowed, and worth knowing before it is done
+        lines=[f"{key} is cited by {counted(cited, 'key')} of yours"] if cited else [],
+        data={"key": key, "declaration": kind, "why": why, "undo": undo, "author": who, "cited": cited},
     ).emit(as_json)
 
 

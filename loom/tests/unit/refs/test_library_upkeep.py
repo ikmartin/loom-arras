@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.helpers import exits, json_of, ok
+import pytest
+
+from tests.helpers import exits, json_of, ok, refused
 from tests.unit._quilts import demo, mapped, propose, work_home
 
 AS = ("--as", "A. Author")
@@ -86,6 +88,46 @@ def test_a_verify_dry_run_names_what_it_would_record_and_writes_nothing(tmp_path
     assert r.stdout.startswith("dry run: would verify 1 result") and f"{ck}-thm-4.1" in r.stdout
     assert (q / "digests" / f"{ck}.results.json").read_text() == before
     assert not (q / "digests" / f"{ck}.tex").exists()
+    # the dry run shows both texts, which is what the refusal without a terminal points to (T3)
+    assert "Every widget is a gadget" in r.stderr and "G" in r.stderr
+    off = refused("library", "verify", f"{ck}-thm-4.1", *AS, cwd=q, code=2, match="--dry-run shows them")
+    assert "--yes verifies once you have" in " ".join(off.output.split())
+
+
+def test_answering_no_to_verify_is_a_verdict_and_records_nothing(tmp_path: Path) -> None:
+    """T1: "n" ended `Aborted!`, exit 1, with no verdict and no pointer to `discard`."""
+    q, ck = mapped(tmp_path)
+    propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
+    before = (q / "digests" / f"{ck}.results.json").read_text()
+    import importlib
+    from types import SimpleNamespace
+
+    decide = importlib.import_module("loom.cli.library.decide")
+    with pytest.MonkeyPatch.context() as mp:
+        # a terminal, and the person at it answering no
+        mp.setattr(decide, "sys", SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
+        mp.setattr(decide.click, "confirm", lambda *a, **k: False)
+        r = ok("library", "verify", f"{ck}-thm-4.1", *AS, cwd=q)
+    assert r.stdout.startswith(f"not verified: {ck}-thm-4.1; nothing recorded") and "Aborted" not in r.output
+    assert f"loom library discard {ck}-thm-4.1 --why '…'" in r.stdout
+    assert (q / "digests" / f"{ck}.results.json").read_text() == before
+
+
+def test_discarding_a_discarded_result_keeps_its_first_reason(tmp_path: Path) -> None:
+    """T7: a second discard replaced the reason the next proposer is told, and said "discarded" as if new."""
+    q, ck = mapped(tmp_path)
+    propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
+    ok("library", "discard", f"{ck}-thm-4.1", "--why", "misread the page", *AS, cwd=q)
+    again = ok("library", "discard", f"{ck}-thm-4.1", "--why", "something else", *AS, cwd=q)
+    assert again.stdout.startswith(f"already discarded: {ck}-thm-4.1, misread the page; nothing written"), again.output
+    propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", code=1, match="misread the page")
+
+
+def test_ignoring_a_cited_work_says_it_is_cited(tmp_path: Path) -> None:
+    """T3: `ignore --dry-run` of a work cited eleven times said nothing of it."""
+    q = demo(tmp_path)
+    r = ok("library", "ignore", "Calloway14", "--why", "a study", "--dry-run", *AS, cwd=q)
+    assert "Calloway14 is cited by" in r.stdout and "of yours" in r.stdout, r.output
 
 
 def test_import_takes_its_citekey_from_name(tmp_path: Path) -> None:
@@ -100,3 +142,14 @@ def test_import_takes_its_citekey_from_name(tmp_path: Path) -> None:
     )
     ok("library", "import", str(src), "--name", "Other20", cwd=q)
     assert (q / "digests" / "Other20.tex").read_text().startswith("% !LOOM digest: Other20\n")
+
+
+def test_verify_finds_a_quotation_across_a_line_break_where_propose_did(tmp_path: Path) -> None:
+    """T7: `verify` said "quoted span not located; whole page" for a quotation `propose` had accepted across a line break, the two matchers disagreeing."""
+    q, ck = mapped(tmp_path)
+    (work_home(q, ck) / "pages" / "0012.txt").write_text(
+        "Theorem 4.1. Every widget\nis a gadget when the theory is perfect.\n"
+    )
+    propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
+    r = ok("library", "verify", f"{ck}-thm-4.1", "--dry-run", *AS, cwd=q)
+    assert "(around the quoted span)" in r.stderr and "not located" not in r.stderr, r.stderr

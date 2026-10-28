@@ -10,7 +10,7 @@ import click
 from loom.cli._common import EnvError, refuse_under_agent, whoever
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library._works import one_work, present
-from loom.cli.report import Group, Item, Report, counted
+from loom.cli.report import Group, Item, Progress, Report, counted
 
 
 def _documents(paths: tuple[Path, ...]) -> list[tuple[Path, str]]:
@@ -109,41 +109,43 @@ def add_command(
     #: A refused document's own work, when it is a version of the work named by --for.
     versions: dict[Path, str] = {}
     where: str | None = None  # the .bib a missing entry goes in, read once and only when needed
-    for path, kind in docs:
-        identity = identify_source(path, bib) if kind == "source" else identify_document(path, bib)
-        strong = [{"citekey": m.citekey, "strength": m.strength, "how": m.how} for m in identity.strong]
-        row: dict[str, Any] = {"file": str(path), "kind": kind, "strong": strong, "citekey": "", "reason": ""}
-        rows.append(row)
-        forced = ""
-        if target is not None:
-            why = identity.refusal_for(target, bib[target])
-            if why and not force:
-                refused.append((path, why))
-                row.update(outcome="refused", citekey=target, reason=why)
-                other = next((m.citekey for m in identity.strong if m.citekey != target), "")
-                if other and one_work_of([other, target], bib):
-                    versions[path] = other
-                continue
-            forced, ck = why, target
-        else:
-            best = identity.best()
-            if len(best) > 1 and (top := one_work_of([m.citekey for m in best], bib)):
-                best = [m for m in best if m.citekey == top] or best[:1]
-            if len(best) > 1:
-                why = f"it names {' and '.join(m.citekey for m in best)} equally"
-                refused.append((path, why))
-                row.update(outcome="refused", reason=why)
-                continue
-            if not best:
-                skipped.append((path, identity.weak))
-                where = bib_file(result.quilt) if where is None else where
-                fixes[path] = _fix_for(identity, where)
-                row.update(outcome="skipped", reason=identity.weak)
-                continue
-            ck = best[0].citekey
-        sha = sha256_of(path) if kind == "pdf" else tree_sha(path)
-        plans.append(Filing(path, ck, kind, sha, _came_from(root, path), forced=forced))
-        row.update(citekey=ck, forced=forced)
+    with Progress("reading documents", len(docs)) as progress:
+        for path, kind in docs:
+            progress.item(path.name)
+            identity = identify_source(path, bib) if kind == "source" else identify_document(path, bib)
+            strong = [{"citekey": m.citekey, "strength": m.strength, "how": m.how} for m in identity.strong]
+            row: dict[str, Any] = {"file": str(path), "kind": kind, "strong": strong, "citekey": "", "reason": ""}
+            rows.append(row)
+            forced = ""
+            if target is not None:
+                why = identity.refusal_for(target, bib[target])
+                if why and not force:
+                    refused.append((path, why))
+                    row.update(outcome="refused", citekey=target, reason=why)
+                    other = next((m.citekey for m in identity.strong if m.citekey != target), "")
+                    if other and one_work_of([other, target], bib):
+                        versions[path] = other
+                    continue
+                forced, ck = why, target
+            else:
+                best = identity.best()
+                if len(best) > 1 and (top := one_work_of([m.citekey for m in best], bib)):
+                    best = [m for m in best if m.citekey == top] or best[:1]
+                if len(best) > 1:
+                    why = f"it names {' and '.join(m.citekey for m in best)} equally"
+                    refused.append((path, why))
+                    row.update(outcome="refused", reason=why)
+                    continue
+                if not best:
+                    skipped.append((path, identity.weak))
+                    where = bib_file(result.quilt) if where is None else where
+                    fixes[path] = _fix_for(identity, where)
+                    row.update(outcome="skipped", reason=identity.weak)
+                    continue
+                ck = best[0].citekey
+            sha = sha256_of(path) if kind == "pdf" else tree_sha(path)
+            plans.append(Filing(path, ck, kind, sha, _came_from(root, path), forced=forced))
+            row.update(citekey=ck, forced=forced)
     if target is not None and refused:
         shown = "; ".join(f"{p.name}: {why}" for p, why in refused)
         version = next(iter(set(versions.values())), "") if len(set(versions.values())) == 1 else ""
@@ -180,8 +182,8 @@ def add_command(
             page_text=f.kind == "pdf" and not f.already and not f.unmapped and not dry_run,
             error=f.unmapped,
         )
-    skipped += [(f.path, f.already) for f in plans if f.already]
-    _report(filed, skipped, refused, rows, dry_run, fixes).emit(as_json)
+    held = [f for f in plans if f.already]
+    _report(filed, skipped, refused, rows, dry_run, fixes, held).emit(as_json)
 
 
 def _fix_for(identity: Any, bib: str) -> str:
@@ -208,8 +210,13 @@ def _report(
     rows: list[dict[str, Any]],
     dry_run: bool,
     how: dict[Path, str],
+    held: list[Any] | None = None,
 ) -> Report:
-    """Every document as filed, skipped or refused, each with its reason (audit §4), and under a skipped one the command `how` gives for it."""
+    """Every document as filed, already held, skipped or refused, each with its reason (audit §4), and under a skipped one the command `how` gives for it.
+
+    A document the store holds already is said once under one heading, beside the work it is filed under; only a copy of another work's document says more.
+    """
+    held = held or []
     items: list[Item] = []
     for f in filed:
         what = "PDF" if f.kind == "pdf" else "LaTeX source"
@@ -227,10 +234,11 @@ def _report(
         work = f.sibling or f.citekey
         fixes = [f"loom library update {work} --only extract makes its digest"] if f.kind == "source" else []
         items.append(Item(text, fixes=fixes))
-    total = len(filed) + len(skipped) + len(refused)
+    total = len(filed) + len(held) + len(skipped) + len(refused)
     verdict = (
         f"{counted(total, 'document')}: {len(filed)} {'would be filed' if dry_run else 'filed'}, "
-        f"{len(skipped)} skipped, {len(refused)} refused"
+        + (f"{len(held)} already in loom's store, " if held else "")
+        + f"{len(skipped)} skipped, {len(refused)} refused"
     )
     return Report(
         verdict,
@@ -250,6 +258,22 @@ def _report(
                 limit=None,
             ),
             Group("would be filed" if dry_run else "filed", items, limit=None),
+            Group(
+                "already in loom's store, under the work each is",
+                [
+                    Item(
+                        f.path.name
+                        + (
+                            ""
+                            if f.already.startswith(("already in loom's store", "already filed"))
+                            else f": {f.already}"
+                        ),
+                        key=f.citekey,
+                    )
+                    for f in held
+                ],
+                limit=None,
+            ),
         ),
         notes=["the store is not in version control: a collaborator fetches or adds their own copy"]
         if filed and not dry_run

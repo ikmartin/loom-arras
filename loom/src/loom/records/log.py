@@ -79,7 +79,7 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
     order: list[str] = []
     by_source: dict[str, list[Annotation]] = {}
     index: dict[str, tuple[str, Annotation]] = {}
-    discarded_sources: set[str] = set()
+    discarded_sources: dict[str, str] = {}  # a withdrawn source, and why
     if not p.is_file():
         return [], problems
     for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
@@ -129,9 +129,9 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 # which cannot be recovered from the event's own timestamp
                 src = str(event.get("source") or source_of(event))
                 if event.get("undo"):
-                    discarded_sources.discard(src)
+                    discarded_sources.pop(src, None)
                 else:
-                    discarded_sources.add(src)
+                    discarded_sources[src] = str(event.get("body") or "")
                 continue
             problems.append(f"{LOG}:{n}: {kind} without an id")
             continue
@@ -166,6 +166,7 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 path=p,
                 rel=src,
                 discarded=src in discarded_sources,
+                discard_reason=discarded_sources.get(src) or None,
                 annotations=by_source[src],
             )
         )

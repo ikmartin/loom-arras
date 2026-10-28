@@ -215,7 +215,9 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
     edit(other, "revise statement again", {"main.tex": SOURCE.replace("zk-0001}A", "zk-0001}D")})
     state = fetch(quilt, state)
     said = flat(ok("sync", "incorporate", cwd=root).stdout)
-    assert said.startswith(f"incorporated {state.incoming[:7]} from ")
+    assert (
+        said.startswith("incorporated the revision of ") and state.incoming[:7] not in said
+    )  # named by when, not its hash (T4)
     assert "mathematics remains to be reviewed" in said and "as it was, stamped as landmarks (1)" in said
     names = [Path(str(e.get("landmark"))).stem for e in load_history(quilt.history_dir).landmarks()]
     assert any(n.startswith("main-before-pull-") for n in names), names
@@ -335,11 +337,11 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
         publish(quilt, collision)
 
     said = flat(ok("sync", "publish", cwd=root).stdout)
-    assert said.startswith(f"prepared {edited.commit[:7]}: 4 files for drafting/main.tex, drafting/toy.tex")
+    assert said.startswith("prepared the revision of ") and ": 4 files for drafting/main.tex, drafting/toy.tex" in said
     assert "loom sync publish --push sends it" in said
     pushed = flat(ok("sync", "publish", "--push", cwd=root).stdout)
     assert "stamped earlier as landmarks" in pushed  # the revision prepared above, not stamped again
-    assert pushed.startswith(f"published {edited.commit[:7]} to ")
+    assert pushed.startswith("published the revision of ") and edited.commit[:7] not in pushed
     state = SyncState.read(root)
     assert run(bare, "rev-parse", "master") == state.prepared == state.integrated == state.incoming
     assert flat(ok("sync", "publish", cwd=root).stdout).startswith("nothing to publish: ")
@@ -372,7 +374,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     state = fetch(quilt, SyncState.read(root))
     assert state.integrated == state.incoming == publication.commit
 
-    with pytest.raises(SyncError, match="cannot be removed"):
+    with pytest.raises(SyncError, match="is the document the workspace.s main file is published from, so it stays"):
         update_documents(quilt, state, "remove", "drafting/main.tex")
     state = update_documents(quilt, state, "remove", "drafting/toy.tex")
     assert state.documents == ["drafting/main.tex"]
@@ -611,8 +613,8 @@ def test_a_rejected_push_says_the_workspace_moved_and_what_to_run(tmp_path: Path
     ok("sync", "publish", cwd=root)
     edit(colleague(tmp_path, bare), "theirs", {"notes.tex": "A note.\n"})
     r = refused("sync", "publish", "--push", cwd=root, code=2, match="has moved")
-    first = r.stderr.splitlines()[0]
-    assert first.startswith("Error: ") and "loom sync fetch" in first, r.stderr
+    first = flat(r.stderr)
+    assert first.startswith("Error: ") and first.index("loom sync fetch") < first.index("prepared"), r.stderr
     for noise in ("hint:", "Done", "git pull", "[rejected]", "To "):
         assert noise not in r.stderr, (noise, r.stderr)
 
@@ -623,3 +625,26 @@ def test_a_workspace_that_cannot_be_cloned_is_one_line(tmp_path: Path) -> None:
     for dry in ((), ("--dry-run",)):
         r = refused("sync", "init", "../nowhere.git", *dry, cwd=root, code=2, match="cannot reach ../nowhere.git")
         assert len(r.stderr.strip().splitlines()) == 1 and "workspace-" not in r.stderr and "git " not in r.stderr
+
+
+def test_sync_says_only_what_happened(tmp_path: Path, compiled: list[str]) -> None:
+    """T7: a fetch with nothing new said "fetched" with the old time, a selected document added again said "added", and pairing again set `--publish-main` back without a word; T4: revisions were named by their hashes."""
+    import re
+
+    def verdict(args: tuple[str, ...]) -> str:
+        return " ".join(ok(*args, cwd=root).stdout.split("\n\n")[0].split())
+
+    save_author("Tester")
+    root, bare = paired(tmp_path)
+    edit(colleague(tmp_path, bare), "theirs", {"notes.tex": "A note.\n"})
+    first = verdict(("sync", "fetch"))
+    assert first.startswith("fetched the revision of ") and "1 file changed" in first, first
+    again = verdict(("sync", "fetch"))
+    assert again.startswith("nothing new from ") and "fetched" not in again, again
+    assert "the viewer's Incoming panel" in again
+    status = ok("sync", "status", cwd=root).stdout
+    assert not re.search(r"\b[0-9a-f]{7}\b", status), status  # hashes are in the JSON only
+    added = verdict(("sync", "documents", "add", "drafting/main.tex"))
+    assert added.startswith("drafting/main.tex is already selected; nothing changed"), added
+    ok("sync", "init", str(bare), cwd=root)  # paired again without --publish-main
+    assert SyncState.read(root).published_main == "main.tex"

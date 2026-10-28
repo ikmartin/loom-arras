@@ -14,7 +14,7 @@ from loom.scan.postnote import normalize, parts
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from loom.tex.bundle import build_bundle
-from tests.helpers import edit, exits, json_of, ok, refused
+from tests.helpers import edit, exits, flat, json_of, ok, refused
 from tests.unit._quilts import work_home
 
 REF = r"""\documentclass{article}
@@ -175,7 +175,8 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_ex
     assert "\\section*{Overview}\nWe study widgets. This paper proves Theorem~\\ref{Ref20-thm-3.1}." in text
     assert "\\label{Ref20-setup}" in text and "\\incomplete{Standing assumptions not extracted" in text
     said = " ".join(r.stdout.split())  # an item's line wraps within 100 columns
-    assert "4 results (2 Theorem, 1 Definition, 1 Lemma), 2 sections; numbering from the paper's .aux" in said
+    assert "extracted, numbered as the paper's own compile numbers them (1)" in said
+    assert "4 results (2 Theorem, 1 Definition, 1 Lemma), 2 sections;" in said
     assert "this run extracted 1" in r.stdout.splitlines()[0]
     # the digest requires xy and the demo's master does not load it, which the extraction's own lint says
     assert "its lint: 1 warning" in said, r.stdout
@@ -213,7 +214,8 @@ def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = ok("library", "update", "Ref20", "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})
     text = (q / "digests" / "Ref20.tex").read_text()
-    assert "% !LOOM numbering: emulated" in text and "numbering emulated (compile failed" in r.output
+    assert "% !LOOM numbering: emulated" in text and "numbered by counting the results in order" in r.output
+    assert "its compile failed" in r.output
     for local in ("def-2.1", "lem-2.2", "thm-3.1", "thm-3.2", "sec-2", "sec-3"):
         assert f"\\label{{Ref20-{local}}}" in text, local
 
@@ -264,7 +266,8 @@ def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 12, "chars": 1, "sections": []}))
     fresh = ok("library", "update", "--only", "extract", cwd=q)
     assert re.search(
-        r"\bextracted \(1\) 4 results [^()]*\([^)]*\), [^;]*;[^;]*;[^;]* Ref20 ", " ".join(fresh.stdout.split()) + " "
+        r"\bextracted, numbered [^(]*\(1\) 4 results [^()]*\([^)]*\), [^;]*;[^;]*;[^;]* Ref20 ",
+        " ".join(fresh.stdout.split()) + " ",
     ), fresh.output
     assert "too thin to trust" not in fresh.output, fresh.output
 
@@ -406,7 +409,7 @@ def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> N
     r = ok("library", "read", "Split", cwd=q)
     assert r.stdout.strip() == "O." and said in r.stderr
     r = ok("source", "Split-thm-1", cwd=q)
-    assert "\\begin{theorem}" in r.stdout and said in r.stderr and said not in r.stdout
+    assert "\\begin{theorem}" in r.stdout and flat(said) in flat(r.stderr) and said not in r.stdout
     # a digest cited as it was extracted says nothing
     other = json.loads(ok("library", "--json", cwd=q).stdout)["works"]
     assert all(w["digest_version"] is None for w in other if w["citekey"] != "Split")
@@ -671,13 +674,16 @@ def test_a_compiled_paper_with_an_unlabelled_result_says_numbering_mixed(tmp_pat
     text = (q / "digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: mixed" in text and "numbering: emulated" not in text
     said = " ".join(r.stdout.split())
-    assert "numbering from the paper's .aux, except 1 unlabelled result counted by emulation" in said
+    assert (
+        "numbered as the paper's own compile numbers them" in said
+        and "1 unlabelled result numbered by counting" in said
+    )
     labelled = tmp_path / "paper" / "ref.tex"
     edit(labelled, "\\begin{thm}\nUnlabelled theorem.", "\\begin{thm}\\label{last}\nLabelled now.")
     ok("library", "add", labelled, "--for", "Ref20", cwd=q)  # filed beside the first source, as Ref20A
     r = ok("library", "update", "Ref20A", "--only", "extract", cwd=q)
     assert "% !LOOM numbering" not in (q / "digests" / "Ref20A.tex").read_text()
-    assert "numbering from the paper's .aux;" in r.stdout
+    assert "numbered as the paper's own compile numbers them" in r.stdout and "numbered by counting" not in r.stdout
 
 
 def test_a_paper_with_no_sections_gets_an_incomplete_overview(tmp_path: Path) -> None:

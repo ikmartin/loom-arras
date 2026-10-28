@@ -704,3 +704,17 @@ def test_adopts_preview_says_what_it_is_doing_on_a_long_run(tmp_path, monkeypatc
     ok("adopt", "drafting-ai/review.tex", "--json", cwd=q)
     assert "comparing review.tex with the document it was drafted from" in said[-1]
     assert "checking drafting/main.tex with the selected changes" in said[-1]
+
+
+def test_a_preview_of_results_says_the_prose_that_waits_and_only_true_caveats(quilt):
+    """T1: with a result and a prose change both in the agent document, the preview said nothing of the prose; T2: it said "Unselected proposals remain" on every preview."""
+    from tests.helpers import ok
+
+    edit(quilt, "Original introduction.", "Proposed introduction.")
+    edit(quilt, "First statement.", "CLI proposal.")
+    out = " ".join(ok("adopt", COPY, "zk-0001", cwd=quilt.root).stdout.split())
+    assert "prose or ordering changes wait: run loom adopt proposal.tex --document-changes" in out, out
+    assert "not selected" not in out and "Unselected" not in out  # every change with a result was selected
+    edit(quilt, "Second statement", "Second proposal")
+    out = " ".join(ok("adopt", COPY, "zk-0001", cwd=quilt.root).stdout.split())
+    assert "1 proposal not selected stay in the agent document" in out, out

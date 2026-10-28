@@ -83,7 +83,7 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "x", "--in", "nope.tex", "--as", "Tester"), exit=2, unchanged=True, why="no such document"),
         Case(("dm-0002", "x", "--session", "nope", "--as", "Tester"), exit=2, unchanged=True, why="no such session"),
         Case(("dm-0002", "Which orbits?", "--as", "Tester", "--dry-run"), unchanged=True),
-        Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=1, why="a quote not in the text"),
+        Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
     ],
     "build": [
         Case(),

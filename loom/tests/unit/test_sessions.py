@@ -249,3 +249,17 @@ def test_closing_a_closed_session_says_so_and_records_nothing(tmp_path: Path) ->
     again = ok("session", "close", sid, "--as", WHO, cwd=q)
     assert again.stdout.startswith(f"{sid} is already closed"), again.stdout
     assert index_path(q).read_bytes() == log
+
+
+def test_list_says_what_it_leaves_out_and_a_second_delete_is_answered(tmp_path: Path) -> None:
+    """T2: `session list` left closed sessions out without saying so; T3: deleting a deleted session said "nothing new can be written to it", exit 1."""
+    from tests.unit._quilts import demo, new_session
+
+    q = demo(tmp_path)
+    shut = new_session(q, "to close")
+    ok("session", "new", "--name", "kept open", cwd=q)
+    ok("session", "close", shut, cwd=q)
+    assert "closed: --all lists them" in ok("session", "list", cwd=q).stdout.splitlines()[0]
+    ok("session", "delete", shut, cwd=q)
+    again = ok("session", "delete", shut, cwd=q)
+    assert again.stdout.startswith(f'{shut} "to close" is already deleted; nothing written'), again.output

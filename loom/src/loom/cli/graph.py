@@ -65,6 +65,21 @@ def _edge_entries(result: ScanResult, key: str, kind: str) -> list[dict[str, str
     return [{"key": t, "via": ",".join(vias[t]), "kind": kinds[t]} for t in order]
 
 
+#: How an edge was made, as the reader says it (T4): the scan's names for them are its own.
+VIA_WORDS = {
+    "uses": "listed in \\uses",
+    "postnote": "cited by its number",
+    "nested": "nested in it",
+    "transitive": "indirectly",
+}
+
+
+def via_words(via: str) -> str:
+    """`uses,ref` as `listed in \\uses and referenced`; every reference command is one way of referring."""
+    said = [VIA_WORDS.get(v, "referenced") for v in via.split(",") if v]
+    return " and ".join(dict.fromkeys(said)) or "referenced"
+
+
 def deps_payload(result: ScanResult, key: str) -> dict[str, Any]:
     assert result.graph is not None
     n = result.assembly.nodes[key]
@@ -129,7 +144,7 @@ def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
 )
 @quilt_option
 def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
-    """Show what KEY depends on: direct statement-edges and proof-edges, grouped."""
+    """Show what KEY depends on directly, through its statement and through its proof."""
     result = open_scan(quilt_path)
     asked = key
     key = resolve_key(result, key)
@@ -161,7 +176,7 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
     groups = []
     for heading, entries in (("through its statement", payload["statement"]), ("through its proof", payload["proof"])):
         rows = [
-            ((taxon(result, e["key"]), f"via {e['via']}"), e["key"])
+            ((taxon(result, e["key"]), via_words(e["via"])), e["key"])
             for e in sorted(entries, key=lambda e: natural(e["key"]))
         ]
         groups.append(Group(heading, keyed(rows), limit=None))
@@ -214,6 +229,7 @@ def downstream_payload(result: ScanResult, key: str) -> dict[str, Any]:
     assert result.graph is not None
     n = result.assembly.nodes[key]
     dependents = []
+    below = set(result.graph.downstream(key))
     for dk in result.graph.downstream(key):
         via = next(
             (
@@ -223,10 +239,24 @@ def downstream_payload(result: ScanResult, key: str) -> dict[str, Any]:
             ),
             "transitive",
         )
+        # an indirect dependent says which dependent it goes through
+        through = (
+            next(
+                (
+                    result.graph.statement_key(e.to)
+                    for e in result.graph.out.get(dk, [])
+                    if result.graph.statement_key(e.to) in below
+                ),
+                None,
+            )
+            if via == "transitive"
+            else None
+        )
         dependents.append(
             {
                 "key": dk,
                 "via": via,
+                "through": through,
                 "kind": result.assembly.nodes[dk].kind if dk in result.assembly.nodes else "unknown",
             }
         )
@@ -292,7 +322,7 @@ def downstream(id_: str, proofs: bool, as_json: bool, run_dir: str | None, quilt
             if citing
             else f"no proof cites {key} directly",
             groups=[
-                Group("proofs", keyed([((f"proves {e['statement']}", f"via {e['via']}"), e["key"]) for e in citing]))
+                Group("proofs", keyed([((f"proves {e['statement']}", via_words(e["via"])), e["key"]) for e in citing]))
             ]
             if citing
             else [],
@@ -305,8 +335,25 @@ def downstream(id_: str, proofs: bool, as_json: bool, run_dir: str | None, quilt
     ledger = sorted(payload["ledger"], key=lambda e: (natural(e["key"]), e["date"]))
     annotations = sorted(payload["annotations"], key=lambda e: natural(e["id"]))
     groups = [
-        Group("dependents", keyed([((taxon(result, e["key"]), f"via {e['via']}"), e["key"]) for e in dependents])),
-        Group("references", keyed([((f"{e['file']}:{e['line']}", "in"), e["key"]) for e in references])),
+        Group(
+            "dependents",
+            keyed(
+                [
+                    (
+                        (
+                            taxon(result, e["key"]),
+                            via_words(e["via"]) + (f", through {e['through']}" if e.get("through") else ""),
+                        ),
+                        e["key"],
+                    )
+                    for e in dependents
+                ]
+            ),
+        ),
+        # two references on one line are told apart by the label each names
+        Group(
+            "references", keyed([((f"{e['file']}:{e['line']}", e["label"] or "", "in"), e["key"]) for e in references])
+        ),
         Group("inclusions", keyed([((f"{e['file']}:{e['line']}", "in"), e["master"]) for e in inclusions])),
         Group(
             "acceptances",

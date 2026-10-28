@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import click
 
 from loom.cli._common import EXIT_CONTENT
@@ -12,10 +14,11 @@ from loom.cli.diagnostics import has_errors, tally
 from loom.cli.diagnostics import item as diag_item
 from loom.cli.report import Group, Report, counted
 from loom.history.checks import verify
-from loom.history.ledger import load_history
+from loom.history.ledger import History, load_history
 from loom.records.store import Records
+from loom.reshape.fork import conflict_fixes
 from loom.scan.labels import is_id_shaped
-from loom.scan.model import Diagnostic
+from loom.scan.model import Diagnostic, Fix
 from loom.scan.scan import ScanResult
 
 NODE_CODES = {
@@ -47,8 +50,26 @@ def all_diagnostics(result: ScanResult) -> list[Diagnostic]:
     records = Records(result.quilt.root, result.quilt.history_dir)
     extra = records.diagnostics(result, records.key_states(result))
     seen = {(d.code, d.message) for d in result.lint}
-    walk = [d for d in verify(result, load_history(result.quilt.history_dir)) if (d.code, d.message) not in seen]
-    return _sorted(list(result.lint) + extra + walk)
+    history = load_history(result.quilt.history_dir)
+    walk = [d for d in verify(result, history) if (d.code, d.message) not in seen]
+    return _sorted([_safe(result, history, d) for d in result.lint] + extra + walk)
+
+
+def _safe(result: ScanResult, history: History, d: Diagnostic) -> Diagnostic:
+    """`d` with the fix that is safe in the state the history shows: the scan offers every way out of an id defined twice, and after `atomize --key` or `history restore` only one of them is right; a node file nothing reaches may be a fork whose patch was never applied."""
+    if d.code == "unreachable" and d.locations:
+        path = d.locations[0].file
+        fork = next((e for e in reversed(history.entries) if e.action == "fork" and e.get("to") == path), None)
+        if fork is not None:
+            # a fork whose patch was never applied: running it again prints that patch
+            again = f"loom fork {(fork.get('from') or {}).get('id')} --in {fork.get('in')}"
+            return replace(d, fixes=[Fix("apply the fork's patch", again), *d.fixes])
+        return d
+    n = result.nodes.get(d.keys[0]) if d.code == "duplicate-id" and len(d.keys) == 1 else None
+    if n is None or n.kind != "conflict":
+        return d
+    commands = conflict_fixes(result, history, d.keys[0], list(n.conflict))
+    return replace(d, fixes=[Fix("the way out that keeps what was there", c) for c in commands])
 
 
 def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list[Diagnostic]], list[Diagnostic]]:

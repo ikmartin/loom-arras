@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.helpers import json_of, ok, refused
+from tests.helpers import json_of, ok, refused, said
 from tests.unit._quilts import demo
 
 
@@ -50,7 +50,7 @@ def test_a_nonempty_directory_says_what_is_actually_wrong(tmp_path: Path) -> Non
 
     # no paper at all: passing one is the advice
     plain = refused("init", str(full), "--yes", code=2, match="is not empty")
-    assert "--from FILE with a file inside it" in plain.output
+    assert said("--from FILE with a file inside it", plain.output)
 
     # a paper outside the directory: where it sits is the fault, and the message names it
     apart = refused("init", str(full), "--from", str(outside), "--yes", code=2, match="lies outside it")
@@ -65,7 +65,8 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
     plain = ok("init", str(tmp_path / "n"), "--prefix", "a", "--yes")
     assert not (tmp_path / "n" / ".git").exists()
     assert (tmp_path / "n" / ".gitignore").is_file()
-    assert "wrote .gitignore" in plain.output and "build/" in plain.output
+    # said in one line, not one per pattern: the file holds them (T2)
+    assert "wrote .gitignore: 4 patterns" in plain.output and "build/" not in plain.output
 
     asked = ok("init", str(tmp_path / "g"), "--prefix", "a", "--yes", "--git")
     assert (tmp_path / "g" / ".git").is_dir()
@@ -256,3 +257,17 @@ def test_init_and_upgrade_keep_the_same_gitignore_lines(tmp_path: Path) -> None:
     lines = (q / ".gitignore").read_text().splitlines()
     assert lines[:3] == ["build/", "# mine", "notes/"] and missing(q) == []
     assert lines.count("build/") == 1 and all(line in lines for line in MANAGED)
+
+
+def test_init_inside_a_quilt_names_import(tmp_path: Path) -> None:
+    """T3: "is already inside a quilt" named no `loom import`, which is what brings a paper into one."""
+    ok("init", str(tmp_path / "q"), "--prefix", "a", "--yes")
+    refused(
+        "init",
+        str(tmp_path / "q" / "inner"),
+        "--prefix",
+        "a",
+        "--yes",
+        code=2,
+        match="loom import FILE brings a paper into it",
+    )

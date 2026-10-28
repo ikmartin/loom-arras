@@ -56,6 +56,11 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
                     if rel in beside
                     else "",
                     key=rel,
+                    fixes=[
+                        f"merge {rel}.new into {rel}, then delete {rel}.new: it is not written again until loom ships another"
+                    ]
+                    if rel in beside
+                    else [],
                 )
                 for rel in kept
             ],
@@ -84,11 +89,19 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
             + ([f"{'would keep' if dry_run else 'kept'} {counted(len(kept), 'edited file')}"] if kept else [])
             + ([f"{'would replace' if dry_run else 'replaced'} your {STY}, kept as {old}"] if old else [])
         )
-        verdict = (
-            ("" if dry_run else "upgraded: ")
-            + "; ".join(parts)
-            + (f", {len(beside)} with a new version beside it to merge" if beside else "")
+        # one file kept with its new version beside it is one file, said once (T5)
+        merge = (
+            ""
+            if not beside
+            else (
+                ", its new version beside it to merge"
+                if len(kept) == 1
+                else ", each with its new version beside it to merge"
+            )
+            if len(beside) == len(kept)
+            else f", {len(beside)} with a new version beside it to merge"
         )
+        verdict = ("" if dry_run else "upgraded: ") + "; ".join(parts) + merge
     else:
         verdict = "already current: loom.sty" + (" and ai/" if has_ai else "")
     Report(

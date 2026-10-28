@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.helpers import ok, refused
+from tests.helpers import json_of, ok, refused
 from tests.unit._quilts import demo
 
 
@@ -29,11 +29,15 @@ def test_alloc_sees_references_and_never_reuses(tmp_path: Path) -> None:
     assert r.output.startswith("dm-0021 "), r.output
 
 
-def test_json_is_for_the_next_id_and_a_labelling_run_refuses_it(tmp_path: Path) -> None:
-    """A file's labels are a diff; `--json` there would be ignored, so it is refused rather than dropped."""
+def test_a_labelling_run_carries_its_patch_in_json_and_says_how_to_apply_it(tmp_path: Path) -> None:
+    """T8: `id FILE --json` was refused, though the text has a patch to carry; T3: the patch came with no word on applying it."""
     q = demo(tmp_path)
     ok("id", "--next", "--json", cwd=q)
-    refused("id", "drafting/main.tex", "--json", cwd=q, code=2, match="--json applies to --next")
+    (q / "drafting" / "extra.tex").write_text("\\begin{lemma}\nA.\n\\end{lemma}\n")
+    data = json_of("id", "drafting/extra.tex", "--json", cwd=q)
+    assert data["labels"] == 1 and data["diff"].startswith("--- a/drafting/extra.tex"), data
+    r = ok("id", "drafting/extra.tex", cwd=q)
+    assert "apply this patch to it, which loom never edits, or pass --to FILE" in " ".join(r.stderr.split()), r.stderr
 
 
 def test_new_names_its_writer_and_says_where_to_place_the_node(tmp_path: Path) -> None:

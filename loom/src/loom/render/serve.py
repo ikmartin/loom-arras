@@ -91,7 +91,17 @@ def write_serve_json(root: Path, port: int) -> str:
     p = root / SERVE_JSON
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(
-        json.dumps({"port": port, "pid": os.getpid(), "token": token, "url": f"http://127.0.0.1:{port}/"}, indent=1)
+        json.dumps(
+            {
+                "port": port,
+                "pid": os.getpid(),
+                "token": token,
+                "url": f"http://127.0.0.1:{port}/",
+                # a copied quilt carries the file, and a link it printed would open the other quilt's viewer
+                "root": str(Path(root).resolve()),
+            },
+            indent=1,
+        )
         + "\n",
         encoding="utf-8",
     )
@@ -120,7 +130,7 @@ def open_url(root: Path, path: str = "") -> str:
     Returns
     -------
     str
-        An absolute `http://127.0.0.1:<port>/...` URL, or '' when no server holds the file's pid.
+        An absolute `http://127.0.0.1:<port>/...` URL, or '' when no server holds the file's pid or the file names another quilt.
 
     Notes
     -----
@@ -134,7 +144,7 @@ def open_url(root: Path, path: str = "") -> str:
 
     data = read_serve_json(root)
     port, pid = data.get("port"), data.get("pid")
-    if not isinstance(port, int) or not isinstance(pid, int):
+    if not isinstance(port, int) or not isinstance(pid, int) or data.get("root") != str(Path(root).resolve()):
         return ""
     try:
         os.kill(pid, 0)
@@ -440,7 +450,13 @@ class ServeSession:
                     return
                 records = records_only(root, changed)
             reuse = self.last_report.result if records and self.last_report is not None else None
-            report = build(self.quilt, reuse=reuse, progress=progress)
+            if progress is None and changed is not None:
+                from loom.cli.report import Progress
+
+                with Progress("rebuilding") as shown:
+                    report = build(self.quilt, reuse=reuse, progress=shown.told)
+            else:
+                report = build(self.quilt, reuse=reuse, progress=progress)
             self.last_report = report
             self.builds += 1
             self.published = seen
@@ -448,9 +464,11 @@ class ServeSession:
                 self.watcher.rebaseline(seen)
             self.publications.published()
         if changed is not None:
+            from loom.cli.report import counted
+
             names = ", ".join(p.relative_to(self.quilt.root).as_posix() for p in changed[:3])
             print(
-                f"loom serve: rebuilt after change to {names}{' …' if len(changed) > 3 else ''}; {len(report.rendered)} fragment(s) re-rendered",
+                f"loom serve: rebuilt after change to {names}{' …' if len(changed) > 3 else ''}; {counted(len(report.rendered), 'block')} re-rendered",
                 file=sys.stderr,
             )
         if (
@@ -480,7 +498,11 @@ class ServeSession:
             return
         closure = result.closures.get(master)
         engine = normalise_engine((closure.engine if closure else None) or self.quilt.config.engine)
-        res = compile_tex(self.quilt.root, master, self.quilt.root / "build" / Path(master).stem, engine)
+        from loom.cli.report import Progress
+
+        with Progress("compiling", 1) as shown:
+            shown.item(master)
+            res = compile_tex(self.quilt.root, master, self.quilt.root / "build" / Path(master).stem, engine)
         print(f"loom serve: compiled {master}: {'ok' if res.ok else 'FAILED ' + res.first_error}", file=sys.stderr)
         if res.ok:
             self.rebuild()
@@ -521,17 +543,19 @@ class ServeSession:
 
     def first_build(self) -> None:
         """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""
-        from loom.cli.report import Progress
+        from loom.cli.diagnostics import has_errors, tally
+        from loom.cli.report import Progress, counted
 
         started = time.perf_counter()
         with Progress("scanning") as progress:
             self.rebuild(progress=progress.told)
-        errors = sum(1 for d in self.last_report.diagnostics if d.severity == "error") if self.last_report else 0
-        fragments = len(self.last_report.rendered) if self.last_report else 0
+        errors = [d for d in self.last_report.diagnostics if d.severity == "error"] if self.last_report else []
+        blocks = len(self.last_report.rendered) if self.last_report else 0
         # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered
-        note = f"; {errors} error(s) -- run loom lint" if errors else ""
+        result = self.last_report.result if self.last_report else None
+        note = f"; {tally(errors, result)}; loom lint lists them" if has_errors(errors, result) else ""
         print(
-            f"loom serve: built {fragments} fragment(s) in {time.perf_counter() - started:.1f}s{note}",
+            f"loom serve: built {counted(blocks, 'block')} in {time.perf_counter() - started:.1f}s{note}",
             file=sys.stderr,
             flush=True,
         )

@@ -39,6 +39,10 @@ class MapRefused(Exception):
     """There is no PDF, or the toolchain cannot read it."""
 
 
+#: How a misread line starts or ends: a hypothesis's opening, or a clause cut off by the line.
+_SENTENCE = re.compile(r"^(?:if|let|then|we|suppose|assume|since|note that|it follows)\b|[,;]$", re.I)
+
+
 @dataclass
 class Section:
     """One heading found in the page text, and where it starts."""
@@ -65,7 +69,10 @@ class PageMap:
         footnote or a sentence opening: early junk took the numbers 1 to 3 and the real chapters were then rejected as
         going backwards. A map like that is reported as unreliable rather than shown as the book's structure.
         """
-        return self.pages >= 60 and len(self.sections) * 40 < self.pages
+        sparse = self.pages >= 60 and len(self.sections) * 40 < self.pages
+        # a "section" that reads as a sentence -- "If Y has irreducible components Y1 ," -- is a line the detector misread
+        misread = sum(1 for sec in self.sections if _SENTENCE.search(sec.title.strip()))
+        return sparse or (len(self.sections) >= 3 and misread * 3 >= len(self.sections))
 
     def section_of(self, page: int) -> Section | None:
         """The last section to have started at or before `page`; None when nothing was detected before it."""

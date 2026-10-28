@@ -15,22 +15,50 @@ EXIT_CONTENT = 1
 EXIT_USAGE = 2
 
 
+#: What click prints before a refusal's first line, which `fit` leaves room for.
+ERROR_LEAD = len("Error: ")
+
+
+def fit(text: str, lead: int = 0) -> str:
+    """`text` within 100 columns line by line (T5), its first line `lead` shorter for a prefix printed before it.
+
+    The refusals' and notes' one wrapper; an identifier or path longer than the width stands alone on its line, never cut.
+    """
+    from loom.cli.report import WIDTH, wrap
+
+    return "\n".join(w for i, line in enumerate(text.split("\n")) for w in wrap(line, WIDTH - (lead if i == 0 else 0)))
+
+
 class ContentError(click.ClickException):
-    """A problem in the quilt's content (lint errors, failed identity test, refused write). Exit 1."""
+    """A problem in the quilt's content (lint errors, failed identity test, refused write). Exit 1.
+
+    The message is wrapped to fit; `verbatim` follows it as given, for text whose lines are its content, such as a diff.
+    """
 
     exit_code = EXIT_CONTENT
 
+    def __init__(self, message: str, verbatim: str = "") -> None:
+        super().__init__(message)
+        self.verbatim = verbatim
+
     def format_message(self) -> str:
-        return self.message
+        return fit(self.message, ERROR_LEAD) + self.verbatim
 
 
 class EnvError(click.ClickException):
-    """A usage or environment problem (bad arguments, missing tool, no author name). Exit 2."""
+    """A usage or environment problem (bad arguments, missing tool, no author name). Exit 2.
+
+    The message is wrapped to fit; `verbatim` follows it as given, for text whose lines are its content.
+    """
 
     exit_code = EXIT_USAGE
 
+    def __init__(self, message: str, verbatim: str = "") -> None:
+        super().__init__(message)
+        self.verbatim = verbatim
+
     def format_message(self) -> str:
-        return self.message
+        return fit(self.message, ERROR_LEAD) + self.verbatim
 
 
 class NotFoundError(EnvError):
@@ -46,9 +74,25 @@ def emit_json(obj: Any) -> None:
     click.echo(json.dumps(obj, indent=2, sort_keys=True, ensure_ascii=False))
 
 
+def from_stdin(texts: dict[str, str | None]) -> list[str | None]:
+    """The texts given, in order, with the one given as `-` read from standard input: how every command that takes a long text (LaTeX a shell would mangle) reads one.
+
+    Standard input holds one text, so two given as `-` are refused by name.
+    """
+    dashed = [name for name, value in texts.items() if value == "-"]
+    if len(dashed) > 1:
+        raise EnvError(f"{' and '.join(dashed)} are both -, and standard input holds one text; give one of them inline")
+    if not dashed:
+        return list(texts.values())
+    import sys
+
+    read = sys.stdin.read()
+    return [read if name == dashed[0] else value for name, value in texts.items()]
+
+
 def note(message: str) -> None:
-    """Progress or diagnostic text, always on stderr so --json stdout stays clean."""
-    click.echo(message, err=True)
+    """Progress or diagnostic text, always on stderr so --json stdout stays clean, wrapped to fit."""
+    click.echo(fit(message), err=True)
 
 
 def find_session(root: Path, which: str | None, *, deleted: bool = False):  # type: ignore[no-untyped-def]
@@ -191,7 +235,7 @@ def writer(root: Path, declared: str | None) -> tuple[str, str]:
     root : Path
         The quilt.
     declared : str, optional
-        What `--as` or `--author` said. An agent names itself and is asked to include `Agent` or `AI` in the name.
+        What `--as` said. An agent names itself and is asked to include `Agent` or `AI` in the name.
 
     Returns
     -------
@@ -238,7 +282,7 @@ def refuse_under_agent(verb: str, how: str, declared: str | None = None) -> None
         raise EnvError(f"{verb} is the author's, and {declared} is an agent.\n{how}")
     marker = agent_marker()
     if marker:
-        named = f", whatever --author or --as says ({declared})" if declared else ""
+        named = f", whatever --as says ({declared})" if declared else ""
         raise EnvError(
             f"{verb} is the author's, and an agent is running this shell ({marker} is set){named}; run it in a terminal of your own.\n{how}"
         )

@@ -14,6 +14,7 @@ from loom.history import steps
 from loom.history.steps import text_hash
 from loom.history.versions import version_filename
 from tests.helpers import edit, exits, json_of, ok, refused, run, templated, the
+from tests.unit._quilts import demo
 
 PAPER = r"""\documentclass{article}
 \usepackage{amsthm}
@@ -143,6 +144,7 @@ def test_history_lists_steps_and_a_key_s_versions(tmp_path: Path) -> None:
     r = ok("history", cwd=q)
     assert "0001  import" in r.output and "0002  stamp" in r.output and '"one"' in r.output
     assert "0003  stamp" in r.output and '"two"' in r.output
+    assert "stamp-two" not in r.output  # a quilt stamp's name is made from its message, which says it once
     k = ok("history", "pp-0002", cwd=q)
     assert "pp-0002@2" in k.output and "pp-0002@3" in k.output and "its text now is that of @3" in k.output
     assert "sha256" not in k.output  # a version's hash is in the JSON, not the text
@@ -164,6 +166,9 @@ def test_revert_prints_a_patch_and_records_nothing(tmp_path: Path) -> None:
     assert main.read_text() != before  # loom prints the patch; applying it is the author's act
     assert len(ledger(q)) == lines
     assert "the text of @2" in r.output
+    # the verdict leads, on stdout, and the patch it names follows (T1)
+    assert r.stdout.startswith("apply this patch to drafting/main.tex, which loom never edits"), r.stdout
+    assert r.stdout.index("apply this patch") < r.stdout.index("--- a/drafting/main.tex")
     refused("revert", "pp-0002@9", cwd=q, code=2, match="no step 9")  # an address naming nothing
 
 
@@ -265,13 +270,21 @@ def test_verify_names_each_part_of_a_step_that_is_missing_or_edited(tmp_path: Pa
     pre.write_text(pre.read_text() + "\\usepackage{xy}\n")
     copy.write_text(copy.read_text() + "% edited\n")
     r = exits(1, "history", "verify", cwd=q)
-    assert "the preamble of step 0002 does not hash to what the ledger recorded" in r.output, r.output
-    assert "the copy of v1.tex of step 0002 does not hash to what the ledger recorded" in r.output, r.output
+    # one sentence about two parts: said once in the heading, the parts listed under it (T2)
+    assert said(r).count("of step 0002 does not hash to what the ledger recorded") == 1, r.output
+    lines = [ln.strip() for ln in r.output.splitlines()]
+    assert "preamble" in lines and "copy of v1.tex" in lines, r.output
+    messages = [d["message"] for d in json_of("history", "verify", "--json", cwd=q, code=1)["diagnostics"]]
+    assert (
+        "the preamble of step 0002 does not hash to what the ledger recorded; the record was edited by hand" in messages
+    )
+    assert any(m.startswith("the copy of v1.tex of step 0002 does not hash") for m in messages), messages
     pre.unlink()
     copy.unlink()
     r = exits(1, "history", "verify", cwd=q)
-    assert "loom:history-missing" in r.output and "the preamble of step 0002 is missing from .loom/history" in r.output
-    assert "the copy of v1.tex of step 0002 is missing" in r.output, r.output
+    assert "loom:history-missing: the … of step 0002 is missing from .loom/history" in said(r), r.output
+    lines = [ln.strip() for ln in r.output.splitlines()]
+    assert "preamble" in lines and "copy of v1.tex" in lines, r.output
     for p in d.iterdir():
         p.unlink()
     d.rmdir()
@@ -440,7 +453,7 @@ def test_history_show_prints_a_landmark_by_name_step_or_document_and_plain_drops
     ok("stamp", "drafting/main.tex", "-m", "v1", cwd=q)
     edit(main, "Alpha.", "Alpha, revised.")
     ok("stamp", "-m", "two", cwd=q)
-    for ref in ("v1", "2", "0002", "main@2", "v1@2"):
+    for ref in ("v1", "2", "0002", "main@2", "drafting/main.tex@2", "v1@2"):
         assert ok("history", "show", ref, cwd=q).stdout == drafted, ref
     plain = ok("history", "show", "v1", "--plain", cwd=q).stdout
     assert "\\usepackage{loom}" not in plain and "% !LOOM begin loom-macros" in plain
@@ -525,6 +538,22 @@ def test_restoring_a_landmark_whose_ids_are_still_live_adds_no_second_id(tmp_pat
     assert re.search(r"\\label\{pp-[0-9A-Z]{4}\}\s*\\label\{pp-", text) is None, text
     assert "0 ids inserted" in r.stdout
     assert "ids it defines another live document also defines" in said(r)
+    # the one safe way out forks inside the restored copy: forking the live one would move its records onto this one (T3)
+    keys = json_of("status", "--json", cwd=q)["keys"]
+    twice = [k for k, e in keys.items() if e["state"] == "conflicted"]
+    assert twice and all(keys[k]["fixes"] == [f"loom fork {k} --in drafting/again.tex"] for k in twice), keys
+    lint = [d for d in json_of("lint", "--json", cwd=q, code=1)["diagnostics"] if d["code"] == "duplicate-id"]
+    assert [f["command"] for d in lint for f in d["fixes"]] == [f"loom fork {k} --in drafting/again.tex" for k in twice]
+
+
+def test_history_restore_has_a_dry_run(tmp_path: Path) -> None:
+    """K2: `history restore` was the one writer with no `--dry-run`."""
+    q = quilt(tmp_path)
+    ok("stamp", "drafting/main.tex", "-m", "v1", cwd=q)
+    n = len(ledger(q))
+    r = ok("history", "restore", "v1", "--to", "drafting/again.tex", "--dry-run", cwd=q)
+    assert r.stdout.startswith("dry run: would write drafting/again.tex from landmark v1") and "also defines" in said(r)
+    assert not (q / "drafting" / "again.tex").exists() and len(ledger(q)) == n
 
 
 def test_linearize_fork_derives_the_forked_nodes_inner_labels_and_lists_them_only_as_forked(tmp_path: Path) -> None:
@@ -576,3 +605,54 @@ def test_history_help_for_a_word_that_is_neither_a_command_nor_a_key_is_refused(
     r = refused("history", "shwo", "--help", cwd=q, code=2, match="no such command or key: shwo")
     assert "did you mean show?" in r.output and "Usage" not in r.output
     assert "history pp-0002 [OPTIONS]" in ok("history", "pp-0002", "--help", cwd=q).stdout
+
+
+def test_a_mistyped_history_command_is_answered_with_the_command(tmp_path: Path) -> None:
+    """Without `--help` too: `history shwo` is a word close to a command, not just a key that does not exist."""
+    q = quilt(tmp_path)
+    refused("history", "shwo", "v1", cwd=q, code=2, match="no such command or key: shwo; did you mean show?")
+    refused("history", "pp-9999", cwd=q, code=2, match="pp-9999")
+
+
+def test_fork_derives_the_forked_nodes_inner_labels_and_a_rerun_reprints_its_patch(tmp_path: Path) -> None:
+    """The re-grade: `fork` copied a node's inner `\\label{eq:fix}`, so a fork defined it twice, as `linearize --fork` once did; and every run wrote another node file whether or not the last patch was applied, leaving orphans nothing reaches."""
+    q = demo(tmp_path)
+    talk = q / "drafting" / "talk.tex"
+    main = (q / "drafting" / "main.tex").read_text()
+    talk.write_text(
+        main[: main.index("\\begin{document}")]
+        + "\\begin{document}\n\\input{nodes/dm-0001}\nBy \\eqref{eq:fix}.\n\\end{document}\n"
+    )
+    r = ok("fork", "dm-0001", "--in", "drafting/talk.tex", cwd=q)
+    new = ledger(q)[-1]["new"]
+    node = (q / "nodes" / f"{new}.tex").read_text()
+    assert f"\\label{{eq:fix-{new}}}" in node and "\\label{eq:fix}" not in node, node
+    assert f"+By \\eqref{{eq:fix-{new}}}." in r.output  # the document's reference follows its own copy
+    files, lines = sorted((q / "nodes").glob("*.tex")), len(ledger(q))
+    again = ok("fork", "dm-0001", "--in", "drafting/talk.tex", cwd=q)
+    assert f"dm-0001 is already forked as {new} for drafting/talk.tex" in said(again) and again.output.endswith(
+        r.output.split("\n\n", 1)[1]
+    )
+    assert sorted((q / "nodes").glob("*.tex")) == files and len(ledger(q)) == lines  # nothing written again
+    js = json_of("fork", "dm-0001", "--in", "drafting/talk.tex", "--json", cwd=q)
+    assert js["ok"] is True and js["again"] is True and js["new"] == new
+    talk.write_text(js["patched"])  # the author applies it
+    assert "defined twice" not in run("lint", cwd=q).output
+
+
+def test_a_completed_fork_says_ok_in_its_json(tmp_path: Path) -> None:
+    """T8: `fork --json` said `"ok": false` for a fork it had made, exit 0, and `true` for a dry run."""
+    q = demo(tmp_path)
+    assert json_of("fork", "dm-0001", "--in", "drafting/main.tex", "--dry-run", "--json", cwd=q)["ok"] is True
+    assert json_of("fork", "dm-0001", "--in", "drafting/main.tex", "--json", cwd=q)["ok"] is True
+
+
+def test_a_document_stamp_says_the_bibliography_only_when_it_found_something(tmp_path: Path) -> None:
+    """K4: `stamp DOC` gathers the bibliography from its landmark, as it must, and the re-grade's printed `refs/: 39 documents in loom's store, none new` under every stamp."""
+    q = quilt(tmp_path)
+    ok("stamp", "drafting/main.tex", "-m", "v1", cwd=q)
+    main = q / "drafting" / "main.tex"
+    main.write_text(main.read_text().replace("Alpha.", "Alpha, revised."))
+    r = ok("stamp", "drafting/main.tex", "-m", "v2", cwd=q)
+    assert "bibliography" not in r.output and "none new" not in r.output, r.output
+    assert "bibliography" in json_of("stamp", "drafting/main.tex", "-m", "v3", "--json", cwd=q)

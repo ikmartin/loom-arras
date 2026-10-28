@@ -56,7 +56,7 @@ Bring a paper into the quilt: its styles, bibliography and figures at the root, 
 
 `loom atomize [OPTIONS] [SRC]`
 
-Move each node of SRC into nodes/<id>.tex and write the spine --to FILE, a copy of SRC with inclusion lines in their place.
+Write the spine --to FILE, a copy of SRC with an inclusion line in place of each node, and each node into nodes/<id>.tex.
 
 SRC is not modified; the history records that the spine superseded it, so it defines nothing until `loom live`.
 
@@ -125,7 +125,7 @@ FILE is never modified.
 | `--prefix` | The id prefix (default: the quilt's). |
 | `--fix-anchoring` | Include line-anchoring repairs in the patch or written copy. |
 | `--next` | Print the next free id and nothing else; inserts nothing. |
-| `--json` | With --next: print it as JSON. |
+| `--json` | Print the report as one JSON object; for a FILE, the patch is in it. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -146,7 +146,7 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 
 `loom status [OPTIONS]`
 
-List every key with its computed state, cause if stale, and review facts. Never exits nonzero.
+List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
 Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
 
@@ -231,7 +231,7 @@ Annotate, accept, and see what rests on what.
 
 `loom annotate [OPTIONS] [TARGET] [MESSAGE]`
 
-Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
+Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.
 
 A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
 
@@ -248,7 +248,7 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--edit` `ID` | Restate an annotation: a new body, --severity, --payload or --placement; never its anchor. |
 | `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
 | `--severity` | How bad the fault is, not how keen you are. |
-| `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words. |
+| `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin. |
 | `--placement` | Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment. |
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
 | `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
@@ -275,7 +275,7 @@ Print the patch that takes suggestion ANNOTATION: its payload in place, against 
 
 `loom accept [OPTIONS] [KEYS]...`
 
-Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
+Record that you accept KEYS as mathematically correct, each against the document it is read in.
 
 | option | description |
 |---|---|
@@ -294,7 +294,7 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 
 `loom deps [OPTIONS] KEY`
 
-Show what KEY depends on: direct statement-edges and proof-edges, grouped.
+Show what KEY depends on directly, through its statement and through its proof.
 
 | option | description |
 |---|---|
@@ -365,6 +365,7 @@ A new drafting document from the landmark NAME, with the package line and an id 
 | option | description |
 |---|---|
 | `--to` `FILE` | The new document, directly in the drafting directory. |
+| `--dry-run` | Say what the document would be, and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -424,9 +425,9 @@ Both are .tex files directly in the drafting directory. Moving the default docum
 
 `loom fork [OPTIONS] NODE_ID`
 
-Give FILE its own copy of a node under a new id: a node file when FILE includes the node, else the copy inline.
+Give the document --in its own copy of a node under a new id: a node file when it includes the node, else the copy inline.
 
-The copy is printed as a patch for FILE, with its references rewritten; nothing outside FILE changes.
+The copy is printed as a patch for that document, its references and its own labels rewritten; nothing outside it changes. Run again before the patch is applied, it prints the same fork's patch rather than making another.
 
 | option | description |
 |---|---|
@@ -617,8 +618,8 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 | `--local` | The paper's own name for the result: thm-4.1, cor-2.3.1, eq-1, thm-star-2. |
 | `--page` | The page the statement is on, or 353-354 if it runs over. |
 | `--source-file` `FILE` | Quote the work's LaTeX source instead of a page: a file under the directory `loom library read WORK --where src` prints. |
-| `--source-text` | The paper's own words, verbatim; checked against the page or file. |
-| `--statement` | The same result as LaTeX, in the paper's words only; the author verifies it. |
+| `--source-text` | The paper's own words, verbatim; checked against the page or file. `-` reads stdin. |
+| `--statement` | The same result as LaTeX, in the paper's words only; the author verifies it. `-` reads stdin. |
 | `--taxon` | theorem, lemma, definition, equation, …; read off --local when omitted. |
 | `--number` | The paper's numbers when it states several results together: '3.2, 3.3'. |
 | `--level` | 1 is a main result. |
@@ -996,6 +997,8 @@ Withdrawing appends an event like any other change, so a sitting's annotations c
 | `--by` `NAME` | Withdraw every record with an annotation by NAME. |
 | `--target` `KEY` | Withdraw every record with an annotation on KEY. |
 | `--undo` | Restore the matching records instead. |
+| `--why` | Why they are withdrawn, which their listing shows; with --undo, why they are back. |
+| `--as` `NAME` | Who is withdrawing them; default your configured name. |
 | `--dry-run` | Say what would be withdrawn and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -1088,12 +1091,12 @@ Build the site and the PDFs, serve them, and exchange sources with a workspace.
 
 Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
-Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
+Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
 
 | option | description |
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
-| `--force` | Render every fragment again, ignoring the cache and retrying remembered SVG failures. |
+| `--force` | Render every block again, ignoring the cache and retrying remembered SVG failures. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1101,7 +1104,9 @@ Rendering is cached per fragment by its inputs, which include loom's own version
 
 `loom serve [OPTIONS]`
 
-Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
+Serve the viewer for this quilt and keep it current: it republishes on every change until interrupted.
+
+The viewer is at /, and the build directory it reads at /build/. One server runs per quilt.
 
 | option | description |
 |---|---|
@@ -1163,7 +1168,7 @@ Change which documents publish to the workspace, without publishing.
 
 `loom sync fetch [OPTIONS]`
 
-Fetch document workspace changes for Incoming review without changing author files.
+Fetch the document workspace's changes for review in the viewer's Incoming panel, without changing your files.
 
 | option | description |
 |---|---|
@@ -1174,7 +1179,7 @@ Fetch document workspace changes for Incoming review without changing author fil
 
 `loom sync incorporate [OPTIONS]`
 
-Apply the fetched pull to the quilt's files, stamping first each document it reaches; Incoming does the same.
+Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Incoming panel does the same.
 
 | option | description |
 |---|---|

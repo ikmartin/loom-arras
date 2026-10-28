@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "95189dc0ffa2e834158cf57cd8f0e7c1d012683b344d1156f66748285effb0c1",
+   "hash": "f39ab33160b872550908ba2152800a25167f7809bd5d6ba3b0c51689571b8258",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "d276f3bcbec77aff91e3a151887e74561ab8f8f9759dc0344500c2e5045fb393",
+   "hash": "e97ca176e71cf2fc9ef9cbb138e2d2c78421048ad377b4392d8e4afe726ea39e",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "83383413a2542229b4446713cabf11bd5bac057b0aa5f5ccdfe50fb8b7a52f9b",
+   "hash": "f051b937551052976377e056178254567ce66d0917b012b2ac8b1de16b7a45d9",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -865,6 +865,12 @@
   },
   {
    "code": "loom:unmatched-postnote",
+   "fixes": [
+    {
+     "command": "loom library Kre99",
+     "label": "see what its digest holds"
+    }
+   ],
    "keys": [
     "sy-0100-ai"
    ],
@@ -879,6 +885,12 @@
   },
   {
    "code": "loom:unmatched-postnote",
+   "fixes": [
+    {
+     "command": "loom library Kre99",
+     "label": "see what its digest holds"
+    }
+   ],
    "keys": [
     "sy-0100"
    ],
@@ -926,6 +938,12 @@
   },
   {
    "code": "loom:undigested-citekey",
+   "fixes": [
+    {
+     "command": "loom library update Har77",
+     "label": "digest it"
+    }
+   ],
    "keys": [
     "sy-0100",
     "sy-0100-ai"
@@ -973,6 +991,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0100-ai to the \\uses of sy-0002-ai/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0002-ai/proof"
    ],
@@ -987,6 +1011,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0003-ai to the \\uses of sy-0006-ai/proof/2",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0006-ai/proof/2"
    ],
@@ -1001,6 +1031,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0008-ai to the \\uses of sy-0007-ai/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0007-ai/proof"
    ],
@@ -1015,6 +1051,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0007-ai to the \\uses of sy-000D-ai/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000D-ai/proof"
    ],
@@ -1029,6 +1071,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0003-ai to the \\uses of sy-000B-ai/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000B-ai/proof"
    ],
@@ -1043,6 +1091,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0006-ai to the \\uses of sy-000B-ai/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000B-ai/proof"
    ],
@@ -1057,6 +1111,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0100 to the \\uses of sy-0002/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0002/proof"
    ],
@@ -1071,6 +1131,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0003 to the \\uses of sy-0006/proof/2",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0006/proof/2"
    ],
@@ -1085,6 +1151,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0003 to the \\uses of sy-000B/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000B/proof"
    ],
@@ -1099,6 +1171,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0006 to the \\uses of sy-000B/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000B/proof"
    ],
@@ -1113,6 +1191,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0007 to the \\uses of sy-000D/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-000D/proof"
    ],
@@ -1127,6 +1211,12 @@
   },
   {
    "code": "loom:uses-missing",
+   "fixes": [
+    {
+     "command": "add sy-0008 to the \\uses of sy-0007/proof",
+     "label": "list it"
+    }
+   ],
    "keys": [
     "sy-0007/proof"
    ],
@@ -1183,6 +1273,12 @@
   },
   {
    "code": "unreachable",
+   "fixes": [
+    {
+     "command": "\\input{nodes/sy-0009} in a document, or remove nodes/sy-0009.tex",
+     "label": "read it, or let it go"
+    }
+   ],
    "keys": [
     "sy-0009"
    ],
@@ -1295,6 +1391,12 @@
   },
   {
    "code": "loom:detached-annotation",
+   "fixes": [
+    {
+     "command": "loom annotate --resolve a-2026-09-16-0010 \"…\"",
+     "label": "resolve it if its point is met"
+    }
+   ],
    "keys": [
     "sy-0001"
    ],

@@ -102,14 +102,15 @@ def said_state(r: Result) -> str:
 
 
 def discard_refusal(r: Result, citekey: str) -> str:
-    """Why `r` cannot be discarded, or '' when it can: a verified result is in the digest, and an extracted one is redone, never discarded."""
+    """Why `r` cannot be discarded, or '' when it can: a verified result is in the digest, and an extracted one is corrected, never discarded."""
     state = state_of(r)
     if state == VERIFIED:
         return f"{r.id} is verified and in digests/{citekey}.tex; edit or remove it there"
     if state == EXTRACTED:
+        # extracting again gives the same text, so the way to correct a wrong one is the author's own rendering
         return (
-            f"{r.id} is extracted by loom from {citekey}'s source, not proposed; "
-            f"loom library update {citekey} --redo extracts the digest again"
+            f"{r.id} is extracted by loom from {citekey}'s source, not proposed; to correct it, "
+            f"loom library verify {r.id} --statement '…' records the right rendering"
         )
     return ""
 
@@ -487,6 +488,8 @@ def find_result(result: Any, target: str) -> tuple[str, str, dict[str, Result]]:
         results = load_results(root, citekey)
         if target in results:
             return citekey, target, results
+    if target in result.bib:
+        raise LookupError(f"{target} is a work, not a result; loom library {target} reports it")
     raise LookupError(f"no result {target}; loom library search TEXT finds one by its words")
 
 
@@ -601,8 +604,7 @@ def verify_result(
     rescan = scan(load_quilt(root))
     if rid not in rescan.nodes:
         raise LookupError(f"{rid} is recorded but is in no digest loom can scan; check digests/{citekey}.tex")
-    _rows, written, present = write_acceptance(rescan, [rid], author)
-    out.append(f"snapshots: {written} written, {present} already present")
+    write_acceptance(rescan, [rid], author)
     return out
 
 
@@ -709,7 +711,7 @@ def page_context(root: Path, r: Result, *, lines: int = 12) -> tuple[str, bool]:
     What a person compares a rendering against. `source_text` alone is not it: an agent quotes only as much as the anchor check needs, and in the first study run a ten-line rendering stood beside the one clause "Let X be a nonsingular filtrable T-variety." Both texts were on screen and nobody could have judged the one against the other. The page around the quote is the thing the rendering claims to transcribe.
     """
     from loom.refs.pages import read_pages
-    from loom.refs.search import normalize
+    from loom.refs.search import find_in_page, normalize
 
     if r.anchor.kind == "tex" and r.anchor.path and r.cls != "mechanical":
         try:
@@ -733,10 +735,11 @@ def page_context(root: Path, r: Result, *, lines: int = 12) -> tuple[str, bool]:
     if page is None:
         return r.source_text, False
     rows = page.splitlines()
-    head = normalize(r.source_text)[:40]
-    at = next((i for i, row in enumerate(rows) if head and head[:24] in normalize(row)), None)
-    if at is None:
+    # matched as `propose` matched it, over the whole page, so a quotation across a line break is found where it was
+    if not find_in_page(page, r.source_text):
         return page.rstrip("\n"), False
+    head = normalize(r.source_text)[:24]
+    at = next((i for i in range(len(rows)) if head in normalize("\n".join(rows[i : i + 3]))), 0)
     # a statement over a page break is shown to the end of its last page: the continuation is what has to be read
     lo, hi = max(0, at - 2), len(rows) if r.anchor.last > r.anchor.page else min(len(rows), at + lines)
     return "\n".join(rows[lo:hi]).rstrip("\n"), True

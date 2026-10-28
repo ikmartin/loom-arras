@@ -193,6 +193,37 @@ def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp
     assert open_url(root) == ""
 
 
+def test_a_link_is_offered_only_into_this_quilts_own_server(tmp_path: Path) -> None:
+    """T7: the re-grade's copied quilt carried the other's `serve.json`, and `library locate` printed an `open:` link into that quilt's live viewer."""
+    import shutil
+
+    from loom.render.serve import open_url, write_serve_json
+
+    here, copy = tmp_path / "here", tmp_path / "copy"
+    here.mkdir()
+    write_serve_json(here, 8791)
+    shutil.copytree(here, copy)
+    assert open_url(here) == "http://127.0.0.1:8791/" and open_url(copy) == ""
+
+
+def test_one_server_runs_per_quilt_and_the_watcher_ignores_its_note(tmp_path: Path) -> None:
+    """T7: two `serve`s on one quilt retriggered each other, each rebuilding when the other wrote `.loom/serve.json`."""
+    from loom.render.serve import write_serve_json
+    from loom.render.watch import snapshot
+
+    q = demo(tmp_path)
+    write_serve_json(q, 8791)  # this process stands in for the server that is running
+    assert ".loom/serve.json" not in {p.relative_to(q).as_posix() for p in snapshot(q)}
+    refused(
+        "serve",
+        "--port",
+        "0",
+        cwd=q,
+        code=2,
+        match="loom serve is already running for this quilt at http://127.0.0.1:8791/",
+    )
+
+
 def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, serve, monkeypatch):
     from loom.render.serve import ServeSession
 

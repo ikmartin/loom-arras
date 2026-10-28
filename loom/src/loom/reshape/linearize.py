@@ -26,6 +26,12 @@ class Flattened:
     text: str
     inlined: list[str] = field(default_factory=list)  # files spliced in, in order of first inclusion
     kept: list[str] = field(default_factory=list)  # files in `skip`, left as inclusions
+    #: The source file and line each line of `text` came from, by its 0-based index: what a report on the flat text names to its reader.
+    origins: list[tuple[str, int]] = field(default_factory=list)
+
+    def origin(self, line: int) -> tuple[str, int] | None:
+        """The file and line the flat text's `line` (1-based) came from; None past its end."""
+        return self.origins[line - 1] if 0 < line <= len(self.origins) else None
 
 
 def flatten(
@@ -40,7 +46,7 @@ def flatten(
     skip = skip or set()
     out = Flattened(text="")
 
-    def rec(rel: str, shift: int, stack: tuple[str, ...]) -> str:
+    def rec(rel: str, shift: int, stack: tuple[str, ...]) -> tuple[str, list[tuple[str, int]]]:
         raw = (
             overlay[rel]
             if overlay is not None and rel in overlay
@@ -48,6 +54,14 @@ def flatten(
         )
         clean = blank_comments(raw)
         pieces: list[str] = []
+        lines: list[tuple[str, int]] = []  # one per line the pieces end, the line its text ends in
+
+        def own(a: int, b: int) -> None:
+            """`raw[a:b]` copied, each line it ends credited to this file's line it ends on."""
+            first = raw.count("\n", 0, a) + 1
+            lines.extend((rel, first + i) for i in range(raw.count("\n", a, b)))
+            pieces.append(raw[a:b])
+
         pos = 0
         for t in tokenize(clean):
             if t.kind != "cmd" or t.value not in ("input", "include", "nest"):
@@ -63,25 +77,33 @@ def flatten(
                     out.kept.append(child)
                 if marker is not None:
                     line_start = raw.rfind("\n", 0, t.start) + 1
-                    pieces.append(raw[pos:line_start])
+                    own(pos, line_start)
                     pieces.append(marker(child).rstrip("\n") + "\n")
+                    lines.append((rel, raw.count("\n", 0, t.start) + 1))
                     pos = line_start
                 continue
-            pieces.append(raw[pos : t.start])
+            own(pos, t.start)
+            at = (rel, raw.count("\n", 0, t.start) + 1)
             child_shift = shift + 1 if t.value == "nest" else shift
             if child not in out.inlined:
                 out.inlined.append(child)
-            body = rec(child, child_shift, (*stack, rel))
+            body, inner = rec(child, child_shift, (*stack, rel))
             if t.value == "nest":
-                body = shift_sectioning(body, 1)
+                body = shift_sectioning(body, 1)  # line for line, so `inner` still holds
             if t.value == "include":
                 body = "\\clearpage\n" + body + "\n\\clearpage\n"
-            pieces.append(body if body.endswith("\n") else body + "\n")
+                inner = [at, *inner, at, at]
+            if not body.endswith("\n"):
+                body += "\n"
+            lines.extend(inner[: body.count("\n")] + [at] * (body.count("\n") - len(inner)))
+            pieces.append(body)
             pos = arg_end
-        pieces.append(raw[pos:])
-        return "".join(pieces)
+        own(pos, len(raw))
+        if not raw.endswith("\n"):
+            lines.append((rel, raw.count("\n") + 1))
+        return "".join(pieces), lines
 
-    out.text = rec(rel, 0, ())
+    out.text, out.origins = rec(rel, 0, ())
     return out
 
 

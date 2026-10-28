@@ -32,7 +32,14 @@ def open_quilt(quilt_path: str | None) -> Quilt:
 
 
 def open_scan(quilt_path: str | None) -> ScanResult:
-    return scan(open_quilt(quilt_path))
+    """The scan of the quilt at `--quilt`, showing that it is alive when it takes more than a couple of seconds (T6), unless the command already shows progress of its own."""
+    from loom.cli.report import Progress
+
+    quilt = open_quilt(quilt_path)
+    if Progress.running:
+        return scan(quilt)
+    with Progress("reading the quilt"):
+        return scan(quilt)
 
 
 def open_bib(quilt_path: str | None) -> tuple[Quilt, dict[str, BibEntry]]:

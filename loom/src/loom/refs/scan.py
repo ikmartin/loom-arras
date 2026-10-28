@@ -354,17 +354,22 @@ def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
         source = bib.relative_to(root).as_posix()
         for key, entry_text in raw_entries(raw).items():
             offer(Candidate(key, entry_text.rstrip() + "\n", source, entry_text))
+    history = quilt.config.history.rstrip("/") + "/"
     for rel in docs:
         text = (root / rel).read_text(encoding="utf-8", errors="replace")
         bibs, absent = _named_bibs(root, text)
         report.missing_bib.extend((rel, name) for name in absent)
+        # a landmark is named as the author names it, not by where the history keeps it (T4); its step keeps two of one name apart
+        step = re.match(r"(\d+)-", Path(rel).parent.name)
+        said = f"landmark {Path(rel).stem} (@{int(step.group(1))})" if rel.startswith(history) and step else rel
         for bib in bibs:
             raw = bib.read_text(encoding="utf-8", errors="replace")
             source = bib.relative_to(root).as_posix()
+            shown = Path(source).name if source.startswith(history) else source
             for key, entry_text in raw_entries(raw).items():
-                offer(Candidate(key, entry_text.rstrip() + "\n", f"{rel} via {source}", entry_text))
+                offer(Candidate(key, entry_text.rstrip() + "\n", f"{said} via {shown}", entry_text))
         for key, item in bibitems(text).items():
-            offer(Candidate(key, _bibtex(key, bibitem_fields(item)), rel, item))
+            offer(Candidate(key, _bibtex(key, bibitem_fields(item)), said, item))
     return out
 
 

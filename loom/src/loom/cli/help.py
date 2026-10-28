@@ -99,15 +99,35 @@ class CommandGroup(click.Group):
             ctx.exit(0)
         return super().parse_args(ctx, args)
 
+    #: (title, purpose, names) for a group whose help is laid out by task, as `loom --help` is; empty lists every subcommand under one heading.
+    sections: tuple[tuple[str, str, tuple[str, ...]], ...] = ()
+
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        rows = [
-            (n, c.get_short_help_str(FULL))
-            for n in self.list_commands(ctx)
-            if (c := self.get_command(ctx, n)) and not c.hidden
-        ]
-        if rows:
-            with formatter.section("Commands"):
-                formatter.write_dl(rows)
+        here = _path(ctx)
+        shown = {n: c for n in self.list_commands(ctx) if (c := self.get_command(ctx, n)) and not c.hidden}
+        marked = False
+
+        def row(name: str) -> tuple[str, str]:
+            nonlocal marked
+            agent = bool(self.sections) and agent_runs(" ".join([*here, name]))
+            marked |= agent
+            return name + (AGENT_MARK if agent else ""), shown[name].get_short_help_str(FULL)
+
+        listed: set[str] = set()
+        for title, purpose, names in self.sections:
+            rows = [row(n) for n in names if n in shown]
+            listed |= set(names)
+            if rows:
+                with formatter.section(title):
+                    formatter.write_text(purpose)
+                    formatter.write_dl(rows)
+        rest = [row(n) for n in shown if n not in listed]
+        if rest:
+            with formatter.section("Other" if self.sections else "Commands"):
+                formatter.write_dl(rest)
+        if marked:
+            formatter.write_paragraph()
+            formatter.write_text(AGENT_LEGEND)
 
 
 def command_path(group: click.Group, args: list[str]) -> tuple[str, bool]:
@@ -155,16 +175,12 @@ def refuse_agent(group: click.Group, args: list[str]) -> None:
         (
             word.split("=", 1)[1] if "=" in word else (args[i + 1] if i + 1 < len(args) else "")
             for i, word in enumerate(args)
-            if word.split("=", 1)[0] in ("--as", "--author")
+            if word.split("=", 1)[0] == "--as"
         ),
         None,
     )
     named = (
-        ""
-        if declared is None
-        else f", and {declared} is an agent"
-        if is_agent(declared)
-        else ", whatever --author or --as says"
+        "" if declared is None else f", and {declared} is an agent" if is_agent(declared) else ", whatever --as says"
     )
     raise EnvError(
         f"an agent is running this shell ({marker} is set) and may not run `loom {path}`, which is the author's{named}; "

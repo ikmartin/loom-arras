@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError, find_session, note
+from loom.cli._common import ContentError, EnvError, find_session, from_stdin, note
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
@@ -142,8 +142,12 @@ def list_command(show_all: bool, as_json: bool, quilt_path: str | None) -> None:
             else "no sessions yet; loom session new opens one, and annotating opens one for you"
         )
     else:
-        verdict = counted(len(standing), "session" if show_all else "open session") + (
-            f"; {here} is active (*)" if any(s.id == here for s in standing) else "; none is active"
+        closed = 0 if show_all else sum(1 for s in every.values() if s.state != "open")
+        verdict = (
+            counted(len(standing), "session" if show_all else "open session")
+            + (f"; {here} is active (*)" if any(s.id == here for s in standing) else "; none is active")
+            # what is left out is said, with the flag that shows it (T2)
+            + (f"; {closed} closed: --all lists them" if closed else "")
         )
     items = [
         Item(f"{'*' if s.id == here else ' '} {s.id}  {s.title}" + ("" if s.state == "open" else f"  [{s.state}]"))
@@ -242,7 +246,13 @@ def delete_command(
 
     quilt, who = _who(quilt_path, declared)
     root = quilt.root  # type: ignore[attr-defined]
-    s = find_session(root, which, deleted=purge)
+    # a deleted session is found, so deleting it again is answered rather than refused (T7)
+    s = find_session(root, which, deleted=True)
+    if s.state == "deleted" and not purge:
+        Report(f'{s.id} "{s.title}" is already deleted; nothing written', data={"session": s.id, "purged": False}).emit(
+            as_json
+        )
+        return
     if purge:
         from loom.cli._common import refuse_under_agent
 
@@ -369,12 +379,11 @@ def say_command(
 
     The same post the viewer's composer makes, for a person and an agent alike: it carries the annotations you made since your last message, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past the message when you had read everything before it, so `next` does not hand you your own words.
     """
-    import sys
-
     from loom.mailbox import attached, cursor, pending, post, set_cursor, waiting_on
 
     root, found, name, kind = _mail(quilt_path, which, declared)
-    body = (sys.stdin.read() if text == "-" else text).strip()
+    (said,) = from_stdin({"TEXT": text})
+    body = (said or "").strip()
     packet = pending(root, found, name)
     if not body and not packet:
         raise EnvError("nothing to say: no words, and nothing marked since your last message")

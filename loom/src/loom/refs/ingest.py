@@ -82,6 +82,16 @@ class Candidate:
         return len(sigs) >= 2 and not self.ambiguous
 
 
+#: Each identity signal as a reader says it (T4).
+SIGNAL_WORDS = {
+    "first-author": "its first author",
+    "title-on-page": "its title on the page",
+    "title-in-filename": "its title in the file name",
+    "doi": "the DOI it prints",
+    "arxiv": "the arXiv id it prints",
+}
+
+
 def title_lines(first_page: str) -> list[str]:
     """Lines near the top of page one that could be a title.
 
@@ -391,7 +401,7 @@ def identify_document(pdf: Path, bib: dict[str, BibEntry]) -> Identity:
         out.nearest = guess
         named = ", ".join(sorted({*out.dois, *(f"arXiv:{a}" for a in out.arxivs)}))
         out.weak = (
-            f"{guess} is the nearest entry, on {', '.join(s.kind for s in sigs)}, but {shortfall(out, bib[guess])}"
+            f"{guess} is the nearest entry, by {', '.join(SIGNAL_WORDS.get(s.kind, s.kind) for s in sigs)}, but {shortfall(out, bib[guess])}"
             if guess
             else f"it names {named}, which no entry states"
             if named

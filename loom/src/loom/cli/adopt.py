@@ -113,9 +113,11 @@ def adopt(
             Report(_previewed(preview, output), data=preview).emit(as_json)
             return
         asking = sys.stdin.isatty()
+        left = preview.get("unselected") or []
         Report(
             _previewed(preview, None),
-            lines=["Unselected proposals remain in the agent document. Incorporation does not accept mathematics."],
+            # said only when it is so (T2)
+            lines=[f"{counted(len(left), 'proposal')} not selected stay in the agent document"] if left else [],
         ).emit()
         if not asking:
             # one line however long: the token is an identifier, and a command broken across lines does not run
@@ -132,11 +134,14 @@ def adopt(
 
 def _previewed(preview: dict[str, Any], output: str | None) -> str:
     """The verdict on a preview: what it would incorporate, or why nothing, and where the patch went."""
-    from loom.adopt import nothing_to_incorporate
+    from loom.adopt import nothing_to_incorporate, waiting
 
     if not preview["patch"]:
         return nothing_to_incorporate(preview)
     what = counted(len(preview["keys"]), "result") + (" and the document's prose" if preview["document"] else "")
-    return f"preview of {what} from {Path(preview['copy']).name} into {preview['source']}; nothing incorporated yet" + (
-        f"; the patch is in {output}" if output else ""
+    behind = waiting(preview)  # a preview of the results says what still waits behind a flag (T1)
+    return (
+        f"preview of {what} from {Path(preview['copy']).name} into {preview['source']}; nothing incorporated yet"
+        + (f"; {behind}" if behind else "")
+        + (f"; the patch is in {output}" if output else "")
     )

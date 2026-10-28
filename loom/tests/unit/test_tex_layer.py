@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from loom.reshape.ids import unified_diff
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from loom.tex.assemble import assemble, shift_sectioning
 from loom.tex.aux import parse_aux
-from loom.tex.bundle import apply_unified_diff, build_bundle, unified_diff
+from loom.tex.bundle import apply_unified_diff, build_bundle
 from tests.helpers import exits, json_of, ok, refused, run
 
 REPO = Path(__file__).resolve().parents[2]
@@ -308,3 +309,14 @@ def test_check_says_it_is_alive_while_it_lints(tmp_path: Path, monkeypatch) -> N
     r = run("check", cwd=d)
     assert r.exit_code == 0, r.output
     assert "linting" in r.stderr, r.stderr
+
+
+def test_compiling_a_document_that_is_not_there_names_the_documents(tmp_path: Path) -> None:
+    """T4: `compile drafting/nope.tex` answered "no such key", a document being no key."""
+    from tests.helpers import refused
+    from tests.unit._quilts import demo
+
+    q = demo(tmp_path)
+    refused(
+        "compile", "drafting/nope.tex", cwd=q, code=2, match="no such document drafting/nope.tex; the documents are"
+    )

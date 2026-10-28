@@ -278,7 +278,7 @@ No command has an alias and no two commands perform one act; a step of a pipelin
 
 ### K2. One idea, one flag, one meaning.
 
-A flag means the same thing on every command that takes it, and an idea has one flag wherever it appears: who is acting, a reason, the file to write, a session, consent to use the network.
+A flag means the same thing on every command that takes it, and an idea has one flag wherever it appears: who is acting, a reason, the file to write, a session, consent to use the network. A session is `--session` where it is the context a command works in, and the argument where it is what the verb acts on (`loom session use WHICH`); a long text given as `-` is read from stdin, wherever loom takes one.
 
 ### K3. Refuse what is not understood.
 

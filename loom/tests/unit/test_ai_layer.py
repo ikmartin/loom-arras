@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from loom.ai.layout import MODES
-from tests.helpers import exits, json_of, ok, refused
+from tests.helpers import exits, flat, json_of, ok, refused
 from tests.unit._quilts import demo
 
 FIXED = {"LOOM_FIXED_TIME": "2026-09-16T14:02:00Z"}
@@ -165,6 +165,28 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path, monkeypatch: pytest.Monk
         "House rule" in referee.read_text()
         and "New shipped section" in (q / "ai" / "modes" / "referee.md.new").read_text()
     )
+    assert "merge ai/modes/referee.md.new into ai/modes/referee.md, then delete ai/modes/referee.md.new" in flat(
+        r2.output
+    )
+    # a merge in progress in the .new is the author's, never written over
+    new = q / "ai" / "modes" / "referee.md.new"
+    new.write_text(new.read_text() + "half merged\n")
+    ok("upgrade", cwd=q)
+    assert new.read_text().endswith("half merged\n")
+    # merged and deleted, it is not written again until loom ships another version (the re-grade: "on every run")
+    new.unlink()
+    assert not ok("upgrade", cwd=q).output.count("referee.md.new") and not new.exists()
+    shipped["ai/modes/referee.md"] += "\n## Another shipped section\n"
+    ok("upgrade", cwd=q)
+    assert "Another shipped section" in new.read_text()
+
+
+def test_upgrade_counts_one_kept_file_once(tmp_path: Path) -> None:
+    """T5: "kept 1 edited file, 1 with a new version beside it to merge" was one file."""
+    q = bare(tmp_path)
+    (q / "ai" / "orientation.md").write_text("stale orientation\n")
+    r = ok("upgrade", cwd=q).stdout.splitlines()[0]
+    assert r == "upgraded: kept 1 edited file, its new version beside it to merge", r
 
 
 def test_upgrade_refreshes_an_unedited_mode_the_first_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -604,3 +626,28 @@ def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_print
     argv = shlex.split(line.split(": ", 1)[1])
     assert argv[:3] == ["loom", "ai", "refresh"] and len(argv) == 4, line
     assert run(*argv[1:], cwd=q).exit_code == 1  # the same conflict, not an unexpected argument
+
+
+def test_a_withdrawal_carries_its_reason_and_is_not_made_twice(tmp_path: Path) -> None:
+    """K2: `ai discard` took no `--why`, so every withdrawal read "no reason given"; T7: run twice, it said "withdrew" twice and recorded it twice."""
+    q = demo(tmp_path)
+    sid = "s-2026-09-16-0002"
+    log = q / "annotations" / "log.jsonl"
+    ok("ai", "discard", sid, "--why", "an early, mistaken pass", cwd=q)
+    lines = log.read_text()
+    again = ok("ai", "discard", sid, cwd=q)
+    assert again.stdout.startswith(f"already withdrawn: {sid}; nothing written") and log.read_text() == lines
+    listed = ok("ai", "annotations", "--session", sid, "--all", cwd=q).stdout
+    assert "withdrawn: an early, mistaken pass" in listed and "no reason given" not in listed, listed
+
+
+def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: Path) -> None:
+    """An agent answers the author's annotations and may edit its own, so it must tell them apart; T2: the columns did not line up."""
+    q = demo(tmp_path)
+    sid = "s-2026-09-16-0002"
+    rows = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
+    assert rows and all(set(r["author"]) == {"kind", "id"} for r in rows), rows
+    text = ok("ai", "annotations", "--session", sid, cwd=q).stdout
+    lines = [ln for ln in text.splitlines() if ln.startswith("  a-")]
+    assert lines and all(f"by {r['author']['id']}" in text for r in rows)
+    assert len({ln.index(" by ") for ln in lines}) == 1, lines  # one column, whatever the row

@@ -152,7 +152,13 @@ class BuildReport:
 
     @property
     def digests(self) -> int:
-        return sum(1 for w in self.works if w.digest)
+        """Works with a digest, a work's versions counted once with it, as `loom library` counts them."""
+        return len({w.version_of or w.citekey for w in self.works if w.digest})
+
+    @property
+    def counted_works(self) -> int:
+        """Works, a work's versions counted once with it."""
+        return len({w.version_of or w.citekey for w in self.works})
 
     @property
     def discarded(self) -> list[WorkState]:
@@ -175,7 +181,6 @@ class BuildReport:
         """
         from loom.cli.report import Group, Item, Report, counted, table
 
-        n = len(self.works)
         ran = self.steps
         rows = []
         # each step's count is what this run did; an offline step did nothing, and says so rather than count the disk
@@ -240,7 +245,10 @@ class BuildReport:
         groups += self._this_run()
         thin = sorted((x for x in self.works if x.thin), key=lambda x: x.citekey.lower())
         groups.append(
-            Group("too thin to trust", [Item(f"{x.results} results, {x.pages} pages", key=x.citekey) for x in thin])
+            Group(
+                "too thin to trust",
+                [Item(f"{counted(x.results, 'result')}, {counted(x.pages, 'page')}", key=x.citekey) for x in thin],
+            )
         )
         restored = sorted((x for x in self.works if x.restored), key=lambda x: x.citekey.lower())
         groups.append(
@@ -299,7 +307,7 @@ class BuildReport:
         blocked = len(self.blocked) if {"resolve", "fetch", "extract"} & set(ran) else 0
         failed = self.failures
         verdict = (
-            f"{self.digests} of {counted(n, 'work')} digested"
+            f"{self.digests} of {counted(self.counted_works, 'work')} digested"
             + (f"; this run {self.did}" if self.did else ", nothing new this run")
             + (f"; {failed} failed" if failed else "")
             + (f"; {blocked} blocked" if blocked else "")
@@ -384,34 +392,32 @@ class BuildReport:
         refused = [
             Item(w.fetched.refused, key=w.citekey) for w in self.works if w.fetched is not None and w.fetched.refused
         ]
-        extracted: list[Item] = []
+        # how a work's results are numbered is said once per way, in the heading, not on every work (T2)
+        compiled: list[Item] = []
+        counted_in_order: list[Item] = []
         noted: list[Item] = []
+        undeclared: dict[tuple[str, str], list[str]] = {}
         for w in self.works:
             r = w.extraction
             if r is None:
                 continue
             by = ", ".join(f"{k} {t}" for t, k in sorted(r.by_taxon.items(), key=lambda x: (-x[1], x[0])))
-            numbering = (
-                f"numbering from the paper's .aux, except {counted(r.emulated, 'unlabelled result')} counted by emulation"
-                if r.numbering == "aux" and r.emulated
-                else "numbering from the paper's .aux"
-                if r.numbering == "aux"
-                else "numbering emulated" + (f" (compile failed: {r.compile_error})" if r.compile_error else "")
-            )
             total = sum(r.by_taxon.values())
-            extracted.append(
-                Item(
-                    f"{counted(total, 'result')}"
-                    + (f" ({by})" if by else "")
-                    + f", {counted(r.sections, 'section')}; {numbering}; its lint: {w.lint or 'clean'}",
-                    key=w.citekey,
-                )
-            )
-            noted += [
-                Item(f"environment {env} is not declared in this quilt; add {hint}", key=w.citekey)
-                for env, hint in r.unknown_envs.items()
-            ]
+            said = f"{counted(total, 'result')}" + (f" ({by})" if by else "") + f", {counted(r.sections, 'section')}"
+            if r.numbering == "aux":
+                if r.emulated:
+                    said += f"; {counted(r.emulated, 'unlabelled result')} numbered by counting"
+                compiled.append(Item(f"{said}; its lint: {w.lint or 'clean'}", key=w.citekey))
+            else:
+                failed = f"; its compile failed: {r.compile_error}" if r.compile_error else ""
+                counted_in_order.append(Item(f"{said}{failed}; its lint: {w.lint or 'clean'}", key=w.citekey))
+            for env, hint in r.unknown_envs.items():
+                undeclared.setdefault((env, hint), []).append(w.citekey)
             noted += [Item(f"skipped {s}", key=w.citekey) for s in r.skipped]
+        noted += [
+            Item(f"environment {env} is not declared in this quilt; add {hint}", key=", ".join(sorted(works)))
+            for (env, hint), works in sorted(undeclared.items())
+        ]
         mapped = [
             Item(f"{counted(w.pages, 'page')}, {counted(w.sections, 'section')}", key=w.citekey)
             for w in self.works
@@ -429,7 +435,8 @@ class BuildReport:
             ),
             Group("not fetched", by_key(refused), problem=True, limit=None),
             Group("fetched", by_key(got)),
-            Group("extracted", by_key(extracted)),
+            Group("extracted, numbered as the paper's own compile numbers them", by_key(compiled)),
+            Group("extracted, numbered by counting the results in order", by_key(counted_in_order)),
             Group("noted while extracting", by_key(noted), limit=None),
             Group("not mapped", by_key(unmapped), problem=True, limit=None),
             Group("mapped, to look at", by_key(look), limit=None),
@@ -500,6 +507,13 @@ def _row(w: WorkState) -> dict[str, object]:
     }
 
 
+def in_digest(root: Path, citekey: str) -> int:
+    """How many of a work's results its digest holds: extracted by loom, or proposed and verified by the author; what "too thin to trust" counts, so a verified result is never beside "0 results"."""
+    from loom.refs.proposals import EXTRACTED, VERIFIED, load_results, state_of
+
+    return sum(1 for r in load_results(root, citekey).values() if state_of(r) in (EXTRACTED, VERIFIED))
+
+
 def cited_counts(result: ScanResult) -> dict[str, int]:
     """How many of the author's own keys cite each work; the order §10 extracts in."""
     keys: dict[str, set[str]] = {}
@@ -554,7 +568,6 @@ def survey(result: ScanResult) -> list[WorkState]:
         ident, via = identifier_for(root, entry)
         home = work_dir(root, entry)
         m = read_map(home)
-        from loom.refs.proposals import load_results
 
         out.append(
             WorkState(
@@ -563,7 +576,7 @@ def survey(result: ScanResult) -> list[WorkState]:
                 version_of=tops.get(ck, ""),
                 pages=m.pages if m else 0,
                 sections=len(m.sections) if m else 0,
-                results=sum(1 for r in load_results(root, ck).values() if r.cls == "mechanical"),
+                results=in_digest(root, ck),
                 declared=via == "declared",
                 identified=bool(declared(entry)),
                 candidate=ident or "" if via == "candidate" else "",
@@ -816,10 +829,8 @@ def build_refs(
         report.recorded = _record_step(result, works, report.entered)
     # Counted after extraction, not by the survey that opened the run: `survey` reads results.json before this run has
     # written it, and a count taken then called every one of sixteen fresh digests "too thin to trust".
-    from loom.refs.proposals import load_results
-
     for w in works:
-        w.results = sum(1 for r in load_results(result.quilt.root, w.citekey).values() if r.cls == "mechanical")
+        w.results = in_digest(result.quilt.root, w.citekey)
     if "map" in steps:
         _map_step(result, works, force, progress)
     return report

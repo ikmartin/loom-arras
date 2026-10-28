@@ -80,8 +80,9 @@ def apply_insertions(text: str, insertions: list[Insertion]) -> str:
 
 
 def unified_diff(before: str, after: str, path: str) -> str:
+    """One file's change as every patch loom prints writes it: `--- a/PATH` and `+++ b/PATH`, which `git apply` and `patch -p1` take as they are."""
     return "".join(
         difflib.unified_diff(
-            before.splitlines(keepends=True), after.splitlines(keepends=True), fromfile=path, tofile=path
+            before.splitlines(keepends=True), after.splitlines(keepends=True), fromfile=f"a/{path}", tofile=f"b/{path}"
         )
     )

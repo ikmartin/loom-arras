@@ -602,6 +602,7 @@ def prepare(
         "preamble": preamble,
         "document_waiting": bool(data["document_changed"]) and not document,
         "preamble_waiting": bool(data["preamble_changed"]) and not preamble,
+        "unselected": [r["key"] for r in data["changes"] if r["offered"] and r["key"] not in selected],
         "patch": patch,
         "paths": paths,
         "overlay": overlay,
@@ -720,19 +721,24 @@ def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None
     }
 
 
-def nothing_to_incorporate(prepared: dict[str, Any]) -> str:
-    """What an empty preview says: "nothing" only when nothing waits, and otherwise the flag that shows what does."""
-    waiting = []
-    flags = []
+def waiting(prepared: dict[str, Any]) -> str:
+    """What changes a preview leaves behind a flag, and the command that shows them; '' when none wait."""
+    kinds, flags = [], []
     if prepared.get("document_waiting"):
-        waiting.append("prose or ordering")
+        kinds.append("prose or ordering")
         flags.append("--document-changes")
     if prepared.get("preamble_waiting"):
-        waiting.append("preamble")
+        kinds.append("preamble")
         flags.append("--preamble-changes")
-    if waiting:
-        return f"No result changes to incorporate; {' and '.join(waiting)} changes wait: run loom adopt {Path(prepared['copy']).name} {' '.join(flags)} to see them"
-    return "No changes to incorporate"
+    if not kinds:
+        return ""
+    return f"{' and '.join(kinds)} changes wait: run loom adopt {Path(prepared['copy']).name} {' '.join(flags)} to see them"
+
+
+def nothing_to_incorporate(prepared: dict[str, Any]) -> str:
+    """What an empty preview says: "nothing" only when nothing waits, and otherwise the flag that shows what does."""
+    behind = waiting(prepared)
+    return f"No result changes to incorporate; {behind}" if behind else "No changes to incorporate"
 
 
 def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None = None) -> dict[str, Any]:

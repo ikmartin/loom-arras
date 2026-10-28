@@ -73,7 +73,7 @@ def test_scan_copies_named_bib_entries_verbatim_and_converts_bibitems(tmp_path: 
     report = scan_bibliography(quilt)
     assert [c.key for c in report.added] == ["Kre99", "GP99", "Inline"]
     text = (quilt.root / BIBLIOGRAPHY).read_text()
-    assert "note = {kept as written}" in text and f"% from {landmark(1, 'paper')} via refs.bib" in text
+    assert "note = {kept as written}" in text and "% from landmark paper (@1) via refs.bib" in text
     assert set(parse_bib(text)) == {"Kre99", "GP99", "Inline"}
 
 
@@ -94,11 +94,11 @@ def test_two_landmarks_disagreeing_on_a_key_keep_the_first_and_say_so(tmp_path: 
     other = PAPER.replace("Localization of virtual classes", "Something else entirely")
     quilt = _quilt(tmp_path, {landmark(1, "a"): PAPER, landmark(2, "b"): other, landmark(3, "c"): PAPER})
     report = scan_bibliography(quilt, write=False)
-    assert report.conflicts == [("GP99", landmark(1, "a"), landmark(2, "b"))]
+    assert report.conflicts == [("GP99", "landmark a (@1)", "landmark b (@2)")]  # as the author names them
     assert not (quilt.root / BIBLIOGRAPHY).exists()
     said = "\n".join(report.lines())
     assert "conflicts: the landmarks disagree, and the first is kept (1)" in said
-    assert f"  {landmark(1, 'a')} (kept) and {landmark(2, 'b')}  GP99" in said, said
+    assert "  landmark a (@1) (kept) and landmark b (@2)  GP99" in said, said
 
 
 def _pdf(path: Path, text: str = "A paper about widgets") -> None:

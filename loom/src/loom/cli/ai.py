@@ -12,7 +12,7 @@ import click
 from loom.cli._common import EXIT_CONTENT, EnvError, NotFoundError, find_session
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
-from loom.cli.report import Group, Item, Report, counted
+from loom.cli.report import Group, Item, Report, counted, table
 from loom.cli.review import STATUSES
 from loom.records.annotations import KINDS, SEVERITIES
 
@@ -37,6 +37,12 @@ def ai() -> None:
 @click.option("--by", "by", default=None, metavar="NAME", help="Withdraw every record with an annotation by NAME.")
 @click.option("--target", default=None, metavar="KEY", help="Withdraw every record with an annotation on KEY.")
 @click.option("--undo", is_flag=True, help="Restore the matching records instead.")
+@click.option(
+    "--why", default=None, help="Why they are withdrawn, which their listing shows; with --undo, why they are back."
+)
+@click.option(
+    "--as", "as_name", default=None, metavar="NAME", help="Who is withdrawing them; default your configured name."
+)
 @click.option("--dry-run", is_flag=True, help="Say what would be withdrawn and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
@@ -46,6 +52,8 @@ def discard(
     by: str | None,
     target: str | None,
     undo: bool,
+    why: str | None,
+    as_name: str | None,
     dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
@@ -62,6 +70,7 @@ def discard(
     refuse_under_agent(
         "loom ai discard",
         "Withdrawing a session's annotations is the author's; ask the author, or withdraw one of your own with loom annotate --discard.",
+        as_name,
     )
     quilt = open_quilt(quilt_path)
     root = quilt.root
@@ -89,9 +98,18 @@ def discard(
     else:
         raise EnvError("give SESSION, or --before, --by, or --target")
     verb = "restored" if undo else "withdrew"
-    data = {"sessions": sorted(sources), "undo": undo}
+    # one already as asked is said so and left alone, so a second run records nothing (T7)
+    standing = {rec.rel: rec.discarded for rec in records}
+    already = sorted(rel for rel in sources if standing.get(rel, False) != undo)
+    sources = [rel for rel in sources if rel not in already]
+    data = {"sessions": sorted(sources), "already": already, "undo": undo}
     if not sources:
-        Report(f"no matching records; nothing {'restored' if undo else 'withdrawn'}", data=data).emit(as_json)
+        Report(
+            f"already {'restored' if undo else 'withdrawn'}: {', '.join(already)}; nothing written"
+            if already
+            else f"no matching records; nothing {'restored' if undo else 'withdrawn'}",
+            data=data,
+        ).emit(as_json)
         return
     heading = ("would be " if dry_run else "") + ("restored" if undo else "withdrawn")
     listed = [Group(heading, [Item("", key=rel) for rel in sorted(sources)], limit=None)]
@@ -106,7 +124,7 @@ def discard(
     from loom.cli._common import whoever
     from loom.sessions import ID, close, resume
 
-    who = whoever(root)
+    who = whoever(root, as_name)
     for rel in sources:
         event: dict[str, object] = {
             "event": "discarded",
@@ -116,6 +134,8 @@ def discard(
             "kind": "agent" if agent_marker() else "human",
             "session": rel,
         }
+        if why:
+            event["body"] = why
         if undo:
             event["undo"] = True
         append(root, event)
@@ -124,7 +144,8 @@ def discard(
             (resume if undo else close)(root, rel, who)
     Report(
         f"{verb} the annotations of {counted(len(sources), 'session')}"
-        + ("; each is open again" if undo else "; each is closed, and nothing is deleted"),
+        + ("; each is open again" if undo else "; each is closed, and nothing is deleted")
+        + (f"; {counted(len(already), 'other')} already {'restored' if undo else 'withdrawn'}" if already else ""),
         groups=listed,
         data=data,
     ).emit(as_json)
@@ -443,7 +464,9 @@ def ai_annotations(
             "payload": a.annotation.payload,
             "placement": a.annotation.placement,
             "discarded": a.annotation.status == "discarded" or a.record.discarded,
-            "discard_reason": a.annotation.discard_reason,
+            "discard_reason": a.annotation.discard_reason or a.record.discard_reason,
+            # who wrote it, so an agent tells the author's from its own: it answers the author's, and may edit its own
+            "author": {"kind": a.annotation.author_kind, "id": a.annotation.author_id},
         }
         for a in Records(root, result.quilt.history_dir).resolved(result)
         if a.record.rel == rel or a.record.rel.startswith(f"{rel}/")
@@ -473,15 +496,18 @@ def ai_annotations(
             lines.append(f"  {pr['id']}  {pr['state']}{extra}")
             # the edit itself: a reattached agent that could not see it diffed its own scratch script against the digest
             lines += [f"      {line}" for line in pr.get("edit") or []]
-    items = []
+    cells = []
     for r in rows:
         sev = f" {r['severity']}" if r["severity"] else ""
         shown = "withdrawn" if r["status"] == "discarded" else r["status"]
         mark = "" if shown == "open" or r["discarded"] else f" ({shown})"
-        quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
+        quote = f"\u201c{r['quote']}\u201d" if r["quote"] else ""
         where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
-        withdrawn = f"; withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
-        items.append(Item(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}{withdrawn}"))
+        withdrawn = f"withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
+        rest = "; ".join(x for x in (quote, withdrawn) if x)
+        who = r["author"]["id"] if isinstance(r["author"], dict) else ""
+        cells.append((str(r["id"]), str(where), f"{r['kind']}{sev}{mark}", f"by {who}", rest))
+    items = [Item(line) for line in table(cells)]  # aligned, so the columns read down (T2)
     verdict = f"{rel}: " + (
         counted(len(rows), "annotation") if rows else "no annotations" if hidden else "no annotations yet"
     )

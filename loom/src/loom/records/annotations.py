@@ -118,6 +118,8 @@ class Record:
     path: Path  # the log the record was replayed from
     rel: str  # the grouping key: the session id
     discarded: bool = False
+    #: Why the whole session's annotations were withdrawn, from the discarding event's body; replayed, never typed.
+    discard_reason: str | None = None
     annotations: list[Annotation] = field(default_factory=list)
 
 

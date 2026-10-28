@@ -58,7 +58,7 @@ def author(_: Path) -> None:
 class Case:
     """One run of a command on a fresh demo quilt.
 
-    `args` follow the command path; `setup` prepares the quilt first; `exit` is the exit code the outcome should give; `json` runs it again with `--json` when the command takes it; `poppler` needs the real pdftotext; `env` sets variables for the run (None unsets); `why` says what the case is for when it is a refusal or an edge; `unchanged` asserts the quilt's files are byte-identical afterwards, as a dry run's and a refusal's must be (K3, K4).
+    `args` follow the command path; `setup` prepares the quilt first; `exit` is the exit code the outcome should give; `json` runs it again with `--json` when the command takes it; `poppler` needs the real pdftotext; `env` sets variables for the run (None unsets); `why` says what the case is for when it is a refusal or an edge; `unchanged` asserts the quilt's files are byte-identical afterwards, as a dry run's and a refusal's must be (K3, K4); `shown` says stderr carries a text shown as it is (a page put beside a rendering for checking), whose width is the text's own.
     """
 
     args: tuple[str, ...] = ()
@@ -69,3 +69,4 @@ class Case:
     env: tuple[tuple[str, str | None], ...] = ()
     why: str = ""
     unchanged: bool = False
+    shown: bool = False

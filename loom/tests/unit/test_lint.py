@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from tests.helpers import edit, exits, json_of, ok, refused, the
+from loom.scan.model import Diagnostic, Location
+from tests.helpers import edit, exits, json_of, ok, refused, run, the
 from tests.unit._quilts import demo
 
 
@@ -110,11 +112,12 @@ def test_an_uncited_digest_counts_toward_nothing_and_library_check_lists_it(tmp_
     _uncited_digest(q)
     r = ok("lint", cwd=q)  # its error is no error of the author's
     assert r.output.splitlines()[0] == before
-    line = the(r.output.splitlines(), lambda ln: "in works nothing cites" in ln, "the uncited line")
-    assert line.endswith("in works nothing cites; loom library check lists them"), line
+    line = the(r.output.splitlines(), lambda ln: "nothing cites" in ln, "the uncited line")
+    # the line says what it counts: diagnostics, in how many works
+    assert line.endswith("in 1 work nothing cites; loom library check lists them") and " diagnostic" in line, line
     assert "dangling-link" not in r.output and "Har77" not in r.output  # nor its missing copy and identifier
     data = json_of("lint", "--json", cwd=q)
-    group = the(data["groups"], lambda g: "works nothing cites" in g["heading"], "the uncited group")
+    group = the(data["groups"], lambda g: "nothing cites" in g["heading"], "the uncited group")
     assert "dangling-link" in [i["diagnostic"]["code"] for i in group["items"]]
     assert group["count"] == len(group["items"]) == int(line.split()[0])
     from loom.refs.proposals import record_extracted
@@ -135,7 +138,7 @@ def test_a_cited_digest_keeps_the_cited_works_heading(tmp_path: Path) -> None:
     r = exits(1, "lint", cwd=q)
     assert "1 error in cited works" in r.output.splitlines()[0]
     assert "in cited works (1)" in r.output.splitlines()
-    assert "works nothing cites" not in r.output
+    assert "nothing cites" not in r.output
 
 
 def test_a_diagnostic_on_a_result_the_author_reaches_is_the_authors(tmp_path: Path) -> None:
@@ -155,3 +158,87 @@ def test_a_quilt_with_nothing_to_read_says_how_to_begin(tmp_path: Path) -> None:
     found = [d for d in json_of("lint", "--json", cwd=q)["diagnostics"] if d["code"] == "loom:no-live-document"]
     assert [f["command"] for f in found[0]["fixes"]] == ["loom import FILE", "loom library add FILE"]
     assert "\\documentclass" in found[0]["message"]
+
+
+def _diag(message: str, line: int, *keys: str, code: str = "loom:detached-annotation") -> Diagnostic:
+    return Diagnostic("info", code, message, [Location("drafting/main.tex", line)], list(keys))
+
+
+def test_one_sentence_about_several_things_is_said_once_with_what_varies_under_it() -> None:
+    """T2: the re-grade's `check` printed "N annotation(s) on rl-XXXX no longer match its text" nineteen times; the sentence is the heading's, once, and each line says only what is its own."""
+    from loom.cli.diagnostics import groups
+
+    ds = [_diag(f"1 annotation(s) on rl-000{n} no longer match its text", n, f"rl-000{n}") for n in (1, 2, 3)]
+    (g,) = groups(ds, None)
+    assert g.heading == "info loom:detached-annotation: 1 annotation(s) on … no longer match its text"
+    assert [i.text for i in g.items] == [f"drafting/main.tex:{n}  rl-000{n}" for n in (1, 2, 3)]
+    assert all(i.key is None for i in g.items)  # the text names the key, so it is not said again after it
+    assert [i.data["diagnostic"]["message"] for i in g.items] == [d.message for d in ds]  # the JSON keeps each whole
+
+
+def test_what_varies_is_said_without_the_punctuation_that_joined_it() -> None:
+    from loom.cli.diagnostics import groups
+
+    ds = [_diag(f"dm-000{n} refers to dm-0009, which its master does not reach", n, f"dm-000{n}") for n in (2, 3)]
+    (g,) = groups(ds, None)
+    assert g.heading.endswith(": … refers to dm-0009, which its master does not reach"), g.heading
+    assert [i.text for i in g.items] == ["drafting/main.tex:2  dm-0002", "drafting/main.tex:3  dm-0003"]
+    ds = [_diag(f"dm-0001 refers to dm-000{n}, which its master does not reach", n, "dm-0001") for n in (2, 3)]
+    (g,) = groups(ds, None)
+    assert [i.text for i in g.items] == ["drafting/main.tex:2  dm-0002", "drafting/main.tex:3  dm-0003"]
+
+
+def test_different_sentences_that_begin_alike_are_not_folded_and_a_repeat_is_said_once() -> None:
+    from loom.cli.diagnostics import groups
+
+    a = _diag("the history ledger cannot be read in full: line 3 is not JSON", 3)
+    b = _diag("the history ledger cannot be read in full: line 4: step 1 does not follow step 2", 4)
+    (g,) = groups([a, b, a], None)  # `a` reported twice, as two passes over one file can
+    assert g.heading == "info loom:detached-annotation" and [i.text.split("  ", 1)[1] for i in g.items] == [
+        a.message,
+        b.message,
+    ]
+
+
+def test_a_key_the_message_does_not_name_is_still_said() -> None:
+    from loom.cli.diagnostics import item
+
+    assert item(_diag("its basis is not stated", 7, "dm-0002")).key == "dm-0002"
+    assert item(_diag("dm-0002 has no basis", 7, "dm-0002")).key is None
+
+
+def _fixes(q: Path, code: str) -> list[str]:
+    diags = json.loads(run("lint", "--json", cwd=q).stdout)["diagnostics"]
+    return [f["command"] for d in diags if d["code"] == code for f in d.get("fixes", [])]
+
+
+def test_every_finding_names_what_resolves_it_and_the_command_works(tmp_path: Path) -> None:
+    """T3: `uses-missing`, `detached-annotation`, `unmatched-postnote`, `undigested-citekey` and `unreachable` named no command; each now names one, and the one it names runs in that state."""
+    q = demo(tmp_path)
+    proof = q / "nodes" / "dm-0003.tex"
+    edit(proof, "\\uses{dm-0002}\nBy Lemma", "\\uses{dm-0002}\nAs in Definition~\\ref{def:widget}, by Lemma")
+    edit(
+        proof,
+        "\\cite[Proposition 3.2]{Calloway14}",
+        "\\cite[Proposition 3.2]{Calloway14}, \\cite[Theorem 99]{Calloway14}, \\cite[Theorem 1]{Har77}",
+    )
+    (q / "nodes" / "stray.tex").write_text("\\begin{remark}\\label{dm-0099}\nStray.\n\\end{remark}\n")
+    a = ok(
+        "annotate", "dm-0002", "Which orbits?", "--quote", "one-point orbits", "--as", "Tester", cwd=q
+    ).output.split()[0]
+    edit(q / "nodes" / "dm-0002.tex", "the one-point orbits", "the orbits of one point")
+    assert "add dm-0001 to the \\uses of dm-0003/proof" in _fixes(q, "loom:uses-missing")
+    assert _fixes(q, "loom:unmatched-postnote") == ["loom library Calloway14"]
+    assert _fixes(q, "loom:undigested-citekey") == ["loom library update Har77"]
+    assert _fixes(q, "unreachable") == ["\\input{nodes/stray} in a document, or remove nodes/stray.tex"]
+    assert _fixes(q, "loom:detached-annotation") == [f'loom annotate --resolve {a} "…"']
+    ok("library", "Calloway14", cwd=q)
+    ok("library", "update", "Har77", "--dry-run", cwd=q)
+    ok("annotate", "--resolve", a, "The orbit is still there, reworded.", "--as", "Tester", cwd=q)
+    assert _fixes(q, "loom:detached-annotation") == []
+    # a fork whose patch was never applied: its node file is unreachable, and running it again prints the patch
+    (q / "nodes" / "stray.tex").unlink()
+    ok("fork", "dm-0001", "--in", "drafting/main.tex", cwd=q)
+    (orphan,) = _fixes(q, "unreachable")[:1]
+    assert orphan == "loom fork dm-0001 --in drafting/main.tex"
+    assert "already forked" in " ".join(ok(*orphan.split()[1:], cwd=q).output.split())

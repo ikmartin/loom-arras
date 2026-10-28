@@ -5,7 +5,6 @@ Layout: the master's preamble closure verbatim (with \\usepackage{loom} guarante
 
 from __future__ import annotations
 
-import difflib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,7 +15,9 @@ from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 from loom.scan.source import blank_comments, line_starts
 
-HEADER = "% Bundle written by loom. Statements of the closure precede the key; ids are shown as comments before each environment.\n"
+HEADER = (
+    "% The closure loom prints for one key: the statements it depends on come first, each with its id in a comment.\n"
+)
 
 
 @dataclass
@@ -82,7 +83,7 @@ def build_bundle(result: ScanResult, key: str, master: str | None = None, overri
         for k in result.graph.closure(w):
             if k != stmt_key and k not in closure:
                 closure.append(k)
-    parts = [HEADER, _preamble(result, master), "\\begin{document}\n", f"\\section*{{Bundle for {key}}}\n\n"]
+    parts = [HEADER, _preamble(result, master), "\\begin{document}\n", f"\\section*{{The closure of {key}}}\n\n"]
     missing: list[str] = []
     for dep in closure:
         if dep in result.nodes and result.nodes[dep].kind in ("environment", "section"):
@@ -203,18 +204,10 @@ def draft_bundle(result: ScanResult, draft: Path) -> Bundle:
         HEADER,
         _preamble(result, master),
         "\\begin{document}\n",
-        f"\\section*{{Bundle for draft {draft.name}}}\n\n",
+        f"\\section*{{The closure of draft {draft.name}}}\n\n",
     ]
     for dep in order:
         if dep in result.nodes and result.nodes[dep].kind in ("environment", "section"):
             parts.append(statement_block(result, dep) + "\n")
     parts.append(f"% draft: {draft.name}\n{text}\n\n\\end{{document}}\n")
     return Bundle(f"draft-{draft.stem}", "".join(parts), order, unknown)
-
-
-def unified_diff(a: str, b: str, path: str) -> str:
-    return "".join(
-        difflib.unified_diff(
-            a.splitlines(keepends=True), b.splitlines(keepends=True), fromfile=f"a/{path}", tofile=f"b/{path}"
-        )
-    )

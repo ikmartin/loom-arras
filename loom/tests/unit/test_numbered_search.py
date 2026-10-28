@@ -55,3 +55,9 @@ def test_a_number_nothing_carries_says_so_and_words_are_still_words(q: Path) -> 
     # a bare number nothing is numbered is looked for as text, as ever
     ok("search", "2026", cwd=q)
     assert [e["key"] for e in found(q, "Widget")][:1] == ["dm-0001"]
+
+
+def test_a_number_nothing_bears_names_the_document_to_compile(q: Path) -> None:
+    """T3: the hint named `loom compile DOCUMENT`, a placeholder, rather than the document."""
+    out = ok("search", "9.9", "--in", "drafting/main.tex", cwd=q).stdout
+    assert "loom compile drafting/main.tex refreshes it" in " ".join(out.split()), out

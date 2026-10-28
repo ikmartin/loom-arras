@@ -37,7 +37,7 @@ To ask for one, write a `suggestion` on the thing concerned with your reasoning;
 - `loom search QUERY --json`: ids by title, alias, tag or citekey. When the author names a result by number — "Theorem 3.4" — resolve it here before reading anything.
 - `loom source KEY --closure`: a key's text and exactly the statements it rests on. A document's path instead prints it flattened. Read this, not the directories.
 - `loom library WORK`, `loom library search`, `loom library read WORK N`: the literature. Ask the digest before the paper, and quote only what `library read` printed.
-- `loom ai annotations --session SESSION`: what a session has annotated, and what the author decided about it.
+- `loom ai annotations --session SESSION`: what a session has annotated, who wrote each, and what the author decided about it.
 - `loom ai drafts`: each agent document and what has moved on the author's side since; `loom ai refresh DOC` brings that in.
 - Anything else: `loom --help`, and `loom COMMAND --help`. Commands marked `*` there are yours; the rest refuse you.
 

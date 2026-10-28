@@ -193,7 +193,7 @@ CASES: dict[str, list[Case]] = {
             unchanged=True,
             why="a page not yet written takes no --base",
         ),
-        Case(("state", "See [](quilt:dm-9999).", *AGENT), exit=1, unchanged=True, why="a link that names nothing"),
+        Case(("state", "See [](quilt:dm-9999).", *AGENT), exit=2, unchanged=True, why="a link that names nothing"),
         Case(("Nobody99", "Goals.", *AGENT), exit=2, unchanged=True, why="names no work"),
         Case(("state", " ", *AGENT), exit=2, unchanged=True, why="nothing to write"),
     ],

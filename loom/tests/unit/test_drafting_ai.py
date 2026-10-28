@@ -261,7 +261,9 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
         match="overlaps drafting-ai/aidoc.tex",
     )
     refused("draft", "drafting/outline.tex", "--ai", "aidoc.tex", cwd=q, code=2, match="exists; draft never overwrites")
-    refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
+    taken = refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
+    free = re.search(r"--ai (\S+)", taken.output).group(1)  # the refusal names a name that is free (T3)
+    ok("draft", "drafting/outline.tex", "--ai", free, cwd=q)
     refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent document")
     refused("draft", "drafting/missing.tex", "--ai", "x.tex", cwd=q, code=2, match="is not a live document")
 

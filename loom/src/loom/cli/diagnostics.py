@@ -5,6 +5,8 @@ Every command that reports diagnostics (`lint`, `build`, `check`, `library updat
 
 from __future__ import annotations
 
+import re
+
 from loom.cli.report import Group, Item, counted
 from loom.scan.model import Diagnostic
 from loom.scan.scan import ScanResult
@@ -87,16 +89,48 @@ class Owners:
         return out
 
 
-def item(d: Diagnostic) -> Item:
-    """One diagnostic as an item: its location first, then its message, the keys it names last, its fixes beneath."""
+def item(d: Diagnostic, said: str | None = None) -> Item:
+    """One diagnostic as an item: its location first, then its message (or `said`, the part of it its heading does not already say), the keys it names last unless the text names them, its fixes beneath; the JSON carries the diagnostic whole."""
     where = ", ".join(f"{loc.file}:{loc.line}" for loc in d.locations)
-    text = f"{where}  {d.message}" if where else d.message
+    message = d.message if said is None else said
+    text = f"{where}  {message}" if where else message
+    named = set(re.findall(r"[^\s,;:()]+", message))
     return Item(
         text,
-        key=" ".join(d.keys) or None,
+        key=" ".join(k for k in d.keys if k not in named) or None,
         fixes=[f.command for f in d.fixes],
         data={"diagnostic": d.to_dict()},
     )
+
+
+#: A sentence its diagnostics share is said once in their heading when it has at least `SHARED` words and each says no more than `VARIES` of its own: one sentence about different things, not different sentences that begin alike.
+SHARED, VARIES = 4, 4
+
+
+def _shared(messages: list[str]) -> tuple[int, int]:
+    """How many leading and trailing words every message shares, word-aligned and never overlapping; (0, 0) when the messages are not one sentence (`SHARED`, `VARIES`)."""
+    words = [m.split() for m in messages]
+    shortest = min(len(w) for w in words)
+    head = 0
+    while head < shortest and len({w[head] for w in words}) == 1:
+        head += 1
+    tail = 0
+    while tail < shortest - head and len({w[-1 - tail] for w in words}) == 1:
+        tail += 1
+    own = [len(w) - head - tail for w in words]
+    return (head, tail) if head + tail >= SHARED and all(0 < n <= VARIES for n in own) else (0, 0)
+
+
+def _code_group(severity: str, code: str, ds: list[Diagnostic]) -> Group:
+    """One code's diagnostics: when they all say one sentence about different things, the sentence is the heading's, once, and each line says only what varies (T2)."""
+    head, tail = _shared([d.message for d in ds]) if len(ds) > 1 else (0, 0)
+    if not head and not tail:
+        return Group(f"{severity} {code}", [item(d) for d in ds], problem=severity == "error", limit=20)
+    first = ds[0].message.split()
+    gist = " ".join([*first[:head], "…", *(first[len(first) - tail :] if tail else [])])
+    # what varies, without the comma that joined it to the shared words
+    items = [item(d, " ".join(d.message.split()[head : len(d.message.split()) - tail]).rstrip(",;:")) for d in ds]
+    return Group(f"{severity} {code}: {gist}", items, problem=severity == "error", limit=20)
 
 
 def groups(diags: list[Diagnostic], result: ScanResult | None, cited_next: str = "loom lint --json") -> list[Group]:
@@ -104,7 +138,8 @@ def groups(diags: list[Diagnostic], result: ScanResult | None, cited_next: str =
 
     A cited paper's digest can carry hundreds of diagnostics the author did not write and need not read one by one, which drowned the author's own (CLI study C3); they are counted, and `cited_next` names the command that lists every one. The uncited works' line carries every one of its diagnostics in the JSON.
     """
-    split = Owners(result).split(diags)
+    owners = Owners(result)
+    split = owners.split(_once(diags))
     own, cited, uncited = split[AUTHOR], split[CITED], split[UNCITED]
     out: list[Group] = []
     by_code: dict[tuple[int, str, str], list[Diagnostic]] = {}
@@ -112,7 +147,7 @@ def groups(diags: list[Diagnostic], result: ScanResult | None, cited_next: str =
         by_code.setdefault((SEVERITY.get(d.severity, 3), d.code, d.severity), []).append(d)
     for (_, code, severity), ds in sorted(by_code.items()):
         ds.sort(key=lambda d: (d.locations[0].file, d.locations[0].line) if d.locations else ("", 0))
-        out.append(Group(f"{severity} {code}", [item(d) for d in ds], problem=severity == "error", limit=20))
+        out.append(_code_group(severity, code, ds))
     if cited:
         tally: dict[tuple[int, str, str], int] = {}
         for d in cited:
@@ -131,9 +166,10 @@ def groups(diags: list[Diagnostic], result: ScanResult | None, cited_next: str =
             )
         )
     if uncited:
+        works = set().union(*(owners.works(d) for d in uncited))
         out.append(
             Group(
-                f"{len(uncited)} in works nothing cites; loom library check lists them",
+                f"{counted(len(uncited), 'diagnostic')} in {counted(len(works), 'work')} nothing cites; loom library check lists them",
                 [item(d) for d in uncited],
                 limit=0,
                 counted=False,
@@ -142,9 +178,21 @@ def groups(diags: list[Diagnostic], result: ScanResult | None, cited_next: str =
     return out
 
 
+def _once(diags: list[Diagnostic]) -> list[Diagnostic]:
+    """`diags` with each one said once: two passes can report the same diagnostic at the same place."""
+    seen: set[tuple[str, str, str, tuple[tuple[str, int], ...], tuple[str, ...]]] = set()
+    out = []
+    for d in diags:
+        mark = (d.severity, d.code, d.message, tuple((loc.file, loc.line) for loc in d.locations), tuple(d.keys))
+        if mark not in seen:
+            seen.add(mark)
+            out.append(d)
+    return out
+
+
 def tally(diags: list[Diagnostic], result: ScanResult | None) -> str:
     """`2 errors, 1 warning in your documents; 88 errors in cited works`, or `no problems`: the count a verdict carries; a work's nothing cites counts toward neither."""
-    split = Owners(result).split(diags)
+    split = Owners(result).split(_once(diags))
     own, cited = split[AUTHOR], split[CITED]
 
     def counts(ds: list[Diagnostic]) -> str:

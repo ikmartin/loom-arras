@@ -207,6 +207,15 @@ def revision(cwd: Path, ref: str) -> str:
     return git(cwd, "rev-parse", "--verify", f"{ref}^{{commit}}").decode().strip()
 
 
+def revision_time(cwd: Path, rev: str) -> str:
+    """When `rev` was made, `2026-10-28 14:02` in its own zone: how a revision is named to its reader, the hash staying in the JSON; '' when git cannot say."""
+    try:
+        made = git(cwd, "log", "-1", "--format=%ci", rev).decode().strip()
+    except SyncError:
+        return ""
+    return made[:16]
+
+
 def current_selection(state: SyncState, result: ScanResult) -> tuple[str, list[str]]:
     """The sync record's main and selected documents as they are now, main first.
 
@@ -308,6 +317,14 @@ def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool =
     root = quilt.root
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
         raise SyncError("the document workspace main path must stay within the project")
+    if not published_main:
+        # pairing again keeps where the main document publishes, rather than silently setting it back (T7)
+        try:
+            before = SyncState.read(root)
+        except SyncError:
+            before = None
+        if before is not None and before.url == url:
+            published_main = before.published_main
     remote = own_remotes(root).get(place(url, root))
     if remote is not None:
         raise SyncError(
@@ -541,8 +558,11 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
         try:
             git(stage, "apply", "--whitespace=nowarn", "-", env=env, input=patch)
         except SyncError as exc:
+            # git's own words name its temporary paths; what the author needs is the file and line (T3)
+            at = sorted(set(re.findall(r"patch failed: ([^:\s]+:\d+)", str(exc))))
+            where = f" at {', '.join(at)}" if at else ""
             raise SourceError(
-                f"the pull does not apply to your current files: {exc}. "
+                f"the pull does not apply to your current files{where}. "
                 "Read it with `loom sync status --patch`, bring those files in line in your editor, then incorporate again"
             ) from exc
         return {path: (stage / path).read_bytes() if (stage / path).is_file() else None for path in paths}
@@ -778,16 +798,20 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: 
             dest = stage / "source" / path
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
-        for index, document in enumerate(documents):
-            projected = projection[document]
-            out = compile_tex(
-                stage / "source",
-                projected,
-                stage / "build" / f"{index}-{Path(projected).stem}",
-                quilt.config.engine,
-            )
-            if not out.ok:
-                raise SourceError(f"the source-only document {document} does not compile: {out.first_error}")
+        from loom.cli.report import Progress
+
+        with Progress("compiling", len(documents)) as shown:
+            for index, document in enumerate(documents):
+                shown.item(document)
+                projected = projection[document]
+                out = compile_tex(
+                    stage / "source",
+                    projected,
+                    stage / "build" / f"{index}-{Path(projected).stem}",
+                    quilt.config.engine,
+                )
+                if not out.ok:
+                    raise SourceError(f"the source-only document {document} does not compile: {out.first_error}")
         if not write:
             # compared file by file, since a tree object would be written into the clone to compare it as Git does
             if files == tree_files(clone, remote_tip):
@@ -893,7 +917,10 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str,
             current.append(document)
     elif action == "remove":
         if document == main:
-            raise SyncError("the primary document workspace document cannot be removed")
+            raise SyncError(
+                f"{document} is the document the workspace's main file is published from, so it stays; "
+                "loom sync init URL --publish-main FILE pairs again with another"
+            )
         current = [item for item in current if item != document and result.current_document(item) != document]
     else:
         raise SyncError(f"unknown document action: {action}")
@@ -905,11 +932,22 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str,
 
 def summary(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     target = state.incoming or state.integrated
+    clone = workspace(quilt.root)
+    # a revision prepared on a tip since passed is no longer what a push would send, so it is not shown as prepared (T7)
+    try:
+        current = bool(state.prepared) and revision(clone, f"{state.prepared}^") == state.integrated
+    except SyncError:
+        current = False
     return {
         "url": state.url,
         "branch": state.branch,
-        "prepared": state.prepared,
-        "prepared_landmarks": state.prepared_landmarks,
+        "prepared": state.prepared if current else "",
+        "prepared_landmarks": state.prepared_landmarks if current else [],
+        "times": {
+            "integrated": revision_time(clone, state.integrated),
+            "incoming": revision_time(clone, target),
+            "prepared": revision_time(clone, state.prepared) if current else "",
+        },
         "documents": state.documents or [state.master],
         "integrated": state.integrated,
         "incoming": target,

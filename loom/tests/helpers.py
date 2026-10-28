@@ -57,6 +57,16 @@ def run(
         os.chdir(old)
 
 
+def flat(text: str) -> str:
+    """`text` with every run of whitespace one space: what a phrase reads as once loom has wrapped it to 100 columns."""
+    return " ".join(text.split())
+
+
+def said(match: str, text: str) -> bool:
+    """Whether `text` says `match`, wherever the wrap broke its lines."""
+    return flat(match) in flat(text)
+
+
 def describe(args: Iterable[str | Path], r: Result) -> str:
     """The command and everything it said, for an assertion message."""
     cmd = "loom " + " ".join(str(a) for a in args)
@@ -98,7 +108,7 @@ def exits(code: int, *args: str | Path, match: str | None = None, **kw: Any) -> 
     """
     r = run(*args, **kw)
     assert r.exit_code == code, f"expected exit {code}" + describe(args, r)
-    assert match is None or match in r.output, f"expected {match!r} in the output" + describe(args, r)
+    assert match is None or said(match, r.output), f"expected {match!r} in the output" + describe(args, r)
     return r
 
 
@@ -120,7 +130,7 @@ def refused(*args: str | Path, code: int, match: str, **kw: Any) -> Result:
     """
     r = run(*args, **kw)
     assert r.exit_code == code, f"expected a refusal with exit {code}" + describe(args, r)
-    assert match in r.output, f"expected {match!r} in the refusal" + describe(args, r)
+    assert said(match, r.output), f"expected {match!r} in the refusal" + describe(args, r)
     return r
 
 

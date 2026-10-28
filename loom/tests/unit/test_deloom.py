@@ -101,6 +101,9 @@ def test_the_command_refuses_naming_each_blocker_and_its_flag(tmp_path: Path) ->
     refused = run("deloom", "main.tex", "--to", "build/plain.tex", cwd=d)
     assert refused.exit_code == 1
     assert "\\incomplete" in refused.output and "--keep-incomplete" in refused.output
+    # the mark is named where the author wrote it, not by a line of the flattened text (T5)
+    mark = next(i for i, ln in enumerate(main.read_text().splitlines(), 1) if "\\incomplete{Later.}" in ln)
+    assert f"drafting/main.tex:{mark}" in " ".join(refused.output.split()), refused.output
     assert not (d / "build/plain.tex").exists()
     done = ok(
         "deloom", "main", "--to", "build/plain.tex", "--keep-incomplete", "--keep-referenced-ids", "--json", cwd=d
@@ -123,3 +126,16 @@ def test_the_target_is_never_a_live_document_or_a_source(tmp_path: Path) -> None
         "deloom", "main.tex", "--to", "nodes/dm-0001.tex", "--keep-incomplete", "--keep-referenced-ids", cwd=d
     )
     assert onto_source.exit_code == 2 and "sources" in onto_source.output
+
+
+def test_a_superseded_document_is_named_as_one(tmp_path: Path) -> None:
+    """T3: deloom of a superseded document said it "is not a document of this quilt; `loom status` lists them", and status lists keys."""
+    ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
+    d = tmp_path / "demo"
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=d)
+    r = run("deloom", "drafting/main.tex", "--to", "build/plain.tex", cwd=d)
+    assert (
+        r.exit_code == 2 and "is superseded" in r.output and "loom live drafting/main.tex" in " ".join(r.output.split())
+    )
+    r = run("deloom", "nowhere.tex", "--to", "build/plain.tex", cwd=d)
+    assert r.exit_code == 2 and "the documents are" in r.output and "loom status" not in r.output

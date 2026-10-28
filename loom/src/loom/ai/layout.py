@@ -318,6 +318,9 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
         return rep
     recorded = read_versions(root)
     texts = tracked_docs()
+    wrote_beside: dict[
+        str, str
+    ] = {}  # each .new as loom wrote it, so a later upgrade can tell the author's merge from it
     for rel, shipped in texts.items():
         p = root / rel
         name = Path(rel).name
@@ -336,12 +339,24 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
                 p.write_text(shipped, encoding="utf-8")  # untouched since it was shipped: refresh
             rep.written.append(rel)
         else:
-            if write:
-                p.with_name(name + ".new").write_text(shipped, encoding="utf-8")
+            beside = p.with_name(name + ".new")
+            there = beside.read_text(encoding="utf-8") if beside.is_file() else None
+            last = recorded.get(name + ".new")
             rep.kept.append(rel)
+            if there is None and last == sha(shipped):
+                # merged and deleted: the author has this version, and nothing goes beside it until loom ships another
+                wrote_beside[name + ".new"] = last
+                continue
+            # a .new as loom wrote it is brought up to date; one the author has begun merging into is theirs (K4)
+            if there is None or (sha(there) == last and there != shipped):
+                if write:
+                    beside.write_text(shipped, encoding="utf-8")
+                wrote_beside[name + ".new"] = sha(shipped)
+            elif last:
+                wrote_beside[name + ".new"] = last
             rep.new_beside.append(rel + ".new")
     names = {Path(rel).name for rel in texts} | {STY}
-    new_versions = {name: h for name, h in recorded.items() if name in names}
+    new_versions = {name: h for name, h in recorded.items() if name in names} | wrote_beside
     for rel, shipped in texts.items():
         if rel in rep.kept:
             continue  # the record keeps the hash of what was shipped last time, so a later upgrade still sees the edit

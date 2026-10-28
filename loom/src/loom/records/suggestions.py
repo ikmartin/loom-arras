@@ -189,7 +189,7 @@ def taken_file(result: ScanResult, placed: Placed) -> str:
 
 def patch(result: ScanResult, placed: Placed) -> str:
     """The payload in place, as a unified diff of the node's file against the quilt root."""
-    from loom.tex.bundle import unified_diff
+    from loom.reshape.ids import unified_diff
 
     return unified_diff(result.files[placed.file].text, taken_file(result, placed), placed.file)
 

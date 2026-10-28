@@ -120,6 +120,16 @@ def compile(  # noqa: A001
                 root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0], engine),
             )
+    elif (
+        target is not None
+        and target.endswith(".tex")
+        and target not in result.masters
+        and not (root / target).is_file()
+    ):
+        # a document that is not there is a document that names nothing, not a key (T4)
+        raise NotFoundError(
+            "document", f"no such document {target}; the documents are {', '.join(result.masters) or 'none'}"
+        )
     elif target is None or target in result.masters or (root / target).is_file() and target.endswith(".tex"):
         if with_file:
             raise EnvError("--with substitutes one key's text; give a KEY rather than a master")
@@ -404,7 +414,10 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
         groups.append(
             Group(
                 "error loom:closure-failed",
-                [Item(f"does not compile: {c['error']}", key=str(c["key"])) for c in failed_closures],
+                [
+                    Item(f"does not compile: {c['error']}", key=str(c["key"]), fixes=[f"loom compile {c['key']}"])
+                    for c in failed_closures
+                ],
                 problem=True,
                 next="loom check --closures all --json" if len(failed_closures) > 12 else None,
             )

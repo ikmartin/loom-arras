@@ -11,7 +11,7 @@ from typing import Any, TypeVar, cast
 import click
 
 from loom.cli._common import EnvError, NotFoundError
-from loom.cli.report import Group
+from loom.cli.report import Group, counted
 from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
 
@@ -153,10 +153,21 @@ def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
 
 def one_work(result: ScanResult, needle: str) -> str:
     """The one citekey `needle` names, for a command that reads a single work; several matches are refused by name."""
+    from loom.refs.scan import primary_of
+
     hits = sorted(works(result, (needle,)))
     if len(hits) > 1:
-        shown = ", ".join(hits[:6]) + (f" and {len(hits) - 6} more" if len(hits) > 6 else "")
-        raise EnvError(f"{needle!r} names {len(hits)} works: {shown}; give one citekey")
+        # a work's versions are one work, so they are counted once and named together (K7)
+        tops = primary_of(result.bib)
+        by_work: dict[str, list[str]] = {}
+        for ck in hits:
+            by_work.setdefault(tops.get(ck, ck), []).append(ck)
+        named = [
+            vs[0] + (f" (with its version{'s' if len(vs) > 2 else ''} {', '.join(vs[1:])})" if len(vs) > 1 else "")
+            for _, vs in sorted(by_work.items())
+        ]
+        shown = ", ".join(named[:6]) + (f" and {len(named) - 6} more" if len(named) > 6 else "")
+        raise EnvError(f"{needle!r} names {counted(len(named), 'work')}: {shown}; give one citekey")
     return hits[0]
 
 
