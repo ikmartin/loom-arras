@@ -42,10 +42,10 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
 | [WQ-56](WQ-56-figures-cold-build.md) | a cold build's figures: a preamble format, and the cited papers' blocks that fail | loom | `scripts/bench` shows a cold build over three minutes once cold builds are common, or a cited paper's figure shows as source with an error |
 | [WQ-58](WQ-58-lazy-digests.md) | lazy digests: the extraction as an index, a result a node only when used | loom, arras | after a persistent token cache and a linear `unmatched_cites`, lint or status still spends over about 1 s on digest nodes no document reaches |
-| [WQ-59](WQ-59-regrade-partials.md) | the re-grade's partials: every finding graded p | loom | the next round of work on the command line, or a finding tripped over in use |
 | [WQ-60](WQ-60-annotation-anchors.md) | annotation anchors: a mark placed from the source span, re-anchoring, where a mark landed, a replacement longer than its anchor | loom, arras | an annotation drawn at block level that its writer meant for a phrase, or a finding discarded and filed again only to move its quote |
 | [WQ-61](WQ-61-read-view-content-visibility.md) | the read view's blocks skipped while off screen, once the reader's place holds | arras | a way to keep the place when a skipped block above the reader changes, shown on relloc within 4 px |
+| [WQ-62](WQ-62-suggestions-folded-in.md) | a document read with its open suggestions folded in | loom, arras | a suggestion of a paragraph or more is too cramped to read in its in-place view, in a review of the author's own text |
 
-Twenty-seven active, eighteen slots of headroom.
+Twenty-five active, twenty slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

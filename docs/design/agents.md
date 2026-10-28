@@ -43,7 +43,7 @@ MCP is the intended way for any agent to attach (not built yet, see [README](REA
 - **Large results go to a file** in the session's build area, and the tool returns its path, so the agent's own file tools can search it. Every result, and `run.log`, records the equivalent `loom …` command, so a person can rerun it.
 - **Read-only tools say so,** so clients can skip approval prompts for them. A skill file teaches agents both MCP and the command line.
 - **The agent's name is set per client** in the configuration loom generates, which is never committed and never one someone else wrote.
-- **Two commands are the bridge** that replaces the chat composer as the way a person points an agent at something (plan 0.21.5):
+- **Two commands are the bridge** that replaces the chat composer as the way a person points an agent at something (plan 0.21.8):
   - *where the person is looking*: the document and block, down to the selected words or the PDF page and region, from the viewer tab touched last. The viewer reports it to `loom serve`, which keeps it in memory only.
   - *what the person did since this agent last looked*: their annotations and replies, and their acceptances, including keys that went stale, with one marker per agent name.
 - **It is optional.** Loom generates two settings variants, one for an agent that uses the shell and one for an agent that uses MCP, and `loom doctor` checks whichever applies. Both must be tried with the real client before they ship, not only checked by unit tests (`invariants.md`); nothing tests this automatically yet.

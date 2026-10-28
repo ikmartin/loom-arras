@@ -48,7 +48,7 @@ Best fits first. Each job writes through loom under a declared agent name (`--as
 3. **Keeping the graph honest** (Author). "By the previous lemma" and "as in Section 3" are dependencies with no `\ref`, and the butler proposes them as `\uses` edges in suggestions. This matters for trust: an acceptance holds hashes of its closure, so a lemma used without an edge can change without the acceptance going stale. A butler that finds missing edges makes P15 hold more often.
 4. **Review below the mathematics** (Author). Notation that drifts between sections, a symbol used before it is defined, a hypothesis that disappears where a lemma is applied. These need language rather than a judgment of whether the mathematics is right, and they are what lint cannot see.
 5. **Writing in the author's house style** (Author). The strongest case for fine-tuning over prompting: a model tuned on one author's macros, environments and conventions follows them better than a prompted frontier model. It works in an agent document in `drafting-ai/`, and the author adopts what they want (P7).
-6. **Briefs and transcripts** (everyone). It turns what the person did since an agent last looked (`loom since`, a name proposed in plan 0.21.5) into a short account, and writes `loom session say` entries from a session's `run.log` and the records it produced, so a session has a record even when no frontier agent took part.
+6. **Briefs and transcripts** (everyone). It turns what the person did since an agent last looked (`loom since`, a name proposed in plan 0.21.8) into a short account, and writes `loom session say` entries from a session's `run.log` and the records it produced, so a session has a record even when no frontier agent took part.
 7. **Handing off lane 3** (everyone). It turns a question into a task for a frontier agent: the question, the ids it concerns, the closure to read. The expensive model then spends its reasoning on the mathematics rather than on finding its way around the quilt.
 
 For the Explorer's "is this known?", a **fine-tuned embedding model** over digest results and library statements is likely a better tool than an 8B generator, and a better first project: retrieval is where a small model is strongest, and the library already holds the statements to train on.
@@ -72,11 +72,11 @@ At four bits an 8B model is roughly 5 GB and runs on an ordinary Apple Silicon M
 
 ## A first experiment
 
-1. When plan 0.21.2 lands, attach a stock ~8B model to a fixture quilt through an MCP-capable local client.
+1. When plan 0.21.5 lands, attach a stock ~8B model to a fixture quilt through an MCP-capable local client.
 2. Give it three jobs whose success loom can measure: resolve a description to an id (job 1), locate and transcribe the results on a PDF page and compare both with the digest extracted from the work's source (job 2), and recover ablated edges (job 3).
 3. Record where it fails, fine-tune on those failures, and measure again on fixtures it was not trained on.
 
-Fine-tuning before the MCP server exists would teach shell conventions that are about to be replaced, so 0.21.2 is the real prerequisite.
+Fine-tuning before the MCP server exists would teach shell conventions that are about to be replaced, so 0.21.5 is the real prerequisite.
 
 ## Where it presses on the design
 
@@ -85,7 +85,7 @@ Fine-tuning before the MCP server exists would teach shell conventions that are 
 - **Volume.** A tireless writer can flood the annotation log. Defaulting the butler's output to fleeting notes handles most of it, which is a reason to build notes before a butler.
 - **Privacy is the strongest argument for going local.** Unpublished drafts, institutional rules against sending them to hosted models, and students without the budget for them all point the same way, and a model that never leaves the machine serves all three.
 
-**Open.** Whether a model ever belongs inside loom. The author's long-term aim, an application in which the command line is optional for a person, meets a local model most naturally in a natural-language control in the viewer: type what you want, see the `loom` command it means, press to run it. That would be the first idea to genuinely challenge P8 and P9. A gentler version keeps the model outside, reading where the person is looking through `loom here` (a name proposed in plan 0.21.5) and acting as a client.
+**Open.** Whether a model ever belongs inside loom. The author's long-term aim, an application in which the command line is optional for a person, meets a local model most naturally in a natural-language control in the viewer: type what you want, see the `loom` command it means, press to run it. That would be the first idea to genuinely challenge P8 and P9. A gentler version keeps the model outside, reading where the person is looking through `loom here` (a name proposed in plan 0.21.8) and acting as a client.
 
 **Open.** Where the butler's task lists live. A task list is a queue, and the design distrusts queues that nag. The honest version computes its lists from records that already exist (open questions, `\incomplete` steps, stale keys, unfiled captures), and the butler labels them rather than owning them. Whether a label such as "lane 3: needs a frontier agent" is an annotation, a note or a new kind of record is undecided.
 

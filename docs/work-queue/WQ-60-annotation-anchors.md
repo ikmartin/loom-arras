@@ -23,4 +23,4 @@ The anchoring critique found quotes `annotate` accepted marked as their whole pa
 
 ## Related
 
-DR-334-ikmartin; [WQ-59](WQ-59-regrade-partials.md).
+DR-334-ikmartin; WQ-59, now [plan 0.21](../plans/0.21-mcp.md), phase 0.21.4.
