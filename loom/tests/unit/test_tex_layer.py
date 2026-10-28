@@ -29,6 +29,14 @@ def test_aux_read_plain_and_hyperref() -> None:
     assert "lem:a@cref" not in n
 
 
+def test_aux_number_drops_grouping_braces() -> None:
+    """enumitem writes an item's `ref=\\arabic*` with its braces, which printed as "Step ({2})"; a command's argument braces are left as written."""
+    text = "\\newlabel{step:b}{{{2}}{1}{}{Item.2}{}}\n\\newlabel{it:r}{{{{(i)}}}{1}{}{Item.3}{}}\n\\newlabel{p:x}{{\\textup {(a)}}{2}}\n"
+    n = parse_aux(text)
+    assert n["step:b"].number == "2" and n["it:r"].number == "(i)"
+    assert n["p:x"].number == "\\textup {(a)}"
+
+
 def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ok("compile", cwd=d)

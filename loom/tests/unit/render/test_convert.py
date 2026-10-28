@@ -11,7 +11,9 @@ from loom.scan.source import blank_comments
 from loom.tex.aux import AuxNumber
 
 
-def make(text: str, *, labels=None, numbers=None, macros="", children=None, cite_labels=None):  # type: ignore[no-untyped-def]
+def make(
+    text: str, *, labels=None, numbers=None, macros="", children=None, cite_labels=None, regions=None, equations=None
+):  # type: ignore[no-untyped-def]
     calls: list[tuple[str, str]] = []
 
     def fallback(latex: str, css: str, src: str) -> str:
@@ -24,7 +26,8 @@ def make(text: str, *, labels=None, numbers=None, macros="", children=None, cite
         clean=blank_comments(text),
         key="k-0001",
         labels=labels or {},
-        regions={},
+        regions=regions or {},
+        equations=equations or set(),
         numbers=numbers or {},
         macros=parse_macros(macros),
         taxa={},
@@ -81,6 +84,26 @@ def test_convert_refs_cites_footnote_url() -> None:
         '<a class="url" href="https://x.org">https://x.org</a>' in out
         and '<a class="url" href="https://y.org">Y</a>' in out
     )
+
+
+def test_a_reference_to_an_item_prints_its_number_bare() -> None:
+    """A `\\label` on an enumerated item is a region like an equation's, and was set in parentheses as one: "Step~\\ref{step:b}" printed "Step (2)" where the PDF prints "Step 2"."""
+    text = "Step~\\ref{step:b}, \\ref{eq:x}, \\eqref{eq:x}, \\eqref{step:b}; \\hyperref[step:b]{Step \\emph{two}} and \\hyperref[nope]{gone}."
+    labels = {"step:b": "k-0002#step:b", "eq:x": "k-0002#eq:x"}
+    regions = {"k-0002#step:b": "k-0002", "k-0002#eq:x": "k-0002"}
+    numbers = {"step:b": AuxNumber("2", 1), "eq:x": AuxNumber("1", 1)}
+    out, ctx, _ = make(text, labels=labels, regions=regions, equations={"k-0002#eq:x"}, numbers=numbers)
+    assert re.search(r'class="ref" data-target="k-0002#step:b" data-tex="\\ref\{step:b\}"[^>]*>2</a>', out)
+    assert re.search(r'class="ref ref-eq" data-target="k-0002#eq:x" data-tex="\\ref\{eq:x\}"[^>]*>\(1\)</a>', out)
+    assert re.search(r'class="ref ref-eq" data-target="k-0002#eq:x" data-tex="\\eqref\{eq:x\}"[^>]*>\(1\)</a>', out)
+    assert re.search(r'class="ref ref-eq" data-target="k-0002#step:b" data-tex="\\eqref\{step:b\}"[^>]*>\(2\)</a>', out)
+    # the author's own text is the link, to the label's target
+    assert re.search(
+        r'class="ref" data-target="k-0002#step:b" data-tex="\\hyperref\[step:b\]\{Step \\emph\{two\}\}"[^>]*>Step <em>two</em></a>',
+        out,
+    )
+    assert re.search(r'<a class="ref ref-dangling" data-target="nope"[^>]*>gone</a>', out)
+    assert "\\hyperref" not in re.sub(r'data-tex="[^"]*"', "", out) and ctx.diagnostics == []
 
 
 def test_convert_lists_and_sectioning() -> None:

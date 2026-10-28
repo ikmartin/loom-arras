@@ -416,6 +416,39 @@ def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Pa
     assert '<span class="number">3</span>' in talk_html and "2.1" not in talk_html
 
 
+def test_a_reference_to_an_enumerated_item_is_not_an_equation(tmp_path: Path) -> None:
+    """A label on an `\\item` and one in a display are both regions of their result; only the display's number is set in parentheses."""
+    from loom.render.fragments import FragmentRenderer, RenderPlan
+    from loom.scan.scan import scan
+    from loom.tex.aux import AuxNumber
+
+    q = tmp_path / "q"
+    ok("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path)
+    (q / "drafting" / "main.tex").write_text(
+        "\\documentclass{amsart}\n\\usepackage{amsthm,enumitem}\n\\usepackage{loom}\n\\newtheorem{theorem}{Theorem}\n\\begin{document}\n"
+        "\\begin{theorem}\\label{pp-0001}\nWe have\n\\begin{equation}\\begin{split}a&=b\\end{split}\\label{eq:x}\\end{equation}\n"
+        "\\begin{enumerate}[label=Step \\arabic*., ref=\\arabic*]\n\\item one\n\\item two\\label{step:b}\n\\end{enumerate}\n\\end{theorem}\n"
+        "\\begin{theorem}\\label{pp-0002}\nBy Step~\\ref{step:b} and \\ref{eq:x}.\n\\end{theorem}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    result = scan(load_quilt(q))
+    numbers = {
+        "pp-0001": AuxNumber("1", 1),
+        "pp-0002": AuxNumber("2", 1),
+        "step:b": AuxNumber("2", 1),
+        "eq:x": AuxNumber("1", 1),
+    }
+    renderer = FragmentRenderer(
+        RenderPlan(
+            result=result, numbers={"drafting/main.tex": numbers}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
+        )
+    )
+    assert renderer.equations == {"pp-0001#eq:x"} and "pp-0001#step:b" in result.assembly.regions
+    html = renderer.master_fragment("drafting/main.tex")
+    assert re.search(r'class="ref" data-target="pp-0001#step:b"[^>]*>2</a>', html)
+    assert re.search(r'class="ref ref-eq" data-target="pp-0001#eq:x"[^>]*>\(1\)</a>', html)
+
+
 #: One planted fragment per rule the dialect validator enforces, with the problem it must name.
 PLANTED = [
     ("script", '<div data-src="a.tex:1:1" class="env"><script>x()</script></div>', "forbidden element <script>"),

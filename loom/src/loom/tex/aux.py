@@ -51,6 +51,9 @@ def parse_aux(text: str) -> dict[str, AuxNumber]:
         if not parts:
             continue
         number = re.sub(r"\\relax\s*", "", parts[0]).strip()
+        if "\\" not in number:
+            # grouping braces print nothing: enumitem writes an item's `ref=\arabic*` as `{2}`; a command's argument braces stay
+            number = re.sub(r"[{}]", "", number)
         page: int | None = None
         if len(parts) > 1:
             pm = re.match(r"\s*(\d+)", parts[1])

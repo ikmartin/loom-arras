@@ -38,6 +38,8 @@ DISPLAY_ENVS = {
     "split",
     "cases",
 }
+# where a `\label` names an equation's number: `subequations` labels the parent number of the displays inside it
+EQUATION_ENVS = DISPLAY_ENVS | {"subequations"}
 LIST_ENVS = {
     "itemize": "ul",
     "enumerate": "ol",
@@ -407,6 +409,7 @@ class RenderContext:
     cite_target: Callable[[str, str | None], str | None]
     cite_labels: dict[str, str] = field(default_factory=dict)  # citekey -> the label the compiled document prints
     titles: dict[str, str] = field(default_factory=dict)  # node key -> its title, where it is plain text
+    equations: set[str] = field(default_factory=set)  # region keys whose label sits in display mathematics
     diagnostics: list[Diagnostic] = field(default_factory=list)
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
@@ -963,6 +966,11 @@ class Converter:
         if name in REF_CMDS:
             (arg,), spans, after = args("m")
             return self.ref_html(name, arg or "", spans[0], t.start, source(after)), after, None
+        if name == "hyperref" and args("o")[0][0] is not None:
+            # `\hyperref[label]{text}` links the author's text to the label; the four-argument URL form is not this
+            (lab, body), spans, after = args("om")
+            inner = self.inline_text(body or "", spans[1][0], depth + 1)
+            return self.ref_html(name, lab or "", spans[0], t.start, source(after), inner=inner), after, None
         if name in CITE_CMDS:
             (o1, o2, keys), spans, after = args("oom")
             post = o2 if o2 is not None else o1
@@ -1103,8 +1111,10 @@ class Converter:
             pass
         return pos + base
 
-    def ref_html(self, cmd: str, label: str, span: tuple[int, int], offset: int, src: str | None = None) -> str:
-        """A reference as the reader sees it. `src`, the command as written, rides on each link as `data-tex`, so a selection across it quotes the source (study F5)."""
+    def ref_html(
+        self, cmd: str, label: str, span: tuple[int, int], offset: int, src: str | None = None, inner: str | None = None
+    ) -> str:
+        """A reference as the reader sees it. `src`, the command as written, rides on each link as `data-tex`, so a selection across it quotes the source (study F5); `inner`, rendered HTML, is the link's text in place of a number, as `\\hyperref[label]{text}` gives it."""
         ctx = self.ctx
         said = _said(src, offset)
         parts = [re.sub(r"\s+", " ", x).strip() for x in (label.split(",") if cmd in ("cref", "Cref") else [label])]
@@ -1113,13 +1123,17 @@ class Converter:
             target = ctx.labels.get(lab)
             num = number_of(ctx, lab)
             if target is None:
-                pieces.append(f'<a class="ref ref-dangling" data-target="{html.escape(lab, quote=True)}"{said}>??</a>')
+                shown = inner if inner is not None else "??"
+                pieces.append(
+                    f'<a class="ref ref-dangling" data-target="{html.escape(lab, quote=True)}"{said}>{shown}</a>'
+                )
                 continue
             container = ctx.regions.get(target, target)
             is_region = target in ctx.regions
             # with no number in this document, a result is named by its title rather than by a number another document gave it
             text = num if num else (lab if is_region else ctx.titles.get(target, target))
-            if cmd == "eqref" or (is_region and cmd != "pageref"):
+            # an equation's number is set in parentheses; an enumerated item's or a figure's is printed bare, as the PDF prints it
+            if inner is None and (cmd == "eqref" or (target in ctx.equations and cmd != "pageref")):
                 text = f"({num})" if num else f"({lab})"
                 cls = "ref ref-eq"
             else:
@@ -1127,7 +1141,7 @@ class Converter:
             href = "#" + slug(target)
             cite_id = f"cite-{slug(ctx.file)}-{offset}-{slug(target)}"
             pieces.append(
-                f'<a id="{cite_id}" class="{cls}" data-target="{html.escape(target, quote=True)}"{said} href="{href}">{esc(text)}</a>'
+                f'<a id="{cite_id}" class="{cls}" data-target="{html.escape(target, quote=True)}"{said} href="{href}">{inner if inner is not None else esc(text)}</a>'
             )
             _ = container
         return ", ".join(pieces)

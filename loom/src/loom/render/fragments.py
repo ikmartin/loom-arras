@@ -11,6 +11,7 @@ import html
 import json
 import re
 import threading
+from bisect import bisect_right
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -18,7 +19,7 @@ from functools import cached_property
 from pathlib import Path
 
 from loom.render.assets import publish_graphic
-from loom.render.convert import Converter, RenderContext, esc, slug
+from loom.render.convert import EQUATION_ENVS, Converter, RenderContext, esc, slug
 from loom.render.fallback import compile_svg, defer, fallback_figure
 from loom.scan.hashing import pair_hash
 from loom.scan.labels import plain_key
@@ -102,6 +103,7 @@ class FragmentRenderer:
         for path, fe in self.asm.envs.items():
             for env in fe.all_envs():
                 self.env_at[(path, env.start)] = env
+        self.equations = _equation_regions(self.result)
         self.master_titles = {m: master_title(self.result, m) for m in self.result.masters}
         # a reference with no number prints its target's title; a title carrying TeX would print as source, so those keep the key
         self.titles = {k: n.title for k, n in self.asm.nodes.items() if n.title and not re.search(r"[\\$]", n.title)}
@@ -127,6 +129,7 @@ class FragmentRenderer:
                 [
                     sorted(self.asm.labels.items()),
                     sorted((k, r.container) for k, r in self.asm.regions.items()),
+                    sorted(self.equations),
                     sorted(self.titles.items()),
                 ]
             ).encode()
@@ -312,6 +315,7 @@ class FragmentRenderer:
             key=node.key,
             labels=self.asm.labels,
             regions={k: r.container for k, r in self.asm.regions.items()},
+            equations=self.equations,
             numbers=self._numbers_for(node),
             cite_labels=self._cite_labels_for(node),
             titles=self.titles,
@@ -523,6 +527,32 @@ class FragmentRenderer:
         if m and m.end() > node.body_start:
             node = dataclasses.replace(node, body_start=m.end())
         return _stamp_first(self.render_container_body(node, "master"), "digest")
+
+
+def _equation_regions(result: ScanResult) -> set[str]:
+    """Region keys whose label sits in display mathematics, which a `\\ref` sets in parentheses.
+
+    Any other region, an enumerated item or a figure, prints its number bare. Only the outermost display of each nesting is kept, so the spans are disjoint and one bisect finds a label's.
+    """
+    spans: dict[str, list[tuple[int, int]]] = {}
+
+    def walk(path: str, env: Env) -> None:
+        if env.name in EQUATION_ENVS:
+            spans.setdefault(path, []).append((env.start, env.end))
+            return
+        for child in env.children:
+            walk(path, child)
+
+    for path, fe in result.assembly.envs.items():
+        for root in fe.roots:
+            walk(path, root)
+    starts = {path: [a for a, _ in s] for path, s in spans.items()}
+    out: set[str] = set()
+    for key, r in result.assembly.regions.items():
+        i = bisect_right(starts.get(r.file, []), r.offset) - 1
+        if i >= 0 and r.offset < spans[r.file][i][1]:
+            out.add(key)
+    return out
 
 
 def _stamp_first(fragment: str, kind: str) -> str:
