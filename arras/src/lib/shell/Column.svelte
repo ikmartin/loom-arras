@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the working drafts, the AI drafts with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the author's under Documents, the agent's under AI Documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { masterUrl, workUrl } from '$lib/nav';
@@ -174,14 +174,14 @@
 						</li>
 					{/snippet}
 					{#if own.length}
-						<p class="rail-label">Drafts</p>
+						<p class="rail-label">Documents</p>
 						<ul class="plain docs" data-testid="docs-drafts">
 							{#each own as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
 						</ul>
 					{/if}
 					{#if withAgent.length || closed.length}
 						<!-- the documents the person and an agent both edit -->
-						<p class="rail-label">AI Drafts</p>
+						<p class="rail-label">AI Documents</p>
 						{#if withAgent.length}
 							<ul class="plain docs" data-testid="docs-drafts-ai">
 								{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}

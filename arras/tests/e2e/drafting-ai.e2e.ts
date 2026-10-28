@@ -1,14 +1,14 @@
-// The documents an agent edits (15.2, plan 0.17.1): the fixture's agent document, drafted from main.tex, `drafting-ai/aidoc.tex`, is listed apart under AI Drafts, is never given a Review tab, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
+// The documents an agent edits (15.2, plan 0.17.1): the fixture's agent document, drafted from main.tex, `drafting-ai/aidoc.tex`, is listed apart under AI Documents, is never given a Review tab, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
 import { expect, test } from '@playwright/test';
 
-test("an agent's document is listed under AI Drafts, apart from the working drafts, in the same label as theirs", async ({ page }) => {
+test("an agent's document is listed under AI Documents, apart from the working drafts under Documents, in the same label as theirs", async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByTestId('docs-drafts')).not.toContainText('aidoc.tex');
 	await expect(page.getByTestId('docs-drafts-ai')).toContainText('aidoc.tex');
 	const labels = page.getByTestId('docs-part').locator('p.rail-label');
-	await expect(labels.filter({ hasText: /^AI Drafts$/ })).toBeVisible();
+	await expect(labels.filter({ hasText: /^AI Documents$/ })).toBeVisible();
 	const size = (text: RegExp) => labels.filter({ hasText: text }).evaluate((e) => getComputedStyle(e).fontSize);
-	expect(await size(/^AI Drafts$/)).toBe(await size(/^Drafts$/));
+	expect(await size(/^AI Documents$/)).toBe(await size(/^Documents$/));
 	// `/` opens the person's default document, never the agent's
 	await expect(page).toHaveURL(/\/master\/main$/);
 });
