@@ -1226,12 +1226,16 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         live.setdefault(a.target_key, []).append(
             {"id": a.id, "kind": a.kind, "severity": a.severity, "status": a.status, "detached": res.detached}
         )
+    # each live agent document's own rows, apart from the author's: what waits in it is the agent's work and the author's to look at, never the author's to-do list
+    agent_rows: dict[str, dict[str, Any]] = {m: {} for m in result.masters if result.document_role(m) == "drafting-ai"}
     for key, ks in states.items():
         n = result.nodes[key]
         if n.kind == "section" and not live.get(key):
             continue  # a section is a row only when it carries a finding; otherwise it is structure, not work
-        if n.derived_of:
-            continue  # an agent document's node is that document's, not the person's work: its counterpart is the row
+        # an agent document is flat, so its own nodes, labelled or positional, are defined in its file
+        agent_doc = n.file if n.file in agent_rows else None
+        if agent_doc and not (n.incomplete or any(ks.open.values())):
+            continue  # an agent document's node with nothing waiting is a row nowhere
         if n.conflict_of:
             continue  # one definition of a conflicted id: the id's own row below says so, rather than a positional key
         entry: dict[str, Any] = {
@@ -1272,6 +1276,10 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             }
         if key in derived:
             entry["derived"] = derived[key]
+        if agent_doc:
+            entry["counterpart"] = n.derived_of
+            agent_rows[agent_doc][key] = entry
+            continue
         keys[key] = entry
     # An id two live files both define has no text and no state of its own until one definition goes; it is a row, so it cannot vanish from the list.
     for key, n in result.nodes.items():
@@ -1316,9 +1324,22 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         }
     )
     retired = sorted(k for k in records.latest if k not in result.nodes and k not in result.assembly.labels)
+    from loom.history.ledger import load_history
+
+    history = load_history(result.quilt.history_dir)
+    copies, written = history.copies(result.masters), set(history.written(result.masters))
     return {
         "summary": summarise(result, keys),
         "keys": keys,
+        "agent_documents": {
+            m: {
+                "source": copies.get(m, ""),
+                "from_scratch": m in written,
+                "keys": rows,
+                "summary": agent_summary(rows),
+            }
+            for m, rows in sorted(agent_rows.items())
+        },
         "runs": runs,
         "undigested": undigested,
         "retired": retired,
@@ -1327,6 +1348,26 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
 
 
 STATUSES = ("open", "resolved")
+
+
+def agent_summary(rows: dict[str, Any]) -> dict[str, int]:
+    """What waits in one agent document: its rows, those marked incomplete, and their open annotations."""
+    return {
+        "keys": len(rows),
+        "incomplete": sum(1 for e in rows.values() if e["incomplete"]),
+        "open": sum(sum(e["reviews"]["open"].values()) for e in rows.values()),
+    }
+
+
+def agent_line(payload: dict[str, Any]) -> str:
+    """Each agent document and what waits in it, in one line: `ai orient`'s, and the end of status's verdict."""
+    said = []
+    for doc, a in payload["agent_documents"].items():
+        s = a["summary"]
+        parts = [f"{s['incomplete']} incomplete"] if s["incomplete"] else []
+        parts += [f"{s['open']} open"] if s["open"] else []
+        said.append(f"{doc} {', '.join(parts) if parts else 'nothing waiting'}")
+    return "; ".join(said)
 
 
 def summarise(result: ScanResult, rows: dict[str, Any]) -> dict[str, int]:
@@ -1544,6 +1585,19 @@ def status(
         status=f_status,
         detached=f_detached,
     )
+    for a in payload["agent_documents"].values():
+        a["keys"] = filter_keys(
+            result,
+            a["keys"],
+            incomplete=f_incomplete,
+            master=f_master,
+            tag=f_tag,
+            severity=f_severity,
+            kind=f_kind,
+            status=f_status,
+            detached=f_detached,
+        )
+        a["summary"] = agent_summary(a["keys"])
     payload["summary"] = summarise(result, payload["keys"])
     payload["unmatched"] = unmatched_cites(result)
     filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_severity, f_kind, f_status, f_detached))
@@ -1828,12 +1882,25 @@ def _status_report(
             parts.append(f"{n} {heading}")
         elif n:
             parts.append(counted(n, "section") + " with findings")
+    waiting = {doc: a for doc, a in payload["agent_documents"].items() if a["keys"]}
+    for doc, a in waiting.items():
+        rows_ = []
+        for key in sorted(a["keys"], key=natural):
+            e = a["keys"][key]
+            said = _facts(e)
+            if e["incomplete"]:
+                said.append(f"incomplete: {'; '.join(e['incomplete'])}")
+            title = e["title"] if len(e["title"]) <= 32 else e["title"][:31] + "…"
+            rows_.append(((e["taxon"] or e["kind"], title, "; ".join(said)), key))
+        groups.append(Group(f"in {doc}", keyed(rows_), limit=None, next=f"loom status --master {doc} --in-order"))
     if own:
         verdict = f"{counted(len(own), 'key')} of yours{' match' if filtered else ''}: " + ", ".join(parts)
     else:
         verdict = "no keys of yours match" if filtered else "no keys of yours yet"
     if s["loose"]:
         verdict += f"; {s['loose']} loose"
+    if waiting:
+        verdict += f"; {counted(len(waiting), 'agent document')}: " + agent_line({"agent_documents": waiting})
     return Report(verdict, ok=not (s["stale"] or s["conflicted"]), groups=groups)
 
 

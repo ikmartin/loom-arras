@@ -367,7 +367,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         env=dict(FIXED, AI_AGENT="1"),
     )
     ok("session", "say", "Refereed dm-0003; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q)
-    (q / rel / "referee-dm-0003.notes.md").write_text("## [summary]\nOne objection.\n")
+    (q / rel / "orbit-counts.py").write_text("print(2)\n# 2\n")  # a script a report cites, kept in the session
     ok("build", cwd=q)
     m = json.loads((q / "build" / "manifest.json").read_text())
     t = m["threads"][sid]
@@ -380,7 +380,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         ("Referee Agent", "<p>Refereed dm-0003; one objection.</p>")
     ]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
-    assert kinds == {"annotations": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
+    assert kinds == {"annotations": "annotations", "orbit-counts.py": "file"}  # reading leaves no file
+    assert "pipeline" not in t  # a report is a transcript message, not a file the build indexes
     assert [entry["command"] for entry in t["log"]][:2] == [
         "loom source dm-0003 --closure",
         "loom annotate dm-0003/proof --quote --kind objection",

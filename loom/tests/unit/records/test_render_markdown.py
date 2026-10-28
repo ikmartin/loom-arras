@@ -1,4 +1,4 @@
-"""`render_markdown`: an annotation's or a report's Markdown as HTML, with its TeX lifted out before Commonmark sees it (plan 0.11 Part A)."""
+"""`render_markdown`: an annotation's or a message's Markdown as HTML, with its TeX lifted out before Commonmark sees it (plan 0.11 Part A)."""
 
 from __future__ import annotations
 

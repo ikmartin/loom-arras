@@ -332,7 +332,9 @@ def build_synthetic(dest: Path) -> None:
     g.at("2026-09-16T09:00:00Z")
     g.run("library", "verify", cited, "--as", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
-    g.write(f".loom/sessions/{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
+    _say_report(
+        g, referee, "Referee Agent", "Mode: referee, on sy-0003.", _synthetic_report(objection, suggestion, document)
+    )
     g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--as", AUTHOR)
     g.run("annotate", "--reply", suggestion, "Done in the next revision.", "--as", AUTHOR)
     g.run("annotate", "--resolve", suggestion, "--as", AUTHOR)
@@ -416,8 +418,14 @@ def build_synthetic(dest: Path) -> None:
     _write_expected_lint(g)
 
 
+def _say_report(g: Gen, session: str, who: str, line: str, report: str) -> None:
+    """Post a mode's report to the session's transcript, as an agent writes one now: the line naming the mode, then the blocks, each finding linking the annotation that carries it."""
+    linked = re.sub(r"\((a-\d{4}-\d{2}-\d{2}-\d+)\)", r"([](quilt:\1))", report)
+    g.run("session", "say", f"{line}\n\n{linked}", "--session", session, "--as", who, agent=True)
+
+
 def _synthetic_report(objection: str, suggestion: str, document: str) -> str:
-    """The conformance fixture's referee report: several named blocks, findings that resolve to real annotations, math in the prose, and one symbol declared twice with different meanings, so the report pane and the notation panel both have something real to work on."""
+    """The conformance fixture's referee report: several named blocks, findings that resolve to real annotations, math in the prose, and one symbol declared twice with different meanings, so the transcript has a real report to fold."""
     return f"""## [summary]
 The parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.
 
@@ -445,7 +453,7 @@ Minor Revision.
 def _demo_report(*, suggestion: str, objection: str, document: str) -> str:
     """The demo's referee report, written the way `ai/rules.md` says to write one: named blocks, and every finding ending in its annotation's id.
 
-    It exists so the fixture has something the report pane can actually render -- several blocks, findings that resolve to real annotations, math in the prose, and a notation block for the panel that reads one.
+    It exists so the fixture's transcript has a report to fold: several blocks, findings that link real annotations, math in the prose.
     """
     return f"""## [summary]
 The statement mixes a finiteness claim with a closedness claim; the proof leaves one continuity step unsaid. One suggestion carries a proposed replacement for the statement. The author must decide whether to split the theorem.
@@ -572,8 +580,11 @@ def build_demo(dest: Path) -> None:
     )
     # in creation order: the statement suggestion, the proof objection, the whole-document point
     suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
-    g.write(
-        f".loom/sessions/{run_dir}/referee-dm-0003.notes.md",
+    _say_report(
+        g,
+        run_dir,
+        "Referee Agent",
+        "Mode: referee, on dm-0003.",
         _demo_report(suggestion=suggestion, objection=objection, document=document),
     )
     # the edit that leaves an accepted key stale, so a fresh demo shows a state worth looking at
@@ -783,10 +794,7 @@ def build_showcase(dest: Path) -> None:
         "Survey Agent",
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{survey}/survey-bellamy.notes.md",
-        _showcase_survey_report(),
-    )
+    _say_report(g, survey, "Survey Agent", "Mode: ingest, on Bellamy19.", _showcase_survey_report())
 
     # ---- The author decides on each proposal. ------------------------------------------------------------
     # Verified, verified with the rendering corrected, left pending, and discarded with a reason: the four
@@ -1079,8 +1087,11 @@ def build_showcase(dest: Path) -> None:
         "Referee (Agent)",
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{referee}/referee-sh-0009.notes.md",
+    _say_report(
+        g,
+        referee,
+        "Referee (Agent)",
+        "Mode: referee, on sh-0009.",
         _showcase_referee_report(formula=formula, expand=expand, integrality=integrality, document=document),
     )
     # The run withdraws one finding of its own and restates another: a discard is not a resolution, and an
@@ -1410,7 +1421,7 @@ def build_showcase(dest: Path) -> None:
 
 
 def _showcase_referee_report(*, formula: str, expand: str, integrality: str, document: str) -> str:
-    """The referee run's report, in the shape `ai/rules.md` asks for: named blocks, findings ending in the id of the annotation that carries them, and a notation block for the panel."""
+    """The referee run's report, in the shape `ai/rules.md` asks for: named blocks, and findings linking the annotation that carries each."""
     return f"""## [summary]
 The rank theorem is correct and its proof is complete. The counting theorem is not: it takes integrality of the polytope's vertices from a saturation statement that does not give it, and the lemma meant to close that gap is marked incomplete. Everything else here is exposition.
 
@@ -1437,7 +1448,7 @@ Minor Revision for the rank theorem; the counting theorem needs the integrality 
 
 
 def _showcase_survey_report() -> str:
-    """The survey run's report, written the way `ai/rules.md` asks: named blocks, and a notation block the panel can read."""
+    """The survey run's report, written the way `ai/rules.md` asks: named blocks."""
     return """## [summary]
 Bellamy19 is a PDF with no source, so every result here was read off a page and anchored to it. Four results proposed: the polytope theorem (2.3), the counting theorem (3.2), the quasi-polynomial proposition (3.1) and the definition of the defect (4.1). The two theorems are the paper's main results and are proposed at level 1.
 

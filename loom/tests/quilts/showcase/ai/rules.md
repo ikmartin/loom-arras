@@ -44,7 +44,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 | what needs the author: a question, a choice that is theirs, a place they should look | an annotation | an annotation |
 | a trial | the script in your session's directory, cited by path; its inputs and exact outputs in the report | the same |
 
-**A report is one transcript message**, `loom session say - --as "…"` with the text on stdin. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question; then the mode's blocks, each under `## [name]`. Link what you name (`ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message.
+**A report is one transcript message**, `loom session say - --as "…"` with the text on stdin. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question; then the mode's blocks, each under `## [name]`. The viewer folds a long report after its first block, so what the author must read goes there. Link what you name (`ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message.
 
 **On an agent document, annotate with intention**: an annotation there marks a place the author must look, never a change you have already made. Your report lists the changes.
 
@@ -67,6 +67,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
    - it has become a different fault: resolve this one and make a new one.
 
    `loom source KEY --at ID --diff` shows what changed since the finding was written.
+8. Whose annotations you close: on an agent document, any, another agent's or the author's included; on the author's text, what an agent raised, or what the author asks you to.
 
 ## When no mode fits
 

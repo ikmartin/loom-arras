@@ -114,7 +114,7 @@ Notes are records loom writes (P1, P2), through one command, and share the annot
 
 ## Sessions and transcripts
 
-A **session** is a stretch of work, which a person and agents may share. Everything written in it records the session it belongs to and the author who wrote it, so the session is the audit trail: `run.log` lists every loom command run in it, and its directory holds what an agent hands the author (drafts, diffs, reports).
+A **session** is a stretch of work, which a person and agents may share. Everything written in it records the session it belongs to and the author who wrote it, so the session is the audit trail: `run.log` lists every loom command run in it, and its directory holds what an agent hands the author, such as a script a report cites; the report itself is a message in the session's transcript.
 
 Sessions are not what work is organised around. Work collects around the mathematics: annotations and notes are found from what they are about, whichever session wrote them.
 

@@ -228,7 +228,7 @@ def propose_command(
         notes.append(
             f"not in the quoted {'page' if page_no else 'source'} text: {', '.join(added)}. A statement is the "
             f"paper's words only; if these are yours, correct it now with --supersedes {rid}, and put the gloss in "
-            "your notes file."
+            "your report."
         )
     if dry_run:
         lines = [f"would be written to digests/{citekey}.proposed.tex"]

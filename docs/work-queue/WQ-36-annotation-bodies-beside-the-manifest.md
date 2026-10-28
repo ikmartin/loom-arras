@@ -29,7 +29,7 @@ The second step is additive and needs no interface version: a viewer that finds 
 
 ## Blast radius
 
-`loom/src/loom/records/store.py`'s annotation emission, `render/build.py` for the new directory, `specs/manifest.md` §9, and every arras surface that renders `body_html` — `AnnotationBox`, the report pane, the thread messages.
+`loom/src/loom/records/store.py`'s annotation emission, `render/build.py` for the new directory, `specs/manifest.md` §9, and every arras surface that renders `body_html` — `AnnotationBox` and the transcript's messages.
 
 ## Related
 

@@ -40,30 +40,6 @@ class BuildReport:
     diagnostics: list[Diagnostic] = field(default_factory=list)
 
 
-def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, str], files: dict[str, Any]) -> None:
-    """Render every run's notes files as report fragments and index their blocks on the thread's pipeline.
-
-    A report is a fragment like any other -- lazily fetched, dialect-conformant, checked by `validate-dialect.py` -- so what the manifest carries is the index a viewer navigates by and not the prose itself. A corpus whose publisher has no modes has no pipelines and nothing happens here.
-    """
-    from loom.render.reports import parse_report
-
-    for tid, thread in manifest.get("threads", {}).items():
-        for entry in thread.get("pipeline", []):
-            src = root / entry["report"]
-            if not src.is_file():
-                continue
-            parsed = parse_report(src.read_text(encoding="utf-8", errors="replace"), run=str(tid), src=entry["report"])
-            # A leading dot would make the file invisible to every static host: a session's report lives under
-            # `.loom/sessions/<id>/`, and percent-encoding the path keeps that dot at the front of the name. Vite,
-            # nginx and GitHub Pages all refuse a dotfile, so the fragment 404s wherever the corpus is published.
-            name = quote(entry["report"], safe="").lstrip(".")
-            rel = f"fragments/reports/{name}.html"
-            fragments[f"report:{entry['report']}"] = rel
-            files[rel] = parsed.html
-            entry["fragment"] = rel
-            entry["blocks"] = [b.to_dict() for b in parsed.blocks]
-
-
 class _PageTable:
     """The word boxes of one work's pages, read once each, and the page table the sidecar publishes for them."""
 
@@ -536,7 +512,6 @@ def build(
     from loom.review_queue import rows_for
 
     manifest["unresolved"] = rows_for(result, manifest)
-    _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)
     report.diagnostics = [d for d in report.diagnostics] + [

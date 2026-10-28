@@ -7,6 +7,14 @@
    "seq": 1,
    "when": "2026-09-16T00:00:00Z",
    "who": "Referee Agent"
+  },
+  {
+   "body": "Mode: referee, on sy-0003.\n\n## [summary]\nThe parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.\n\n## [notation]\n- $\\Fix(\\sigma)$ is the fixed locus of the involution.\n- $k$ is the number of two-element orbits.\n- $\\Fix(\\sigma)$ is also used below for the fixed locus of the induced map on orbits.\n\n## [referee-review] Major and minor issues\n\n### Major Issues\n- The count $|X| = |\\Fix(\\sigma)| + 2k$ needs $X$ finite, and the statement does not say it. Everything after it is fine. ([](quilt:a-2026-09-16-0001))\n\n### Minor Issues\n- The orbit decomposition is used by name rather than by number; a replacement sentence is attached. ([](quilt:a-2026-09-16-0002))\n\n### Clarity/Exposition\n- The paper inherits conventions from the setup section without saying so. ([](quilt:a-2026-09-16-0003))\n\n## [decision]\nMinor Revision.",
+   "body_html": "<p>Mode: referee, on sy-0003.</p><section data-block=\"summary\"><h2>summary</h2><p>The parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.</p></section><section data-block=\"notation\"><h2>notation</h2><ul>\n<li><span class=\"math inline\">\\(\\Fix(\\sigma)\\)</span> is the fixed locus of the involution.</li>\n<li><span class=\"math inline\">\\(k\\)</span> is the number of two-element orbits.</li>\n<li><span class=\"math inline\">\\(\\Fix(\\sigma)\\)</span> is also used below for the fixed locus of the induced map on orbits.</li>\n</ul></section><section data-block=\"referee-review\"><h2>Major and minor issues</h2><h3>Major Issues</h3>\n<ul>\n<li>The count <span class=\"math inline\">\\(|X| = |\\Fix(\\sigma)| + 2k\\)</span> needs <span class=\"math inline\">\\(X\\)</span> finite, and the statement does not say it. Everything after it is fine. (<a href=\"quilt:a-2026-09-16-0001\"></a>)</li>\n</ul>\n<h3>Minor Issues</h3>\n<ul>\n<li>The orbit decomposition is used by name rather than by number; a replacement sentence is attached. (<a href=\"quilt:a-2026-09-16-0002\"></a>)</li>\n</ul>\n<h3>Clarity/Exposition</h3>\n<ul>\n<li>The paper inherits conventions from the setup section without saying so. (<a href=\"quilt:a-2026-09-16-0003\"></a>)</li>\n</ul></section><section data-block=\"decision\"><h2>decision</h2><p>Minor Revision.</p></section>",
+   "kind": "message",
+   "seq": 2,
+   "when": "2026-09-16T00:00:00Z",
+   "who": "Referee Agent"
   }
  ],
  "page": 1,

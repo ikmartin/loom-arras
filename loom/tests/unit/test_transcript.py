@@ -216,3 +216,18 @@ def test_serve_answers_a_transcript_page_from_the_inbox(tmp_path: Path) -> None:
     assert LoomHandler._page(ask) is True  # type: ignore[arg-type]
     assert ask.answer is not None and [e["seq"] for e in ask.answer[1]["events"]] == [PAGE + 1, PAGE + 2, PAGE + 3]
     assert LoomHandler._page(FakeHandler(q, "/build/manifest.json")) is False  # type: ignore[arg-type]
+
+
+def test_a_reports_blocks_are_marked_for_the_viewer_and_a_plain_message_is_not() -> None:
+    """A mode's report is one message (plan 0.21.2): each bracketed block becomes a `<section data-block>` headed by its name, so the viewer can fold it, and the brackets, which only classify it, never show."""
+    from loom.mailbox import render_body
+    from loom.records.store import render_markdown
+
+    report = "Mode: referee, on dm-0003.\n\n## [summary]\nOne objection, $x$.\n\n## [referee-review] Major and minor issues\n- A gap.\n\n## [decision]\n"
+    html = render_body(report)
+    assert html.startswith('<p>Mode: referee, on dm-0003.</p><section data-block="summary"><h2>summary</h2>')
+    assert '<section data-block="referee-review"><h2>Major and minor issues</h2><ul>' in html
+    assert html.endswith('<section data-block="decision"><h2>decision</h2></section>')
+    assert "[summary]" not in html and '<span class="math inline">\\(x\\)</span>' in html
+    plain = "Done; see $x$.\n\n## A heading of my own\nText."
+    assert render_body(plain) == render_markdown(plain)

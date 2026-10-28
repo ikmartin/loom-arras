@@ -905,19 +905,15 @@ def _lift_display_math(html_text: str) -> str:
     return re.sub(r"<p>(.*?)</p>", split, html_text, flags=re.S)
 
 
-def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
+def render_markdown(text: str) -> str:
     """Markdown rendered into the dialect's inline subset, math included.
 
-    Every body loom publishes as HTML comes through here -- annotations, thread messages, an agent's report -- and all of them are written by people and agents who use `$...$` without thinking about it.
+    Every body loom publishes as HTML comes through here -- annotations and transcript messages -- and all of them are written by people and agents who use `$...$` without thinking about it.
 
     Parameters
     ----------
     text : str
         The Markdown as it was written.
-    src : str, optional
-        The file this text came from, quilt-relative. Given it, every block element carries `data-src="FILE:START:END"` in character offsets, as the dialect requires of anything that originates in source (specs/dialect.md §1.4).
-    offset : int, default 0
-        Where `text` begins in that file, when it is a slice of one.
 
     Returns
     -------
@@ -930,10 +926,7 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
 
         # CommonMark has no tables, so an agent's `| a | b |` comparison arrived as one run-on paragraph; the dialect has them (specs/dialect.md §2.12), so the GFM table rule is enabled
         md = MarkdownIt("commonmark", {"html": False}).enable("table")
-        if src is None:
-            out = str(md.render(protected)).strip()
-        else:
-            out = str(md.renderer.render(_sourced(md.parse(protected), protected, src, offset), md.options, {})).strip()
+        out = str(md.render(protected)).strip()
     except Exception:  # noqa: BLE001
         import html
 
@@ -941,21 +934,3 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
     # a column's alignment arrives as an inline style, which the dialect does not carry: the viewer sets a table's look
     out = re.sub(r' style="text-align:(?:left|right|center)"', "", out)
     return _restore_math(out, spans)
-
-
-def _sourced(tokens: list[Any], text: str, src: str, offset: int) -> list[Any]:
-    """Stamp `data-src` on every opening block token, from the line map markdown-it already keeps.
-
-    A report is written in a file like anything else loom publishes, so its blocks can say where they came from rather than being exempted from the rule that they must.
-    """
-    starts = [0]
-    for line in text.splitlines(keepends=True):
-        starts.append(starts[-1] + len(line))
-    for tok in tokens:
-        if tok.map is None or tok.nesting == -1 or tok.hidden:
-            continue
-        lo, hi = tok.map
-        a = offset + starts[min(lo, len(starts) - 1)]
-        b = offset + starts[min(hi, len(starts) - 1)]
-        tok.attrSet("data-src", f"{src}:{a}:{b}")
-    return tokens

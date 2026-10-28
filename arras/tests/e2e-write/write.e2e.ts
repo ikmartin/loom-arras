@@ -282,6 +282,21 @@ test('what an agent says arrives in the transcript without a rebuild, and the vi
 	await expect(chat.getByTestId('transcript').locator('em', { hasText: 'odd' })).toHaveCount(1);
 });
 
+test("an agent's report arrives in the transcript folded after its summary", async ({ page, served }) => {
+	// plan 0.21.2: a mode's report is one message, its blocks under `## [name]`; the publisher marks them and the viewer folds the rest
+	await page.goto('/node/sy-0003');
+	const sid = await intoASession(page, served);
+	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
+	await expect(chat).toBeVisible();
+	const finding = 'The count needs the set finite, and the statement does not say so. '.repeat(10);
+	const report = `Mode: referee, on sy-0003.\n\n## [summary]\nOne objection.\n\n## [gaps-and-ambiguities]\n- ${finding}\n\n## [decision]\nMinor revision.`;
+	served.loom(['session', 'say', report, '--session', sid, '--as', 'Referee Agent'], { AI_AGENT: '1' });
+	const said = chat.getByRole('listitem').filter({ hasText: 'One objection.' });
+	await expect(said).toHaveCount(1, { timeout: 3000 });
+	await expect(said.getByTestId('message-fold')).toHaveText('▸ 2 more: gaps-and-ambiguities, decision');
+	await expect(said).not.toContainText('Minor revision.');
+});
+
 function sessionIndex(served: Served): Record<string, unknown>[] {
 	return readFileSync(join(served.root, '.loom/sessions/index.jsonl'), 'utf8')
 		.split('\n')

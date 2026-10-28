@@ -88,6 +88,9 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
     lines.append(
         f"- status: {s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
     )
+    from loom.cli.review import agent_line
+
+    lines.append(f"- agent documents: {agent_line(payload) or 'none'}")
     errors = sum(1 for d in result.lint if d.severity == "error")
     lines.append(f"- lint: {errors} error(s); run `loom lint` for the list")
     und = payload["undigested"]

@@ -15,9 +15,9 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 ### 2.1 Fragment kinds
 
-**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon|report"` on its first element as a courtesy, not as authority.
+**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon"` on its first element as a courtesy, not as authority.
 
-**[decided]** A **report** fragment is an agent's notes file rendered: `<section data-fragment="report" data-run="RUN">` holding one `<section data-block="NAME">` per bracketed heading the agent wrote, in order, with an unnamed leading section for anything before the first heading. `NAME` is the block's name without its brackets. A finding — any element ending in an annotation's id — carries `id="finding-<id>"` and `data-annotation-id="<id>"`, so a viewer can scroll to it and highlight the annotation's quote in the document beside it. Every element carries `data-src` into the notes file as usual, because a report originates in a file like anything else loom publishes. A notes file with no bracketed heading is one unnamed section, which is a report that could not be parsed rather than an error.
+**[decided]** A **report's blocks** are marked in the message that carries it, not in a fragment of their own: in a transcript message's `body_html` (specs/manifest.md §10.1), each bracketed heading an agent wrote opens a `<section data-block="NAME">` holding the heading and what follows it, up to the next. `NAME` is the block's name without its brackets, and the heading shows that name, or what the agent wrote after the brackets. Anything before the first heading stands outside every section. A message with no bracketed heading has none.
 
 ### 2.2 Headings
 

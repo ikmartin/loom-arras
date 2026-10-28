@@ -58,6 +58,41 @@ test.describe('the transcript', () => {
 		await expect(chat.getByTestId('message-101')).toBeInViewport();
 	});
 
+	test('a long report folds after its first block, and its mathematics is typeset only once it is opened', async ({ page }) => {
+		const finding = (name: string) => `<section data-block="${name}"><h2>${name}</h2><p>${'A finding about the step. '.repeat(30)}<span class="math inline">\\(x^2\\)</span></p></section>`;
+		await saying(page, '<p>Mode: referee, on sy-0003.</p><section data-block="summary"><h2>summary</h2><p>One objection.</p></section>' + finding('referee-review') + finding('decision'));
+		await page.goto('/session/' + REFEREE);
+		const report = page.getByTestId('message-1');
+		await expect(report).toContainText('One objection.');
+		const fold = report.getByTestId('message-fold');
+		await expect(fold).toHaveText('▸ 2 more: referee-review, decision');
+		await expect(fold).toHaveAttribute('aria-expanded', 'false');
+		await expect(report.getByTestId('message-folded')).toHaveCount(0);
+		await expect(report.locator('mjx-container')).toHaveCount(0);
+		await fold.click();
+		await expect(fold).toHaveAttribute('aria-expanded', 'true');
+		await expect(report.getByTestId('message-folded')).toContainText('A finding about the step.');
+		await expect(report.locator('mjx-container')).toHaveCount(2);
+		await expect(fold).toBeInViewport(); // opening leaves the reader where they were
+		await fold.click();
+		await expect(report.getByTestId('message-folded')).toHaveCount(0);
+	});
+
+	test('a message with one block, or a short tail, is shown whole', async ({ page }) => {
+		await saying(page, '<section data-block="summary"><h2>summary</h2><p>Done.</p></section><section data-block="decision"><h2>decision</h2><p>Minor revision.</p></section>');
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId('message-1')).toContainText('Minor revision.');
+		await expect(page.getByTestId('message-fold')).toHaveCount(0);
+	});
+
+	test("the fixture's referee report lands folded after its summary, its headings without their brackets", async ({ page }) => {
+		await page.goto('/session/' + REFEREE);
+		const report = page.getByTestId('message-2');
+		await expect(report).toContainText('The parity theorem is correct as stated');
+		await expect(report.getByTestId('message-fold')).toHaveText('▸ 3 more: notation, referee-review, decision');
+		await expect(report).not.toContainText('[summary]');
+	});
+
 	test("a body is rendered, and the agent's messages carry a rule", async ({ page }) => {
 		await page.goto('/session/' + REFEREE);
 		const first = page.getByTestId('message-1');
@@ -131,14 +166,15 @@ test.describe('one transcript at a time', () => {
 
 test.describe('where a publisher serves', () => {
 	test('what an agent says arrives from the next poll, with no rebuild, and the viewer offers no way to post', async ({ page }) => {
-		const state = { events: [said(1, 'Referee Agent')] };
+		// the fixture's referee session holds two messages, its account and its report
+		const state = { events: [said(1, 'Referee Agent'), said(2, 'Referee Agent')] };
 		await publisher(page, state);
 		await page.goto('/session/' + REFEREE);
-		await expect(page.getByTestId('message-1')).toBeVisible();
+		await expect(page.getByTestId('message-2')).toBeVisible();
 		await expect(page.getByTestId('chat').getByRole('textbox')).toHaveCount(0);
-		state.events.push({ seq: 2, kind: 'message', who: 'Referee Agent', when: '2026-09-16T10:06:00Z', body: 'Not reviewed.', body_html: '<p>Not reviewed.</p>' });
-		await expect(page.getByTestId('message-2')).toContainText('Not reviewed.');
-		await expect(page.getByTestId('message-2')).toBeInViewport();
+		state.events.push({ seq: 3, kind: 'message', who: 'Referee Agent', when: '2026-09-16T10:06:00Z', body: 'Not reviewed.', body_html: '<p>Not reviewed.</p>' });
+		await expect(page.getByTestId('message-3')).toContainText('Not reviewed.');
+		await expect(page.getByTestId('message-3')).toBeInViewport();
 	});
 
 	test('in a wide pane the transcript takes its width', async ({ page }) => {

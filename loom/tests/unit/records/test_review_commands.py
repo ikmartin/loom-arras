@@ -64,8 +64,10 @@ def test_demo_ships_two_accepted_one_stale_and_a_finished_session(tmp_path: Path
         "objection": 1,
     }  # the author's suggestion and the agent's objection
     assert s["keys"]["dm-0003"]["reviews"]["open"] == {"suggestion": 1}  # the agent's suggestion on the statement
-    notes = list((d / ".loom" / "sessions").glob("*/referee-dm-0003.notes.md"))
-    assert len(notes) == 1, "the session the agent worked in keeps the notes it wrote"
+    reports = [
+        p for p in (d / ".loom" / "sessions").glob("*/inbox.jsonl") if "Mode: referee, on dm-0003." in p.read_text()
+    ]
+    assert len(reports) == 1, "the session the agent worked in keeps its report, in its transcript"
 
 
 def synthetic(tmp_path: Path) -> Path:
@@ -780,7 +782,9 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
     assert undigested[0].startswith("1 work") and undigested[2:] == ["Har77"]
     j = status_json(q)
     envelope = {"verdict", "ok", "exit", "groups", "notes"}
-    assert set(j) - envelope == {"summary", "keys", "runs", "undigested", "retired", "digests", "reading", "unmatched"}
+    assert set(j) - envelope == {
+        "summary", "keys", "agent_documents", "runs", "undigested", "retired", "digests", "reading", "unmatched",
+    }  # fmt: skip
     assert j["summary"]["incomplete"] == 1
 
 
@@ -1518,3 +1522,65 @@ def test_explain_names_another_reviewers_acceptance(tmp_path: Path) -> None:
     r = ok("status", "--explain", "dm-0002", cwd=d)
     assert "never accepted" not in r.stdout
     assert "not accepted by you (Markas Hecht); accepted by The loom demo on 2026-09-16" in " ".join(r.stdout.split())
+
+
+def test_status_counts_each_agent_documents_work_apart_from_the_authors(tmp_path: Path) -> None:
+    """What waits in an agent document -- an `\\incomplete`, an open annotation -- is listed under that document, and never among the author's rows (plan 0.21.2)."""
+    q = synthetic(tmp_path)
+    s = status_json(q)
+    a = s["agent_documents"]["drafting-ai/aidoc.tex"]
+    assert a["source"] == "drafting/main.tex" and a["from_scratch"] is False
+    assert list(a["keys"]) == ["sy-000C-ai/proof"] and a["keys"]["sy-000C-ai/proof"]["counterpart"] == "sy-000C/proof"
+    assert a["summary"] == {"keys": 1, "incomplete": 1, "open": 0}
+    assert not [
+        k for k in s["keys"] if "-ai" in k or k.startswith("drafting-ai/")
+    ]  # the author's rows stay the author's
+    out = ok("status", cwd=q).stdout
+    assert (
+        "in drafting-ai/aidoc.tex (1)" in out and "next: loom status --master drafting-ai/aidoc.tex --in-order" in out
+    )
+    assert "; 1 agent document: drafting-ai/aidoc.tex 1 incomplete" in " ".join(out.split("\n\n")[0].split())
+    assert "- agent documents: drafting-ai/aidoc.tex 1 incomplete" in ok("ai", "orient", cwd=q).stdout
+    # a filter applies to the agent documents as to the author's keys
+    assert (
+        json_of("status", "--master", "drafting/main.tex", "--json", cwd=q)["agent_documents"]["drafting-ai/aidoc.tex"][
+            "keys"
+        ]
+        == {}
+    )
+
+
+def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_accept(tmp_path: Path) -> None:
+    """Full privilege on an agent document (plan 0.21.2): an agent resolves, edits and discards another agent's annotation and the author's alike, and the author's acts still refuse it."""
+    q = synthetic(tmp_path)
+    key = "sy-000C-ai/proof"
+
+    def filed(who: str, body: str, env: dict[str, str] | None = None) -> str:
+        return ok("annotate", key, body, "--kind", "question", "--as", who, cwd=q, env=env or {}).stdout.split()[0]
+
+    referee = filed("Referee Agent", "Which definition?", AGENT)
+    mine = filed("Markas Hecht", "Is this step needed?")
+    other = filed("Referee Agent", "A second thought.", AGENT)
+    ok("annotate", "--resolve", referee, "Answered in the text.", "--as", "Simplify Agent", cwd=q, env=AGENT)
+    ok(
+        "annotate",
+        "--edit",
+        mine,
+        "Is this step needed, or does Definition 3 give it?",
+        "--as",
+        "Simplify Agent",
+        cwd=q,
+        env=AGENT,
+    )
+    ok("annotate", "--discard", other, "Raised in error.", "--as", "Simplify Agent", cwd=q, env=AGENT)
+    acts = {
+        (e["event"], e["id"]): e["author"]
+        for e in events(q)
+        if e["event"] in ("resolved", "edited", "discarded") and e.get("id") in (referee, mine, other)
+    }
+    assert acts == {
+        ("resolved", referee): "Simplify Agent",
+        ("edited", mine): "Simplify Agent",
+        ("discarded", other): "Simplify Agent",
+    }
+    refused("accept", "sy-0001", "--as", "Simplify Agent", cwd=q, env=AGENT, code=2, match="may not run")

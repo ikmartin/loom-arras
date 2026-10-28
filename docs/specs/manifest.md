@@ -332,8 +332,7 @@ The **id** is minted once and is the address; the **title** is the author's and 
   "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
   "targets": ["rl-0004", "rl-0004/proof"],
   "attachments": [
-    {"name": "referee-rl-0004.notes.md", "kind": "notes", "path": ".loom/sessions/s-2026-09-16-0002/referee-rl-0004.notes.md"},
-    {"name": "draft-rl-0019.tex", "kind": "draft", "path": "..."},
+    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-0002/orbit-counts.py"},
     {"name": "annotations", "kind": "annotations", "count": 3}
   ],
   "log": [{"time": "...", "command": "loom source rl-0004 --closure"},
@@ -341,8 +340,6 @@ The **id** is minted once and is the address; the **title** is the author's and 
   "discarded": false
 }
 ```
-
-**[decided]** A thread of kind `session` also carries `pipeline`: the modes applied in the session, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the session's directory already says which modes ran and against what. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
 
 A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom annotate` line made or changed, written after an arrow in the log, and absent on every other line. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
 
@@ -358,7 +355,7 @@ A thread carries no conversation: that is its transcript (§10.1). `log` comes f
 ]}
 ```
 
-The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body; `changed` lists the annotations a message carried, each whole: `id`, `kind`, `target`, `work` and `page` for a note on a page, `act` (`created` or `replied`), `by`, `body`, and `quote`, `severity`, `payload` and `placement` where the annotation has them. A publisher that serves live answers the pages itself, from the inbox, so they are never stale under it, and adds new events through its own channel (specs/write-api.md; DR-278-ikmartin). `messages` was dropped from threads when transcripts arrived; the interface version stays 1 because no corpus outside the fixtures carried it (DR-264-ikmartin).
+The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body, except that a report's blocks — each `## [NAME]` heading an agent wrote and what follows it — are each a `<section data-block="NAME">` headed by the name without its brackets, which a viewer may fold after the first (specs/dialect.md §2.1); `changed` lists the annotations a message carried, each whole: `id`, `kind`, `target`, `work` and `page` for a note on a page, `act` (`created` or `replied`), `by`, `body`, and `quote`, `severity`, `payload` and `placement` where the annotation has them. A publisher that serves live answers the pages itself, from the inbox, so they are never stale under it, and adds new events through its own channel (specs/write-api.md; DR-278-ikmartin). `messages` was dropped from threads when transcripts arrived; the interface version stays 1 because no corpus outside the fixtures carried it (DR-264-ikmartin). `pipeline`, a session's modes derived from the notes files they wrote, was dropped from threads when reports moved into the transcript (plan 0.21.2); it was always optional, and no corpus outside the fixtures carried it, so the interface version stays 1.
 
 ## 11. Diagnostics
 

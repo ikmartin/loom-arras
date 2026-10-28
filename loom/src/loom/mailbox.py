@@ -15,6 +15,7 @@ import bisect
 import fcntl
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import UTC
 from pathlib import Path
@@ -182,13 +183,41 @@ def transcript(root: Path, sid: str) -> Transcript:
     return _TRANSCRIPTS[p]
 
 
-def public(e: Event) -> dict[str, Any]:
-    """An event as a viewer reads it: the stored fields, and the body rendered as annotation bodies are."""
+#: A block heading in a report: any level, the block's name in brackets, and whatever the agent wrote after it (`ai/rules.md`, Where work goes).
+BLOCK_HEADING = re.compile(r"^(?P<hashes>#{1,6})[ \t]*\[(?P<name>[a-z][a-z0-9-]*)\][ \t]*(?P<rest>.*)$", re.M)
+
+
+def render_body(body: str) -> str:
+    """A message's Markdown as a viewer shows it: as annotation bodies are rendered, with a report's bracketed blocks each in a `<section data-block="NAME">`.
+
+    A block's heading shows its name, or what the agent wrote after the brackets, and never the brackets themselves, which only classify it; what comes before the first block, the line naming the mode, stays outside any section. A body with no bracketed heading renders exactly as an annotation's. The viewer folds a long report after its first block, reading these sections.
+    """
+    from html import escape
+
     from loom.records.store import render_markdown
 
+    found = list(BLOCK_HEADING.finditer(body))
+    if not found:
+        return render_markdown(body)
+    pieces = [render_markdown(body[: found[0].start()].rstrip())] if body[: found[0].start()].strip() else []
+    for i, m in enumerate(found):
+        end = found[i + 1].start() if i + 1 < len(found) else len(body)
+        name, level = m.group("name"), len(m.group("hashes"))
+        title = (m.group("rest") or "").strip() or name
+        inner = body[m.end() : end].strip()
+        pieces.append(
+            f'<section data-block="{name}"><h{level}>{escape(title)}</h{level}>'
+            + (render_markdown(inner) if inner else "")
+            + "</section>"
+        )
+    return "".join(pieces)
+
+
+def public(e: Event) -> dict[str, Any]:
+    """An event as a viewer reads it: the stored fields, and the body rendered (`render_body`)."""
     out = e.to_json()
     if e.body:
-        out["body_html"] = render_markdown(e.body)
+        out["body_html"] = render_body(e.body)
     return out
 
 

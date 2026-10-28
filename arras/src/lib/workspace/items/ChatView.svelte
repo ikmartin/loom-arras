@@ -3,10 +3,13 @@
 	//
 	// **Flat, like a log.** A line saying who and when, then the words at full width; the agent's messages carry a faint rule and nothing else tells the two parties apart (V6).
 	//
+	// **A long report folds after its first block.** A mode's report is one message whose blocks the publisher marks (`fold.ts`): its first block and a control show, and the rest is mounted only when opened, so a 40 KB report costs nothing to typeset until it is read, and the reader lands on its summary rather than its end. Which are open is this view's alone and remembered nowhere.
+	//
 	// **One transcript at a time.** The transcript on screen is the selected session's: arriving here by a link or a URL selects it and closes any other session, so the footer and the transcript never name two different sessions.
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
+	import { split } from '$lib/sessions/fold';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
 	import { carried, isAgent, Transcript } from '$lib/sessions/transcript.svelte';
 	import { when } from '$lib/sessions/when';
@@ -130,6 +133,14 @@
 		return () => seen.disconnect();
 	});
 
+	/** The messages whose folded blocks are open, by seq. */
+	let opened: Record<number, boolean> = $state({});
+	function toggle(at: number): void {
+		// opening unpins the reader, so a reader at the newest message is not carried to the end of the report they opened
+		if (!opened[at]) pinned = false;
+		opened = { ...opened, [at]: !opened[at] };
+	}
+
 	function clock(stamp: string): string {
 		const d = new Date(stamp);
 		return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -143,7 +154,16 @@
 			{#each log.events as e (e.seq)}
 				<li class="message" class:agent={isAgent(e.who)} data-testid="message-{e.seq}">
 					<p class="meta"><span class="who">{e.who}</span> · <span class="when" title={e.when}>{when(e.when)} {clock(e.when)}</span></p>
-					{#if e.body_html}<Prose html={e.body_html} />{/if}
+					{#if e.body_html}
+						{@const f = split(e.body_html)}
+						{#if f}
+							<Prose html={f.head} />
+							<button type="button" class="fold" aria-expanded={!!opened[e.seq]} data-testid="message-fold" onclick={() => toggle(e.seq)}>{opened[e.seq] ? '▾' : '▸'} {f.names.length} more: {f.names.join(', ')}</button>
+							{#if opened[e.seq]}<div data-testid="message-folded"><Prose html={f.rest} /></div>{/if}
+						{:else}
+							<Prose html={e.body_html} />
+						{/if}
+					{/if}
 					{#if e.changed?.length}<p class="carried" data-testid="message-carried">{carried(e.changed)}</p>{/if}
 				</li>
 			{:else}
@@ -207,6 +227,20 @@
 	}
 	.empty {
 		font-size: 12px;
+	}
+	.fold {
+		display: block;
+		margin: var(--gap-hair) 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-faint);
+		cursor: pointer;
+	}
+	.fold:hover {
+		color: var(--ink-soft);
 	}
 	.carried {
 		margin: 2px 0 0;

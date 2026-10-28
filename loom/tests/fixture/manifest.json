@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c7914857f885130469b7d4f1cf0f73e58a21cd80406161323a50d0c2b2b902c9",
+   "hash": "5601fcc9e398975310efcce03640e760480e0cb1191cf5cd64e139f408405807",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "a72e2cb5508a8e37389ec0e506c3874af4695e351bf6dd0d273a334aaf54b931",
+   "hash": "931ba5e882b6b24abeb8d73b64306afc2169bc3789b3ef0dcb6be6a5926a29b2",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "2e115b6a03e0f6b7d667f42e140d2ebdf40418f83e6154796dbb00b60675bb94",
+   "hash": "a3336ec016fcd8a1d30b7944a57869e80faa251ac133b6e6425bf053ecae6585",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -7606,7 +7606,7 @@
    "opened": "2026-09-16T00:00:00Z",
    "purpose": "",
    "rounds": 1,
-   "seq": 1,
+   "seq": 2,
    "state": "open",
    "title": "referee"
   }
@@ -7733,7 +7733,6 @@
     }
    ],
    "path": ".loom/sessions/s-2026-09-15-0001",
-   "pipeline": [],
    "targets": [
     "sy-000A"
    ],
@@ -7745,11 +7744,6 @@
      "count": 10,
      "kind": "annotations",
      "name": "annotations"
-    },
-    {
-     "kind": "notes",
-     "name": "referee-sy-0003.notes.md",
-     "path": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md"
     }
    ],
    "created": "2026-09-16T00:00:00Z",
@@ -7824,51 +7818,6 @@
     }
    ],
    "path": ".loom/sessions/s-2026-09-16-0001",
-   "pipeline": [
-    {
-     "blocks": [
-      {
-       "name": "summary",
-       "title": "summary"
-      },
-      {
-       "name": "notation",
-       "symbols": [
-        {
-         "means": "is the fixed locus of the involution.",
-         "tex": "\\Fix(\\sigma)"
-        },
-        {
-         "means": "is the number of two-element orbits.",
-         "tex": "k"
-        },
-        {
-         "means": "is also used below for the fixed locus of the induced map on orbits.",
-         "tex": "\\Fix(\\sigma)"
-        }
-       ],
-       "title": "notation"
-      },
-      {
-       "findings": [
-        "a-2026-09-16-0001",
-        "a-2026-09-16-0002",
-        "a-2026-09-16-0003"
-       ],
-       "name": "referee-review",
-       "title": "Major and minor issues"
-      },
-      {
-       "name": "decision",
-       "title": "decision"
-      }
-     ],
-     "fragment": "fragments/reports/loom%2Fsessions%2Fs-2026-09-16-0001%2Freferee-sy-0003.notes.md.html",
-     "mode": "referee",
-     "report": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md",
-     "target": "sy-0003"
-    }
-   ],
    "targets": [
     "sy-0003",
     "sy-0004",
