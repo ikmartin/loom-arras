@@ -29,9 +29,9 @@ REGENERATE = "cd loom && uv run python scripts/gen_quilts.py"
 
 
 def _tree(root: Path, skip: set[str]) -> dict[str, bytes]:
-    return {
-        p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file() and p.name not in skip
-    }
+    """Every file under `root` by relative path, but those `skip` names by name or by path."""
+    out = {p.relative_to(root).as_posix(): p for p in root.rglob("*") if p.is_file() and p.name not in skip}
+    return {rel: p.read_bytes() for rel, p in out.items() if rel not in skip}
 
 
 @pytest.mark.parametrize("quilt", QUILTS, ids=[q.name for q in QUILTS])
@@ -110,10 +110,10 @@ def test_every_code_loom_can_emit_is_reserved_or_namespaced() -> None:
 def test_init_demo_matches_fixture(tmp_path: Path) -> None:
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     fixture = QUILTS_DIR / "demo"
-    # `.gitignore` is written from `assets/init/` and never from the demo's own copy: the fixture negates the store's
-    # PDF so this repository can commit the invented paper behind the demo's digest, and a quilt an author makes must
-    # not inherit that (DR-194, as amended).
-    skip = {"EXPECTED-LINT.txt", ".gitignore"}
+    # `.gitignore` is written from `assets/init/` and never from the demo's own copy: the fixture negates the store's PDF so this repository can commit the invented paper behind the demo's digest, and a quilt an author makes must not inherit that (DR-194, as amended). The MCP client files name this machine's paths, so init writes them and no fixture carries them.
+    from loom.ai.clients import PROJECT_FILES
+
+    skip = {"EXPECTED-LINT.txt", ".gitignore", *PROJECT_FILES}
     same_tree(
         _tree(tmp_path / "demo", skip), _tree(fixture, skip), "`loom init --demo` against tests/quilts/demo", REGENERATE
     )

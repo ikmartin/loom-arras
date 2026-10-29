@@ -16,6 +16,8 @@ from loom.ai.layout import ACTS, AGENT_COMMANDS, NETWORK, NOT_TOOLS
 
 #: Parameters the server supplies itself: the quilt it serves, and the name it was started with.
 SUPPLIED = ("--quilt", "--as", "--help")
+#: Options that read standard input, which a call never has: over MCP, each item is a call of its own.
+READS_STDIN = ("--batch",)
 #: A group that runs on its own takes one word, which its hidden command reads: `history KEY`, `library WORK`.
 GROUP_WORDS = {
     "history": (
@@ -140,7 +142,7 @@ def _param(p: click.Parameter) -> Param | None:
     assert isinstance(p, click.Option)
     longs = [o for o in p.opts if o.startswith("--")]
     flag = longs[0] if longs else p.opts[0]
-    if flag in SUPPLIED:
+    if flag in SUPPLIED or flag in READS_STDIN:
         return None
     name = flag.lstrip("-").replace("-", "_")
     if p.is_flag:

@@ -1021,12 +1021,14 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 `loom ai init [OPTIONS]`
 
-Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
+Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
 
-The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
+The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
 
 | option | description |
 |---|---|
+| `--mcp`, `--shell` | How agents here reach loom: the loom MCP server's tools, or loom run in a shell, for an agent with no MCP. Default the way the quilt already uses, else MCP. |
+| `--client` | Print the loom server's entry for this agent app, to add to its settings by hand, and write nothing. |
 | `--dry-run` | Say what would be written and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -1249,7 +1251,7 @@ Keep loom's own files current, and documents live.
 
 `loom upgrade [OPTIONS]`
 
-Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
+Refresh loom.sty, ai/orientation.md, ai/README.md, the permission and MCP client files, and unedited mode files; report edited ones.
 
 loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
 

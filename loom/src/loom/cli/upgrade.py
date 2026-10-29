@@ -13,11 +13,12 @@ from loom.cli.report import Group, Item, Report, counted
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
+    """Refresh loom.sty, ai/orientation.md, ai/README.md, the permission and MCP client files, and unedited mode files; report edited ones.
 
     loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
     """
-    from loom.ai.layout import STY, refresh_sty, upgrade_layer
+    from loom.ai.clients import write_clients
+    from loom.ai.layout import SHELL, STY, refresh_sty, upgrade_layer, variant
     from loom.gitignore import ensure, missing
 
     quilt = open_quilt(quilt_path)
@@ -33,8 +34,11 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
         written.append(STY)
     has_ai = (root / "ai").is_dir()
     if has_ai:
-        rep = upgrade_layer(root, write=not dry_run)
+        shell = variant(root) == SHELL
+        rep = upgrade_layer(root, write=not dry_run, shell=shell)
         written += [str(rel) for rel in rep.written]
+        # the client files follow the variant: what starts the server over MCP, nothing in a shell
+        written += write_clients(root, write=not dry_run, shell=shell).written
         kept += [str(rel) for rel in rep.kept]
         beside = [rel for rel in kept if f"{rel}.new" in rep.new_beside]
     groups = [

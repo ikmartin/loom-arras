@@ -35,21 +35,32 @@ An agent that wants one of these acts writes a suggestion on the thing concerned
 
 ## How an agent attaches
 
-Today an agent attaches through the command line. `loom ai init` writes a one-line `CLAUDE.md` and `AGENTS.md` telling the agent to run `loom ai orient`, which prints the orientation, the rules and the quilt's live state. It also writes permission files for the agents loom knows how to configure, generated from one table of agent commands (`AGENT_COMMANDS` in `loom/src/loom/ai/layout.py`). Under an agent's shell, a loom command outside that table refuses before it reads anything.
+An agent attaches over MCP, or through the shell if it has no MCP, such as Aider. `loom ai init` writes the agent layer in one of two variants, `--mcp` (the default) or `--shell`. The variant is read back from `.claude/settings.json`, and `loom upgrade` keeps it. Both are generated from one table of agent commands (`AGENT_COMMANDS` in `loom/src/loom/ai/layout.py`):
 
-MCP is the intended way for any agent to attach. The server is built, `loom mcp --as NAME`; the configuration that starts it from each client is not yet (plan 0.21.6, see [README](README.md#decided-not-yet-built)):
+- **Over MCP**, `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` carry one line telling the agent to call `loom_ai_orient`, and to ask the author to run `loom ai init` and approve the server if it has no loom tools. The permission files allow the server's tools (`mcp__loom__*`) and the agent's write directories. They deny every other path, and they deny `loom` typed in a shell, which steers the agent to its tools. The boundary itself is loom's refusal under an agent marker.
+- **In the shell**, the line says to run `loom ai orient`. The permission files allow each agent command and deny every other one.
+
+In either variant, a loom command outside the table refuses under an agent's shell before it reads anything.
+
+MCP is the intended way for any agent to attach. The server is `loom mcp --as NAME`:
 
 - **A server per conversation.** `loom mcp` runs as a local subprocess the agent's app starts, with no daemon, no key and no model. It exposes one tool per agent command, generated from the same table and named for it (`loom status` is `loom_status`), its schema from the command's options and its result the command's own output. Each call runs the command in the quilt's root as the agent, so the shell's guard stands behind it too; reading tools run side by side, and writes one at a time. Text is the default; JSON is there when the agent needs fields. `loom/docs/mcp-tools.json` is the surface, generated and checked in.
 - **The author's acts are absent.** They are not tools at all, and the shell refusal stays behind them as a second line.
 - **Large results go to a file** under `build/agent/<session>/`, and the tool returns its path, so the agent's own file tools can search it. Every result, and the session's `run.log`, records the equivalent `loom …` command, so a person can rerun it.
 - **Read-only tools say so,** so a client can skip approval prompts for them (`ACTS` in `layout.py` says what each command does). **The instructions are short**: who the agent is, to call `loom_ai_orient` first and again after a compaction, and the index of the modes, since clients keep only the first few thousand characters. The orientation, the rules and the quilt's state are that tool's output, so an agent attached over MCP needs no shell to be oriented.
-- **The agent's name is the server's `--as`,** refused unless it says it is an agent, and set per client in the configuration loom generates, which is never committed and never one someone else wrote.
+- **The agent's name is the server's `--as`,** refused unless it says it is an agent. It is set per app in the files loom generates.
+- **What starts the server is generated per machine.** Over MCP, `loom ai init` writes one file for each app that reads one in the project:
+  - `.mcp.json` for Claude Code. VS Code reads it too, so its records say Claude Code Agent.
+  - `.codex/config.toml` for Codex.
+  - `.gemini/settings.json` for Gemini CLI.
+  - `.cursor/mcp.json` for Cursor.
+
+  Each names one server, `loom`: the absolute path of this machine's loom with `mcp --as "<App> Agent" --quilt <root>`. Codex's and Gemini's entries skip the per-tool prompt, as the shell allows do. The files are gitignored and never committed (`invariants.md`). The apps ask the person before they start a project's server, and Codex and Gemini CLI read the file only in a trusted folder. A file that holds settings of the person's is left alone. `loom ai init --client NAME` prints the entry to add to it, or to an app configured outside the quilt: Claude Desktop, LM Studio, Zed or JetBrains.
+- **`loom doctor` checks the variant.** It reports which one the permission files are in and whether they are current. Over MCP it also warns on a client file that is missing, holds the person's settings or names another loom or path, and on a missing MCP SDK. It fails when git tracks a client file.
 - **Two commands are the bridge** that replaces the chat composer as the way a person points an agent at something (plan 0.21.8):
   - *where the person is looking*: the document and block, down to the selected words or the PDF page and region, from the viewer tab touched last. The viewer reports it to `loom serve`, which keeps it in memory only.
   - *what the person did since this agent last looked*: their annotations and replies, and their acceptances, including keys that went stale, with one marker per agent name.
-- **It is optional.** Loom generates two settings variants, one for an agent that uses the shell and one for an agent that uses MCP, and `loom doctor` checks whichever applies. Both must be tried with the real client before they ship, not only checked by unit tests (`invariants.md`); nothing tests this automatically yet.
-
-Shell permissions for an agent are generated only when asked, for an agent without MCP such as Aider.
+- **It is optional.** The shell variant serves an agent without MCP. Both variants are tried with the real client before they ship, not only checked by unit tests. The client tier does this by hand (`invariants.md`).
 
 **Open.** Whether `loom session next` and `loom session watch` survive. With the composer retired, only agents write to a session's inbox, so there is nothing for them to wait for. They are left out of the MCP tools until something needs them; `loom session say` stays, since it is how an agent writes the transcript.
 

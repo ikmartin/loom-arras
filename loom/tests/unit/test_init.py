@@ -149,7 +149,8 @@ def test_init_asks_which_ai_and_writes_the_agent_layer_for_any(tmp_path: Path) -
     c = tmp_path / "c"
     assert not (c / "ai" / "ai-config.toml").exists() and "[ai]" not in (c / "config.toml").read_text()
     perms = json.loads((c / ".claude" / "settings.json").read_text())["permissions"]
-    assert "Bash(loom session say*)" in perms["allow"] and "Bash(loom accept*)" in perms["deny"]
+    assert "mcp__loom__*" in perms["allow"] and "Bash(loom *)" in perms["deny"]
+    assert (c / ".mcp.json").is_file() and "approve the loom server" in r.output
     assert "AI: Claude (Claude Code). Run it in this quilt" in r.output and "launch" not in r.output
     o = ok("init", str(tmp_path / "o"), "--ai", "other", cwd=tmp_path)
     assert (tmp_path / "o" / "ai" / "orientation.md").is_file() and "AI: another agent" in o.output

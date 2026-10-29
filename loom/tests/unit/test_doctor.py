@@ -397,7 +397,8 @@ def test_the_demo_is_ok_in_every_quilt_item(box: Box) -> None:
     got = {i["name"]: (i["status"], i["detail"]) for i in data["items"] if i["severity"] == "quilt"}
     assert got == {
         "engine": ("ok", "pdflatex"),
-        "permissions": ("ok", ".claude/settings.json, .codex/rules/loom.rules"),
+        "permissions": ("ok", ".claude/settings.json, .codex/rules/loom.rules: agents here attach over MCP"),
+        "mcp": ("ok", ".mcp.json, .codex/config.toml, .gemini/settings.json, .cursor/mcp.json"),
         "ai files": ("ok", "current"),
         "loom.sty": ("ok", "current"),
         ".gitignore": ("ok", "has loom's lines"),
@@ -454,6 +455,57 @@ def test_the_permission_files(box: Box) -> None:
     assert got["detail"] == ".codex/rules/loom.rules missing: an agent here runs without loom's table"
     ok("upgrade", cwd=q)
     assert item(doctor(box, cwd=q), "permissions")["status"] == "ok"
+    # the shell variant is checked against its own rendering, and said
+    ok("ai", "init", "--shell", cwd=q)
+    got = item(doctor(box, cwd=q), "permissions")
+    assert got["status"] == "ok" and got["detail"].endswith("agents here run loom in a shell")
+    assert got["variant"] == "shell"
+
+
+def mcp_items(data: dict[str, Any]) -> list[dict[str, Any]]:
+    return [i for i in data["items"] if i["name"] == "mcp"]
+
+
+def test_the_client_files(box: Box) -> None:
+    q = quilt(box)
+    (q / ".cursor" / "mcp.json").unlink()
+    edit(q / ".mcp.json", str(q.resolve()), "/elsewhere")
+    [got] = mcp_items(doctor(box, cwd=q))
+    assert (got["status"], got["remedy"]) == ("warn", "loom ai init")
+    assert got["detail"].startswith("missing: .cursor/mcp.json; naming another loom or path: .mcp.json")
+    (q / ".gemini" / "settings.json").write_text('{"theme": "Dracula"}\n')
+    ok("ai", "init", cwd=q)
+    [got] = mcp_items(doctor(box, cwd=q))
+    assert (
+        got["status"] == "warn" and got["detail"] == "settings of yours, without the loom server: .gemini/settings.json"
+    )
+    assert got["remedy"] == "add what loom ai init --client gemini-cli prints"
+    (q / ".gemini" / "settings.json").unlink()
+    ok("ai", "init", "--shell", cwd=q)
+    [got] = mcp_items(doctor(box, cwd=q))
+    assert got["status"] == "ok" and got["detail"] == "none: agents here run loom in a shell"
+
+
+def test_a_client_file_git_tracks_fails(box: Box) -> None:
+    """It names this machine's loom and quilt; committed, a clone would start them on another machine."""
+    box.real_git()
+    q = quilt(box)
+    subprocess.run(["git", "init", "-q"], cwd=q, check=True)
+    subprocess.run(["git", "add", "-f", ".mcp.json", ".gemini/settings.json"], cwd=q, check=True)
+    got = mcp_items(doctor(box, cwd=q, code=2))[0]
+    assert got["status"] == "fail" and got["remedy"] == "git rm --cached .mcp.json .gemini/settings.json"
+    subprocess.run(["git", "rm", "-q", "--cached", ".mcp.json", ".gemini/settings.json"], cwd=q, check=True)
+    assert [i["status"] for i in mcp_items(doctor(box, cwd=q))] == ["ok"]
+
+
+def test_a_missing_mcp_sdk_warns(box: Box, monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib.util
+
+    q = quilt(box)
+    real = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None if name == "mcp" else real(name, *a))
+    got = mcp_items(doctor(box, cwd=q))[-1]
+    assert got["status"] == "warn" and "loom mcp cannot start" in got["detail"] and "loomtex[mcp]" in got["remedy"]
 
 
 def tree(q: Path) -> dict[str, bytes]:
@@ -589,7 +641,7 @@ def test_the_text_report_lines_up(box: Box) -> None:
     # what is fine is counted on one line a section, naming each check; what is not is listed, aligned, its fix beneath (T2)
     fine = [int(m.group(1)) for ln in lines if (m := re.match(r"^  ok    (\d+) checks?: ", ln))]
     checks = [m for ln in lines if (m := re.match(r"^  (?:warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
-    assert len(fine) == 2 and sum(fine) + len(checks) == 15 + 6, lines  # the machine's items and the quilt's
+    assert len(fine) == 2 and sum(fine) + len(checks) == 15 + 7, lines  # the machine's items and the quilt's
     assert len({m.end() for m in checks}) == 1, "the details do not start in one column"
     at = lines.index(next(ln for ln in lines if ln.startswith("  warn  pdfinfo")))
     assert lines[at + 1] == f"    fix: {item(doctor(box), 'pdfinfo')['remedy']}"  # beneath the item it fixes

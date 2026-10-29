@@ -19,6 +19,11 @@ last-seen.json
 # session's inbox.jsonl beside them is the conversation itself, and is committed.
 .loom/sessions/*/attached.json
 .loom/sessions/*/cursors/
+# What starts loom's MCP server for each agent's app, written by `loom ai init`: it names this machine's loom and this quilt's path, so every machine writes its own
+.mcp.json
+.codex/config.toml
+.gemini/settings.json
+.cursor/mcp.json
 # LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/
 /*.aux
 /*.log

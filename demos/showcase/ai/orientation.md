@@ -2,6 +2,8 @@
 
 You are working in a **quilt**: a research project managed by `loom`, usually mathematical, kept as LaTeX. It may hold several documents — a paper, a talk, notes from reading — or none yet; do not assume there is one paper, or a paper at all. `loom ai orient` printed this, `ai/rules.md` (how to work and what your output looks like), `ai/formatting.md` (how to write what the author reads) and the modes you can reach for. Read them once. Then run `loom status` and propose what to do from what it reports.
 
+Commands are written here as a shell takes them. Attached over MCP (`loom mcp`), each is the tool of the same name — `loom status` is `loom_status`, `loom library read` is `loom_library_read` — with its options as arguments (`--source-text` is `source_text`), and the author's commands are not tools. The server says who you are, so you pass no `--as`. A text is given as itself, never as `-` for stdin, and each item is a call of its own, so there is no `--batch`. A result too long for a reply is a file under `build/agent/`, which the tool names.
+
 ## 1. What a quilt is
 
 The project is a graph. A theorem-like environment or a section becomes a **node** when it carries a permanent id as a label, `\label{<prefix>-0004}`, with the prefix from `[quilt] prefix`; `loom id` tags an untagged one. Dependencies are read from the `\ref`, `\cite[postnote]` and `\uses` the author writes. The LaTeX compiles as an ordinary paper, with or without loom. Loom keeps a ledger of what the author has accepted and computes each key's state from it: `draft`, `accepted`, `accepted, stale`, `incomplete`, `conflicted`. Nothing you write enters the ledger; only a person accepts.
@@ -39,15 +41,13 @@ To ask for one, write a `suggestion` on the thing concerned with your reasoning;
 - `loom library WORK`, `loom library search`, `loom library read WORK N`: the literature. Ask the digest before the paper, and quote only what `library read` printed.
 - `loom ai annotations --session SESSION`: what a session has annotated, who wrote each, and what the author decided about it.
 - `loom ai drafts`: each agent document and what has moved on the author's side since; `loom ai refresh DOC` brings that in.
-- Anything else: `loom --help`, and `loom COMMAND --help`. Commands marked `*` there are yours; the rest refuse you.
-
-Attached over MCP (`loom mcp`), each of these commands is the tool of the same name — `loom status` is `loom_status`, `loom library read` is `loom_library_read` — with its options as arguments (`--source-text` is `source_text`), and the author's commands are not tools. The server says who you are, so you pass no `--as`; a result too long for a reply is a file under `build/agent/`, which the tool names.
+- Anything else: in a shell, `loom --help` and `loom COMMAND --help`, where commands marked `*` are yours and the rest refuse you; over MCP, your tools are those commands, each with its description.
 
 ## 5. Sessions and the transcript
 
-A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one. Name yourself with `--as` on everything you write, a name with `Agent` or `AI` in it.
+A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one. In a shell, name yourself with `--as` on everything you write, a name with `Agent` or `AI` in it; over MCP, the server has named you.
 
-The author talks to you in your own app. **The transcript is what they read afterwards**, and you write it with `loom session say "…" --as "…"` (`-` reads stdin): what was asked, the main line of the discussion, what was decided or found, what is still open, and links to everything that came of it. Write at natural pauses and before you stop. A mode's report goes there too (`ai/rules.md`, Where work goes).
+The author talks to you in your own app. **The transcript is what they read afterwards**, and you write it with `loom session say "…" --as "…"` (in a shell, `-` reads stdin): what was asked, the main line of the discussion, what was decided or found, what is still open, and links to everything that came of it. Write at natural pauses and before you stop. A mode's report goes there too (`ai/rules.md`, Where work goes).
 
 ## 6. Modes
 

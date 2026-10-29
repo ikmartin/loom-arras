@@ -45,6 +45,7 @@ def test_a_schema_says_types_choices_defaults_and_what_is_required() -> None:
     assert props["limit"]["type"] == "integer" and props["limit"]["minimum"] == 1 and props["limit"]["default"] == 20
     assert props["pages"]["type"] == "boolean" and "quilt" not in props
     assert "as" not in schema(SPECS["loom_annotate"])["properties"]  # the server supplies who is acting
+    assert "batch" not in schema(SPECS["loom_annotate"])["properties"]  # it reads stdin, which a call has none of
     assert schema(SPECS["loom_annotate"])["properties"]["severity"]["enum"] == ["major", "moderate", "minor"]
     assert schema(SPECS["loom_id"])["properties"]["sections"]["default"] is True
 

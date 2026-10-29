@@ -55,7 +55,6 @@ Two markers keep the text honest:
 
 ## Decided, not yet built
 
-- **MCP configuration for each client.** The server is built (`loom mcp`); what each agent's app needs to start it, and the permission files for an agent that attaches by MCP, are not yet. See `agents.md`.
 - **Notes.** Fleeting and durable notes attached to any key, a work's page or a session, with fading computed from age and links. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.

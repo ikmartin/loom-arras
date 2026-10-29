@@ -1531,6 +1531,17 @@ def _write_expected_lint(g: Gen) -> None:
 BUILDERS = {"synthetic": build_synthetic, "demo": build_demo, "showcase": build_showcase}
 
 
+def _drop_clients(root: Path) -> None:
+    """The MCP client files `ai init` writes name this machine's loom and the build's scratch path, so no fixture carries them; `loom init --demo` writes the demo's for wherever it lands."""
+    from loom.ai.clients import PROJECT_FILES
+
+    for rel in PROJECT_FILES:
+        (root / rel).unlink(missing_ok=True)
+    for d in {Path(rel).parent for rel in PROJECT_FILES}:
+        if d != Path(".") and (root / d).is_dir() and not any((root / d).iterdir()):
+            (root / d).rmdir()
+
+
 def _sync(src: Path, dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
@@ -1571,6 +1582,7 @@ def generate(names: Iterable[str], check: bool) -> int:
         with tempfile.TemporaryDirectory(prefix=f"loom-gen-{name}-") as tmp:
             built = Path(tmp) / name
             BUILDERS[name](built)
+            _drop_clients(built)
             target = QUILTS / name
             if check:
                 diffs = _differences(built, target)

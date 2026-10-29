@@ -48,33 +48,40 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### One table says what an agent may run, and everything else refuses
 
-**Rule.** `AGENT_COMMANDS` in `loom/src/loom/ai/layout.py` is the only list of what an agent may run. The Claude and Codex permission files and the list in `ai/rules.md` are generated from it, and under an agent marker every other command refuses before reading anything, so a new command is the author's until admitted.
+**Rule.** `AGENT_COMMANDS` in `loom/src/loom/ai/layout.py` is the only list of what an agent may run. The MCP server's tools, the Claude and Codex permission files in both variants, and the list in `ai/rules.md` are generated from it. Under an agent marker every other command refuses before reading anything, so a new command is the author's until admitted.
 
 **Why.** The rules' Never section and the permission file were two hand-kept deny lists, and they drifted: `loom upgrade` was in neither, and the alias `loom canonise` walked past the deny on `loom canonize`.
 
-**Guard.** `loom/tests/unit/test_ai_layer.py::test_the_allow_list_and_the_permission_file_cannot_disagree`, `loom/tests/unit/test_ai_layer.py::test_codex_is_given_the_same_policy_as_claude`
+**Guard.** `loom/tests/unit/test_ai_layer.py::test_the_allow_list_and_the_permission_file_cannot_disagree`, `loom/tests/unit/test_ai_layer.py::test_codex_is_given_the_same_policy_as_claude`, `loom/tests/unit/test_mcp_tools.py::test_the_tools_are_the_agent_commands_and_none_of_the_authors`
 
 **Record.** DR-154, DR-173, DR-333-ikmartin
 
 ### Loom never runs a command the quilt carries
 
-**Rule.** Configuration that names a command for an agent client is the person's own and never committed. Loom generates none today; the MCP configuration of plan 0.21, or anything loom hands a client that can carry commands, is generated untracked and passed by name (`--mcp-config FILE --strict-mcp-config`), never read from the quilt.
+**Rule.** Configuration that names a command for an agent's app is generated on the machine that runs it and never committed. `loom ai init` writes the MCP client files (`.mcp.json`, `.codex/config.toml`, `.gemini/settings.json`, `.cursor/mcp.json`) with this machine's absolute paths, and they are gitignored. `ai init` writes over no client file that git tracks or that holds anything but loom's server, and `loom doctor` fails when git tracks one.
 
-**Why.** No incident is recorded. While `loom serve` ran the agent command when a message waited, a tracked one would have let cloning and serving someone's quilt run whatever they committed; a client reading a committed config file runs it the same way (`claude -p` loads a project `.mcp.json` without asking).
+**Why.** No incident is recorded. While `loom serve` ran the agent command when a message waited, a tracked one would have let cloning and serving someone's quilt run whatever they committed. A client reading a committed config file runs it the same way (`claude -p` loads a project `.mcp.json` without asking).
 
-**Guard.** None while loom generates no such configuration; plan 0.21 adds one with the MCP configuration.
+**Guard.** `loom/tests/unit/test_clients.py::test_every_client_file_is_gitignored`, `loom/tests/unit/test_clients.py::test_a_client_file_git_tracks_is_not_written`, `loom/tests/unit/test_doctor.py::test_a_client_file_git_tracks_fails`
 
 **Record.** DR-273-ikmartin
 
 **2026-10-26.** Loom starts no agent (plan 0.20.1): `ai/ai-config.toml`, `[ai] launch` and the launcher are gone, and with them this rule's two guards and the unchecked `.claude/settings.json` a launched turn was given.
 
+**2026-10-28.** The client files live in the quilt, gitignored, rather than being passed to the client by name. Only Claude Code takes a file by name; every other app reads one in the project or in the person's home. So the guard moved from where the file is to whether git tracks it (plan 0.21.6).
+
 ### Generated agent configuration is tested against the real client
 
-**Rule.** A change to what loom generates for an agent client (permission files, Codex rules, MCP settings when they exist) is tried with the client itself, run as loom runs it (`claude -p --settings …`), before it ships. Unit tests check only the shape loom believes right.
+**Rule.** A change to what loom generates for an agent client (permission files, Codex rules, MCP client files) is tried with the client itself, run as a person starting an agent in the quilt would run it (`claude -p --settings …`), before it ships. Unit tests check only the shape loom believes right.
 
 **Why.** The permission file's `Write` rules passed every unit test and were never enforced: Claude Code matches only `Edit` rules to paths. Then root-relative allows passed too, but under `--settings` a leading `/` means `.claude/`, so every write a launched agent made was refused.
 
-**Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it: `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors` and `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`. It covers Claude Code only; Codex has no path rules to try.
+**Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it:
+- `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors`;
+- `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`, on the shell variant;
+- `::test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_shell`, on the MCP variant.
+
+`loom/tests/client/test_codex.py` and `test_gemini.py` try the server each app's file names, and skip where the app is not installed. Neither has run yet.
 
 **Record.** DR-275-ikmartin, DR-343-ikmartin
 
@@ -102,7 +109,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Upgrade never destroys an author's edit
 
-**Rule.** `loom upgrade` and `loom ai init` keep one line of loom's in `CLAUDE.md` and `AGENTS.md` and touch nothing else there. An edited mode file or orientation is kept, with the shipped text written beside it as `.new`; an edited `loom.sty` is kept as `loom.sty.old` before it is replaced.
+**Rule.** `loom upgrade` and `loom ai init` keep one line of loom's in `CLAUDE.md`, `AGENTS.md` and `GEMINI.md`, replacing the other variant's line where it stands, and touch nothing else there. An edited mode file or orientation is kept, with the shipped text written beside it as `.new`; an edited `loom.sty` is kept as `loom.sty.old` before it is replaced.
 
 **Why.** Upgrade wrote `CLAUDE.md` and `AGENTS.md` whole whenever they differed from the shipped copy, so an author who had added instructions lost them, and an edited orientation was overwritten with no warning and no backup.
 

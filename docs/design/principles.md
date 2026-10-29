@@ -108,7 +108,7 @@ An author's file is theirs, and a tool that edits it behind their back destroys 
 
 ### P8. No editor, server, model, or credential is required by any command.
 
-Every command runs from a terminal against files. Consequence: editors, Overleaf, Claude Code, Codex, Gemini and local agents are all clients, and none is assumed. The language server and the MCP server (not built yet, see [README](README.md#decided-not-yet-built)) are clients like the rest, and no command requires either.
+Every command runs from a terminal against files. Consequence: editors, Overleaf, Claude Code, Codex, Gemini and local agents are all clients, and none is assumed. The MCP server (`loom mcp`) is a client like the rest, as a language server would be, and no command requires one.
 
 ### P9. Loom calls no model, and any agent may attach.
 

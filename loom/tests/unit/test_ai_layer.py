@@ -18,11 +18,15 @@ FIXED = {"LOOM_FIXED_TIME": "2026-09-16T14:02:00Z"}
 
 def bare(tmp_path: Path, *flags: str) -> Path:
     """The demo without its AI layer, annotations or sessions, then `loom ai init FLAGS`: the layer these tests read is the one they made, and the sessions they count are their own."""
+    from loom.ai.clients import PROJECT_FILES
+    from loom.ai.layout import ROOT_FILES
+
     q = demo(tmp_path)
     shutil.rmtree(q / "ai")
-    for rel in ("CLAUDE.md", "AGENTS.md"):
+    for rel in (*ROOT_FILES, *PROJECT_FILES):
         (q / rel).unlink(missing_ok=True)
     shutil.rmtree(q / ".claude", ignore_errors=True)
+    shutil.rmtree(q / ".codex", ignore_errors=True)
     shutil.rmtree(q / "annotations", ignore_errors=True)  # the log lives at the quilt root, not under ai/
     shutil.rmtree(q / ".loom" / "sessions", ignore_errors=True)
     ok("ai", "init", *flags, cwd=q)
@@ -31,13 +35,12 @@ def bare(tmp_path: Path, *flags: str) -> Path:
 
 def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    for rel in ("ai/README.md", "ai/orientation.md", "ai/.loom-modes-version", "CLAUDE.md", "AGENTS.md"):
+    for rel in ("ai/README.md", "ai/orientation.md", "ai/.loom-modes-version", "CLAUDE.md", "AGENTS.md", "GEMINI.md"):
         assert (q / rel).is_file(), rel
     assert {p.stem for p in (q / "ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
-    assert (
-        root_text == (q / "AGENTS.md").read_text() and "loom ai orient" in root_text and ".loom/sessions/" in root_text
-    )
+    assert root_text == (q / "AGENTS.md").read_text() == (q / "GEMINI.md").read_text()
+    assert "`loom_ai_orient`" in root_text and ".loom/sessions/" in root_text and "loom ai init" in root_text
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
     # what agents may run is written for every tool, whichever the person uses (DR-283)
     assert (q / ".claude" / "settings.json").is_file() and (q / ".codex" / "rules" / "loom.rules").is_file()
@@ -71,17 +74,22 @@ def test_ai_annotations_refuses_a_filter_value_it_does_not_know(tmp_path: Path) 
 
 
 def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
-    """CLAUDE.md is the author's file with one line of loom's in it; an upgrade must not take it over (DR-151)."""
-    from loom.ai.layout import CLAUDE_LINE
+    """CLAUDE.md is the author's file with one line of loom's in it; an upgrade must not take it over (DR-151), and a change of variant swaps the line where it stands."""
+    from loom.ai.layout import MCP_LINE, ROOT_FILES, SHELL_LINE
 
     q = bare(tmp_path)
-    for name in ("CLAUDE.md", "AGENTS.md"):
-        assert (q / name).read_text().splitlines().count(CLAUDE_LINE) == 1
+    for name in ROOT_FILES:
+        assert (q / name).read_text().splitlines().count(MCP_LINE) == 1
     mine = "\n## This project\n\nNever touch canon/ without asking.\n"
-    (q / "CLAUDE.md").write_text((q / "CLAUDE.md").read_text() + mine)
+    (q / "CLAUDE.md").write_text("# Mine\n\n" + (q / "CLAUDE.md").read_text() + mine)
     ok("upgrade", cwd=q)
     after = (q / "CLAUDE.md").read_text()
-    assert after.count(CLAUDE_LINE) == 1 and "Never touch canon/ without asking." in after
+    assert after.count(MCP_LINE) == 1 and "Never touch canon/ without asking." in after
+    ok("ai", "init", "--shell", cwd=q)
+    lines = (q / "CLAUDE.md").read_text().splitlines()
+    assert lines[:3] == ["# Mine", "", SHELL_LINE] and MCP_LINE not in lines and lines[-1].startswith("Never touch")
+    ok("ai", "init", "--mcp", cwd=q)
+    assert (q / "CLAUDE.md").read_text().splitlines()[:3] == ["# Mine", "", MCP_LINE]
 
 
 def test_ai_init_permissions_generated(tmp_path: Path) -> None:
@@ -92,6 +100,9 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     allow = data["permissions"]["allow"]
     # `.loom` is not denied wholesale: the session an agent writes in lives under it (plan 0.13 §5)
     assert "Edit(.loom/sessions/**)" in allow and "Edit(build/**)" in allow
+    # over MCP the commands are the server's tools; `loom` typed in a shell is turned away
+    assert "mcp__loom__*" in allow and not any(r.startswith("Bash(") for r in allow)
+    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/nodes/**)" in deny
     # relative to the working directory: passed with --settings, `/x` would be `.claude/x` and match nothing (DR-343-ikmartin)
     assert not any(r.startswith("Edit(/") for r in allow)
     # Claude Code matches only `Edit` rules against paths; a `Write` rule is ignored and says so on every start
@@ -455,9 +466,17 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     assert AGENT_COMMANDS < every, "the allow-list names commands loom does not have"
     assert set(author_commands()) == every - AGENT_COMMANDS  # derived, never listed
 
-    denied_paths = settings_deny_paths(QuiltConfig())
+    # the shell variant's deny list is the complement; over MCP the author's commands are not tools at all
+    denied_paths = settings_deny_paths(QuiltConfig(), shell=True)
     denied = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied_paths if d.startswith("Bash(loom ")}
     assert denied == every - AGENT_COMMANDS
+    shell = json.loads(permissions_json(QuiltConfig(), shell=True))["permissions"]
+    assert {r.removeprefix("Bash(loom ").removesuffix("*)") for r in shell["allow"] if r.startswith("Bash(")} == (
+        AGENT_COMMANDS
+    )
+    # the paths are denied the same way in both
+    over_mcp = settings_deny_paths(QuiltConfig())
+    assert [d for d in over_mcp if d.startswith("Edit(")] == [d for d in denied_paths if d.startswith("Edit(")]
 
     # what the table must not admit: every command that writes into the quilt outside the session and build/, the history's restore among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
@@ -484,7 +503,7 @@ def test_codex_is_given_the_same_policy_as_claude(tmp_path: Path) -> None:
     """One policy, loom's own, rendered per tool (DR-283-ikmartin); a quilt does not change it."""
     from loom.ai.layout import AGENT_COMMANDS, CODEX_RULES, author_commands, codex_rules
 
-    rules = codex_rules()
+    rules = codex_rules(shell=True)
     for c in AGENT_COMMANDS:
         assert (
             f'prefix_rule(pattern = [{", ".join(json.dumps(w) for w in ["loom", *c.split()])}], decision = "allow")'
@@ -492,8 +511,12 @@ def test_codex_is_given_the_same_policy_as_claude(tmp_path: Path) -> None:
         )
     for c in author_commands():
         assert f'"{c.split()[-1]}"], decision = "forbidden")' in rules
+    # over MCP, `loom` in a shell is forbidden outright, as `rm` is in both
+    over_mcp = codex_rules()
+    assert 'prefix_rule(pattern = ["loom"], decision = "forbidden")' in over_mcp and '"allow"' not in over_mcp
+    assert 'prefix_rule(pattern = ["rm"], decision = "forbidden")' in rules
     ok("init", str(tmp_path / "c"), "--ai", "codex", "--yes", cwd=tmp_path)
-    assert (tmp_path / "c" / CODEX_RULES).read_text() == rules
+    assert (tmp_path / "c" / CODEX_RULES).read_text() == over_mcp
     assert (tmp_path / "c" / ".claude" / "settings.json").is_file()  # the same table for the other tool, too
 
 

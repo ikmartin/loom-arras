@@ -478,23 +478,85 @@ def check_engine(quilt: Any) -> Item:
 
 
 def check_permissions(root: Path) -> Item:
-    """`.claude/settings.json` and `.codex/rules/loom.rules` byte for byte what this loom's table renders (`vendor_files`)."""
-    from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, quilt_config, vendor_files
+    """`.claude/settings.json` and `.codex/rules/loom.rules` byte for byte what this loom's table renders (`vendor_files`), in the variant the first says."""
+    from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, SHELL, quilt_config, variant, vendor_files
 
     wanted = (CLAUDE_SETTINGS, CODEX_RULES)
     present = [rel for rel in wanted if (root / rel).is_file()]
     layer = (root / "ai").is_dir()
     if not layer and not present:
         return Item("permissions", OK, QUILT, "no ai/ (loom ai init writes it and them)")
-    shipped = vendor_files(quilt_config(root), True, True)
+    shell = variant(root) == SHELL
+    shipped = vendor_files(quilt_config(root), shell=shell)
     stale = [rel for rel in present if (root / rel).read_text(encoding="utf-8") != shipped[rel]]
     absent = [rel for rel in wanted if rel not in present] if layer else []
     if not stale and not absent:
-        return Item("permissions", OK, QUILT, ", ".join(present))
+        how = "agents here run loom in a shell" if shell else "agents here attach over MCP"
+        return Item(
+            "permissions", OK, QUILT, f"{', '.join(present)}: {how}", extra={"variant": SHELL if shell else "mcp"}
+        )
     said = [f"{rel} missing: an agent here runs without loom's table" for rel in absent]
     said += [f"{rel}: not what this loom lets agents run" for rel in stale]
     # beside an ai/, `loom upgrade` writes both; without one, `loom ai init` does
     return Item("permissions", WARN, QUILT, "; ".join(said), "loom upgrade" if layer else "loom ai init")
+
+
+def check_mcp(root: Path) -> list[Item]:
+    """The MCP client files (`ai.clients`) and the SDK `loom mcp` needs, where the quilt's agents attach over MCP.
+
+    A client file git tracks fails: it names this machine's loom and quilt, and a clone would start them on another's.
+    """
+    import importlib.util
+
+    from loom.ai.clients import PROJECT, write_clients
+    from loom.ai.layout import SHELL, variant
+
+    if not (root / "ai").is_dir():
+        return [Item("mcp", OK, QUILT, "no ai/ (loom ai init writes the client files)")]
+    if variant(root) == SHELL:
+        return [Item("mcp", OK, QUILT, "none: agents here run loom in a shell")]
+    rep = write_clients(root, write=False)
+    key = {c.file: c.key for c in PROJECT}
+    items = []
+    if rep.tracked:
+        items.append(
+            Item(
+                "mcp",
+                FAIL,
+                QUILT,
+                f"tracked by git: {', '.join(rep.tracked)}, which name this machine's loom and quilt",
+                f"git rm --cached {' '.join(rep.tracked)}",
+            )
+        )
+    missing = [rel for rel in rep.written if not (root / rel).exists()]
+    stale = [rel for rel in rep.written if rel not in missing]
+    said = [f"missing: {', '.join(missing)}"] * bool(missing)
+    said += [f"naming another loom or path: {', '.join(stale)}"] * bool(stale)
+    if said:
+        items.append(
+            Item("mcp", WARN, QUILT, "; ".join(said) + "; an agent's app starts loom from these", "loom ai init")
+        )
+    if rep.foreign:
+        items.append(
+            Item(
+                "mcp",
+                WARN,
+                QUILT,
+                f"settings of yours, without the loom server: {', '.join(rep.foreign)}",
+                "; ".join(f"add what loom ai init --client {key[rel]} prints" for rel in rep.foreign),
+            )
+        )
+    if importlib.util.find_spec("mcp") is None:
+        items.append(
+            Item(
+                "mcp",
+                WARN,
+                QUILT,
+                "the MCP SDK is not installed, so loom mcp cannot start",
+                "pip install 'loomtex[mcp]', or uv tool install 'loomtex[mcp]'",
+            )
+        )
+    return items or [Item("mcp", OK, QUILT, ", ".join(rep.current))]
 
 
 def check_ai_files(root: Path) -> Item:
@@ -605,6 +667,7 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
         report.items += [
             check_engine(quilt),
             check_permissions(root),
+            *check_mcp(root),
             check_ai_files(root),
             check_sty(root),
             check_gitignore(root),

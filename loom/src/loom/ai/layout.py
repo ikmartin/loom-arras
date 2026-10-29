@@ -77,7 +77,11 @@ AGENT_READONLY_FILES = (
 #: The style file at every quilt's root: loom's, so always replaced by upgrade, and its shipped hash recorded with the mode files'.
 STY = "loom.sty"
 
-CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit."
+#: The line loom puts in each agent's root file, one per variant: an agent attached over MCP starts from the server's tool, and one working through a shell from the command.
+MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit."
+SHELL_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit."
+#: The two ways an agent reaches loom: through the MCP server's tools, the default, or by typing `loom` in a shell, for an agent with no MCP.
+MCP, SHELL = "mcp", "shell"
 VERSION_FILE = ".loom-modes-version"
 
 
@@ -211,10 +215,10 @@ def quilt_config(root: Path) -> QuiltConfig:
         return QuiltConfig()
 
 
-def permissions_json(config: QuiltConfig) -> str:
+def permissions_json(config: QuiltConfig, *, shell: bool = False) -> str:
     """`.claude/settings.json` for a quilt, generated from the one table rather than written by hand.
 
-    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, rather than a list somebody remembered to extend -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. The directories are the quilt's own names (`agent_dirs`), so a quilt that renames `drafting` keeps it read-only.
+    Over MCP, the default, the agent's commands are the loom server's tools, allowed as `mcp__loom__*`, and the author's are not tools at all; `loom` typed in a shell is denied, which steers an agent to the tools and is not the boundary -- loom's own refusal under an agent (K5) is. With `shell`, for an agent that has no MCP, the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, since Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71) -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. The directories are the quilt's own names (`agent_dirs`), so a quilt that renames `drafting` keeps it read-only.
 
     The file is read twice and its two path forms are for different readings (DR-343-ikmartin): as the project's settings, `/x` is the quilt root, but an untrusted folder's allow rules are dropped there; passed with `--settings`, every rule holds but `/x` is under `.claude/`. So the allows are relative to the working directory, the quilt root an agent is started in, and the denies keep `/`, which anchors `/*.tex` to the root where a relative `*.tex` would refuse the agent's own drafts.
     """
@@ -224,13 +228,13 @@ def permissions_json(config: QuiltConfig) -> str:
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
     allow = [f"Edit({d}/**)" for d in writes]
     # the agent's own commands, allowed outright: approving each of them is friction with nothing to decide
-    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
+    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)] if shell else ["mcp__loom__*"]
     deny = [f"Edit(/{d}/**)" for d in readonly]
     deny += [f"Edit(/{f})" for f in AGENT_READONLY_FILES]
     # the research state is a page: an agent writes it through `loom write`, which records the write, never by hand
     deny.append(f"Edit(/{config.research_state})")
     deny += [f"Edit(/*.{ext})" for ext in ("tex", "sty", "bib")]
-    deny += [f"Bash(loom {c}*)" for c in author_commands()]
+    deny += [f"Bash(loom {c}*)" for c in author_commands()] if shell else ["Bash(loom *)"]
     deny.append("Bash(rm *)")
     return json.dumps({"permissions": {"allow": allow, "deny": deny}}, indent=2) + "\n"
 
@@ -240,8 +244,8 @@ CLAUDE_SETTINGS = ".claude/settings.json"
 CODEX_RULES = ".codex/rules/loom.rules"
 
 
-def codex_rules() -> str:
-    """`.codex/rules/loom.rules`: the same table as `permissions_json`, as Codex's command-prefix rules.
+def codex_rules(*, shell: bool = False) -> str:
+    """`.codex/rules/loom.rules`: the same policy as `permissions_json`, as Codex's command-prefix rules; over MCP, `loom` in a shell is forbidden and the tools are the way in.
 
     Codex matches commands, not paths, so the path rules have no counterpart here; the author's own verbs are refused by loom itself for an agent's name whatever the tool (DR-185). Codex reads a project's rules only once the project is trusted. Unverified: Codex was not installed where this was written.
     """
@@ -255,20 +259,30 @@ def codex_rules() -> str:
     def rule(words: list[str], decision: str) -> str:
         return f"prefix_rule(pattern = [{', '.join(json.dumps(w) for w in words)}], decision = {json.dumps(decision)})"
 
-    body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
-    body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
+    if shell:
+        body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
+        body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
+    else:
+        body = [rule(["loom"], "forbidden")]
     body.append(rule(["rm"], "forbidden"))
     return "\n".join(head + body) + "\n"
 
 
-def vendor_files(config: QuiltConfig, permissions: bool, codex: bool = False) -> dict[str, str]:
-    """Quilt-relative path -> text for the files loom owns whole in a quilt with `config`; the agent root files are not among them (see `ensure_root_line`)."""
-    out: dict[str, str] = {}
-    if permissions:
-        out[CLAUDE_SETTINGS] = permissions_json(config)
-    if codex:
-        out[CODEX_RULES] = codex_rules()
-    return out
+def vendor_files(config: QuiltConfig, *, shell: bool = False) -> dict[str, str]:
+    """Quilt-relative path -> text for the permission files loom owns whole in a quilt with `config`, in one variant; the agent root files are not among them (see `ensure_root_line`), nor the untracked MCP client files (`ai.clients`)."""
+    return {CLAUDE_SETTINGS: permissions_json(config, shell=shell), CODEX_RULES: codex_rules(shell=shell)}
+
+
+def variant(root: Path) -> str | None:
+    """Which way the quilt's agents reach loom, read off its permission file: `MCP` when it allows the loom server's tools, `SHELL` when it allows `loom` commands, None with no file. Never recorded anywhere else, so it cannot disagree with what the file says."""
+    p = root / CLAUDE_SETTINGS
+    try:
+        allow = json.loads(p.read_text(encoding="utf-8"))["permissions"]["allow"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if "mcp__loom__*" in allow:
+        return MCP
+    return SHELL if any(str(r).startswith("Bash(loom ") for r in allow) else None
 
 
 @dataclass
@@ -279,32 +293,34 @@ class LayerReport:
     unchanged: list[str] = field(default_factory=list)
 
 
-ROOT_FILES = ("CLAUDE.md", "AGENTS.md")
+ROOT_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md")
 
 
-def ensure_root_line(root: Path, write: bool = True) -> list[str]:
-    """Put loom's one line into CLAUDE.md and AGENTS.md without taking the files over; returns what was written, or with `write` false what would be.
+def ensure_root_line(root: Path, write: bool = True, *, shell: bool = False) -> list[str]:
+    """Put loom's one line, the variant's, into each agent's root file without taking the files over; returns what was written, or with `write` false what would be.
 
-    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. Everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
+    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. The other variant's line is replaced where it stands; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
     """
+    line, other = (SHELL_LINE, MCP_LINE) if shell else (MCP_LINE, SHELL_LINE)
     written: list[str] = []
     for name in ROOT_FILES:
         p = root / name
         existing = p.read_text(encoding="utf-8") if p.is_file() else ""
         lines = existing.splitlines()
-        if CLAUDE_LINE in lines:
+        if line in lines:
             continue
         written.append(name)
         if not write:
             continue
-        p.write_text(
-            existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + CLAUDE_LINE + "\n", encoding="utf-8"
-        )
+        if other in lines:
+            p.write_text("\n".join(line if x == other else x for x in lines) + "\n", encoding="utf-8")
+            continue
+        p.write_text(existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + line + "\n", encoding="utf-8")
     return written
 
 
-def init_layer(root: Path) -> LayerReport:
-    """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
+def init_layer(root: Path, *, shell: bool = False) -> LayerReport:
+    """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them in one variant: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
     ai = root / "ai"
     if ai.exists():
         raise FileExistsError(str(ai))
@@ -325,20 +341,22 @@ def init_layer(root: Path) -> LayerReport:
         {**texts, STY: shipped_sty()} if sty.is_file() and sty.read_text(encoding="utf-8") == shipped_sty() else texts,
     )
     rep.written.append(f"ai/{VERSION_FILE}")
-    for rel, text in vendor_files(quilt_config(root), True, True).items():
+    for rel, text in vendor_files(quilt_config(root), shell=shell).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    rep.written.extend(ensure_root_line(root))
+    rep.written.extend(ensure_root_line(root, shell=shell))
     return rep
 
 
-def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
+def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) -> LayerReport:
     """Refresh the generated files of an existing `ai/`; keep edited mode files and write `.new` beside them.
 
-    With `write` false nothing is written and the report says what would be: `loom doctor`'s dry run, byte for byte what `loom upgrade` compares.
+    The permission files keep the variant they are in (`variant`) unless `shell` says which; with none, MCP. With `write` false nothing is written and the report says what would be: `loom doctor`'s dry run, byte for byte what `loom upgrade` compares.
     """
+    if shell is None:
+        shell = variant(root) == SHELL
     ai = root / "ai"
     rep = LayerReport()
     if not ai.is_dir():
@@ -405,7 +423,7 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
         else:
             rep.unchanged.append(f"ai/{name}")
     # a quilt with ai/ has both permission files, so a missing one is written like a stale one
-    for rel, text in vendor_files(quilt_config(root), True, True).items():
+    for rel, text in vendor_files(quilt_config(root), shell=shell).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
             rep.unchanged.append(rel)
@@ -414,11 +432,11 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    rep.written.extend(ensure_root_line(root, write))
+    rep.written.extend(ensure_root_line(root, write, shell=shell))
     return rep
 
 
-def settings_deny_paths(config: QuiltConfig) -> list[str]:
+def settings_deny_paths(config: QuiltConfig, *, shell: bool = False) -> list[str]:
     """The Edit/Write patterns and commands the generated settings deny for a quilt with `config`, for tests."""
-    data = json.loads(permissions_json(config))
+    data = json.loads(permissions_json(config, shell=shell))
     return [str(r) for r in data["permissions"]["deny"]]

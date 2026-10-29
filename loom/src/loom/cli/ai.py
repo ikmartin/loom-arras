@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from loom.ai.clients import BY_KEY, CLIENTS
 from loom.cli._common import EXIT_CONTENT, EnvError, NotFoundError, find_session
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
@@ -17,6 +18,7 @@ from loom.cli.review import STATUSES
 from loom.records.annotations import KINDS, SEVERITIES
 
 if TYPE_CHECKING:
+    from loom.ai.clients import Client, ClientReport
     from loom.ai.layout import LayerReport
 
 
@@ -151,8 +153,8 @@ def discard(
     ).emit(as_json)
 
 
-def install_layer(root: Path, *, write: bool = True) -> LayerReport:
-    """Write the agent layer into a quilt, or refresh it where `ai/` exists.
+def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) -> tuple[LayerReport, ClientReport]:
+    """Write the agent layer into a quilt, or refresh it where `ai/` exists, with the MCP client files of its variant.
 
     Parameters
     ----------
@@ -160,17 +162,23 @@ def install_layer(root: Path, *, write: bool = True) -> LayerReport:
         The quilt root.
     write : bool, default True
         False writes nothing and reports what would be written.
+    shell : bool, optional
+        True for an agent that runs `loom` in a shell, False for one that attaches over MCP; default the way the quilt already uses, else MCP.
 
     Returns
     -------
     LayerReport
         `written` (quilt-relative paths), and where `ai/` existed, `kept` and `new_beside` for edited mode files, as `loom upgrade` reports them.
+    ClientReport
+        The client files written, current, left alone or, in the shell variant, removed.
 
     See Also
     --------
     loom.ai.layout.upgrade_layer : the refresh alone, which `loom upgrade` runs.
     """
+    from loom.ai.clients import write_clients
     from loom.ai.layout import (
+        SHELL,
         VERSION_FILE,
         LayerReport,
         ensure_root_line,
@@ -178,32 +186,53 @@ def install_layer(root: Path, *, write: bool = True) -> LayerReport:
         quilt_config,
         tracked_docs,
         upgrade_layer,
+        variant,
         vendor_files,
     )
 
+    if shell is None:
+        shell = variant(root) == SHELL
     if not (root / "ai").exists():
         if write:
-            rep = init_layer(root)
+            rep = init_layer(root, shell=shell)
         else:
             rep = LayerReport(written=[*tracked_docs(), "ai/README.md", f"ai/{VERSION_FILE}"])
-            rep.written += [*vendor_files(quilt_config(root), True, True), *ensure_root_line(root, False)]
+            rep.written += [*vendor_files(quilt_config(root), shell=shell), *ensure_root_line(root, False, shell=shell)]
     else:
-        rep = upgrade_layer(root, write=write)
-    return rep
+        rep = upgrade_layer(root, write=write, shell=shell)
+    return rep, write_clients(root, write, shell=shell)
 
 
 @ai.command(name="init")
+@click.option(
+    "--mcp/--shell",
+    "mcp",
+    default=None,
+    help="How agents here reach loom: the loom MCP server's tools, or loom run in a shell, for an agent with no MCP. Default the way the quilt already uses, else MCP.",
+)
+@click.option(
+    "--client",
+    type=click.Choice([c.key for c in CLIENTS]),
+    default=None,
+    help="Print the loom server's entry for this agent app, to add to its settings by hand, and write nothing.",
+)
 @click.option("--dry-run", is_flag=True, help="Say what would be written and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
-def ai_init(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
+def ai_init(mcp: bool | None, client: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
 
-    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
+    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
     """
     quilt = open_quilt(quilt_path)
+    if client is not None:
+        _print_entry(BY_KEY[client], quilt.root, as_json)
+        return
+    from loom.ai.layout import SHELL, variant
+
     existed = (quilt.root / "ai").is_dir()
-    rep = install_layer(quilt.root, write=not dry_run)
+    shell = variant(quilt.root) == SHELL if mcp is None else not mcp
+    rep, clients = install_layer(quilt.root, write=not dry_run, shell=shell)
     written = sorted(dict.fromkeys(str(rel) for rel in rep.written))
     by_dir: dict[str, list[str]] = {}
     for rel in written:
@@ -230,18 +259,95 @@ def ai_init(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
                 limit=None,
             )
         )
-    data = {"written": written, "kept": sorted(rep.kept), "new_beside": sorted(rep.new_beside), "refreshed": existed}
+    groups += _client_groups(clients, dry_run)
+    data = {
+        "written": written,
+        "kept": sorted(rep.kept),
+        "new_beside": sorted(rep.new_beside),
+        "refreshed": existed,
+        "variant": SHELL if shell else "mcp",
+        "clients": clients.to_json(),
+    }
+    n = len(written) + len(clients.written)
     if dry_run:
-        verdict = f"would write {counted(len(written), 'file')} of the agent layer" if written else "nothing to write"
+        verdict = f"would write {counted(n, 'file')} of the agent layer" if n or clients.removed else "nothing to write"
     elif not existed:
-        verdict = f"wrote the agent layer, {counted(len(written), 'file')}; start your agent here: it reads CLAUDE.md and runs loom ai orient"
-    elif written or rep.kept:
-        verdict = f"refreshed the agent layer: {counted(len(written), 'file')} written" + (
+        start = (
+            "it reads CLAUDE.md and runs loom ai orient"
+            if shell
+            else "approve the loom server it asks to start, and it calls loom_ai_orient"
+        )
+        verdict = f"wrote the agent layer, {counted(n, 'file')}; start your agent here: {start}"
+    elif n or rep.kept or clients.removed:
+        verdict = f"refreshed the agent layer: {counted(n, 'file')} written" + (
             f", {counted(len(rep.kept), 'edited file')} kept" if rep.kept else ""
         )
     else:
         verdict = "the agent layer is current; nothing written"
-    Report(verdict, dry_run=dry_run, groups=groups, data=data).emit(as_json)
+    Report(verdict, ok=not clients.tracked, dry_run=dry_run, groups=groups, data=data).emit(as_json)
+
+
+def _client_groups(clients: ClientReport, dry_run: bool) -> list[Group]:
+    """`ai init`'s groups for the MCP client files: written, removed, and the two kinds left alone, each with what to do."""
+    from loom.ai.clients import PROJECT
+
+    app = {c.file: c for c in PROJECT}
+    groups = []
+    if clients.written:
+        groups.append(
+            Group(
+                f"{'would start' if dry_run else 'starts'} the loom MCP server, gitignored",
+                [Item(app[rel].label, key=rel) for rel in clients.written],
+                limit=None,
+            )
+        )
+    if clients.removed:
+        groups.append(
+            Group(
+                f"{'would remove' if dry_run else 'removed'}: agents here run loom in a shell",
+                [Item(app[rel].label, key=rel) for rel in clients.removed],
+                limit=None,
+            )
+        )
+    if clients.foreign:
+        groups.append(
+            Group(
+                "holds settings of yours, so left alone: add the loom server by hand",
+                [
+                    Item(app[rel].label, key=rel, fixes=[f"loom ai init --client {app[rel].key} prints the entry"])
+                    for rel in clients.foreign
+                ],
+                limit=None,
+                problem=True,
+            )
+        )
+    if clients.tracked:
+        groups.append(
+            Group(
+                "tracked by git, so not written: it names this machine's paths",
+                [Item(app[rel].label, key=rel, fixes=[f"git rm --cached {rel}"]) for rel in clients.tracked],
+                limit=None,
+                problem=True,
+            )
+        )
+    return groups
+
+
+def _print_entry(client: Client, root: Path, as_json: bool) -> None:
+    """`ai init --client`: the entry that starts loom's server for `client`, printed as it is pasted, never wrapped."""
+    from loom.ai.clients import render
+
+    entry = render(client, root)
+    where = client.file or client.where
+    said = f"the loom server for {client.label}, serving {client.agent}: add it to {where}"
+    if client.file is None:
+        said += "; loom writes nothing outside the quilt"
+    if as_json:
+        Report(said, data={"client": client.key, "file": where, "entry": entry}).emit(True)
+        return
+    Report(said).emit(False)
+    click.echo("")
+    click.echo(entry, nl=False)
 
 
 @ai.command(name="orient")

@@ -176,10 +176,6 @@
      "description": "With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
      "type": "boolean"
     },
-    "batch": {
-     "description": "Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
-     "type": "boolean"
-    },
     "box": {
      "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
      "type": "string"

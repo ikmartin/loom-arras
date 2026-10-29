@@ -107,11 +107,12 @@ def setup_ai(target: Path, choice: str, *, write: bool = True) -> tuple[list[str
     if choice != "none":
         from loom.cli.ai import install_layer
 
-        written = list(install_layer(target, write=write).written)
+        layer, clients = install_layer(target, write=write)
+        written = [*layer.written, *clients.written]
     said = {
-        "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt; CLAUDE.md and ai/ tell it how loom works.",
-        "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session; AGENTS.md and ai/ tell it how loom works.",
-        "other": "AI: another agent. Run it in this quilt; AGENTS.md and ai/ tell it how loom works.",
+        "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt and approve the loom server it asks to start; CLAUDE.md and ai/ tell it how loom works.",
+        "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session, which starts the loom server; AGENTS.md and ai/ tell it how loom works.",
+        "other": "AI: another agent. Run it in this quilt: an app that reads .mcp.json starts the loom server, and loom ai init --client prints the entry for one configured elsewhere; AGENTS.md and ai/ tell it how loom works.",
         "none": "AI: none. loom ai init writes the agent layer should that change.",
     }[choice]
     return written, [said]
@@ -229,6 +230,10 @@ def write_demo_quilt(target: Path) -> None:
     (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")
     for cache in target.rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
+    from loom.ai.clients import write_clients
+
+    # the demo carries the agent layer, so it gets what starts the loom server, for this machine and this path
+    write_clients(target)
 
 
 @click.command()

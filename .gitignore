@@ -8,3 +8,8 @@ demos/mmp/
 demos/kpsv/
 .DS_Store
 /ai/
+# what loom ai init writes to start the loom MCP server in a quilt here (demos/demo, demos/showcase): it names this machine's paths
+**/.mcp.json
+**/.codex/config.toml
+**/.gemini/settings.json
+**/.cursor/mcp.json
