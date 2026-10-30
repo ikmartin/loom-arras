@@ -58,12 +58,10 @@ MCP is the intended way for any agent to attach. The server is `loom mcp --as NA
 
   Each names one server, `loom`: the absolute path of this machine's loom with `mcp --as "<App> Agent" --quilt <root>`. Codex's and Gemini's entries skip the per-tool prompt, as the shell allows do. The files are gitignored and never committed (`invariants.md`). The apps ask the person before they start a project's server, and Codex and Gemini CLI read the file only in a trusted folder. A file that holds settings of the person's is left alone. `loom ai init --client NAME` prints the entry to add to it, or to an app configured outside the quilt: Claude Desktop, LM Studio, Zed or JetBrains.
 - **`loom doctor` checks the variant.** It reports which one the permission files are in and whether they are current. Over MCP it also warns on a client file that is missing, holds the person's settings or names another loom or path, and on a missing MCP SDK. It fails when git tracks a client file.
-- **Two commands are the bridge** that replaces the chat composer as the way a person points an agent at something (plan 0.21.8):
-  - *where the person is looking*: the document and block, down to the selected words or the PDF page and region, from the viewer tab touched last. The viewer reports it to `loom serve`, which keeps it in memory only.
-  - *what the person did since this agent last looked*: their annotations and replies, and their acceptances, including keys that went stale, with one marker per agent name.
+- **Two commands are the bridge**, the way a person points an agent at something now that the chat composer is retired:
+  - **`loom here`** says where the person is looking. That is the focused pane's document, result, paper or session, the block at the top of the pane, the selected words or the page and region of a PDF, the other pane's item, and the session annotations land in; in Review, it is the block under review. Each viewer tab reports its place to `loom serve` as it changes and again when it gains focus, so the tab touched last wins. The server keeps the place in memory only, and serves it with its token. With nothing serving the quilt, the command says so, so it needs no server (P8).
+  - **`loom since`** says what people did since this agent last looked. It reports their annotations and replies, whole; what they resolved, applied, discarded or reopened; their acceptances, and the accepted keys gone stale, with why; their edits to the research state, as a diff; and what they said in a transcript. The marker is one file per agent name under `.loom/since/`, uncommitted and unwatched, and a read moves it; an agent's first look starts at the active session's opening.
 - **It is optional.** The shell variant serves an agent without MCP. Both variants are tried with the real client before they ship, not only checked by unit tests. The client tier does this by hand (`invariants.md`).
-
-**Open.** Whether `loom session next` and `loom session watch` survive. With the composer retired, only agents write to a session's inbox, so there is nothing for them to wait for. They are left out of the MCP tools until something needs them; `loom session say` stays, since it is how an agent writes the transcript.
 
 Every major coding agent can start a local MCP server: Claude Code and Claude desktop, Codex and ChatGPT desktop, Gemini's CLI, Cursor, VS Code, Zed, JetBrains, and local-model clients such as LM Studio. The web chat apps cannot, and they have no shell either.
 
@@ -80,7 +78,7 @@ An agent writes the transcript so that the person, coming back to it later, sees
 
 It writes at natural pauses and before it stops, and it links rather than restates (`loom link` prints a correct link). The viewer shows the transcript beside the documents it refers to.
 
-The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks.
+The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
 
 ## What an agent is told
 

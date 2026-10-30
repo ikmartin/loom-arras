@@ -10,6 +10,8 @@
 	import { kinds, nameOf } from './registry';
 	import { setPane } from './state.svelte';
 	import { workspace, type Place } from './store.svelte';
+	import { here } from '$lib/here.svelte';
+	import { keyOf } from '$lib/fragments/quote';
 
 	let { index, style = '', head = true }: { index: number; style?: string; head?: boolean } = $props();
 
@@ -77,6 +79,9 @@
 			const hit = document.elementFromPoint(r.left + r.width * 0.3, r.top + 48)?.closest<HTMLElement>('[data-src]');
 			const block = hit && el.contains(hit) ? hit : null;
 			workspace.scrolls.set(k, { top: el.scrollTop, src: block?.dataset.src ?? null, below: block ? block.getBoundingClientRect().top - r.top : 0 });
+			// and where the reader is, for `loom here`: the block by the key it belongs to
+			const belongs = block ? keyOf(block, '') : '';
+			here.setBlock(k, block?.dataset.src && belongs ? { src: block.dataset.src, key: belongs } : null);
 		});
 	}
 

@@ -97,6 +97,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom doctor`
   - `loom downstream`
   - `loom draft`
+  - `loom here`
   - `loom history`
   - `loom history show`
   - `loom history verify`
@@ -119,10 +120,9 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom serve`
   - `loom session list`
   - `loom session new`
-  - `loom session next`
   - `loom session rename`
   - `loom session say`
-  - `loom session watch`
+  - `loom since`
   - `loom source`
   - `loom status`
   - `loom suggestion`

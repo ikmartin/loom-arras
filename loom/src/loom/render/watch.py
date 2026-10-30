@@ -50,6 +50,9 @@ def snapshot(root: Path) -> dict[Path, float]:
         # and `serve.json` is the server's own note of where it listens, which no build reads
         if rel.as_posix() in (".loom/review-decisions.json", ".loom/adoption-decisions.json", ".loom/serve.json"):
             continue
+        # where each agent last looked (`loom since`), which no build reads either
+        if rel.parts[:2] == (".loom", "since"):
+            continue
         # `annotations/log.jsonl` is where every comment, reply and finding lands, and `reference-notes.jsonl` is
         # where an accepted citation does. Neither was watched -- the directory list still said `comments/`, the name
         # the log replaced in 0.10, and `.jsonl` was not a watched suffix -- so a write through `loom serve`'s own API

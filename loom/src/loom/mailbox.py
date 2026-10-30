@@ -1,12 +1,6 @@
-"""`.loom/sessions/<id>/`: the mailbox a session carries, and who is listening to it (plan 0.13 §8).
+"""`.loom/sessions/<id>/inbox.jsonl`: a session's transcript, what `loom session say` appends and the viewer's Transcript reads.
 
-**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; no model is called and no task is assigned. Loom starts no agent: each runs in its own app. Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
-
-**Read, never consumed.** The inbox is append-only and each reader keeps a cursor of its own, so a message survives being read, a second reader sees it too, and an agent that crashed resumes where it was rather than losing the turn.
-
-**A message always lands, even with nobody listening.** It waits in the inbox, and the surface that posted it says whether anyone was there. Refusing would lose what somebody typed, for a reason the browser cannot fix.
-
-Events are sequence-numbered so a reader that missed some knows it missed them: a gap is the signal to resync the coarse way, rather than to stitch a stream back together from the middle.
+**Loom keeps a record, not a conversation.** A message is appended; no model is called, no task is assigned and nobody is woken. The inbox is append-only, and its events are sequence-numbered so a reader polling it (`/_api/events`) knows when it missed some.
 """
 
 from __future__ import annotations
@@ -14,10 +8,8 @@ from __future__ import annotations
 import bisect
 import fcntl
 import json
-import os
 import re
 from dataclasses import dataclass
-from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -25,12 +17,6 @@ from loom.clock import stamp
 from loom.sessions import DIR
 
 INBOX = "inbox.jsonl"
-CURSORS = "cursors"
-ATTACHED = "attached.json"
-#: How long a heartbeat stands before the reader that wrote it is called detached.
-STALE = 90.0
-#: How often a parked reader's heartbeat is rewritten; well inside STALE, and slow enough that the watcher is not rebuilding the manifest for every beat.
-BEAT = 30.0
 #: Events per transcript page in the build.
 PAGE = 100
 
@@ -281,127 +267,8 @@ def post(
     return e
 
 
-def cursor(root: Path, sid: str, reader: str) -> int:
-    """Where this reader had got to, or 0. A cursor is per reader, because the inbox is a broadcast."""
-    p = session_dir(root, sid) / CURSORS / f"{_slug(reader)}.txt"
-    try:
-        return int(p.read_text(encoding="utf-8").strip() or 0)
-    except (OSError, ValueError):
-        return 0
-
-
-def set_cursor(root: Path, sid: str, reader: str, seq: int) -> None:
-    p = session_dir(root, sid) / CURSORS / f"{_slug(reader)}.txt"
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(str(seq) + "\n", encoding="utf-8")
-
-
-def _slug(who: str) -> str:
-    return "".join(c if c.isalnum() or c in "-_" else "-" for c in who.lower()).strip("-") or "reader"
-
-
-def attach(root: Path, sid: str, who: str, kind: str = "person") -> None:
-    """Record that somebody is listening, with a fresh heartbeat. Called on attaching and on every wake.
-
-    The file is rewritten only when the row is new or its beat is `BEAT` old: `loom serve` watches it, and a rewrite per wake would rebuild the manifest four times a second while an agent is parked.
-    """
-    d = session_dir(root, sid)
-    d.mkdir(parents=True, exist_ok=True)
-    rows = {r["who"]: r for r in attached(root, sid, stale=True)}
-    prev = rows.get(who)
-    if prev and prev.get("kind") == kind and prev.get("pid") == os.getpid() and _age(str(prev.get("beat", ""))) < BEAT:
-        return
-    rows[who] = {
-        "who": who,
-        "kind": kind,
-        "pid": os.getpid(),
-        "beat": stamp(),
-        "since": rows.get(who, {}).get("since", stamp()),
-    }
-    (d / ATTACHED).write_text(json.dumps(list(rows.values()), indent=1, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def detach(root: Path, sid: str, who: str) -> None:
-    """Take a reader out of the list, for a command that is leaving on purpose rather than dying."""
-    d = session_dir(root, sid)
-    rows = [r for r in attached(root, sid, stale=True) if r.get("who") != who]
-    if d.is_dir():
-        (d / ATTACHED).write_text(json.dumps(rows, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def waiting_on(root: Path, sid: str, name: str = "") -> str:
-    """What to tell somebody who has just posted and nobody was listening.
-
-    Three states, not two. Nobody has ever attached here, and the message waits for whoever comes; somebody *was* attached and their heartbeat has gone quiet, which is what an agent looks like for the whole time it is doing what it was asked, since the beat is written only while parked; or the only reader attached is you.
-
-    The distinction is the one the composer used to get wrong: it told an author whose agent was mid-task that nobody was attached and they should go and start a watcher.
-    """
-    from datetime import datetime
-
-    live = [r for r in attached(root, sid) if r.get("who") != name]
-    if live:
-        return ""
-    ever = [r for r in attached(root, sid, stale=True) if r.get("who") != name]
-    if not ever:
-        return f"nobody is attached — it waits in the inbox. Start one with: loom session watch {sid}"
-    who = ", ".join(sorted({str(r.get("who", "someone")) for r in ever}))
-    when = max((str(r.get("beat", "")) for r in ever), default="")
-    mins = ""
-    try:
-        gap = (datetime.now(UTC) - datetime.fromisoformat(when.replace("Z", "+00:00"))).total_seconds()
-        mins = f" {int(gap // 60)} min ago" if gap >= 60 else " moments ago"
-    except ValueError:
-        pass
-    return f"{who} is not listening this second — last here{mins}, probably working. It waits in the inbox and they will see it when they next look."
-
-
-def _age(when: str) -> float:
-    """Seconds since an ISO stamp; infinite for one that does not parse."""
-    from datetime import datetime
-
-    try:
-        return (datetime.now(UTC) - datetime.fromisoformat(when.replace("Z", "+00:00"))).total_seconds()
-    except ValueError:
-        return float("inf")
-
-
-def attached(root: Path, sid: str, *, stale: bool = False) -> list[dict[str, Any]]:
-    """Who is listening now.
-
-    A heartbeat older than `STALE` means detached: a reader that was killed writes no farewell, and a list that believed it forever would tell the composer somebody is there when nobody is.
-    """
-    from datetime import datetime
-
-    p = session_dir(root, sid) / ATTACHED
-    if not p.is_file():
-        return []
-    try:
-        rows = json.loads(p.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(rows, list):
-        return []
-    if stale:
-        return [r for r in rows if isinstance(r, dict)]
-    now = datetime.now(UTC)
-    out = []
-    for r in rows:
-        if not isinstance(r, dict):
-            continue
-        try:
-            beat = datetime.fromisoformat(str(r.get("beat", "")).replace("Z", "+00:00"))
-        except ValueError:
-            continue
-        if (now - beat).total_seconds() <= STALE:
-            out.append(r)
-    return out
-
-
 def render(events: list[Event]) -> str:
-    """The events as a person or an agent reads them: the same text in the terminal and in `--json`'s `text`.
-
-    One rendering, so a person tailing a session and an agent parked on it are told the same thing in the same words, and a difference between the two surfaces cannot hide a difference in what happened.
-    """
+    """The events as an agent reads them in `loom ai orient`'s chat tail, each message's annotations beneath it."""
     lines: list[str] = []
     for e in events:
         lines.append(f"{e.when[11:16]} {e.who}: {e.body}" if e.kind == "message" else f"{e.when[11:16]} — {e.body}")
@@ -411,13 +278,15 @@ def render(events: list[Event]) -> str:
 
 
 def render_changes(changed: list[dict[str, Any]]) -> str:
-    """The annotations a message carries, as the agent reads them beneath it -- and as the viewer's tray previews them before it is sent, so the preview is the text itself."""
+    """The annotations a message carries, or `loom since` reports, as an agent reads them: one line each, then the words it is on, its body and what it proposes."""
     lines: list[str] = []
     for c in changed:
         who = c.get("by", "")
         # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
         where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
-        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
+        mine = " · to your annotation" if c.get("yours") else ""
+        now = f" · now {c['status']}" if c.get("status") else ""
+        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}{mine}{now}")
         if c.get("quote"):
             lines.append(f'      on "{c["quote"]}"')
         if c.get("body"):
@@ -450,12 +319,33 @@ def work_of(root: Path, annotation: Any) -> str | None:
     return None
 
 
+def annotation_row(root: Path, a: Any) -> dict[str, Any]:
+    """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on and what it proposes.
+
+    A page note's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
+    """
+    row: dict[str, Any] = {
+        "id": a.id,
+        "kind": a.kind,
+        "target": a.target_key,
+        "work": work_of(root, a),
+        "page": a.anchor.page if a.anchor else None,
+        "act": "replied" if a.in_reply_to else "created",
+        "by": a.author_id,
+        "body": a.body,
+    }
+    if a.selector is not None and a.selector.exact:
+        row["quote"] = a.selector.exact
+    for field in ("severity", "payload", "placement"):
+        if getattr(a, field):
+            row[field] = getattr(a, field)
+    return row
+
+
 def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
-    """The packet: what `who` wrote in this session since a message last carried any, carried by their next one (plan 0.14).
+    """The packet: what `who` wrote in this session since a message last carried any, carried by their next `loom session say` (plan 0.14).
 
-    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Only the sender's own annotations and replies go: another person's wait for that person's next message, and an agent's are its own -- sending them back would be telling it what it said. Each is carried whole -- its body, the words it is on, what it proposes -- because the inbox is the record of what was sent.
-
-    Both surfaces post -- `loom session say` and the viewer's input -- so both take the packet from here, and the viewer's tray previews it from here too.
+    Only the sender's own annotations and replies go, a person's: an agent's are its own, and sending them back would be telling it what it said. Each is carried whole (`annotation_row`), because the inbox is the record of what was sent.
     """
     from loom.records.annotations import load_records
 
@@ -471,23 +361,6 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
         for a in record.annotations:
             if a.id in sent or a.created < since or a.status == "discarded" or a.author_kind != "person":
                 continue
-            if a.author_id != who:
-                continue
-            row: dict[str, Any] = {
-                "id": a.id,
-                "kind": a.kind,
-                "target": a.target_key,
-                # A page note targets the work's identifier, which no `loom library` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai annotations` prints them.
-                "work": work_of(root, a),
-                "page": a.anchor.page if a.anchor else None,
-                "act": "replied" if a.in_reply_to else "created",
-                "by": a.author_id,
-                "body": a.body,
-            }
-            if a.selector is not None and a.selector.exact:
-                row["quote"] = a.selector.exact
-            for field in ("severity", "payload", "placement"):
-                if getattr(a, field):
-                    row[field] = getattr(a, field)
-            out.append(row)
+            if a.author_id == who:
+                out.append(annotation_row(root, a))
     return out

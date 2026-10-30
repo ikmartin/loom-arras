@@ -88,47 +88,21 @@ def test_a_post_needs_words_or_something_attached(tmp_path: Path) -> None:
     assert read_events(q, sid)[0].changed[0]["id"] == "a-2026-09-16-0001"
 
 
-def test_a_heartbeat_is_not_rewritten_every_wake(tmp_path: Path) -> None:
-    """`loom serve` rebuilds when `attached.json` changes, so a parked agent's wake rewrites it only for a new reader or a stale beat, never every time."""
-    from loom.mailbox import ATTACHED, attach, session_dir
-
-    q, sid = quilt(tmp_path)
-    attach(q, sid, "Referee Agent", "agent")
-    p = session_dir(q, sid) / ATTACHED
-    rows = json.loads(p.read_text())
-    rows[0]["since"] = "marker"
-    p.write_text(json.dumps(rows))
-    attach(q, sid, "Referee Agent", "agent")
-    assert json.loads(p.read_text())[0]["since"] == "marker"  # untouched
-    # a new reader is written at once, and an old beat is renewed
-    attach(q, sid, "Tutor Agent", "agent")
-    assert {r["who"] for r in json.loads(p.read_text())} == {"Referee Agent", "Tutor Agent"}
-    rows = json.loads(p.read_text())
-    for r in rows:
-        r["beat"] = "2020-01-01T00:00:00Z"
-    p.write_text(json.dumps(rows))
-    attach(q, sid, "Referee Agent", "agent")
-    beat = next(r["beat"] for r in json.loads(p.read_text()) if r["who"] == "Referee Agent")
-    assert beat != "2020-01-01T00:00:00Z"
-
-
 def test_say_is_one_post_for_an_agent_and_a_person(tmp_path: Path) -> None:
-    from loom.mailbox import cursor, post, read_events
+    from loom.mailbox import post, read_events
 
     q, sid = quilt(tmp_path)
     agent = {"AI_AGENT": "1"}
     # an agent that has not said who it is
     refused("session", "say", "hello", "--session", sid, cwd=q, env=agent, code=2, match="Name yourself with --as")
     said = ok("session", "say", "Read it; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert said.stdout.strip() == f"said in {sid}; nobody is listening"
+    assert said.stdout.strip() == f"said in {sid}"
     [e] = read_events(q, sid)
     assert (e.who, e.body, e.changed) == ("Referee Agent", "Read it; one objection.", [])
-    assert cursor(q, sid, "Referee Agent") == 1  # it had read everything before, so its own words are not news
-    # from stdin, and never past a message the agent has not read
+    # from stdin
     post(q, sid, "And the second proof?", "A. Author")
     ok("session", "say", "-", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent, stdin="Long answer.\n")
     assert read_events(q, sid)[-1].body == "Long answer."
-    assert cursor(q, sid, "Referee Agent") == 1
     refused(
         "session",
         "say",
@@ -170,19 +144,18 @@ def test_the_build_pages_the_transcript_beside_the_manifest(tmp_path: Path) -> N
 
 
 def test_the_events_endpoint_reads_by_index_and_holds_the_id_to_its_shape(tmp_path: Path) -> None:
-    from loom.mailbox import attach, post
+    from loom.mailbox import post
     from loom.render.serve import LoomHandler
 
     q, sid = quilt(tmp_path)
     post(q, sid, "Look at *this*.", "A. Author")
-    attach(q, sid, "Referee Agent", "agent")
 
     good = FakeHandler(q, f"/_api/events?session={sid}&since=0")
     LoomHandler._events(good)  # type: ignore[arg-type]
     assert good.answer is not None and good.answer[0] == 200
     body = good.answer[1]
     assert body["seq"] == 1 and body["events"][0]["body_html"] == "<p>Look at <em>this</em>.</p>"
-    assert body["attached"] == [{"who": "Referee Agent", "kind": "agent"}]
+    assert "attached" not in body
     bad = FakeHandler(q, "/_api/events?session=../../etc&since=0")
     LoomHandler._events(bad)  # type: ignore[arg-type]
     assert bad.answer is not None and bad.answer[0] == 400

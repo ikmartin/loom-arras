@@ -117,6 +117,16 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Record.** DR-151, DR-170, DR-333-ikmartin
 
+### Where the person is looking is never written down
+
+**Rule.** The place a viewer tab reports to `loom serve` (`here`) is held in the server's memory and nowhere else: no file under the quilt, no log line, no build output. `GET /_api/here` serves it only with the server's token and to its own origin, and stopping the server forgets it.
+
+**Why.** Where a person is reading, and the words they selected, are where they are, not a record of anything they did (P2). Written down, they would be committed by the next `git add`, or read by whoever opens the quilt after them.
+
+**Guard.** `loom/tests/unit/render/test_here.py::test_the_place_is_held_in_memory_and_served_only_with_the_token`
+
+**Record.** plan 0.21.8
+
 ## Records, history and sync
 
 ### Posting to an inbox takes a lock

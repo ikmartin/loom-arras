@@ -258,7 +258,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
             # Queue-only publication must not race a source rebuild publishing an older queue.
             from contextlib import nullcontext
 
-            with self.publication_lock if self.publication_lock is not None else nullcontext():
+            # the reader's place touches memory only, so it never waits behind a rebuild
+            lock = self.publication_lock if self.publication_lock is not None and endpoint != "here" else nullcontext()
+            with lock:
                 answer = handle(self.quilt_root, endpoint, body)
             # The viewer's refresh finds the write immediately. Reads need no rebuild; review decisions already published queue metadata without touching document renderings.
             if self.rebuild is not None and endpoint not in NO_REBUILD:
@@ -279,7 +281,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
         """
         from urllib.parse import parse_qs, urlsplit
 
-        from loom.mailbox import attached, public, transcript
+        from loom.mailbox import public, transcript
         from loom.sessions import ID
 
         if self.quilt_root is None:
@@ -309,9 +311,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 "from": since,
                 "seq": log.seq,
                 "events": [public(e) for e in events],
-                "attached": [
-                    {"who": r.get("who", ""), "kind": r.get("kind", "")} for r in attached(self.quilt_root, sid)
-                ],
             },
         )
 
@@ -338,6 +337,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
             return
         if self.path.split("?", 1)[0] == "/_api/stream":
             self._stream()
+            return
+        if self.path.split("?", 1)[0] == "/_api/here":
+            self._here()
             return
         if self.path.split("?", 1)[0] == "/_api":
             from loom.render.api import discovery
@@ -368,6 +370,32 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def _here(self) -> None:
+        """`GET /_api/here`: the last place a viewer tab reported, for `loom here`, which reads the token from `.loom/serve.json`.
+
+        Where a person is reading, and the words they selected, are theirs: the token is required, and so is this server's own origin when a browser sends one.
+        """
+        from loom.render.api import reading_place
+
+        if self.quilt_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        origin = self.headers.get("Origin")
+        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
+        if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+            self._json(
+                HTTPStatus.FORBIDDEN,
+                {"error": {"code": "refused", "message": f"this request came from {origin}, which is not this server"}},
+            )
+            return
+        if not self.token or self.headers.get("X-Loom-Token") != self.token:
+            self._json(
+                HTTPStatus.FORBIDDEN,
+                {"error": {"code": "refused", "message": "this request carries no valid X-Loom-Token"}},
+            )
+            return
+        self._json(HTTPStatus.OK, reading_place(self.quilt_root))
 
     def _stream(self) -> None:
         """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else.
@@ -569,6 +597,9 @@ class ServeSession:
             self.httpd.server_close()
         # nothing is listening any more, so nothing should tell a command that something is
         (self.quilt.root / SERVE_JSON).unlink(missing_ok=True)
+        from loom.render.api import forget_place
+
+        forget_place(self.quilt.root)
 
     @property
     def url(self) -> str:

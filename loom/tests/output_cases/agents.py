@@ -1,4 +1,4 @@
-"""Output cases for the agents commands -- `session`, `ai` and `sync`; see `tests/output_cases/__init__.py`."""
+"""Output cases for the agents commands -- `session`, `here`, `since`, `write`, `ai` and `sync`; see `tests/output_cases/__init__.py`."""
 
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ KIND: dict[str, str] = {
     "session close": "report",
     "session delete": "report",
     "session say": "report",
-    "session next": "raw",
-    "session watch": "running",
+    "here": "report",
+    "since": "report",
     "mcp": "running",
     "ai discard": "report",
     "ai init": "report",
@@ -165,9 +165,11 @@ CASES: dict[str, list[Case]] = {
         Case(("--as", "Somebody Else"), exit=2, why="no words and nothing marked", unchanged=True),
         Case(("hello", *NOWHERE, "--as", "A. Author"), exit=2, why="names no session", unchanged=True),
     ],
-    "session next": [
-        Case(("--wait", "0", *AGENT)),
-        Case(("--wait", "0", *NOWHERE, *AGENT), exit=2, why="names no session", unchanged=True),
+    "here": [Case((), why="nothing serves the quilt", unchanged=True)],
+    "since": [
+        Case(AGENT, setup=marked, why="a first look, with a person's annotation in the session"),
+        Case((*AGENT, "--dry-run"), setup=marked, unchanged=True),
+        Case((), env=(("AI_AGENT", "1"),), exit=2, why="an agent that has not said who it is", unchanged=True),
     ],
     "ai discard": [
         Case((S1,)),

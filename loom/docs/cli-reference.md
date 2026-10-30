@@ -750,7 +750,7 @@ Provenance names every party, not just the first: a record that credits an agent
 
 ## Agents
 
-Hand a document to an agent, take its changes back, the sessions you both work in, and the pages you both keep.
+Hand a document to an agent, take its changes back, the sessions you both work in, the pages you both keep, and where you are looking and what you did since an agent last looked.
 
 ### `loom draft`
 
@@ -792,7 +792,7 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 
 `loom session [OPTIONS] COMMAND [ARGS]...`
 
-Open, name and follow sessions: the stretch of work an annotation belongs to, and which one is current.
+Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
 
 A session has a stable id (`s-2026-09-20-0001`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
 
@@ -854,25 +854,6 @@ Open a session and make it the active one.
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-#### `loom session next`
-
-`loom session next [OPTIONS]`
-
-Park until something lands in a session, print it, and exit. One call is one turn.
-
-For an agent. It returns the moment a message arrives rather than on a poll interval, so latency is an append and a wakeup; with nothing waiting it returns empty-handed when `--wait` runs out, and the agent parks again. Keep `--wait` under whatever timeout your harness puts on a tool call.
-
-The inbox is read and never consumed: your cursor moves, the message stays, and a second reader sees it too. Nothing here assigns you anything -- it is a broadcast, and what to do about a message is your judgement.
-
-| option | description |
-|---|---|
-| `--session` | The session to park on. |
-| `--wait` | Seconds to park before returning empty-handed. |
-| `--json` | Print as JSON, with the same text under `text`. |
-| `--as` | Who is parking. An agent names itself, including Agent or AI. |
-| `--since` | Start after this sequence number instead of your own cursor. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 #### `loom session rename`
 
 `loom session rename [OPTIONS] WHICH`
@@ -891,9 +872,9 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 
 `loom session say [OPTIONS] [TEXT]`
 
-Say TEXT in a session's chat, with what you marked since your last message; `-` reads TEXT from stdin.
+Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.
 
-The same post the viewer's composer makes, for a person and an agent alike: it carries the annotations you made since your last message, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past the message when you had read everything before it, so `next` does not hand you your own words.
+The transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
 
 | option | description |
 |---|---|
@@ -916,17 +897,32 @@ Make WHICH the active session, resuming it when it was closed. WHICH is an id, a
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-#### `loom session watch`
+### `loom here`
 
-`loom session watch [OPTIONS] [WHICH]`
+`loom here [OPTIONS]`
 
-Tail a session: print what lands, until you stop it.
+Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.
 
-For a person. It delivers nothing and assigns nothing -- it blocks on the log, prints, and keeps a heartbeat so the composer can say honestly whether anybody is listening.
+The viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.
 
 | option | description |
 |---|---|
-| `--as` | Who is watching. An agent names itself, including Agent or AI. |
+| `--json` | Print the report as one JSON object, the place as the viewer sent it beside it. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom since`
+
+`loom since [OPTIONS]`
+
+Report what people did since you last looked, and move your marker past it.
+
+People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; and what they said in a session's transcript. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+
+| option | description |
+|---|---|
+| `--as` | Who is looking. An agent names itself, including Agent or AI. |
+| `--dry-run` | Report, and leave your marker where it was. |
+| `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom write`

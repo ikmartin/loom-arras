@@ -12,7 +12,7 @@ from typing import Any
 from loom.records.annotations import Record
 
 #: What loom keeps in a session's directory for itself, as opposed to what the session wrote there.
-SESSION_FILES = ("run.log", "inbox.jsonl", "attached.json")
+SESSION_FILES = ("run.log", "inbox.jsonl")
 _MADE = re.compile(r"^(.*?)\s+→\s+(a-\d{4}-\d{2}-\d{2}-\d+)$")
 KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 

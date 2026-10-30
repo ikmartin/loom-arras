@@ -57,8 +57,8 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
     ("Library", "The papers you cite and the results taken from them.", ("library",)),
     (
         "Agents",
-        "Hand a document to an agent, take its changes back, the sessions you both work in, and the pages you both keep.",
-        ("draft", "adopt", "session", "write", "ai", "mcp"),
+        "Hand a document to an agent, take its changes back, the sessions you both work in, the pages you both keep, and where you are looking and what you did since an agent last looked.",
+        ("draft", "adopt", "session", "here", "since", "write", "ai", "mcp"),
     ),
     (
         "Publish",

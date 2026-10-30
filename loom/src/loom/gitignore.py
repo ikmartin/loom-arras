@@ -18,8 +18,7 @@ MANAGED = (
     CACHE,
     ".loom/serve.json",
     ".loom/workspace/",
-    ".loom/sessions/*/attached.json",
-    ".loom/sessions/*/cursors/",
+    ".loom/since/",
     *PROJECT_FILES,
 )
 

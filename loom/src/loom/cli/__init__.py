@@ -11,6 +11,7 @@ from loom.cli.build_cmds import check, compile, source
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, downstream
 from loom.cli.help import LoomGroup
+from loom.cli.here_cmd import here_command
 from loom.cli.history_cmds import (
     draft,
     fork,
@@ -32,6 +33,7 @@ from loom.cli.quilt import init
 from loom.cli.review import accept, annotate, status
 from loom.cli.serve_cmd import serve
 from loom.cli.session import session
+from loom.cli.since_cmd import since_command
 from loom.cli.suggestion import suggestion
 from loom.cli.sync import sync
 from loom.cli.upgrade import upgrade
@@ -84,6 +86,8 @@ main.add_command(mv)
 main.add_command(linearize)
 main.add_command(history)
 main.add_command(write)
+main.add_command(here_command)
+main.add_command(since_command)
 main.add_command(mcp_command)
 main.add_command(sync)
 

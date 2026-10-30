@@ -47,12 +47,13 @@ CAPABILITIES = [
     "review-decision",
     "review-finish",
     "reviewer-settings",
+    "here",
 ]
 
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper")
+READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper", "here")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "review-decision", "adopt-decision")
@@ -120,6 +121,43 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
     return value
 
 
+#: Where the reader is, by quilt: the last place a viewer tab reported (`here`), the stamp it came at, and when by this process's clock. Held in memory only, never written: it is where a person is, not a record.
+_HERE: dict[Path, tuple[str, float, dict[str, Any]]] = {}
+#: The largest place a tab may report, in bytes of JSON: a selection is words, not a document.
+HERE_LIMIT = 64_000
+
+
+def reading_place(root: Path) -> dict[str, Any]:
+    """`GET /_api/here`'s answer: the last place a tab reported, when, and how many seconds ago; `place` is None before any has."""
+    import time
+
+    kept = _HERE.get(root.resolve())
+    if kept is None:
+        return {"place": None, "when": None, "age": None}
+    when, at, place = kept
+    return {"place": place, "when": when, "age": round(time.monotonic() - at, 1)}
+
+
+def forget_place(root: Path) -> None:
+    """Drop the reader's place, as a server does when it stops: nobody is reading through it any more."""
+    _HERE.pop(root.resolve(), None)
+
+
+def _here(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """Keep the place a viewer tab reports, in place of the last one: the tab touched last wins."""
+    import json
+    import time
+
+    from loom.clock import stamp
+
+    if body.get("route") not in ("reading", "review", "elsewhere"):
+        raise ApiError("bad-field", "route must be reading, review or elsewhere")
+    if len(json.dumps(body)) > HERE_LIMIT:
+        raise ApiError("bad-field", f"a place is at most {HERE_LIMIT:,} bytes")
+    _HERE[root.resolve()] = (stamp(), time.monotonic(), body)
+    return {"ok": True}
+
+
 def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """Perform one write and describe it, or raise `ApiError`.
 
@@ -139,6 +177,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """
     if endpoint not in CAPABILITIES:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
+    if endpoint == "here":
+        return _here(root, body)
     if endpoint == "library-cite":
         return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):

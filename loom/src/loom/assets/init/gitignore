@@ -15,10 +15,8 @@ last-seen.json
 .loom/serve.json
 # loom's clone of the document workspace (an Overleaf project), made by `loom sync init`: a repository of its own, never part of this one
 .loom/workspace/
-# Who is listening to a session and how far each reader has read: runtime state, rewritten as it happens. The
-# session's inbox.jsonl beside them is the conversation itself, and is committed.
-.loom/sessions/*/attached.json
-.loom/sessions/*/cursors/
+# Where each agent last looked, which `loom since` reports from: one marker per agent name, on this machine only
+.loom/since/
 # What starts loom's MCP server for each agent's app, written by `loom ai init`: it names this machine's loom and this quilt's path, so every machine writes its own
 .mcp.json
 .codex/config.toml

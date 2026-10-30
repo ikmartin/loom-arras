@@ -391,8 +391,6 @@ export interface SessionRow {
   rounds: number;
   /** Whether this is the publisher's own default for writes made at a terminal. The viewer never reads it: a write names its session (plan 0.13.1). */
   active: boolean;
-  /** Who is listening now, by a heartbeat that goes stale rather than being believed forever. Empty means nobody. */
-  attached?: { who: string; kind: string }[];
   /** The last event in this session's inbox. A client that has fallen behind knows it has by comparing its own. */
   seq?: number;
 }

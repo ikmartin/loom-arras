@@ -46,6 +46,7 @@ def test_an_attached_agent_is_told_where_to_start_and_offered_every_agent_comman
         assert len(said) <= 4096, len(said)  # Claude Code keeps no more
         first = said.split("\n", 1)[0]
         assert len(first) <= 512 and "loom_ai_orient" in first and AGENT in first, first  # Codex's summary
+        assert "loom_here" in said and "loom_since" in said
         assert all(f"**{m}**" in said for m in MODES)
         listed = {t.name: t for t in (await client.list_tools()).tools}
         assert set(listed) == {s.name for s in tools()}

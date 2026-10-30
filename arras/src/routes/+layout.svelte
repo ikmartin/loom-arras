@@ -25,6 +25,7 @@
 	import { rail } from '$lib/shell/rail.svelte';
 	import { panel } from '$lib/shell/panel.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
+	import { startReporting } from '$lib/here.svelte';
 
 	let { children } = $props();
 
@@ -126,6 +127,13 @@
 		)
 	);
 	onMount(revealWhileScrolling);
+	// where the reader is, for `loom here`: reading, Review, or another page of the viewer
+	onMount(() =>
+		startReporting(
+			() => (inReading ? 'reading' : page.route.id?.startsWith('/review') ? 'review' : 'elsewhere'),
+			() => page.url.pathname
+		)
+	);
 </script>
 
 <svelte:head>

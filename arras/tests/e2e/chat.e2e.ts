@@ -27,7 +27,7 @@ async function publisher(page: Page, state: { events: Ev[] }) {
 	await page.route('**/_api/events*', (r) => {
 		const since = Number(new URL(r.request().url()).searchParams.get('since') ?? 0);
 		const events = state.events.filter((e) => e.seq > since);
-		r.fulfill({ json: { session: REFEREE, from: since, seq: state.events.at(-1)?.seq ?? 0, events, attached: [] } });
+		r.fulfill({ json: { session: REFEREE, from: since, seq: state.events.at(-1)?.seq ?? 0, events } });
 	});
 }
 
@@ -212,7 +212,7 @@ test.describe('where a publisher serves', () => {
 		await page.route('**/_api/events*', (r) => {
 			const since = Number(new URL(r.request().url()).searchParams.get('since'));
 			asked.push(String(since));
-			r.fulfill({ json: { session: REFEREE, from: since, seq: 250, events: [], attached: [] } });
+			r.fulfill({ json: { session: REFEREE, from: since, seq: 250, events: [] } });
 		});
 		await page.route(`**/build/transcripts/${REFEREE}/*.json`, (route) => {
 			const n = Number(route.request().url().match(/\/(\d+)\.json$/)![1]);

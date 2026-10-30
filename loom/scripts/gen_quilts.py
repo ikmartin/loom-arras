@@ -1227,8 +1227,7 @@ def build_showcase(dest: Path) -> None:
     g.run("ai", "discard", quick)
 
     # ---- A reading session: the author reads Bellamy, anchors to the page, and talks to an agent. ---------
-    # Plan 0.13's reading layer, shown rather than described: an anchor into a filed PDF, a session shared with
-    # an agent, and a message that waited in the inbox because nobody was attached.
+    # Plan 0.13's reading layer, shown rather than described: an anchor into a filed PDF, a session shared with an agent, and a message in the session's transcript.
     g.at("2026-09-17T11:00:00Z")
     reading = g.run("session", "new", "--name", "reading Bellamy 19").strip().splitlines()[0].split()[0]
     g.run(
@@ -1286,8 +1285,7 @@ def build_showcase(dest: Path) -> None:
         "--session",
         reading,
     )
-    # The agent, attached, answers: a reply in the inbox, an edit of its own earlier objection in place, and a
-    # suggestion asking the author for a verification it cannot make itself (DR-185's route).
+    # The agent answers: a reply in the transcript, an edit of its own earlier objection in place, and a suggestion asking the author for a verification it cannot make itself (DR-185's route).
     g.at("2026-09-17T11:10:00Z")
     g.run(
         "session",
@@ -1545,10 +1543,7 @@ def _drop_clients(root: Path) -> None:
 def _sync(src: Path, dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
-    # A session's readers' cursors and heartbeat are runtime state the quilt's .gitignore keeps out.
-    shutil.copytree(
-        src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git", "cursors", "attached.json")
-    )
+    shutil.copytree(src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git"))
 
 
 def _differences(a: Path, b: Path) -> list[str]:
@@ -1559,7 +1554,7 @@ def _differences(a: Path, b: Path) -> list[str]:
         # quilt's .gitignore deliberately keeps them out of its committed copy.
         return not (
             rel.startswith("refs/")
-            or (rel.startswith(".loom/sessions/") and ("/cursors/" in rel or rel.endswith("/attached.json")))
+            or rel.startswith(".loom/since/")
             or rel.startswith("digests/storage/cache/")
             or (rel.startswith("digests/storage/") and "/src/" in rel)
         )

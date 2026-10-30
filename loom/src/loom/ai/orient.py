@@ -66,7 +66,7 @@ def mode_index(root: Path) -> str:
 
 
 def instructions(root: Path, name: str) -> str:
-    """What `loom mcp` tells a client when it attaches: who the agent is, to call `loom_ai_orient` first, how tools map to commands, then the mode index.
+    """What `loom mcp` tells a client when it attaches: who the agent is, to call `loom_ai_orient` first, how tools map to commands, the bridge, then the mode index.
 
     Short by design: Claude Code keeps the first 4,096 characters of a server's instructions and Codex reads the first 512 as a summary, so the opening stands alone and the orientation, the rules and the quilt's state are a tool call away rather than cut off.
     """
@@ -80,7 +80,11 @@ def instructions(root: Path, name: str) -> str:
         "loom command of the same name (loom_status is `loom status`), with its options as arguments; the author's "
         "commands are not tools."
     )
-    return opening + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
+    bridge = (
+        "When the person points at something without naming it, loom_here says what they are looking at in the "
+        "viewer; loom_since says what they did since you last looked, so call it when a conversation starts."
+    )
+    return opening + "\n" + bridge + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
 
 
 def research_state(quilt: Quilt) -> list[str]:
@@ -163,9 +167,7 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
             events = read_events(root, session_id)
             lines += ["", "## the chat", ""]
             if len(events) > TAIL:
-                lines.append(
-                    f"(the last {TAIL} of {len(events)} messages; `loom session next --since 0 --wait 0 --json` prints them all)"
-                )
+                lines.append(f"(the last {TAIL} of {len(events)} messages)")
             lines.append(render(events[-TAIL:]) if events else "(nothing said yet)")
         log = run / "run.log"
         lines += ["", "## the command log", ""]

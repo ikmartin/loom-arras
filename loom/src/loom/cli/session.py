@@ -1,13 +1,13 @@
-"""`loom session new | use | list | rename | close | delete | say | next | watch`.
+"""`loom session new | use | list | rename | close | delete | say`.
 
-A session is where work belongs; the author is who did it. These commands say which session is current and carry its chat, and the record says the rest.
+A session is where work belongs; the author is who did it. These commands say which session is current and write its transcript, and the record says the rest.
 """
 
 from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError, find_session, from_stdin, note
+from loom.cli._common import ContentError, EnvError, find_session, from_stdin
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
@@ -26,7 +26,7 @@ from loom.sessions import (
 
 @click.group(name="session", cls=CommandGroup)
 def session() -> None:
-    """Open, name and follow sessions: the stretch of work an annotation belongs to, and which one is current.
+    """Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
 
     A session has a stable id (`s-2026-09-20-0001`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
     """
@@ -356,7 +356,7 @@ def _purge_index(root, sid: str) -> None:  # type: ignore[no-untyped-def]
 
 
 def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # type: ignore[no-untyped-def]
-    """(root, session, name, kind) for a dispatch command: the session it is about and who is at the keyboard."""
+    """(root, session, name, kind) for `say`: the session it is about and who is at the keyboard."""
     from loom.cli._common import find_session, writer
 
     quilt = open_quilt(quilt_path)
@@ -375,13 +375,13 @@ def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # t
 def say_command(
     text: str, which: str | None, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
 ) -> None:
-    """Say TEXT in a session's chat, with what you marked since your last message; `-` reads TEXT from stdin.
+    """Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.
 
-    The same post the viewer's composer makes, for a person and an agent alike: it carries the annotations you made since your last message, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past the message when you had read everything before it, so `next` does not hand you your own words.
+    The transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
     """
-    from loom.mailbox import attached, cursor, pending, post, set_cursor, waiting_on
+    from loom.mailbox import pending, post
 
-    root, found, name, kind = _mail(quilt_path, which, declared)
+    root, found, name, _kind = _mail(quilt_path, which, declared)
     (said,) = from_stdin({"TEXT": text})
     body = (said or "").strip()
     packet = pending(root, found, name)
@@ -393,104 +393,10 @@ def say_command(
         from loom.scan.scan import scan
 
         refuse_bad_links(scan(open_quilt(quilt_path)), root, body)
-    here = sorted((r for r in attached(root, found.id) if r.get("who") != name), key=lambda r: str(r.get("who", "")))
     carried = f" with {counted(len(packet), 'annotation')} you marked" if packet else ""
-    data: dict[str, object] = {
-        "session": found.id,
-        "carried": len(packet),
-        "listening": [{"who": r.get("who"), "kind": r.get("kind")} for r in here],
-    }
+    data: dict[str, object] = {"session": found.id, "carried": len(packet)}
     if dry_run:
         Report(f"would say in {found.id}{carried}", dry_run=True, data={**data, "seq": None}).emit(as_json)
         return
     e = post(root, found.id, body, name, kind="message", changed=packet)
-    if cursor(root, found.id, name) == e.seq - 1:
-        set_cursor(root, found.id, name, e.seq)
-    waiting = "" if here else waiting_on(root, found.id, name)
-    Report(
-        f"said in {found.id}{carried}" + ("" if here else "; nobody is listening"),
-        groups=[Group("listening", [Item(f"{r.get('who')} ({r.get('kind')})") for r in here], limit=None)]
-        if here
-        else [],
-        notes=[waiting] if waiting else [],
-        data={**data, "seq": e.seq},
-    ).emit(as_json)
-
-
-@session.command(name="next")
-@click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to park on.")
-@click.option("--wait", default=120, show_default=True, help="Seconds to park before returning empty-handed.")
-@click.option("--json", "as_json", is_flag=True, help="Print as JSON, with the same text under `text`.")
-@click.option("--as", "declared", default=None, help="Who is parking. An agent names itself, including Agent or AI.")
-@click.option("--since", type=int, default=None, help="Start after this sequence number instead of your own cursor.")
-@quilt_option
-def next_command(
-    which: str | None, wait: int, as_json: bool, declared: str | None, since: int | None, quilt_path: str | None
-) -> None:
-    """Park until something lands in a session, print it, and exit. One call is one turn.
-
-    For an agent. It returns the moment a message arrives rather than on a poll interval, so latency is an append and a wakeup; with nothing waiting it returns empty-handed when `--wait` runs out, and the agent parks again. Keep `--wait` under whatever timeout your harness puts on a tool call.
-
-    The inbox is read and never consumed: your cursor moves, the message stays, and a second reader sees it too. Nothing here assigns you anything -- it is a broadcast, and what to do about a message is your judgement.
-    """
-    import time
-
-    from loom.mailbox import attach, cursor, read_events, render, set_cursor
-
-    root, found, name, kind = _mail(quilt_path, which, declared)
-    at = since if since is not None else cursor(root, found.id, name)
-    attach(root, found.id, name, kind)
-    deadline = time.monotonic() + max(0, wait)
-    events = read_events(root, found.id, at)
-    while not events and time.monotonic() < deadline:
-        time.sleep(0.25)
-        attach(root, found.id, name, kind)  # the heartbeat is what makes the composer's answer honest
-        events = read_events(root, found.id, at)
-    if events:
-        set_cursor(root, found.id, name, events[-1].seq)
-    text = render(events)
-    if as_json:
-        Report(
-            f"{counted(len(events), 'new message')} in {found.id}" if events else "nothing yet",
-            data={
-                "session": found.id,
-                "title": found.title,
-                "from": at,
-                "to": events[-1].seq if events else at,
-                "events": [e.to_json() for e in events],
-                "text": text,
-            },
-        ).emit(True)
-        return
-    click.echo(text if events else "nothing yet")
-
-
-@session.command(name="watch")
-@click.argument("which", required=False)
-@click.option("--as", "declared", default=None, help="Who is watching. An agent names itself, including Agent or AI.")
-@quilt_option
-def watch_command(which: str | None, declared: str | None, quilt_path: str | None) -> None:
-    """Tail a session: print what lands, until you stop it.
-
-    For a person. It delivers nothing and assigns nothing -- it blocks on the log, prints, and keeps a heartbeat so the composer can say honestly whether anybody is listening.
-    """
-    import time
-
-    from loom.mailbox import attach, detach, last_seq, read_events, render
-
-    root, found, name, kind = _mail(quilt_path, which, declared)
-    at = last_seq(root, found.id)
-    note(f"watching {found.id} ({found.title}) as {name}; Ctrl-C to stop")
-    attach(root, found.id, name, kind)
-    try:
-        while True:
-            events = read_events(root, found.id, at)
-            if events:
-                at = events[-1].seq
-                click.echo(render(events))
-            attach(root, found.id, name, kind)
-            time.sleep(0.5)
-    except KeyboardInterrupt:
-        click.echo("")
-    finally:
-        detach(root, found.id, name)
+    Report(f"said in {found.id}{carried}", data={**data, "seq": e.seq}).emit(as_json)

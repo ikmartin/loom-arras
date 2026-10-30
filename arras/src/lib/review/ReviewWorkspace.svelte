@@ -10,6 +10,7 @@
  import DiffView from '$lib/components/DiffView.svelte';
  import { causeIdentity, causeLabel } from './evidence';
  import type { UnresolvedReview } from '$lib/manifest/types';
+ import { here } from '$lib/here.svelte';
  let { writable }: { writable: boolean } = $props();
  const m = $derived(store.manifest!);
  const rows = $derived(m.unresolved ?? []);
@@ -23,6 +24,8 @@
  const cause = $derived(causes.find(c => causeIdentity(c) === page.url.searchParams.get('cause')) ?? causes.find(c => c.kind === 'own-text-changed') ?? causes[0]);
  const comparison = $derived(cause?.comparison);
  let narrow = $state(false);
+ // the block under review and why, for `loom here`
+ $effect(() => { here.review = selected ? { key: selected, cause: cause ? causeLabel(m, cause) : null } : null; return () => { here.review = null; }; });
  let previousReviewer: string | undefined;
  let reviewerInitialized = false;
  let fragmentRoot = $state<HTMLElement|null>(null);

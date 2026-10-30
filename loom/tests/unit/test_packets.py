@@ -1,4 +1,4 @@
-"""Packets (plan 0.14 phase 4): what the person marked since the last message goes out with the next one, whole, in the words the agent reads -- and the viewer previews exactly those words."""
+"""Packets (plan 0.14 phase 4): what the person marked since the last message goes out with the next one, whole, in the words an agent reads."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from tests.helpers import json_of, ok, refused
+from tests.helpers import ok, refused
 from tests.unit._quilts import demo, new_session
 
 
@@ -131,22 +131,11 @@ def test_say_with_no_words_sends_the_packet_and_refuses_when_there_is_none(q: Pa
     assert e.body == "" and [c["kind"] for c in e.changed] == ["question"]
 
 
-def test_the_agent_is_handed_the_packet_whole(q: Path) -> None:
+def test_the_packet_is_carried_whole(q: Path) -> None:
+    from loom.mailbox import read_events
+
     sid, _ = sitting(q)
     comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
     ok("session", "say", "Have a look.", "--session", sid, "--as", "A. Author", cwd=q)
-    got = json_of(
-        "session",
-        "next",
-        "--wait",
-        "0",
-        "--json",
-        "--session",
-        sid,
-        "--as",
-        "Referee Agent",
-        cwd=q,
-        env={"AI_AGENT": "1"},
-    )
-    [c] = got["events"][0]["changed"]
+    [c] = read_events(q, sid)[0].changed
     assert (c["body"], c["quote"], c["kind"]) == ("Which orbit?", "finite set", "question")

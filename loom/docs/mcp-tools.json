@@ -515,6 +515,27 @@
    "open_world_hint": false,
    "read_only_hint": true
   },
+  "command": "loom here",
+  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "json": {
+     "description": "Print the report as one JSON object, the place as the viewer sent it beside it.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_here"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
+   "read_only_hint": true
+  },
   "command": "loom history",
   "description": "List the steps and stamps of this quilt, one per line; `loom history KEY` lists that key's versions and whether the head equals one.\n\nA landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP`.",
   "inputSchema": {
@@ -1347,7 +1368,7 @@
    "read_only_hint": false
   },
   "command": "loom session say",
-  "description": "Say TEXT in a session's chat, with what you marked since your last message; `-` reads TEXT from stdin.\n\nThe same post the viewer's composer makes, for a person and an agent alike: it carries the annotations you made since your last message, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past the message when you had read everything before it, so `next` does not hand you your own words.",
+  "description": "Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.\n\nThe transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1370,6 +1391,31 @@
    "type": "object"
   },
   "name": "loom_session_say"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom since",
+  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; and what they said in a session's transcript. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "dry_run": {
+     "description": "Report, and leave your marker where it was.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_since"
  },
  {
   "annotations": {

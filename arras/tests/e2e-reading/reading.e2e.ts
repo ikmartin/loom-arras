@@ -615,3 +615,12 @@ readOnly("Bellamy19's overview, written by the survey agent through `loom write`
 	await expect(overview.locator('section[data-block="proof-basics"] h2')).toHaveText('proof-basics');
 	await expect(overview.locator('a').filter({ hasText: /3\.2/ }).first()).toBeVisible();
 });
+
+readOnly("a paper's page in view is what loom here reports, at the address loom link prints", async ({ page, served }) => {
+	await page.goto(PAGE2);
+	await page.locator('[data-testid="pdf-page-2"] canvas').waitFor();
+	const looking = () => JSON.parse(served.loom(['here', '--json'])).looking ?? {};
+	await expect.poll(() => looking().item?.work).toBe('Bellamy19');
+	await expect.poll(() => looking().item?.page).toBe(2);
+	expect(looking().item.link).toMatch(/^cited:.+\?page=2$/);
+});

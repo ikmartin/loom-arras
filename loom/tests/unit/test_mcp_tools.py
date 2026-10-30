@@ -19,7 +19,9 @@ def test_the_tools_are_the_agent_commands_and_none_of_the_authors() -> None:
     assert {s.path for s in SPECS.values()} == AGENT_COMMANDS - NOT_TOOLS
     authors = set(command_tree()) - AGENT_COMMANDS
     assert authors and not {tool_name(p) for p in authors} & set(SPECS), "an author's command is a tool"
-    assert not {"loom_serve", "loom_mcp", "loom_session_next", "loom_session_watch"} & set(SPECS)
+    assert not {"loom_serve", "loom_mcp"} & set(SPECS)
+    # the bridge: where the person is looking reads, and what they did since moves the agent's own marker
+    assert (ACTS[SPECS["loom_here"].path], ACTS[SPECS["loom_since"].path]) == ("read", "write")
     assert all(re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", name) for name in SPECS)
 
 

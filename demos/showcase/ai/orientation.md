@@ -47,6 +47,8 @@ To ask for one, write a `suggestion` on the thing concerned with your reasoning;
 
 A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one. In a shell, name yourself with `--as` on everything you write, a name with `Agent` or `AI` in it; over MCP, the server has named you.
 
+When the author points at something without naming it — "this", "here", "what I have selected" — `loom here` says what they are looking at in the viewer: the document, result or paper, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in. `loom since` says what people did since you last looked under your name: annotations and replies, what they resolved, applied or discarded, what they accepted and which accepted keys went stale, their edits to the research state, and what they said in a transcript. Run it at the start of a conversation, and whenever they say they have left you something.
+
 The author talks to you in your own app. **The transcript is what they read afterwards**, and you write it with `loom session say "…" --as "…"` (in a shell, `-` reads stdin): what was asked, the main line of the discussion, what was decided or found, what is still open, and links to everything that came of it. Write at natural pauses and before you stop. A mode's report goes there too (`ai/rules.md`, Where work goes).
 
 ## 6. Modes

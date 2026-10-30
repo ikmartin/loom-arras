@@ -850,6 +850,27 @@ def _compare(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     refuses(s, "compare", {"left": "drafting/main.tex", "right": "nowhere-v9"}, 404, "unknown-item", "nowhere-v9")
 
 
+@case("here")
+def _here(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, sid = on_demo(serve, tmp_path)
+    before = sorted(p.relative_to(q).as_posix() for p in q.rglob("*") if "build" not in p.parts)
+    place = {"route": "reading", "item": {"kind": "node", "id": "dm-0002"}, "session": sid}
+    succeeds(s, "here", place)
+    token = json.loads(get(s.url + "_api")[2])["token"]
+    status, _, raw = get(s.url + "_api/here", {"X-Loom-Token": token})
+    assert status == 200 and json.loads(raw)["place"] == place, raw
+    # held in memory: nothing outside the build moved
+    assert sorted(p.relative_to(q).as_posix() for p in q.rglob("*") if "build" not in p.parts) == before
+    refuses(
+        s,
+        "here",
+        {"item": {"kind": "node", "id": "dm-0002"}},
+        400,
+        "bad-field",
+        "route must be reading, review or elsewhere",
+    )
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],

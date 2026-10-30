@@ -24,6 +24,7 @@
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
 	import { clearPending, showPending } from '$lib/fragments/pending';
 	import { onDestroy } from 'svelte';
+	import { here } from '$lib/here.svelte';
 
 	let {
 		citekey,
@@ -236,8 +237,13 @@
 				onselect={(e) => {
 					const sel = window.getSelection();
 					offered = { page: e.page, text: e.text, at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+					here.selection = { item: `work:${citekey}`, page: e.page, text: e.text, rects: e.rects };
 				}}
-				onbox={(e) => ((offered = null), (noting = { page: e.page, rects: e.rects, at: e.client }))}
+				onbox={(e) => {
+					offered = null;
+					noting = { page: e.page, rects: e.rects, at: e.client };
+					here.region = { item: `work:${citekey}`, page: e.page, rects: e.rects };
+				}}
 				onmark={travel}
 				onpage={(e) => (at = e.page)}
 			/>

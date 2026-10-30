@@ -2,7 +2,7 @@
 
 `Write(...)` path rules were never enforced, because Claude Code matches only `Edit` rules against paths (DR-275-ikmartin); and passed with `--settings`, the file reads a leading `/` as `.claude/`, so allows written from the root refused every write a launched agent made (DR-343-ikmartin). Both passed every unit test, which read the generated file and never the client. Each test here makes a quilt with loom's own commands and starts the client from the quilt's root with the generated file passed as `--settings`, the reading DR-343-ikmartin measured. The command is built here rather than taken from loom's launch preset, which plan 0.20.1 retires, so the tier outlives it.
 
-Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote, a write is recorded under the name it gives, and a mode's prompt and a resource reach the server; in the shell variant, the agent's own `loom` commands run and the author's are refused. Codex and Gemini CLI have their own files beside this one.
+Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote, a write is recorded under the name it gives, and a mode's prompt and a resource reach the server; what the person did since the agent last looked reaches it through `loom_since`; in the shell variant, the agent's own `loom` commands run and the author's are refused. Codex and Gemini CLI have their own files beside this one.
 
 Every test calls a hosted model on the account of whoever runs it, so the tier is run by hand (`scripts/verify client`), never in CI, and skips unless LOOM_CLIENT_TESTS=1 and `claude` is on PATH.
 """
@@ -46,6 +46,12 @@ READ_A_RESOURCE = (
     "With the ReadMcpResourceTool tool, read the resource quilt:dm-0002 from the server loom, "
     "then reply with the one line of it that holds \\label, exactly as it is, and nothing else."
 )
+HEAR_SINCE = (
+    "This turn checks this folder's loom MCP server and nothing else. "
+    "Call the loom server's tool loom_since, then reply with the body of the newest annotation it reports, exactly as it is, and nothing else."
+)
+#: What the person wrote before the agent looked, which the reply must quote.
+LEFT = "Is the bound on the orbit count sharp?"
 #: A mode's prompt, typed as Claude Code names an MCP prompt; whether print mode expands one is what the test finds out.
 A_PROMPT = "/mcp__loom__quick dm-0002"
 COMMANDS = (
@@ -152,3 +158,18 @@ def test_a_claude_attached_over_mcp_reads_a_resource_and_expands_a_modes_prompt(
     assert "loom ai mode quick  (over MCP, for the quick prompt)" in log, (
         f"the prompt did not expand: {log}, {prompted}"
     )
+
+
+def test_a_claude_attached_over_mcp_hears_what_the_person_did_since_it_last_looked(tmp_path: Path) -> None:
+    """The bridge: the person annotates before the agent looks, and `loom_since`, run as the agent the server names, hands it the annotation whole; the marker it moves is the agent's own."""
+    gate(CLAUDE, "claude")
+    q = quilt(tmp_path)
+    ok("session", "new", "--name", "client check", "--as", "A. Author", cwd=q)
+    ok("annotate", "dm-0002", LEFT, "--kind", "question", "--as", "A. Author", cwd=q)
+    result, ran = turn(q, HEAR_SINCE)
+    assert LEFT in str(result.get("result", "")), f"the reply does not quote the person's annotation: {result}"
+    assert not result["permission_denials"], f"something was refused: {result}"
+    assert not [line for line in ran if line.split()[:1]], f"loom ran in a shell: {ran}"
+    log = "\n".join(p.read_text() for p in (q / ".loom" / "sessions").glob("*/run.log"))
+    assert "loom since --as 'Claude Code Agent'  (over MCP)" in log, f"no loom since was logged: {log}"
+    assert (q / ".loom" / "since" / "claude-code-agent.json").is_file(), "the agent's marker did not move"
