@@ -6,11 +6,11 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 ## 1. Discovery
 
-**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "...", "stream": true}` or 404. `stream` says `GET /_api/stream` is served: a `text/event-stream` with an event `manifest`, carrying nothing, each time a new manifest is published, and a comment every fifteen seconds while idle. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
+**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "...", "stream": true}` or 404, and 403 to a request a browser says came from another page (§3). `stream` says `GET /_api/stream` is served: a `text/event-stream` with an event `manifest`, carrying nothing, each time a new manifest is published, and a comment every fifteen seconds while idle. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
 
 ## 2. Endpoints
 
-**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons. A request that names something that does not exist answers 404 with `no-such-` and what it named (`no-such-node`, `no-such-annotation`, `no-such-session`, `no-such-quote`, …), the same refusals the CLI exits 2 for; 400 is a malformed request or a write refused on its merits, 403 the CSRF gate, 409 a conflict with the quilt's state. `annotate`, `reply`, `resolve`, `edit`, `discard` and `library-cite` name the session they are written in, and one naming none is refused with `no-session`: nothing here falls back to the active session.
+**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons. A request that names something that does not exist answers 404 with `no-such-` and what it named (`no-such-node`, `no-such-annotation`, `no-such-session`, `no-such-quote`, …), the same refusals the CLI exits 2 for; 400 is a malformed request or a write refused on its merits, 403 the CSRF gate (`refused`) or an author's act refused to an agent (`author-only`), 409 a conflict with the quilt's state. `annotate`, `reply`, `resolve`, `edit`, `discard` and `library-cite` name the session they are written in, and one naming none is refused with `no-session`: nothing here falls back to the active session.
 
 | method | path | body | effect |
 |---|---|---|---|
@@ -68,22 +68,24 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/adopt-preview` | `{copy, reviewer, fingerprint}` | validates the saved choices and returns an immutable `{token, patch, paths}` preview; writes build cache only, without rebuilding |
 | `POST` | `/_api/adopt-finish` | `{copy, reviewer, token, review_token?, accept?: string[]}` | revalidates source, proposal, choices and reviewer, stamps the working document as a landmark, applies exactly the preview and records incorporation; answers `{paths, step, landmark, copy, message}`; commits nothing and needs no git repository; optionally records explicit mathematical acceptances bound to review_token |
 
-| `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision and atomically publishes queue metadata without accepting mathematics or rebuilding document renderings; Finish review rebuilds after the batch (DR-315-luisa) |
-| `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |
+| `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention", author?}` | saves a private, version-bound review decision and atomically publishes queue metadata without accepting mathematics or rebuilding document renderings; Finish review rebuilds after the batch (DR-315-luisa) |
+| `POST` | `/_api/review-finish` | `{reviewer, author?}` | validates pending OK decisions and records eligible acceptances together |
 
 Every successful mutation triggers a republish before it answers, so the manifest is current when a write answers; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. A write that changes records alone (annotations, sessions, messages, citation notes, adoption decisions, reviewer settings) republishes from the publisher's last scan, since the scan reads none of them. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, keeps each document it reaches as a landmark first, commits nothing, and never pushes to the workspace. Mathematical acceptance is optional and explicit as described below.
 
 ## 3. Authorship
 
-**[decided]** `author` defaults to the publisher's resolved author name; `as` declares an identity, and an agent names itself including `Agent` or `AI`. The author's verbs refuse a declared agent identity whichever surface it came through.
+**[decided]** `author` defaults to the publisher's resolved author name; `as` declares an identity, and an agent names itself including `Agent` or `AI`. The author's verbs refuse a declared agent identity whichever surface it came through, here with 403 `author-only`. A write that names no author is taken for the author's own click in the viewer, which is why no page but the viewer may make one (below).
 
 **[decided]** **Every write carries three checks.** They are CSRF protection and not a login: they keep other *pages* out, not other people.
 
 1. **`X-Loom-Token`** must equal the token in `.loom/serve.json`, which `GET /_api` serves and the viewer reads.
-2. **`Origin`**, when present, must be this server's own.
+2. **The page it came from** must be this server's: `Origin`, when present, is this server's own, and `Sec-Fetch-Site`, when present, is `same-origin` (or `none`, the person typing the address).
 3. **`Content-Type: application/json`** is required.
 
 A browser blocks a cross-origin *response* and never the *request*, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post can set neither a custom header nor a JSON content type, which is what closes it. The socket still binds to loopback, which keeps other machines out; it never kept out the page the author was reading. A request failing any of the three answers 403 with `{"error": {"code": "refused", ...}}`.
+
+**[decided]** **No page but the viewer runs in the viewer's origin.** The token keeps other sites out, but `/build/` and `/digests/storage/` are served from the viewer's own origin, an agent writes `build/**`, and storage holds fetched sources nobody at loom wrote. So everything but the viewer's bundle, which is those files and every JSON answer, is served with `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`. A page there, HTML or SVG, runs no script and has an opaque origin: it cannot read `/_api`, and a POST it made would carry `Origin: null`, which check 2 refuses. `GET /_api` applies check 2 too and answers 403 `refused` when it fails, so the token goes only to the viewer's own origin. The viewer reads these files with `fetch`, `<img>` and PDF.js, which a response's sandbox does not touch, and a PDF opened in a tab of its own is shown by the browser's viewer as before.
 
 ## 4. No model behaviour, and no bridge
 

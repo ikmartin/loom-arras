@@ -326,3 +326,13 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **Guard.** `loom/tests/unit/render/test_write_api.py::test_a_write_without_the_token_is_refused_over_the_wire`, `loom/tests/unit/render/test_write_api.py::test_the_write_api_refuses_a_post_from_another_page`
 
 **Record.** DR-203
+
+### A page the quilt holds never runs as the viewer
+
+**Rule.** `loom serve` sends everything but the viewer's own bundle, which is every file under `/build/` and `/digests/storage/` and every JSON answer, with `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`, so a page there runs no script and has an opaque origin. `GET /_api` gives the token only to a request that no browser says came from another page (`Origin`, `Sec-Fetch-Site`). Over the API, `review-decision` and `review-finish` refuse a declared agent, like the author's other acts there (K5).
+
+**Why.** Found 2026-10-30 by reading the code for the open-quilt study, and reproduced before it was fixed. An agent writes `build/**`, and an HTML or SVG page it left there ran as the viewer when the author opened it, for instance from a link in a transcript. The page read the token from `/_api` and posted a write naming no author, which the publisher takes for the author's own click; `review-finish` posted that way records the author's acceptance. The token kept other sites out but not a page served from the viewer's own origin.
+
+**Guard.** `loom/tests/unit/render/test_write_api.py::test_a_page_the_quilt_holds_is_served_with_no_origin_of_the_viewers`, `loom/tests/unit/render/test_write_api.py::test_the_token_is_served_only_to_the_viewers_own_origin`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`review-decision`, `review-finish`), `arras/tests/e2e-write/origin.e2e.ts`
+
+**Record.** `docs/reports/open-quilt-study.md`

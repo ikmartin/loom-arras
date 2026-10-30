@@ -51,6 +51,23 @@ ASSET_SUFFIXES = {
 SERVE_JSON = ".loom/serve.json"
 #: How often an idle stream says it is still open, so a proxy or a sleeping laptop does not drop it unseen.
 HEARTBEAT = 15.0
+#: The headers everything but the viewer's bundle is served with -- `/build/`, `/digests/storage/` and every JSON answer -- so a page there runs no script and has an opaque origin, never the viewer's: an agent writes `build/**`, and a page that ran as the viewer could read the token and post the author's acts.
+CONFINED = {"Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"}
+
+
+def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
+    """Why the browser says this request came from a page that is not this server's, or '' when it does not.
+
+    `Origin` comes on a POST and a cross-origin fetch, `null` from a sandboxed page; `Sec-Fetch-Site` on every request a current browser makes, `none` when the person typed the address. A request with neither came from no browser's page, and is answered.
+    """
+    port = request.server.server_address[1] if isinstance(request.server.server_address, tuple) else 0
+    origin = request.headers.get("Origin")
+    if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+        return f"this request came from {origin}, which is not this server"
+    site = request.headers.get("Sec-Fetch-Site")
+    if site and site not in ("same-origin", "none"):
+        return f"this request came from a {site} page, which is not this server"
+    return ""
 
 
 class Publications:
@@ -207,6 +224,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        self._confine(True)  # every API answer, and the transcript pages `_page` answers under /build/
         self.end_headers()
         self.wfile.write(data)
 
@@ -216,12 +234,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
     def _csrf(self) -> str:
         """Why this request must be refused, or '' when it may proceed.
 
-        Three checks, and together they are CSRF protection rather than a login: they keep other *pages* out, not other people. A browser blocks a cross-origin **response** and never the **request**, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post cannot set a custom header, so requiring one closes it; requiring JSON closes the simple-form path that needs no header at all; and a foreign `Origin` is refused outright.
+        Three checks, and together they are CSRF protection rather than a login: they keep other *pages* out, not other people. A browser blocks a cross-origin **response** and never the **request**, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post cannot set a custom header, so requiring one closes it; requiring JSON closes the simple-form path that needs no header at all; and a request the browser says came from another page (`from_elsewhere`) is refused outright.
         """
-        origin = self.headers.get("Origin")
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
-            return f"this request came from {origin}, which is not this server"
+        elsewhere = from_elsewhere(self)
+        if elsewhere:
+            return elsewhere
         kind = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
         if kind != "application/json":
             return "a write must be application/json"
@@ -347,6 +364,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
             if self.quilt_root is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
+            # the token is the viewer's alone: a page in another origin, a sandboxed one's `null` included, is not given it
+            elsewhere = from_elsewhere(self)
+            if elsewhere:
+                self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": elsewhere}})
+                return
             self._json(HTTPStatus.OK, {**discovery(), "token": self.token, "stream": self.publications is not None})
             return
         target = self._resolve()
@@ -357,10 +379,12 @@ class LoomHandler(SimpleHTTPRequestHandler):
         ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         if target.suffix in (".html", ".js", ".css", ".json", ".svg"):
             ctype += "; charset=utf-8"
+        held = self.path.split("?", 1)[0].startswith(("/build/", "/" + STORAGE + "/"))
         etag = '"' + hashlib.sha256(data).hexdigest()[:32] + '"'
         if self.headers.get("If-None-Match") == etag:
             self.send_response(HTTPStatus.NOT_MODIFIED)
             self.send_header("ETag", etag)
+            self._confine(held)  # a 304's headers replace the cached copy's, which may predate them
             self.end_headers()
             return
         self.send_response(HTTPStatus.OK)
@@ -368,8 +392,15 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("ETag", etag)
         self.send_header("Cache-Control", "no-cache")
+        self._confine(held)
         self.end_headers()
         self.wfile.write(data)
+
+    def _confine(self, held: bool) -> None:
+        """Send `CONFINED` for a file the quilt holds; the viewer's own bundle runs unconfined."""
+        if held:
+            for name, value in CONFINED.items():
+                self.send_header(name, value)
 
     def _here(self) -> None:
         """`GET /_api/here`: the last place a viewer tab reported, for `loom here`, which reads the token from `.loom/serve.json`.
@@ -381,13 +412,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if self.quilt_root is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        origin = self.headers.get("Origin")
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
-            self._json(
-                HTTPStatus.FORBIDDEN,
-                {"error": {"code": "refused", "message": f"this request came from {origin}, which is not this server"}},
-            )
+        elsewhere = from_elsewhere(self)
+        if elsewhere:
+            self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": elsewhere}})
             return
         if not self.token or self.headers.get("X-Loom-Token") != self.token:
             self._json(
