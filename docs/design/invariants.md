@@ -48,11 +48,11 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### One table says what an agent may run, and everything else refuses
 
-**Rule.** `AGENT_COMMANDS` in `loom/src/loom/ai/layout.py` is the only list of what an agent may run. The MCP server's tools, the Claude and Codex permission files in both variants, and the list in `ai/rules.md` are generated from it. Under an agent marker every other command refuses before reading anything, so a new command is the author's until admitted.
+**Rule.** `AGENT_COMMANDS` in `loom/src/loom/ai/layout.py` is the only list of what an agent may run. The MCP server's tools, the Claude and Codex permission files in both variants, and the list in `ai/rules.md` are generated from it. The server's prompts and resources run only commands from it that read. Under an agent marker every other command refuses before reading anything, so a new command is the author's until admitted.
 
 **Why.** The rules' Never section and the permission file were two hand-kept deny lists, and they drifted: `loom upgrade` was in neither, and the alias `loom canonise` walked past the deny on `loom canonize`.
 
-**Guard.** `loom/tests/unit/test_ai_layer.py::test_the_allow_list_and_the_permission_file_cannot_disagree`, `loom/tests/unit/test_ai_layer.py::test_codex_is_given_the_same_policy_as_claude`, `loom/tests/unit/test_mcp_tools.py::test_the_tools_are_the_agent_commands_and_none_of_the_authors`
+**Guard.** `loom/tests/unit/test_ai_layer.py::test_the_allow_list_and_the_permission_file_cannot_disagree`, `loom/tests/unit/test_ai_layer.py::test_codex_is_given_the_same_policy_as_claude`, `loom/tests/unit/test_mcp_tools.py::test_the_tools_are_the_agent_commands_and_none_of_the_authors`, `loom/tests/unit/test_mcp_resources.py::test_every_command_a_prompt_or_resource_runs_is_an_agent_command_that_only_reads`
 
 **Record.** DR-154, DR-173, DR-333-ikmartin
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from loom.records.store import Records
 from loom.render.threads import SESSION_FILES
+from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
 
 STATIC = ("orientation.md", "rules.md", "formatting.md")
@@ -38,6 +39,18 @@ def mode_text(root: Path, name: str) -> str:
     return resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")
 
 
+def fits(root: Path, name: str) -> str:
+    """Mode `name`'s `When it fits:` line, without its label: the index's entry and the MCP prompt's description; '' when the quilt's copy dropped it."""
+    return next(
+        (
+            ln.removeprefix("When it fits:").strip()
+            for ln in mode_text(root, name).splitlines()
+            if ln.startswith("When it fits:")
+        ),
+        "",
+    )
+
+
 def mode_index(root: Path) -> str:
     """The modes, one line each, from each file's `When it fits:` line: what `loom ai orient` prints after the documents, and the server's instructions after it.
 
@@ -47,15 +60,8 @@ def mode_index(root: Path) -> str:
 
     lines = ["", "---", "", "# Modes", "", "`loom ai mode NAME` prints one in full.", ""]
     for name in MODES:
-        fits = next(
-            (
-                ln.removeprefix("When it fits:").strip()
-                for ln in mode_text(root, name).splitlines()
-                if ln.startswith("When it fits:")
-            ),
-            "",
-        )
-        lines.append(f"- **{name}**: {fits}" if fits else f"- **{name}**")
+        line = fits(root, name)
+        lines.append(f"- **{name}**: {line}" if line else f"- **{name}**")
     return "\n".join(lines) + "\n"
 
 
@@ -77,16 +83,16 @@ def instructions(root: Path, name: str) -> str:
     return opening + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
 
 
-def _research_state(result: ScanResult) -> list[str]:
-    """The research state as `ai orient` prints it: its path and hash, who last wrote it, and the page itself; or how to start one."""
+def research_state(quilt: Quilt) -> list[str]:
+    """The research state as `ai orient` prints it: its path and hash, who last wrote it, and the page itself; or how to start one. Also what `loom mcp` serves as `quilt:state`."""
     from loom.pages import read, state_page, text_hash, writes
 
-    root = result.quilt.root
-    page = state_page(result.quilt.config)
+    root = quilt.root
+    page = state_page(quilt.config)
     text = read(root, page)
     if text is None:
         return [f'- research state: none yet, at `{page.path}`; `loom write state - --as "…"` writes one']
-    done = writes(root, result.quilt.history_dir, page)
+    done = writes(root, quilt.history_dir, page)
     last = done[-1] if done else None
     by = f"; last written by {last.actor} on {last.when[:10]}" if last else ""
     edited = "; edited by hand since" if last is None or last.get("to") != text_hash(text) else ""
@@ -146,7 +152,7 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
             lines.append(f"  - `{sid}` ({title}, opened {created})" + ("  <- active" if sid == here else ""))
     else:
         lines.append("- open sessions: none")
-    lines += _research_state(result)
+    lines += research_state(result.quilt)
     if run is not None:
         rel = run.relative_to(root).as_posix() if run.is_absolute() else run.as_posix()
         lines += ["", f"# Your session: `{rel}`", ""]

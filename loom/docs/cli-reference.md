@@ -485,7 +485,7 @@ Run alone, `loom library` is a command; its subcommands follow its options.
 
 Report what the quilt's cited works need: from you, from an agent, and in review; `loom library WORK` reports one work.
 
-A WORK is a citekey, a fragment of one or of its author or title, or one of its result ids.
+A WORK is a citekey, its identifier (`doi:…`, `arXiv:…`), a fragment of a citekey or of its author or title, or one of its result ids.
 
 | option | description |
 |---|---|
@@ -701,7 +701,7 @@ A word in a result's locator, its local name or its work's title counts three, o
 
 Make what a machine can about the cited works: gather the bibliography, look up, fetch, extract digests, map pages.
 
-Each step is a no-op where its work is done, so a second run does only what is new. WORK narrows every step to the works it names (a citekey, a fragment of one or of an author or title, or a result id); naming works leaves gathering out, since it reads the whole bibliography. Looking up and fetching use the network only under `[library] online = true` or `--online`, and an agent only under the config's: it may not grant itself the network. Offline, every local step still runs. Progress shows on stderr.
+Each step is a no-op where its work is done, so a second run does only what is new. WORK narrows every step to the works it names (a citekey, its identifier, a fragment of one or of an author or title, or a result id); naming works leaves gathering out, since it reads the whole bibliography. Looking up and fetching use the network only under `[library] online = true` or `--online`, and an agent only under the config's: it may not grant itself the network. Offline, every local step still runs. Progress shows on stderr.
 
 | option | description |
 |---|---|

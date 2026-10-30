@@ -1,4 +1,4 @@
-"""`loom mcp` over the protocol, through the SDK's own client: the instructions, the tools and their hints, what a call returns for each exit, a write as the agent, the command log, and a result too long for a reply."""
+"""`loom mcp` over the protocol, through the SDK's own client: the instructions, the tools and their hints, what a call returns for each exit, a write as the agent, the command log, a result too long for a reply, the modes as prompts and what a link names as resources."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import pytest
 
 from loom.ai.layout import MODES
 from tests.helpers import refused
-from tests.unit._quilts import demo
+from tests.unit._quilts import demo, new_session, showcase
 
 AGENT = "Test Agent"
 
@@ -104,6 +104,73 @@ def test_a_result_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path)
         assert not r.is_error and "so it is in build/agent/" in r.content[0].text, r.content[0].text[:300]
         kept = q / r.meta["loom/file"]
         assert kept.is_file() and "A long remark." in kept.read_text() and len(kept.read_text()) > 40_000
+
+    attached(q, body)
+
+
+def test_each_mode_is_a_prompt_expanding_to_the_quilts_own_copy_and_its_checked_target(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    mode = q / "ai" / "modes" / "audit.md"
+    mode.write_text(mode.read_text() + "\nThis quilt's own line.\n")
+    new_session(q)
+
+    async def body(client: Any) -> None:
+        listed = (await client.list_prompts()).prompts
+        assert [p.name for p in listed] == MODES
+        assert all([(a.name, a.required) for a in p.arguments] == [("target", False)] for p in listed)
+        got = await client.get_prompt("audit", {"target": "dm-0002"})
+        text = got.messages[0].content.text
+        assert text.startswith("Work in loom's audit mode on `dm-0002` (quilt:dm-0002).") and "loom_ai_orient" in text
+        assert text.rstrip().endswith("This quilt's own line.")
+        assert got.meta["loom/commands"] == ["loom link dm-0002", "loom ai mode audit"]
+        assert "ask me what to work on" in (await client.get_prompt("flow")).messages[0].content.text
+        with pytest.raises(Exception, match="no key dm-9999"):
+            await client.get_prompt("audit", {"target": "dm-9999"})
+        with pytest.raises(Exception, match="no prompt brainstorm"):
+            await client.get_prompt("brainstorm")
+
+    attached(q, body)
+    runs = [ln for p in (q / ".loom" / "sessions").glob("*/run.log") for ln in p.read_text().splitlines()]
+    assert [ln for ln in runs if "loom ai mode audit  (over MCP, for the audit prompt)" in ln]
+
+
+def test_what_a_link_names_is_a_resource_read_by_the_command_it_stands_for(tmp_path: Path) -> None:
+    q = showcase(tmp_path)
+    reads = {
+        "quilt:sh-0007": ("loom source sh-0007", "\\label{sh-0007}"),
+        "quilt:sh-0007?closure": ("loom source --closure sh-0007", "\\label{sh-0007}"),
+        "quilt:drafting/main-atomic.tex": ("loom source drafting/main-atomic.tex", "\\documentclass"),
+        "quilt:.loom/history/0001-flows-v1/flows-v1.tex": ("loom history show flows-v1", "\\documentclass"),
+        "quilt:state": ("loom ai orient", "# Research state"),
+        "cited:doi:10.4171/showcase/19-2": ("loom library read doi:10.4171/showcase/19-2", "Bellamy19's overview"),
+        "cited:doi:10.4171/showcase/19-2?page=3": ("loom library read doi:10.4171/showcase/19-2 3", "Bellamy19 p.3"),
+    }
+
+    async def body(client: Any) -> None:
+        listed = {r.uri for r in (await client.list_resources()).resources}
+        assert set(reads) - listed == {"quilt:sh-0007?closure", "cited:doi:10.4171/showcase/19-2?page=3"}
+        assert len((await client.list_resource_templates()).resource_templates) == 4
+        for uri, (command, said) in reads.items():
+            r = await client.read_resource(uri)
+            assert r.meta["loom/command"] == command and said in r.contents[0].text, (uri, r.contents[0].text[:300])
+        with pytest.raises(Exception, match="loom_ai_annotations"):
+            await client.read_resource("quilt:a-2026-01-01-1")
+        with pytest.raises(Exception, match="no such key: sh-9999"):
+            await client.read_resource("quilt:sh-9999")
+
+    attached(q, body)
+
+
+def test_a_resource_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    (q / "nodes" / "dm-0097.tex").write_text(
+        "\\begin{remark}\\label{dm-0097}\n" + "A long remark. " * 4000 + "\n\\end{remark}\n"
+    )
+
+    async def body(client: Any) -> None:
+        r = await client.read_resource("quilt:dm-0097")
+        assert "so it is in build/agent/" in r.contents[0].text, r.contents[0].text[:300]
+        assert "A long remark." in (q / r.meta["loom/file"]).read_text()
 
     attached(q, body)
 

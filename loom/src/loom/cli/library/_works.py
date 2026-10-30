@@ -112,10 +112,11 @@ def citekey_of_id(result: ScanResult, rid: str) -> str | None:
 
 
 def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
-    """Citekeys for each argument: an exact citekey, a result id's work, else every entry whose citekey, author or title contains it.
+    """Citekeys for each argument: an exact citekey, a work's identifier as a `cited:` link states it, a result id's work, else every entry whose citekey, author or title contains it.
 
     An argument that matches nothing is refused by name rather than answered with an empty table, which read as "nothing is known about that work". A fragment matching only a work and its versions names the work, and says so on stderr.
     """
+    from loom.refs.identity import identify, parse
     from loom.refs.resolve import _fold
     from loom.refs.scan import one_work_of, versions_of
 
@@ -124,6 +125,18 @@ def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
         if needle in result.bib:
             out.add(needle)
             continue
+        wid = parse(needle)
+        if wid is not None:
+            # matched as a link's identifier is (`links._cited`), so every WORK takes what `loom link` prints
+            stated = sorted(
+                ck
+                for ck, e in result.bib.items()
+                if any((w.scheme, w.value.lower()) == (wid.scheme, wid.value.lower()) for w in identify(e))
+            )
+            if stated:
+                top = one_work_of(stated, result.bib) if len(stated) > 1 else ""
+                out |= {top} if top else set(stated)
+                continue
         by_id = citekey_of_id(result, needle)
         if by_id is not None:
             out.add(by_id)
@@ -140,7 +153,9 @@ def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
             )
         }
         if not hits:
-            raise NotFoundError("work", f"{needle!r} names no work: no citekey, result id, author or title matches it")
+            raise NotFoundError(
+                "work", f"{needle!r} names no work: no citekey, identifier, result id, author or title matches it"
+            )
         top = one_work_of(sorted(hits), result.bib) if len(hits) > 1 else ""
         if top:
             others = versions_of(result.bib)[top]

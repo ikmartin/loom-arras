@@ -2,7 +2,7 @@
 
 `Write(...)` path rules were never enforced, because Claude Code matches only `Edit` rules against paths (DR-275-ikmartin); and passed with `--settings`, the file reads a leading `/` as `.claude/`, so allows written from the root refused every write a launched agent made (DR-343-ikmartin). Both passed every unit test, which read the generated file and never the client. Each test here makes a quilt with loom's own commands and starts the client from the quilt's root with the generated file passed as `--settings`, the reading DR-343-ikmartin measured. The command is built here rather than taken from loom's launch preset, which plan 0.20.1 retires, so the tier outlives it.
 
-Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote and a write is recorded under the name it gives; in the shell variant, the agent's own `loom` commands run and the author's are refused. Codex and Gemini CLI have their own files beside this one.
+Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote, a write is recorded under the name it gives, and a mode's prompt and a resource reach the server; in the shell variant, the agent's own `loom` commands run and the author's are refused. Codex and Gemini CLI have their own files beside this one.
 
 Every test calls a hosted model on the account of whoever runs it, so the tier is run by hand (`scripts/verify client`), never in CI, and skips unless LOOM_CLIENT_TESTS=1 and `claude` is on PATH.
 """
@@ -41,6 +41,13 @@ OVER_MCP = (
     "Then, with the Bash tool, run `loom accept --help` exactly as written. "
     "The settings are expected to refuse the second: attempt both, never do either another way, and stop once both are attempted."
 )
+READ_A_RESOURCE = (
+    "This turn checks this folder's loom MCP server and nothing else. "
+    "With the ReadMcpResourceTool tool, read the resource quilt:dm-0002 from the server loom, "
+    "then reply with the one line of it that holds \\label, exactly as it is, and nothing else."
+)
+#: A mode's prompt, typed as Claude Code names an MCP prompt; whether print mode expands one is what the test finds out.
+A_PROMPT = "/mcp__loom__quick dm-0002"
 COMMANDS = (
     "This turn checks this folder's permission settings and nothing else. "
     "With the Bash tool, run `loom status` and then `loom accept --help`, each exactly as written and in a call of its own. "
@@ -66,7 +73,7 @@ def turn(q: Path, prompt: str) -> tuple[dict[str, Any], list[str]]:
     cmd += ["--model", MODEL, "--max-budget-usd", BUDGET, "--output-format", "json", "--no-session-persistence"]
     cmd += ["--setting-sources", "project,local"]
     shims, log = q.parent / "bin", q.parent / "loom-commands.log"
-    shims.mkdir()
+    shims.mkdir(exist_ok=True)
     loom = Path(sys.executable).parent / "loom"
     assert loom.is_file(), f"no loom beside {sys.executable}"
     (shims / "loom").write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{log}"\nexec "{loom}" "$@"\n', encoding="utf-8")
@@ -127,3 +134,21 @@ def test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_sh
     assert not [line for line in ran if line.split()[:1] == ["accept"]], f"loom accept ran in a shell: {ran}"
     tried = [str(i.get("command", "")) for i in refusals(result, "Bash")]
     assert any("loom accept" in c for c in tried), f"no loom accept was refused: {result}"
+
+
+def test_a_claude_attached_over_mcp_reads_a_resource_and_expands_a_modes_prompt(tmp_path: Path) -> None:
+    """The two surfaces a person uses rather than the agent: a resource the model reads by its `quilt:` address, which needs no permission rule, and a mode's prompt; the session's command log says which surface ran each command, so a prompt that never expanded, leaving the model to call `loom_ai_mode` itself, does not pass."""
+    gate(CLAUDE, "claude")
+    q = quilt(tmp_path)
+    ok("session", "new", "--name", "client check", "--as", "A. Author", cwd=q)
+    result, ran = turn(q, READ_A_RESOURCE)
+    assert "\\label{dm-0002}" in str(result.get("result", "")), f"the reply has no label from quilt:dm-0002: {result}"
+    assert not result["permission_denials"], f"something was refused: {result}"
+    prompted, ran_too = turn(q, A_PROMPT)
+    assert not prompted["permission_denials"], f"something was refused: {prompted}"
+    assert not [line for line in ran + ran_too if line.split()[:1]], f"loom ran in a shell: {ran + ran_too}"
+    log = "\n".join(p.read_text() for p in (q / ".loom" / "sessions").glob("*/run.log"))
+    assert "loom source dm-0002  (over MCP, reading quilt:dm-0002)" in log, f"no resource read was logged: {log}"
+    assert "loom ai mode quick  (over MCP, for the quick prompt)" in log, (
+        f"the prompt did not expand: {log}, {prompted}"
+    )

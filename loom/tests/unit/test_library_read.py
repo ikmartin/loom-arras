@@ -192,3 +192,12 @@ def test_a_quilt_already_online_is_never_told_to_pass_online(tmp_path: Path) -> 
     told = ok("library", "Man12", cwd=q).output
     assert "--online" not in told and "loom library update" in told
     assert online["need_you"] == offline["need_you"] - 1
+
+
+def test_a_work_is_named_by_the_identifier_its_link_states(tmp_path: Path) -> None:
+    """`loom link` prints a work as `cited:SCHEME:VALUE`, so every WORK takes that identifier, matched as a link's is; a `cited:` resource is read by this command."""
+    q = demo(tmp_path)
+    by_key = ok("library", "read", "Calloway14", cwd=q).stdout
+    assert ok("library", "read", "doi:10.4171/demo/14-1", cwd=q).stdout == by_key
+    assert ok("library", "read", "doi:10.4171/DEMO/14-1", cwd=q).stdout == by_key
+    refused("library", "read", "doi:10.9999/none", cwd=q, code=2, match="no citekey, identifier, result id")

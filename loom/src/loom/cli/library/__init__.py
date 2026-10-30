@@ -82,7 +82,7 @@ def _positional(rest: list[str]) -> bool:
 def library(ctx: click.Context, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Report what the quilt's cited works need: from you, from an agent, and in review; `loom library WORK` reports one work.
 
-    A WORK is a citekey, a fragment of one or of its author or title, or one of its result ids.
+    A WORK is a citekey, its identifier (`doi:…`, `arXiv:…`), a fragment of a citekey or of its author or title, or one of its result ids.
     """
     if ctx.invoked_subcommand is None:
         _show(quilt_path, None, as_json, run_dir)

@@ -26,7 +26,7 @@ GROUP_WORDS = {
     ),
     "library": (
         "work",
-        "A work, by citekey, a fragment of one or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
+        "A work, by citekey, its identifier (doi:…, arXiv:…), a fragment of a citekey or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
     ),
 }
 
