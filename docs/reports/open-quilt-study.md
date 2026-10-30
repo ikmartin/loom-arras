@@ -6,7 +6,7 @@ Written 2026-10-30. It draws on the ideas in `docs/long-prompts/ideas.md` that a
 
 Can a quilt be a directory the person lays out as they like, holding whatever they work with (LaTeX, Markdown, HTML, PDFs, notebooks), with loom a layer over it rather than its shape?
 
-The answer proposed here is yes, and most of the change is loom doing less. Loom stops naming the person's directories, stops deciding where a document may live, hands version control of a shared paper back to the person, and lets an agent write wherever the person has not said no. What loom adds is mostly display: more formats shown in the viewer, and quotable there. What loom understands does not widen. The graph, acceptance and the rest of the trust machinery stay on LaTeX (P1).
+The answer proposed here is yes, and most of the change is loom doing less. Loom stops naming the person's directories, stops deciding where a document may live, hands the directory of a shared paper back to the person, and lets an agent write wherever the person has not said no. What loom adds is mostly display: more formats shown in the viewer, and quotable there. What loom understands does not widen. The graph, acceptance and the rest of the trust machinery stay on LaTeX (P1).
 
 Loom does not learn what a course is. How a course is designed and carried out (its topic list, lessons, problem sets, progress, flash cards) belongs to the person and their agent, in whatever files they choose; loom shows those files and makes the links in them work. That is the present need, not a boundary for all time: if a course later needs loom to know something, it is reconsidered then.
 
@@ -53,7 +53,7 @@ Two kinds of derived text resolve today against the root, wherever they sit: lan
 
 ### Sync
 
-Sync is about 2,700 lines: about 1,670 in loom's source (`sync.py` and `cli/sync.py` whole, the rest in parts), about 850 in its tests, about 110 in the viewer and about 110 in the documents. Its error type, `SyncError`, is also adoption's: 93 uses in 10 modules outside `sync.py`, most of them adoption. `incorporation_review.py`, `review_origins.py` and the viewer's `IncomingMath.svelte` serve both and stay. Neither of the author's quilts has a sync record.
+Sync is about 2,700 lines: about 1,670 in loom's source (`sync.py` and `cli/sync.py` whole, the rest in parts), about 850 in its tests, about 110 in the viewer and about 110 in the documents. Its error type, `SyncError`, is also adoption's: 93 uses in 10 modules outside `sync.py`, most of them adoption. `incorporation_review.py`, `review_origins.py` and the viewer's `IncomingMath.svelte` serve both. Every git call but the first clone goes through one function, `workspace()` (`sync.py:174-186`), and publishing and fetching move only loom's own refs (`refs/loom/publication`, `refs/loom/incoming/*`) through a temporary index, never a working tree. Neither of the author's quilts has a sync record.
 
 ### The agent layer
 
@@ -92,7 +92,7 @@ In loom's tests, 865 lines in 69 files name `drafting/`, `nodes/`, `refs/` or `l
 | `build/`, `retired/` | derived output; the sources `atomize --retire` sets aside | move into `.loom/` |
 | `notes/` | a directory loom never scans | the special case goes; the person ignores what they choose |
 | `.gitignore` | loom's ignore lines, most naming loom's directories | shrinks: `.loom/` carries its own |
-| `.loom/` | history, ledger, sessions, the Overleaf clone, `since` markers | gains everything above and loses the clone |
+| `.loom/` | history, ledger, sessions, the Overleaf clone, `since` markers | gains everything above and loses the clone, since sync works in a directory the person names |
 | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` | one line each, telling an agent to orient | stay: each client reads its file at the root, and only `loom ai init` writes them |
 | `.claude/`, `.codex/`, `.gemini/`, `.cursor/`, `.mcp.json` | client configuration | stay, already hidden |
 
@@ -104,7 +104,7 @@ A fresh quilt is then `config.toml`, `README.md` and `.loom/`, plus the agent fi
 
 **A document may be anywhere.** A file with `\documentclass` is a document wherever it sits, and is live unless it is ignored or superseded. DR-132 made placement the declaration of liveness because `canon/` held the frozen versions of a paper in the same tree. `canon/` is gone, landmarks live in the history (plan 0.17.3), and a superseded document is a recorded state, so placement no longer declares anything the records do not. The seven restatements of the drafting-directory rule become one. Ignoring is the one declaration left: `% !LOOM ignore` exists already, and the scanner reads only `.tex` files, so an ignore file would matter mainly to the viewer's tree (see the open questions). It would be a different list from the agent deny list below, since "loom does not read this" and "an agent may not write this" are two ideas (K2).
 
-**A document is named by its path.** The stem stops being a document's key, because in an open layout stems repeat. Every structure keyed by the stem (the build directory, the fragment, the `.aux` lookup, the manifest's `pdf`, the viewer's route) is keyed instead by a name drawn from the path. `loom:document-stem-taken` goes. `masters[].directory` goes too: whether a document is an agent copy is `copy_of`, which the manifest already publishes from the history. This is a change in both codebases and in the spec fixture, and the largest single change in the study after the compile directory.
+**A document is named by its path.** The stem stops being a document's key, because in an open layout stems repeat. Every structure keyed by the stem (the build directory, the fragment, the `.aux` lookup, the manifest's `pdf`, the viewer's route) is keyed instead by the document's path without `.tex`, kept as a path (the author's choice, 2026-10-30): `paper/main.tex` builds into `build/paper/main/`, its fragment is `fragments/masters/paper/main.html`, and the viewer opens it at `/master/paper/main`, so the address reads as the Docs tree does. Two such names cannot collide, so `loom:document-stem-taken` goes and no lint replaces it. `masters[].directory` goes too: whether a document is an agent copy is `copy_of`, which the manifest already publishes from the history. This is a change in both codebases and in the spec fixture, and the largest single change in the study after the compile directory.
 
 **A document compiles from its own directory** (the author's choice, 2026-10-30). That is what LaTeX and most editors expect, and what an Overleaf project with its main file at the top already does. P12 changes from "compiles from the quilt root" to "compiles from its own directory, on any TeX, on Overleaf".
 
@@ -125,7 +125,7 @@ A fresh quilt is then `config.toml`, `README.md` and `.loom/`, plus the agent fi
 
 ## What the viewer shows
 
-**Docs is the project's tree,** the person's directories and files with loom's hidden, and it is the working view. It opens on the front door when the browser remembers no place to return to.
+**Docs is the project's tree,** the person's directories and files with loom's hidden, each directory collapsing and expanding as in VS Code's explorer, and it is the working view. It opens on the front door when the browser remembers no place to return to.
 
 Every file sits in one or more of four layers. Each layer holds more formats than the one below it, and loom requires no layer of any file:
 
@@ -174,12 +174,12 @@ The Author keeps everything they have now, at the cost of one line naming their 
 Docs is where the person works. Review is where they see what has changed or is waiting on them, and keep it or throw it away. Its sections, as proposed:
 
 - **Changes to open files** since the person last looked, each kept or undone, with who made it where loom knows.
-- **Agent documents** to adopt.
+- **Agent documents** to adopt, and **pulls** from the Overleaf directory to incorporate, as today.
 - **Suggestions** waiting to be applied, and **library proposals** waiting to be verified.
 - **Acceptance** of the mathematics, kept apart from the rest. "Accept" means only that a key's mathematics is right; keeping an edit gets a verb of its own (K7).
 - **Sessions, History and Problems,** as today.
 
-Coauthors' pulls leave Review (see "Overleaf: backing off").
+Pulls stay in Review for as long as sync does (see "Overleaf: backing off").
 
 **Open: where the old text comes from.** Undoing a change to a file loom does not understand needs the text from before the change. There are four options, and none is chosen here:
 
@@ -214,21 +214,39 @@ Two existing facts shape it:
 
 ## Overleaf: backing off
 
-This part adds nothing. It gives the person ownership of their shared paper, with the responsibility that comes with it, and removes loom's machinery for it.
+This part adds nothing. It hands the person the Overleaf directory now, and may later hand them the syncing too.
 
-**The person's way.** They make a directory, clone their Overleaf project's git repository into it, and pull and push themselves. Loom shows the directory like any other. Because a document compiles from its own directory, the paper compiles in loom as it does on Overleaf, and loom needs no setting to know which directory is Overleaf's.
+### Now: sync works in a directory the person names
 
-**What goes,** about 2,700 lines:
+The person makes a directory, clones their Overleaf project's git repository into it, and names it to loom with `loom sync init DIR` (the author's choice, 2026-10-30). Loom stops cloning into `.loom/workspace/`. Everything else in sync carries on as it works today: publish, fetch, review in Incoming, and incorporate, with loom running git in that directory as it runs it in its clone now.
+
+Running git in a directory the person owns is safe with the existing machinery, because of how it already works. Publishing builds its commit with a temporary index (`GIT_INDEX_FILE`, `hash-object`, `commit-tree`) and moves only loom's own ref, `refs/loom/publication`; fetching moves only `refs/loom/incoming/*`. Neither touches the directory's working tree or its checked-out branch. `sync publish --push` sends the publication, so after a push the person's own branch lags the remote until they pull.
+
+What changes in the code is small:
+
+- **`configure`** (`sync.py:296`) checks the named directory (a git repository, with the Overleaf project as a remote) instead of cloning, and never replaces or removes it. Today it removes an existing clone and clones again, which is right only for a directory loom owns.
+- **`workspace()`** (`sync.py:174-186`), through which every git call but the clone already goes, returns the directory the sync record names instead of the constant `WORKSPACE`.
+- **The guards stay:** the directory may not be the quilt's own repository, nor hold a quilt.
+- **Every tree walker skips the directory:** the scanner (`skipped_dirs`, `scan/scan.py:139-141`), the watcher, section drafts' context and the importer's mirror. Inside the quilt, the directory holds copies of the quilt's own sources, so scanning it would define every id twice and leave every key conflicted. Today's clone escapes that only because `.loom/` is skipped.
+- **The `.loom/workspace/` lines** in `gitignore.py` and the init asset go.
+
+Sync keeps following the documents it publishes. When documents may live anywhere (phase 2) and compile from their own directory (phase 3), its master rule and its projection change with them.
+
+### Later: backing off fully
+
+Once a document can live in the Overleaf directory itself and compile from it there, the person can work in that directory directly, pulling and pushing themselves. Loom shows it like any other directory, and the paper compiles in loom as it does on Overleaf. Sync then has nothing left to project. Whether to delete it at that point is a later decision, and the rest of this section is what deleting it would mean.
+
+**What would go,** about 2,700 lines:
 
 - `.loom/workspace/`, loom's own clone, and `loom sync` with `init`, `documents`, `publish`, `fetch` and `incorporate`: `sync.py` and `cli/sync.py`, and `loom/tests/unit/test_sync.py`.
 - The source projection, and the review origins kept for pulls (the `pull:` rows of `.loom/review-origins.json`).
 - Pulls in Review's Incoming: `attach_incoming` and its helpers in `render/incoming.py`, `prose_sections` and `attach_prose` in `render/prose_changes.py`, and the viewer's `IncomingPull.svelte` and `m.incoming` branches.
 - The write API's `sync-preview` and `sync-incorporate`, and the manifest's `incoming` and `kind: "workspace"` fields.
-- The invariant "Sync never writes to the quilt's own repository", since loom would then run no git that writes. `sync publish --push` and `sync incorporate` leave the list of the author's acts.
+- The invariant "Sync never writes to the quilt's own repository", since loom would then run no git that writes. `sync publish --push` and `sync incorporate` would leave the list of the author's acts.
 
-**What stays:** `SyncError` is renamed to an error of incorporation, since adoption raises it at 93 sites; `incorporation_review.py`, `review_origins.py` and `IncomingMath.svelte` keep their adoption halves.
+**What would stay:** `SyncError` would be renamed to an error of incorporation, since adoption raises it at 93 sites; `incorporation_review.py`, `review_origins.py` and `IncomingMath.svelte` keep their adoption halves.
 
-What each job of the projection becomes:
+What each job of the projection would become:
 
 | job | today | after |
 |---|---|---|
@@ -239,13 +257,9 @@ What each job of the projection becomes:
 | a coauthor's rename | recorded as a move | `document-gone`, with `loom mv` as its fix |
 | agents and the paper | agents never wrote the author's files | the deny list: protect the paper's directory, and agents work on copies |
 
-**The loss, stated plainly:** loom no longer reviews coauthors' changes before they land. Nothing unchecked looks checked all the same, because staleness is computed from the text (P3, P15), and loom writes no author file in any of it (P7).
+**The loss, stated plainly:** with sync deleted, loom would no longer review coauthors' changes before they land. Nothing unchecked would look checked all the same, because staleness is computed from the text (P3, P15), and loom would write no author file in any of it (P7). DR-105's "a quilt is not a repository unless the author asks" would then hold more firmly than before, since loom would write to no repository at all.
 
-**When.** Neither of the author's quilts has a sync record, so deleting sync breaks nothing of theirs, and deleting it first saves the later phases from changing code that is about to go.
-
-**A nested repository.** If the quilt is itself a git repository, the paper's directory is a repository inside it, and a coauthor who clones the quilt does not get the paper unless the person makes it a submodule. That choice is the person's; loom does not need to care.
-
-DR-327's record stays in the frozen history. DR-105's "a quilt is not a repository unless the author asks" holds more firmly than before, since loom then writes to no repository at all.
+**A nested repository,** now and later. If the quilt is itself a git repository and the Overleaf directory sits inside it, that directory is a repository inside the quilt's, and a coauthor who clones the quilt does not get the paper unless the person makes it a submodule. That choice is the person's; loom does not need to care.
 
 ## What stays
 
@@ -263,8 +277,8 @@ DR-327's record stays in the frozen history. DR-105's "a quilt is not a reposito
 - **Frozen records that become history:** DR-132's placement rule, DR-23's masters directory and compile from the root, and DR-28's `loom.sty` at the root.
 - **The interface:** documents are named by path in the manifest and the viewer's routes; `masters[].directory` goes; a file item kind arrives.
 - **Documents that change:**
-  - `docs/design/`: `model.md` (the quilt, documents, the viewer's frame), `agents.md` (what an agent may write) and `invariants.md` (the sync invariant);
-  - `docs/specs/`: `source-contract.md` §1, `manifest.md` (§1, §2, §2a, and sync), `write-api.md` (sync, and `adopt-start`'s destination), `diagnostics.md` (the drafting-directory codes, `loom.sty`'s), `dialect.md` §3 (frames belong to file items) and `fixture.md`;
+  - `docs/design/`: `model.md` (the quilt, documents, the viewer's frame, coauthors), `agents.md` (what an agent may write) and `invariants.md` (sync's git runs only in the directory the sync record names, where today it says loom's own clone);
+  - `docs/specs/`: `source-contract.md` §1, `manifest.md` (§1, §2, §2a), `write-api.md` (`adopt-start`'s destination), `diagnostics.md` (the drafting-directory codes, `loom.sty`'s), `dialect.md` §3 (frames belong to file items) and `fixture.md`;
   - the init assets, `loom upgrade` and `loom doctor`.
 - **A possible principle,** for the author to decide: *loom hosts the project; it does not shape it.* A layout, a medium or a way of working is the person's, and a feature that works only when the person organises their work loom's way needs a reason.
 
@@ -286,28 +300,32 @@ DR-327's record stays in the frozen history. DR-105's "a quilt is not a reposito
 - **A person's Markdown with raw HTML:** escaped, as it is in pages and messages; raw HTML belongs in HTML files, shown from their own origin.
 - **Ignoring:** the scanner reads only `.tex` files, so an ignore file would matter mainly to the viewer's tree, and there the person's own `.gitignore` already says what they count as noise. `% !LOOM ignore` stays the scanner's declaration.
 
+**Decided by the author:**
+
+- **How a document is named:** by its path without `.tex`, kept as a path, not flattened to `paper-main`, which would let `a-b/c.tex` and `a/b-c.tex` collide.
+
 **Raised by the code, for the author:**
 
-1. **How a document is named by its path.** The path without `.tex`, kept as a path (`build/paper/main/`, `/master/paper/main`), cannot collide. A flattened name (`paper-main`) keeps every directory flat, but `a-b/c.tex` and `a/b-c.tex` collide and need a lint. The kept path is recommended.
-2. **The front door's setting name.** `home` is a candidate.
+1. **The front door's setting name.** `home` is a candidate.
 
 **Still open:**
 
-3. Where Review's old text comes from (the four options above).
-4. Notebooks: rendered read-only, or only opened in their application.
-5. How a link names an application, and whether Anki on the desktop has a URL scheme.
-6. Whether a discussion quote and a fleeting note are one mechanism.
-7. The research state's default place: `.loom/`, or the root.
-8. The deny list's setting name.
+2. Where Review's old text comes from (the four options above).
+3. Notebooks: rendered read-only, or only opened in their application.
+4. How a link names an application, and whether Anki on the desktop has a URL scheme.
+5. Whether a discussion quote and a fleeting note are one mechanism.
+6. The research state's default place: `.loom/`, or the root.
+7. The deny list's setting name.
+8. Whether to delete sync once a document can live and compile in the Overleaf directory itself.
 
 ## Phases
 
 Each phase is checked against two quilts. In relloc, the Author must lose nothing they have now. In quant, the person and their agent must be able to build whatever they choose without loom getting in the way. The security fix in "Found along the way" is its own task and lands before phase 6.
 
 0. **One owner for loom's paths.** A module holds every path loom uses, and the forty modules that encode the layout read it; nothing changes in behaviour, and the four copies that ignore `[quilt] history` are fixed. Every later phase then moves a path in one place.
-1. **Overleaf.** `loom sync` and everything listed under it are deleted, about 2,700 lines, and `SyncError` is renamed.
-2. **Documents anywhere, named by path.** One master rule in place of seven; the path-derived name through the build directory, fragments, the `.aux` lookup, the manifest and the viewer's routes; `masters[].directory` replaced by `copy_of`. Most of the fixture churn falls here: the 69 loom test files, the 16 fixture quilts, the spec fixture, and about 290 lines of the viewer's tests.
-3. **Own-directory compile and the macro block.** A per-document base through `compile_tex` and the resolvers; landmarks and copies compile from their source's directory; `new`, atomize, fork and import write relative to the document; section drafts take their context from the document's directory; the macro block replaces `loom.sty`.
+1. **Overleaf: the person names the sync directory.** `loom sync init DIR` checks the person's clone instead of making one, `workspace()` returns it, every tree walker skips it, and `.loom/workspace/` goes; the rest of sync is unchanged.
+2. **Documents anywhere, named by path.** One master rule in place of seven, sync's among them; the path, kept as a path, as the name through the build directory, fragments, the `.aux` lookup, the manifest and the viewer's routes; `masters[].directory` replaced by `copy_of`. Most of the fixture churn falls here: the 69 loom test files, the 16 fixture quilts, the spec fixture, and about 290 lines of the viewer's tests.
+3. **Own-directory compile and the macro block.** A per-document base through `compile_tex` and the resolvers; landmarks and copies compile from their source's directory; sync's projection compiles from the document's directory; `new`, atomize, fork and import write relative to the document; section drafts take their context from the document's directory; the macro block replaces `loom.sty`. After this phase a person can work in the Overleaf directory directly, and whether to delete sync becomes a decision of its own (open question 8).
 4. **Loom's files into `.loom/`.** `digests/`, `annotations/`, `reference-notes.jsonl`, `ai/`, `build/` and `retired/` move, which after phase 0 is a change of constants; `loom init` writes the config, the tutorial README and `.loom/`; the root `.gitignore` shrinks.
 5. **Agents.** The deny list, its generation into each client and its statement in the orientation and the instruction line; agent copies in `.loom/`, read as landmarks are; agent documents written from scratch removed.
 6. **The viewer.** The file item kind, Docs as the project's tree, the front door, Markdown documents, HTML in its frame from its own origin, and links that open other applications.
