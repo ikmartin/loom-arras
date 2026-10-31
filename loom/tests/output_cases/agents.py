@@ -68,7 +68,7 @@ def _git(cwd: Path, *args: str) -> None:
 
 
 def workspace(q: Path) -> None:
-    """A bare repository beside the quilt standing in for an Overleaf project, at `../overleaf.git`."""
+    """A bare repository beside the quilt standing in for an Overleaf project, at `../overleaf.git`, and the person's clone of it at `../overleaf`."""
     bare, seed = q.parent / "overleaf.git", q.parent / "seed"
     _git(q.parent, "init", "-q", "--bare", "-b", "master", str(bare))
     _git(q.parent, "clone", "-q", str(bare), str(seed))
@@ -78,6 +78,9 @@ def workspace(q: Path) -> None:
     _git(seed, "add", ".")
     _git(seed, "commit", "-q", "-m", "new project")
     _git(seed, "push", "-q", "origin", "HEAD:master")
+    _git(q.parent, "clone", "-q", str(bare), str(q.parent / "overleaf"))
+    # named as a person beside it would, so the workspace's label stays short
+    _git(q.parent / "overleaf", "remote", "set-url", "origin", "../overleaf.git")
 
 
 def paired(q: Path) -> None:
@@ -87,7 +90,7 @@ def paired(q: Path) -> None:
 
     author(q)
     workspace(q)
-    configure(load_quilt(q), "../overleaf.git", "main.tex")
+    configure(load_quilt(q), str(q.parent / "overleaf"), "main.tex")
 
 
 def incoming(q: Path) -> None:
@@ -225,10 +228,10 @@ CASES: dict[str, list[Case]] = {
         Case(("no-such-copy.tex",), exit=2, why="names no agent document", unchanged=True),
     ],
     "sync init": [
-        Case(("../overleaf.git", "--publish-main", "main.tex"), setup=workspace),
-        Case(("../overleaf.git", "--dry-run"), setup=workspace, unchanged=True),
-        Case(("../nowhere.git",), exit=2, why="no workspace there to clone", unchanged=True),
-        Case(("../nowhere.git", "--dry-run"), exit=2, why="no workspace there to ask", unchanged=True),
+        Case(("../overleaf", "--publish-main", "main.tex"), setup=workspace),
+        Case(("../overleaf", "--dry-run"), setup=workspace, unchanged=True),
+        Case(("../nowhere",), exit=2, why="no directory there", unchanged=True),
+        Case(("https://git.overleaf.com/0123abcd",), exit=2, why="a URL, where a clone is wanted", unchanged=True),
     ],
     "sync fetch": [Case((), setup=paired), Case((), exit=2, why="not paired")],
     "sync status": [

@@ -1,6 +1,6 @@
 """The document workspace: a source-only Git repository, such as an Overleaf project, that coauthors edit.
 
-Loom keeps its own clone of the workspace in `.loom/workspace/` and runs Git only there; the quilt's own files are read and written as files, and the quilt's version control, if it has any, is never touched. Publishing commits the selected documents' sources in the clone and stamps each document; incorporating a pull applies the reviewed patch to the quilt's files after stamping what it replaces. Neither accepts mathematics.
+The person clones the workspace into a directory of their choosing and names it with `loom sync init DIR`. Loom runs Git only there, and moves only its own refs (`refs/loom/*`) and the remote's branch: the directory's files, index and checked-out branch are the person's. The quilt's own files are read and written as files, and the quilt's version control, if it has any, is never touched. Publishing commits the selected documents' sources through a temporary index and stamps each document; incorporating a pull applies the reviewed patch to the quilt's files after stamping what it replaces. Neither accepts mathematics.
 """
 
 from __future__ import annotations
@@ -12,12 +12,13 @@ import shutil
 import subprocess
 import tempfile
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from loom.clock import stamp
-from loom.paths import REVIEW_ORIGINS, SOURCE_SYNC, WORKSPACE
+from loom.paths import BUILD, LOOM, REVIEW_ORIGINS, SOURCE_SYNC
 from loom.reshape.importer import closure_of
 from loom.scan.quilt import Quilt
 from loom.tex.runner import compile_tex
@@ -25,7 +26,7 @@ from loom.tex.runner import compile_tex
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
-#: The ref in the clone that holds the last prepared publication.
+#: The ref in the sync directory that holds the last prepared publication.
 PUBLICATION_REF = "refs/loom/publication"
 
 
@@ -39,6 +40,10 @@ class SourceError(SyncError):
 
 @dataclass
 class SyncState:
+    # the person's clone: quilt-relative when it sits inside the quilt, absolute otherwise
+    directory: str
+    # the remote and branch it follows, and the remote's URL when it was paired, which names the workspace
+    remote: str
     url: str
     branch: str
     master: str
@@ -60,7 +65,7 @@ class SyncState:
     def read(cls, root: Path) -> SyncState:
         path = root / SOURCE_SYNC
         if not path.is_file():
-            raise SyncError("document workspace is not configured; run `loom sync init URL` first")
+            raise SyncError("document workspace is not configured; run `loom sync init DIR` first")
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             state = cls(**data)
@@ -83,7 +88,7 @@ class SyncState:
                 state.documents.insert(0, state.master)
             return state
         except (ValueError, TypeError) as exc:
-            raise SyncError(f"{path} is not a valid source-sync record; pair again with `loom sync init URL`") from exc
+            raise SyncError(f"{path} is not a valid source-sync record; pair again with `loom sync init DIR`") from exc
 
     def write(self, root: Path) -> None:
         if self.master not in self.documents:
@@ -113,7 +118,7 @@ class SyncState:
 
 
 def git(cwd: Path, *args: str, env: dict[str, str] | None = None, input: bytes | None = None) -> bytes:
-    """Run git in `cwd`, which is loom's clone or a scratch directory, never the quilt's own repository."""
+    """Run git in `cwd`, which is the sync directory or a scratch directory, never the quilt's own repository."""
     try:
         run = subprocess.run(["git", *args], cwd=cwd, env=env, input=input, capture_output=True, check=False)
     except FileNotFoundError as exc:
@@ -149,36 +154,73 @@ def place(url: str, base: Path) -> str:
     return key.rstrip("/").removesuffix(".git")
 
 
+def _ask(cwd: Path, *args: str) -> str:
+    """Git's answer to a question that changes nothing, stripped; '' when git fails or is missing, which answers it too.
+
+    Pairing asks these of the person's directory and of the quilt's own repository, where `git` is never run.
+    """
+    try:
+        run = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return ""
+    return run.stdout.strip() if run.returncode == 0 else ""
+
+
 def own_remotes(root: Path) -> dict[str, str]:
     """`{place: remote name}` for every fetch and push URL of the repository the quilt sits in, if it sits in one; read with `git config`, which changes nothing there."""
-
-    def ask(*args: str) -> str:
-        try:
-            run = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
-        except FileNotFoundError:
-            return ""
-        return run.stdout if run.returncode == 0 else ""
-
-    top = ask("rev-parse", "--show-toplevel").strip()
+    top = _ask(root, "rev-parse", "--show-toplevel")
     if not top:
         return {}
     out: dict[str, str] = {}
-    for line in ask("config", "--get-regexp", r"^remote\..*\.(push)?url$").splitlines():
+    for line in _ask(root, "config", "--get-regexp", r"^remote\..*\.(push)?url$").splitlines():
         key, _, url = line.partition(" ")
         if url:
             out.setdefault(place(url, Path(top)), key.split(".")[1])
     return out
 
 
-def workspace(root: Path) -> Path:
-    """Loom's clone of the document workspace, refused by name when it is missing.
+def _named(root: Path) -> str | None:
+    """The record's `directory` as written, or None before a pairing or when the record cannot be read."""
+    try:
+        named = json.loads((root / SOURCE_SYNC).read_text(encoding="utf-8")).get("directory")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return named if isinstance(named, str) and named else None
 
-    Every Git call but `configure`'s clone runs here. The clone is loom's own: it holds the fetched revisions and the prepared publication, and nothing an author wrote.
+
+def skipped_directory(root: Path) -> str | None:
+    """The sync directory's quilt-relative path when it sits inside the quilt, else None.
+
+    Every tree walker skips it: it holds copies of the quilt's own sources, which read as the quilt's would define every id twice. The record keeps a directory inside the quilt relative and any other absolute.
     """
-    clone = root / WORKSPACE
-    if not (clone / ".git").is_dir():
+    named = _named(root)
+    return named if named is not None and not Path(named).is_absolute() else None
+
+
+def copy_ignore(root: Path, *patterns: str) -> Callable[[str, list[str]], set[str]]:
+    """A `shutil.copytree` ignore for a copy of the quilt at `root`: `patterns` by name, as `shutil.ignore_patterns` takes them, and the sync directory by path."""
+    by_name = shutil.ignore_patterns(*patterns)
+    synced = skipped_directory(root)
+    pruned = root / synced if synced else None
+
+    def ignore(folder: str, names: list[str]) -> set[str]:
+        return set(by_name(folder, names)) | {n for n in names if Path(folder) / n == pruned}
+
+    return ignore
+
+
+def workspace(root: Path) -> Path:
+    """The sync directory the record names, refused by name when there is no record or the directory is no longer a repository.
+
+    Every Git call runs here. The directory is the person's: loom adds objects and its own refs (`refs/loom/*`), and a fetch or a push moves the remote's branch, but its files, index and checked-out branch are never touched.
+    """
+    named = _named(root)
+    if named is None:
+        raise SyncError("document workspace is not configured; run `loom sync init DIR` first")
+    clone = root / named
+    if not (clone / ".git").exists():
         raise SyncError(
-            f"loom's clone of the document workspace ({WORKSPACE}) is missing; pair again with `loom sync init URL`"
+            f"the sync directory {named} is gone or no longer a Git repository; name it again with `loom sync init DIR`"
         )
     return clone
 
@@ -292,30 +334,120 @@ def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[s
     return documents, projected
 
 
-def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool = True) -> SyncState:
-    """Clone the document workspace into `.loom/workspace/` and pair it with the quilt's main document.
+def _is_url(given: str) -> bool:
+    """Whether `sync init`'s argument is a URL (`scheme://…` or scp-style `user@host:path`) rather than a directory."""
+    return bool(re.match(r"^[A-Za-z][A-Za-z0-9+.-]*://", given) or re.match(r"^[^@/\s]+@[^/:\s]+:", given))
 
-    A clone already there is replaced, since it holds nothing that a fetch and a publish do not make again. The branch is the workspace's default branch.
+
+def _holds_quilt(clone: Path, rev: str) -> bool:
+    """Whether the workspace at `rev` holds a `config.toml` with a `[quilt]` table: a quilt's repository, which a publish would replace with the documents' sources."""
+    try:
+        held = tomllib.loads(git(clone, "show", f"{rev}:config.toml").decode("utf-8", errors="replace"))
+    except (SyncError, tomllib.TOMLDecodeError):
+        return False
+    return isinstance(held.get("quilt"), dict)
+
+
+def _followed(quilt: Quilt, given: str, clone: Path) -> tuple[str, str, str, str]:
+    """(remote, branch, URL, tip) of the clone `sync init` was given, refusing a directory loom must not run Git in.
+
+    Refused, each naming what clears it: anything but the top level of a repository with a work tree; a directory inside `.loom/`, the build output or the history, which loom rewrites; the quilt's own repository, as the directory holding the quilt or a worktree of it; a branch that follows no remote; a remote of the quilt's own repository; and a tip holding a quilt.
+    """
+    root = quilt.root.resolve()
+    clone_it = f"clone the workspace there: `git clone URL {given}`, then `loom sync init {given}`"
+    if not clone.is_dir():
+        raise SyncError(f"{given} is not a directory; {clone_it}")
+    if _ask(clone, "rev-parse", "--is-bare-repository") == "true":
+        raise SyncError(f"{given} is a bare repository; clone it: `git clone {given} DIR`, then `loom sync init DIR`")
+    top = _ask(clone, "rev-parse", "--show-toplevel")
+    if not top:
+        raise SyncError(f"{given} is not a Git repository; {clone_it}")
+    if Path(top).resolve() != clone:
+        raise SyncError(
+            f"{given} is inside the repository {top}, not a clone of its own; name the clone's own directory"
+        )
+    for owned in (root / LOOM, root / BUILD, quilt.history_dir.resolve()):
+        if clone.is_relative_to(owned):
+            raise SyncError(
+                f"{given} is inside {owned.relative_to(root).as_posix()}/, which loom rewrites; clone the workspace anywhere else"
+            )
+    if root.is_relative_to(clone):
+        raise SyncError(f"{given} holds this quilt; clone the workspace into a directory of its own")
+
+    def common(cwd: Path) -> Path | None:
+        said = _ask(cwd, "rev-parse", "--git-common-dir")
+        return (cwd / said).resolve() if said else None
+
+    if common(clone) == common(root):
+        raise SyncError(
+            f"{given} is a worktree of this quilt's own repository; clone the workspace into a directory of its own"
+        )
+    head = _ask(clone, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if not head:
+        raise SyncError(
+            f"{given} has no branch checked out; check out the one the workspace keeps: `git -C {given} switch BRANCH`"
+        )
+    if not _ask(clone, "rev-parse", "--verify", "--quiet", "HEAD"):
+        raise SyncError(f"{given} has no commits; create the project there first, then `git -C {given} pull`")
+    remote = _ask(clone, "config", "--get", f"branch.{head}.remote")
+    merge = _ask(clone, "config", "--get", f"branch.{head}.merge")
+    url = _ask(clone, "remote", "get-url", remote) if remote and remote != "." else ""
+    if not url or not merge.startswith("refs/heads/"):
+        raise SyncError(
+            f"{given}'s branch {head} follows no remote; name the one it pulls from: "
+            f"`git -C {given} branch --set-upstream-to REMOTE/BRANCH`"
+        )
+    branch = merge.removeprefix("refs/heads/")
+    own = own_remotes(root).get(place(url, clone))
+    if own is not None:
+        raise SyncError(
+            f"{given} follows {url}, which is `{own}`, a remote of the repository this quilt is in: the quilt's own "
+            "upstream, which a publish would replace with the documents' sources; clone the workspace's own URL "
+            "(an Overleaf project's is under Menu, Git)"
+        )
+    tip = _ask(clone, "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{branch}^{{commit}}")
+    if not tip:
+        raise SyncError(
+            f"{given} has not fetched {remote}/{branch}; run `git -C {given} fetch {remote}`, then pair again"
+        )
+    if _holds_quilt(clone, tip):
+        raise SyncError(
+            f"{given} holds a config.toml with a [quilt] table: it is a quilt's repository, not a document workspace, "
+            "and publishing would replace that quilt with the documents' sources; clone the workspace's own URL"
+        )
+    return remote, branch, url, tip
+
+
+def configure(quilt: Quilt, given: str, published_main: str = "", *, write: bool = True) -> SyncState:
+    """Pair the quilt with a document workspace through the person's clone of it, and record the pairing.
+
+    Nothing is cloned, fetched, replaced or removed. The remote and branch are those the clone's checked-out branch follows, and the revision paired at is that remote branch as the clone last fetched it; a directory loom must not run Git in is refused (`_followed`).
 
     Parameters
     ----------
     quilt : Quilt
         The quilt to pair.
-    url : str
-        The workspace's Git URL or path, e.g. Overleaf's `https://git.overleaf.com/<project>`.
+    given : str
+        The clone's directory as the person typed it, e.g. a clone of Overleaf's `https://git.overleaf.com/<project>`; a relative path is from the current directory.
     published_main : str, default ''
-        The main document's path in the workspace; '' keeps the quilt's path.
+        The main document's path in the workspace; '' keeps the path an earlier pairing with the same remote recorded, else the quilt's.
     write : bool, default True
-        False asks the workspace for its branch and tip (`git ls-remote`) and clones and writes nothing.
+        False makes every check and writes no record.
 
     Returns
     -------
     SyncState
-        The sync record, written unless `write` is false, its `integrated` revision the workspace's tip.
+        The sync record, written unless `write` is false.
     """
     root = quilt.root
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
         raise SyncError("the document workspace main path must stay within the project")
+    if _is_url(given):
+        raise SyncError(
+            f"{given} is a URL, and `sync init` takes a clone of the workspace: `git clone {given} DIR`, then `loom sync init DIR`"
+        )
+    clone = Path(given).expanduser().resolve()
+    remote, branch, url, tip = _followed(quilt, given, clone)
     if not published_main:
         # pairing again keeps where the main document publishes, rather than silently setting it back (T7)
         try:
@@ -324,46 +456,10 @@ def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool =
             before = None
         if before is not None and before.url == url:
             published_main = before.published_main
-    remote = own_remotes(root).get(place(url, root))
-    if remote is not None:
-        raise SyncError(
-            f"{url} is `{remote}`, a remote of the repository this quilt is in: the quilt's own upstream, which a publish "
-            "would replace with the documents' sources; give the workspace's own URL (an Overleaf project's is under Menu, Git)"
-        )
-    if not write:
-        try:
-            said = git(root, "ls-remote", "--symref", url, "HEAD").decode().splitlines()
-        except SyncError as exc:
-            raise SyncError(f"cannot reach {url}: {reason(exc)}") from exc
-        heads = [line.split("\t")[0] for line in said if line.startswith("ref: ")]
-        tips = [line.split("\t")[0] for line in said if not line.startswith("ref: ") and line.strip()]
-        if not tips:
-            raise SyncError(f"{url} has no commits; create the project there first")
-        return SyncState(
-            url=url,
-            branch=heads[0].removeprefix("ref: refs/heads/") if heads else "HEAD",
-            master=quilt.config.main,
-            integrated=tips[0],
-            published_main=published_main or quilt.config.main,
-            documents=[quilt.config.main],
-        )
-    target = root / WORKSPACE
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="workspace-", dir=target.parent) as temporary:
-        clone = Path(temporary) / "clone"
-        try:
-            git(root, "clone", "--quiet", "--no-tags", url, str(clone))
-        except SyncError as exc:
-            raise SyncError(f"cannot reach {url}: {reason(exc)}") from exc
-        try:
-            tip = revision(clone, "HEAD")
-        except SyncError as exc:
-            raise SyncError(f"{url} has no commits; create the project there first") from exc
-        branch = git(clone, "symbolic-ref", "--short", "HEAD").decode().strip()
-        if target.exists():
-            shutil.rmtree(target)
-        clone.rename(target)
+    inside = clone.is_relative_to(root.resolve())
     state = SyncState(
+        directory=clone.relative_to(root.resolve()).as_posix() if inside else str(clone),
+        remote=remote,
         url=url,
         branch=branch,
         master=quilt.config.main,
@@ -371,13 +467,14 @@ def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool =
         published_main=published_main or quilt.config.main,
         documents=[quilt.config.main],
     )
-    state.write(root)
+    if write:
+        state.write(root)
     return state
 
 
 def fetch(quilt: Quilt, state: SyncState) -> SyncState:
     clone = workspace(quilt.root)
-    git(clone, "fetch", "--quiet", "--no-tags", "origin", state.branch)
+    git(clone, "fetch", "--quiet", "--no-tags", state.remote, state.branch)
     new = revision(clone, "FETCH_HEAD")
     # Keep a ref to the reviewed object even when a later fetch moves FETCH_HEAD.
     git(clone, "update-ref", f"refs/loom/incoming/{new}", new)
@@ -399,23 +496,19 @@ def _recognize_publication(state: SyncState) -> None:
 
 
 def push_publication(quilt: Quilt, state: SyncState, commit: str) -> None:
-    """Send the prepared revision from loom's clone to the workspace, never forced."""
+    """Send the prepared revision from the sync directory to the workspace, never forced."""
     if not commit or commit != state.prepared:
         raise SyncError("publication does not match the prepared revision")
     clone = workspace(quilt.root)
     label = source_label(state.url)
-    try:
-        held = tomllib.loads(git(clone, "show", f"{commit}^:config.toml").decode("utf-8", errors="replace"))
-    except (SyncError, tomllib.TOMLDecodeError):
-        held = {}
-    if isinstance(held.get("quilt"), dict):
+    if _holds_quilt(clone, f"{commit}^"):
         raise SyncError(
             f"{label} holds a config.toml with a [quilt] table: it is a quilt's repository, not a document workspace, "
             "and publishing would replace that quilt with the documents' sources; nothing was pushed. "
-            "Pair with the workspace's own URL: loom sync init URL"
+            "Pair with a clone of the workspace's own URL: loom sync init DIR"
         )
     try:
-        git(clone, "push", "--porcelain", "origin", f"{commit}:refs/heads/{state.branch}")
+        git(clone, "push", "--porcelain", state.remote, f"{commit}:refs/heads/{state.branch}")
     except SyncError as exc:
         said = str(exc)
         if "[rejected]" in said:
@@ -739,7 +832,7 @@ class Publication:
 
 
 def _identity(clone: Path, env: dict[str, str], actor: str | None) -> dict[str, str]:
-    """`env` with a committer for loom's clone: the one Git is configured with, else the author's name."""
+    """`env` with a committer for the sync directory: the one Git is configured with there, else the author's name."""
     try:
         git(clone, "var", "GIT_COMMITTER_IDENT", env=env)
         return env
@@ -755,7 +848,7 @@ def _identity(clone: Path, env: dict[str, str], actor: str | None) -> dict[str, 
 
 
 def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: bool = True) -> Publication:
-    """Prepare the selected documents' sources as one revision in loom's clone, and stamp each document as published.
+    """Prepare the selected documents' sources as one revision in the sync directory, and stamp each document as published.
 
     The files are the quilt's as they are on disk; every selected document must compile from them alone. The revision sits on the workspace's tip at `PUBLICATION_REF` until `push_publication` sends it. Preparing the same files again returns the revision already prepared and stamps nothing.
 
@@ -784,7 +877,7 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: 
         raise SyncError(
             "an incoming revision is still awaiting incorporation; incorporate it in Incoming or with `loom sync incorporate` first"
         )
-    remote_tip = revision(clone, f"refs/remotes/origin/{state.branch}")
+    remote_tip = revision(clone, f"refs/remotes/{state.remote}/{state.branch}")
     if remote_tip != state.integrated:
         raise SyncError(
             "the document workspace advanced; run `loom sync fetch` and review the new revision before publishing"
@@ -918,7 +1011,7 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str,
         if document == main:
             raise SyncError(
                 f"{document} is the document the workspace's main file is published from, so it stays; "
-                "loom sync init URL --publish-main FILE pairs again with another"
+                "loom sync init DIR --publish-main FILE pairs again with another"
             )
         current = [item for item in current if item != document and result.current_document(item) != document]
     else:
@@ -939,6 +1032,7 @@ def summary(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         current = False
     return {
         "url": state.url,
+        "directory": state.directory,
         "branch": state.branch,
         "prepared": state.prepared if current else "",
         "prepared_landmarks": state.prepared_landmarks if current else [],

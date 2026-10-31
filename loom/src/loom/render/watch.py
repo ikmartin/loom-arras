@@ -38,9 +38,13 @@ RECORD_FILES = (REFERENCE_NOTES, REVIEW_DECISIONS, REVIEW_ORIGINS)
 
 
 def _files(root: Path) -> Iterator[Path]:
-    """Every file under `root` outside the directories `SKIP` names, which are pruned rather than walked: a quilt's `build/` holds thousands of files and is polled every second."""
+    """Every file under `root` outside the directories `SKIP` names and the sync directory, which are pruned rather than walked: a quilt's `build/` holds thousands of files and is polled every second."""
+    from loom.sync import skipped_directory
+
+    synced = skipped_directory(root)
+    pruned = root / synced if synced else None
     for here, dirs, names in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP]
+        dirs[:] = [d for d in dirs if d not in SKIP and Path(here) / d != pruned]
         for name in names:
             yield Path(here) / name
 

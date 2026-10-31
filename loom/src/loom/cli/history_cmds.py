@@ -45,6 +45,7 @@ from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local, rename_labels, split_id
 from loom.scan.quilt import Quilt, load_quilt
 from loom.scan.scan import ScanResult, scan, skipped_dirs
+from loom.sync import copy_ignore
 from loom.tex.assemble import shift_sectioning
 from loom.tex.identity import identity_test
 
@@ -568,7 +569,7 @@ def _scan_after(result: ScanResult, action: str, data: dict[str, Any]) -> ScanRe
     root = result.quilt.root
     with tempfile.TemporaryDirectory(prefix="loom-dry-run-") as tmp:
         copy = Path(tmp) / "quilt"
-        shutil.copytree(root, copy, ignore=shutil.ignore_patterns(BUILD, ".git"), symlinks=True)
+        shutil.copytree(root, copy, ignore=copy_ignore(root, BUILD, ".git"), symlinks=True)
         quilt = load_quilt(copy)
         append_entry(quilt.history_dir, action, data, None)
         return scan(quilt)

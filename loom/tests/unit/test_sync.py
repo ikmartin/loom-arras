@@ -15,7 +15,6 @@ from loom.review_queue import decide
 from loom.scan.quilt import load_quilt, save_author
 from loom.scan.scan import scan
 from loom.sync import (
-    WORKSPACE,
     SyncError,
     SyncState,
     changed_files,
@@ -74,6 +73,13 @@ def overleaf(tmp_path: Path) -> Path:
     return bare
 
 
+def cloned(tmp_path: Path, bare: Path, name: str = "project") -> Path:
+    """The person's own clone of the workspace at `tmp_path / name`: the directory `sync init` names."""
+    clone = tmp_path / name
+    subprocess.check_call(["git", "clone", "-q", str(bare), str(clone)], stderr=subprocess.DEVNULL)
+    return clone
+
+
 def colleague(tmp_path: Path, bare: Path) -> Path:
     clone = tmp_path / "collaborator"
     subprocess.check_call(["git", "clone", "-q", str(bare), str(clone)])
@@ -108,11 +114,11 @@ def compiled(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def paired(tmp_path: Path, files: dict[str, str] | None = None) -> tuple[Path, Path]:
-    """A quilt with no repository, paired with a fresh Overleaf project, its main published as `main.tex` and pushed."""
+    """A quilt with no repository, paired through a clone at `tmp_path / "project"` with a fresh Overleaf project, its main published as `main.tex` and pushed."""
     root = quilt_at(tmp_path, files or {"drafting/main.tex": SOURCE})
     bare = overleaf(tmp_path)
     quilt = load_quilt(root)
-    state = configure(quilt, str(bare), "main.tex")
+    state = configure(quilt, str(cloned(tmp_path, bare)), "main.tex")
     publication = publish(quilt, state)
     push_publication(quilt, state, publication.commit)
     return root, bare
@@ -130,9 +136,9 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE, ".loom/private.txt": "private acceptance\n"})
     bare = overleaf(tmp_path)
     quilt = load_quilt(root)
-    state = configure(quilt, str(bare), "main.tex")
+    state = configure(quilt, str(cloned(tmp_path, bare)), "main.tex")
     clone = workspace(root)
-    assert clone == root / WORKSPACE and state.branch == "master"
+    assert clone.resolve() == (tmp_path / "project").resolve() and (state.remote, state.branch) == ("origin", "master")
     assert state.integrated == run(bare, "rev-parse", "master")
 
     publication = publish(quilt, state)
@@ -226,7 +232,7 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
 
 
 def test_the_quilt_s_own_repository_is_never_touched(tmp_path: Path, compiled: list[str]) -> None:
-    """A quilt that is a repository keeps its history, index and refs through pairing, publishing, fetching and incorporating; loom's Git runs in its own clone."""
+    """A quilt that is a repository keeps its history, index and refs through pairing, publishing, fetching and incorporating; loom's Git runs in the sync directory."""
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
     run(root, "init", "-q", "-b", "main")
     run(root, "config", "user.name", "Tester")
@@ -235,11 +241,9 @@ def test_the_quilt_s_own_repository_is_never_touched(tmp_path: Path, compiled: l
     run(root, "commit", "-q", "-m", "the author's history")
     head, refs = run(root, "rev-parse", "HEAD"), run(root, "for-each-ref")
     bare = overleaf(tmp_path)
-    said = flat(ok("sync", "init", str(bare), "--publish-main", "main.tex", cwd=root).stdout)
-    assert said.startswith("paired with ") and "(master)" in said
-    assert f"`.gitignore` does not ignore {WORKSPACE}/, loom's clone of the workspace fix: loom upgrade" in said
-    (root / ".gitignore").write_text(".loom/workspace/\nbuild/\n", encoding="utf-8")
-    assert ".gitignore" not in ok("sync", "init", str(bare), "--publish-main", "main.tex", cwd=root).output
+    project = cloned(tmp_path, bare)
+    said = flat(ok("sync", "init", str(project), "--publish-main", "main.tex", cwd=root).stdout)
+    assert said.startswith(f"paired {project} with ") and "(master)" in said
     ok("sync", "publish", "--push", cwd=root)
     edit(colleague(tmp_path, bare), "edit", {"main.tex": SOURCE.replace("zk-0001}A", "zk-0001}B")})
     ok("sync", "fetch", cwd=root)
@@ -252,16 +256,70 @@ def test_the_quilt_s_own_repository_is_never_touched(tmp_path: Path, compiled: l
     )  # the author commits it
 
 
-def test_init_takes_the_workspace_url(tmp_path: Path) -> None:
+def test_the_sync_directory_s_files_and_branch_are_never_touched(tmp_path: Path, compiled: list[str]) -> None:
+    """Pairing, publishing, pushing, fetching and incorporating leave the person's clone as they left it: its HEAD, checked-out branch, index and files. Only its tracking branch and loom's own refs move."""
+    save_author("Tester")
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
-    refused("sync", "init", cwd=root, code=2, match="Missing argument 'URL'")
-    refused("sync", "init", "--remote", "origin", cwd=root, code=2, match="No such option")
-    refused("sync", "init", str(tmp_path / "nowhere.git"), cwd=root, code=2, match="cannot reach")
-    assert not (root / WORKSPACE).exists()
+    bare = overleaf(tmp_path)
+    project = cloned(tmp_path, bare)
+    head, branch = run(project, "rev-parse", "HEAD"), run(project, "symbolic-ref", "HEAD")
+    files = {p.name: p.read_bytes() for p in project.iterdir() if p.is_file()}
+    ok("sync", "init", str(project), "--publish-main", "main.tex", cwd=root)
+    ok("sync", "publish", "--push", cwd=root)
+    edit(colleague(tmp_path, bare), "edit", {"main.tex": SOURCE.replace("zk-0001}A", "zk-0001}B")})
+    ok("sync", "fetch", cwd=root)
+    ok("sync", "incorporate", cwd=root)
+    assert run(project, "rev-parse", "HEAD") == head and run(project, "symbolic-ref", "HEAD") == branch
+    assert run(project, "status", "--porcelain") == ""
+    assert {p.name: p.read_bytes() for p in project.iterdir() if p.is_file()} == files
+    assert run(project, "rev-parse", "refs/remotes/origin/master") == run(bare, "rev-parse", "master")
+    refs = {line.split()[-1] for line in run(project, "for-each-ref").splitlines()}
+    assert {r for r in refs if not r.startswith("refs/loom/")} == {
+        "refs/heads/master",
+        "refs/remotes/origin/HEAD",
+        "refs/remotes/origin/master",
+    }
+
+
+def test_init_takes_a_clone_of_the_workspace(tmp_path: Path) -> None:
+    """`sync init` names the person's clone and refuses anything else, each refusal naming what clears it; nothing is cloned, and no record is written."""
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
+    bare = overleaf(tmp_path)
+    refused("sync", "init", cwd=root, code=2, match="Missing argument 'DIR'")
+    for url in ("https://git.overleaf.com/0123abcd", "git@github.com:someone/paper.git"):
+        for dry in ((), ("--dry-run",)):
+            r = refused("sync", "init", url, *dry, cwd=root, code=2, match="is a URL")
+            assert f"git clone {url} DIR" in flat(r.stderr) and "loom sync init DIR" in flat(r.stderr), r.stderr
+    refused("sync", "init", str(tmp_path / "nowhere"), cwd=root, code=2, match="is not a directory")
+    (tmp_path / "plain").mkdir()
+    refused("sync", "init", str(tmp_path / "plain"), cwd=root, code=2, match="is not a Git repository")
+    refused("sync", "init", str(bare), cwd=root, code=2, match="is a bare repository")
+    project = cloned(tmp_path, bare)
+    (project / "sub").mkdir()
+    refused("sync", "init", str(project / "sub"), cwd=root, code=2, match="is inside the repository")
+    run(project, "branch", "--unset-upstream")
+    refused("sync", "init", str(project), cwd=root, code=2, match="follows no remote")
     empty = tmp_path / "empty.git"
     subprocess.check_call(["git", "init", "-q", "--bare", str(empty)])
-    refused("sync", "init", str(empty), cwd=root, code=2, match="has no commits; create the project there first")
+    hollow = cloned(tmp_path, empty, "hollow")
+    refused("sync", "init", str(hollow), cwd=root, code=2, match="has no commits; create the project there first")
+    assert not (root / ".loom/source-sync.json").exists()
     assert "Overleaf project" in ok("sync", "init", "--help").output
+
+
+def test_init_refuses_the_quilt_s_repository_and_loom_s_own_directories(tmp_path: Path) -> None:
+    """Loom runs Git only in a repository of the workspace's own: never the quilt's, a worktree of it, or a clone inside a directory loom rewrites."""
+    root, _ = quilt_with_upstream(tmp_path)
+    refused("sync", "init", str(root), cwd=root, code=2, match="holds this quilt")
+    run(root, "worktree", "add", "-q", "-b", "side", str(tmp_path / "side"))
+    refused("sync", "init", str(tmp_path / "side"), cwd=root, code=2, match="worktree of this quilt's own repository")
+    bare = overleaf(tmp_path)
+    for inside, owner in ((".loom/overleaf", ".loom/"), ("build/overleaf", "build/")):
+        refused("sync", "init", str(cloned(root, bare, inside)), cwd=root, code=2, match=f"is inside {owner}")
+    config = root / "config.toml"
+    config.write_text(config.read_text().replace("[quilt]\n", '[quilt]\nhistory = "hist"\n', 1))
+    refused("sync", "init", str(cloned(root, bare, "hist/overleaf")), cwd=root, code=2, match="is inside hist/")
+    assert not (root / ".loom/source-sync.json").exists()
 
 
 def test_a_missing_clone_or_an_old_record_is_refused_with_the_command_that_pairs_again(
@@ -270,19 +328,19 @@ def test_a_missing_clone_or_an_old_record_is_refused_with_the_command_that_pairs
     import shutil
 
     root, _ = paired(tmp_path)
-    shutil.rmtree(root / WORKSPACE)
-    refused("sync", "fetch", cwd=root, code=2, match="pair again with `loom sync init URL`")
+    shutil.rmtree(tmp_path / "project")
+    refused("sync", "fetch", cwd=root, code=2, match="name it again with `loom sync init DIR`")
     (root / ".loom/source-sync.json").write_text(
         '{"remote":"origin","branch":"main","master":"drafting/main.tex","integrated":"abc"}\n', encoding="utf-8"
     )
-    with pytest.raises(SyncError, match="pair again with `loom sync init URL`"):
+    with pytest.raises(SyncError, match="pair again with `loom sync init DIR`"):
         SyncState.read(root)
 
 
 def test_a_record_without_documents_selects_the_main_document(tmp_path: Path) -> None:
     (tmp_path / ".loom").mkdir()
     (tmp_path / ".loom/source-sync.json").write_text(
-        '{"url":"overleaf.git","branch":"master","master":"drafting/main.tex","integrated":"abc"}\n',
+        '{"directory":"project","remote":"origin","url":"overleaf.git","branch":"master","master":"drafting/main.tex","integrated":"abc"}\n',
         encoding="utf-8",
     )
     assert SyncState.read(tmp_path).documents == ["drafting/main.tex"]
@@ -306,7 +364,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     )
     bare = overleaf(tmp_path)
     quilt = load_quilt(root)
-    state = configure(quilt, str(bare), "main.tex")
+    state = configure(quilt, str(cloned(tmp_path, bare)), "main.tex")
     state = update_documents(quilt, state, "add", "drafting/toy.tex")
     assert SyncState.read(root).documents == ["drafting/main.tex", "drafting/toy.tex"]
     tip = run(bare, "rev-parse", "master")
@@ -450,7 +508,7 @@ def test_sync_follows_a_linearized_main_and_overleaf_keeps_its_file_name(tmp_pat
         },
     )
     bare = overleaf(tmp_path)
-    configure(load_quilt(root), str(bare), "main.tex")
+    configure(load_quilt(root), str(cloned(tmp_path, bare)), "main.tex")
     ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root)
     quilt = load_quilt(root)
     state = SyncState.read(root)
@@ -487,7 +545,7 @@ def renamed_pair(tmp_path: Path) -> tuple[Path, Path]:
     ok("accept", "zk-0001", "--force", "--as", "Tester", cwd=root)
     bare = overleaf(tmp_path)
     quilt = load_quilt(root)
-    state = configure(quilt, str(bare))
+    state = configure(quilt, str(cloned(tmp_path, bare)))
     push_publication(quilt, state, publish(quilt, state).commit)
     return root, colleague(tmp_path, bare)
 
@@ -581,28 +639,35 @@ def quilt_with_upstream(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def test_sync_init_refuses_the_quilt_s_own_upstream_however_it_is_spelled(tmp_path: Path) -> None:
-    """Defect 1: pairing with a remote of the quilt's own repository would let a publish replace the quilt with its documents."""
+    """Defect 1: pairing with a remote of the quilt's own repository would let a publish replace the quilt with its documents. The clone's remote is compared however its URL is spelled."""
     root, upstream = quilt_with_upstream(tmp_path)
     before = run(upstream, "rev-parse", "main")
+    copy = cloned(tmp_path, upstream, "copy")
     for url in (str(upstream), str(upstream) + "/", f"file://{upstream}", "../upstream.git"):
+        run(copy, "remote", "set-url", "origin", url)
         for dry in ((), ("--dry-run",)):
-            r = refused("sync", "init", url, *dry, cwd=root, code=2, match="origin")
+            r = refused("sync", "init", str(copy), *dry, cwd=root, code=2, match="origin")
             assert "own" in r.stderr and r.stdout == "", r.output
-    assert not (root / WORKSPACE).exists() and run(upstream, "rev-parse", "main") == before
+    assert not (root / ".loom/source-sync.json").exists() and run(upstream, "rev-parse", "main") == before
 
 
 def test_publish_push_refuses_a_workspace_that_holds_a_quilt(tmp_path: Path, compiled: list[str]) -> None:
-    """The second guard: a quilt that is no repository, paired with another copy's upstream, still never publishes over a quilt."""
+    """The second guard. `sync init` refuses a clone whose tip holds a quilt, and a record whose workspace has come to hold one since still never publishes over it."""
     save_author("Tester")
-    (tmp_path / "first").mkdir()
-    (tmp_path / "second").mkdir()
-    _, upstream = quilt_with_upstream(tmp_path / "first")
-    copy = quilt_at(tmp_path / "second", {"drafting/main.tex": SOURCE})
-    ok("sync", "init", str(upstream), cwd=copy)
-    before = run(upstream, "ls-tree", "--name-only", "main")
-    r = refused("sync", "publish", "--push", cwd=copy, code=2, match="config.toml")
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
+    bare = overleaf(tmp_path)
+    project = cloned(tmp_path, bare)
+    ok("sync", "init", str(project), cwd=root)
+    edit(colleague(tmp_path, bare), "a quilt", {"config.toml": CONFIG})
+    run(project, "fetch", "-q", "origin")
+    state = SyncState.read(root)
+    state.integrated = run(project, "rev-parse", "refs/remotes/origin/master")
+    state.write(root)
+    before = run(bare, "rev-parse", "master")
+    r = refused("sync", "publish", "--push", cwd=root, code=2, match="config.toml")
     assert "[quilt]" in r.stderr and r.stdout == "", r.output
-    assert run(upstream, "ls-tree", "--name-only", "main") == before
+    assert run(bare, "rev-parse", "master") == before
+    refused("sync", "init", str(project), cwd=root, code=2, match="holds a config.toml with a [quilt] table")
 
 
 def test_a_rejected_push_says_the_workspace_moved_and_what_to_run(tmp_path: Path, compiled: list[str]) -> None:
@@ -617,14 +682,6 @@ def test_a_rejected_push_says_the_workspace_moved_and_what_to_run(tmp_path: Path
     assert first.startswith("Error: ") and first.index("loom sync fetch") < first.index("prepared"), r.stderr
     for noise in ("hint:", "Done", "git pull", "[rejected]", "To "):
         assert noise not in r.stderr, (noise, r.stderr)
-
-
-def test_a_workspace_that_cannot_be_cloned_is_one_line(tmp_path: Path) -> None:
-    """T5: git's own line, with its temporary path, becomes one line naming the URL."""
-    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
-    for dry in ((), ("--dry-run",)):
-        r = refused("sync", "init", "../nowhere.git", *dry, cwd=root, code=2, match="cannot reach ../nowhere.git")
-        assert len(r.stderr.strip().splitlines()) == 1 and "workspace-" not in r.stderr and "git " not in r.stderr
 
 
 def test_sync_says_only_what_happened(tmp_path: Path, compiled: list[str]) -> None:
@@ -646,5 +703,28 @@ def test_sync_says_only_what_happened(tmp_path: Path, compiled: list[str]) -> No
     assert not re.search(r"\b[0-9a-f]{7}\b", status), status  # hashes are in the JSON only
     added = verdict(("sync", "documents", "add", "drafting/main.tex"))
     assert added.startswith("drafting/main.tex is already selected; nothing changed"), added
-    ok("sync", "init", str(bare), cwd=root)  # paired again without --publish-main
+    ok("sync", "init", str(tmp_path / "project"), cwd=root)  # paired again without --publish-main
     assert SyncState.read(root).published_main == "main.tex"
+
+
+def test_a_sync_directory_inside_the_quilt_is_never_read_as_the_quilt_s(tmp_path: Path) -> None:
+    """Its files are copies of the quilt's sources, so the scan, the watcher, the importer's mirror and a section draft's context all leave it out, and no id is defined twice."""
+    from loom.render.watch import snapshot
+    from loom.reshape.importer import _mirror_quilt
+    from loom.section_drafts import capture_context
+
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
+    bare = overleaf(tmp_path)
+    edit(colleague(tmp_path, bare), "the paper", {"main.tex": SOURCE})
+    configure(load_quilt(root), str(cloned(root, bare, "overleaf")), "main.tex")
+    assert SyncState.read(root).directory == "overleaf"
+    quilt = load_quilt(root)
+    result = scan(quilt)
+    assert result.nodes["zk-0001"].kind != "conflict" and result.nodes["zk-0001"].reached_by == ["drafting/main.tex"]
+    assert not any(p.relative_to(root).parts[0] == "overleaf" for p in snapshot(root))
+    _mirror_quilt(quilt, tmp_path / "mirror")
+    assert (tmp_path / "mirror/drafting/main.tex").is_file() and not (tmp_path / "mirror/overleaf").exists()
+    assert not any(
+        p.startswith("overleaf/") for p in capture_context(result, "drafting/main.tex", write=False)["hashes"]
+    )
+    refused("mv", "overleaf/main.tex", "drafting/other.tex", cwd=root, code=2, match="is inside overleaf/")

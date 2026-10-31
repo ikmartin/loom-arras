@@ -140,8 +140,10 @@ def capture_context(result: ScanResult, source: str, *, write: bool = True) -> d
     """Freeze local context bytes in a content-addressed history directory."""
     from loom.clock import stamp
     from loom.reshape.linearize import flatten
+    from loom.sync import skipped_directory
 
     root = result.quilt.root
+    synced = skipped_directory(root)
     files: dict[str, bytes] = {}
     # Local assets may be read through author macros; preserve quilt-local inputs conservatively.
     for path in root.rglob("*"):
@@ -153,6 +155,7 @@ def capture_context(result: ScanResult, source: str, *, write: bool = True) -> d
             continue
         if (
             path.is_relative_to(root / result.quilt.config.drafting_ai)
+            or (synced is not None and path.is_relative_to(root / synced))
             or path.is_symlink()
             or not path.is_file()
             or path.is_relative_to(result.quilt.history_dir)

@@ -1200,11 +1200,11 @@ Apply the fetched pull to the quilt's files, stamping first each document it rea
 
 #### `loom sync init`
 
-`loom sync init [OPTIONS] URL`
+`loom sync init [OPTIONS] DIR`
 
-Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
+Pair the quilt with a document workspace through DIR, your clone of it, such as an Overleaf project's.
 
-Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched. A URL that is a remote of the quilt's own repository is refused, and `publish --push` refuses a workspace that holds a quilt.
+Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
 
 | option | description |
 |---|---|

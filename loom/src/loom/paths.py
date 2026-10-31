@@ -22,8 +22,6 @@ RETIRED = "retired"
 SESSIONS = f"{LOOM}/sessions"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
-#: Loom's clone of the document workspace (an Overleaf project).
-WORKSPACE = f"{LOOM}/workspace"
 #: The default of `[quilt] history`; code reads the setting, never this.
 HISTORY = f"{LOOM}/history"
 

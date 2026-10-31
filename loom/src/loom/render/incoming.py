@@ -21,7 +21,7 @@ from loom.sync import SyncError, SyncState, changed_files, current_selection, gi
 
 
 def _scan_tree(clone: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
-    """A scan of one workspace revision from loom's clone, staged under `home`, Overleaf's main written at `main`, the local path it maps to now."""
+    """A scan of one workspace revision from the sync directory, staged under `home`, Overleaf's main written at `main`, the local path it maps to now."""
     stage = home / commit[:12]
     stage.mkdir()
     (stage / "config.toml").write_bytes(config)

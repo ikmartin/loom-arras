@@ -30,6 +30,7 @@ from loom.scan.alloc import visible_locals
 from loom.scan.labels import PREFIX, next_local
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
+from loom.sync import copy_ignore
 from loom.tex.identity import IdentityResult, identity_test
 
 
@@ -762,7 +763,7 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
         scratch = Path(tmp)
         after = scratch / "quilt"
-        shutil.copytree(root, after, ignore=shutil.ignore_patterns(BUILD, ".git", LOOM))
+        shutil.copytree(root, after, ignore=copy_ignore(root, BUILD, ".git", LOOM))
         (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
         return identity_test(root, master, after, master, scratch, engine_for(result, master))
 

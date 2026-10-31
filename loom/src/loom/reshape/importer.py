@@ -133,12 +133,20 @@ def _insert_usepackage(text: str, closure_texts: list[str] | None = None) -> str
 
 
 def _mirror_quilt(quilt: Quilt, stage: Path) -> None:
-    """A temporary copy of the quilt's scanned files and config, so the staged paper is scanned in context (existing ids, taxa of other masters)."""
+    """A temporary copy of the quilt's scanned files and config, so the staged paper is scanned in context (existing ids, taxa of other masters).
+
+    The sync directory is left out by name: the copy holds no `.loom/`, so its scan could not tell that directory's copies of the quilt's sources from the quilt's own.
+    """
+    from loom.sync import skipped_directory
+
+    synced = skipped_directory(quilt.root)
     stage.mkdir(parents=True)
     for p in quilt.root.rglob("*"):
         if not p.is_file():
             continue
         rel = p.relative_to(quilt.root)
+        if synced is not None and rel.is_relative_to(synced):
+            continue
         if rel.parts[0] in (BUILD, ".git", LOOM, "node_modules") or p.suffix not in (
             ".tex",
             ".sty",

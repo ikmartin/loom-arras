@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -13,7 +14,6 @@ from loom.cli._common import ContentError, EnvError, destination
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
-from loom.paths import WORKSPACE
 from loom.scan.quilt import Quilt
 from loom.scan.scan import scan
 from loom.sync import (
@@ -71,55 +71,42 @@ def _rev(quilt: Quilt, revision: str) -> str:
 
     try:
         when = revision_time(workspace(quilt.root), revision) if revision else ""
-    except SyncError:  # no clone yet, as before a pairing
+    except SyncError:  # no sync directory yet, as before a pairing
         when = ""
     return f"the revision of {when}" if when else "its latest revision"
 
 
 @sync.command("init")
-@click.argument("url")
+@click.argument("directory", metavar="DIR")
 @click.option(
     "--publish-main", default="", help="The main document's path in the workspace, when it differs from the quilt's."
 )
 @click.option("--dry-run", is_flag=True, help="Say what would change and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
-def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
+def init_sync(directory: str, publish_main: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Pair the quilt with a document workspace through DIR, your clone of it, such as an Overleaf project's.
 
-    Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched. A URL that is a remote of the quilt's own repository is refused, and `publish --push` refuses a workspace that holds a quilt.
+    Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
     """
-    quilt = open_quilt(quilt_path)
-    state = _run(lambda: configure(quilt, url, publish_main, write=not dry_run))
-    assert isinstance(state, SyncState)
-    from loom.gitignore import missing
+    from loom.sync import revision_time
 
-    unignored = (quilt.root / ".git").exists() and f"{WORKSPACE}/" in missing(quilt.root)
+    quilt = open_quilt(quilt_path)
+    state = _run(lambda: configure(quilt, directory, publish_main, write=not dry_run))
+    assert isinstance(state, SyncState)
+    when = revision_time(quilt.root / state.directory, state.integrated)
+    at = f"the revision of {when}" if when else "its latest revision"
     Report(
-        f"{'would pair' if dry_run else 'paired'} with {source_label(url)} ({state.branch}) at {_rev(quilt, state.integrated)}; {state.master} {'would publish' if dry_run else 'publishes'} as {state.published_main}",
-        ok=not unignored,
+        f"{'would pair' if dry_run else 'paired'} {directory} with {source_label(state.url)} ({state.branch}) at {at}; {state.master} {'would publish' if dry_run else 'publishes'} as {state.published_main}",
         dry_run=dry_run,
-        groups=[
-            Group(
-                "warnings",
-                [
-                    Item(
-                        f"`.gitignore` does not ignore {WORKSPACE}/, loom's clone of the workspace",
-                        fixes=["loom upgrade"],
-                    )
-                ],
-                problem=True,
-            )
-        ]
-        if unignored
-        else [],
         data={
-            "url": url,
+            "directory": state.directory,
+            "remote": state.remote,
+            "url": state.url,
             "branch": state.branch,
             "integrated": state.integrated,
             "master": state.master,
             "published_main": state.published_main,
-            "gitignore_missing": unignored,
         },
     ).emit(as_json)
 
@@ -232,6 +219,8 @@ def status_sync(patch: bool, to: Path | None, as_json: bool, quilt_path: str | N
     lines = [
         "",
         f"workspace:   {report['url']}",
+        # from the quilt, as a person there would reach it; the JSON keeps the record's spelling
+        f"directory:   {os.path.relpath(quilt.root / str(report['directory']), quilt.root)}",
         f"integrated:  {_rev(quilt, integrated)}",
         f"incoming:    {_rev(quilt, incoming)}",
     ]

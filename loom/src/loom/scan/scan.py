@@ -138,8 +138,11 @@ def _stems_taken(masters: list[str]) -> list[Diagnostic]:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material, and the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own."""
-    return (RETIRED, NOTES_DIR, Path(quilt.config.history).as_posix())
+    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material, the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own, and the sync directory when it sits inside the quilt, whose files are copies of the quilt's sources."""
+    from loom.sync import skipped_directory
+
+    synced = skipped_directory(quilt.root)
+    return (RETIRED, NOTES_DIR, Path(quilt.config.history).as_posix(), *((synced,) if synced else ()))
 
 
 def landmark_documents(quilt: Quilt) -> list[str]:

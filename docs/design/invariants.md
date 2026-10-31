@@ -235,13 +235,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Sync never writes to the quilt's own repository
 
-**Rule.** `sync init` refuses a remote of the quilt's own repository however it is spelled, `sync publish --push` refuses a workspace that holds a quilt, and loom's Git runs only in its own clone under `.loom/workspace/`.
+**Rule.** Loom's Git runs only in the sync directory the record names, the person's clone of the workspace. `sync init` refuses a directory that is the quilt's own repository or a worktree of it, holds a quilt, follows a remote of the quilt's own repository however that is spelled, or sits inside one of loom's own directories; `sync publish --push` refuses a workspace that holds a quilt.
 
 **Why.** `sync init` defaulted to `--remote origin --branch main`, usually the quilt's own repository, and `sync publish --push` then replaced that branch with the source-only projection, removing `config.toml`, `ai/` and `.loom/` from what a coauthor pulls.
 
-**Guard.** `loom/tests/unit/test_sync.py::test_sync_init_refuses_the_quilt_s_own_upstream_however_it_is_spelled`, `loom/tests/unit/test_sync.py::test_publish_push_refuses_a_workspace_that_holds_a_quilt`, `loom/tests/unit/test_sync.py::test_the_quilt_s_own_repository_is_never_touched`
+**Guard.** `loom/tests/unit/test_sync.py::test_sync_init_refuses_the_quilt_s_own_upstream_however_it_is_spelled`, `loom/tests/unit/test_sync.py::test_init_refuses_the_quilt_s_repository_and_loom_s_own_directories`, `loom/tests/unit/test_sync.py::test_publish_push_refuses_a_workspace_that_holds_a_quilt`, `loom/tests/unit/test_sync.py::test_the_quilt_s_own_repository_is_never_touched`, `loom/tests/unit/test_sync.py::test_the_sync_directory_s_files_and_branch_are_never_touched`
 
 **Record.** DR-326-ikmartin, DR-333-ikmartin
+
+**2026-10-31.** Loom no longer clones the workspace into `.loom/workspace/`. The person clones it into a directory of their own and names it with `sync init DIR`, and loom runs Git there as it did in its clone, moving only its own refs and the remote's branch (plan 0.22.2). The guards moved to pairing: what used to be one URL check now covers the directory itself.
 
 ## The library
 

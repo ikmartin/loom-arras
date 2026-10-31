@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from loom.ai.clients import PROJECT_FILES
-from loom.paths import BUILD, SERVE_JSON, SINCE, STORAGE, WORKSPACE
+from loom.paths import BUILD, SERVE_JSON, SINCE, STORAGE
 from loom.records.lastseen import CACHE
 
 MANAGED = (
@@ -18,7 +18,6 @@ MANAGED = (
     f"{STORAGE}/cache/",
     CACHE,
     SERVE_JSON,
-    f"{WORKSPACE}/",
     f"{SINCE}/",
     *PROJECT_FILES,
 )

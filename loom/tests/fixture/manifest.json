@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "01ab5750b06e6b03ecbb5a9edc759667bdb447cde32dc3eebaac26c6effe5997",
+   "hash": "ef9ab12e3a6f10b3476960ad8bc080f830543869641d68ec80902ca2ee29e9f8",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "39161337fde46c07d8e24af4591e8509ad5a4a77300a9cefac4c6efd140df878",
+   "hash": "033965ff7cfde9dc609d838db5d69afd5ce90f3f81479b5deea1913b441af04e",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "b08b26e74651257929da757331e6b9fdbdfd1ea257cdf5d144e7acca49f2bd4b",
+   "hash": "98cc113a31855b37cde731654dd603986187a82bd0a680688ed2758578038a4c",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
