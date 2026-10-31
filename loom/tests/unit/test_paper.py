@@ -177,7 +177,7 @@ def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends
     r2 = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--yes", cwd=q)
     assert (q / "drafting" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
     assert r2.stdout.rstrip().splitlines()[-1].strip() == "next: loom lint; loom build"
-    refused("import", str(p / "main.tex"), "--to", "nodes/x.tex", "--yes", cwd=q, code=2, match="directly in drafting/")
+    refused("import", str(p / "main.tex"), "--to", "notes/x.tex", "--yes", cwd=q, code=2, match="is inside notes/")
 
 
 def bare_quilt(tmp_path: Path) -> Path:

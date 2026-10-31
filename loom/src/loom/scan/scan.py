@@ -21,7 +21,7 @@ from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
 from loom.scan.relations import RelationRec, find_relations
-from loom.scan.source import discover_files, read_source
+from loom.scan.source import SKIP_DIRS, SKIP_PREFIXES, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
 
@@ -101,8 +101,16 @@ class ScanResult:
         end = self.document_trail(path)[-1]
         return end if end in self.masters else None
 
+    @cached_property
+    def agent_documents(self) -> frozenset[str]:
+        """The live documents an agent and the person both edit: every copy and every document written from scratch the history records, where its moves have taken them, and any document in the agent's drafting directory, which a file put there by hand keeps an agent's (`loom:agent-document-unrecorded`)."""
+        history = self.history if self.history is not None else load_history(self.quilt.history_dir)
+        live = set(self.masters)
+        here = {m for m in self.masters if Path(m).parent.as_posix() == self.quilt.config.drafting_ai}
+        return frozenset({*history.copies(live), *history.written(live), *here})
+
     def document_role(self, path: str) -> str | None:
-        """Which drafting directory a live document is in.
+        """Whose a live document is.
 
         Parameters
         ----------
@@ -112,29 +120,11 @@ class ScanResult:
         Returns
         -------
         str or None
-            `"drafting"` for a document only the person edits, `"drafting-ai"` for one the person and an agent both edit, None for a path that is not a live document.
+            `"agent"` for one the person and an agent both edit (`agent_documents`), `"person"` for every other live document, None for a path that is not one.
         """
         if path not in self.masters:
             return None
-        parent = Path(path).parent.as_posix()
-        return "drafting-ai" if parent == self.quilt.config.drafting_ai else "drafting"
-
-
-def _stems_taken(masters: list[str]) -> list[Diagnostic]:
-    """`loom:document-stem-taken` for each stem two live documents share: arras routes a document and loom writes its PDF by stem."""
-    by_stem: dict[str, list[str]] = {}
-    for m in masters:
-        by_stem.setdefault(Path(m).stem, []).append(m)
-    return [
-        Diagnostic(
-            "error",
-            "loom:document-stem-taken",
-            f"{' and '.join(paths)} are both named {stem}; arras and the build tell documents apart by name, so rename one",
-            [Location(p, 1) for p in paths],
-        )
-        for stem, paths in sorted(by_stem.items())
-        if len(paths) > 1
-    ]
+        return "agent" if path in self.agent_documents else "person"
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
@@ -143,6 +133,30 @@ def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
 
     synced = skipped_directory(quilt.root)
     return (RETIRED, NOTES_DIR, Path(quilt.config.history).as_posix(), *((synced,) if synced else ()))
+
+
+def unread_dir(quilt: Quilt, rel: str) -> str | None:
+    """The directory that keeps the scan out of a quilt-relative path.
+
+    Parameters
+    ----------
+    quilt : Quilt
+        The quilt `rel` is in.
+    rel : str
+        A quilt-relative POSIX path.
+
+    Returns
+    -------
+    str or None
+        The tool or loom directory `discover_files` skips, or the `skipped_dirs` entry, that `rel` sits in; None when the scan reads it.
+    """
+    for part in Path(rel).parts[:-1]:
+        if part in SKIP_DIRS:
+            return part
+    for prefix in SKIP_PREFIXES:
+        if rel.startswith(prefix):
+            return prefix.rstrip("/")
+    return next((d for d in skipped_dirs(quilt) if rel.startswith(f"{d}/")), None)
 
 
 def landmark_documents(quilt: Quilt) -> list[str]:
@@ -204,33 +218,31 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                     [Location(rel, 1)],
                 )
             )
-    drafting, drafting_ai = quilt.config.drafting, quilt.config.drafting_ai
-    for rel, src in result.files.items():
-        if src.ignored or not _DOCCLASS.search(src.clean):
-            continue
-        if Path(rel).parent.as_posix() in (drafting, drafting_ai):
-            result.masters.append(rel)
-        else:
-            result.diagnostics.append(
-                Diagnostic(
-                    "info",
-                    "loom:documentclass-outside-drafts",
-                    f"{rel} has \\documentclass but is outside the drafting directories {drafting}/ and {drafting_ai}/; it is scanned as an ordinary file",
-                    [Location(rel, 1)],
-                )
-            )
-    result.diagnostics.extend(_stems_taken(result.masters))
+    # a document is any file read here with \documentclass, wherever it sits; what is not read, ignored or superseded is none
+    result.masters.extend(rel for rel, src in result.files.items() if not src.ignored and _DOCCLASS.search(src.clean))
     main = quilt.config.main
-    own = [m for m in result.masters if result.document_role(m) == "drafting"]
+    own = [m for m in result.masters if result.document_role(m) == "person"]
     if main in own:
         result.default_master = main
-    elif own:
+    elif main and own:
         result.default_master = own[0]
         result.diagnostics.append(
             Diagnostic(
                 "warning",
                 "loom:main-not-found",
                 f"[quilt] main = {main} is not a master; using {own[0]}",
+                [],
+            )
+        )
+    elif len(own) == 1:
+        result.default_master = own[0]
+    elif own:
+        # several documents and no word on which is the default: choosing one by its path would be arbitrary
+        result.diagnostics.append(
+            Diagnostic(
+                "info",
+                "loom:main-unset",
+                f"[quilt] main is unset and the quilt holds {len(own)} documents, so none is the default one loom compiles and reads macros from; set main in config.toml to one of them",
                 [],
             )
         )

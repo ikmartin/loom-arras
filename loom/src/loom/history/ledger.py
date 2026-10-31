@@ -144,7 +144,8 @@ class History:
             e = self.step(int(n))
             if e is None or not e.get("landmark"):
                 return None
-            named = {Path(str(e.get("in") or "")).stem, Path(str(e.get("landmark"))).stem, str(e.get("in") or "")}
+            doc = str(e.get("in") or "")
+            named = {Path(doc).stem, Path(str(e.get("landmark"))).stem, doc, doc.removesuffix(".tex")}
             return e if not stem or stem in named else None
         for e in reversed(self.landmarks()):
             if ref in (Path(str(e.get("landmark"))).stem, e.name, e.dir, str(e.step), f"{e.step:04d}"):

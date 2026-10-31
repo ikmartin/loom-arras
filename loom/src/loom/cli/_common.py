@@ -130,7 +130,13 @@ SOURCE_SUFFIXES = (".tex", ".sty", ".cls", ".bib")
 
 
 def destination(
-    quilt: Any, path: str | Path, *, drafting: bool = False, source: bool = False, overwrite: bool = False
+    quilt: Any,
+    path: str | Path,
+    *,
+    document: bool = False,
+    agent: bool = False,
+    source: bool = False,
+    overwrite: bool = False,
 ) -> Path:
     """Where a command's `--to` writes, by the one rule every `--to` follows (K2).
 
@@ -140,8 +146,10 @@ def destination(
         The quilt the command runs against.
     path : str or Path
         What `--to` said; a relative path is the quilt root's, as every path loom takes is.
-    drafting : bool, default False
-        The command writes a working document, which belongs directly in the drafting directory (or, for an agent document, in `drafting-ai/`).
+    document : bool, default False
+        The command writes a working document: a `.tex` anywhere in the quilt the scan reads, outside the agent's drafting directory.
+    agent : bool, default False
+        With `document`, the agent's drafting directory is allowed too (`linearize` of an agent document).
     source : bool, default False
         The command writes a source file that takes another's place (`atomize`), so it may go wherever a source may.
     overwrite : bool, default False
@@ -155,24 +163,34 @@ def destination(
     Raises
     ------
     EnvError
-        A working document outside the drafting directories; anything else among the quilt's sources or in a drafting directory, which loom never writes; or a file that exists.
+        A working document that is no `.tex`, lies outside the quilt, where the scan does not read, or in the agent's drafting directory; anything else among the quilt's sources, which loom never writes; or a file that exists.
     """
+    from loom.scan.scan import unread_dir
+
     root = Path(quilt.root).resolve()
     given = Path(path).expanduser()
     target = (given if given.is_absolute() else root / given).resolve()
     rel = target.relative_to(root).as_posix() if target.is_relative_to(root) else None
-    homes = {quilt.config.drafting, getattr(quilt.config, "drafting_ai", "drafting-ai")}
-    in_drafting = rel is not None and Path(rel).parent.as_posix() in homes
-    if drafting and not in_drafting:
-        raise EnvError(
-            f"{path}: a working document goes directly in {quilt.config.drafting}/, e.g. --to {quilt.config.drafting}/{target.name}"
-        )
+    if document:
+        if rel is None:
+            raise EnvError(f"{path} is outside the quilt; a working document goes inside it, e.g. --to {target.name}")
+        if target.suffix != ".tex":
+            raise EnvError(f"{path}: a working document is a .tex file")
+        unread = unread_dir(quilt, rel)
+        if unread is not None:
+            raise EnvError(
+                f"{path} is inside {unread}/, which loom never reads as a document; put it anywhere else in the quilt"
+            )
+        if not agent and Path(rel).parent.as_posix() == quilt.config.drafting_ai:
+            raise EnvError(
+                f"{path} is in {quilt.config.drafting_ai}/, where agents' documents are kept; put a working document anywhere else in the quilt"
+            )
     if (
-        not drafting
+        not document
         and not source
         and rel is not None
         and not rel.startswith(f"{BUILD}/")
-        and (in_drafting or target.suffix in SOURCE_SUFFIXES)
+        and target.suffix in SOURCE_SUFFIXES
     ):
         raise EnvError(
             f"{path} would be among the quilt's sources, which loom never writes; write it under build/ or outside the quilt"

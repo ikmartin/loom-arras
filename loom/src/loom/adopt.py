@@ -15,7 +15,7 @@ from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
 from loom.history.steps import plan_freeze, slug, stamp_document, text_hash, write_step
-from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS
+from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS, documents_named
 from loom.render.manifest import own_text
 from loom.reshape.linearize import flatten
 from loom.scan.hashing import pair_hash
@@ -155,10 +155,12 @@ def _merge(base: str, ours: str, theirs: str) -> tuple[str, bool]:
 
 def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
     if copy not in result.masters:
-        matches = [m for m in result.masters if Path(m).name == copy or Path(m).stem == copy]
-        if len(matches) == 1:
+        matches = documents_named(copy, result.masters)
+        if len(matches) > 1:
+            raise SyncError(f"{copy} names {len(matches)} documents, {', '.join(matches)}; give its path")
+        if matches:
             copy = matches[0]
-    if result.document_role(copy) != "drafting-ai":
+    if result.document_role(copy) != "agent":
         raise SyncError(f"{copy} is not a live agent document in {result.quilt.config.drafting_ai}/")
     history = _history(result)
     source = history.copy_of(copy, result.masters)
@@ -171,7 +173,7 @@ def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
         raise SyncError(
             f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an agent document drafted from one starts as `loom draft DOC --ai NAME`"
         )
-    if result.document_role(source) != "drafting":
+    if result.document_role(source) != "person":
         raise SyncError("The original working document is unavailable; restore it before incorporating")
     return copy, source
 
@@ -618,11 +620,8 @@ def prepare(
 
 
 def from_scratch(result: ScanResult, name: str) -> str | None:
-    """The live agent document written from scratch that `name` (a path, file name or unique stem) names; None for any other."""
-    written = _history(result).written(result.masters)
-    if name in written:
-        return name
-    matches = [m for m in written if name in (Path(m).name, Path(m).stem)]
+    """The live agent document written from scratch that `name` (a path, name, file name or unique stem) names; None for any other."""
+    matches = documents_named(name, _history(result).written(result.masters))
     return matches[0] if len(matches) == 1 else None
 
 
@@ -636,7 +635,7 @@ def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None
     copy : str
         Agent document path, filename or unique stem; one `loom draft --ai NAME --new` wrote.
     dest_rel : str
-        The new working document, quilt-relative and directly in the drafting directory; the caller has applied `--to`'s rule (`cli._common.destination`).
+        The new working document, quilt-relative, a `.tex` anywhere the scan reads outside the agents' directory; the caller has applied `--to`'s rule (`cli._common.destination`).
     actor : str, optional
         Who starts it, for the ledger; default the configured author.
 
@@ -664,17 +663,19 @@ def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None
                 f"{copy} is a copy of {history.copy_of(copy, result.masters)}; `loom adopt {Path(copy).name}` incorporates its changes there, and a working document is started only from an agent document written from scratch"
             )
         raise SyncError(f"{copy} is not a live agent document written from scratch in {quilt.config.drafting_ai}/")
-    if Path(dest_rel).parent.as_posix() != quilt.config.drafting or not dest_rel.endswith(".tex"):
+    from loom.scan.scan import unread_dir
+
+    unread = unread_dir(quilt, dest_rel)
+    if (
+        not dest_rel.endswith(".tex")
+        or unread is not None
+        or Path(dest_rel).parent.as_posix() == quilt.config.drafting_ai
+    ):
         raise SyncError(
-            f"a working document goes directly under {quilt.config.drafting}/ as a .tex file, not at {dest_rel}"
+            f"a working document is a .tex file anywhere in the quilt loom reads, outside {unread or quilt.config.drafting_ai}/, not at {dest_rel}"
         )
     if (quilt.root / dest_rel).exists():
         raise SyncError(f"{dest_rel} exists; loom does not overwrite it")
-    taken = [m for m in result.masters if Path(m).stem == Path(dest_rel).stem]
-    if taken:
-        raise SyncError(
-            f"{taken[0]} is already named {Path(dest_rel).stem}; the viewer and the build tell documents apart by name"
-        )
     text = flatten(quilt.root, copy).text
     # a derived id whose plain id a live document defines, or the history has recorded, takes a fresh id: the plain one belongs to another result
     recorded = history.recorded_ids()

@@ -36,7 +36,7 @@ test.describe('the transcript', () => {
 		// typesetting grows the messages under the landing, so a transcript scrolled to the bottom before it would leave the newest below the fold
 		const display = '<span class="math display">\\[\\sum_{a:t(a)=v} w(a) - \\sum_{a:s(a)=v} w(a) = \\int_0^1 \\frac{x^2}{1+x^2}\\,dx\\]</span>';
 		await transcript(page, 40, (s) => `<p>message ${s}</p><p>${display}</p><p>${display}</p>`);
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const chat = pane(page, 1).getByTestId('chat');
 		// The cold MathJax bundle and 80 display formulas share CI with three other suites.
 		await expect(chat.locator('.math mjx-container')).toHaveCount(80, { timeout: 15000 });
@@ -104,7 +104,7 @@ test.describe('the transcript', () => {
 	test('a \\ref in a message reads as written, never as ???', async ({ page }) => {
 		// an agent quoting "the saturation of Proposition~\\ref{sh-0007}" is shown the reference as written, never as `Proposition~???`
 		await saying(page, '<p>by the saturation of Proposition~\\ref{sh-0007}, and <span class="math inline">\\(x\\)</span>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const message = pane(page, 1).getByTestId('message-1');
 		await expect(message.locator('mjx-container')).toHaveCount(1); // the mathematics is still typeset
 		await expect(message).toContainText('\\ref{sh-0007}');
@@ -113,7 +113,7 @@ test.describe('the transcript', () => {
 
 	test('a table in a message is drawn as a ruled table, its cells typeset', async ({ page }) => {
 		await saying(page, '<table><thead><tr><th>result</th><th>bound</th></tr></thead><tbody><tr><td>Lemma 2</td><td><span class="math inline">\\(n \\le 2\\)</span></td></tr></tbody></table>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const message = pane(page, 1).getByTestId('message-1');
 		await expect(message.locator('table th')).toHaveText(['result', 'bound']);
 		await expect(message.locator('table td mjx-container')).toHaveCount(1);

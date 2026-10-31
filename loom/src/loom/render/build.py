@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import quote
 
 from loom.history.ledger import load_history
-from loom.paths import BUILD, STORAGE
+from loom.paths import BUILD, STORAGE, document_build, document_name
 from loom.records.lastseen import freeze_moved
 from loom.records.store import Records
 from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
@@ -200,7 +200,7 @@ def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str
 def fragment_path(result: ScanResult, key: str) -> str:
     n = result.nodes[key]
     if n.kind == "master":
-        return f"fragments/masters/{Path(key).stem}.html"
+        return f"fragments/masters/{document_name(key)}.html"
     if n.kind == "file" and key in result.assembly.digest_files:
         return f"fragments/digests/{result.assembly.digest_files[key]}.html"
     if n.id:
@@ -244,7 +244,8 @@ def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
     h.update(doc.path.encode())
     h.update(doc.src.text.encode("utf-8", errors="replace"))
     h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
-    for p in sorted([*(root / BUILD).glob(f"{doc.stem}/*.aux"), *(root / BUILD).glob(f"{doc.stem}/*.bbl")]):
+    out = root / document_build(doc.path)
+    for p in sorted([*out.glob("*.aux"), *out.glob("*.bbl")]):
         h.update(p.read_bytes())
     return h.hexdigest()
 

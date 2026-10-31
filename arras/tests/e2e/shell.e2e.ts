@@ -9,7 +9,7 @@ async function openContents(page: Page): Promise<void> {
 }
 
 test('the column leads with the quilt, Settings and the fold, then Docs and Review, and holds no list of views', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await expect(page.getByTestId('docs-drafts')).toBeVisible();
 	await openContents(page);
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
@@ -28,7 +28,7 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 });
 
 test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
-	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/review/library', 'review'], ['/review/sessions', 'review'], ['/review/history', 'review'], ['/master/main', 'docs']] as const) {
+	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/review/library', 'review'], ['/review/sessions', 'review'], ['/review/history', 'review'], ['/master/drafting/main', 'docs']] as const) {
 		await page.goto(path);
 		await expect(page.getByTestId(`primary-${on}`), path).toHaveAttribute('aria-current', 'page');
 	}
@@ -37,7 +37,7 @@ test('Review is current on the quilt-management pages, and Docs everywhere else'
 test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({ page }) => {
 	// the documents scroll in their own box and the outline in its own: a column that could not scroll squeezed the tree and pushed what was under it off the bottom
 	await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's documents cannot fit
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await openContents(page);
 	const docs = page.getByTestId('docs-part');
 	const box = await docs.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight, overflow: getComputedStyle(el).overflowY }));
@@ -52,7 +52,7 @@ test("the side panel scrolls rather than overflowing, and the contents' last ent
 
 test('the side panel collapses, and the column goes with it', async ({ page }) => {
 	// it collapses independently of the split and goes first: on a narrow window it is the column a reader needs least
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await openContents(page);
 	const panel = page.locator('.panel');
 	const wide = (await panel.boundingBox())!.width;
@@ -68,7 +68,7 @@ test('the side panel collapses, and the column goes with it', async ({ page }) =
 test('a scrollbar shows only while its panel or pane is being scrolled', async ({ page }) => {
 	// hidden at rest, whether or not the pointer is over it; shown while it moves, and gone again a moment after
 	await page.setViewportSize({ width: 1440, height: 340 });
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	const hidden = 'rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)';
 	const color = (el: import('@playwright/test').Locator) => el.evaluate((e) => getComputedStyle(e).scrollbarColor);
 	for (const region of [page.getByTestId('docs-part'), page.getByTestId('pane-0').locator('> .body')]) {
@@ -98,7 +98,7 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 	// the gutter is behind Settings > Show ids, which is off by default, so the test turns it on the way a reader would
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await prefs(page, { ids: true });
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await page.waitForSelector('.fragment .env[data-key]');
 	const env = page.locator('.fragment .env[data-key="sy-0001"]');
 	const margin = env.locator('.node-margin');

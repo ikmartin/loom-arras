@@ -18,7 +18,7 @@ test.describe('naming', () => {
 test.describe('the one rule', () => {
 	test('what is open is revealed where it is, its place marked, and no tab is added', async ({ page }) => {
 		await saying(page, '<p>See <a href="quilt:drafting/main.tex#sy-0003"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		await expect(pane(page, 0)).toHaveClass(/focused/);
@@ -30,7 +30,7 @@ test.describe('the one rule', () => {
 	test('what is not open opens as a new tab in the other pane, and the Chat stays', async ({ page }) => {
 		// sy-999A is in the talk only, so the open main.tex does not hold it
 		await saying(page, '<p>See <a href="quilt:sy-999A"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(2);
 		await expect(pane(page, 0).getByRole('tab', { selected: true })).toContainText('sy-999A');
@@ -39,7 +39,7 @@ test.describe('the one rule', () => {
 
 	test('a node an open document holds is revealed in the document, not opened beside it (DR-280-ikmartin)', async ({ page }) => {
 		await saying(page, '<p>See <a href="quilt:sy-0003"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(1);
@@ -50,7 +50,7 @@ test.describe('the one rule', () => {
 
 	test('behind another tab, the document is brought forward to the node', async ({ page }) => {
 		await saying(page, '<p>See <a href="quilt:sy-0003"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		// put main.tex behind the talk, opened from the side panel into the reader's pane
 		await pane(page, 0).getByRole('tab').first().click();
@@ -63,7 +63,7 @@ test.describe('the one rule', () => {
 	});
 
 	test("a document's link to its own content takes the same path: it scrolls there and marks it", async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const ref = pane(page, 0).locator('.fragment a.ref[href^="#"]').first();
 		await expect(ref).toBeVisible();
 		const id = decodeURIComponent((await ref.getAttribute('href'))!.slice(1));
@@ -75,7 +75,7 @@ test.describe('the one rule', () => {
 
 	test('a link to an annotation opens what it is on, with its box open', async ({ page }) => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const box = pane(page, 0).getByTestId('comment-expanded');
 		await expect(box).toBeVisible();
@@ -89,7 +89,7 @@ test.describe('the one rule', () => {
 			m.annotations['a-2026-09-16-0001'].body_html = '<p>This invokes sy-0002(a), not sy-9999.</p>';
 		});
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const body = pane(page, 0).getByTestId('comment-expanded').locator('.body').first();
 		await expect(body).toContainText('This invokes Lemma 1.2(a), not sy-9999.');
@@ -98,7 +98,7 @@ test.describe('the one rule', () => {
 
 	test('reading is where it was left after a visit to Review: the same tabs, the same place, a closed box still closed', async ({ page }) => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		// a link opens the document at an annotation; the reader closes it and reads on
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const box = pane(page, 0).getByTestId('comment-expanded');
@@ -135,7 +135,7 @@ test.describe('the one rule', () => {
 			m.sessions[0].title = `A sitting, revision ${revision}`;
 		});
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const box = pane(page, 0).getByTestId('comment-expanded');
 		await expect(box).toBeVisible();
@@ -170,7 +170,7 @@ test.describe('the one rule', () => {
 
 test.describe('cited works', () => {
 	test('a citation with no digest result behind it links to its reference', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const cite = page.locator('.fragment span.cite[data-citekey="Har77"]').first();
 		await expect(cite.locator('a')).toHaveAttribute('href', '/library/Har77');
 	});
@@ -178,13 +178,13 @@ test.describe('cited works', () => {
 	test('a citation opens the cited paper at the result, not the digest node', async ({ page }) => {
 		// `[1, Theorem 2.1]` names a theorem in a paper, so where a copy is filed the link goes to the paper at that result; the digest node's page is loom's record of it, a thing to go and look at and not what the citation names
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment mjx-container');
 		await expect(page.locator('span.cite[data-target="Kre99-thm-2.1"] a').first()).toHaveAttribute('href', /\/library\/Kre99\?page=4&result=Kre99-thm-2\.1$/);
 
 		// with no copy filed there is no page to open, so the record is the best there is and the link goes to the node
 		await page.unroute('**/build/manifest.json');
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment mjx-container');
 		await expect(page.locator('span.cite[data-target="Kre99-thm-2.1"] a').first()).toHaveAttribute('href', /\/node\/Kre99-thm-2\.1$/);
 	});
@@ -192,7 +192,7 @@ test.describe('cited works', () => {
 	test('a link to a result of a cited work opens the paper at its page, as a citation of it does', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await saying(page, '<p>See <a href="quilt:Kre99-thm-2.1"></a>.</p>');
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const link = pane(page, 1).getByTestId('message-1').locator('a');
 		await expect(link).toHaveText('Kre99 · Thm 2.1');
 		await link.click();
@@ -263,7 +263,7 @@ test.describe('previews', () => {
 		// a hover over a citation shows the paper, not a card about it: the entry and the digest are what the work's own Info view is for; with no copy on this machine there is no page to show, so nothing opens
 		// the card's delay runs on the page's clock, so each absence below is asserted after moving that clock past it
 		await page.clock.install();
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment mjx-container'); // typesetting reflows the text, which would move the link out from under the pointer
 		await page.locator('.fragment span.cite[data-citekey="Har77"] a').first().hover();
 		await page.clock.runFor(500);

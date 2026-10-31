@@ -1,5 +1,6 @@
 // A document's history (plan 0.20.6): a draft, the landmarks that kept its text, newest first, and its live agent copies; for an agent copy, the draft it was copied from. What a draft's history menu lists, and what a landmark is named by in its tab and in search. Model facts in, display facts out; nothing here renders.
 
+import { isAgentDocument } from '$lib/manifest/documents';
 import type { CanonDoc, Manifest, Master } from '$lib/manifest/types';
 
 export type History =
@@ -26,7 +27,7 @@ function live(m: Manifest, path: string | undefined): Master | undefined {
 /** One of the author's own live drafts, not an agent's. */
 function ownDraft(m: Manifest, path: string | undefined): Master | undefined {
 	const d = live(m, path);
-	return d && d.directory !== 'drafting-ai' ? d : undefined;
+	return d && !isAgentDocument(d) ? d : undefined;
 }
 
 /**
@@ -45,12 +46,12 @@ function ownDraft(m: Manifest, path: string | undefined): Master | undefined {
  */
 export function historyOf(m: Manifest, path: string): History | null {
 	const copy = live(m, path);
-	if (copy?.directory === 'drafting-ai') return ownDraft(m, copy.copy_of ?? undefined) ? { of: 'copy', copy: path, source: copy.copy_of! } : null;
+	if (copy && isAgentDocument(copy)) return ownDraft(m, copy.copy_of ?? undefined) ? { of: 'copy', copy: path, source: copy.copy_of! } : null;
 	const landmark = m.canon?.find((c) => c.path === path);
 	const draft = landmark ? landmark.in : path;
 	if (!ownDraft(m, draft)) return null;
 	const mine = [...(m.canon ?? [])].filter((c) => c.in === draft).reverse();
-	const copies = m.masters.filter((x) => x.directory === 'drafting-ai' && x.copy_of === draft && !x.closed && !x.context_only);
+	const copies = m.masters.filter((x) => isAgentDocument(x) && x.copy_of === draft && !x.closed && !x.context_only);
 	if (!mine.length && !copies.length) return null;
 	return { of: 'draft', draft: draft!, ...(landmark ? { at: path } : {}), landmarks: mine.filter((c) => !c.kept_for), kept: mine.filter((c) => c.kept_for), copies };
 }

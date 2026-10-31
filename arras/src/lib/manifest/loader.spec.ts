@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkVersion, hashText, parseManifest } from './loader';
 
-const minimal = { interface_version: 1, corpus: { name: 'x', root_label: 'X' }, nodes: {}, keys: {} };
+const minimal = { interface_version: 2, corpus: { name: 'x', root_label: 'X' }, nodes: {}, keys: {} };
 
 describe('manifest loader', () => {
 	it('hashes text deterministically', async () => {
@@ -28,7 +28,7 @@ describe('manifest loader', () => {
 		expect(derived.manifest?.publishes).toMatchObject({ documents: true, discussions: true, review: false });
 	});
 
-	it('accepts interface version 1', async () => {
+	it('accepts interface version 2', async () => {
 		const result = await parseManifest(JSON.stringify(minimal));
 		expect(result.manifest?.corpus.name).toBe('x');
 	});

@@ -5,7 +5,7 @@ import { REFEREE, saying, serve } from '../manifest';
 
 test.describe('the research state', () => {
 	test('a row above the documents opens it in the focused pane, saying who wrote it, and a reload keeps it', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.getByTestId('docs-state').getByRole('link', { name: 'Research state' }).click();
 		await expect(page).toHaveURL(/\/page\/state$/);
 		const state = pane(page, 0).getByTestId('research-state');
@@ -20,7 +20,7 @@ test.describe('the research state', () => {
 
 	test('a quilt with no research state has no row', async ({ page }) => {
 		await serve(page, (m) => delete m.research_state);
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(page.getByTestId('docs-drafts')).toBeVisible();
 		await expect(page.getByTestId('docs-state')).toHaveCount(0);
 	});

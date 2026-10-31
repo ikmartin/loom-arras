@@ -745,7 +745,7 @@ def _start(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert [(c["copy"], c["to"]) for c in offered] == [("drafting-ai/survey.tex", "drafting/survey-1.tex")]
     body = {"copy": "drafting-ai/survey.tex", "reviewer": WHO, "to": "drafting/survey-1.tex"}
     refuses(s, "adopt-start", {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
-    refuses(s, "adopt-start", {**body, "to": "notes/survey.tex"}, 409, "bad-field", "directly in drafting/")
+    refuses(s, "adopt-start", {**body, "to": "notes/survey.tex"}, 409, "bad-field", "is inside notes/")
     assert succeeds(s, "adopt-start", body)["result"]["to"] == "drafting/survey-1.tex"
     assert "\\label{dm-0900}" in (root / "drafting/survey-1.tex").read_text()
     manifest = json.loads(get(s.url + "build/manifest.json")[2])

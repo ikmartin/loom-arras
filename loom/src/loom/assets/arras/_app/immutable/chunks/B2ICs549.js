@@ -1,0 +1,1 @@
+function e(e){return!!(e?.copy_of||e?.from_scratch)}export{e as t};

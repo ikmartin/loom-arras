@@ -39,7 +39,7 @@ def quilt(tmp_path: Path) -> Path:
 def test_inline_environment_renders_as_html_not_a_picture(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("build", cwd=q)
-    master = (q / "build" / "fragments" / "masters" / "main.html").read_text(encoding="utf-8")
+    master = (q / "build" / "fragments" / "masters" / "drafting" / "main.html").read_text(encoding="utf-8")
     assert "figure" not in master and "<pre>" not in master  # never an SVG picture of a theorem, never verbatim LaTeX
     assert '<div class="env env-definition"' in master and 'data-style="definition"' in master
     assert '<div class="env env-theorem"' in master and 'data-style="plain"' in master

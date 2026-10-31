@@ -111,7 +111,7 @@ test('a box drawn round an equation notes the equation itself', async ({ page, s
 
 test('a document is written on the same way, and what is written there is filed with the document: marked in it, and on no other page', async ({ page, served }) => {
 	// decision 9 and 11 of the annotation study: the viewer implies `in` from where the reader is, so a claim made while reading main.tex is about sy-0008 as read there, and talk.tex, which also holds sy-0008, and the node's own page carry no mark for it
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await intoASession(page, served);
 	await expect(page.getByTestId('tool-select')).toBeVisible();
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
@@ -128,7 +128,7 @@ test('a document is written on the same way, and what is written there is filed 
 	const id = mine[0].id as string;
 	const markOf = () => page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`);
 	await expect(markOf()).toHaveCount(1, { timeout: 15000 });
-	await page.goto('/master/talk');
+	await page.goto('/master/drafting/talk');
 	await expect(page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"]')).toBeVisible();
 	await expect(markOf()).toHaveCount(0);
 	await page.goto('/node/sy-0008');
@@ -137,7 +137,7 @@ test('a document is written on the same way, and what is written there is filed 
 });
 
 readOnly('the annotate chip stays at the end of the selection as its pane scrolls, and is hidden while those words are scrolled out of the pane', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await expect(page.getByTestId('tool-select')).toBeVisible();
 	const body = page.locator('[data-pane="0"] > .body');
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
@@ -563,7 +563,7 @@ test('finishing review records an acceptance for each pending OK, and clears the
 });
 
 test('compare asks the publisher, which narrows a changed node to its changed words, washed by side, and renders nothing twice', async ({ page, served }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	// started where a reader starts it: the draft's history, against its agent copy
 	const history = async () => {
 		await page.locator('[data-pane="0"]').getByTestId('toolbar-history').click();

@@ -5,11 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
-from loom.paths import BUILD, MANIFEST
+from loom.paths import BUILD, MANIFEST, documents_named
 from loom.scan.scan import ScanResult
 from loom.section_drafts import check_overlap, metadata
 from loom.sync import SyncError
@@ -27,13 +26,13 @@ def closed_drafts(history: History) -> dict[str, dict[str, Any]]:
 
 
 def resolve_copy(result: ScanResult, given: str, *, closed: bool = False) -> str:
-    """Resolve a full path, filename or unique stem among active or closed copies."""
+    """Resolve a path, name, file name or unique stem among active or closed copies."""
     history = load_history(result.quilt.history_dir)
     pool = closed_drafts(history) if closed else [*history.copies(result.masters), *history.written(result.masters)]
-    if given in pool:
-        return given
-    found = [p for p in pool if given in (Path(p).name, Path(p).stem)]
-    if len(found) != 1:
+    found = documents_named(given, pool)
+    if len(found) > 1:
+        raise SyncError(f"{given} names {len(found)} agent documents, {', '.join(found)}; give its path")
+    if not found:
         raise SyncError(f"{given} does not name one {'closed' if closed else 'active'} agent document")
     return found[0]
 

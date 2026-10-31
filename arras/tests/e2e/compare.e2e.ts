@@ -18,23 +18,23 @@ async function open(page: Page, left: string, right: string): Promise<void> {
 const top = async (page: Page, index: number, pair: string) => (await pane(page, index).locator(`[data-pair="${pair}"]`).first().boundingBox())!.y;
 
 test('an address that compares two things that do not pair is let go, and nothing offers compare but a history', async ({ page }) => {
-	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001') + '&compare=1');
+	await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-0001') + '&compare=1');
 	await expect(pane(page, 1).getByTestId('item-controls')).toBeVisible();
 	await expect(page.getByTestId('compare-count')).toHaveCount(0);
 	await expect(page).not.toHaveURL(/compare=/);
-	await page.goto('/node/sy-0002' + beside('/master/main') + '&compare=1');
+	await page.goto('/node/sy-0002' + beside('/master/drafting/main') + '&compare=1');
 	await expect(pane(page, 1).getByTestId('item-controls')).toBeVisible();
 	await expect(page.getByTestId('compare-count')).toHaveCount(0);
 	await expect(page.getByTestId('pane-compare')).toHaveCount(0);
 	// and in a window too narrow for two panes
 	await page.setViewportSize({ width: 600, height: 800 });
-	await page.goto('/master/main' + beside('/master/aidoc') + '&compare=1');
+	await page.goto('/master/drafting/main' + beside('/master/drafting-ai/aidoc') + '&compare=1');
 	await expect(page.getByTestId('narrow-strip')).toBeVisible();
 	await expect(page.getByTestId('compare-count')).toHaveCount(0);
 });
 
 test('comparing hides annotations in both panes, and stopping puts back what each had', async ({ page }) => {
-	await open(page, '/master/main', '/master/aidoc');
+	await open(page, '/master/drafting/main', '/master/drafting-ai/aidoc');
 	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('toolbar-view-on')).toBeVisible();
 	await expect(page).toHaveURL(/compare=1/);
 	await page.getByTestId('compare-stop').click();
@@ -44,7 +44,7 @@ test('comparing hides annotations in both panes, and stopping puts back what eac
 });
 
 test('an agent document against its source: − on the source, + on the copy, amber where both changed, a wedge for what one lacks', async ({ page }) => {
-	await open(page, '/master/main', '/master/aidoc');
+	await open(page, '/master/drafting/main', '/master/drafting-ai/aidoc');
 	await expect(page.getByTestId('compare-count')).toHaveText('6 differences');
 	const left = pane(page, 0);
 	const right = pane(page, 1);
@@ -65,7 +65,7 @@ test('an agent document against its source: − on the source, + on the copy, am
 });
 
 test('stepping brings both panes to one difference at one height, and a double-click brings the partner', async ({ page }) => {
-	await open(page, '/master/main', '/master/aidoc');
+	await open(page, '/master/drafting/main', '/master/drafting-ai/aidoc');
 	await page.keyboard.press(']');
 	await page.keyboard.press(']');
 	await expect(page.getByTestId('compare-count')).toHaveText('2 of 6');
@@ -77,20 +77,20 @@ test('stepping brings both panes to one difference at one height, and a double-c
 });
 
 test('two of the author’s documents: presence dashed and order dotted, no gutter', async ({ page }) => {
-	await open(page, '/master/main', '/master/talk');
+	await open(page, '/master/drafting/main', '/master/drafting/talk');
 	await expect(page.locator('.compare-gutter')).toHaveCount(0);
 	await expect(pane(page, 0).locator('[data-pair="sy-0001"].compare-only')).toContainText('not in talk.tex');
 	await expect(page.locator('.compare-order').first()).toContainText('order differs');
 });
 
 test('a landmark against today: the landmark holds the base', async ({ page }) => {
-	await open(page, '/canon/widgets-v1', '/master/main');
+	await open(page, '/canon/widgets-v1', '/master/drafting/main');
 	await expect(pane(page, 0).locator('[data-pair="sy-0001"].compare-del')).toHaveCount(1);
 	await expect(pane(page, 1).locator('[data-pair="sy-0001"].compare-add')).toHaveCount(1);
 });
 
 test('a changed tab ends compare', async ({ page }) => {
-	await open(page, '/master/main', '/master/aidoc');
+	await open(page, '/master/drafting/main', '/master/drafting-ai/aidoc');
 	// the right pane takes another document, as a reader choosing one from the panel does
 	await pane(page, 1).locator('.fragment').first().click();
 	await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();

@@ -1,6 +1,7 @@
 // The column's two primary views, the reading address Docs returns to, and the development shelf's indexes.
 
 import type { Manifest } from '$lib/manifest/types';
+import { isAgentDocument } from '$lib/manifest/documents';
 import { canonUrl, masterUrl } from '$lib/nav';
 import { route } from '$lib/paths';
 
@@ -22,7 +23,7 @@ export function primaryOf(routeId: string | null): Primary {
  */
 export function readingAddress(m: Manifest | null, reading = ''): string {
 	if (reading) return reading;
-	const master = m?.masters.find((x) => x.default) ?? m?.masters.find((x) => x.directory !== 'drafting-ai' && !x.closed && !x.context_only);
+	const master = m?.masters.find((x) => x.default) ?? m?.masters.find((x) => !isAgentDocument(x) && !x.closed && !x.context_only);
 	if (master) return masterUrl(master.path);
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;
 	return newest ? canonUrl(newest.path) : '';

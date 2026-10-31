@@ -24,7 +24,7 @@ export interface Side {
 	step: number | null;
 	/** An agent document's source document. */
 	copyOf: string | null;
-	/** Whether it is in the agent's drafting directory. */
+	/** Whether it is an agent's document (`isAgentDocument`). */
 	copy: boolean;
 }
 

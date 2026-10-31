@@ -176,7 +176,7 @@ CASES: dict[str, list[Case]] = {
         Case(("widgets-v1", "--to", "drafting/restored.tex")),
         Case(("absent", "--to", "drafting/restored.tex"), exit=2, unchanged=True, why="no such landmark"),
         Case(("widgets-v1",), exit=2, unchanged=True, why="no --to"),
-        Case(("widgets-v1", "--to", "nodes/restored.tex"), exit=2, unchanged=True, why="not in drafting/"),
+        Case(("widgets-v1", "--to", "notes/restored.tex"), exit=2, unchanged=True, why="where loom does not read"),
     ],
     "history verify": [Case(())],
     "adopt": [

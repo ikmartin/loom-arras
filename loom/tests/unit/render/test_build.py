@@ -48,7 +48,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     b = d / "build"
     assert (b / "manifest.json").exists()
     assert (b / "fragments" / "nodes" / "dm-0003.html").exists()
-    assert (b / "fragments" / "masters" / "main.html").exists()
+    assert (b / "fragments" / "masters" / "drafting" / "main.html").exists()
     assert (b / "fragments" / "digests" / "Calloway14.html").exists()
     m = json.loads((b / "manifest.json").read_text())
     for field in (
@@ -73,10 +73,12 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
         "search",
     ):
         assert field in m, field
-    assert m["interface_version"] == 1 and m["publisher"]["name"] == "loom"
+    assert m["interface_version"] == 2 and m["publisher"]["name"] == "loom"
     assert m["corpus"]["root_label"] == "Widgets and their fixed loci"
     master = m["masters"][0]
-    assert master["default"] and master["numbering_known"] and master["fragment"] == "fragments/masters/main.html"
+    assert (
+        master["default"] and master["numbering_known"] and master["fragment"] == "fragments/masters/drafting/main.html"
+    )
     n = m["nodes"]["dm-0003"]
     assert n["taxon"] == "Theorem" and n["title"] == "Main" and n["numbers"]["drafting/main.tex"]["number"] == "2.1"
     assert n["parent"]["drafting/main.tex"] == "dm-0011" and n["proofs"] == ["dm-0003/proof"]
@@ -118,7 +120,7 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     )  # a real anchor target, so a link into a document lands
     assert node.count("<details ") == 2 and 'data-of="sy-0003"' in node
     assert '<span class="number">2.1</span>' in node
-    master = (b / "fragments" / "masters" / "main.html").read_text()
+    master = (b / "fragments" / "masters" / "drafting" / "main.html").read_text()
     assert 'data-fragment="master"' in master
     assert (
         "data-included" not in master
@@ -258,7 +260,7 @@ def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
     build(load_quilt(d))
     first = renamed()
     # on a cold build every file is new, so every one handed to the publisher was renamed in before the manifest
-    assert "fragments/masters/main.html" in handed and "fragments/nodes/dm-0002.html" in handed
+    assert "fragments/masters/drafting/main.html" in handed and "fragments/nodes/dm-0002.html" in handed
     assert [rel for rel in handed if b / rel not in first] == []
     edit(d / "nodes" / "dm-0002.tex", "\\end{", "Changed. \\end{")
     build(load_quilt(d))
@@ -495,8 +497,8 @@ def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path
     ).output.split()[0]
     ok("build", cwd=d)
     frag = d / "build" / "fragments"
-    outline = (frag / "masters" / "outline.html").read_text()
-    main = (frag / "masters" / "main.html").read_text()
+    outline = (frag / "masters" / "drafting" / "outline.html").read_text()
+    main = (frag / "masters" / "drafting" / "main.html").read_text()
     node = (frag / "nodes" / "dm-0002.html").read_text()
     assert only in outline and both in outline
     assert only not in main and both in main

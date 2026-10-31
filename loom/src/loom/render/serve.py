@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
-from loom.paths import BUILD, SERVE_JSON
+from loom.paths import BUILD, SERVE_JSON, document_build
 from loom.refs.pages import storage_root
 from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher, records_only, snapshot
@@ -535,7 +535,7 @@ class ServeSession:
 
         with Progress("compiling", 1) as shown:
             shown.item(master)
-            res = compile_tex(self.quilt.root, master, self.quilt.root / BUILD / Path(master).stem, engine)
+            res = compile_tex(self.quilt.root, master, self.quilt.root / document_build(master), engine)
         print(f"loom serve: compiled {master}: {'ok' if res.ok else 'FAILED ' + res.first_error}", file=sys.stderr)
         if res.ok:
             self.rebuild()

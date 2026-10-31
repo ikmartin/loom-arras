@@ -44,7 +44,7 @@ from loom.reshape.linearize import flatten, to_canon
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local, rename_labels, split_id
 from loom.scan.quilt import Quilt, load_quilt
-from loom.scan.scan import ScanResult, scan, skipped_dirs
+from loom.scan.scan import ScanResult, scan, unread_dir
 from loom.sync import copy_ignore
 from loom.tex.assemble import shift_sectioning
 from loom.tex.identity import identity_test
@@ -127,7 +127,7 @@ def draft(
 
 
 def _ai_destination(result: ScanResult, name: str) -> str:
-    """The agent document `--ai NAME` names: directly under `[quilt] drafting_ai`, never an existing file or a stem another document has."""
+    """The agent document `--ai NAME` names: directly under `[quilt] drafting_ai`, never an existing file."""
     quilt = result.quilt
     dest_rel = name if "/" in name else f"{quilt.config.drafting_ai}/{name}"
     if not dest_rel.endswith(".tex"):
@@ -136,19 +136,6 @@ def _ai_destination(result: ScanResult, name: str) -> str:
         raise EnvError(f"an agent document goes directly under {quilt.config.drafting_ai}/, not at {dest_rel}")
     if (quilt.root / dest_rel).exists():
         raise EnvError(f"{dest_rel} exists; draft never overwrites")
-    stems = {Path(m).stem for m in result.masters}
-    stem = Path(dest_rel).stem
-    if stem in stems:
-        # a name that is free, so the refusal names a command that works (T3)
-        free = next(
-            f"{stem}-{n}"
-            for n in range(2, 10_000)
-            if f"{stem}-{n}" not in stems and not (quilt.root / f"{quilt.config.drafting_ai}/{stem}-{n}.tex").exists()
-        )
-        holder = next(m for m in result.masters if Path(m).stem == stem)
-        raise EnvError(
-            f"{holder} is already named {stem}; the viewer and the build tell documents apart by name, so give it another, such as --ai {free}"
-        )
     return dest_rel
 
 
@@ -218,12 +205,10 @@ def _draft_ai(
     actor = writer(root, declared)[0] or None
     source_rel = _rel(root, source)
     role = result.document_role(source_rel)
-    if role != "drafting":
+    if role != "person":
         if role:
-            raise EnvError(
-                f"{source_rel} is an agent document; an agent document is drafted from one in {quilt.config.drafting}/"
-            )
-        raise NotFoundError("document", f"{source_rel} is not a live document in {quilt.config.drafting}/")
+            raise EnvError(f"{source_rel} is an agent document; an agent document is drafted from one of yours")
+        raise NotFoundError("document", f"{source_rel} is not a live document")
     dest_rel = _ai_destination(result, name)
     history = _history(result)
     refuse_interrupted(history)  # before the copy is written, so a refusal leaves nothing behind
@@ -310,7 +295,7 @@ def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quil
     root = result.quilt.root
     history = _history(result)
     doc = _rel(root, document) if document else None
-    if doc is not None and result.document_role(doc) != "drafting":
+    if doc is not None and result.document_role(doc) != "person":
         raise NotFoundError("document", f"{document} is not a live document in {result.quilt.config.drafting}/")
     name = slug(message)
     if doc is not None:
@@ -624,28 +609,24 @@ def live(file: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> Non
 
 
 def _document_path(result: ScanResult, rel: str, given: str) -> None:
-    """Refuse `rel` unless it can name a drafting document: a `.tex` directly in the drafting directory, inside the quilt.
+    """Refuse `rel` unless it can name one of the person's documents: a `.tex` inside the quilt where the scan reads, outside the agent's drafting directory.
 
-    `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directories the scan never enters are named, since a retired path or one in the history is the likeliest slip.
+    `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directory that keeps the scan out is named, since a retired path or one in the history is the likeliest slip.
     """
-    drafting = result.quilt.config.drafting
+    drafting_ai = result.quilt.config.drafting_ai
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
-        raise EnvError(f"{given} is outside the quilt; loom mv moves drafting documents within {drafting}/")
-    for d in skipped_dirs(result.quilt):
-        if rel == d or rel.startswith(f"{d}/"):
-            raise EnvError(
-                f"{rel} is inside {d}/, not the drafting directory {drafting}/; loom mv moves only drafting documents"
-            )
+        raise EnvError(f"{given} is outside the quilt; loom mv moves documents within it")
+    unread = unread_dir(result.quilt, rel)
+    if unread is not None:
+        raise EnvError(f"{rel} is inside {unread}/, which loom never reads as a document; loom mv moves only documents")
     if not rel.endswith(".tex"):
-        raise EnvError(f"{rel} is not a .tex file; a drafting document is a .tex directly in {drafting}/")
-    if Path(rel).parent.as_posix() != drafting:
-        raise EnvError(
-            f"{rel} is not directly in the drafting directory {drafting}/; loom mv moves only drafting documents"
-        )
+        raise EnvError(f"{rel} is not a .tex file; loom mv moves only documents")
+    if Path(rel).parent.as_posix() == drafting_ai:
+        raise EnvError(f"{rel} is in {drafting_ai}/, where agents' documents are kept; loom mv moves only yours")
 
 
 def _named_documents(result: ScanResult) -> set[str]:
-    """Every drafting-document path a record or the history names: `[quilt] main`, acceptance rows' `master`, annotations' `in` and whole-document targets, the sync record's main and documents, and any path a ledger line carries.
+    """Every document path a record or the history names: `[quilt] main`, acceptance rows' `master`, annotations' `in` and whole-document targets, the sync record's main and documents, and any path a ledger line carries.
 
     `loom mv`'s record-only form refuses a path outside this set, since nothing would follow it. Ledger lines are read by value shape (a string, a list of strings, or `{path}`) so a new action needs no case here.
     """
@@ -680,9 +661,9 @@ def _named_documents(result: ScanResult) -> set[str]:
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
+    """Move the document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
 
-    Both are .tex files directly in the drafting directory. Moving the default document moves [quilt] main with it.
+    Both are .tex files anywhere in the quilt loom reads, outside the agents' directory. Moving the default document moves [quilt] main with it.
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -709,14 +690,12 @@ def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None)
                     f"{old_rel} is superseded ({src.superseded}); `loom live {old_rel}` first, or move what superseded it"
                 )
             raise EnvError(
-                f"{old_rel} is not a live drafting document (it has no \\documentclass, or is ignored); loom mv moves only documents"
+                f"{old_rel} is not a live document (it has no \\documentclass, or is ignored); loom mv moves only documents"
             )
         moved = True
     else:
         if new_rel not in result.masters:
-            raise EnvError(
-                f"{new_rel} is not a live drafting document; a rename is recorded only to a document loom scans"
-            )
+            raise EnvError(f"{new_rel} is not a live document; a rename is recorded only to a document loom scans")
         if old_rel not in _named_documents(result):
             raise EnvError(
                 f"{old_rel} is not a document any record or the history names; there is nothing to follow to {new_rel}"
@@ -732,6 +711,7 @@ def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None)
         data: dict[str, Any] = {"action": "move", **record}
     else:
         if moved:
+            (root / new_rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(root / old_rel), str(root / new_rel))
         entry = append_entry(result.quilt.history_dir, "move", record, actor_for(root))
         main_moved = follows and set_main_forced(result.quilt, new_rel)
@@ -801,7 +781,7 @@ def _linearize(
     if spine_rel not in result.files:
         raise NotFoundError("file", f"{spine} is not a scanned file of this quilt")
     progress.next_stage("flattening")
-    to_rel = destination(result.quilt, to, drafting=True).relative_to(root.resolve()).as_posix()
+    to_rel = destination(result.quilt, to, document=True, agent=True).relative_to(root.resolve()).as_posix()
     if do_fork and keep_shared:
         raise EnvError("--fork and --keep-shared exclude each other")
     exp = result.expansions.get(spine_rel)
@@ -1112,14 +1092,14 @@ def history_show(name: str, plain: bool, as_json: bool, quilt_path: str | None) 
 
 @history.command(name="restore")
 @click.argument("name")
-@click.option("--to", "to", default=None, metavar="FILE", help="The new document, directly in the drafting directory.")
+@click.option("--to", "to", default=None, metavar="FILE", help="The new document, anywhere in the quilt loom reads.")
 @click.option("--dry-run", is_flag=True, help="Say what the document would be, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def history_restore(name: str, to: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Start a document from a landmark.
 
-    A new drafting document from the landmark NAME, with the package line and an id on every node that has none; the author's alone.
+    A new document from the landmark NAME, with the package line and an id on every node that has none; the author's alone.
     """
     from loom.cli._common import refuse_under_agent
 
@@ -1131,10 +1111,8 @@ def history_restore(name: str, to: str | None, dry_run: bool, as_json: bool, qui
     hist, e, text = _landmark(result.quilt, name)
     quilt = result.quilt
     root = quilt.root
-    dest = destination(quilt, to, drafting=True)
+    dest = destination(quilt, to, document=True)
     dest_rel = dest.relative_to(Path(root).resolve()).as_posix()
-    if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
-        raise EnvError(f"a restored document goes directly under {quilt.config.drafting}/, not at {dest_rel}")
     plan = plan_draft(result, text, dest_rel)
     if plan.violations or plan.spans:
         raise ContentError(

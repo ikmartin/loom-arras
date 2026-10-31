@@ -360,11 +360,11 @@ A landmark, which `show` prints and `restore` starts a document from, is named b
 
 Start a document from a landmark.
 
-A new drafting document from the landmark NAME, with the package line and an id on every node that has none; the author's alone.
+A new document from the landmark NAME, with the package line and an id on every node that has none; the author's alone.
 
 | option | description |
 |---|---|
-| `--to` `FILE` | The new document, directly in the drafting directory. |
+| `--to` `FILE` | The new document, anywhere in the quilt loom reads. |
 | `--dry-run` | Say what the document would be, and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -411,9 +411,9 @@ Print the patch that puts KEY@N's recorded text back in place of the head's; the
 
 `loom mv [OPTIONS] OLD NEW`
 
-Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
+Move the document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
 
-Both are .tex files directly in the drafting directory. Moving the default document moves [quilt] main with it.
+Both are .tex files anywhere in the quilt loom reads, outside the agents' directory. Moving the default document moves [quilt] main with it.
 
 | option | description |
 |---|---|
@@ -1130,7 +1130,7 @@ The viewer is at /, and the build directory it reads at /build/. One server runs
 
 `loom compile [OPTIONS] [TARGET]`
 
-Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
+Run latexmk from the root into build/<name>/ for a master (default: the default master), its name its path without .tex, or for a key.
 
 Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
 

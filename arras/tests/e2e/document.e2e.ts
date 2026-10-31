@@ -2,13 +2,13 @@
 import { expect, test } from '@playwright/test';
 
 test('a document expands its inclusions in place', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await expect(page.locator('.fragment .included[data-file="nodes/sy-0002.tex"]')).toBeVisible();
 	await expect(page.locator('.fragment section[data-id="sy-0300"] h2')).toBeVisible();
 });
 
 test('a heading links to its node, and an equation reference lands on the equation', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	const head = page.locator('#sy-0200 > h1');
 	await expect(head.locator('a.heading-link')).toHaveAttribute('href', '/node/sy-0200');
 	const eq = page.locator('a.ref-eq').first();
@@ -18,7 +18,7 @@ test('a heading links to its node, and an equation reference lands on the equati
 });
 
 test('a display block never scrolls vertically', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await page.waitForSelector('.fragment .math.display');
 	// every formula typeset, since MathJax's output is what could overflow
 	await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
@@ -37,7 +37,7 @@ test('a display block never scrolls vertically', async ({ page }) => {
 });
 
 test('a formula is never skipped off screen, so typesetting a document again never moves the reader', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await page.waitForSelector('.fragment mjx-container mjx-assistive-mml');
 	const cv = await page.evaluate(() => {
 		const c = document.querySelector('.fragment mjx-container')!;
@@ -50,7 +50,7 @@ test('a formula is never skipped off screen, so typesetting a document again nev
 test('a document drawn again leaves nothing of the old one in MathJax', async ({ page }) => {
 	// MathJax lists every formula it typesets and each entry holds its output, so a document replaced stayed alive whole until arras forgot the entries whose output had left the page (plan 0.19.1)
 	const typeset = () => page.waitForFunction(() => !!document.querySelector('.fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await typeset();
 	// away to a page that typesets nothing of its own, the graph, reached from the local graph, and back
 	for (let i = 0; i < 2; i++) {

@@ -54,7 +54,7 @@ test('the display preferences survive a reload and change the document', async (
 
 test.describe('the four formats a document is read in', () => {
 	test('the format is one switch, applied to documents and nodes alike', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'p1'); // the compiled page, by default
 		await expect(page.locator('.fragment .env-label .number').first()).toBeVisible();
 
@@ -72,7 +72,7 @@ test.describe('the four formats a document is read in', () => {
 
 	test('p1 sets the compiled page: run-in heads, no colour on a result', async ({ page }) => {
 		await prefs(page, { format: 'p1' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment .env[data-key]');
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'p1');
 
@@ -93,7 +93,7 @@ test.describe('the four formats a document is read in', () => {
 
 	test('p2 marks where the compiled pages ended, and p1 marks nothing', async ({ page }) => {
 		await prefs(page, { format: 'p2' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment .env[data-key]');
 		const breaks = page.locator('.page-break');
 		await expect.poll(() => breaks.count()).toBeGreaterThan(0);
@@ -109,7 +109,7 @@ test.describe('the four formats a document is read in', () => {
 
 	test('b1 keeps the taxon accent, in three colours at most', async ({ page }) => {
 		await prefs(page, { format: 'b1' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment .env[data-key]');
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'b1');
 		const tones = await page.evaluate(() =>

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import shlex
-from pathlib import Path
 
 import click
 
@@ -14,7 +13,7 @@ from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
 from loom.cli.report import Group, Report, counted
 from loom.clock import today
-from loom.paths import NODES
+from loom.paths import NODES, document_name, documents_named
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import PREFIX, next_local
 from loom.scan.scan import ScanResult
@@ -181,7 +180,7 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
                     "file": n.file,
                     "line": src.line_of(n.start),
                     "number": None,
-                    "url": f"/node/{key}" if entry_kind != "master" else f"/master/{Path(key).stem}",
+                    "url": f"/node/{key}" if entry_kind != "master" else f"/master/{document_name(key)}",
                 },
             )
         )
@@ -211,12 +210,12 @@ NUMBERED = re.compile(r"^\s*(?:(?P<taxon>[^\W\d_][\w-]*)\.?\s+)?(?P<open>\()?(?P
 
 
 def document_named(result: ScanResult, name: str) -> str:
-    """The drafting document `name` means: its path, or a stem only one document has."""
-    if name in result.masters:
-        return name
-    stem = [m for m in result.masters if Path(m).stem == Path(name).stem]
-    if len(stem) == 1:
-        return stem[0]
+    """The document `name` means: its path or name, or a file name or stem only one document has (`documents_named`)."""
+    named = documents_named(name, result.masters)
+    if len(named) == 1:
+        return named[0]
+    if named:
+        raise EnvError(f"{name} names {len(named)} documents, {', '.join(named)}; give its path")
     raise NotFoundError("document", f"{name} names no document; they are: {', '.join(result.masters) or 'none'}")
 
 

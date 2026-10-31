@@ -57,7 +57,7 @@ def test_a_display_name_changed_alone_is_no_difference(quilt: Path) -> None:
 def test_the_hashes_are_the_fragments_and_a_rendering_is_made_once(quilt: Path) -> None:
     """A pair's hashes are the `data-hash` the build wrote on the same nodes, so a viewer with nothing serving marks what loom would; a second request renders nothing."""
     build(load_quilt(quilt))
-    master = (quilt / "build" / "fragments" / "masters" / "aidoc.html").read_text(encoding="utf-8")
+    master = (quilt / "build" / "fragments" / "masters" / "drafting-ai" / "aidoc.html").read_text(encoding="utf-8")
     written = dict(re.findall(r'data-pair="([^"]*)" data-hash="([^"]*)"', master))
     got = pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
     assert got["sy-0002"]["right"]["hash"] == written["sy-0002"]

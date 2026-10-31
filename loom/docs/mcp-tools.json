@@ -332,7 +332,7 @@
    "read_only_hint": false
   },
   "command": "loom compile",
-  "description": "Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
+  "description": "Run latexmk from the root into build/<name>/ for a master (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {

@@ -28,7 +28,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:prefix-is-citekey": ("warning", False),
     "loom:unknown-directive": ("warning", False),
     "loom:invalid-name": ("warning", False),
-    "loom:documentclass-outside-drafts": ("info", False),
     "loom:unknown-config-key": ("warning", False),
     "loom:unlabelled-node": ("info", False),
     "loom:positional-proof-key": ("info", False),
@@ -64,6 +63,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:taxon-name-macro": ("info", False),
     "loom:citekey-slug-collision": ("error", False),
     "loom:main-not-found": ("warning", False),
+    "loom:main-unset": ("info", False),
     "loom:foreign-annotations": ("warning", False),
     # the workbench and the record (docs/specs/diagnostics.md §3)
     "loom:superseded-file": ("info", False),
@@ -78,7 +78,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:document-gone": ("warning", False),
     # the documents an agent edits (plan 0.17.1)
     "loom:derived-id-in-drafting": ("error", False),
-    "loom:document-stem-taken": ("error", False),
     "loom:agent-document-unrecorded": ("error", False),
     "loom:plain-id-in-drafting-ai": ("error", False),
     # the PDF invariant (plan 0.13 §4): a warning and never an error, because loom cannot fetch without consent

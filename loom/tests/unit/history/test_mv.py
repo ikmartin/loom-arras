@@ -1,4 +1,4 @@
-"""`loom mv`: moving a drafting document and recording the move, or recording a rename made elsewhere, so every record naming the document follows it."""
+"""`loom mv`: moving a document and recording the move, or recording a rename made elsewhere, so every record naming the document follows it."""
 
 from __future__ import annotations
 
@@ -66,6 +66,14 @@ def test_mv_moves_a_document_and_records_the_move(tmp_path: Path) -> None:
     assert "via" not in line
     assert main_of(d) == "drafting/main.tex"
     assert "drafting/outline.tex -> drafting/plan.tex\n" in ok("history", cwd=d).stdout
+
+
+def test_a_document_moves_into_a_directory_of_its_own(tmp_path: Path) -> None:
+    """A document may sit anywhere loom reads, so mv takes it out of the drafting directory, making the directory it needs."""
+    d = demo(tmp_path)
+    ok("mv", "drafting/outline.tex", "plan/outline.tex", cwd=d)
+    assert (d / "plan" / "outline.tex").is_file()
+    assert "plan/outline.tex" in scan(load_quilt(d)).masters
 
 
 def test_moving_the_default_document_moves_main_and_its_acceptances_stay_fresh(tmp_path: Path) -> None:
@@ -151,13 +159,13 @@ REFUSALS: dict[str, tuple[Callable[[Path], None], str, str, str]] = {
     "both exist": (_nothing, "drafting/main.tex", "drafting/outline.tex", "both exist; loom mv never overwrites"),
     "neither exists": (_nothing, "drafting/a.tex", "drafting/b.tex", "neither drafting/a.tex nor drafting/b.tex exists"),
     "the same path": (_nothing, "drafting/main.tex", "drafting/main.tex", "are the same path"),
-    "OLD outside drafting": (_nothing, "nodes/dm-0001.tex", "drafting/x.tex", "is not directly in the drafting directory"),
-    "NEW below drafting": (_nothing, "drafting/main.tex", "drafting/sub/main.tex", "is not directly in the drafting"),
+    "OLD an agent's": (_nothing, "drafting-ai/x.tex", "drafting/x.tex", "where agents' documents are kept"),
+    "NEW among agents'": (_nothing, "drafting/main.tex", "drafting-ai/main.tex", "where agents' documents are kept"),
     "NEW not .tex": (_nothing, "drafting/main.tex", "drafting/main.txt", "is not a .tex file"),
-    "NEW in retired": (_nothing, "drafting/main.tex", "retired/main.tex", "is inside retired/, not the drafting directory"),
-    "NEW in the history": (_nothing, "drafting/main.tex", ".loom/history/x.tex", "is inside .loom/history/"),
+    "NEW in retired": (_nothing, "drafting/main.tex", "retired/main.tex", "is inside retired/, which loom never reads as a document"),
+    "NEW in the history": (_nothing, "drafting/main.tex", ".loom/history/x.tex", "is inside .loom/"),
     "OLD outside the quilt": (_nothing, "/nonexistent/a.tex", "drafting/x.tex", "is outside the quilt"),
-    "OLD a node file": (_part, "drafting/part.tex", "drafting/part2.tex", "is not a live drafting document"),
+    "OLD a node file": (_part, "drafting/part.tex", "drafting/part2.tex", "is not a live document"),
     "OLD superseded": (_flat, "drafting/main.tex", "drafting/other.tex", "is superseded (linearize)"),
     "OLD unknown": (_nothing, "drafting/never.tex", "drafting/outline.tex", "is not a document any record or the history names"),
     "NEW not a document": (_deleted_and_part, "drafting/main.tex", "drafting/part.tex", "a rename is recorded only to a document"),

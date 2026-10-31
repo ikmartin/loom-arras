@@ -3,7 +3,7 @@
 // An item's identity is its kind and id. Its view and its place in it are state, not identity: a second tab of one document would be one document in two states (W8).
 
 import { base } from '$app/paths';
-import { canonUrl, keyFromParam, masterStem, masterUrl, nodeUrl, workUrl } from '$lib/nav';
+import { canonStem, canonUrl, keyFromParam, masterName, masterUrl, nodeUrl, workUrl } from '$lib/nav';
 import { route } from '$lib/paths';
 import { placeParams, readKeys, type WorkLink } from '$lib/worklink';
 
@@ -81,9 +81,12 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 	switch (head) {
 		case 'master':
 		case 'canon': {
-			const stem = safe(tail);
-			const pool = head === 'canon' ? (m?.canon ?? []) : (m?.masters ?? []);
-			const id = pool.find((d) => masterStem(d.path) === stem)?.path ?? stem;
+			// a landmark is addressed by its stem, a document by its name, which may hold slashes
+			const at = head === 'canon' ? safe(tail) : tail.split('/').map(safe).join('/');
+			const id =
+				head === 'canon'
+					? ((m?.canon ?? []).find((d) => canonStem(d.path) === at)?.path ?? at)
+					: ((m?.masters ?? []).find((d) => masterName(d.path) === at)?.path ?? at);
 			const params: Record<string, string> = {};
 			for (const k of DOC_PARAMS) {
 				const v = query.get(k);

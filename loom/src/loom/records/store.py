@@ -89,8 +89,8 @@ class ResolvedAnnotation:
 
 
 def is_document_path(result: ScanResult, path: str) -> bool:
-    """Whether `path` names a drafting document, live or not: a `.tex` file directly in the drafting directory, as masters are."""
-    return path.endswith(".tex") and Path(path).parent.as_posix() == result.quilt.config.drafting
+    """Whether `path` names a document, live or not, rather than a key: a `.tex` path, which no key (`prose:` keys aside) is."""
+    return path.endswith(".tex") and not path.startswith("prose:")
 
 
 #: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.

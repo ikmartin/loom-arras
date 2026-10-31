@@ -1,7 +1,7 @@
-// Types mirroring docs/specs/manifest.md (interface version 1). Field names are fixed by the spec; unknown fields are ignored by the viewer, so every interface here is open.
+// Types mirroring docs/specs/manifest.md (interface version 2). Field names are fixed by the spec; unknown fields are ignored by the viewer, so every interface here is open.
 
-export const INTERFACE_VERSION = 1;
-export const ACCEPTED_INTERFACE_VERSIONS: readonly number[] = [1];
+export const INTERFACE_VERSION = 2;
+export const ACCEPTED_INTERFACE_VERSIONS: readonly number[] = [2];
 
 export type Severity = "error" | "warning" | "info";
 export type ColorClass =
@@ -83,8 +83,6 @@ export interface Master {
   compiled?: string;
   pdf?: string;
   numbering_known?: boolean;
-  /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit. */
-  directory?: "drafting" | "drafting-ai" | null;
   /** An agent document's source document, where the history's moves have taken it. */
   copy_of?: string;
   /** An agent document written from scratch, drafted from none of the person's documents, so it has no source. */

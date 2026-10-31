@@ -302,10 +302,10 @@ def _selection(quilt: Quilt, state: SyncState) -> tuple[str, list[str]]:
         path = Path(document)
         if path.is_absolute() or ".." in path.parts:
             raise SyncError(f"selected document has an unsafe path: {document}")
-        if result.document_role(document) == "drafting-ai":
+        if result.document_role(document) == "agent":
             raise SyncError(f"selected document is an agent's document, which is never published: {document}")
-        if result.document_role(document) != "drafting":
-            raise SyncError(f"selected document is not a live drafting document: {document}")
+        if result.document_role(document) != "person":
+            raise SyncError(f"selected document is not a live document of yours: {document}")
     return main, documents
 
 
@@ -448,6 +448,13 @@ def configure(quilt: Quilt, given: str, published_main: str = "", *, write: bool
         )
     clone = Path(given).expanduser().resolve()
     remote, branch, url, tip = _followed(quilt, given, clone)
+    from loom.scan.scan import scan
+
+    main = scan(quilt).default_master
+    if main is None:
+        raise SyncError(
+            "the quilt has no default document to publish as the workspace's main file; set [quilt] main in config.toml"
+        )
     if not published_main:
         # pairing again keeps where the main document publishes, rather than silently setting it back (T7)
         try:
@@ -462,10 +469,10 @@ def configure(quilt: Quilt, given: str, published_main: str = "", *, write: bool
         remote=remote,
         url=url,
         branch=branch,
-        master=quilt.config.main,
+        master=main,
         integrated=tip,
-        published_main=published_main or quilt.config.main,
-        documents=[quilt.config.main],
+        published_main=published_main or main,
+        documents=[main],
     )
     if write:
         state.write(root)
@@ -675,13 +682,11 @@ def _review(quilt: Quilt, state: SyncState, result: ScanResult) -> dict[str, Any
         | set(incoming_review.get("affected", []))
         | {d["key"] for c in incoming_review.get("changes", []) for d in c.get("affected", [])}
     )
-    # a live document deleted and an identical drafting document added is a collaborator's rename, recorded only once the pull is incorporated
+    # a live document deleted and an identical document added is a collaborator's rename, recorded only once the pull is incorporated and the new file is live (`_record_moves`)
     moves = [
         {"from": main if gone == state.published_main else gone, "to": came, "main": gone == state.published_main}
         for gone, came in exact_renames(workspace(quilt.root), state.integrated, state.incoming)
-        if (main if gone == state.published_main else gone) in result.masters
-        and came.endswith(".tex")
-        and Path(came).parent.as_posix() == quilt.config.drafting
+        if (main if gone == state.published_main else gone) in result.masters and came.endswith(".tex")
     ]
     local_before = {
         key: state.review_local_changed.get(key, False)
@@ -985,7 +990,7 @@ def _record_moves(quilt: Quilt, state: SyncState, moves: list[dict[str, Any]], i
 
 
 def update_documents(quilt: Quilt, state: SyncState, action: str, document: str, *, write: bool = True) -> SyncState:
-    """Add a live drafting document to the source projection, or remove one, and save the selection; never publish it.
+    """Add a live document of the person's to the source projection, or remove one, and save the selection; never publish it.
 
     With `write` false the returned state carries the new selection and nothing is saved.
     """
@@ -1001,10 +1006,10 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str,
     result = scan(quilt)
     main, now = current_selection(state, result)
     if action == "add":
-        if result.document_role(document) == "drafting-ai":
+        if result.document_role(document) == "agent":
             raise SyncError(f"{document} is an agent's document, which is never published")
-        if result.document_role(document) != "drafting":
-            raise SyncError(f"{document} is not a live drafting document")
+        if result.document_role(document) != "person":
+            raise SyncError(f"{document} is not a live document of yours")
         if document not in now:
             current.append(document)
     elif action == "remove":

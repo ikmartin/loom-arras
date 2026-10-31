@@ -10,7 +10,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 
 ```json
 {
-  "interface_version": 1,
+  "interface_version": 2,
   "publisher": {"name": "loom", "version": "0.1.0"},
   "publishes": {"documents": true, "review": true, "bibliography": true, "discussions": true},
   "generated": "2026-09-16T14:40:02Z",
@@ -79,16 +79,15 @@ The values are properties of the publisher and its corpora, not of this corpus's
   "path": "drafting/main.tex",
   "title": "Relative virtual localization",
   "default": true,
-  "directory": "drafting",
-  "fragment": "fragments/masters/main.html",
+  "fragment": "fragments/masters/drafting/main.html",
   "engine": "pdflatex",
   "compiled": "2026-09-16T14:39:10Z",
-  "pdf": "main/main.pdf",
+  "pdf": "drafting/main/main.pdf",
   "numbering_known": true
 }
 ```
 
-`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. `directory` is `"drafting"` for a document in the drafting directory and `"drafting-ai"` for one in the agent's drafting directory; only a `"drafting"` master is the default, has a Review tab, or is selected by the document workspace. The list holds the `"drafting"` masters first. An agent's copy also carries `copy_of`, the document it was copied from, where the history's moves have taken it. An agent document written from scratch carries `from_scratch: true` and no `copy_of`, and `started`, the working document started from it, once one has been.
+`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. A document is named by its path without `.tex`, kept as a path: `fragment` is `fragments/masters/<name>.html` and `pdf` is `<name>/<stem>.pdf`, both under the build directory, so two documents that share a file name in two directories never share either; a viewer addresses a document by the same name. An agent's document is one that carries `copy_of` or `from_scratch`; only one of the person's is the default, has a Review tab, or is selected by the document workspace, and the list holds the person's documents first. An agent's copy carries `copy_of`, the document it was copied from, where the history's moves have taken it. An agent document written from scratch carries `from_scratch: true` and no `copy_of`, and `started`, the working document started from it, once one has been.
 
 ## 3. Nodes
 

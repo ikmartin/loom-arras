@@ -25,7 +25,7 @@ async function watch(page: Page, selector: string): Promise<void> {
 }
 
 test('an annotation filed from the command line is drawn into the open document, which is not drawn again', async ({ page, served }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await allTypeset(page);
 	await watch(page, '[data-pane="0"] .fragment h1[data-src]');
 	const id = served.loom(['annotate', 'sy-0002', 'Which orbits?', '--quote', 'one or two points']).split(/\s+/)[0];
@@ -49,7 +49,7 @@ test('an annotation filed from the command line is drawn into the open document,
 });
 
 test('an edit keeps the blocks after it in its file, and moves their offsets', async ({ page, served }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await allTypeset(page);
 	const blocks = page.locator('[data-pane="0"] .fragment [data-src^="nodes/sy-0002.tex:"]');
 	const last = await blocks.last().getAttribute('data-src');

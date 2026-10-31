@@ -441,7 +441,7 @@ function markOutsidePreview(c: Element): number {
 
 readOnly('the preview lands on its mark, and a scroll inside it does not dismiss it', async ({ page }) => {
 	// A card opened at a result shows that result, not the top of its page: the renderer waits for the mark to exist before scrolling to it, since the card mounts a page that has not drawn yet. The dismissal listens to every scroll, capturing, so it hears the card's own column scrolling itself there, and must let the card stand; a scroll outside the card still dismisses it.
-	await page.goto('/master/main-atomic');
+	await page.goto('/master/drafting/main-atomic');
 	await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
 	// every scroll inside a card, heard the way the dismissal hears it and after it: capturing, on the window
 	await page.evaluate(() => {
@@ -497,7 +497,7 @@ readOnly('a mark round a formula leaves the formula typeset', async ({ page }) =
 
 readOnly('a document never compiled shows none of another document’s numbers', async ({ page }) => {
 	// the talk has no compile of its own: the default document's `Theorem 3.1` would be plausible and wrong there (V3)
-	await page.goto('/master/talk');
+	await page.goto('/master/drafting/talk');
 	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
 	await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);
 	await expect(page.getByTestId('item-controls')).not.toContainText('not yet numbered');
@@ -505,7 +505,7 @@ readOnly('a document never compiled shows none of another document’s numbers',
 
 readOnly('a paper opened into half a pane fits its text, and its landing dot is in the pane', async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
-	await page.goto('/master/main-atomic');
+	await page.goto('/master/drafting/main-atomic');
 	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
 	await page.locator('[data-pane="0"] a', { hasText: 'Proposition 2.1' }).first().click();
 	const lead = page.locator('[data-pane="1"] .mark.on.lead').first();
@@ -583,7 +583,7 @@ readOnly('a paper drawn again at a new zoom never shows a render refused', async
 	readOnly.setTimeout(90000);
 	const cdp = await context.newCDPSession(page);
 	await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
-	for (const at of ['/library/Arden24', '/master/main-atomic']) {
+	for (const at of ['/library/Arden24', '/master/drafting/main-atomic']) {
 		await page.goto(at);
 		if (at.startsWith('/master')) {
 			await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor({ timeout: 30000 });

@@ -5,15 +5,15 @@ import { manifest, serve } from '../manifest';
 
 test('a first visit opens the default draft', async ({ page }) => {
 	await page.goto('/');
-	await expect(page).toHaveURL(/\/master\/main$/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main$/);
 	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 });
 
 test('a reload, or a visit another day, reopens both panes as they were left', async ({ page }) => {
-	await page.goto('/master/main' + beside('/node/sy-0003'));
+	await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 	await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
 	await page.goto('/');
-	await expect(page).toHaveURL(/\/master\/main\?beside=%2Fnode%2Fsy-0003/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main\?beside=%2Fnode%2Fsy-0003/);
 	await expect(pane(page, 1).getByTestId('item-tab')).toContainText('Theorem 2.1');
 	// what is remembered is the corpus's own, in this browser
 	const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('arras.workspace') ?? '{}'));
@@ -23,7 +23,7 @@ test('a reload, or a visit another day, reopens both panes as they were left', a
 test('a remembered document no longer in the corpus gives way to the default draft', async ({ page }) => {
 	await page.addInitScript((name) => localStorage.setItem('arras.workspace', JSON.stringify({ [name]: '/master/gone' })), manifest.corpus.name);
 	await page.goto('/');
-	await expect(page).toHaveURL(/\/master\/main$/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main$/);
 });
 
 test('a quilt with nothing to read opens on how to start: the publisher\'s advice, one step a fix', async ({ page }) => {

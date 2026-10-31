@@ -55,7 +55,7 @@ test('without working documents, document views point at landmarks and the graph
 	await serve(page, (m) => {
 		m.masters = [];
 	});
-	for (const path of ['/review', '/master/main']) {
+	for (const path of ['/review', '/master/drafting/main']) {
 		await page.goto(path);
 		await expect(page.getByTestId('no-drafts')).toBeVisible();
 		await expect(page.getByTestId('no-drafts')).toContainText('Nothing is being worked on');

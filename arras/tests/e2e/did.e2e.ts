@@ -65,7 +65,7 @@ test('a row opens its mark in the other pane, and the mark travels to its own bo
 		const b = pane.getBoundingClientRect();
 		return Math.max(b.top - a.top, a.bottom - b.bottom);
 	};
-	await page.goto('/master/main' + beside(`/session/${REFEREE}?view=did`));
+	await page.goto('/master/drafting/main' + beside(`/session/${REFEREE}?view=did`));
 	await expect(page.getByTestId('session-did')).toBeVisible();
 	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
 	// the first row that made an annotation with a mark in the text: one about the document as a whole has none

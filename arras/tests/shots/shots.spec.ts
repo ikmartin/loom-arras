@@ -17,7 +17,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 test('the reference figures', async ({ page }) => {
 	await shot(page, 'page-home', '/');
-	await shot(page, 'page-read-master', '/master/main');
+	await shot(page, 'page-read-master', '/master/drafting/main');
 	await shot(page, 'page-node', '/node/sy-0003');
 	await shot(page, 'page-review', '/review');
 	await shot(page, 'page-problems', '/review/problems');

@@ -23,7 +23,7 @@ const controls = (page: Page, index: number) => pane(page, index).getByTestId('i
 test.describe('V1 · open on the thing itself', () => {
 	test('a document opens on the paper', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const fragment = pane(page, 0).locator('.fragment').first();
 		await expect(fragment).toBeVisible();
 		const at = await page.evaluate(() => {
@@ -49,7 +49,7 @@ test.describe('V1 · open on the thing itself', () => {
 
 	test("a pane head carries its tabs and nothing else, and its toolbar leads with its item's views", async ({ page }) => {
 		await withPapers(page);
-		await page.goto('/master/main' + beside('/library/Kre99'));
+		await page.goto('/master/drafting/main' + beside('/library/Kre99'));
 		for (const [i, views] of [
 			[0, false],
 			[1, true]
@@ -67,7 +67,7 @@ test.describe('V1 · open on the thing itself', () => {
 
 	test('every pane draws its own toolbar, for every kind, and no rail spans the panes', async ({ page }) => {
 		await withPapers(page);
-		for (const at of ['/master/main' + beside('/node/sy-0003'), '/library/Kre99' + beside('/context/sy-0003'), '/canon/widgets-v1' + beside('/session/s-2026-09-16-0001')]) {
+		for (const at of ['/master/drafting/main' + beside('/node/sy-0003'), '/library/Kre99' + beside('/context/sy-0003'), '/canon/widgets-v1' + beside('/session/s-2026-09-16-0001')]) {
 			await page.goto(at);
 			await expect(pane(page, 1)).toBeVisible();
 			await expect(pane(page, 0)).toHaveClass(/focused/);
@@ -82,7 +82,7 @@ test.describe('V1 · open on the thing itself', () => {
 
 test.describe('V2 · say it once, in the place that governs it', () => {
 	test('a document is opened once', async ({ page }) => {
-		await page.goto('/master/main' + beside('/context/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/context/sy-0003'));
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
 		// the context names the document the node is in; following it reveals the open one rather than a second tab
 		await pane(page, 1).getByRole('link', { name: 'main.tex' }).first().click();
@@ -107,7 +107,7 @@ test.describe('V2 · say it once, in the place that governs it', () => {
 
 test.describe('V3 · claim only what is known', () => {
 	test('a lone tab offers no controls', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(tabs(page, 0)).toHaveCount(1);
 		await expect(page.getByTestId('tab-move')).toHaveCount(0);
 		await expect(page.getByTestId('tab-close')).toHaveCount(0);
@@ -118,7 +118,7 @@ test.describe('V3 · claim only what is known', () => {
 test.describe('V4 · name the question', () => {
 	test("compare is asked of a draft's history, not of the two panes", async ({ page }) => {
 		await withPapers(page);
-		await page.goto('/library/Kre99' + beside('/master/main'));
+		await page.goto('/library/Kre99' + beside('/master/drafting/main'));
 		await expect(controls(page, 0)).toBeVisible();
 		// no control compares whatever two panes hold; a draft's history says what it compares with
 		await expect(page.getByTestId('pane-compare')).toHaveCount(0);
@@ -130,7 +130,7 @@ test.describe('V4 · name the question', () => {
 		await withPapers(page);
 		await writes(page);
 		for (const [at, name] of [
-			['/master/main', 'main.tex'],
+			['/master/drafting/main', 'main.tex'],
 			['/node/sy-0003', 'Theorem'],
 			['/library/Kre99', 'Kre99']
 		]) {
@@ -147,7 +147,7 @@ test.describe('V4 · name the question', () => {
 	});
 
 	test('a control names the destination, not the state', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await viewMenu(page);
 		await expect(page.getByTestId('toggle-annotations')).toHaveText(/^show all annotations/);
 	});
@@ -155,7 +155,7 @@ test.describe('V4 · name the question', () => {
 
 test.describe('V5 · following a connection must not cost the thing you followed it from', () => {
 	test('a link opens beside and leaves its source rendered', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
 		await pane(page, 0).locator('span.cite[data-target="Kre99-thm-2.1"] a').first().click();
 		await expect(pane(page, 1)).toBeVisible();
@@ -165,14 +165,14 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	});
 
 	test('a panel click does not split', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(pane(page, 1)).toHaveCount(0);
 		await expect(tabs(page, 0)).toHaveCount(2);
 	});
 
 	test('the preview is not clipped', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
 		await pane(page, 0).locator('span.cite[data-target="Kre99-thm-2.1"] a').first().hover();
 		const card = page.getByTestId('link-preview');
@@ -182,7 +182,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	});
 
 	test('open here and a click differ only in pane', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
 		const link = pane(page, 0).locator('span.cite[data-target="Kre99-thm-2.1"] a').first();
 		await link.hover();
@@ -192,7 +192,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 		const here = new URL(page.url()).pathname;
 		expect(here).toBe('/node/Kre99-thm-2.1');
 
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
 		await pane(page, 0).locator('span.cite[data-target="Kre99-thm-2.1"] a').first().click();
 		await expect(pane(page, 1)).toBeVisible();
@@ -200,7 +200,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	});
 
 	test('focus follows interaction', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
 		// a wheel over the node's pane focuses it: its toolbar is the brighter
 		await pane(page, 1).hover();
@@ -218,7 +218,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 	});
 
 	test('the focused pane is marked by its shadow, with no line on its head', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(pane(page, 0).getByTestId('pane-head-0')).toHaveCSS('box-shadow', 'none');
 		await expect(pane(page, 0)).not.toHaveCSS('box-shadow', 'none');
@@ -227,7 +227,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 
 test.describe('the arrangement', () => {
 	test('the URL reproduces the arrangement', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		await expect(tabs(page, 1)).toHaveCount(1);
 		await page.reload();
 		await expect(tabs(page, 0)).toHaveText([/main\.tex/]);
@@ -236,7 +236,7 @@ test.describe('the arrangement', () => {
 	});
 
 	test('⇄ moves a tab and focus follows it', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(tabs(page, 0)).toHaveCount(2);
 		await tabs(page, 0).nth(1).getByTestId('tab-move').click();
@@ -250,7 +250,7 @@ test.describe('the arrangement', () => {
 	});
 
 	test('a scrolled tab is where it was left', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		await scrollPane(page, 0, 'bottom');
 		const body = pane(page, 0).locator('> .body');
@@ -283,7 +283,7 @@ const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySe
 test.describe('coming back to a document', () => {
 	// leaving a document destroyed it, and coming back drew and typeset it from nothing: a second and more on a whole paper (plan 0.19.2)
 	test('a tab switched away from and back to is taken back as it was, with nothing typeset again', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await allTypeset(page);
 		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(tabs(page, 0)).toHaveCount(2);
@@ -302,7 +302,7 @@ test.describe('coming back to a document', () => {
 	});
 
 	test('reading come back to from the graph is taken back as it was, with nothing typeset again', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await allTypeset(page);
 		await watchTypesetting(page);
 		// the whole graph is reached from the local graph's expanded view
@@ -348,7 +348,7 @@ test.describe('the tab strip', () => {
 	test("each pane's toolbar begins with its own item's views", async ({ page }) => {
 		await withPapers(page);
 		// a document beside a paper: the paper's pane carries Paper · Info though the document's pane is focused, and the document's carries none
-		await page.goto('/master/main' + beside('/library/Kre99'));
+		await page.goto('/master/drafting/main' + beside('/library/Kre99'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(pane(page, 0).getByRole('group', { name: /^views of / })).toHaveCount(0);
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
@@ -376,7 +376,7 @@ test.describe('the tab strip', () => {
 		await expect(pane(page, 0).getByTestId('tab-paper')).toHaveAttribute('aria-pressed', 'true');
 
 		// a session beside a document: Transcript · What it did, in the unfocused pane
-		await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
+		await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-0001'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(pane(page, 1).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Transcript', 'What it did']);
 		await expect(pane(page, 1).getByTestId('tab-chat')).toHaveAttribute('aria-pressed', 'true');
@@ -578,7 +578,7 @@ test.describe('a narrow window', () => {
 	test("below the two-pane width one strip holds both panes' tabs, and the shown pane's toolbar leads with its views", async ({ page }) => {
 		await withPapers(page);
 		await page.setViewportSize({ width: 640, height: 800 });
-		await page.goto('/master/main' + beside('/library/Kre99'));
+		await page.goto('/master/drafting/main' + beside('/library/Kre99'));
 		const strip = page.getByTestId('narrow-strip');
 		await expect(strip).toBeVisible();
 		await expect(strip.getByTestId('item-tab')).toHaveCount(2);
@@ -610,7 +610,7 @@ test.describe('the toolbar', () => {
 
 	test("it is a row in the pane's flow under its tabs, the width of the pane, one line on the sheet", async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		for (const i of [0, 1]) {
 			const bar = controls(page, i);
 			await expect(bar).toBeVisible();
@@ -628,7 +628,7 @@ test.describe('the toolbar', () => {
 
 	test('the first line starts below the row in a half-width pane, and moving focus moves no text', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/node/sy-0003' + beside('/master/main'));
+		await page.goto('/node/sy-0003' + beside('/master/drafting/main'));
 		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
 		for (const i of [0, 1]) {
 			const bar = (await controls(page, i).boundingBox())!;
@@ -644,7 +644,7 @@ test.describe('the toolbar', () => {
 
 	test('the bar, then view with every other control in full words and its key, the pane\'s own line last; the divider only when something stands left of view', async ({ page }) => {
 		await writes(page);
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const bar = controls(page, 0);
 		await expect(bar.getByTestId('tool-select')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
@@ -676,7 +676,7 @@ test.describe('the toolbar', () => {
 
 		// nothing serving, and a draft with no history: view stands alone, with no divider before it
 		await page.unrouteAll();
-		await page.goto('/master/talk');
+		await page.goto('/master/drafting/talk');
 		await expect(page.getByTestId('toolbar-view')).toBeVisible();
 		expect(await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid))).toEqual(['toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'none');
@@ -733,7 +733,7 @@ test.describe('the toolbar', () => {
 	});
 
 	test('annotations off hides every mark in its own pane only, from view or by `a`', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		const mark = (i: number) => pane(page, i).locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').first();
 		for (const i of [0, 1]) await expect(mark(i)).not.toHaveClass(/hidden/);
 		await viewMenu(page, 0);

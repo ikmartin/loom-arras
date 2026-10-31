@@ -49,7 +49,7 @@ test.describe('marks', () => {
 	const mark = (page: Page, id: string) => page.locator(`.fragment mark.annotation[data-annotation~="${id}"]`);
 
 	test('an objection is underlined in red', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-0001');
 		await expect(m).toHaveClass(/k-objection/);
 		expect((await drawn(m)).hue).toMatchObject({ ...OBJECTION, a: 1 });
@@ -57,14 +57,14 @@ test.describe('marks', () => {
 
 	test('a suggestion is underlined in yellow', async ({ page }) => {
 		// the one open suggestion is read in the talk, where its mark is baked
-		await page.goto('/master/talk');
+		await page.goto('/master/drafting/talk');
 		const m = mark(page, 'a-2026-09-16-0007');
 		await expect(m).toHaveClass(/k-suggestion/);
 		expect((await drawn(m)).hue).toMatchObject({ ...SUGGESTION, a: 1 });
 	});
 
 	test('a question is underlined in blue', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-0006');
 		await expect(m).toHaveClass(/k-question/);
 		expect((await drawn(m)).hue).toMatchObject({ ...QUESTION, a: 1 });
@@ -72,7 +72,7 @@ test.describe('marks', () => {
 
 	test('a citation is underlined in violet', async ({ page }) => {
 		// the fixture's citations have no quote, so the mark is on the label
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-0005"]');
 		await expect(m).toHaveClass(/k-citation/);
 		expect((await drawn(m)).hue).toMatchObject({ ...CITATION, a: 1 });
@@ -83,7 +83,7 @@ test.describe('marks', () => {
 			m.annotations['a-2026-09-16-0006'].kind = 'note';
 			m.annotations['a-2026-09-16-0001'].kind = 'catastrophe';
 		});
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const note = mark(page, 'a-2026-09-16-0006');
 		await expect(note).toHaveClass(/k-note/);
 		expect((await drawn(note)).hue).toMatchObject({ ...NEUTRAL, a: 1 });
@@ -93,7 +93,7 @@ test.describe('marks', () => {
 	test('weight is severity: 1px minor, 3px major, 2px for moderate and for the kinds that take none', async ({ page }) => {
 		// the fixture's minor suggestion is resolved, so it is reopened to be drawn
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0002'].status = 'open'));
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const major = mark(page, 'a-2026-09-16-0001');
 		await expect(major).toHaveClass(/s-major/);
 		expect((await drawn(major)).weight).toBe('3px');
@@ -106,7 +106,7 @@ test.describe('marks', () => {
 	});
 
 	test('the words are washed in the hue at 5% at rest and at 10% on the one mark whose box is open, and nothing is outlined', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-0001');
 		const other = mark(page, 'a-2026-09-16-0006');
 		const rest = await drawn(m);
@@ -131,7 +131,7 @@ test.describe('marks', () => {
 	test('an annotation with no mark of its own is a mark on its node\'s label, and several share one', async ({ page }) => {
 		// a-2026-09-16-0005 has no quote and a-2026-09-16-0010 lost its anchor; both are put on sy-0002's label
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0010'].target.key = 'sy-0002'));
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const label = page.locator('.fragment .env[data-key="sy-0002"] > .env-label mark.annotation-label');
 		await expect(label).toHaveCount(1);
 		await expect(label).toHaveAttribute('data-annotation', 'a-2026-09-16-0005 a-2026-09-16-0010');
@@ -191,7 +191,7 @@ test.describe('marks', () => {
 	test('the session filter hides marks, not only counts', async ({ page }) => {
 		// the question is moved into the closed session, which the view hides at rest
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0006'].run = QUICK));
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-0006');
 		await expect(m).toHaveClass(/hidden/);
 		await expect(m).toContainText('one or two points');
@@ -213,12 +213,12 @@ test.describe('marks', () => {
 
 	test('a block mark is drawn in its hue: a quote loom could not place marks its whole block, a list among them', async ({ page }) => {
 		// the publisher marks the block with `annotation-block` alone; the viewer gives it `annotation`, which every rule for hue, weight, settled and hidden is keyed on
-		await page.route('**/fragments/masters/main.html', async (route) => {
+		await page.route('**/fragments/masters/drafting/main.html', async (route) => {
 			const res = await route.fetch();
 			const body = (await res.text()).replace('<ul data-src=', '<ul class="annotation-block" data-annotation="a-2026-09-16-0001" data-src=');
 			await route.fulfill({ response: res, body });
 		});
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const list = pane(page, 0).locator('.fragment ul.annotation-block');
 		await expect(list).toHaveClass(/\bannotation\b.*k-objection|k-objection.*\bannotation\b/);
 		const drawn = await list.evaluate((el) => {
@@ -231,7 +231,7 @@ test.describe('marks', () => {
 
 	test('a displayed formula is ruled beneath, and a block underlined line by line, in the same hue and weight', async ({ page }) => {
 		// no fixture annotation marks a display, so the rule is held on the class alone: the same variables draw every shape
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const vars = await mark(page, 'a-2026-09-16-0001').evaluate((el) => {
 			const probe = document.createElement('div');
 			probe.className = 'math display annotation-block annotation k-objection s-major';
@@ -307,7 +307,7 @@ test.describe('marks and boxes', () => {
 		await prefs(page, { comments: 'floating' });
 		// any delay a hover could open a box after runs on the page's clock, which the test moves on rather than sleeping
 		await page.clock.install();
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		// a fragment is wired once for the default placement and again when the stored preferences arrive, so waiting on the marks is not enough: wait until it is wired for the placement under test
 		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
 		const first = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
@@ -357,7 +357,7 @@ test.describe('marks and boxes', () => {
 
 	test('floating, a box that grows as its content renders stays clear of the window foot', async ({ page }) => {
 		await prefs(page, { comments: 'floating' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
 		// the mark mid-window, so a box grown past the window fits neither below it nor above it and is held at the foot, where nothing is left to scroll to reach it
@@ -378,7 +378,7 @@ test.describe('marks and boxes', () => {
 
 	test('inline, a mark expands its comment beneath its paragraph; clicking away closes it', async ({ page }) => {
 		await prefs(page, { comments: 'inline' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment .env[data-key]');
 		await expect(page.locator('aside.comment-slot.gutter')).toHaveCount(0);
 
@@ -409,7 +409,7 @@ test.describe('marks and boxes', () => {
 
 	test('inline, a mark on a label opens its box beneath the label', async ({ page }) => {
 		await prefs(page, { comments: 'inline' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		// a-2026-09-16-0010 lost its anchor, so it is marked on sy-0001's label
 		const label = page.locator('.fragment .env[data-key="sy-0001"] > .env-label mark.annotation-label');
 		await expect(label).toHaveAttribute('data-annotation', 'a-2026-09-16-0010');
@@ -421,7 +421,7 @@ test.describe('marks and boxes', () => {
 
 	test('e opens every annotation at its mark, and h closes them', async ({ page }) => {
 		// the document view draws no buttons for these, so the keys are the whole affordance here
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment mjx-container');
 		const boxes = page.locator('aside.comment-slot.expanded');
 		await expect(page.getByTestId('content-head')).toHaveCount(0);
@@ -437,7 +437,7 @@ test.describe('marks and boxes', () => {
 
 	test('the keys draw no focus ring around the document', async ({ page }) => {
 		// a click focuses the document without a ring and a key then asks for one, which around a document taller than the window showed as two blue rules down its sides
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment mjx-container');
 		const fragment = page.locator('.fragment');
 		await fragment.locator('p').first().click();
@@ -448,7 +448,7 @@ test.describe('marks and boxes', () => {
 
 	test('a document carries annotations of its own, and they are read beside it', async ({ page }) => {
 		// a remark about the whole paper is not drawn above its title; it is read in what the session did, beside the document
-		await page.goto('/master/main' + beside(`/session/${REFEREE}?view=did`));
+		await page.goto('/master/drafting/main' + beside(`/session/${REFEREE}?view=did`));
 		await expect(page.getByTestId('document-annotations')).toHaveCount(0);
 		const did = page.getByTestId('session-did');
 		// found by its id rather than by being first; the list is compact rows, not boxes
@@ -784,7 +784,7 @@ test.describe('the box', () => {
 	});
 
 	test('travel is two-way: a double-click on a mark lands on its box, and one on the box lands on its mark', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
 		await mark.dblclick();
 		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-0001"]');
@@ -797,7 +797,7 @@ test.describe('the box', () => {
 	});
 
 	test('beside a comparison a card in the flow is the annotation\'s one box: its mark travels to it rather than opening a second', async ({ page }) => {
-		await page.goto('/master/main?review=sy-0001&cause=0');
+		await page.goto('/master/drafting/main?review=sy-0001&cause=0');
 		const card = page.locator('aside.comment-slot.inline article.box[data-annotation-id="a-2026-09-16-0001"]');
 		await expect(card).toHaveCount(1);
 		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').click();
@@ -809,7 +809,7 @@ test.describe('the box', () => {
 
 test.describe('the placement', () => {
 	test('the placement is a display setting', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.getByTestId('settings-toggle').click();
 		await page.getByTestId('comments-inline').click();
 		await expect(page.locator('html')).toHaveAttribute('data-comments', 'inline');
@@ -818,7 +818,7 @@ test.describe('the placement', () => {
 
 	test('changing the placement re-wires the document without typesetting it again', async ({ page }) => {
 		await prefs(page, { comments: 'floating' });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment[data-comments-wired="floating"] mjx-container');
 		await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 		await page.evaluate(() => {
@@ -1072,7 +1072,7 @@ test.describe('the settled control', () => {
 	const shut = (page: Page) => page.keyboard.press('Escape');
 
 	test('on a document it shows and hides the settled marks, and their boxes open only while it is on', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const m = settledMark(page);
 		await expect(m).toHaveClass(/settled/);
 		expect((await drawn(m)).hue.a).toBe(0);
@@ -1122,10 +1122,10 @@ test.describe('the settled control', () => {
 	});
 
 	test('it is off again on a fresh visit', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await (await settled(page)).click();
 		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(await settled(page)).toHaveText(/^show settled annotations/);
 		expect((await drawn(settledMark(page))).hue.a).toBe(0);
 	});

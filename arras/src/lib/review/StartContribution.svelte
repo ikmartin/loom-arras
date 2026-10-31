@@ -16,7 +16,7 @@
  }
 </script>
 <header><h2>{contribution.label}</h2><p class="muted">Written from scratch · no working document started from it</p></header>
-<p>It was drafted from none of your documents, so there is nothing to compare it with. <a href={masterUrl(contribution.copy)}>Read it</a>, and start a working document from it when you want to keep it: a new file in your drafting directory, every id it defines made plain. The agent document stays as it is.</p>
+<p>It was drafted from none of your documents, so there is nothing to compare it with. <a href={masterUrl(contribution.copy)}>Read it</a>, and start a working document from it when you want to keep it: a new file of yours, every id it defines made plain. The agent document stays as it is.</p>
 {#if writable}
  <form data-testid="start-contribution" onsubmit={(e) => { e.preventDefault(); void start(); }}>
   <label>New working document <input bind:value={to} required /></label>

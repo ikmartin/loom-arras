@@ -41,7 +41,7 @@ def test_aux_number_drops_grouping_braces() -> None:
 def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ok("compile", cwd=d)
-    aux = d / "build" / "main" / "main.aux"
+    aux = d / "build" / "drafting" / "main" / "main.aux"
     assert aux.exists()
     n = parse_aux(aux.read_text())
     assert n["dm-0001"].number == "1.1" and n["dm-0003"].number == "2.1"
@@ -277,7 +277,7 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     from loom.cli.build_cmds import compile_report
     from loom.tex.runner import CompileResult
 
-    out = tmp_path / "build" / "main"
+    out = tmp_path / "build" / "drafting" / "main"
     out.mkdir(parents=True)
     log = out / "main.log"
     log.write_text(UNDEFINED_LOG)
@@ -286,9 +286,9 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     text = report.render()
     assert report.verdict.startswith("drafting/main.tex did not compile: ! Undefined control sequence")
     assert "\\nosuchmacro" in report.verdict and "nodes/dm-0003.tex:10" in report.verdict, report.verdict
-    assert "build/main/main.log" in text, text
+    assert "build/drafting/main/main.log" in text, text
     data = report.to_json()
-    assert data["log"] == "build/main/main.log"
+    assert data["log"] == "build/drafting/main/main.log"
     assert data["error_at"] == {"file": "nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
 
 

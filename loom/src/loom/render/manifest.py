@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from loom.paths import BUILD
+from loom.paths import BUILD, document_name
 from loom.refs.identity import declared, identify, primary
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
@@ -316,21 +316,21 @@ def build_manifest(
     written = set(record.written(result.masters)) if record is not None else set()
     started = record.started(result.masters) if record is not None else {}
     # the person's documents first, then the agent's: every list a viewer draws from this one reads in that order
-    for m in sorted(result.masters, key=lambda m: result.document_role(m) != "drafting"):
+    for m in sorted(result.masters, key=lambda m: result.document_role(m) != "person"):
         closure = result.closures.get(m)
         entry: dict[str, Any] = {
             "path": m,
             "title": master_title(result, m) or m,
             "default": m == dm,
-            "directory": result.document_role(m),
             "fragment": fragments.get(f"master:{m}", ""),
             "engine": (closure.engine if closure and closure.engine else result.quilt.config.engine),
         }
-        pdf = result.quilt.root / BUILD / _stem(m) / f"{_stem(m)}.pdf"
+        pdf_rel = f"{document_name(m)}/{Path(m).stem}.pdf"  # under the build output, as `document_build` compiles it
+        pdf = result.quilt.root / BUILD / pdf_rel
         aux_known = bool(numbers.get(m))
         if pdf.exists():
             entry["compiled"] = _iso(pdf.stat().st_mtime)
-            entry["pdf"] = f"{_stem(m)}/{_stem(m)}.pdf"
+            entry["pdf"] = pdf_rel
         entry["numbering_known"] = aux_known
         if m in written:
             entry["from_scratch"] = True
@@ -807,10 +807,6 @@ def _excerpt(result: ScanResult, n: NodeRec, limit: int = 160) -> str:
     text = re.sub(r"\\(section|subsection|subsubsection|paragraph)\*?\{[^}]*\}", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:limit]
-
-
-def _stem(path: str) -> str:
-    return path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
 
 
 def _stamp() -> str:

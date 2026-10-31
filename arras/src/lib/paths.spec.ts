@@ -44,9 +44,9 @@ describe('a route, under a base', () => {
 		}).toEqual({
 			route: '/sub/',
 			nodeUrl: '/sub/node/sy-0003/proof',
-			masterUrl: '/sub/master/main',
+			masterUrl: '/sub/master/drafting/main',
 			canonUrl: '/sub/canon/widgets-v1',
-			readUrl: '/sub/master/main#sy-0003',
+			readUrl: '/sub/master/drafting/main#sy-0003',
 			keyUrl: '/sub/node/sy-0003#sy-0003-proof',
 			workUrl: '/sub/library/Kre99',
 			tagUrl: '/sub/tag/widgets',
@@ -65,7 +65,7 @@ describe('a route, under a base', () => {
 			{ kind: 'session', id: 's-2026-09-16-0001', view: 'did' }
 		];
 		expect(items.map((i) => pathFor(m, i))).toEqual([
-			'/sub/master/main#sy-0003',
+			'/sub/master/drafting/main#sy-0003',
 			'/sub/canon/widgets-v1',
 			'/sub/library/Kre99?view=info',
 			'/sub/node/sy-0003?note=a-2026-09-16-0001',
@@ -73,11 +73,11 @@ describe('a route, under a base', () => {
 			'/sub/session/s-2026-09-16-0001?view=did'
 		]);
 		expect(items.map((i) => itemFromPath(m, pathFor(m, i)))).toEqual(items);
-		expect(itemFromPath(m, '/sub/master/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });
+		expect(itemFromPath(m, '/sub/master/drafting/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });
 	});
 
 	it('links the reading address and every index of the shell under the base', () => {
-		expect(readingAddress(m)).toBe('/sub/master/main');
+		expect(readingAddress(m)).toBe('/sub/master/drafting/main');
 		expect(indexesOf(m).map((x) => x.href)).toEqual(['/sub/threads', '/sub/tags', '/sub/taxa', '/sub/loose']);
 	});
 });

@@ -12,7 +12,7 @@ async function history(page: Page, index = 0): Promise<void> {
 }
 
 test('the menu lists the live text and the landmarks newest first, each with its compare, then the agent copy', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await history(page);
 	const menu = page.getByTestId('history-menu');
 	await expect(menu.locator('[role="menuitemradio"]')).toHaveText([/live text/, /widgets-v3\s*step 5/, /widgets-v2\s*step 3/, /widgets-v1\s*step 1/]);
@@ -32,7 +32,7 @@ test("the landmarks loom kept itself are folded under one line, which opens them
 	await serve(page, (m) => {
 		m.canon.push({ ...structuredClone(m.canon[1]), path: '.loom/history/0007-main-before-adopt-aidoc/main-before-adopt-aidoc.tex', stem: 'main-before-adopt-aidoc', name: 'main-before-adopt-aidoc', step: '0007', kept_for: 'adopt' });
 	});
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await history(page);
 	await expect(page.getByTestId('history-version-main-before-adopt-aidoc')).toHaveCount(0);
 	await page.getByTestId('history-kept').click();
@@ -44,7 +44,7 @@ test("the landmarks loom kept itself are folded under one line, which opens them
 
 test('a draft with no landmarks and no copies, and a landmark no live draft leads to, have no menu', async ({ page }) => {
 	await serve(page, (m) => delete m.canon[0].in);
-	await page.goto('/master/talk');
+	await page.goto('/master/drafting/talk');
 	await expect(pane(page, 0).getByTestId('item-controls')).toBeVisible();
 	await expect(pane(page, 0).getByTestId('toolbar-history')).toHaveCount(0);
 	await page.goto('/canon/widgets-v1');
@@ -53,7 +53,7 @@ test('a draft with no landmarks and no copies, and a landmark no live draft lead
 });
 
 test('a landmark is shown in the draft’s own tab, read-only, at the result the reader was at, and the live text is one choice back', async ({ page }) => {
-	await page.goto('/master/main' + beside('/node/sy-0002'));
+	await page.goto('/master/drafting/main' + beside('/node/sy-0002'));
 	await pane(page, 0).locator('.fragment').first().click();
 	await expect(tabs(page, 0)).toHaveCount(1);
 	// the reader at Theorem 3
@@ -77,7 +77,7 @@ test('a landmark is shown in the draft’s own tab, read-only, at the result the
 	await page.getByTestId('history-live').click();
 	await expect(tabs(page, 0)).toContainText('main.tex');
 	await expect(tabs(page, 0)).not.toContainText('widgets');
-	await expect(page).toHaveURL(/\/master\/main/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main/);
 	await expect(pane(page, 0).locator('#sy-0003')).toBeInViewport();
 	// and by the menu's
 	await history(page);
@@ -85,11 +85,11 @@ test('a landmark is shown in the draft’s own tab, read-only, at the result the
 	await expect(tabs(page, 0)).toContainText('main.tex · widgets-v1');
 	await history(page);
 	await page.getByTestId('history-version-live').click();
-	await expect(page).toHaveURL(/\/master\/main/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main/);
 });
 
 test('compare with a landmark opens it beside and compares the two; stop, or the same line again, ends it', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await history(page);
 	await page.getByTestId('history-compare-widgets-v1').click();
 	await expect(tabs(page, 1)).toContainText('main.tex · widgets-v1');
@@ -111,7 +111,7 @@ test('compare with a landmark opens it beside and compares the two; stop, or the
 });
 
 test("compare with the agent's copy reads its changes, and the copy's own menu compares it with its source", async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await history(page);
 	await page.getByTestId('history-compare-aidoc').click();
 	await expect(tabs(page, 1)).toContainText('aidoc.tex');
@@ -128,11 +128,11 @@ test("compare with the agent's copy reads its changes, and the copy's own menu c
 });
 
 test('a landmark moved into the other pane by compare, when it stood behind the draft in this one', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	await openHere(page, '/canon/widgets-v2');
 	await expect(tabs(page, 0)).toHaveCount(2);
-	await openHere(page, '/master/main');
+	await openHere(page, '/master/drafting/main');
 	await expect(pane(page, 0).getByTestId('toolbar-history')).toBeVisible();
 	await expect(tabs(page, 0).first().getByRole('tab')).toHaveAttribute('aria-selected', 'true');
 	await history(page);
@@ -144,7 +144,7 @@ test('a landmark moved into the other pane by compare, when it stood behind the 
 
 test('in a window too narrow for two panes, compare is greyed with its reason', async ({ page }) => {
 	await page.setViewportSize({ width: 600, height: 800 });
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await history(page);
 	const line = page.getByTestId('history-compare-widgets-v1');
 	await expect(line).toHaveAttribute('aria-disabled', 'true');

@@ -55,7 +55,6 @@ Source and structure:
 - `loom:taxon-conflict` (warning): two masters declare different taxa for one environment.
 - `loom:prefix-is-citekey` (warning): the quilt's id prefix equals a bibliography key.
 - `loom:unknown-directive` (warning): a `% !LOOM` key not in the inventory.
-- `loom:documentclass-outside-drafts` (info): a file with `\documentclass` outside the masters directory.
 - `loom:unlabelled-node` (info): a theorem-like environment without an id.
 - `loom:positional-proof-key` (info): a node with more than one unlabelled proof.
 - `loom:unexpected-proof` (info): a proof attached to a block explicitly classified as definition, assumption, or open claim.
@@ -78,6 +77,7 @@ Arras displays this diagnostic on the block with a link to its row in a working-
 - `loom:taxon-name-macro` (info): a `\newtheorem` display name is a macro the closure does not define; the environment name is used (DR-46).
 - `loom:citekey-slug-collision` (error): two citekeys share a digest prefix after slugging (DR-45).
 - `loom:main-not-found` (warning): `[quilt] main` names a file that is not a master; the first master is used.
+- `loom:main-unset` (info): `[quilt] main` is unset and the quilt holds several documents, so none is the default; choosing one by its path would be arbitrary. With one document, that one is the default and nothing is said.
 - `loom:unknown-config-key` (warning): `config.toml` has a table or key outside the inventory of 4.2; it is ignored (M7).
 
 Review:
@@ -118,9 +118,8 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:dangling-ancestry` (warning): a `fork`, `revert`, `restore` or `copy` line names a step, a landmark or a version the history no longer resolves.
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
-- `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes. With a landmark, it carries the fix that starts one from the newest, `loom history restore NAME --to <drafting>/main.tex`; with none, its message says a document may be written there, and it carries `loom import FILE` (a paper being written) and `loom library add FILE` (a paper being read). A viewer's page for a quilt with nothing to read shows these fixes.
-- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent document's derived id; the message names the plain id to use.
-- `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem.
+- `loom:no-live-document` (info, subject `source`): the quilt holds no document of the person's, so it defines no nodes. With a landmark, it carries the fix that starts one from the newest, `loom history restore NAME --to FILE`; with none, its message says a document may be written anywhere in the quilt, and it carries `loom import FILE` (a paper being written) and `loom library add FILE` (a paper being read). A viewer's page for a quilt with nothing to read shows these fixes.
+- `loom:derived-id-in-drafting` (error, subject `source`): one of the person's documents defines or cites an agent document's derived id; the message names the plain id to use.
 - `loom:agent-document-unrecorded` (error, subject `source`): a document in the agent's drafting directory that no step made, neither a `copy` of a working document nor one written from scratch (`loom draft --ai NAME --new`), so it can be neither adopted nor refreshed; carries the fixes `loom draft DOC --ai NAME.tex`, DOC the default document, and `loom draft --ai NAME.tex --new`.
 - `loom:plain-id-in-drafting-ai` (error, subject `source`): a plain id defined in a file of the agent's drafting directory, where every id is derived; carries the fix `loom id --next`, whose id takes `-ai`.
 - `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document. One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (DR-297-ikmartin).

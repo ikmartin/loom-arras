@@ -87,7 +87,7 @@ def test_the_figures_of_one_document_compile_at_the_same_time(tmp_path: Path, mo
     ok("build", cwd=q)
     assert most >= 4, most
     assert time.perf_counter() - started < 4 * 0.3 + 1.0
-    master = (q / "build" / "fragments" / "masters" / "main.html").read_text(encoding="utf-8")
+    master = (q / "build" / "fragments" / "masters" / "drafting" / "main.html").read_text(encoding="utf-8")
     assert master.count("<svg/>") == 4 and "loom-figure" not in master
 
 

@@ -205,7 +205,7 @@ test.describe('the local graph', () => {
 
 	test('in the read view it opens on request, follows the reader, and expands into a dialog that closes on an outside click', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 600 });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.waitForSelector('.fragment .env[data-key]');
 		await page.getByTestId('local-graph-open').click();
 		const panel = page.getByTestId('local-graph-panel');
@@ -229,13 +229,13 @@ test.describe('the local graph', () => {
 
 	test('one local graph on screen: a context beside a document stands the float down', async ({ page }) => {
 		await page.addInitScript(() => localStorage.setItem('arras.localGraph', 'open'));
-		await page.goto('/master/main' + beside('/context/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/context/sy-0003'));
 		await expect(pane(page, 1).getByTestId('local-graph-panel')).toBeVisible();
 		await pane(page, 0).locator('.fragment').first().click({ position: { x: 5, y: 5 } });
 		await expect(pane(page, 0).getByTestId('local-graph-panel')).toHaveCount(0);
 		await expect(page.getByTestId('local-graph-open')).toHaveCount(0);
 		// the float's stored preference is untouched: alone, the document shows it again
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(pane(page, 0).getByTestId('local-graph-panel')).toBeVisible();
 	});
 });

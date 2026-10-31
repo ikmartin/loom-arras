@@ -5,7 +5,7 @@ import { manifest, REFEREE, serve } from '../manifest';
 const routes: [string, string][] = [
 	['/node/sy-0003', 'Parity'],
 	['/node/sy-0200', 'Results'],
-	['/master/main', 'Widgets, gadgets'],
+	['/master/drafting/main', 'Widgets, gadgets'],
 	['/review', 'Needs review'],
 	['/review/incoming', 'Incoming'],
 	['/review/sessions', 'Sessions'],

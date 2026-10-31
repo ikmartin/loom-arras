@@ -4,6 +4,8 @@
 	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the author's under Documents, the agent's under AI Documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
+	import { isAgentDocument } from '$lib/manifest/documents';
+	import { documentLabel } from '$lib/workspace/names';
 	import { masterUrl, workUrl } from '$lib/nav';
 	import { shelf } from '$lib/library';
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
@@ -50,11 +52,11 @@
 	}
 
 	// Documents: the drafts being worked on, as a list rather than a dropdown, because a dropdown shows one name at a time and cannot say which draft is conflicted. A landmark is reached from its draft's history and from Review › History, not listed here.
-	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory !== 'drafting-ai'));
-	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && m.directory === 'drafting-ai'));
+	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && !isAgentDocument(m)));
+	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
 	const closed = $derived(masters.filter((m) => m.closed));
-	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which is what the author types and what the read view's URL names them by.
-	const filename = (path: string) => path.split('/').pop() || path;
+	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which is what the author types and what the read view's URL names them by; the path itself where two files share a name.
+	const filename = (path: string) => documentLabel(masters, path);
 	const outline = $derived(onDocument && contents.length > 0);
 	// Review's sections, each with what waits for the author there
 	const sections = $derived(store.manifest ? sectionsOf(store.manifest) : []);

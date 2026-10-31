@@ -10,7 +10,7 @@ test("an agent's document is listed under AI Documents, apart from the working d
 	const size = (text: RegExp) => labels.filter({ hasText: text }).evaluate((e) => getComputedStyle(e).fontSize);
 	expect(await size(/^AI Documents$/)).toBe(await size(/^Documents$/));
 	// `/` opens the person's default document, never the agent's
-	await expect(page).toHaveURL(/\/master\/main$/);
+	await expect(page).toHaveURL(/\/master\/drafting\/main$/);
 });
 
 test("Review gives an agent's document no tab", async ({ page }) => {

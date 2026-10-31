@@ -71,8 +71,8 @@ def test_an_agents_document_is_live_and_its_nodes_are_derived(tmp_path: Path) ->
     q = with_copy(tmp_path)
     result = scan(load_quilt(q))
     assert "drafting-ai/aidoc.tex" in result.masters
-    assert result.document_role("drafting-ai/aidoc.tex") == "drafting-ai"
-    assert result.document_role("drafting/main.tex") == "drafting"
+    assert result.document_role("drafting-ai/aidoc.tex") == "agent"
+    assert result.document_role("drafting/main.tex") == "person"
     assert result.default_master == "drafting/main.tex"
     assert result.nodes["dm-0004-ai"].derived_of == "dm-0004"
     assert result.nodes["dm-0004"].derived_of is None
@@ -86,12 +86,13 @@ def test_status_and_the_manifest_count_the_persons_nodes_once(tmp_path: Path) ->
     assert "dm-0004" in keys and "dm-0004-ai" not in keys
     ok("build", cwd=q)
     m = json.loads((q / "build" / "manifest.json").read_text())
-    directory = {x["path"]: x["directory"] for x in m["masters"]}
-    assert directory == {
-        "drafting/main.tex": "drafting",
-        "drafting/outline.tex": "drafting",
-        "drafting-ai/aidoc.tex": "drafting-ai",
+    # an agent's document is the one the history made: `copy_of` says whose copy it is, and no master carries a directory
+    assert {x["path"]: x.get("copy_of") for x in m["masters"]} == {
+        "drafting/main.tex": None,
+        "drafting/outline.tex": None,
+        "drafting-ai/aidoc.tex": "drafting/main.tex",
     }
+    assert not [x for x in m["masters"] if "directory" in x]
     assert m["nodes"]["dm-0004-ai"]["derived_of"] == "dm-0004" and "derived_of" not in m["nodes"]["dm-0004"]
     assert not [s for s in m["search"] if s["key"].endswith("-ai")]
 
@@ -120,16 +121,14 @@ def test_a_persons_document_neither_defines_nor_cites_a_derived_id(tmp_path: Pat
     assert any(x.startswith("dm-0099-ai is an agent document's id") for x in found), found
 
 
-def test_two_live_documents_may_not_share_a_name(tmp_path: Path) -> None:
-    # `loom draft` refuses the name itself, so the document is written by hand, as a person or a sync might
-    q = demo(tmp_path)
-    (q / "drafting-ai").mkdir(exist_ok=True)
-    (q / "drafting-ai" / "main.tex").write_text(AIDOC, encoding="utf-8")
-    taken = [d for d in codes(q, 1) if d["code"] == "loom:document-stem-taken"]
-    assert len(taken) == 1 and {x["file"] for x in taken[0]["locations"]} == {
-        "drafting/main.tex",
-        "drafting-ai/main.tex",
-    }
+def test_an_agent_copy_flattened_elsewhere_stays_an_agents(tmp_path: Path) -> None:
+    """Whose a document is comes from the history, not its directory: a copy linearized out of the agent's directory is still the agent's, and still a copy of the same document."""
+    q = with_copy(tmp_path)
+    ok("linearize", "drafting-ai/aidoc.tex", "--to", "flat.tex", "--no-check", cwd=q)
+    result = scan(load_quilt(q))
+    assert "flat.tex" in result.masters and "drafting-ai/aidoc.tex" not in result.masters
+    assert result.document_role("flat.tex") == "agent"
+    assert result.default_master == "drafting/main.tex"
 
 
 def test_nothing_in_an_agents_document_is_accepted(tmp_path: Path) -> None:
@@ -256,7 +255,7 @@ def test_the_copy_step_records_a_readable_base_for_every_node(tmp_path: Path) ->
     ok("history", "verify", cwd=q)
 
 
-def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path) -> None:
+def test_one_copy_per_document_never_over_a_file(tmp_path: Path) -> None:
     q = copy_of_main(tmp_path)
     refused(
         "draft",
@@ -268,9 +267,9 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
         match="overlaps drafting-ai/aidoc.tex",
     )
     refused("draft", "drafting/outline.tex", "--ai", "aidoc.tex", cwd=q, code=2, match="exists; draft never overwrites")
-    taken = refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
-    free = re.search(r"--ai (\S+)", taken.output).group(1)  # the refusal names a name that is free (T3)
-    ok("draft", "drafting/outline.tex", "--ai", free, cwd=q)
+    # a document is named by its path, so an agent's document may share a stem with one of the person's
+    ok("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q)
+    assert {"drafting/main.tex", "drafting-ai/main.tex"} <= set(scan(load_quilt(q)).masters)
     refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent document")
     refused("draft", "drafting/missing.tex", "--ai", "x.tex", cwd=q, code=2, match="is not a live document")
 
@@ -426,9 +425,9 @@ def test_adopt_refuses_what_a_document_written_from_scratch_cannot_take(tmp_path
     q = with_survey(tmp_path)
     refused("adopt", "survey.tex", cwd=q, code=2, match="--to drafting/NAME.tex")
     refused("adopt", "survey.tex", "dm-0900-ai", "--to", "drafting/s.tex", cwd=q, code=2, match="no changes to choose")
-    refused("adopt", "survey.tex", "--to", "drafting/survey.tex", cwd=q, code=2, match="already named survey")
     refused("adopt", "survey.tex", "--to", "drafting/main.tex", cwd=q, code=2, match="exists")
-    refused("adopt", "survey.tex", "--to", "notes/s.tex", cwd=q, code=2, match="directly in drafting/")
+    refused("adopt", "survey.tex", "--to", "notes/s.tex", cwd=q, code=2, match="is inside notes/")
+    refused("adopt", "survey.tex", "--to", "drafting-ai/s.tex", cwd=q, code=2, match="where agents' documents are kept")
     refused("adopt", "survey.tex", "--to", "drafting/s.tex", cwd=q, code=2, match="author's", env={"CLAUDECODE": "1"})
     assert not (q / "drafting" / "s.tex").exists()
 
@@ -439,8 +438,9 @@ def test_adopt_refuses_what_a_document_written_from_scratch_cannot_take(tmp_path
 def test_the_fixtures_agent_copy_carries_every_field_the_interface_names() -> None:
     fixture = json.loads((Path(__file__).parents[1] / "fixture" / "manifest.json").read_text())
     masters = {m["path"]: m for m in fixture["masters"]}
-    assert masters["drafting-ai/aidoc.tex"]["directory"] == "drafting-ai"
-    assert masters["drafting-ai/aidoc.tex"]["copy_of"] == "drafting/main.tex"
+    assert masters["drafting-ai/aidoc.tex"]["copy_of"] == "drafting/main.tex"  # which says it is an agent's
+    assert masters["drafting-ai/aidoc.tex"]["fragment"] == "fragments/masters/drafting-ai/aidoc.html"
+    assert not [m for m in fixture["masters"] if "directory" in m]
     assert [m["path"] for m in fixture["masters"]][-1] == "drafting-ai/aidoc.tex"  # the person's documents first
     nodes = fixture["nodes"]
     assert nodes["sy-0002-ai"]["derived_of"] == "sy-0002" and nodes["sy-0002-ai"]["base"]["key"] == "sy-0002"

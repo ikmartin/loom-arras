@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "ef9ab12e3a6f10b3476960ad8bc080f830543869641d68ec80902ca2ee29e9f8",
+   "hash": "32623a4050ddb533574bf919b433f961b1396917aac80a1c11fe0dcd9935b6b2",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "033965ff7cfde9dc609d838db5d69afd5ce90f3f81479b5deea1913b441af04e",
+   "hash": "cf94082d3a21584a8038ea6fc326ebe9e499e5963715b96c59c986ba1f30cf52",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "98cc113a31855b37cde731654dd603986187a82bd0a680688ed2758578038a4c",
+   "hash": "075fb438a1151786f3dcc25369f3c107272e8dfc7d60ae75cff593aa3c96d9f8",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -2395,7 +2395,7 @@
    "key": "drafting/talk.tex"
   }
  },
- "interface_version": 1,
+ "interface_version": 2,
  "keys": {
   "Kre99-setup": {
    "closure": [
@@ -4974,31 +4974,28 @@
   {
    "compiled": "2026-09-16T00:00:00Z",
    "default": true,
-   "directory": "drafting",
    "engine": "pdflatex",
-   "fragment": "fragments/masters/main.html",
+   "fragment": "fragments/masters/drafting/main.html",
    "numbering_known": true,
    "path": "drafting/main.tex",
-   "pdf": "main/main.pdf",
+   "pdf": "drafting/main/main.pdf",
    "title": "Widgets, gadgets, and their fixed loci"
   },
   {
    "compiled": "2026-09-16T00:00:00Z",
    "default": false,
-   "directory": "drafting",
    "engine": "pdflatex",
-   "fragment": "fragments/masters/talk.html",
+   "fragment": "fragments/masters/drafting/talk.html",
    "numbering_known": true,
    "path": "drafting/talk.tex",
-   "pdf": "talk/talk.pdf",
+   "pdf": "drafting/talk/talk.pdf",
    "title": "Widgets, in twenty minutes"
   },
   {
    "copy_of": "drafting/main.tex",
    "default": false,
-   "directory": "drafting-ai",
    "engine": "pdflatex",
-   "fragment": "fragments/masters/aidoc.html",
+   "fragment": "fragments/masters/drafting-ai/aidoc.html",
    "numbering_known": false,
    "path": "drafting-ai/aidoc.tex",
    "scope": {

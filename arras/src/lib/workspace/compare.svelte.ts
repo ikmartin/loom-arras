@@ -1,6 +1,7 @@
 // Compare's state, shared by the rail that turns it on and steps through it and by the layer each pane draws it with. What is compared is the workspace's (`compared`, in the URL); what it found and what the publisher answered live here.
 
 import { store } from '$lib/manifest/client.svelte';
+import { isAgentDocument } from '$lib/manifest/documents';
 import type { Manifest } from '$lib/manifest/types';
 import { can, write } from '$lib/write';
 import { plan, type Answer, type Found, type Plan, type Side } from './compare';
@@ -94,7 +95,7 @@ export function sideOf(item: Item, m: Manifest): Side {
 		name: nameOf(item, m),
 		step: canon?.step ? Number(canon.step) : null,
 		copyOf: master?.copy_of ?? null,
-		copy: master?.directory === 'drafting-ai'
+		copy: isAgentDocument(master)
 	};
 }
 

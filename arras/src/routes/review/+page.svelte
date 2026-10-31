@@ -5,6 +5,7 @@
  import { page } from '$app/state';
  import { goto } from '$app/navigation';
  import { store } from '$lib/manifest/client.svelte';
+ import { isAgentDocument } from '$lib/manifest/documents';
  import { can } from '$lib/write';
  import { displayNode } from '$lib/nodes/display';
  import { keyUrl, anchorId } from '$lib/nav';
@@ -19,7 +20,7 @@
  import ReviewWorkspace from '$lib/review/ReviewWorkspace.svelte';
  const m=$derived(store.manifest!);
  const view=$derived(page.url.searchParams.has('document')?'document':'needs-review');
- const reviewed=$derived(m.masters.filter(x=>!x.closed && !x.context_only && x.directory!=='drafting-ai'));
+ const reviewed=$derived(m.masters.filter(x=>!x.closed && !x.context_only && !isAgentDocument(x)));
  const document=$derived(reviewed.find(x=>x.path===page.url.searchParams.get('document'))??reviewed.find(x=>x.default)??reviewed[0]);
  const rows=$derived(document?documentKeys(m,document.path):[]);
  let local=$state(false);

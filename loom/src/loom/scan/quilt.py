@@ -94,7 +94,7 @@ class QuiltConfig:
         cfg.drafting_ai = str(q.get("drafting_ai", cfg.drafting_ai)).strip("/") or cfg.drafting_ai
         cfg.history = str(q.get("history", cfg.history)).strip("/") or cfg.history
         cfg.research_state = str(q.get("research_state", cfg.research_state)).strip("/") or cfg.research_state
-        cfg.main = str(q.get("main", f"{cfg.drafting}/main.tex"))
+        cfg.main = str(q.get("main", ""))
         cfg.prefix = str(q.get("prefix", cfg.prefix))
         cfg.engine = str(q.get("engine", cfg.engine))
         cfg.online = bool(table("library").get("online", False))

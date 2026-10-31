@@ -13,14 +13,14 @@ const work = (id: string): Item => ({ kind: 'work', id });
 describe('an item and its address', () => {
 	it('round-trips every kind, with its place', () => {
 		for (const href of [
-			'/master/main#sy-0200',
-			'/master/main?review=sy-0001&cause=0#sy-0001',
+			'/master/drafting/main#sy-0200',
+			'/master/drafting/main?review=sy-0001&cause=0#sy-0001',
 			'/canon/flows-v2',
 			'/library/Kre99?page=4&result=Kre99-thm-2.1&view=info',
 			'/library/Kre99?page=1&quote=Artin+stacks',
 			'/node/sy-0002/proof',
 			'/node/sy-0002?note=a-2026-09-16-0001',
-			'/master/main?note=a-2026-09-16-0004',
+			'/master/drafting/main?note=a-2026-09-16-0004',
 			'/context/sy-0002',
 			'/session/s-2026-09-16-0001',
 			'/session/s-2026-09-16-0001?view=did',
@@ -33,7 +33,7 @@ describe('an item and its address', () => {
 	});
 
 	it('resolves a stem to the document it names, and tells a landmark from a draft', () => {
-		expect(itemFromPath(m, '/master/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });
+		expect(itemFromPath(m, '/master/drafting/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });
 		expect(itemFromPath(m, '/canon/flows-v2')).toEqual({ kind: 'document', id: 'canon/flows-v2.tex' });
 	});
 
@@ -121,7 +121,7 @@ describe('the workspace', () => {
 		w.here(doc('drafting/main.tex', 'sy-0200'));
 		w.beside({ kind: 'work', id: 'Arden24', place: { page: 2 } }, 0);
 		const url = w.canonical(m);
-		expect(url).toBe('/master/main?beside=%2Flibrary%2FArden24%3Fpage%3D2#sy-0200');
+		expect(url).toBe('/master/drafting/main?beside=%2Flibrary%2FArden24%3Fpage%3D2#sy-0200');
 		const fresh = new Workspace();
 		fresh.apply(m, url);
 		expect(fresh.active(0)?.id).toBe('drafting/main.tex');

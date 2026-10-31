@@ -27,7 +27,7 @@ test('the write target is stated once', async ({ page }) => {
 		m.sessions.find((s: { id: string }) => s.id === REFEREE).title = 'the refereeing sitting';
 	});
 	// a document and a node beside it: two items, two panes, and still one place that says where writes go
-	await page.goto('/master/main' + beside('/node/sy-0003'));
+	await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 	await expect(pane(page, 1)).toBeVisible();
 	await pickSession(page, REFEREE);
 	await expect(page.getByTestId('session-footer-name')).toHaveText('the refereeing sitting');
@@ -42,7 +42,7 @@ test('the write target is stated once', async ({ page }) => {
 });
 
 test("whose annotations the page shows is chosen in one place, the picker, and said in a word in the footer", async ({ page }) => {
-	for (const at of ['/master/main' + beside('/node/sy-0003'), '/node/sy-0002' + beside('/context/sy-0002'), '/library/Kre99']) {
+	for (const at of ['/master/drafting/main' + beside('/node/sy-0003'), '/node/sy-0002' + beside('/context/sy-0002'), '/library/Kre99']) {
 		await page.goto(at);
 		await expect(page.getByTestId('session-footer-scope')).toHaveText('· all');
 		await expect(page.getByTestId('show-current')).toHaveCount(0);
@@ -91,7 +91,7 @@ test('opening a session says it is working until the publisher answers, and open
 		await answered;
 		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-0009  a long sitting  (active)' } });
 	});
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await openPicker(page);
 	await page.getByTestId('session-new').click();
 	const field = page.getByTestId('session-new-title');
@@ -111,7 +111,7 @@ test('a session the publisher refuses to open says why, and keeps what was typed
 	await page.route('**/_api/session-new', (route) =>
 		route.fulfill({ status: 409, json: { error: { code: 'refused', message: 'no author name: set one in Settings' } } })
 	);
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await openPicker(page);
 	await page.getByTestId('session-new').click();
 	const field = page.getByTestId('session-new-title');
@@ -123,7 +123,7 @@ test('a session the publisher refuses to open says why, and keeps what was typed
 });
 
 test('the session picker is not in the column', async ({ page }) => {
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	const column = page.locator('.panel .sections');
 	await expect(column).toBeVisible();
 	await expect(column.getByTestId('session-list')).toHaveCount(0);
@@ -135,7 +135,7 @@ test('the session picker is not in the column', async ({ page }) => {
 
 test.describe('the contents', () => {
 	test('the outline is the focused pane\'s document\'s, beneath the documents, and absent for anything else', async ({ page }) => {
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		const contents = page.getByRole('navigation', { name: 'Contents' });
 		await expect(contents).toBeVisible();
 		await expect(page.getByTestId('outline-divider')).toBeVisible();
@@ -152,7 +152,7 @@ test.describe('the contents', () => {
 	});
 
 	test('the contents tree is in document order and stops above paragraph units', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const entries = page.getByRole('navigation', { name: 'Contents' }).locator('a');
 		await expect(entries.first()).toContainText('Introduction');
 		const texts = await entries.allInnerTexts();
@@ -161,16 +161,16 @@ test.describe('the contents', () => {
 	});
 
 	test('a contents entry scrolls the document instead of navigating away', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await page.getByRole('navigation', { name: 'Contents' }).getByRole('link', { name: /Results/ }).click();
-		await expect(page).toHaveURL(/\/master\/main#sy-0200$/);
+		await expect(page).toHaveURL(/\/master\/drafting\/main#sy-0200$/);
 		await expect(page.locator('#sy-0200')).toBeInViewport();
 	});
 
 	test('the contents always mark where the reader is, and the mark follows the scroll both ways', async ({ page }) => {
 		// the mark moves with the reader's scroll, not with the URL's hash, and exactly one entry carries it, from before any scrolling (DR-112)
 		await page.setViewportSize({ width: 1280, height: 500 });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const contents = page.getByRole('navigation', { name: 'Contents' });
 		const current = contents.locator('a[aria-current]');
 		await expect(current).toHaveCount(1);
@@ -187,7 +187,7 @@ test.describe('the contents', () => {
 	test('the outline scrolls under the wheel', async ({ page }) => {
 		// a box inside it that took the wheel and had nothing of its own to scroll left it stuck, though a scroll from script moved it
 		await page.setViewportSize({ width: 1440, height: 330 });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const outline = page.getByTestId('outline');
 		await expect(outline.getByRole('navigation', { name: 'Contents' })).toBeVisible();
 		expect(await outline.evaluate((e) => e.scrollHeight - e.clientHeight), 'the outline overflows its part, px').toBeGreaterThan(20);
@@ -199,7 +199,7 @@ test.describe('the contents', () => {
 
 	test('the line above the outline moves, is remembered, and the documents and the outline scroll apart', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 520 });
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		const line = page.getByTestId('outline-divider');
 		const docs = page.getByTestId('docs-part');
 		const outline = page.getByTestId('outline');
@@ -243,7 +243,7 @@ test('a session rename shows at once', async ({ page }) => {
 		await new Promise((r) => setTimeout(r, 3000));
 		await route.fulfill({ json: { ok: true, result: '' } });
 	});
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await pickSession(page, REFEREE);
 	await openPicker(page);
 	// the verbs stand over a row only while the pointer is on it, the selected row included
@@ -263,7 +263,7 @@ test('⟳ reopens and selects', async ({ page }) => {
 		reopened = route.request().postDataJSON().session;
 		await route.fulfill({ json: { ok: true, result: '' } });
 	});
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	await openPicker(page);
 	await page.getByTestId('show-closed').click();
 	await page.getByTestId(`session-reopen-${QUICK}`).click();
@@ -293,7 +293,7 @@ test('a review decision needs no session', async ({ page }) => {
 
 test.describe('sessions', () => {
 	test('the chosen session is still chosen after a load', async ({ page }) => {
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await pickSession(page, REFEREE);
 		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
 		await page.reload();
@@ -303,7 +303,7 @@ test.describe('sessions', () => {
 
 	test('a stored session the corpus no longer lists is let go', async ({ page }) => {
 		await page.addInitScript(() => localStorage.setItem('arras.session-view', JSON.stringify({ selected: 's-gone', view: 'all', showClosed: false })));
-		await page.goto('/master/main');
+		await page.goto('/master/drafting/main');
 		await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
 		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.session-view') ?? '{}').selected)).toBeFalsy();
 	});

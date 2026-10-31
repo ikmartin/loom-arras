@@ -6,7 +6,7 @@ import { servePapers } from '../manifest';
 async function open(page: Page, width: number): Promise<void> {
 	await servePapers(page);
 	await page.setViewportSize({ width, height: 900 });
-	await page.goto('/master/main' + beside('/library/Kre99'));
+	await page.goto('/master/drafting/main' + beside('/library/Kre99'));
 	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 }
 

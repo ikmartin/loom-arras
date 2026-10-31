@@ -2,5 +2,5 @@
 
 __version__ = "0.1.0.dev0"
 
-INTERFACE_VERSION = 1
+INTERFACE_VERSION = 2
 """The loom-arras interface version this loom produces (docs/specs/README.md)."""

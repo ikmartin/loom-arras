@@ -20,9 +20,9 @@ def test_lint_exit_codes(tmp_path: Path) -> None:
     assert "duplicate-id" in r.output and r.output.splitlines()[0].startswith("1 error")
 
 
-def _stray_documentclass(q: Path) -> None:
-    (q / "sections").mkdir()
-    (q / "sections" / "stray.tex").write_text("\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n")
+def _unset_main(q: Path) -> None:
+    config = q / "config.toml"
+    config.write_text("".join(ln for ln in config.read_text().splitlines(keepends=True) if not ln.startswith("main ")))
 
 
 def _unreadable_log_line(q: Path) -> None:
@@ -45,9 +45,9 @@ def _mac_roman_node(q: Path) -> None:
 
 #: code -> (what provokes it on the demo, what its line must name)
 WARNINGS: dict[str, tuple[Callable[[Path], None], str]] = {
-    "loom:documentclass-outside-drafts": (_stray_documentclass, "sections/stray.tex"),
     "loom:foreign-annotations": (_unreadable_log_line, "annotations/log.jsonl"),
     "loom:main-not-found": (_missing_main, "drafting/missing.tex"),
+    "loom:main-unset": (_unset_main, "[quilt] main is unset"),
     "loom:unknown-config-key": (_unknown_table, "[colour]"),
     "loom:non-utf8-source": (_mac_roman_node, "nodes/old.tex"),
 }

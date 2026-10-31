@@ -70,7 +70,7 @@ def adopt(
                     raise EnvError(
                         f"{document} was written from scratch, so it has no working document to incorporate into; --to {drafting}/NAME.tex names the one to start from it"
                     )
-                written = destination(result.quilt, output, drafting=True)
+                written = destination(result.quilt, output, document=True)
                 progress.next_stage(f"writing {written.name}")
                 started = start(result, scratch, written.relative_to(Path(result.quilt.root).resolve()).as_posix())
             else:

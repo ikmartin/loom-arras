@@ -29,7 +29,7 @@ test('the editing surfaces', async ({ page, served }) => {
 	await expect(page.getByTestId('note-kind').locator('[aria-pressed="true"]')).toHaveAttribute('data-kind', 'question');
 	await page.screenshot({ path: `${OUT}/composer.png`, animations: 'disabled' });
 
-	await page.goto('/master/main');
+	await page.goto('/master/drafting/main');
 	// choosing where to write opens its Chat, beside the document
 	await pickSession(page, session);
 	await settled(page);

@@ -21,7 +21,7 @@
 	import { reading } from '$lib/reading.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { ensureMathJax } from '$lib/math/mathjax';
-	import { masterStem } from '$lib/nav';
+	import { masterName } from '$lib/nav';
 	import { rail } from '$lib/shell/rail.svelte';
 	import { panel } from '$lib/shell/panel.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
@@ -69,7 +69,7 @@
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
 
 	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context and sessions, each an item in the workspace. The tables, the graph and home render full width outside it.
-	const READING = new Set(['/master/[stem]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]', '/page/[id]']);
+	const READING = new Set(['/master/[...name]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]', '/page/[id]']);
 	const inReading = $derived(READING.has(page.route.id ?? ''));
 	$effect(() => {
 		workspace.onScreen = inReading;
@@ -82,14 +82,14 @@
 	const currentDoc = $derived.by(() => {
 		if (currentItemDoc) return currentItemDoc;
 		const stem = page.params.stem;
-		if (stem && m) {
-			if (page.route.id?.startsWith('/canon')) {
-				const c = m.canon?.find((x) => x.stem === stem);
-				if (c) return c.path;
-			} else {
-				const hit = m.masters.find((x) => masterStem(x.path) === stem);
-				if (hit) return hit.path;
-			}
+		const name = page.params.name;
+		if (stem && m && page.route.id?.startsWith('/canon')) {
+			const c = m.canon?.find((x) => x.stem === stem);
+			if (c) return c.path;
+		}
+		if (name && m) {
+			const hit = m.masters.find((x) => masterName(x.path) === name);
+			if (hit) return hit.path;
 		}
 		const g = page.url.searchParams.get('master');
 		if (g && m?.masters.some((x) => x.path === g)) return g;

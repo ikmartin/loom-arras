@@ -11,13 +11,13 @@ export function keyFromParam(param: string): string {
 	return param.split('/').map(decodeURIComponent).join('/');
 }
 
-export function masterUrl(path: string): string {
-	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
-	return route('/master/' + encodeURIComponent(stem));
+/** A document's name, its address under /master/: its path without `.tex`, kept as a path (loom's `paths.document_name`), so two documents of one stem in two directories never share it. */
+export function masterName(path: string): string {
+	return path.replace(/\.tex$/, '');
 }
 
-export function masterStem(path: string): string {
-	return path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
+export function masterUrl(path: string): string {
+	return route('/master/' + masterName(path).split('/').map(encodeURIComponent).join('/'));
 }
 
 export function reviewUrl(masterPath?: string, key?: string): string {
@@ -25,9 +25,13 @@ export function reviewUrl(masterPath?: string, key?: string): string {
 	return route('/review') + query + (key ? '#review-' + anchorId(key) : '');
 }
 
+/** A landmark's address under /canon/: its file's stem, which the history keeps unique. */
+export function canonStem(path: string): string {
+	return path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
+}
+
 export function canonUrl(path: string): string {
-	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
-	return route('/canon/' + encodeURIComponent(stem));
+	return route('/canon/' + encodeURIComponent(canonStem(path)));
 }
 
 /** A cited work's page in the Library, which is where its digest, its proposals, its links and the paper itself are read. */

@@ -15,7 +15,7 @@ from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp
-from loom.paths import BUILD, CLOSURES
+from loom.paths import CLOSURES, document_build
 from loom.reshape.linearize import flatten
 from loom.scan.model import Diagnostic
 from loom.scan.scan import ScanResult
@@ -93,7 +93,7 @@ def compile(  # noqa: A001
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
+    """Run latexmk from the root into build/<name>/ for a master (default: the default master), its name its path without .tex, or for a key.
 
     Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
     """
@@ -142,7 +142,7 @@ def compile(  # noqa: A001
         log_run(run_dir, " ".join(parts), root)
         with Progress("compiling", 1) as p:
             p.item(master)
-            res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master, engine))
+            res = compile_tex(root, master, root / document_build(master), engine_for(result, master, engine))
     else:
         key = resolve_key(result, target)
         require_text(result, key)
@@ -358,7 +358,7 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
         p.next_stage("compiling", len(result.masters) + len(keys))
         for master in result.masters:
             p.item(master)
-            res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master))
+            res = compile_tex(root, master, root / document_build(master), engine_for(result, master))
             bad = res.usable == "failed"
             documents.append({"document": master, "ok": not bad, **_failed(res, root, bad)})
         for key in keys:

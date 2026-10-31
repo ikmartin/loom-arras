@@ -4,7 +4,7 @@ This spec says exactly what loom reads from an author's LaTeX and what each cons
 
 ## 1. What is read
 
-Loom scans every `.tex` file under the quilt root outside `build/`, `.loom/`, `ai/`, `refs/`, `digests/storage/`, `notes/`, `retired/`, the history and tool directories, unless its first twenty lines include the line `% !LOOM ignore`. A master is a file with `\documentclass` directly in a drafting directory; files it reaches by `\input`, `\include` or `\nest` (an `\input` one heading level down) are read in its context. Files no master reaches are scanned too.
+Loom scans every `.tex` file under the quilt root outside `build/`, `.loom/`, `ai/`, `refs/`, `digests/storage/`, `notes/`, `retired/`, the history and tool directories, unless its first twenty lines include the line `% !LOOM ignore`. A master is any file read here with `\documentclass`, wherever it sits, named by its path without `.tex`; files it reaches by `\input`, `\include` or `\nest` (an `\input` one heading level down) are read in its context. Files no master reaches are scanned too.
 
 Comments are blanked first: each, from an unescaped `%` to the end of the line, becomes spaces, except in `verbatim`, `lstlisting`, `comment` and `filecontents` environments and `\verb`. A commented-out environment defines nothing, and a commented-out `\ref` is no dependency. Directives (section 8) are read before blanking.
 

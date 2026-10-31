@@ -244,7 +244,7 @@ describe('the link listener', () => {
 			addEventListener: (_: string, l: (e: MouseEvent) => void, capture: boolean) => capture && listeners.push(l),
 			removeEventListener: (_: string, l: (e: MouseEvent) => void) => (listeners = listeners.filter((x) => x !== l))
 		});
-		vi.stubGlobal('location', { href: 'http://x/master/main', origin: 'http://x' });
+		vi.stubGlobal('location', { href: 'http://x/master/drafting/main', origin: 'http://x' });
 		remove = interceptLinks(() => reading, () => manifest);
 		workspace.openIn(doc('drafting/main.tex'), 0);
 	});

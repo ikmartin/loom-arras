@@ -55,13 +55,19 @@ export function nodeName(m: Named, id: string): string {
 	return n.title ? `${n.taxon} · ${n.title}` : id;
 }
 
+/** A document as its author types it: its file name, or its path when another document has that file name too, since documents are named by path and may share one across directories. */
+export function documentLabel(masters: readonly { path: string }[], path: string): string {
+	const file = (p: string) => p.split('/').pop() ?? p;
+	return masters.some((x) => x.path !== path && file(x.path) === file(path)) ? path : file(path);
+}
+
 /**
  * Any key a session or a context names, as a reader would: a document by its file, a result by `nodeName`, an unlabelled proof as the proof of its result, an equation by its number in its result, a cited work's identifier by its citekey; anything else as itself.
  *
  * Callers keep the key itself as the name's title, so nothing is hidden by the shortening.
  */
 export function keyName(m: Named, key: string): string {
-	if (m.masters.some((x) => x.path === key)) return key.split('/').pop() ?? key;
+	if (m.masters.some((x) => x.path === key)) return documentLabel(m.masters, key);
 	if (m.nodes[key]) return nodeName(m, key);
 	const region = m.regions?.[key];
 	if (region) {

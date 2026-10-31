@@ -121,7 +121,7 @@ test.describe('a link to a result', () => {
 	test('in a message, by `quilt:` or `cited:`, opens the paper at the place it names', async ({ page }) => {
 		await filed(page);
 		await saying(page, `<p><a href="quilt:${RESULT}">a</a> <a href="cited:arxiv:math/9810166v2?page=2">b</a> <a href="cited:arxiv:math/9810166v2?result=${RESULT}">c</a></p>`);
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const links = pane(page, 1).getByTestId('message-1').locator('a');
 		await links.nth(0).click();
 		await onPage(page, 0, 4);
@@ -186,7 +186,7 @@ test.describe('the Library in the column', () => {
 			m.references.Kre99.versions = [{ citekey: 'Kre99A', work: 'arXiv:math/9810166v1', artifacts: m.references.Kre99A.artifacts }];
 		});
 		await servePapers(page);
-		await page.goto('/master/main' + beside('/node/sy-0003'));
+		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
 		await expect(list.getByTestId('library-work-Kre99')).toHaveAttribute('href', '/library/Kre99A');

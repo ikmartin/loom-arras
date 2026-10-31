@@ -280,7 +280,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 from loom.cli._common import destination
 
                 try:
-                    target = destination(result.quilt, _str(body, "to", required=True) or "", drafting=True)
+                    target = destination(result.quilt, _str(body, "to", required=True) or "", document=True)
                 except click.ClickException as exc:
                     raise ApiError("bad-field", exc.message, status=409) from exc
                 answer = start(result, copy, target.relative_to(root.resolve()).as_posix(), reviewer)

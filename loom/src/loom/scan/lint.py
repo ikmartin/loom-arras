@@ -67,7 +67,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
 
     def owned(key: str) -> bool:
         n = nodes.get(key)
-        return n is not None and any(result.document_role(m) == "drafting" for m in n.reached_by)
+        return n is not None and any(result.document_role(m) == "person" for m in n.reached_by)
 
     out: list[Diagnostic] = []
     for key, n in nodes.items():
@@ -76,7 +76,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
                 Diagnostic(
                     "error",
                     "loom:derived-id-in-drafting",
-                    f"{key} is an agent document's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'drafting')} defines it; a person's document names the plain id, {n.derived_of}",
+                    f"{key} is an agent document's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'person')} defines it; a person's document names the plain id, {n.derived_of}",
                     [_loc(result, n)],
                     [key],
                 )
@@ -108,7 +108,7 @@ def _agent_documents(result: ScanResult) -> list[Diagnostic]:
     source = result.default_master or "DOC"
     out: list[Diagnostic] = []
     for m in sorted(result.masters):
-        if result.document_role(m) != "drafting-ai" or m in recorded:
+        if result.document_role(m) != "agent" or m in recorded:
             continue
         out.append(
             Diagnostic(
@@ -148,21 +148,20 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     from loom.history.ledger import load_history
 
     diags.extend(quick_checks(result, load_history(result.quilt.history_dir)))
-    if not any(result.document_role(m) == "drafting" for m in result.masters):
+    if not any(result.document_role(m) == "person" for m in result.masters):
         # every view that is about nodes is empty until a document is begun; the viewer shows that, and this says how to begin one
-        drafting = result.quilt.config.drafting
         if result.canon_files:
             newest = result.canon_files[-1]
             diags.append(
                 Diagnostic(
                     "info",
                     "loom:no-live-document",
-                    f"nothing is being worked on: {drafting}/ holds no document, so the quilt defines no nodes",
+                    "nothing is being worked on: the quilt holds no document, so it defines no nodes",
                     [],
                     fixes=[
                         Fix(
                             f"start from the newest landmark, {Path(newest).stem}",
-                            f"loom history restore {Path(newest).stem} --to {drafting}/main.tex",
+                            f"loom history restore {Path(newest).stem} --to FILE",
                         )
                     ],
                 )
@@ -172,7 +171,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 Diagnostic(
                     "info",
                     "loom:no-live-document",
-                    f"nothing is being worked on: {drafting}/ holds no document; write one there with \\documentclass, or begin from a paper",
+                    "nothing is being worked on: the quilt holds no document; write one anywhere in it with \\documentclass, or begin from a paper",
                     [],
                     fixes=[
                         Fix("bring in a paper you are writing", "loom import FILE"),

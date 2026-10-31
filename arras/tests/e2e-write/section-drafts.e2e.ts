@@ -68,7 +68,7 @@ for (const width of [736, 1100, 1440]) {
   expect(applied).toContain('First prose.');
   expect(applied).toContain('Second prose.');
   expect(applied).toContain('\\newcommand{\\extra}');
-  await page.goto('/master/first-scope');
+  await page.goto('/master/drafting-ai/first-scope');
   await page.getByRole('button',{name:'Close draft',exact:true}).click();
   await expect(page.getByRole('button',{name:'Close and keep saved copy'})).toBeVisible();
   await page.getByRole('button',{name:'Close and keep saved copy'}).click();

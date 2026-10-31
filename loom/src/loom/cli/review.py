@@ -16,7 +16,7 @@ from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.graph import keyed, natural, when
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp, today
-from loom.paths import BUILD
+from loom.paths import document_build
 from loom.records.annotations import (
     GRADED,
     KINDS,
@@ -52,29 +52,29 @@ def _master_compiles(result: ScanResult, master: str | None = None) -> tuple[boo
     if master is None:
         return True, ""
     root = result.quilt.root
-    pdf = root / BUILD / Path(master).stem / f"{Path(master).stem}.pdf"
+    pdf = root / document_build(master) / f"{Path(master).stem}.pdf"
     newest = max((result.files[f].abspath.stat().st_mtime for f in result.files), default=0.0)
     if pdf.exists() and pdf.stat().st_mtime >= newest:
         return True, ""
-    res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master))
+    res = compile_tex(root, master, root / document_build(master), engine_for(result, master))
     return res.ok, res.first_error
 
 
 def _acceptance_master(result: ScanResult, key: str) -> str:
     """Choose a deterministic document context for an acceptance not explicitly scoped to one master: never an agent's document, which nothing is accepted in."""
-    reached = [m for m in result.nodes[key].reached_by if result.document_role(m) == "drafting"]
+    reached = [m for m in result.nodes[key].reached_by if result.document_role(m) == "person"]
     if result.default_master and result.default_master in reached:
         return result.default_master
     if reached:
         return str(reached[0])
-    own = [m for m in result.masters if result.document_role(m) == "drafting"]
+    own = [m for m in result.masters if result.document_role(m) == "person"]
     return result.default_master or (own[0] if own else "")
 
 
 def _owned(result: ScanResult, key: str) -> bool:
     """A key the person's own documents reach, and not an agent document's derived key: what `--all-live` and `--master` may accept."""
     n = result.nodes[key]
-    return not n.derived_of and any(result.document_role(m) == "drafting" for m in n.reached_by)
+    return not n.derived_of and any(result.document_role(m) == "person" for m in n.reached_by)
 
 
 def _snapshot(root: Path, text: str, hist: Path, dry_run: bool) -> tuple[str, bool]:
@@ -107,7 +107,7 @@ def write_acceptance(
     for key, master in chosen.items():
         if master and master not in result.closures:
             # a row's preamble is its document's; a path that is not a live document has none, and an empty one would read as a change for ever
-            raise ContentError(f"{master} is not a live drafting document; {key} cannot be accepted against it")
+            raise ContentError(f"{master} is not a live document of yours; {key} cannot be accepted against it")
     for key in keys:
         unavailable = [d for d in result.dependencies.closure(key) if result.dependencies.texts.get(d) is None]
         if unavailable:
@@ -200,9 +200,9 @@ def accept(
     targets: list[str] = []
     contexts: dict[str, str] = {}
     if all_live or accept_master:
-        if accept_master and result.document_role(accept_master) != "drafting":
+        if accept_master and result.document_role(accept_master) != "person":
             raise EnvError(
-                f"{accept_master} is not a live drafting document"
+                f"{accept_master} is not a live document of yours"
                 + (": nothing in an agent's document is accepted" if result.document_role(accept_master) else "")
             )
         conflicts = sorted(
@@ -1276,7 +1276,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             {"id": a.id, "kind": a.kind, "severity": a.severity, "status": a.status, "detached": res.detached}
         )
     # each live agent document's own rows, apart from the author's: what waits in it is the agent's work and the author's to look at, never the author's to-do list
-    agent_rows: dict[str, dict[str, Any]] = {m: {} for m in result.masters if result.document_role(m) == "drafting-ai"}
+    agent_rows: dict[str, dict[str, Any]] = {m: {} for m in result.masters if result.document_role(m) == "agent"}
     for key, ks in states.items():
         n = result.nodes[key]
         if n.kind == "section" and not live.get(key):

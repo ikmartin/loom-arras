@@ -5,6 +5,9 @@ Quilt-relative POSIX strings, so each works both as `root / X` and in a string c
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from pathlib import PurePosixPath
+
 #: Loom's own directory: its records, sessions and history.
 LOOM = ".loom"
 #: Everything loom can rebuild; deletable at any moment.
@@ -55,3 +58,26 @@ LINKS_REMOVED = f"{DIGESTS}/links-removed.jsonl"
 STY = "loom.sty"
 MANIFEST = f"{BUILD}/manifest.json"
 CLOSURES = f"{BUILD}/closures"
+
+
+def document_name(path: str) -> str:
+    """A document's name: its quilt-relative path without `.tex`, kept as a path (`paper/main.tex` is `paper/main`).
+
+    The key of its build output, its fragment and its address in the viewer; two documents' names never collide, as their stems may.
+    """
+    return path.removesuffix(".tex")
+
+
+def documents_named(word: str, pool: Iterable[str]) -> list[str]:
+    """The documents among `pool` that `word` names: the one whose path or name it is, else every one whose file name or stem it is.
+
+    Callers take a single match and refuse several, naming them: stems repeat across directories, so a stem is a name only while one document has it.
+    """
+    docs = list(pool)
+    exact = [d for d in docs if word in (d, document_name(d))]
+    return exact or [d for d in docs if word in (PurePosixPath(d).name, PurePosixPath(d).stem)]
+
+
+def document_build(path: str) -> str:
+    """Where a document compiles to, `build/<name>`; latexmk names what it writes there by the file's own stem."""
+    return f"{BUILD}/{document_name(path)}"

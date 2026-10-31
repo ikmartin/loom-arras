@@ -19,7 +19,7 @@ from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, refuse_interrupted, text_hash, write_step
-from loom.paths import BUILD, LOOM, RETIRED
+from loom.paths import BUILD, LOOM, RETIRED, documents_named
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
@@ -260,17 +260,16 @@ def run_import(
     root = quilt.root
     dest_rel = None
     if to is not None:
-        dest_rel = quilt_relative(quilt, destination(quilt, to, drafting=True))
-        if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
-            raise EnvError(f"{to}: an imported document goes directly in {quilt.config.drafting}/")
+        dest_rel = quilt_relative(quilt, destination(quilt, to, document=True))
     plan = plan_import(quilt, paper, dest_rel)
     if plan.exists:
-        stem, n = Path(plan.dest_rel).stem, 2
-        while (root / quilt.config.drafting / f"{stem}-{n}.tex").exists():
+        taken = Path(plan.dest_rel)
+        n = 2
+        while (root / taken.with_name(f"{taken.stem}-{n}.tex")).exists():
             n += 1
         raise EnvError(
             f"{plan.dest_rel} exists; import never overwrites a document. Import it under another name: "
-            f"loom import {shlex.quote(str(paper))} --to {quilt.config.drafting}/{stem}-{n}.tex"
+            f"loom import {shlex.quote(str(paper))} --to {taken.with_name(f'{taken.stem}-{n}.tex').as_posix()}"
         )
     arrows = [(Path(src).relative_to(plan.paper_dir).as_posix(), dest) for dest, src in sorted(plan.assets.items())]
     from loom.tex.runner import compile_tex, stage_sources
@@ -812,8 +811,10 @@ def deloom_command(
     root = result.quilt.root
     rel = _rel(root, source)
     if rel not in result.masters:
-        named = [m for m in result.masters if Path(m).name == source or Path(m).stem == source]
-        if len(named) != 1:
+        named = documents_named(source, result.masters)
+        if len(named) > 1:
+            raise EnvError(f"{source} names {len(named)} documents, {', '.join(named)}; give its path")
+        if not named:
             src = result.files.get(rel)
             if src is not None and src.superseded:
                 # a document, but one another has replaced: it is made live again, or its successor is deloomed (T3)

@@ -298,7 +298,7 @@ def test_accept_master_refuses_non_master_and_invalid_document_atomically(tmp_pa
         *AS,
         cwd=d,
         code=2,
-        match="not a live drafting document",
+        match="not a live document of yours",
     )
     refused(
         "accept",
@@ -1471,7 +1471,7 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
     assert got["in"] == "drafting/main-flat.tex" and got["detached"] is False and got["anchored"] is True, got
     assert m["annotations"][whole]["target"]["key"] == "drafting/main-flat.tex"
     assert m["annotations"][whole]["detached"] is False
-    assert ann in (d / "build" / "fragments" / "masters" / "main-flat.html").read_text()
+    assert ann in (d / "build" / "fragments" / "masters" / "drafting" / "main-flat.html").read_text()
     # the record keeps the path it was written with
     assert [e["in"] for e in events(d) if e.get("id") == ann] == ["drafting/main.tex"]
 
@@ -1591,7 +1591,7 @@ def test_status_rows_read_as_the_reader_reads_them(tmp_path: Path) -> None:
     """T4: the re-grade's `status` printed raw, cut LaTeX titles (`Proof of Lemma~\\ref{lem:indepen…`), causes as codes and no theorem numbers; a row's title is plain, and its kind carries the number the last build printed."""
     d = demo(tmp_path)
     edit(d / "nodes" / "dm-0002.tex", "\\begin{lemma}[Orbits]", "\\begin{lemma}[\\emph{Orbits} of $\\sigma$]")
-    aux = d / "build" / "main" / "main.aux"
+    aux = d / "build" / "drafting" / "main" / "main.aux"
     aux.parent.mkdir(parents=True, exist_ok=True)
     aux.write_text("\\newlabel{dm-0002}{{2.1}{3}}\n")
     row = status_row(ok("status", cwd=d).output, "dm-0002")
