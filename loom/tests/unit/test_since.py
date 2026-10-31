@@ -91,7 +91,7 @@ def test_an_acceptance_and_a_key_gone_stale_are_each_reported_once(q: Path) -> N
     ok("accept", "dm-0002", cwd=q)
     got = look(q)
     assert [r["key"] for r in got["accepted"]] == ["dm-0002"] and got["stale"] == []
-    node = next(p for p in (q / "nodes").glob("*.tex") if "\\label{dm-0002}" in p.read_text())
+    node = next(p for p in (q / "drafting" / "nodes").glob("*.tex") if "\\label{dm-0002}" in p.read_text())
     text = node.read_text()
     node.write_text(text.replace("\\label{dm-0002}", "\\label{dm-0002} An added clause.", 1))
     stale = look(q)["stale"]

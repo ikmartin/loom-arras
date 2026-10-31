@@ -37,8 +37,10 @@ class SvgResult:
     error: str | None = None
 
 
-def _hash(preamble: str, body: str, border: str) -> str:
-    return hashlib.sha1((preamble + "\x00" + border + "\x00" + body).encode("utf-8")).hexdigest()[:16]
+def _hash(preamble: str, body: str, border: str, scope: str = "") -> str:
+    """The cache key; `scope` is the quilt-relative directory the preamble's local files resolve in, since one preamble may load another `.sty` in another directory."""
+    text = preamble + "\x00" + border + "\x00" + body + ("\x00" + scope if scope else "")
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
 
 
 _POOL = ThreadPoolExecutor(max_workers=os.cpu_count() or 4, thread_name_prefix="loom-figure")
@@ -147,8 +149,10 @@ def compile_svg(
     dvisvgm_bin: str = "dvisvgm",
     timeout: int = 120,
     texinputs: Path | None = None,
+    scope: str = "",
 ) -> SvgResult:
-    key = _hash(preamble, body, border)
+    """One figure as SVG, from the cache or compiled; `texinputs` is the directory the preamble's local files sit in, the document's own (P12), and `scope` its quilt-relative name for the cache key."""
+    key = _hash(preamble, body, border, scope)
     cache_dir.mkdir(parents=True, exist_ok=True)
     # one compile per figure: a second request for it, from another fragment or a preview, waits and then reads the cache
     with _key_lock(cache_dir / key):
@@ -182,7 +186,7 @@ def _compile_svg(
         return SvgResult(None, key, False, "latex or dvisvgm is not installed")
     env = dict(os.environ)
     if texinputs is not None:
-        # the quilt root first, then the distribution's trees (the trailing separator keeps them), so loom.sty and the author's .sty files resolve
+        # the document's directory first, then the distribution's trees (the trailing separator keeps them), so its own .sty files resolve
         env["TEXINPUTS"] = f"{texinputs}{os.pathsep}{env.get('TEXINPUTS', '')}"
     with tempfile.TemporaryDirectory(prefix="loom-svg-") as tmp:
         d = Path(tmp)

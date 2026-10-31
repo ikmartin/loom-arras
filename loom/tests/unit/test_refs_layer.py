@@ -84,8 +84,12 @@ def test_build_json_orders_by_how_often_a_work_is_cited(tmp_path: Path) -> None:
     # a work cited by two keys and named after every other, so only the counts can put it first
     with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Zed20, title={Zeds}, author={Zed, A.}, year={2020}}\n")
-    edit(q / "nodes" / "dm-0001.tex", "\\end{definition}", "See \\cite{Zed20}.\n\\end{definition}")
-    edit(q / "nodes" / "dm-0002.tex", "\\end{lemma}", "See \\cite{Zed20} and \\cite[Theorem 1]{Zed20}.\n\\end{lemma}")
+    edit(q / "drafting" / "nodes" / "dm-0001.tex", "\\end{definition}", "See \\cite{Zed20}.\n\\end{definition}")
+    edit(
+        q / "drafting" / "nodes" / "dm-0002.tex",
+        "\\end{lemma}",
+        "See \\cite{Zed20} and \\cite[Theorem 1]{Zed20}.\n\\end{lemma}",
+    )
     works = json_of("library", "update", "--json", cwd=q)["works"]
     assert [(w["citekey"], w["cited_by"]) for w in works] == [
         ("Zed20", 2),
@@ -99,7 +103,7 @@ def test_build_json_orders_by_how_often_a_work_is_cited(tmp_path: Path) -> None:
 def test_the_library_lists_only_what_a_person_must_look_at(tmp_path: Path) -> None:
     """A work with a document on disk is not a person's problem; a cited one with neither a document nor an identifier is, and one with an identifier needs only the network. Each cause names the command that clears it."""
     q = demo(tmp_path)
-    node = q / "nodes" / "dm-0003.tex"
+    node = q / "drafting" / "nodes" / "dm-0003.tex"
     node.write_text(node.read_text() + "\nCompare \\cite{Har77} and \\cite{Man12}.\n")
     rows = {w["citekey"]: w["needs"] for w in json_of("library", "--json", cwd=q)["works"]}
     assert rows == {"Calloway14": "", "Har77": "unidentified", "Man12": "offline"}
@@ -286,7 +290,7 @@ def test_a_cited_proposal_is_no_dependency_until_it_is_verified(tmp_path: Path) 
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Every widget is proposed.")
     rid = f"{ck}-thm-1.1"
-    node = q / "nodes" / "dm-0003.tex"
+    node = q / "drafting" / "nodes" / "dm-0003.tex"
     cited = node.read_text().replace(
         r"\cite[Proposition 3.2]{Calloway14}.",
         rf"\cite[Proposition 3.2]{{Calloway14}} and \cite[Theorem 1.1]{{{ck}}}, \ref{{{rid}}}.",

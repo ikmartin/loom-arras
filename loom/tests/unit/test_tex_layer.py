@@ -46,19 +46,19 @@ def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     n = parse_aux(aux.read_text())
     assert n["dm-0001"].number == "1.1" and n["dm-0003"].number == "2.1"
     log = Path(os.environ["FAKE_TEX_LOG"]).read_text()
-    assert "-outdir=" in log and "drafting/main.tex" in log
+    assert "-outdir=" in log and " main.tex" in log  # named from its own directory, where it compiles
 
 
 def test_linearize_flattens_with_nest_shift(tmp_path: Path) -> None:
     root = tmp_path / "q"
     (root / "drafting").mkdir(parents=True)
-    (root / "sections").mkdir()
+    (root / "drafting" / "sections").mkdir()
     (root / "config.toml").write_text('[quilt]\nmain = "drafting/main.tex"\n')
     (root / "drafting" / "main.tex").write_text(
         "\\documentclass{article}\n\\begin{document}\n\\section{A}\n\\input{sections/one}\n\\nest{sections/two}\n\\end{document}\n"
     )
-    (root / "sections" / "one.tex").write_text("one % comment kept\n")
-    (root / "sections" / "two.tex").write_text("\\section{Two}\n\\subsection{Deeper}\n")
+    (root / "drafting" / "sections" / "one.tex").write_text("one % comment kept\n")
+    (root / "drafting" / "sections" / "two.tex").write_text("\\section{Two}\n\\subsection{Deeper}\n")
     text = assemble(root, "drafting/main.tex")
     assert "\\input{" not in text and "\\nest{" not in text
     assert "one % comment kept" in text
@@ -91,7 +91,7 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
         "Calloway14-prop-3.2",
     }  # the proof cites Calloway14 by postnote
     text = b.text
-    assert text.index("\\usepackage{loom}") < text.index("\\begin{document}")
+    assert text.index("% !LOOM begin loom-macros") < text.index("\\begin{document}")
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in text and "\\begin{theorem}[Main]\\label{dm-0003}" in text
     assert "Take" not in text  # dm-0002's proof is not part of the closure
@@ -101,10 +101,10 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
 
 def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    node = d / "nodes" / "dm-0002.tex"
+    node = d / "drafting" / "nodes" / "dm-0002.tex"
     original = node.read_text()
     proposed = original.replace("Every orbit of a widget has one or two points", "Orbits have at most two points")
-    diff = unified_diff(original, proposed, "nodes/dm-0002.tex")
+    diff = unified_diff(original, proposed, "drafting/nodes/dm-0002.tex")
     (tmp_path / "proposal.diff").write_text(diff)
     assert apply_unified_diff(original, diff) == proposed
     ok("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
@@ -121,7 +121,7 @@ def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
 def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
     d = demo(tmp_path)
     (tmp_path / "bad.diff").write_text(
-        "--- a/nodes/dm-0002.tex\n+++ b/nodes/dm-0002.tex\n@@ -1,1 +1,1 @@\n-this line is not in the file\n+replacement\n"
+        "--- a/drafting/nodes/dm-0002.tex\n+++ b/drafting/nodes/dm-0002.tex\n@@ -1,1 +1,1 @@\n-this line is not in the file\n+replacement\n"
     )
     refused("compile", "dm-0002", "--with", str(tmp_path / "bad.diff"), cwd=d, code=1, match="does not match")
 
@@ -146,7 +146,7 @@ def test_check_lints_and_compiles(tmp_path: Path) -> None:
     assert r.output.startswith("check passed:") and "compiles  drafting/main.tex" in r.output
     closures = json_of("check", "--closures", "all", "--json", cwd=d)["closures"]
     assert {"key": "dm-0003", "ok": True, "error": None} in closures
-    (d / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")
+    (d / "drafting" / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")
     assert "duplicate-id" in exits(1, "check", cwd=d).output
 
 
@@ -281,15 +281,18 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     out.mkdir(parents=True)
     log = out / "main.log"
     log.write_text(UNDEFINED_LOG)
-    res = CompileResult(False, "pdflatex", out, 12, "", ["! Undefined control sequence."], None, None, log)
+    # the log names files from where latexmk ran, the document's own directory
+    res = CompileResult(
+        False, "pdflatex", out, 12, "", ["! Undefined control sequence."], None, None, log, cwd=tmp_path / "drafting"
+    )
     report = compile_report(res, "drafting/main.tex", tmp_path)
     text = report.render()
     assert report.verdict.startswith("drafting/main.tex did not compile: ! Undefined control sequence")
-    assert "\\nosuchmacro" in report.verdict and "nodes/dm-0003.tex:10" in report.verdict, report.verdict
+    assert "\\nosuchmacro" in report.verdict and "drafting/nodes/dm-0003.tex:10" in report.verdict, report.verdict
     assert "build/drafting/main/main.log" in text, text
     data = report.to_json()
     assert data["log"] == "build/drafting/main/main.log"
-    assert data["error_at"] == {"file": "nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
+    assert data["error_at"] == {"file": "drafting/nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
 
 
 def test_check_says_it_is_alive_while_it_lints(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

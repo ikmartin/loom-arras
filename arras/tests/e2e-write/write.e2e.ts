@@ -599,7 +599,7 @@ test('a suggestion taken in the source is offered as applied, which records the 
 	await expect(box.getByTestId('payload-in-place-view').locator('mark.review-changed').first()).toBeVisible();
 	await expect(box.getByTestId('verb-applied')).toHaveCount(0);
 	// the author takes it in their editor; the publisher rebuilds, and the key now reads as it taken
-	const file = join(served.root, 'nodes/sy-0002.tex');
+	const file = join(served.root, 'drafting/nodes/sy-0002.tex');
 	writeFileSync(file, readFileSync(file, 'utf8').replace('one or two points', 'at most two points'));
 	await expect(async () => {
 		await page.reload();

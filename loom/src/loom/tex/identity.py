@@ -8,8 +8,9 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import document_dir
 from loom.tex.aux import parse_aux
-from loom.tex.runner import CompileResult, compile_tex
+from loom.tex.runner import CompileResult, compile_document
 
 
 @dataclass
@@ -51,12 +52,22 @@ def _collapse(text: str) -> list[str]:
 
 
 def identity_test(
-    before_root: Path, before_rel: str, after_root: Path, after_rel: str, scratch: Path, engine: str = "pdflatex"
+    before_root: Path,
+    before_rel: str,
+    after_root: Path,
+    after_rel: str,
+    scratch: Path,
+    engine: str = "pdflatex",
+    *,
+    base: str | None = None,
 ) -> IdentityResult:
+    """Whether two documents typeset to the same text, each compiled from `base`, default its own directory (P12); an agent copy passes its source's."""
     if shutil.which("pdftotext") is None:
         return IdentityResult(True, skipped="pdftotext is not installed")
-    b = compile_tex(before_root, before_rel, scratch / "before", engine, halt_on_error=False)
-    a = compile_tex(after_root, after_rel, scratch / "after", engine, halt_on_error=False)
+    before_base = document_dir(before_rel) if base is None else base
+    after_base = document_dir(after_rel) if base is None else base
+    b = compile_document(before_root, before_base, before_rel, scratch / "before", engine, halt_on_error=False)
+    a = compile_document(after_root, after_base, after_rel, scratch / "after", engine, halt_on_error=False)
     res = IdentityResult(False, before=b, after=a)
     if b.pdf is None or a.pdf is None:
         res.skipped = "a document did not compile: " + (b.first_error if b.pdf is None else a.first_error)

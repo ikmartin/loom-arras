@@ -11,7 +11,7 @@ from functools import cached_property
 from pathlib import Path
 
 from loom.history.ledger import History, load_history
-from loom.paths import NOTES_DIR, RETIRED
+from loom.paths import NOTES_DIR, RETIRED, document_dir
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
@@ -47,6 +47,8 @@ class ScanResult:
     lint: list[Diagnostic] = field(default_factory=list)
     history: History | None = None  # the ledger as this scan read it
     _trails: dict[str, list[str]] = field(default_factory=dict, repr=False)
+    # bases a caller states for documents this scan's own history cannot place: a section draft read against its saved context
+    base_overrides: dict[str, str] = field(default_factory=dict, repr=False)
 
     @cached_property
     def dependencies(self):  # type: ignore[no-untyped-def]
@@ -109,6 +111,34 @@ class ScanResult:
         here = {m for m in self.masters if Path(m).parent.as_posix() == self.quilt.config.drafting_ai}
         return frozenset({*history.copies(live), *history.written(live), *here})
 
+    @cached_property
+    def _bases(self) -> dict[str, str]:
+        history = self.history if self.history is not None else load_history(self.quilt.history_dir)
+        live = set(self.masters)
+        bases = {m: document_dir(m) for m in self.masters}
+        for copy, source in history.copies(live).items():
+            bases[copy] = document_dir(source)
+        if self.default_master is not None:
+            for written in history.written(live):
+                bases[written] = document_dir(self.default_master)
+        bases.update({p: b for p, b in self.base_overrides.items() if p in bases})
+        return bases
+
+    def base_of(self, path: str) -> str:
+        """The quilt-relative directory a document compiles from, and its names resolve against (P12).
+
+        Parameters
+        ----------
+        path : str
+            A quilt-relative document path.
+
+        Returns
+        -------
+        str
+            A person's document's own directory; an agent copy's source's, where the history's moves have taken it; a document written from scratch, the default document's, whose preamble it was given; '' at the root. A path that is not a live document gives its own directory.
+        """
+        return self._bases.get(path, document_dir(path))
+
     def document_role(self, path: str) -> str | None:
         """Whose a live document is.
 
@@ -159,6 +189,17 @@ def unread_dir(quilt: Quilt, rel: str) -> str | None:
     return next((d for d in skipped_dirs(quilt) if rel.startswith(f"{d}/")), None)
 
 
+def landmark_bases(quilt: Quilt) -> dict[str, str]:
+    """Each landmark's text, quilt-relative, -> the directory its names resolve against (`History.landmark_base`)."""
+    history = load_history(quilt.history_dir)
+    out: dict[str, str] = {}
+    for e in history.landmarks():
+        path = history.landmark_path(e)
+        if path.is_file():
+            out[path.relative_to(quilt.root).as_posix()] = history.landmark_base(e)
+    return out
+
+
 def landmark_documents(quilt: Quilt) -> list[str]:
     """The quilt-relative path of every landmark's text, oldest first: the file each landmark step keeps in its directory."""
     from loom.history.ledger import load_history
@@ -172,10 +213,10 @@ def landmark_documents(quilt: Quilt) -> list[str]:
     return out
 
 
-def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
-    """Scan a quilt. `overlay` maps quilt-relative paths to the text of unsaved editor buffers, which stand in for what is on disk; a path the quilt does not contain is added, so a new file is scanned before it is first saved."""
+def scan(quilt: Quilt, overlay: dict[str, str] | None = None, *, bases: dict[str, str] | None = None) -> ScanResult:
+    """Scan a quilt. `overlay` maps quilt-relative paths to the text of unsaved editor buffers, which stand in for what is on disk; a path the quilt does not contain is added, so a new file is scanned before it is first saved. `bases` states the directory a document compiles from where the quilt's own history cannot (`ScanResult.base_of`)."""
     root = quilt.root
-    result = ScanResult(quilt=quilt)
+    result = ScanResult(quilt=quilt, base_overrides=dict(bases or {}))
     overlay = overlay or {}
     skip = skipped_dirs(quilt)
     paths = list(discover_files(root, skip))
@@ -253,10 +294,11 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
 
     for m in result.masters:
         src = result.files[m]
-        closure = build_closure(src, root, result.files, parse_directives(src))
+        base = result.base_of(m)
+        closure = build_closure(src, root, result.files, parse_directives(src), base=base)
         result.closures[m] = closure
         result.diagnostics.extend(closure.diagnostics)
-        exp = expand_master(src, root, result.files)
+        exp = expand_master(src, root, result.files, base)
         result.expansions[m] = exp
         result.diagnostics.extend(exp.diagnostics)
     ordered = [c for k, c in result.closures.items() if k == result.default_master] + [

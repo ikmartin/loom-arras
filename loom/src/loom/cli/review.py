@@ -37,7 +37,7 @@ from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import normalize, sha256
 from loom.scan.quilt import NoAuthorError, resolve_author
 from loom.scan.scan import ScanResult
-from loom.tex.runner import compile_tex
+from loom.tex.runner import compile_document
 
 
 def _author(explicit: str | None, root: Path) -> str:
@@ -56,7 +56,9 @@ def _master_compiles(result: ScanResult, master: str | None = None) -> tuple[boo
     newest = max((result.files[f].abspath.stat().st_mtime for f in result.files), default=0.0)
     if pdf.exists() and pdf.stat().st_mtime >= newest:
         return True, ""
-    res = compile_tex(root, master, root / document_build(master), engine_for(result, master))
+    res = compile_document(
+        root, result.base_of(master), master, root / document_build(master), engine_for(result, master)
+    )
     return res.ok, res.first_error
 
 

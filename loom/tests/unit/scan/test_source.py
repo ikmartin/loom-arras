@@ -28,11 +28,11 @@ def test_the_quilts_text_is_every_tex_file_but_build_the_seed_space_and_the_stor
     tmp_path: Path, excluded: str
 ) -> None:
     """A fetched e-print is a whole paper carrying its own labels, and the author's seed space `refs/` holds other people's files; neither is scanned, while a digest beside the store is the quilt's own (DR-108)."""
-    for rel in ["drafting/main.tex", "nodes/a.tex", "digests/Kre99.tex", excluded]:
+    for rel in ["drafting/main.tex", "drafting/nodes/a.tex", "digests/Kre99.tex", excluded]:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("x", encoding="utf-8")
-    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafting/main.tex", "nodes/a.tex"]
+    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafting/main.tex", "drafting/nodes/a.tex"]
 
 
 def test_non_utf8_source_decoded(tmp_path: Path) -> None:
@@ -60,12 +60,12 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
 
     root = tmp_path / "q"
     (root / "drafting").mkdir(parents=True)
-    (root / "nodes").mkdir()
+    (root / "drafting" / "nodes").mkdir()
     (root / "config.toml").write_text(DEFAULT_CONFIG, encoding="utf-8")
     (root / "drafting" / "main.tex").write_text(
         PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n\\end{document}\n", encoding="utf-8"
     )
-    (root / "nodes" / "ab-0001.tex").write_text(
+    (root / "drafting" / "nodes" / "ab-0001.tex").write_text(
         "\\begin{lemma}[Saved]\\label{ab-0001}\nOn disk.\n\\end{lemma}\n", encoding="utf-8"
     )
     quilt = load_quilt(root)
@@ -73,17 +73,17 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
     assert scan(quilt).nodes["ab-0001"].title == "Saved"
 
     edited = scan(
-        quilt, {"nodes/ab-0001.tex": "\\begin{lemma}[Edited]\\label{ab-0001}\nIn the buffer.\n\\end{lemma}\n"}
+        quilt, {"drafting/nodes/ab-0001.tex": "\\begin{lemma}[Edited]\\label{ab-0001}\nIn the buffer.\n\\end{lemma}\n"}
     )
     assert edited.nodes["ab-0001"].title == "Edited"
-    assert "In the buffer." in edited.files["nodes/ab-0001.tex"].text
-    assert "On disk." in (root / "nodes" / "ab-0001.tex").read_text()  # nothing was written
+    assert "In the buffer." in edited.files["drafting/nodes/ab-0001.tex"].text
+    assert "On disk." in (root / "drafting" / "nodes" / "ab-0001.tex").read_text()  # nothing was written
 
     # a file the buffer has created but never saved is scanned too
     created = scan(
         quilt,
         {
-            "nodes/ab-0002.tex": "\\begin{lemma}[New]\\label{ab-0002}\nUnsaved.\n\\end{lemma}\n",
+            "drafting/nodes/ab-0002.tex": "\\begin{lemma}[New]\\label{ab-0002}\nUnsaved.\n\\end{lemma}\n",
             "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\input{nodes/ab-0001}\n\\input{nodes/ab-0002}\n\\end{document}\n",
         },

@@ -24,12 +24,12 @@ def test_directive_see_node_level(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
-            "nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
+            "drafting/nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
         },
     )
     assert [(x.from_key, x.to_key, x.kind) for x in r.relations] == [("ab-0002", "ab-0001", "see")]
-    assert r.relations[0].file == "nodes/ab-0002.tex" and r.relations[0].line == 2
+    assert r.relations[0].file == "drafting/nodes/ab-0002.tex" and r.relations[0].line == 2
 
 
 def test_directive_see_file_level_applies_to_all(tmp_path: Path) -> None:
@@ -37,8 +37,8 @@ def test_directive_see_file_level_applies_to_all(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
-            "nodes/ab-0002.tex": (
+            "drafting/nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0002.tex": (
                 "% !LOOM see: ab-0001\n"
                 "\\begin{lemma}\\label{ab-0002}\nOne.\n\\end{lemma}\n"
                 "\\begin{lemma}\\label{ab-0003}\nTwo.\n\\end{lemma}\n"
@@ -57,13 +57,13 @@ def test_see_resolves_alias_and_digest_id(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0001.tex": DEF,
             "digests/Zz99.tex": digest,
-            "nodes/ab-0002.tex": (
+            "drafting/nodes/ab-0002.tex": (
                 "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: def:widget, Zz99-thm-1.1\nA lemma.\n\\end{lemma}\n"
             ),
         },
-        inputs=["nodes/ab-0001.tex", "nodes/ab-0002.tex"],
+        inputs=["drafting/nodes/ab-0001.tex", "drafting/nodes/ab-0002.tex"],
     )
     assert {x.to_key for x in r.relations} == {"ab-0001", "Zz99-thm-1.1"}  # an alias and a digest node id both resolve
 
@@ -71,12 +71,14 @@ def test_see_resolves_alias_and_digest_id(tmp_path: Path) -> None:
 def test_see_dangling_link_with_location(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
-        {"nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-9999\nA lemma.\n\\end{lemma}\n"},
+        {
+            "drafting/nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-9999\nA lemma.\n\\end{lemma}\n"
+        },
     )
     d = [x for x in r.diagnostics if x.code == "dangling-link"]
     assert len(d) == 1 and d[0].severity == "error"
     assert "ab-9999" in d[0].message
-    assert d[0].locations[0].file == "nodes/ab-0002.tex" and d[0].locations[0].line == 2
+    assert d[0].locations[0].file == "drafting/nodes/ab-0002.tex" and d[0].locations[0].line == 2
     assert d[0].keys == ["ab-0002"]
     assert r.relations == []
 
@@ -85,8 +87,8 @@ def test_see_redundant_info(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
-            "nodes/ab-0002.tex": (
+            "drafting/nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0002.tex": (
                 "\\begin{lemma}\\label{ab-0002}\\label{lem:two}\n"
                 "% !LOOM see: lem:two, ab-0001, def:widget\n"
                 "A lemma.\n\\end{lemma}\n"
@@ -104,8 +106,8 @@ def test_see_not_in_closure_bundle_or_acceptance(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
-            "nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
+            "drafting/nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
         },
     )
     assert r.relations  # the relation exists
@@ -122,12 +124,12 @@ def test_manifest_relations_shape(tmp_path: Path) -> None:
     r = _quilt(
         tmp_path,
         {
-            "nodes/ab-0001.tex": DEF,
-            "nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
+            "drafting/nodes/ab-0001.tex": DEF,
+            "drafting/nodes/ab-0002.tex": "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: ab-0001\nA lemma.\n\\end{lemma}\n",
         },
     )
     m = build_manifest(r, {}, {}, [])
     assert m["relations"] == [
-        {"from": "ab-0002", "to": "ab-0001", "kind": "see", "src": {"file": "nodes/ab-0002.tex", "line": 2}}
+        {"from": "ab-0002", "to": "ab-0001", "kind": "see", "src": {"file": "drafting/nodes/ab-0002.tex", "line": 2}}
     ]
     assert "see" not in m["nodes"]["ab-0002"] and "relations" not in m["nodes"]["ab-0002"]

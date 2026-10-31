@@ -191,14 +191,14 @@ def build_synthetic(dest: Path) -> None:
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v2")
 
     # An edit the author thinks better of: revert puts the recorded text back, and the head is then the text of @1.
-    g.edit("nodes/sy-0002.tex", "one or two points", "at most two points")
+    g.edit("drafting/nodes/sy-0002.tex", "one or two points", "at most two points")
     g.at("2026-09-15T14:00:00Z")
     out = g.run("revert", "sy-0002@1")
-    g.apply_patch(out[out.index("--- a/nodes/sy-0002.tex") :])
+    g.apply_patch(out[out.index("--- a/drafting/nodes/sy-0002.tex") :])
 
     # The talk's own copy is shortened for the slide; a stamp records it, the only key that moved.
     g.edit(
-        f"nodes/{fork_id}.tex",
+        f"drafting/nodes/{fork_id}.tex",
         "A widget with $|X| = 1$ has a fixed point.",
         "A widget with one point has a fixed point.",
     )
@@ -408,7 +408,7 @@ def build_synthetic(dest: Path) -> None:
         "This lemma is defined twice, so it has no text and loom says so rather than choosing.\n"
         "\\end{lemma}\n"
     )
-    g.write(f"nodes/{twice}.tex", body)
+    g.write(f"drafting/nodes/{twice}.tex", body)
     g.edit("drafting/main.tex", "\\input{nodes/sy-000B}\n", f"\\input{{nodes/sy-000B}}\n\n\\input{{nodes/{twice}}}\n")
     g.edit(
         "drafting/talk.tex",
@@ -520,7 +520,7 @@ def build_demo(dest: Path) -> None:
         "--as",
         "The loom demo",
     )
-    g.edit("nodes/dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
+    g.edit("drafting/nodes/dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
     g.run("accept", "dm-0002", "--proofs", "--as", "The loom demo", "--force")
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
@@ -598,8 +598,8 @@ def build_demo(dest: Path) -> None:
         _demo_report(suggestion=suggestion, objection=objection, document=document),
     )
     # the edit that leaves an accepted key stale, so a fresh demo shows a state worth looking at
-    g.edit("nodes/dm-0001.tex", r"\sigma(x) = x", r"\sigma x = x")
-    g.edit("nodes/dm-0001.tex", "a pair $(X,\\sigma)$ of a finite set", "a pair $(X,\\sigma)$ of a set")
+    g.edit("drafting/nodes/dm-0001.tex", r"\sigma(x) = x", r"\sigma x = x")
+    g.edit("drafting/nodes/dm-0001.tex", "a pair $(X,\\sigma)$ of a finite set", "a pair $(X,\\sigma)$ of a set")
     _write_expected_lint(g)
 
 
@@ -1360,12 +1360,12 @@ def build_showcase(dest: Path) -> None:
     # annotation that quoted it. Neither is corrected and neither is hidden.
     g.at("2026-09-17T10:00:00Z")
     g.edit(
-        "nodes/sh-0001.tex",
+        "drafting/nodes/sh-0001.tex",
         "Every quiver in this paper is finite: both $V(\\quiv)$ and $A(\\quiv)$ are finite sets, and loops and parallel arrows are allowed.",
         "Every quiver in this paper is finite: both $V(\\quiv)$ and $A(\\quiv)$ are finite sets, and loops and parallel arrows are allowed, a loop counting as one arrow and contributing no divergence.",
     )
     g.edit(
-        "nodes/sh-0007.tex",
+        "drafting/nodes/sh-0007.tex",
         "The divergence map is a homomorphism into a torsion-free group, so $\\bd(n w) = n \\, \\bd w = 0$ forces $\\bd w = 0$.",
         "The divergence map is a homomorphism into $\\ZZ^{V}$, which is torsion-free, so $\\bd(n w) = n \\, \\bd w = 0$ forces $\\bd w = 0$.",
     )
@@ -1376,10 +1376,10 @@ def build_showcase(dest: Path) -> None:
 
     # An edit the author thinks better of: revert puts the recorded text back.
     g.at("2026-09-17T11:00:00Z")
-    g.edit("nodes/sh-0008.tex", "an honest dimension count", "a dimension count one can trust")
+    g.edit("drafting/nodes/sh-0008.tex", "an honest dimension count", "a dimension count one can trust")
     g.at("2026-09-17T11:05:00Z")
     out = g.run("revert", "sh-0008@1")
-    g.apply_patch(out[out.index("--- a/nodes/sh-0008.tex") :])
+    g.apply_patch(out[out.index("--- a/drafting/nodes/sh-0008.tex") :])
 
     # ---- A second master, and a node forked for it. -------------------------------------------------------
     _later("showcase", "drafting/talk.tex", dest)
@@ -1390,13 +1390,13 @@ def build_showcase(dest: Path) -> None:
     assert forked, out
     # The talk's copy is shortened for the slide, and loses the reference the slide cannot show.
     g.edit(
-        f"nodes/{forked.group(1)}.tex",
+        f"drafting/nodes/{forked.group(1)}.tex",
         "Then the support $\\supp(w)$ contains a directed cycle of $\\quiv$.",
         "Then $\\supp(w)$ contains a directed cycle.",
     )
-    g.edit(f"nodes/{forked.group(1)}.tex", "\\uses{sh-0001}\n", "")
+    g.edit(f"drafting/nodes/{forked.group(1)}.tex", "\\uses{sh-0001}\n", "")
     g.edit(
-        f"nodes/{forked.group(1)}.tex",
+        f"drafting/nodes/{forked.group(1)}.tex",
         "which is a finite set by Convention~\\ref{sh-0001}, so some vertex repeats",
         "which is finite, so some vertex repeats",
     )
@@ -1409,7 +1409,7 @@ def build_showcase(dest: Path) -> None:
     fresh = re.search(r"nodes/(sh-[0-9A-Z]{4})\.tex", out)
     assert fresh, out
     g.write(
-        f"nodes/{fresh.group(1)}.tex",
+        f"drafting/nodes/{fresh.group(1)}.tex",
         f"% !LOOM created: 2026-09-18\n"
         f"% !LOOM tags: outlook\n"
         f"% !LOOM see: sh-000E\n\n"

@@ -152,14 +152,14 @@ def test_directives_file_and_node_level(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0004}\n\\end{document}\n",
-            "nodes/ab-0004.tex": "% !LOOM author: Markas Hecht\n% !LOOM created: 2026-09-15\n% !LOOM tags: localization, residue\n\n\\begin{lemma}[Residue]\\label{ab-0004}\n% !LOOM tags: only-this\nL\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n",
+            "drafting/nodes/ab-0004.tex": "% !LOOM author: Markas Hecht\n% !LOOM created: 2026-09-15\n% !LOOM tags: localization, residue\n\n\\begin{lemma}[Residue]\\label{ab-0004}\n% !LOOM tags: only-this\nL\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n",
         },
     )
     n = r.nodes["ab-0004"]
     assert n.directives == {"author": "Markas Hecht", "created": "2026-09-15", "tags": "only-this"}
     assert r.nodes["ab-0004/proof"].directives["author"] == "Markas Hecht"
     assert n.reached_by == ["drafting/main.tex"]
-    assert hash_text("".join(r.files["nodes/ab-0004.tex"].text[a:b] for a, b in n.own)).startswith("sha256:")
+    assert hash_text("".join(r.files["drafting/nodes/ab-0004.tex"].text[a:b] for a, b in n.own)).startswith("sha256:")
 
 
 def test_duplicate_id_and_label_errors(tmp_path: Path) -> None:
@@ -168,13 +168,13 @@ def test_duplicate_id_and_label_errors(tmp_path: Path) -> None:
         {
             "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\nA\n\\end{lemma}\n\\input{nodes/dup}\n\\begin{lemma}\\label{ab-0002}\n\\begin{equation}\\label{eq:x} 1 \\end{equation}\n\\end{lemma}\n\\begin{lemma}\\label{ab-0003}\n\\begin{equation}\\label{eq:x} 2 \\end{equation}\n\\end{lemma}\n% \\begin{lemma}\\label{ab-0001}\n\\end{document}\n",
-            "nodes/dup.tex": "\\begin{lemma}\\label{ab-0001}\nB\n\\end{lemma}\n",
+            "drafting/nodes/dup.tex": "\\begin{lemma}\\label{ab-0001}\nB\n\\end{lemma}\n",
         },
     )
     codes = sorted(d.code for d in r.diagnostics if d.severity == "error")
     assert codes == ["duplicate-id", "loom:duplicate-label"]
     dup = next(d for d in r.diagnostics if d.code == "duplicate-id")
-    assert {loc.file for loc in dup.locations} == {"drafting/main.tex", "nodes/dup.tex"}
+    assert {loc.file for loc in dup.locations} == {"drafting/main.tex", "drafting/nodes/dup.tex"}
 
 
 def test_external_node_and_digest_file(tmp_path: Path) -> None:
@@ -229,13 +229,13 @@ def test_two_masters_share_one_set_of_nodes(tmp_path: Path) -> None:
     q = tmp_path / "q"
     dest = q / "drafting"
     dest.mkdir(parents=True)
-    (q / "nodes").mkdir()
+    (q / "drafting" / "nodes").mkdir()
     (q / "config.toml").write_text('[quilt]\nname = "q"\nmain = "drafting/main.tex"\nprefix = "sh"\n', encoding="utf-8")
     (q / "loom.sty").write_text(
         (Path(__file__).resolve().parents[3] / "src" / "loom" / "assets" / "loom.sty").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
-    (q / "nodes" / "sh-0001.tex").write_text(
+    (q / "drafting" / "nodes" / "sh-0001.tex").write_text(
         "\\begin{lemma}\\label{sh-0001}\nShared.\n\\end{lemma}\n", encoding="utf-8"
     )
     preamble = (

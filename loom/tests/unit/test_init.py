@@ -17,18 +17,18 @@ def test_init_creates_layout(tmp_path: Path) -> None:
     q = tmp_path / "q"
     for rel in (
         "config.toml",
-        "loom.sty",
         "drafting/main.tex",
-        "nodes",
         "digests",
         "refs",
         ".gitignore",
         "README.md",
     ):
         assert (q / rel).exists(), rel
+    # the skeleton carries loom's macro block, and nodes/ is made beside a document when loom first writes a node file
+    assert not (q / "loom.sty").exists() and not (q / "nodes").exists()
     assert not (q / "comments").exists()  # annotations live in annotations/log.jsonl; there is no comments/
     assert 'prefix = "zz"' in (q / "config.toml").read_text()
-    assert "\\usepackage{loom}" in (q / "drafting/main.tex").read_text()
+    assert "% !LOOM begin loom-macros" in (q / "drafting/main.tex").read_text()
     ok("lint", cwd=q)
 
 
@@ -78,7 +78,9 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
     # the artifacts are ignored and the page text is not: an anchor stays re-checkable by a coauthor with no PDF
     assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
     assert "refs/" in ignored  # the seed space is the author's pile of other people's PDFs
-    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafting/", "digests/", "comments/") for ln in ignored)
+    assert not any(
+        ln.endswith(".tex") or ln in ("drafting/nodes/", "drafting/", "digests/", "comments/") for ln in ignored
+    )
 
 
 def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
@@ -171,8 +173,8 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
     q = tmp_path / "q"
     landmark = q / ".loom" / "history" / "0001-paper" / "paper.tex"
     assert landmark.read_text() == src.read_text()  # verbatim: the paper has nothing to inline
-    drafted = (q / "drafting" / "paper.tex").read_text()
-    assert "\\usepackage{loom}" in drafted and "conjecture" not in drafted
+    drafted = (q / "paper" / "paper.tex").read_text()  # a directory of its own, named for the paper
+    assert "% !LOOM begin loom-macros" in drafted and "conjecture" not in drafted
     assert "the paper as received is landmark paper" in r.output
 
 
@@ -201,7 +203,7 @@ def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path, m
 
     monkeypatch.delenv("FAKE_TEX_FAIL")
     again = ok("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
-    assert (tmp_path / "q" / "drafting" / "paper.tex").is_file() and "created quilt" in again.output
+    assert (tmp_path / "q" / "paper" / "paper.tex").is_file() and "created quilt" in again.output
 
 
 def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails(

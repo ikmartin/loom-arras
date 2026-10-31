@@ -22,7 +22,7 @@ def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
     # the theorem's own closure is empty -- its dependency is declared inside the proof, so the proof key is the one with something to gather, which is also what a referee reads
     c = ok("source", "dm-0003/proof", "--closure", cwd=d)
     assert c.output.index("% id: dm-0002") < c.output.index("% id: dm-0003") < c.output.index("% proof: dm-0003/proof")
-    assert "\\usepackage{loom}" in c.output
+    assert "% !LOOM begin loom-macros" in c.output  # the master's preamble, its macro block with it
 
 
 def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
@@ -32,7 +32,7 @@ def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
     run_dir = d / ".loom" / "sessions" / sid
     r = ok("source", "drafting/main.tex", "--session", sid, cwd=d)
     assert "\\documentclass" in r.output  # the document, preamble and all
-    assert "\\input{" not in r.output  # every inclusion expanded in place
+    assert "\\input{nodes/" not in r.output  # every inclusion expanded in place
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in r.output  # including the node files it pulls in
     assert "loom source drafting/main.tex" in (run_dir / "run.log").read_text()
 

@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
+from loom.paths import document_dir, under
 from loom.scan.model import Diagnostic, Location, SourceFile
 from loom.scan.tokenize import read_mandatory, tokenize
 
@@ -72,40 +73,50 @@ class Expansion:
         return None
 
 
-def _kpsewhich(name: str) -> bool:
-    """Whether the distribution resolves `name`, asked of the `kpsewhich` on PATH now.
+def _kpsewhich(name: str, cwd: Path) -> bool:
+    """Whether the distribution resolves `name`, asked of the `kpsewhich` on PATH now from `cwd`, the document's directory, as a compile there would ask.
 
-    Memoised, since a subprocess per unresolved inclusion was 86 ms of a 166 ms scan on the Manolache import; keyed by executable and TEXINPUTS as well as name, so a run under another installation is never answered from this one's memo.
+    Memoised, since a subprocess per unresolved inclusion was 86 ms of a 166 ms scan on the Manolache import; keyed by executable, TEXINPUTS and directory as well as name, so a run under another installation is never answered from this one's memo.
     """
-    return _probe(shutil.which("kpsewhich"), os.environ.get("TEXINPUTS", ""), name)
+    return _probe(shutil.which("kpsewhich"), os.environ.get("TEXINPUTS", ""), name, str(cwd))
 
 
 @cache
-def _probe(exe: str | None, texinputs: str, name: str) -> bool:
-    """One `kpsewhich NAME`; `texinputs` is only a cache key, since the subprocess inherits the environment it names."""
+def _probe(exe: str | None, texinputs: str, name: str, cwd: str) -> bool:
+    """One `kpsewhich NAME` in `cwd`; `texinputs` is only a cache key, since the subprocess inherits the environment it names."""
     if not exe:
         return False
     try:
-        proc = subprocess.run([exe, name], capture_output=True, text=True, errors="replace", timeout=20, check=False)
+        proc = subprocess.run(
+            [exe, name],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=20,
+            check=False,
+            cwd=cwd if Path(cwd).is_dir() else None,
+        )
     except (OSError, subprocess.SubprocessError):
         return False
     return proc.returncode == 0 and bool(proc.stdout.strip())
 
 
-def resolve_inclusion(root: Path, name: str, known: frozenset[str] = frozenset()) -> tuple[str | None, str | None]:
+def resolve_inclusion(
+    root: Path, name: str, known: frozenset[str] = frozenset(), base: str = ""
+) -> tuple[str | None, str | None]:
     """(quilt-relative path, problem). Problems: 'system' for a kpsewhich-resolvable name, 'missing' otherwise.
 
-    `known` holds paths that exist only in an editor's buffers, so a file an author has written but not yet saved resolves.
+    `base` is the quilt-relative directory the document compiles from (P12): `name` is read against it, as TeX reads against its working directory, and `..` is refused, since Overleaf cannot follow it. `known` holds paths that exist only in an editor's buffers, so a file an author has written but not yet saved resolves.
     """
     name = name.strip()
     if not name or name.startswith("/") or ".." in Path(name).parts:
         return None, "missing"
     for cand in (name, name + ".tex"):
-        rel = Path(cand).as_posix()
-        if rel in known or (root / cand).is_file():
+        rel = under(base, cand)
+        if rel in known or (root / rel).is_file():
             return rel, None
     probe = name if "." in Path(name).name else name + ".tex"
-    if _kpsewhich(probe):
+    if _kpsewhich(probe, root / base):
         return None, "system"
     return None, "missing"
 
@@ -123,8 +134,12 @@ def _read_include_arg(text: str, pos: int) -> tuple[str | None, int]:
     return value.strip(), nxt
 
 
-def expand_master(master: SourceFile, root: Path, files: dict[str, SourceFile]) -> Expansion:
-    """`files` is the scanner's whole file table, so a path that exists only in an editor's buffer resolves like one on disk."""
+def expand_master(master: SourceFile, root: Path, files: dict[str, SourceFile], base: str | None = None) -> Expansion:
+    """`files` is the scanner's whole file table, so a path that exists only in an editor's buffer resolves like one on disk.
+
+    Every inclusion, at every depth, resolves against `base`, default the master's own directory: TeX reads a nested `\\input` against its working directory, not the including file's.
+    """
+    base = document_dir(master.path) if base is None else base
     exp = Expansion(master=master.path)
     parts: list[str] = []
     cursor = [0]
@@ -151,7 +166,7 @@ def expand_master(master: SourceFile, root: Path, files: dict[str, SourceFile]) 
             child_shift = shift + 1 if t.value == "nest" else shift
             inc = Inclusion(src.path, t.start, arg_end, name, t.value, None, child_shift)
             exp.inclusions.append(inc)
-            rel, problem = resolve_inclusion(root, name, frozenset(files))
+            rel, problem = resolve_inclusion(root, name, frozenset(files), base)
             loc = [Location(src.path, src.line_of(t.start))]
             if rel is None:
                 inc.problem = problem

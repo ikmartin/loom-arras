@@ -26,6 +26,7 @@ class Bundle:
     text: str
     closure: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
+    master: str = ""  # the document whose preamble it carries, which it compiles beside (`ScanResult.base_of`)
 
 
 def bundle_filename(key: str) -> str:
@@ -38,7 +39,9 @@ def _preamble(result: ScanResult, master: str) -> str:
     pre = src.text[: m.start()] if m else src.text
     closure = result.closures.get(master)
     if closure is not None and not closure.loads_loom:
-        pre = re.sub(r"(\\documentclass(?:\[[^\]]*\])?\{[^}]*\})", r"\1\n\\usepackage{loom}", pre, count=1)
+        from loom.reshape.linearize import with_macro_block
+
+        pre = with_macro_block(pre)[0]
     return pre.rstrip() + "\n"
 
 
@@ -98,7 +101,7 @@ def build_bundle(result: ScanResult, key: str, master: str | None = None, overri
         for pk in n.proofs:
             parts.append(f"% proof: {pk}\n{region_text(result, pk)}\n")
     parts.append("\n\\end{document}\n")
-    return Bundle(key, "".join(parts), closure, missing)
+    return Bundle(key, "".join(parts), closure, missing, master)
 
 
 def apply_unified_diff(original: str, diff_text: str) -> str:
@@ -210,4 +213,4 @@ def draft_bundle(result: ScanResult, draft: Path) -> Bundle:
         if dep in result.nodes and result.nodes[dep].kind in ("environment", "section"):
             parts.append(statement_block(result, dep) + "\n")
     parts.append(f"% draft: {draft.name}\n{text}\n\n\\end{{document}}\n")
-    return Bundle(f"draft-{draft.stem}", "".join(parts), order, unknown)
+    return Bundle(f"draft-{draft.stem}", "".join(parts), order, unknown, master)

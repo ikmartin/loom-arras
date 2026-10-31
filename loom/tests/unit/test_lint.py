@@ -15,7 +15,7 @@ from tests.unit._quilts import demo
 
 def test_lint_exit_codes(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    (q / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
+    (q / "drafting" / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     r = exits(1, "lint", cwd=q)
     assert "duplicate-id" in r.output and r.output.splitlines()[0].startswith("1 error")
 
@@ -40,7 +40,9 @@ def _unknown_table(q: Path) -> None:
 
 
 def _mac_roman_node(q: Path) -> None:
-    (q / "nodes" / "old.tex").write_bytes(b"\\begin{remark}\\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n")
+    (q / "drafting" / "nodes" / "old.tex").write_bytes(
+        b"\\begin{remark}\\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n"
+    )
 
 
 #: code -> (what provokes it on the demo, what its line must name)
@@ -49,7 +51,7 @@ WARNINGS: dict[str, tuple[Callable[[Path], None], str]] = {
     "loom:main-not-found": (_missing_main, "drafting/missing.tex"),
     "loom:main-unset": (_unset_main, "[quilt] main is unset"),
     "loom:unknown-config-key": (_unknown_table, "[colour]"),
-    "loom:non-utf8-source": (_mac_roman_node, "nodes/old.tex"),
+    "loom:non-utf8-source": (_mac_roman_node, "drafting/nodes/old.tex"),
 }
 
 
@@ -76,7 +78,9 @@ def test_check_reports_a_closure_that_fails(tmp_path: Path, monkeypatch: pytest.
 
 def test_atomize_refuses_a_target_file_that_exists(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    (q / "nodes" / "dm-0004.tex").write_text("% a file already sits where the inline node dm-0004 would move\n")
+    (q / "drafting" / "nodes" / "dm-0004.tex").write_text(
+        "% a file already sits where the inline node dm-0004 would move\n"
+    )
     refused(
         "atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q, code=1, match="loom:atomize-target-exists"
     )
@@ -215,29 +219,29 @@ def _fixes(q: Path, code: str) -> list[str]:
 def test_every_finding_names_what_resolves_it_and_the_command_works(tmp_path: Path) -> None:
     """T3: `uses-missing`, `detached-annotation`, `unmatched-postnote`, `undigested-citekey` and `unreachable` named no command; each now names one, and the one it names runs in that state."""
     q = demo(tmp_path)
-    proof = q / "nodes" / "dm-0003.tex"
+    proof = q / "drafting" / "nodes" / "dm-0003.tex"
     edit(proof, "\\uses{dm-0002}\nBy Lemma", "\\uses{dm-0002}\nAs in Definition~\\ref{def:widget}, by Lemma")
     edit(
         proof,
         "\\cite[Proposition 3.2]{Calloway14}",
         "\\cite[Proposition 3.2]{Calloway14}, \\cite[Theorem 99]{Calloway14}, \\cite[Theorem 1]{Har77}",
     )
-    (q / "nodes" / "stray.tex").write_text("\\begin{remark}\\label{dm-0099}\nStray.\n\\end{remark}\n")
+    (q / "drafting" / "nodes" / "stray.tex").write_text("\\begin{remark}\\label{dm-0099}\nStray.\n\\end{remark}\n")
     a = ok(
         "annotate", "dm-0002", "Which orbits?", "--quote", "one-point orbits", "--as", "Tester", cwd=q
     ).output.split()[0]
-    edit(q / "nodes" / "dm-0002.tex", "the one-point orbits", "the orbits of one point")
+    edit(q / "drafting" / "nodes" / "dm-0002.tex", "the one-point orbits", "the orbits of one point")
     assert "add dm-0001 to the \\uses of dm-0003/proof" in _fixes(q, "loom:uses-missing")
     assert _fixes(q, "loom:unmatched-postnote") == ["loom library Calloway14"]
     assert _fixes(q, "loom:undigested-citekey") == ["loom library update Har77"]
-    assert _fixes(q, "unreachable") == ["\\input{nodes/stray} in a document, or remove nodes/stray.tex"]
+    assert _fixes(q, "unreachable") == ["\\input{nodes/stray} in a document, or remove drafting/nodes/stray.tex"]
     assert _fixes(q, "loom:detached-annotation") == [f'loom annotate --resolve {a} "…"']
     ok("library", "Calloway14", cwd=q)
     ok("library", "update", "Har77", "--dry-run", cwd=q)
     ok("annotate", "--resolve", a, "The orbit is still there, reworded.", "--as", "Tester", cwd=q)
     assert _fixes(q, "loom:detached-annotation") == []
     # a fork whose patch was never applied: its node file is unreachable, and running it again prints the patch
-    (q / "nodes" / "stray.tex").unlink()
+    (q / "drafting" / "nodes" / "stray.tex").unlink()
     ok("fork", "dm-0001", "--in", "drafting/main.tex", cwd=q)
     (orphan,) = _fixes(q, "unreachable")[:1]
     assert orphan == "loom fork dm-0001 --in drafting/main.tex"

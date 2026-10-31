@@ -87,7 +87,7 @@ def _rev(quilt: Quilt, revision: str) -> str:
 def init_sync(directory: str, publish_main: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Pair the quilt with a document workspace through DIR, your clone of it, such as an Overleaf project's.
 
-    Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
+    Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows, and the main document's directory is the workspace's root, as Overleaf compiles a project from its top. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
     """
     from loom.sync import revision_time
 

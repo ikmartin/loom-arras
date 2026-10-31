@@ -18,7 +18,7 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
     before = open_scan(str(q))
     original = key_hash(before, "dm-0001")
     decide(before, "dm-0002/proof", "ok")
-    source = q / "nodes/dm-0001.tex"
+    source = q / "drafting/nodes/dm-0001.tex"
     text = source.read_text()
     source.write_text(text.replace("\\end{definition}", "% !LOOM name: Fixed points\n\\end{definition}"))
     after = open_scan(str(q))
@@ -42,7 +42,7 @@ def test_name_metadata_is_node_local_and_invalid_names_are_diagnosed(tmp_path: P
 
     save_author("A. Author")
     q = demo(tmp_path)
-    source = q / "nodes/dm-0001.tex"
+    source = q / "drafting/nodes/dm-0001.tex"
     source.write_text("% !LOOM name: must not inherit\n" + source.read_text())
     result = open_scan(str(q))
     assert "name" not in result.nodes["dm-0001"].directives
@@ -61,7 +61,7 @@ def test_manifest_names_are_searchable_without_becoming_reference_aliases(tmp_pa
 
     save_author("A. Author")
     q = demo(tmp_path)
-    source = q / "nodes/dm-0001.tex"
+    source = q / "drafting/nodes/dm-0001.tex"
     source.write_text(
         source.read_text().replace("\\end{definition}", "% !LOOM name: Fixed <points> Ω\n\\end{definition}")
     )
@@ -102,7 +102,9 @@ def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -
     fragments = list((q / "build/fragments").rglob("*.html"))
     assert fragments and not any("Invisible display name" in p.read_text() for p in fragments)
     ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
-    assert any("% !LOOM name: Invisible display name" in p.read_text() for p in (q / "nodes").glob("*.tex"))
+    assert any(
+        "% !LOOM name: Invisible display name" in p.read_text() for p in (q / "drafting" / "nodes").glob("*.tex")
+    )
     ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", "--no-check", cwd=q)
     assert "% !LOOM name: Invisible display name" in (q / "drafting/back.tex").read_text()
 
@@ -116,7 +118,7 @@ def test_missing_old_snapshot_never_establishes_name_equivalence(tmp_path: Path)
     ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     original = Records(q).latest["dm-0001"].text
     (snapshots_dir(q, q / ".loom" / "history") / f"{original.split(':')[1]}.tex").unlink()
-    source = q / "nodes/dm-0001.tex"
+    source = q / "drafting/nodes/dm-0001.tex"
     source.write_text(source.read_text().replace("\\end{definition}", "% !LOOM name: A name\n\\end{definition}"))
     assert not Records(q).key_states(open_scan(str(q)))["dm-0001"].fresh
 
@@ -126,7 +128,7 @@ def test_empty_names_fall_back_and_nested_names_stay_with_their_owner(tmp_path: 
 
     save_author("A. Author")
     q = demo(tmp_path)
-    source = q / "nodes/dm-0001.tex"
+    source = q / "drafting/nodes/dm-0001.tex"
     source.write_text(
         source.read_text().replace(
             "\\end{definition}",

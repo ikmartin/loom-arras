@@ -29,7 +29,7 @@ def texts(q: Path, history: Path | None = None) -> list[Path]:
 
 
 ORIGINAL = "Every orbit of a widget has one or two points"
-LEMMA = Path("nodes") / "dm-0002.tex"
+LEMMA = Path("drafting") / "nodes" / "dm-0002.tex"
 
 
 @pytest.mark.parametrize("history", [None, "records/history"], ids=["default", "configured"])
@@ -62,7 +62,11 @@ def test_a_moved_key_is_frozen_from_the_cache_when_an_annotation_names_its_old_t
     before = current_texts(open_scan(str(q)))
     write_last_seen(q, before, q / ".loom" / "history")
     edit(q / LEMMA, ORIGINAL, "Orbits have at most two points")
-    edit(q / "nodes" / "dm-0001.tex", "Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    edit(
+        q / "drafting" / "nodes" / "dm-0001.tex",
+        "Its \\emph{fixed locus} is",
+        "Its \\emph{fixed locus}, a subset of $X$, is",
+    )
     named = [SimpleNamespace(annotations=[SimpleNamespace(target_hash=hash_text(before["dm-0002"]))])]
 
     assert freeze_moved(open_scan(str(q)), named) == ["dm-0002"]  # type: ignore[arg-type]

@@ -110,11 +110,11 @@ def test_deps_and_downstream_say_how_in_the_readers_words(tmp_path: Path) -> Non
     q = demo(tmp_path)
     deps = ok("deps", "dm-0003", cwd=q).stdout
     assert "listed in \\uses" in deps and "via " not in deps, deps
-    proof = q / "nodes" / "dm-0003.tex"
+    proof = q / "drafting" / "nodes" / "dm-0003.tex"
     proof.write_text(
         proof.read_text().replace("By Lemma~\\ref{lem:orbits}", "By Lemma~\\ref{lem:orbits} (that is, \\ref{dm-0002})")
     )
     down = ok("downstream", "dm-0002", cwd=q).stdout
-    rows = [ln for ln in down.splitlines() if "nodes/dm-0003.tex:" in ln]
+    rows = [ln for ln in down.splitlines() if "drafting/nodes/dm-0003.tex:" in ln]
     assert len(rows) == len(set(rows)) >= 2 and any("lem:orbits" in r for r in rows), down
     assert "via transitive" not in down and "transitive" not in down

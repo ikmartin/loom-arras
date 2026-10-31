@@ -21,21 +21,30 @@ def test_inclusion_input_include_nest_and_span_map(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": "\\begin{document}\n\\section{A}\n\\input{nodes/x}\n\\nest{nodes/sec}\n\\subsection{B}\nend\n\\end{document}\n",
-            "nodes/x.tex": "\\begin{lemma}\\label{q-0001}\nX\n\\end{lemma}\n",
-            "nodes/sec.tex": "\\section{Nested}\ninner\n\\input{nodes/y.tex}\n",
-            "nodes/y.tex": "deep\n",
+            "drafting/nodes/x.tex": "\\begin{lemma}\\label{q-0001}\nX\n\\end{lemma}\n",
+            "drafting/nodes/sec.tex": "\\section{Nested}\ninner\n\\input{nodes/y.tex}\n",
+            "drafting/nodes/y.tex": "deep\n",
         },
     )
     exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
     assert exp.diagnostics == []
-    assert set(exp.reached) == {"drafting/main.tex", "nodes/x.tex", "nodes/sec.tex", "nodes/y.tex"}
-    assert [i.child for i in exp.inclusions] == ["nodes/x.tex", "nodes/sec.tex", "nodes/y.tex"]
+    assert set(exp.reached) == {
+        "drafting/main.tex",
+        "drafting/nodes/x.tex",
+        "drafting/nodes/sec.tex",
+        "drafting/nodes/y.tex",
+    }
+    assert [i.child for i in exp.inclusions] == [
+        "drafting/nodes/x.tex",
+        "drafting/nodes/sec.tex",
+        "drafting/nodes/y.tex",
+    ]
     assert [i.shift for i in exp.inclusions] == [0, 1, 1]
     for rel, src in srcs.items():
         assert "".join(exp.text[s.exp_start : s.exp_end] for s in exp.segments if s.file == rel) == src.clean
     off = exp.text.index("deep")
-    assert exp.locate(off) == ("nodes/y.tex", 0, 1)
-    assert exp.exp_offset("nodes/y.tex", 0) == off
+    assert exp.locate(off) == ("drafting/nodes/y.tex", 0, 1)
+    assert exp.exp_offset("drafting/nodes/y.tex", 0) == off
     units = find_sections(exp, srcs)
     assert [(u.name, u.level, u.title) for u in units] == [
         ("section", 1, "A"),
@@ -44,7 +53,7 @@ def test_inclusion_input_include_nest_and_span_map(tmp_path: Path) -> None:
     ]
     assert units[1].parent is units[0] and units[2].parent is units[0]
     assert units[1].exp_end == units[2].exp_start
-    assert units[1].file_end == len(srcs["nodes/sec.tex"].clean)
+    assert units[1].file_end == len(srcs["drafting/nodes/sec.tex"].clean)
 
 
 def test_inclusion_exact_extension_braceless_and_system(tmp_path: Path) -> None:
@@ -54,7 +63,7 @@ def test_inclusion_exact_extension_braceless_and_system(tmp_path: Path) -> None:
             "drafting/main.tex": "\\input xy\n\\input{fig.pspdftex}\n\\input{missing-file}\n\\begin{document}\n\\end{document}\n",
         },
     )
-    (tmp_path / "fig.pspdftex").write_text("\\begin{picture}(1,1)\\end{picture}\n", encoding="utf-8")
+    (tmp_path / "drafting" / "fig.pspdftex").write_text("\\begin{picture}(1,1)\\end{picture}\n", encoding="utf-8")
     exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
     problems = {i.name: i.problem for i in exp.inclusions}
     assert problems == {"xy": "system", "fig.pspdftex": "opaque", "missing-file": "missing"}
@@ -67,9 +76,9 @@ def test_inclusion_double_and_cycle(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": "\\begin{document}\n\\input{a}\n\\input{a}\n\\input{b}\n\\end{document}\n",
-            "a.tex": "A\n",
-            "b.tex": "B\\input{c}\n",
-            "c.tex": "C\\input{b}\n",
+            "drafting/a.tex": "A\n",
+            "drafting/b.tex": "B\\input{c}\n",
+            "drafting/c.tex": "C\\input{b}\n",
         },
     )
     exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
@@ -100,12 +109,12 @@ def test_kpsewhich_is_probed_once_per_name(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: "/usr/bin/kpsewhich")
     monkeypatch.setattr(expand_mod.subprocess, "run", fake)
     for _ in range(5):
-        assert expand_mod._kpsewhich("amsmath.sty") is True
+        assert expand_mod._kpsewhich("amsmath.sty", tmp_path) is True
     assert calls == ["amsmath.sty"]
     # another installation on PATH is asked afresh, never answered from the first one's memo
     monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: "/opt/other/kpsewhich")
-    assert expand_mod._kpsewhich("amsmath.sty") is True
+    assert expand_mod._kpsewhich("amsmath.sty", tmp_path) is True
     assert calls == ["amsmath.sty", "amsmath.sty"]
     monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: None)
-    assert expand_mod._kpsewhich("amsmath.sty") is False
+    assert expand_mod._kpsewhich("amsmath.sty", tmp_path) is False
     expand_mod._probe.cache_clear()

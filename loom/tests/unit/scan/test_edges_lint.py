@@ -29,7 +29,7 @@ def test_edge_dangling_loose_and_uses_lints(tmp_path: Path) -> None:
         {
             "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\nSee \\ref{ab-0099}, \\ref{ab-0002} and \\eqref{eq:in-proof}.\n\\end{lemma}\n\\begin{proof}\n\\uses{ab-0003}\nBy \\cref{ab-0002}.\n\\end{proof}\n\\begin{lemma}\\label{ab-0003}\nX\n\\end{lemma}\n\\begin{proof}\n\\begin{equation}\\label{eq:in-proof} 1 \\end{equation}\n\\end{proof}\n\\end{document}\n",
-            "nodes/loose.tex": "\\begin{lemma}\\label{ab-0002}\nL\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n",
+            "drafting/nodes/loose.tex": "\\begin{lemma}\\label{ab-0002}\nL\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n",
         },
     )
     c = codes(r)

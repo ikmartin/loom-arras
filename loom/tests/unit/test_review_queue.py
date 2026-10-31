@@ -83,7 +83,7 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
     assert not any(row["key"] == "sy-0002/proof" for row in covered["unresolved"])
     assert {row["key"] for row in covered["unresolved"] if row["status"] == "ok"} == {"sy-0001", "sy-0002"}
 
-    node_path = root / "nodes" / "sy-0002.tex"
+    node_path = root / "drafting" / "nodes" / "sy-0002.tex"
     original_node = node_path.read_text(encoding="utf-8")
     node_path.write_text(original_node.replace("Every orbit", "Each orbit"), encoding="utf-8")
     invalidated = build(quilt).manifest["unresolved"]

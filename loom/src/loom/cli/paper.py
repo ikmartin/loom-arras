@@ -22,7 +22,7 @@ from loom.history.steps import FreezePlan, refuse_interrupted, text_hash, write_
 from loom.paths import BUILD, LOOM, RETIRED, documents_named
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
-from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
+from loom.reshape.atomize import node_home, plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.canon import apply_import, plan_import
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
 from loom.reshape.importer import set_main, set_main_forced
@@ -301,7 +301,9 @@ def run_import(
         step = load_history(quilt.history_dir).next_step()
         proposed = [
             f"  {plan.master_rel} -> {plan.dest_rel} (linearized, {len(plan.inlined)} files inlined; kept as received in step {step:04d})",
-            f"  {plan.dest_rel}: \\usepackage{{loom}} and {len(draft.insertions)} ids",
+            f"  {plan.dest_rel}: "
+            + ("loom's macro block and " if draft.added_block else "")
+            + f"{len(draft.insertions)} ids",
             *(f"  {src} -> {dest}" for src, dest in arrows),
             *(f"  {name} -> not copied; it lies outside the paper directory" for name in plan.outside),
         ]
@@ -589,7 +591,7 @@ def _atomize(
             parts.append(counted(moved_sections, "section"))
         wrote.append(Item(f"{plan.dest}: {plan.spine.count(chr(10))} lines, was {old_lines}"))
         # the node files are written too, so the group says them beside the spine (T5)
-        wrote.append(Item(f"{counted(len(plan.moves), 'node file')} in nodes/: {', '.join(parts)}"))
+        wrote.append(Item(f"{counted(len(plan.moves), 'node file')} in {node_home(plan)}/: {', '.join(parts)}"))
         if plan.unlabelled:
             unlabelled.append(
                 Group(
@@ -640,9 +642,9 @@ def _atomize(
     failed = ident is not None and not ident.passed and not ident.skipped
     others = f" and {counted(len(plans) - 1, 'other file')}" if len(plans) > 1 else ""
     if dry_run:
-        verdict = f"would atomize {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in nodes/; the identity test runs when it is written"
+        verdict = f"would atomize {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in {node_home(plan)}/; the identity test runs when it is written"
     else:
-        verdict = f"atomized {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in nodes/; {identity_said(ident, plan.dest, plan.src)}"
+        verdict = f"atomized {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in {node_home(plan)}/; {identity_said(ident, plan.dest, plan.src)}"
     return Report(
         verdict,
         ok=not failed and not unlabelled,

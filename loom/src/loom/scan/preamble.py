@@ -9,9 +9,10 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import document_dir, under
 from loom.scan.macros import expand, parse_macros
 from loom.scan.model import Diagnostic, Directive, Location, Macro, SourceFile, Taxon
-from loom.scan.source import read_source
+from loom.scan.source import MACRO_BLOCK, read_source
 from loom.scan.tokenize import read_args, tokenize
 
 STANDARD_STYLES = {"plain", "definition", "remark"}
@@ -53,14 +54,15 @@ def document_start(src: SourceFile) -> int | None:
     return m.start() if m else None
 
 
-def _local(root: Path, name: str, exts: tuple[str, ...]) -> str | None:
+def _local(root: Path, name: str, exts: tuple[str, ...], base: str = "") -> str | None:
+    """A local style, class or input `name` read against the document's directory `base`, as a quilt-relative path; None for one the distribution supplies, or one that names an absolute path or `..`."""
     name = name.strip()
-    if not name or "/" in name and name.startswith("/"):
+    if not name or name.startswith("/") or ".." in Path(name).parts:
         return None
     for ext in exts:
-        cand = name if name.endswith(ext) else name + ext
-        if (root / cand).is_file():
-            return Path(cand).as_posix()
+        rel = under(base, name if name.endswith(ext) else name + ext)
+        if (root / rel).is_file():
+            return rel
     return None
 
 
@@ -85,6 +87,7 @@ def build_closure(
     directives: list[Directive],
     *,
     foreign: bool = False,
+    base: str | None = None,
 ) -> PreambleClosure:
     """Collect the closure, then parse taxa and macros over it in inclusion order.
 
@@ -93,11 +96,14 @@ def build_closure(
     closure = PreambleClosure(master=master.path)
     seen: set[str] = set()
     doc = document_start(master)
-    _collect(master, 0, doc if doc is not None else len(master.clean), root, files, closure, seen)
+    at = document_dir(master.path) if base is None else base  # local styles resolve where the document compiles (P12)
+    _collect(master, 0, doc if doc is not None else len(master.clean), root, files, closure, seen, at)
     text = closure.clean_text()
     closure.macros = parse_macros(text)
+    # loom's macros come from loom.sty, kept beside the document, or from the marked block in its own preamble
     closure.loads_loom = bool(
         re.search(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}", text)
+        or MACRO_BLOCK.search(closure.raw_text())
     )
     for d in directives:
         if d.form == "tex" and d.key == "program" and d.file == master.path:
@@ -127,6 +133,7 @@ def _collect(
     files: dict[str, SourceFile],
     closure: PreambleClosure,
     seen: set[str],
+    base: str,
 ) -> None:
     key = f"{src.path}:{start}"
     if key in seen:
@@ -141,26 +148,26 @@ def _collect(
         if t.value in ("usepackage", "RequirePackage"):
             (_, names), _, _ = read_args(text, pos, "om")
             for pkg in (names or "").split(","):
-                rel = _local(root, pkg, (".sty",))
+                rel = _local(root, pkg, (".sty",), base)
                 if rel:
                     child = _load(root, rel, files)
-                    _collect(child, 0, len(child.clean), root, files, closure, seen)
+                    _collect(child, 0, len(child.clean), root, files, closure, seen, base)
         elif t.value in ("documentclass", "LoadClass"):
             (_, name), _, _ = read_args(text, pos, "om")
-            rel = _local(root, name or "", (".cls",))
+            rel = _local(root, name or "", (".cls",), base)
             if rel:
                 child = _load(root, rel, files)
-                _collect(child, 0, len(child.clean), root, files, closure, seen)
+                _collect(child, 0, len(child.clean), root, files, closure, seen, base)
         elif t.value in ("input", "include"):
             (name,), _, _ = read_args(text, pos, "m")
             if name is None:
                 continue
-            rel = _local(root, name, ("", ".tex"))
+            rel = _local(root, name, ("", ".tex"), base)
             if rel:
                 child = _load(root, rel, files)
                 if child.path == src.path:
                     continue
-                _collect(child, 0, len(child.clean), root, files, closure, seen)
+                _collect(child, 0, len(child.clean), root, files, closure, seen, base)
 
 
 _STYLE = re.compile(r"\\(newtheoremstyle|theoremstyle|newtheorem|declaretheorem)(\*?)(?![A-Za-z@])")

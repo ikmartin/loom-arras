@@ -221,7 +221,7 @@ def test_the_copy_is_flat_and_every_label_it_defines_is_derived(tmp_path: Path) 
 
     q = copy_of_main(tmp_path)
     text = (q / "drafting-ai" / "aidoc.tex").read_text()
-    assert "\\input{" not in text, "every inclusion expanded"
+    assert "\\input{nodes" not in text, "every inclusion expanded"
     labels = re.findall(r"\\label\{([^}]*)\}", text)
     assert labels and all(lab.endswith("-ai") for lab in labels)
     assert "\\label{dm-0001-ai}" in text and "\\label{eq:fix-ai}" in text
@@ -293,11 +293,11 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
     ]
     assert "aidoc.tex  drafted from drafting/main.tex  fresh" in ok("ai", "drafts", cwd=q).stdout
     # a display name is no mathematical change
-    node = q / "nodes" / "dm-0001.tex"
+    node = q / "drafting" / "nodes" / "dm-0001.tex"
     node.write_text("% !LOOM name: The widget\n" + node.read_text())
     assert json_of("ai", "drafts", "--json", cwd=q)["copies"][0]["stale"] is False
-    (q / "nodes" / "dm-0002.tex").write_text(
-        (q / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
+    (q / "drafting" / "nodes" / "dm-0002.tex").write_text(
+        (q / "drafting" / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
     )
     main = q / "drafting" / "main.tex"
     main.write_text(

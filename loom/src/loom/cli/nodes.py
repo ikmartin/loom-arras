@@ -7,13 +7,13 @@ import shlex
 
 import click
 
-from loom.cli._common import EnvError, NotFoundError, find_session, whoever, writer
+from loom.cli._common import EnvError, NotFoundError, destination, find_session, whoever, writer
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
 from loom.cli.report import Group, Report, counted
 from loom.clock import today
-from loom.paths import NODES, document_name, documents_named
+from loom.paths import NODES, document_name, documents_named, under
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import PREFIX, next_local
 from loom.scan.scan import ScanResult
@@ -72,6 +72,13 @@ def _declared(result: ScanResult) -> str:
 )
 @click.option("--dry-run", is_flag=True, help="Say which id and file would be written, and write nothing.")
 @click.option(
+    "--to",
+    "to",
+    default=None,
+    metavar="FILE",
+    help="The node file to write, instead of nodes/<id>.tex beside the default document.",
+)
+@click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @click.option(
@@ -89,12 +96,13 @@ def new(
     prefix: str | None,
     print_only: bool,
     dry_run: bool,
+    to: str | None,
     run_dir: str | None,
     declared: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.
+    """Allocate an id and write nodes/<id>.tex, beside the default document, with a skeleton for TAXON; with --print, print the skeleton instead.
 
     The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configured author; an agent that has not named itself is refused.
     """
@@ -115,16 +123,21 @@ def new(
         return
     pre = prefix or result.quilt.config.prefix
     node_id = f"{pre}-{next_local(visible_locals(result, pre))}"
-    path = result.quilt.root / NODES / f"{node_id}.tex"
+    home = result.default_master or result.quilt.config.main
+    # a node file goes where the default document compiles, so its \input line names it from there (P12)
+    base = result.base_of(home) if home else ""
+    path = (
+        destination(result.quilt, to, source=True) if to else result.quilt.root / under(base, NODES) / f"{node_id}.tex"
+    )
     if path.exists():
         raise EnvError(f"{path} already exists")
-    rel = path.relative_to(result.quilt.root).as_posix()
+    rel = path.relative_to(result.quilt.root.resolve() if to else result.quilt.root).as_posix()
     name = result.taxa[env].name if env in result.taxa else env
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
-    home = result.default_master or result.quilt.config.main
-    line = f"\\input{{{NODES}/{node_id}}}"
+    named = rel.removeprefix(f"{base}/") if base else rel
+    line = f"\\input{{{named.removesuffix('.tex')}}}"
     Report(
         f"{node_id}  {'would write' if dry_run else 'wrote'} {rel}, a new {name.lower()}; no document reaches it yet",
         dry_run=dry_run,

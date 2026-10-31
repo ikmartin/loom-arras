@@ -95,7 +95,10 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert any(e["from"] == "dm-0003/proof" and e["to"] == "dm-0002" for e in m["edges"])
     tree = m["inclusion"]["drafting/main.tex"]
     assert [c["key"] for c in tree["children"]] == ["dm-0010", "dm-0011"]
-    assert [c["key"] for c in tree["children"][0]["children"]] == ["nodes/dm-0001.tex", "nodes/dm-0002.tex"]
+    assert [c["key"] for c in tree["children"][0]["children"]] == [
+        "drafting/nodes/dm-0001.tex",
+        "drafting/nodes/dm-0002.tex",
+    ]
     assert m["references"]["Calloway14"]["digest"]["nodes"] == [
         "Calloway14-setup",
         "Calloway14-def-3.1",
@@ -124,7 +127,8 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     assert 'data-fragment="master"' in master
     assert (
         "data-included" not in master
-        and '<div class="included" data-key="nodes/sy-0002.tex" data-file="nodes/sy-0002.tex"' in master
+        and '<div class="included" data-key="drafting/nodes/sy-0002.tex" data-file="drafting/nodes/sy-0002.tex"'
+        in master
     )
     assert '<section id="sy-0300" data-id="sy-0300" data-level="2"' in master and "<h2 " in master
     assert 'class="include"' not in master
@@ -147,12 +151,12 @@ def test_build_incremental_by_hash(tmp_path: Path) -> None:
     assert len(first.rendered) > 5 and first.skipped == []
     second = build(load_quilt(d))
     assert second.rendered == [] and len(second.skipped) == len(first.rendered)
-    node = d / "nodes" / "dm-0002.tex"
+    node = d / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("one or two points", "one or two points at most"))
     third = build(load_quilt(d))
     assert "dm-0002" in third.rendered and "drafting/main.tex" in third.rendered and "dm-0001" not in third.rendered
     for name in ("dm-0001", "dm-0003"):
-        f = d / "nodes" / f"{name}.tex"
+        f = d / "drafting" / "nodes" / f"{name}.tex"
         f.write_text(f.read_text() + "\n% touched\n")
     fourth = build(load_quilt(d), keys=["dm-0003"])
     assert set(fourth.rendered) == {"dm-0003", "drafting/main.tex"}
@@ -215,7 +219,9 @@ def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.Mo
         original(path, data)
 
     monkeypatch.setattr(publish_mod, "write_atomic", boom)
-    (d / "nodes" / "dm-0002.tex").write_text((d / "nodes" / "dm-0002.tex").read_text() + "\n% touched\n")
+    (d / "drafting" / "nodes" / "dm-0002.tex").write_text(
+        (d / "drafting" / "nodes" / "dm-0002.tex").read_text() + "\n% touched\n"
+    )
     with pytest.raises(RuntimeError):
         build(load_quilt(d))
     assert (d / "build" / "manifest.json").read_text() == before
@@ -262,7 +268,7 @@ def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
     # on a cold build every file is new, so every one handed to the publisher was renamed in before the manifest
     assert "fragments/masters/drafting/main.html" in handed and "fragments/nodes/dm-0002.html" in handed
     assert [rel for rel in handed if b / rel not in first] == []
-    edit(d / "nodes" / "dm-0002.tex", "\\end{", "Changed. \\end{")
+    edit(d / "drafting" / "nodes" / "dm-0002.tex", "\\end{", "Changed. \\end{")
     build(load_quilt(d))
     assert b / "fragments" / "nodes" / "dm-0002.html" in renamed()
 
@@ -312,13 +318,13 @@ def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> N
     """Found by the hostile corpus (docs/reports/hostile-demo.md). The scanner has always reported `inclusion-cycle`; the renderer and the inclusion tree both followed the cycle anyway until Python stopped them."""
     d = demo(tmp_path)
     # a file that includes itself, and a mutual pair
-    (d / "nodes" / "self.tex").write_text(
+    (d / "drafting" / "nodes" / "self.tex").write_text(
         "\\input{nodes/self}\n\\begin{lemma}[Self]\\label{dm-9001}\nIncludes itself.\n\\end{lemma}\n"
     )
-    (d / "nodes" / "ping.tex").write_text(
+    (d / "drafting" / "nodes" / "ping.tex").write_text(
         "\\input{nodes/pong}\n\\begin{lemma}[Ping]\\label{dm-9002}\nOne half.\n\\end{lemma}\n"
     )
-    (d / "nodes" / "pong.tex").write_text(
+    (d / "drafting" / "nodes" / "pong.tex").write_text(
         "\\input{nodes/ping}\n\\begin{lemma}[Pong]\\label{dm-9003}\nThe other.\n\\end{lemma}\n"
     )
     main = d / "drafting" / "main.tex"
@@ -351,12 +357,12 @@ def test_a_render_on_one_thread_does_not_see_another_threads_inclusions(tmp_path
             result=scan(load_quilt(tmp_path / "q")), numbers={}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
         )
     )
-    renderer._expanding.append("sections/results.tex")
+    renderer._expanding.append("drafting/sections/results.tex")
     seen: list[list[str]] = []
     t = threading.Thread(target=lambda: seen.append(list(renderer._expanding)))
     t.start()
     t.join()
-    assert seen == [[]] and renderer._expanding == ["sections/results.tex"]
+    assert seen == [[]] and renderer._expanding == ["drafting/sections/results.tex"]
     with renderer.collecting() as mine:
         renderer._sink.append("d")  # type: ignore[arg-type]
     assert mine == ["d"] and "d" not in renderer.plan.diagnostics
@@ -469,7 +475,7 @@ def test_the_dialect_validator_accepts_what_the_dialect_allows(tmp_path: Path) -
     frag.write_text(
         '<div class="env env-theorem" data-src="a.tex:1:1"><p class="env-label">Theorem</p>'
         '<p data-src="a.tex:2:1">See <a class="url" href="https://example.org">it</a>.</p>'
-        '<div class="include" data-key="nodes/x.tex"></div>'
+        '<div class="include" data-key="drafting/nodes/x.tex"></div>'
         '<figure class="diagram" data-src="a.tex:3:1"><img src="svg/i.svg"><pre>raw</pre>'
         '<svg xmlns="http://www.w3.org/2000/svg"><g onclick="x"><text>t</text></g></svg></figure></div>\n',
         encoding="utf-8",
@@ -559,7 +565,7 @@ def test_a_preview_and_a_state_are_made_once_while_their_inputs_hold(
     renders[0] = 0
     build(load_quilt(d), reuse=report.result)
     assert renders[0] == 0
-    node = d / "nodes" / "dm-0003.tex"
+    node = d / "drafting" / "nodes" / "dm-0003.tex"
     node.write_text(node.read_text().replace("\\end{", "Changed. \\end{", 1))
     build(load_quilt(d))
     assert renders[0] > 0, "a changed text is rendered again"

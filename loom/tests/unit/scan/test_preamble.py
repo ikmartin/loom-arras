@@ -78,14 +78,20 @@ def test_taxa_transitive_sty_chain(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": "\\documentclass{amsart}\n\\input{preamble.tex}\n\\begin{document}\n\\end{document}\n",
-            "preamble.tex": "\\usepackage{base-macros,math-env,\n  quiver}\n",
-            "base-macros.sty": "\\usepackage{math-env}\n\\newcommand{\\Res}{\\mathrm{Res}}\n",
-            "math-env.sty": "\\theoremstyle{theorem}\n\\newtheorem{thm}{Theorem}[section]\n\\newtheorem{math-example}[thm]{Example}\n\\newtheorem*{thm*}{Theorem}\n\\newtheorem*{predefn}{Preliminary-Definition}\n",
+            "drafting/preamble.tex": "\\usepackage{base-macros,math-env,\n  quiver}\n",
+            "drafting/base-macros.sty": "\\usepackage{math-env}\n\\newcommand{\\Res}{\\mathrm{Res}}\n",
+            "drafting/math-env.sty": "\\theoremstyle{theorem}\n\\newtheorem{thm}{Theorem}[section]\n\\newtheorem{math-example}[thm]{Example}\n\\newtheorem*{thm*}{Theorem}\n\\newtheorem*{predefn}{Preliminary-Definition}\n",
         },
     )
     m = srcs["drafting/main.tex"]
     c = build_closure(m, tmp_path, dict(srcs), parse_directives(m))
-    assert c.files == ["drafting/main.tex", "preamble.tex", "base-macros.sty", "math-env.sty"]
+    # local files resolve beside the document, where it compiles (P12)
+    assert c.files == [
+        "drafting/main.tex",
+        "drafting/preamble.tex",
+        "drafting/base-macros.sty",
+        "drafting/math-env.sty",
+    ]
     assert set(c.taxa) == {"thm", "math-example", "thm*", "predefn"}
     assert c.taxa["thm"].style == "plain"
     assert c.taxa["predefn"].name == "Preliminary-Definition"

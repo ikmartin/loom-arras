@@ -30,7 +30,7 @@ def test_demo_master_compiles_and_numbers(tmp_path: Path) -> None:
 def test_bundle_failed_diagnostic(tmp_path: Path) -> None:
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     d = tmp_path / "demo"
-    (d / "nodes" / "dm-0003.tex").write_text(
-        (d / "nodes" / "dm-0003.tex").read_text().replace("\\end{theorem}", "$unbalanced\n\\end{theorem}")
+    (d / "drafting" / "nodes" / "dm-0003.tex").write_text(
+        (d / "drafting" / "nodes" / "dm-0003.tex").read_text().replace("\\end{theorem}", "$unbalanced\n\\end{theorem}")
     )
     refused("compile", "dm-0003", cwd=d, code=1, match="dm-0003's closure did not compile")

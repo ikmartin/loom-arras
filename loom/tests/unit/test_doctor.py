@@ -400,7 +400,7 @@ def test_the_demo_is_ok_in_every_quilt_item(box: Box) -> None:
         "permissions": ("ok", ".claude/settings.json, .codex/rules/loom.rules: agents here attach over MCP"),
         "mcp": ("ok", ".mcp.json, .codex/config.toml, .gemini/settings.json, .cursor/mcp.json"),
         "ai files": ("ok", "current"),
-        "loom.sty": ("ok", "current"),
+        "macro block": ("ok", "current"),
         ".gitignore": ("ok", "has loom's lines"),
         "config": ("ok", "config.toml read cleanly"),
     }
@@ -544,15 +544,21 @@ def test_the_ai_files_by_upgrades_dry_run(box: Box) -> None:
     assert item(doctor(box, cwd=q), "ai files")["detail"] == "current, 1 edited"
 
 
-def test_loom_sty(box: Box) -> None:
+def test_an_older_macro_block_gets_its_patch(box: Box) -> None:
+    """A document whose block an older loom wrote is named, and the JSON carries the patch that brings it up to date; loom never applies it (P7)."""
     q = quilt(box)
-    (q / "loom.sty").write_text("% an older loom.sty\n")
-    got = item(doctor(box, cwd=q), "loom.sty")
-    assert (got["status"], got["detail"], got["remedy"]) == ("warn", "not the one this loom ships", "loom upgrade")
-    (q / "loom.sty").unlink()
-    assert item(doctor(box, cwd=q), "loom.sty")["detail"].startswith("missing")
-    ok("upgrade", cwd=q)
-    assert item(doctor(box, cwd=q), "loom.sty")["status"] == "ok"
+    main = q / "drafting" / "main.tex"
+    current = main.read_text()
+    edit(main, "\\providecommand{\\uses}[1]{}", "\\providecommand{\\uses}[1]{}% an older loom")
+    got = item(doctor(box, cwd=q), "macro block")
+    assert (got["status"], got["detail"]) == ("warn", "older than this loom's in drafting/main.tex")
+    assert (
+        "-\\providecommand{\\uses}[1]{}% an older loom" in got["patch"]
+        and "+\\providecommand{\\uses}[1]{}" in got["patch"]
+    )
+    assert "% an older loom" in main.read_text()  # the patch is the person's to apply
+    main.write_text(current)
+    assert item(doctor(box, cwd=q), "macro block")["status"] == "ok"
 
 
 def test_the_gitignore_lines(box: Box) -> None:

@@ -98,6 +98,19 @@ def line_starts(text: str) -> list[int]:
     return starts
 
 
+#: The marked block that carries loom's three macros in a document's own preamble, in place of `\\usepackage{loom}` (`reshape.linearize.loom_macro_block`).
+MACRO_BLOCK_BEGIN = "% !LOOM begin loom-macros"
+MACRO_BLOCK_END = "% !LOOM end loom-macros"
+MACRO_BLOCK = re.compile(re.escape(MACRO_BLOCK_BEGIN) + r"\n.*?" + re.escape(MACRO_BLOCK_END) + r"\n?", re.S)
+
+
+def blank_macro_block(text: str, clean: str) -> str:
+    """`clean` with loom's macro block blanked as a comment is: its definitions of `\\nest` and `\\uses` are loom's, not the document's inclusions or dependencies."""
+    for m in MACRO_BLOCK.finditer(text):
+        clean = clean[: m.start()] + re.sub(r"[^\n]", " ", clean[m.start() : m.end()]) + clean[m.end() :]
+    return clean
+
+
 def read_source(root: Path, rel: str, overlay: str | None = None) -> SourceFile:
     """One file as the scanner sees it. `overlay` is the text of an unsaved editor buffer, used in place of what is on disk; it is decoded already, and CRLF is normalised here as for a file."""
     abspath = root / rel
@@ -112,7 +125,7 @@ def read_source(root: Path, rel: str, overlay: str | None = None) -> SourceFile:
         path=rel,
         abspath=abspath,
         text=text,
-        clean=blank_comments(text),
+        clean=blank_macro_block(text, blank_comments(text)),
         encoding=enc,
         ignored=ignored,
         line_starts=line_starts(text),

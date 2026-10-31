@@ -14,14 +14,14 @@ import tempfile
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 from loom.clock import stamp
-from loom.paths import BUILD, LOOM, REVIEW_ORIGINS, SOURCE_SYNC
+from loom.paths import BUILD, LOOM, REVIEW_ORIGINS, SOURCE_SYNC, document_dir, under
 from loom.reshape.importer import closure_of
 from loom.scan.quilt import Quilt
-from loom.tex.runner import compile_tex
+from loom.tex.runner import compile_document
 
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
@@ -314,18 +314,29 @@ def selected_documents(quilt: Quilt, state: SyncState) -> list[str]:
     return _selection(quilt, state)[1]
 
 
+def local_path(state: SyncState, main: str, remote: str) -> str:
+    """The quilt path a workspace path stands for: Overleaf's main is `main`, the local document it maps to, and any other path is read against `main`'s directory, which is the workspace's root (P12)."""
+    return main if remote == state.published_main else under(document_dir(main), remote)
+
+
 def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[str, str]]:
-    """Selected masters and their union of local-to-remote source paths; the main document publishes as `published_main` wherever it has moved locally."""
+    """Selected masters and their union of local-to-remote source paths: the main document's directory is the workspace's root, so a document compiles there as it does here (P12), and the main document publishes as `published_main` wherever it has moved locally."""
     root = quilt.root
     main, documents = _selection(quilt, state)
+    base = document_dir(main)
     projected: dict[str, str] = {}
     remote_sources: dict[str, str] = {}
     for document in documents:
-        found, outside = closure_of(root, root / document)
+        if base and not document.startswith(f"{base}/"):
+            raise SourceError(
+                f"{document} is outside {base}/, the directory of {main}, which is the workspace's root; documents published together sit under it"
+            )
+        found, outside = closure_of(root / base, root / document)
         if outside:
-            raise SourceError(f"{document} reaches files outside the quilt: " + ", ".join(outside))
-        for local in found:
-            remote = state.published_main if local == main else local
+            raise SourceError(f"{document} reaches files outside {base or 'the quilt'}/: " + ", ".join(outside))
+        for key in found:
+            local = under(base, key)
+            remote = state.published_main if local == main else key
             previous = remote_sources.get(remote)
             if previous is not None and previous != local:
                 raise SourceError(f"two quilt files would publish as {remote}: {previous}, {local}")
@@ -430,7 +441,7 @@ def configure(quilt: Quilt, given: str, published_main: str = "", *, write: bool
     given : str
         The clone's directory as the person typed it, e.g. a clone of Overleaf's `https://git.overleaf.com/<project>`; a relative path is from the current directory.
     published_main : str, default ''
-        The main document's path in the workspace; '' keeps the path an earlier pairing with the same remote recorded, else the quilt's.
+        The main document's path in the workspace, whose root is the main document's directory; '' keeps the path an earlier pairing with the same remote recorded, else the main document's file name.
     write : bool, default True
         False makes every check and writes no record.
 
@@ -471,7 +482,7 @@ def configure(quilt: Quilt, given: str, published_main: str = "", *, write: bool
         branch=branch,
         master=main,
         integrated=tip,
-        published_main=published_main or main,
+        published_main=published_main or PurePosixPath(main).name,
         documents=[main],
     )
     if write:
@@ -588,10 +599,13 @@ def incoming_patch(quilt: Quilt, state: SyncState, main: str | None = None) -> b
         return b""
     # The remote is source-only, and collaborators may add a new input that
     # cannot yet be in the local master closure.
-    patch = git(workspace(quilt.root), "diff", "--binary", "--no-renames", state.integrated, state.incoming)
     main = main or local_main(quilt, state)
-    if state.published_main != main:
-        old = state.published_main.encode()
+    base = document_dir(main)
+    # every workspace path is the main document's directory's: the prefixes put the patch's paths there (P12)
+    prefixes = (f"--src-prefix=a/{base}/", f"--dst-prefix=b/{base}/") if base else ()
+    patch = git(workspace(quilt.root), "diff", "--binary", "--no-renames", *prefixes, state.integrated, state.incoming)
+    if under(base, state.published_main) != main:
+        old = under(base, state.published_main).encode()
         new = main.encode()
         rewritten = []
         for line in patch.splitlines(keepends=True):
@@ -604,7 +618,7 @@ def incoming_patch(quilt: Quilt, state: SyncState, main: str | None = None) -> b
 
 def _incoming_paths(quilt: Quilt, state: SyncState, main: str) -> list[str]:
     paths = [
-        main if row["path"] == state.published_main else row["path"]
+        local_path(state, main, row["path"])
         for row in changed_files(workspace(quilt.root), state.integrated, state.incoming)
     ]
     if len(paths) != len(set(paths)) or any(Path(p).is_absolute() or ".." in Path(p).parts for p in paths):
@@ -637,7 +651,7 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
     if not paths:
         raise SyncError("the incoming revision changes no files")
     for row in changed_files(workspace(root), state.integrated, state.incoming):
-        path = main if row["path"] == state.published_main else row["path"]
+        path = local_path(state, main, row["path"])
         if row["status"].startswith("A") and (root / path).exists():
             raise SourceError(f"{path} already exists locally; rename or remove it, then incorporate again")
     for path in paths:
@@ -684,9 +698,14 @@ def _review(quilt: Quilt, state: SyncState, result: ScanResult) -> dict[str, Any
     )
     # a live document deleted and an identical document added is a collaborator's rename, recorded only once the pull is incorporated and the new file is live (`_record_moves`)
     moves = [
-        {"from": main if gone == state.published_main else gone, "to": came, "main": gone == state.published_main}
+        {
+            "from": local_path(state, main, gone),
+            "to": local_path(state, main, came),
+            "remote": came,
+            "main": gone == state.published_main,
+        }
         for gone, came in exact_renames(workspace(quilt.root), state.integrated, state.incoming)
-        if (main if gone == state.published_main else gone) in result.masters and came.endswith(".tex")
+        if local_path(state, main, gone) in result.masters and came.endswith(".tex")
     ]
     local_before = {
         key: state.review_local_changed.get(key, False)
@@ -704,7 +723,10 @@ def _reaching(root: Path, documents: list[str], paths: set[str]) -> list[str]:
     """The documents among `documents` whose source closure includes one of `paths`: the ones a publish or a pull stamps."""
     out = []
     for document in documents:
-        if (root / document).is_file() and set(closure_of(root, root / document)[0]) & paths:
+        base = document_dir(document)
+        if (root / document).is_file() and {
+            under(base, k) for k in closure_of(root / base, root / document)[0]
+        } & paths:
             out.append(document)
     return out
 
@@ -901,8 +923,9 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: 
             for index, document in enumerate(documents):
                 shown.item(document)
                 projected = projection[document]
-                out = compile_tex(
+                out = compile_document(
                     stage / "source",
+                    document_dir(projected),
                     projected,
                     stage / "build" / f"{index}-{Path(projected).stem}",
                     quilt.config.engine,
@@ -984,7 +1007,7 @@ def _record_moves(quilt: Quilt, state: SyncState, moves: list[dict[str, Any]], i
             actor_for(quilt.root),
         )
         if move["main"]:
-            state.published_main = move["to"]
+            state.published_main = move["remote"]
         if move["from"] == quilt.config.main:
             set_main_forced(quilt, move["to"])
 
@@ -1010,6 +1033,11 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str,
             raise SyncError(f"{document} is an agent's document, which is never published")
         if result.document_role(document) != "person":
             raise SyncError(f"{document} is not a live document of yours")
+        base = document_dir(main)
+        if base and not document.startswith(f"{base}/"):
+            raise SyncError(
+                f"{document} is outside {base}/, the directory of {main}, which is the workspace's root; documents published together sit under it"
+            )
         if document not in now:
             current.append(document)
     elif action == "remove":

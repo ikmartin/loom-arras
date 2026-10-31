@@ -59,7 +59,9 @@ def test_an_attached_agent_is_told_where_to_start_and_offered_every_agent_comman
 
 def test_a_call_returns_the_commands_report_and_each_exit_as_it_means(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    (q / "nodes" / "dm-0098.tex").write_text("\\begin{lemma}\\label{dm-0001}\nTwice.\n\\end{lemma}\n")  # lint exits 1
+    (q / "drafting" / "nodes" / "dm-0098.tex").write_text(
+        "\\begin{lemma}\\label{dm-0001}\nTwice.\n\\end{lemma}\n"
+    )  # lint exits 1
 
     async def body(client: Any) -> None:
         status = await client.call_tool("loom_status", {})
@@ -96,7 +98,7 @@ def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> N
 
 def test_a_result_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    (q / "nodes" / "dm-0097.tex").write_text(
+    (q / "drafting" / "nodes" / "dm-0097.tex").write_text(
         "\\begin{remark}\\label{dm-0097}\n" + "A long remark. " * 4000 + "\n\\end{remark}\n"
     )
 
@@ -164,7 +166,7 @@ def test_what_a_link_names_is_a_resource_read_by_the_command_it_stands_for(tmp_p
 
 def test_a_resource_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    (q / "nodes" / "dm-0097.tex").write_text(
+    (q / "drafting" / "nodes" / "dm-0097.tex").write_text(
         "\\begin{remark}\\label{dm-0097}\n" + "A long remark. " * 4000 + "\n\\end{remark}\n"
     )
 

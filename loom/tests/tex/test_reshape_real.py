@@ -68,18 +68,18 @@ def imported(once: Once) -> tuple[Path, str]:
     def make(base: Path) -> tuple[Path, str]:
         p = paper(base)
         r = ok("init", str(base / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=base)
-        assert "drafting/main.tex typesets to the same text as the original" in rejoined(r.output), r.output
+        assert "main/main.tex typesets to the same text as the original" in rejoined(r.output), r.output
         return base / "q", r.output
 
     return once.get("imported", make)
 
 
 def atomized(once: Once) -> tuple[Path, str]:
-    """The imported quilt atomized into drafting/spine.tex, made once. Read only; the quilt and what atomize said."""
+    """The imported quilt atomized into main/spine.tex, made once. Read only; the quilt and what atomize said."""
 
     def make(base: Path) -> tuple[Path, str]:
         q = copy(imported(once)[0], base / "q")
-        r = ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
+        r = ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
         return q, r.output
 
     return once.get("atomized", make)
@@ -90,25 +90,25 @@ def test_import_keeps_the_paper_flat_and_drafts_it_labelled(once: Once) -> None:
     q, said = imported(once)
     received = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
     assert "\\input{sections/results}" not in received and "Beta uses Lemma" in received
-    assert "\\label{pp-" not in received and not (q / "sections").exists()
+    assert "\\label{pp-" not in received and not (q / "main" / "sections").exists()
     assert "typesets to the same text as the original" in rejoined(said), said
-    assert (q / "drafting" / "main.tex").read_text().count("\\label{pp-") == 5
+    assert (q / "main" / "main.tex").read_text().count("\\label{pp-") == 5
 
 
 @pytest.mark.tex
 def test_atomize_identity_and_linearize_identity(once: Once, tmp_path: Path) -> None:
     atomic, said = atomized(once)
-    assert "drafting/spine.tex typesets to the same text as drafting/main.tex" in rejoined(said), said
-    assert {f.name for f in (atomic / "nodes").glob("*.tex")} == {
+    assert "main/spine.tex typesets to the same text as main/main.tex" in rejoined(said), said
+    assert {f.name for f in (atomic / "main" / "nodes").glob("*.tex")} == {
         "pp-0002.tex",
         "pp-0004.tex",
         "pp-0005.tex",
         "pp-0005.proof.tex",
     }
     q = copy(atomic, tmp_path / "q")
-    r2 = ok("linearize", "drafting/spine.tex", "--to", "drafting/flat.tex", cwd=q)
-    assert "it typesets to the same text as drafting/spine.tex" in rejoined(r2.output), r2.output
-    flat = (q / "drafting" / "flat.tex").read_text()
+    r2 = ok("linearize", "main/spine.tex", "--to", "main/flat.tex", cwd=q)
+    assert "it typesets to the same text as main/spine.tex" in rejoined(r2.output), r2.output
+    flat = (q / "main" / "flat.tex").read_text()
     assert "\\input{nodes/" not in flat and flat.count("\\begin{proof}") == 2
 
 
@@ -116,7 +116,7 @@ def test_atomize_identity_and_linearize_identity(once: Once, tmp_path: Path) -> 
 def test_a_landmark_shown_plain_compiles_alone(once: Once, tmp_path: Path) -> None:
     """`loom history show --plain` carries loom.sty's macros inline, so a landmark printed that way compiles in a directory holding nothing else."""
     q = copy(atomized(once)[0], tmp_path / "q")
-    ok("stamp", "drafting/spine.tex", "-m", "main-v1", cwd=q)
+    ok("stamp", "main/spine.tex", "-m", "main-v1", cwd=q)
     alone = tmp_path / "alone"
     alone.mkdir()
     (alone / "main-v1.tex").write_text(ok("history", "show", "main-v1", "--plain", cwd=q).stdout, encoding="utf-8")
@@ -135,11 +135,11 @@ def test_a_landmark_shown_plain_compiles_alone(once: Once, tmp_path: Path) -> No
 def test_deloom_gives_back_the_paper_as_received(once: Once, tmp_path: Path) -> None:
     """Import put ids in, atomize moved results into node files; deloom flattens and takes loom out, and what is left typesets as the loom document did and reads as the paper the author brought."""
     q = copy(atomized(once)[0], tmp_path / "q")
-    r = ok("deloom", "drafting/spine.tex", "--to", "build/plain.tex", cwd=q)
+    r = ok("deloom", "main/spine.tex", "--to", "build/plain.tex", cwd=q)
     assert r.output.startswith("wrote build/plain.tex") and "kept" not in r.output
     plain = (q / "build" / "plain.tex").read_text()
     assert "pp-" not in plain and "\\input{nodes/" not in plain and "{loom}" not in plain
-    res = identity_test(q, "drafting/spine.tex", q, "build/plain.tex", tmp_path / "scratch")
+    res = identity_test(q, "main/spine.tex", q, "build/plain.tex", tmp_path / "scratch", base="main")
     assert res.passed, res.summary()
     received = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
     assert [ln for ln in plain.splitlines() if ln.strip()] == [ln for ln in received.splitlines() if ln.strip()]
@@ -148,12 +148,12 @@ def test_deloom_gives_back_the_paper_as_received(once: Once, tmp_path: Path) -> 
 @pytest.mark.tex
 def test_linearize_nest_shifts(once: Once, tmp_path: Path) -> None:
     q = copy(imported(once)[0], tmp_path / "q")
-    (q / "sections").mkdir(exist_ok=True)
-    (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nNested text.\n")
-    m = q / "drafting" / "main.tex"
+    (q / "main" / "sections").mkdir(exist_ok=True)
+    (q / "main" / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nNested text.\n")
+    m = q / "main" / "main.tex"
     m.write_text(m.read_text().replace("\\end{document}", "\\nest{sections/nested}\n\\end{document}"))
-    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", cwd=q)
-    flat = (q / "drafting" / "flat.tex").read_text()
+    r = ok("linearize", "main/main.tex", "--to", "main/flat.tex", cwd=q)
+    flat = (q / "main" / "flat.tex").read_text()
     assert "\\subsection{Nested}\\label{pp-0100}" in flat and "\\nest{" not in flat
     assert "typesets to the same text as" in rejoined(
         r.output

@@ -16,6 +16,7 @@ from loom.scan.digests import digest_header, extracted_from, missing_packages, o
 from loom.scan.directives import KNOWN_KEYS, REGION_KEYS
 from loom.scan.edges import EdgeResult
 from loom.scan.graph import Graph
+from loom.scan.macros import LOOM_MACROS
 from loom.scan.model import Diagnostic, Fix, Location
 from loom.scan.nodes import Assembly, NodeRec
 from loom.scan.scan import ScanResult
@@ -55,7 +56,6 @@ COMMON_THEOREM_ENVS = {
     "problem",
     "exercise",
 }
-LOOM_MACROS = ("uses", "incomplete", "nest")
 
 
 def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
@@ -359,17 +359,17 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 Diagnostic(
                     "error",
                     "loom:macros-unloaded",
-                    f"{master} uses {names} but never loads loom.sty",
+                    f"{master} uses {names} but loads neither loom.sty nor loom's macro block",
                     [Location(master, 1)],
                 )
             )
         for frag in closure.fragments:
             if frag.file.endswith("loom.sty"):
                 continue
-            for m in LOOM_MACROS:
-                if re.search(
-                    r"\\(?:new|renew|provide)command\s*\{?\\" + m + r"\b", frag.src.clean[frag.start : frag.end]
-                ):
+            # the macro block, blanked in the clean text as a comment is, defines the three by design; anything else shadows them
+            text = frag.src.clean[frag.start : frag.end]
+            for m in sorted(LOOM_MACROS):
+                if re.search(r"\\(?:new|renew|provide)command\s*\{?\\" + m + r"\b", text):
                     diags.append(
                         Diagnostic(
                             "warning",
@@ -499,7 +499,9 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             continue
         if not any(path in e.reached for e in result.expansions.values()):
             node_keys = [k for k, n in asm.nodes.items() if n.file == path and n.kind in ("environment", "section")]
-            stem = path.removesuffix(".tex")
+            # the line names the file from the directory the default document compiles from (P12)
+            base = result.base_of(result.default_master) if result.default_master else ""
+            stem = (path.removeprefix(f"{base}/") if base else path).removesuffix(".tex")
             diags.append(
                 Diagnostic(
                     "info",

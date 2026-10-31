@@ -101,7 +101,7 @@ def incoming(q: Path) -> None:
     paired(q)
     quilt = load_quilt(q)
     state = sync.SyncState.read(q)
-    with mock.patch.object(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True)):
+    with mock.patch.object(sync, "compile_document", lambda *_a, **_k: SimpleNamespace(ok=True)):
         publication = sync.publish(quilt, state)
     sync.push_publication(quilt, state, publication.commit)
     clone = q.parent / "collaborator"

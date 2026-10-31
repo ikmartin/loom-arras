@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, load_history
-from loom.paths import BUILD, LOOM, NOTES_DIR, RETIRED
+from loom.paths import BUILD, LOOM, NOTES_DIR, RETIRED, document_dir, under
 from loom.scan.expand import Expansion, Segment
 from loom.scan.labels import LABEL_DEF, derived_of, is_id_shaped, plain_key
 from loom.scan.model import SourceFile
@@ -137,7 +137,10 @@ def next_suffix(history: History) -> str:
 
 
 def capture_context(result: ScanResult, source: str, *, write: bool = True) -> dict[str, Any]:
-    """Freeze local context bytes in a content-addressed history directory."""
+    """Freeze local context bytes in a content-addressed history directory.
+
+    The context is the source document's directory, where it compiles (P12), kept at its quilt-relative paths so a scan of the saved tree names files as the quilt does.
+    """
     from loom.clock import stamp
     from loom.reshape.linearize import flatten
     from loom.sync import skipped_directory
@@ -145,8 +148,8 @@ def capture_context(result: ScanResult, source: str, *, write: bool = True) -> d
     root = result.quilt.root
     synced = skipped_directory(root)
     files: dict[str, bytes] = {}
-    # Local assets may be read through author macros; preserve quilt-local inputs conservatively.
-    for path in root.rglob("*"):
+    # Local assets may be read through author macros; preserve the document's directory's inputs conservatively.
+    for path in (root / result.base_of(source)).rglob("*"):
         rel = path.relative_to(root)
         if any(
             p in {BUILD, ".git", LOOM, "node_modules", ".venv", NOTES_DIR, RETIRED, result.quilt.config.drafting_ai}
@@ -223,7 +226,12 @@ def pinned_scan(result: ScanResult, copy: str) -> ScanResult:
     if not context:
         return result
     root = result.quilt.root / context["path"]
-    return scan(Quilt(root, result.quilt.config), {copy: (result.quilt.root / copy).read_text()})
+    # the saved context has no history to say the copy compiles from its source's directory, so it is told (P12)
+    return scan(
+        Quilt(root, result.quilt.config),
+        {copy: (result.quilt.root / copy).read_text()},
+        bases={copy: document_dir(context.get("source", metadata(result, copy)["source"]))},
+    )
 
 
 def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
@@ -234,7 +242,7 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
     from loom.adopt import _resolve
     from loom.render.publish import write_atomic
     from loom.scan.labels import rename_labels
-    from loom.tex.runner import compile_tex
+    from loom.tex.runner import compile_document
 
     copy, _ = _resolve(result, copy)
     meta = metadata(result, copy)
@@ -251,8 +259,13 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
         with tempfile.TemporaryDirectory(prefix="loom-section-paper-") as temporary:
             stage = Path(temporary)
             shutil.copytree(result.quilt.root / meta["context"]["path"], stage, dirs_exist_ok=True)
-            (stage / "paper.tex").write_text(document)
-            compiled = compile_tex(stage, "paper.tex", stage / "build", result.quilt.config.engine)
+            # the paper compiles in its source's directory, where the saved context keeps its inputs (P12)
+            base = document_dir(meta["context"].get("source", meta["source"]))
+            (stage / under(base, "paper.tex")).parent.mkdir(parents=True, exist_ok=True)
+            (stage / under(base, "paper.tex")).write_text(document)
+            compiled = compile_document(
+                stage, base, under(base, "paper.tex"), stage / "build", result.quilt.config.engine
+            )
             if not compiled.pdf or not compiled.pdf.is_file() or compiled.errors:
                 raise SyncError(
                     "Preview could not compile: " + (compiled.errors[0] if compiled.errors else compiled.first_error)

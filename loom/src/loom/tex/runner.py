@@ -1,6 +1,6 @@
-"""Run latexmk from the quilt root into a build subdirectory.
+"""Run latexmk from a document's own directory into a build subdirectory.
 
-The engine is the master's `% !TEX program` if present, else `[quilt] engine`. Nothing is set in the environment: loom.sty and local styles must sit at the root, which is what makes the quilt compile on Overleaf too. Tests isolate HOME and the TeX trees through the environment they run in.
+The engine is the master's `% !TEX program` if present, else `[quilt] engine`. Nothing is set in the environment: a document's local styles, inputs and figures sit in its directory and below, as LaTeX and Overleaf expect, which is what makes it compile on Overleaf too (P12). Tests isolate HOME and the TeX trees through the environment they run in.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ class CompileResult:
     aux: Path | None = None
     log: Path | None = None
     warnings: list[str] = field(default_factory=list)
+    cwd: Path | None = None  # where latexmk ran, which the log's relative paths are relative to
 
     @property
     def first_error(self) -> str:
@@ -132,6 +133,40 @@ def normalise_engine(engine: str | None, default: str = "pdflatex") -> str:
     return e if e in ENGINE_FLAGS else default
 
 
+def compile_document(
+    root: Path,
+    base: str,
+    tex: str | Path,
+    outdir: Path,
+    engine: str = "pdflatex",
+    halt_on_error: bool = True,
+    timeout: int = 600,
+) -> CompileResult:
+    """Compile a document from `base`, the quilt-relative directory it compiles from (P12).
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    base : str
+        The document's directory, `ScanResult.base_of`; '' at the root.
+    tex : str or Path
+        The file to compile, quilt-relative or absolute; named to latexmk from `base`, so an agent copy compiles as `../drafting-ai/x.tex` from its source's directory.
+    outdir : Path
+        Where latexmk writes.
+    engine : str, default 'pdflatex'
+    halt_on_error : bool, default True
+    timeout : int, default 600
+        Seconds.
+
+    Returns
+    -------
+    CompileResult
+    """
+    cwd = root / base
+    return compile_tex(cwd, os.path.relpath(root / tex, cwd), outdir, engine, halt_on_error, timeout)
+
+
 def compile_tex(
     root: Path, tex_rel: str, outdir: Path, engine: str = "pdflatex", halt_on_error: bool = True, timeout: int = 600
 ) -> CompileResult:
@@ -180,4 +215,5 @@ def compile_tex(
         aux if aux.exists() else None,
         log if log.exists() else None,
         warnings,
+        root,
     )

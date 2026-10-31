@@ -108,11 +108,11 @@ def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     d = demo(tmp_path)
-    c = d / "nodes" / "dm-0002.tex"
+    c = d / "drafting" / "nodes" / "dm-0002.tex"
     c.write_text(c.read_text().replace("one or two points", "one or two points (Definition~\\ref{dm-0001})"))
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
     ok("accept", "dm-0001", "dm-0002", "dm-0003", "--proofs", "--force", *AS, cwd=d)
-    a = d / "nodes" / "dm-0001.tex"
+    a = d / "drafting" / "nodes" / "dm-0001.tex"
     a.write_text(a.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
     state = status_json(d)["keys"]["dm-0003/proof"]
     assert any(
@@ -152,7 +152,7 @@ def test_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> Non
 def test_observation_date_resets_after_a_cause_disappears(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     d = demo(tmp_path)
     ok("accept", "dm-0001", "--force", *AS, cwd=d)
-    node = d / "nodes" / "dm-0001.tex"
+    node = d / "drafting" / "nodes" / "dm-0001.tex"
     original = node.read_text()
     edited = original.replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
@@ -208,7 +208,7 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
 
 def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    (d / "nodes" / "dm-0099.tex").write_text("\\begin{lemma}\\label{dm-0099}Loose.\\end{lemma}\n")
+    (d / "drafting" / "nodes" / "dm-0099.tex").write_text("\\begin{lemma}\\label{dm-0099}Loose.\\end{lemma}\n")
     refused("accept", "--all-live", "--yes", "--force", *AS, cwd=d, code=1, match="dm-0005/proof")
     assert not (d / ".loom" / "state.toml").exists()
 
@@ -221,7 +221,7 @@ def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_pa
         )
         .replace("\\begin{remark}\\label{dm-0004}", "\\begin{remark}\\label{dm-0004}\n% !LOOM basis: local-proof")
     )
-    candidate = d / "nodes" / "dm-0006.tex"
+    candidate = d / "drafting" / "nodes" / "dm-0006.tex"
     candidate.write_text(
         candidate.read_text()
         .replace(
@@ -327,7 +327,7 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     assert s["keys"]["dm-0005/proof"]["state"] == "incomplete"
     assert s["keys"]["dm-0001"]["state"] == "draft"
     # dependency-changed: edit the definition the proof cites through \eqref
-    f = d / "nodes" / "dm-0001.tex"
+    f = d / "drafting" / "nodes" / "dm-0001.tex"
     f.write_text(f.read_text().replace(r"\sigma x = x", r"\sigma(x) = x"))
     s = status_json(d)
     proof = s["keys"]["dm-0002/proof"]
@@ -337,12 +337,12 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     ]
     assert s["keys"]["dm-0002"]["acceptance"]["fresh"] is True
     # own-text-changed
-    g = d / "nodes" / "dm-0002.tex"
+    g = d / "drafting" / "nodes" / "dm-0002.tex"
     g.write_text(g.read_text().replace("one or two points", "at most two points"))
     s = status_json(d)
     assert "own-text-changed" in [c["kind"] for c in s["keys"]["dm-0002"]["acceptance"]["causes"]]
     # dependency-added: the theorem's statement now references the definition
-    h = d / "nodes" / "dm-0003.tex"
+    h = d / "drafting" / "nodes" / "dm-0003.tex"
     h.write_text(
         h.read_text().replace(
             "Let $(X,\\sigma)$ be a widget", "Let $(X,\\sigma)$ be a widget (Definition~\\ref{def:widget})"
@@ -374,7 +374,7 @@ def test_status_stale_lists_the_stale_rows_and_accept_stale_reaccepts_them(tmp_p
     """`--stale` lists the stale proof and not its fresh statement; `accept --stale` re-accepts exactly those rows, appending one ledger row to the two already there."""
     d = demo(tmp_path)
     ok("accept", "dm-0002", "--proofs", *AS, cwd=d)
-    edit(d / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
+    edit(d / "drafting" / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
     listed = ok("status", "--stale", cwd=d).output.splitlines()
     assert listed[0] == "1 key of yours match: 1 stale", listed  # the first line is the summary
     assert [text.split()[-1] for _, text in status_rows("\n".join(listed))] == ["dm-0002/proof"], listed
@@ -405,7 +405,7 @@ def test_derived_proved_settled(tmp_path: Path) -> None:
         "proved": True,
         "settled": True,
     }  # its proof's closure, dm-0002 and dm-0001, is settled
-    f = d / "nodes" / "dm-0001.tex"
+    f = d / "drafting" / "nodes" / "dm-0001.tex"
     f.write_text(f.read_text() + "\n% touched\n")
     s = status_json(d)
     assert s["keys"]["dm-0001"]["derived"]["proved"]  # comments do not change the hash
@@ -674,7 +674,7 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     """An agent proposes a citation; the author accepts or rejects. Neither path touches refs.bib (DR-122)."""
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
-    bib_before = (d / "refs.bib").read_text()
+    bib_before = (d / "drafting" / "refs.bib").read_text()
 
     good = ok(
         "annotate",
@@ -720,7 +720,7 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
 
     # both suggestions are resolved either way, so neither sits open forever
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
-    assert (d / "refs.bib").read_text() == bib_before  # the bibliography is the author's, always
+    assert (d / "drafting" / "refs.bib").read_text() == bib_before  # the bibliography is the author's, always
 
     listed = ok("library", cwd=d)
     assert "accepted citations" in listed.output and "Kreck" in listed.output
@@ -749,7 +749,7 @@ def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
 def test_positional_key_recovery_by_hash(tmp_path: Path) -> None:
     q = synthetic(tmp_path)
     ok("accept", "sy-0006/proof/2", "--force", *AS, cwd=q)
-    f = q / "nodes" / "sy-0006.tex"
+    f = q / "drafting" / "nodes" / "sy-0006.tex"
     text = f.read_text()
     first = text[text.index("\\begin{proof}") : text.index("\\end{proof}") + len("\\end{proof}") + 1]
     f.write_text(text.replace(first, "", 1))
@@ -843,7 +843,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     frag = (d / "build" / "fragments" / "nodes" / "dm-0003.html").read_text()
     assert frag.count('<mark class="annotation"') == 3
     # Day 2: the author rewrites the proof; the proof annotations detach; the agent re-checks clean
-    f = d / "nodes" / "dm-0003.tex"
+    f = d / "drafting" / "nodes" / "dm-0003.tex"
     old = f.read_text()
     new = (
         old[: old.index("\\begin{proof}")]
@@ -864,7 +864,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     assert s["keys"][key]["derived"]["proved"] is True
     # Day 9: an upstream definition changes; the lemma's proof (not the theorem) goes stale; re-accept
     ok("accept", "dm-0002", "--proofs", *AS, cwd=d)
-    g = d / "nodes" / "dm-0001.tex"
+    g = d / "drafting" / "nodes" / "dm-0001.tex"
     g.write_text(g.read_text().replace(r"\sigma x = x", r"\sigma(x) = x"))
     s = status_json(d)
     stale = [k for k, e in s["keys"].items() if e.get("acceptance") and not e["acceptance"]["fresh"]]
@@ -1155,7 +1155,7 @@ def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) ->
     """The anchoring critique (2026-10-03): quotes `annotate` accepted -- one opening with `\\noindent`, one with `\\S~\\ref`, one with a TeX dash -- were marked as their whole section or paragraph. Each is marked on its own words."""
     d = synthetic(tmp_path)
     edit(
-        d / "sections" / "results.tex",
+        d / "drafting" / "sections" / "results.tex",
         "deferred to the end of the section.\n",
         "deferred to the end of the section.\n\n\\noindent\\textbf{Problem 1:} decide whether every widget is tame.\n\n"
         "As shown in (\\S~\\ref{sy-0201}) the consequences follow -- mostly.\n",
@@ -1344,7 +1344,7 @@ def test_an_annotation_may_name_the_document_it_is_read_in(tmp_path: Path) -> No
         "dm-0002",
         "x",
         "--in",
-        "nodes/dm-0002.tex",
+        "drafting/nodes/dm-0002.tex",
         *AS,
         cwd=d,
         code=2,
@@ -1412,7 +1412,11 @@ def test_a_changed_preamble_is_still_found_in_the_document_it_moved_to(tmp_path:
 def test_accept_stale_after_a_linearize_records_the_new_document_and_is_fresh(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ok("accept", "dm-0001", "--force", *AS, cwd=d)
-    edit(d / "nodes" / "dm-0001.tex", "Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    edit(
+        d / "drafting" / "nodes" / "dm-0001.tex",
+        "Its \\emph{fixed locus} is",
+        "Its \\emph{fixed locus}, a subset of $X$, is",
+    )
     ok("linearize", *FLAT, cwd=d)
     assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is False
     ok("accept", "--stale", "--yes", "--force", *AS, cwd=d)
@@ -1510,8 +1514,8 @@ def test_a_conflicted_id_is_a_row_of_its_own_and_its_definitions_are_not(tmp_pat
     q = synthetic(tmp_path)
     keys = status_json(q)["keys"]
     assert keys["sy-999B"]["state"] == "conflicted"
-    assert keys["sy-999B"]["conflict"] == ["drafting/talk.tex", "nodes/sy-999B.tex"]
-    assert not [k for k in keys if "#lemma:" in k and k.startswith(("drafting/talk.tex", "nodes/sy-999B.tex"))]
+    assert keys["sy-999B"]["conflict"] == ["drafting/nodes/sy-999B.tex", "drafting/talk.tex"]
+    assert not [k for k in keys if "#lemma:" in k and k.startswith(("drafting/talk.tex", "drafting/nodes/sy-999B.tex"))]
     said = ok("status", cwd=q).output
     assert "loom fork sy-999B --in drafting/talk.tex" in said
     assert ": 1 conflicted," in said.splitlines()[0]  # the verdict counts it, first
@@ -1590,7 +1594,11 @@ def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_a
 def test_status_rows_read_as_the_reader_reads_them(tmp_path: Path) -> None:
     """T4: the re-grade's `status` printed raw, cut LaTeX titles (`Proof of Lemma~\\ref{lem:indepen…`), causes as codes and no theorem numbers; a row's title is plain, and its kind carries the number the last build printed."""
     d = demo(tmp_path)
-    edit(d / "nodes" / "dm-0002.tex", "\\begin{lemma}[Orbits]", "\\begin{lemma}[\\emph{Orbits} of $\\sigma$]")
+    edit(
+        d / "drafting" / "nodes" / "dm-0002.tex",
+        "\\begin{lemma}[Orbits]",
+        "\\begin{lemma}[\\emph{Orbits} of $\\sigma$]",
+    )
     aux = d / "build" / "drafting" / "main" / "main.aux"
     aux.parent.mkdir(parents=True, exist_ok=True)
     aux.write_text("\\newlabel{dm-0002}{{2.1}{3}}\n")

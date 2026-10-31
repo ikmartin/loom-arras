@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from loom.paths import NODES
+from loom.paths import NODES, document_dir, under
 from loom.reshape.anchoring import anchoring_violations
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -18,12 +18,16 @@ class Move:
     start: int
     end: int
     text: str
+    name: str = ""  # what the spine's `\\input` line calls it: `target` from the spine's directory, without `.tex`
 
 
 @dataclass
 class AtomizePlan:
     src: str
     dest: str
+    base: str = (
+        ""  # the directory the documents reaching `src` compile from: node files go in nodes/ there, named from there
+    )
     moves: list[Move] = field(default_factory=list)
     spine: str = ""
     refusals: list[str] = field(default_factory=list)
@@ -53,7 +57,7 @@ def _wanted(result: ScanResult, src_rel: str, keys: list[str], plan: AtomizePlan
         if n.kind == "section":
             plan.refusals.append(f"{n.key} is a section; one-node atomize moves theorem-like nodes and their proofs")
             continue
-        if n.file == f"{NODES}/{n.id}.tex":
+        if n.file == f"{node_home(plan)}/{n.id}.tex":
             plan.refusals.append(f"{n.key} already lives in {n.file}")
             continue
         out.add(n.key)
@@ -132,7 +136,11 @@ def plan_atomize(
     keys: list[str] | None = None,
 ) -> AtomizePlan:
     """The moves and the spine for atomizing `src_rel`, or with `keys` only those nodes (a proof names its statement, which carries it)."""
-    plan = AtomizePlan(src=src_rel, dest=dest_rel)
+    reaching = [m for m in result.masters if src_rel in result.expansions[m].reached] if src_rel in result.files else []
+    plan = AtomizePlan(
+        src=src_rel, dest=dest_rel, base=result.base_of(reaching[0]) if reaching else document_dir(dest_rel)
+    )
+    home = node_home(plan)
     wanted = _wanted(result, src_rel, keys, plan) if keys is not None else None
     if plan.refusals:
         return plan
@@ -184,13 +192,13 @@ def plan_atomize(
                     f"{n.key} contains \\include, which cannot move into a node file (\\include forces a page break and its own .aux)"
                 )
                 continue
-            moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
+            moves.append(_move(plan, n.key, f"{home}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
             claimed.add(n.key)
         elif n.kind == "proof" and n.key not in claimed:
             stmt = asm.nodes.get(n.of or "")
             if n.id:
                 ls, le = _line_bounds(text, n.start, n.end)
-                moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
+                moves.append(_move(plan, n.key, f"{home}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
                 claimed.add(n.key)
             elif (
                 stmt is not None and stmt.id and (n.attach_via == "ref" or proofs == "separate" or stmt.file != src_rel)
@@ -198,7 +206,7 @@ def plan_atomize(
                 suffix = "" if n.ordinal <= 1 else f".{n.ordinal}"
                 ls, le = _line_bounds(text, n.start, n.end)
                 moves.append(
-                    Move(n.key, f"{NODES}/{stmt.id}.proof{suffix}.tex", ls, le, text[ls:le].rstrip("\n") + "\n")
+                    _move(plan, n.key, f"{home}/{stmt.id}.proof{suffix}.tex", ls, le, text[ls:le].rstrip("\n") + "\n")
                 )
                 claimed.add(n.key)
     if sections:
@@ -219,11 +227,21 @@ def _inside_moved(n: NodeRec, nodes_here: list[NodeRec], claimed: set[str]) -> b
     return False
 
 
+def node_home(plan: AtomizePlan) -> str:
+    """Where node files go: `nodes/` in the directory the documents reaching the source compile from, so their `\\input` lines name them from there (P12)."""
+    return under(plan.base, NODES)
+
+
+def _move(plan: AtomizePlan, key: str, target: str, start: int, end: int, text: str) -> Move:
+    """A move to `target`, quilt-relative, with the name its `\\input` line gives it from the spine's directory."""
+    name = target.removeprefix(f"{plan.base}/") if plan.base else target
+    return Move(key, target, start, end, text, name.removesuffix(".tex"))
+
+
 def _spine(text: str, moves: list[Move]) -> str:
     out = text
     for m in sorted(moves, key=lambda x: x.start, reverse=True):
-        stem = m.target[: -len(".tex")] if m.target.endswith(".tex") else m.target
-        out = out[: m.start] + f"\\input{{{stem}}}" + out[m.end :]
+        out = out[: m.start] + f"\\input{{{m.name}}}" + out[m.end :]
     return out
 
 
@@ -242,7 +260,7 @@ def _atomize_sections(
         b = offset_map(n.end)
         ls, le = _line_bounds(spine, a, b)
         body = spine[ls:le].rstrip("\n") + "\n"
-        section_moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, body))
+        section_moves.append(_move(plan, n.key, f"{node_home(plan)}/{n.id}.tex", ls, le, body))
     outer: list[Move] = []
     for m in sorted(section_moves, key=lambda x: x.start):
         if any(o.start <= m.start and m.end <= o.end for o in outer):
@@ -250,8 +268,7 @@ def _atomize_sections(
         outer.append(m)
     new_spine = spine
     for m in sorted(outer, key=lambda x: x.start, reverse=True):
-        stem = m.target[: -len(".tex")]
-        new_spine = new_spine[: m.start] + f"\\input{{{stem}}}" + new_spine[m.end :]
+        new_spine = new_spine[: m.start] + f"\\input{{{m.name}}}" + new_spine[m.end :]
     inner_moves: list[Move] = []
     for m in outer:
         text = m.text
@@ -261,8 +278,7 @@ def _atomize_sections(
             reverse=True,
         ):
             rel_a, rel_b = sub.start - m.start, sub.end - m.start
-            stem = sub.target[: -len(".tex")]
-            text = text[:rel_a] + f"\\input{{{stem}}}" + text[rel_b:]
+            text = text[:rel_a] + f"\\input{{{sub.name}}}" + text[rel_b:]
             inner_moves.append(sub)
         m.text = text
     plan.moves = moves + outer + inner_moves
@@ -271,7 +287,7 @@ def _atomize_sections(
 
 
 def _offset_mapper(original: str, moves: list[Move]):  # type: ignore[no-untyped-def]
-    replacements = sorted(((m.start, m.end, len(f"\\input{{{m.target[:-4]}}}")) for m in moves), key=lambda x: x[0])
+    replacements = sorted(((m.start, m.end, len(f"\\input{{{m.name}}}")) for m in moves), key=lambda x: x[0])
 
     def mapper(pos: int) -> int:
         delta = 0
@@ -328,8 +344,7 @@ def verify_plan(result: ScanResult, plan: AtomizePlan) -> str | None:
     text = result.files[plan.src].text
     rebuilt = plan.spine
     for m in sorted(plan.moves, key=lambda x: x.start, reverse=True):
-        stem = m.target[: -len(".tex")] if m.target.endswith(".tex") else m.target
-        line = f"\\input{{{stem}}}"
+        line = f"\\input{{{m.name}}}"
         at = rebuilt.find(line)
         if at < 0:
             return f"the spine has no inclusion line for {m.key}"
@@ -351,7 +366,7 @@ def plan_payload(result: ScanResult, plan: AtomizePlan) -> dict[str, object]:
                 "start": m.start,
                 "end": m.end,
                 "line": src.line_of(m.start),
-                "text": f"\\input{{{m.target[: -len('.tex')]}}}",
+                "text": f"\\input{{{m.name}}}",
             }
             for m in plan.moves
         ],

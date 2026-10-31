@@ -37,6 +37,7 @@ class CanonDoc:
     step: Entry | None = None
     labels: dict[str, str] = field(default_factory=dict)
     pairs: dict[str, str] = field(default_factory=dict)  # key -> pair hash of the version its stamp kept
+    base: str = ""  # the directory its names resolve against: its document's (`History.landmark_base`)
 
 
 def title_of(src: SourceFile) -> str | None:
@@ -57,7 +58,9 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
         src = read_source(quilt.root, rel)
         from loom.scan.directives import parse_directives
 
-        closure = build_closure(src, quilt.root, {}, parse_directives(src))
+        entry = steps.get(rel)
+        base = history.landmark_base(entry) if entry is not None else ""
+        closure = build_closure(src, quilt.root, {}, parse_directives(src), base=base)
         stem = Path(rel).stem
         labels = {norm_label(m.group(1)): norm_label(m.group(1)) for m in _LABEL.finditer(src.clean)}
         out.append(
@@ -70,6 +73,7 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
                 step=steps.get(rel),
                 labels=labels,
                 pairs=landmark_pairs(history, steps.get(rel)),
+                base=base,
             )
         )
     return out
@@ -97,9 +101,7 @@ def canon_fragment_path(doc: CanonDoc) -> str:
 
 def macro_set(doc: CanonDoc) -> list[dict[str, Any]]:
     """The MathJax macros of the canon's own preamble: a landmark renders as it compiled, whatever the drafting documents have since become."""
-    macros = {
-        k: v for k, v in doc.closure.macros.items() if v.kind != "let" and k not in ("uses", "incomplete", "nest")
-    }
+    macros = {k: v for k, v in doc.closure.macros.items() if v.kind != "let"}
     for name, macro in declared_alphabets(doc.closure.clean_text()).items():
         macros.setdefault(name, macro)
     for name, macro in package_macros(loaded_packages(doc.closure)).items():
@@ -122,13 +124,13 @@ class CanonRenderer:
         def include(arg: str) -> str:
             # a canonized document is flat; an \input that survives is one someone put there by hand, so inline the file if it exists and say so if it does not
             if arg.startswith("graphics:"):
-                rel, err = publish_graphic(self.root, arg[len("graphics:") :], self.renderer.plan.svg_out)
+                rel, err = publish_graphic(self.root, arg[len("graphics:") :], self.renderer.plan.svg_out, doc.base)
                 if rel is None:
                     return f'<figure class="fallback failed" data-src="{doc.path}:0:0"><pre>{esc(arg)}</pre></figure>'
                 return f'<figure data-src="{doc.path}:0:0"><img src="{rel}"></figure>'
             from loom.scan.expand import resolve_inclusion
 
-            rel, problem = resolve_inclusion(self.root, arg)
+            rel, problem = resolve_inclusion(self.root, arg, base=doc.base)
             if rel is None or rel in seen:
                 if problem != "system":
                     ctx.diagnostics.append(
@@ -159,7 +161,7 @@ class CanonRenderer:
             child_at={},
             child_html=lambda key: "",
             include_html=include,
-            fallback=self.renderer._fallback_for_preamble(_preamble_for(doc.closure), doc.path),
+            fallback=self.renderer._fallback_for_preamble(_preamble_for(doc.closure), doc.path, doc.base),
             cite_target=self.renderer._cite_target,
             pairs=doc.pairs,
         )

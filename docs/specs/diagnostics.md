@@ -50,8 +50,8 @@ Source and structure:
 - `loom:multi-target-proof` (warning): a proof's optional argument references several nodes; attached to the first.
 - `loom:reference-to-loose` (error in masters, info in loose files): a reference to a node the master does not reach; never for a target in a digest file, which is loose by construction (DR-76).
 - `loom:duplicate-label` (error): a non-id label defined twice anywhere in the quilt.
-- `loom:macros-unloaded` (error): `\uses`, `\incomplete`, or `\nest` used in a master that does not load `loom.sty`.
-- `loom:macro-shadowed` (warning): the preamble defines one of the three names before `loom.sty`.
+- `loom:macros-unloaded` (error): `\uses`, `\incomplete`, or `\nest` used in a master that carries neither loom's macro block nor `\usepackage{loom}` with a `loom.sty` beside it.
+- `loom:macro-shadowed` (warning): the preamble defines one of the three names outside loom's macro block and `loom.sty`.
 - `loom:taxon-conflict` (warning): two masters declare different taxa for one environment.
 - `loom:prefix-is-citekey` (warning): the quilt's id prefix equals a bibliography key.
 - `loom:unknown-directive` (warning): a `% !LOOM` key not in the inventory.

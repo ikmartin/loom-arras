@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.paths import document_dir
 from loom.scan.labels import derived_of, is_id_shaped
 
 LEDGER = "ledger.jsonl"
@@ -155,6 +156,11 @@ class History:
     def landmark_path(self, e: Entry) -> Path:
         """Where a landmark's text lives: its file in the step's own directory."""
         return self.dir / (e.dir or "") / str(e.get("landmark"))
+
+    def landmark_base(self, e: Entry) -> str:
+        """The quilt-relative directory a landmark's names resolve against: its document's (`in`, or for an import the draft it began, beside which the paper's files were put), where the history's moves last took it, since its figures and bibliography are that document's (P12)."""
+        doc = str(e.get("in") or (e.get("drafted") or {}).get("path") or "")
+        return document_dir(self.document_trail(doc, ())[-1]) if doc else ""
 
     def superseded_paths(self) -> dict[str, Entry]:
         """Documents a conversion replaced (its `superseded` list), minus those a later `live` line restored or a later `move` line moved a document into; path -> the superseding entry."""

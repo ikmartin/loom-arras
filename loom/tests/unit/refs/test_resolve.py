@@ -210,7 +210,7 @@ def demo(tmp_path: Path) -> Path:
         fh.write(
             "\n@article{Edi98,\n  title = {Localization in Equivariant Intersection Theory and the Bott Residue Formula},\n  author = {Edidin, Dan and Graham, William},\n  year = {1998},\n}\n"
         )
-    node = q / "nodes" / "dm-0001.tex"
+    node = q / "drafting" / "nodes" / "dm-0001.tex"
     node.write_text(node.read_text().replace("\\end{definition}", "See \\cite{Edi98}.\n\\end{definition}", 1))
     return q
 

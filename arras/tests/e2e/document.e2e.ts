@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 test('a document expands its inclusions in place', async ({ page }) => {
 	await page.goto('/master/drafting/main');
-	await expect(page.locator('.fragment .included[data-file="nodes/sy-0002.tex"]')).toBeVisible();
+	await expect(page.locator('.fragment .included[data-file="drafting/nodes/sy-0002.tex"]')).toBeVisible();
 	await expect(page.locator('.fragment section[data-id="sy-0300"] h2')).toBeVisible();
 });
 

@@ -571,9 +571,9 @@ def test_the_session_log_holds_the_command_as_typed(tmp_path: Path) -> None:
 def test_titles_and_postnotes_are_said_in_the_readers_words(tmp_path: Path) -> None:
     """T4: `library` printed `\\textit{Stacks Project}` and `library WORK` `[Thm.~4.3]`; and the "cited by" heading counted places where the verdict counted keys (T5)."""
     q = demo(tmp_path)
-    node = q / "nodes" / "dm-0003.tex"
+    node = q / "drafting" / "nodes" / "dm-0003.tex"
     node.write_text(node.read_text() + "\nCompare \\cite{Har77}.\n")
-    bib = q / "refs.bib"
+    bib = q / "drafting" / "refs.bib"
     bib.write_text(
         bib.read_text().replace("title     = {Algebraic Geometry}", "title     = {\\textit{Algebraic} Geometry}")
     )

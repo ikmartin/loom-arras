@@ -105,20 +105,20 @@ def test_name_only_is_offered_without_mathematical_change(quilt):
 
 def test_shared_node_is_updated_in_its_home(quilt):
     root = quilt.root
-    (root / "nodes").mkdir()
+    (root / "drafting" / "nodes").mkdir()
     start = TEXT.index("\\begin{lemma}")
     end = TEXT.index("\\end{lemma}") + len("\\end{lemma}")
-    (root / "nodes/zk-0001.tex").write_text(TEXT[start:end] + "\n")
+    (root / "drafting/nodes/zk-0001.tex").write_text(TEXT[start:end] + "\n")
     (root / DOC).write_text(TEXT[:start] + "\\input{nodes/zk-0001}" + TEXT[end:])
     (root / "drafting/other.tex").write_text(
         "\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n\\input{nodes/zk-0001}\n\\end{document}\n"
     )
     edit(quilt, "First statement.", "Improved statement.")
     preview = prepare(scan(quilt), COPY, ["zk-0001"])
-    assert preview["paths"] == ["nodes/zk-0001.tex"]
+    assert preview["paths"] == ["drafting/nodes/zk-0001.tex"]
     incorporate(scan(quilt), COPY, preview["token"])
     assert "\\input{nodes/zk-0001}" in (root / DOC).read_text()
-    assert "Improved statement." in (root / "nodes/zk-0001.tex").read_text()
+    assert "Improved statement." in (root / "drafting/nodes/zk-0001.tex").read_text()
 
 
 def test_refresh_keeps_proposals_and_advances_prose_base(quilt):
@@ -272,11 +272,11 @@ def test_identical_changes_are_not_conflicts(quilt):
 
 def test_removing_shared_inclusion_preserves_node_file(quilt):
     root = quilt.root
-    (root / "nodes").mkdir()
+    (root / "drafting" / "nodes").mkdir()
     start = TEXT.index("\\begin{lemma}")
     end = TEXT.index("\\end{lemma}") + len("\\end{lemma}")
     node_text = TEXT[start:end] + "\n"
-    (root / "nodes/zk-0001.tex").write_text(node_text)
+    (root / "drafting/nodes/zk-0001.tex").write_text(node_text)
     (root / DOC).write_text(TEXT[:start] + "\\input{nodes/zk-0001}" + TEXT[end:])
     copy_text = (root / COPY).read_text()
     start = copy_text.index("\\begin{lemma}")
@@ -288,7 +288,7 @@ def test_removing_shared_inclusion_preserves_node_file(quilt):
     )
     preview = prepare(scan(quilt), COPY, ["zk-0001", "zk-0002"], True)
     incorporate(scan(quilt), COPY, preview["token"])
-    assert (root / "nodes/zk-0001.tex").read_text() == node_text
+    assert (root / "drafting/nodes/zk-0001.tex").read_text() == node_text
     assert "\\input{nodes/zk-0001}" not in (root / DOC).read_text()
 
 

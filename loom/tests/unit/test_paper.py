@@ -87,20 +87,21 @@ def ledger(q: Path) -> list[dict]:
 
 
 def test_import_keeps_the_paper_as_received_as_the_landmark_of_step_0001(tmp_path: Path) -> None:
-    """The paper as it arrived is one self-contained file kept in step 0001, nothing inserted; its assets are at the root, and the working document is drafted from it."""
+    """The paper as it arrived is one self-contained file kept in step 0001, nothing inserted; its assets sit beside the working document drafted from it, in a directory of its own."""
     p = paper_dir(tmp_path)
     r = ok("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     q = tmp_path / "q"
-    for rel in ("drafting/main.tex", "figures/fig.pdf", "refs.bib", "loom.sty", "config.toml"):
+    for rel in ("main/main.tex", "main/figures/fig.pdf", "main/refs.bib", "config.toml"):
         assert (q / rel).exists(), rel
+    assert not (q / "loom.sty").exists()  # the draft carries loom's macro block instead
     landmark = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
     assert "\\input{sections/results}" not in landmark and "\\input{preamble}" not in landmark
     assert "\\usepackage{amsmath}" in landmark and "Beta uses Lemma" in landmark  # both inlined in place
     assert "\\usepackage{loom}" not in landmark and "\\label{pp-" not in landmark  # as received: nothing inserted
-    assert not (q / "sections").exists() and not (q / "preamble.tex").exists()  # inlined, so not copied
+    assert not (q / "main" / "sections").exists() and not (q / "preamble.tex").exists()  # inlined, so not copied
     assert not (q / "canon").exists()
     assert (p / "main.tex").read_text() == PAPER  # the original is untouched
-    assert "drafting/main.tex typesets to the same text as the original" in said(r)
+    assert "main/main.tex typesets to the same text as the original" in said(r)
     assert r.stdout.startswith("created quilt") and r.stderr == ""  # the summary is on stdout, verdict first
 
     (step,) = ledger(q)
@@ -108,23 +109,23 @@ def test_import_keeps_the_paper_as_received_as_the_landmark_of_step_0001(tmp_pat
     assert step["from"] == {"name": "main.tex", "hash": text_hash(PAPER)}
     assert step["landmark"] == "main.tex" and step["to"] == {"path": "main.tex", "hash": text_hash(landmark)}
     assert sorted(step["inlined"]) == ["preamble.tex", "sections/results.tex"]
-    drafted = (q / "drafting" / "main.tex").read_text()
-    assert step["drafted"] == {"path": "drafting/main.tex", "hash": text_hash(drafted), "ids": 5}
+    drafted = (q / "main" / "main.tex").read_text()
+    assert step["drafted"] == {"path": "main/main.tex", "hash": text_hash(drafted), "ids": 5}
     assert ok("history", "show", "main", cwd=q).stdout == landmark
     ok("history", "verify", cwd=q)
 
 
 def test_import_drafts_the_working_document_with_ids_and_sets_main(tmp_path: Path) -> None:
-    """A working document is loom's own file: the package line and an id on every node, inserted in the draft and never in the landmark."""
+    """A working document is loom's own file: loom's macro block and an id on every node, inserted in the draft and never in the landmark."""
     q = imported(tmp_path)
-    main = (q / "drafting" / "main.tex").read_text()
-    assert main.splitlines()[1] == "\\usepackage{loom}"
+    main = (q / "main" / "main.tex").read_text()
+    assert main.splitlines()[1] == "% !LOOM begin loom-macros"
     assert "\\section{Setup}\\label{pp-0001}" in main  # ids follow document order
     assert "\\begin{definition}[Widget]\\label{pp-0002}\\label{def:widget}" in main
     assert "\\section{Results}\\label{pp-0003}" in main and "\\begin{lemma}\\label{pp-0004}" in main
     assert "\\label{lem:a}" in main  # the author's labels stay, as aliases
     assert "\\label{pp-" not in (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
-    assert 'main = "drafting/main.tex"' in (q / "config.toml").read_text()
+    assert 'main = "main/main.tex"' in (q / "config.toml").read_text()
     assert "dangling-link" in run("lint", cwd=q).output  # thm:missing was never defined in the paper
 
 
@@ -147,16 +148,16 @@ def test_import_leaves_the_paper_directory_and_no_scratch_behind(tmp_path: Path,
 def test_import_never_overwrites_a_document(tmp_path: Path) -> None:
     q = imported(tmp_path)
     p = tmp_path / "paper"
-    before = (q / "drafting" / "main.tex").read_text()
+    before = (q / "main" / "main.tex").read_text()
     refused(
         "import",
         str(p / "main.tex"),
         "--yes",
         cwd=q,
         code=2,
-        match="drafting/main.tex exists; import never overwrites a document",
+        match="main/main.tex exists; import never overwrites a document",
     )
-    assert len(ledger(q)) == 1 and (q / "drafting" / "main.tex").read_text() == before
+    assert len(ledger(q)) == 1 and (q / "main" / "main.tex").read_text() == before
 
 
 def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends_with_its_next_step(
@@ -166,16 +167,14 @@ def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends
     q = imported(tmp_path)
     p = tmp_path / "paper"
     r = refused("import", str(p / "main.tex"), "--yes", cwd=q, code=2, match="import never overwrites a document")
-    assert f"loom import {p / 'main.tex'} --to drafting/main-2.tex" in said(r)
+    assert f"loom import {p / 'main.tex'} --to main/main-2.tex" in said(r)
     # the dry run and the confirmation name the step this import will be, not the first
-    dry = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--dry-run", cwd=q)
+    dry = ok("import", str(p / "main.tex"), "--to", "main/main-2.tex", "--dry-run", cwd=q)
     assert "kept as received in step 0002" in said(dry) and "step 0001" not in said(dry)
-    asked = refused(
-        "import", str(p / "main.tex"), "--to", "drafting/main-2.tex", cwd=q, code=2, match="needs confirmation"
-    )
+    asked = refused("import", str(p / "main.tex"), "--to", "main/main-2.tex", cwd=q, code=2, match="needs confirmation")
     assert "kept as received in step 0002" in said(asked)
-    r2 = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--yes", cwd=q)
-    assert (q / "drafting" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
+    r2 = ok("import", str(p / "main.tex"), "--to", "main/main-2.tex", "--yes", cwd=q)
+    assert (q / "main" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
     assert r2.stdout.rstrip().splitlines()[-1].strip() == "next: loom lint; loom build"
     refused("import", str(p / "main.tex"), "--to", "notes/x.tex", "--yes", cwd=q, code=2, match="is inside notes/")
 
@@ -193,9 +192,9 @@ def test_import_asks_before_writing(tmp_path: Path) -> None:
     q = bare_quilt(tmp_path)
     r = refused("import", str(p / "main.tex"), cwd=q, code=2, match="needs confirmation")
     assert r.stderr.startswith("Error: import needs confirmation")  # and it shows what it would write
-    assert "main.tex -> drafting/main.tex (linearized, 2 files inlined; kept as received in step 0001)" in r.output
-    assert "drafting/main.tex: \\usepackage{loom} and 5 ids" in r.output
-    assert not (q / "drafting" / "main.tex").exists() and not (q / "refs.bib").exists() and ledger(q) == []
+    assert "main.tex -> main/main.tex (linearized, 2 files inlined; kept as received in step 0001)" in r.output
+    assert "main/main.tex: loom's macro block and 5 ids" in r.output
+    assert not (q / "main" / "main.tex").exists() and not (q / "main" / "refs.bib").exists() and ledger(q) == []
     r2 = ok("import", str(p / "main.tex"), "--yes", cwd=q)
     assert "the paper as received is landmark main, step 0001" in said(r2)
 
@@ -221,13 +220,13 @@ def test_import_refuses_line_anchoring_with_the_paper_s_lines_and_fix_anchoring(
     assert not (tmp_path / "q").exists()  # init --from undoes its skeleton when the import refuses
     q = bare_quilt(tmp_path)
     r = refused("import", str(p / "main.tex"), "--yes", cwd=q, code=1, match="line-anchoring")
-    assert not (q / "drafting" / "main.tex").exists() and ledger(q) == []
+    assert not (q / "main" / "main.tex").exists() and ledger(q) == []
     ok("import", str(p / "main.tex"), "--yes", "--fix-anchoring", cwd=q)
     landmark = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
     assert "\\label{lem:a} Alpha" in landmark  # the paper as received is kept as it is
     lemma = the(enumerate(landmark.splitlines(), 1), lambda il: "\\begin{lemma}" in il[1], "\\begin{lemma} line")[0]
     assert f"line {lemma}: \\begin{{lemma}}" in r.output
-    fixed = (q / "drafting" / "main.tex").read_text()
+    fixed = (q / "main" / "main.tex").read_text()
     assert "\\begin{lemma}\\label{pp-" in fixed and "\nAlpha" in fixed and "Obvious.\n\\end{proof}" in fixed
     assert anchoring_violations(fixed, {"lemma", "theorem", "definition"}) == []
 
@@ -250,32 +249,33 @@ def test_import_outside_tree_warning_and_in_place(tmp_path: Path) -> None:
     (p / "main.tex").write_text(PAPER.replace("\\input{preamble}", "\\input{preamble}\n\\input{../elsewhere}"))
     r = ok("init", str(p), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     assert "loom:import-outside-tree" in r.output
-    assert (p / "config.toml").exists() and (p / "drafting" / "main.tex").is_file()
+    assert (p / "config.toml").exists() and (p / "main" / "main.tex").is_file()
     assert (p / "main.tex").read_text().startswith("\\documentclass")  # the original still there, unmodified
     landmark = (p / ".loom" / "history" / "0001-main" / "main.tex").read_text()
     assert "\\input{../elsewhere}" in landmark  # left as written; loom copied nothing
-    assert "\\input{../elsewhere}" in (p / "drafting" / "main.tex").read_text()
+    assert "\\input{../elsewhere}" in (p / "main" / "main.tex").read_text()
 
 
 def test_id_prints_patch_and_to_writes_copy(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    (q / "nodes" / "extra.tex").write_text(
+    (q / "main" / "nodes").mkdir(exist_ok=True)
+    (q / "main" / "nodes" / "extra.tex").write_text(
         "\\begin{lemma}\\label{lem:extra}\nE\n\\end{lemma}\n\\subsection{Sub}\n\\paragraph{Par}\n"
     )
-    r = ok("id", "nodes/extra.tex", cwd=q)
+    r = ok("id", "main/nodes/extra.tex", cwd=q)
     assert (
         "+\\begin{lemma}\\label{pp-" in r.output
         and "+\\subsection{Sub}\\label{pp-" in r.output
         and "\\paragraph{Par}\\label" not in r.output
     )
-    r2 = run("id", "nodes/extra.tex", "--all-levels", "--no-sections", cwd=q)
+    r2 = run("id", "main/nodes/extra.tex", "--all-levels", "--no-sections", cwd=q)
     assert "\\subsection{Sub}\\label" not in r2.output
-    ok("id", "nodes/extra.tex", "--to", str(tmp_path / "extra-labelled.tex"), cwd=q)
+    ok("id", "main/nodes/extra.tex", "--to", str(tmp_path / "extra-labelled.tex"), cwd=q)
     assert "\\label{pp-" in (tmp_path / "extra-labelled.tex").read_text()
-    assert "\\label{pp-" not in (q / "nodes" / "extra.tex").read_text()
+    assert "\\label{pp-" not in (q / "main" / "nodes" / "extra.tex").read_text()
     refused(
         "id",
-        "nodes/extra.tex",
+        "main/nodes/extra.tex",
         "--to",
         str(tmp_path / "extra-labelled.tex"),
         cwd=q,
@@ -286,16 +286,16 @@ def test_id_prints_patch_and_to_writes_copy(tmp_path: Path) -> None:
 
 def test_id_fix_anchoring_combines_repairs_and_labels_without_editing_source(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    source = q / "drafting" / "note.tex"
+    source = q / "main" / "note.tex"
     authored = (
         "\\documentclass{amsart}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n"
         "Text \\begin{lemma}Alpha\\end{lemma} tail\n\\section{Another}\n\\end{document}\n"
     )
     source.write_text(authored)
-    refused = run("id", "drafting/note.tex", cwd=q)
+    refused = run("id", "main/note.tex", cwd=q)
     assert refused.exit_code == 1 and "pass --fix-anchoring" in flat(refused.output)
 
-    patch = run("id", "drafting/note.tex", "--fix-anchoring", cwd=q)
+    patch = run("id", "main/note.tex", "--fix-anchoring", cwd=q)
     assert patch.exit_code == 0, patch.output
     assert "+\\begin{lemma}\\label{pp-" in patch.output
     assert "+\\section{Another}\\label{pp-" in patch.output
@@ -303,7 +303,7 @@ def test_id_fix_anchoring_combines_repairs_and_labels_without_editing_source(tmp
     assert source.read_text() == authored
 
     dest = tmp_path / "extra-fixed.tex"
-    copied = run("id", "drafting/note.tex", "--fix-anchoring", "--to", str(dest), cwd=q)
+    copied = run("id", "main/note.tex", "--fix-anchoring", "--to", str(dest), cwd=q)
     assert copied.exit_code == 0, copied.output
     fixed = dest.read_text()
     assert "Text\n\\begin{lemma}\\label{pp-" in fixed
@@ -315,10 +315,11 @@ def test_id_fix_anchoring_combines_repairs_and_labels_without_editing_source(tmp
 
 def test_id_fix_anchoring_can_repair_without_inserting_ids(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    source = q / "nodes" / "extra.tex"
+    source = q / "main" / "nodes" / "extra.tex"
+    source.parent.mkdir(exist_ok=True)
     authored = "Prose \\begin{lemma}\\label{pp-0099}Text\\end{lemma} more\n"
     source.write_text(authored)
-    patch = run("id", "nodes/extra.tex", "--fix-anchoring", "--no-sections", cwd=q)
+    patch = run("id", "main/nodes/extra.tex", "--fix-anchoring", "--no-sections", cwd=q)
     assert patch.exit_code == 0, patch.output
     assert "+\\begin{lemma}\\label{pp-0099}" in patch.output
     assert "nothing to label" not in patch.output
@@ -329,36 +330,36 @@ def test_id_fix_anchoring_can_repair_without_inserting_ids(tmp_path: Path) -> No
 
 def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    refused("atomize", "drafting/main.tex", cwd=q, code=2, match="name the spine to write with --to FILE")
-    r2 = ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
-    spine = (q / "drafting" / "spine.tex").read_text()
+    refused("atomize", "main/main.tex", cwd=q, code=2, match="name the spine to write with --to FILE")
+    r2 = ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
+    spine = (q / "main" / "spine.tex").read_text()
     assert "\\input{nodes/pp-" in spine and "\\begin{definition}" not in spine
-    node_files = sorted(f for f in (q / "nodes").glob("pp-*.tex") if ".proof" not in f.name)
+    node_files = sorted(f for f in (q / "main" / "nodes").glob("pp-*.tex") if ".proof" not in f.name)
     assert len(node_files) == 3  # the definition, the lemma with its adjacent proof, the theorem
     assert any("\\begin{definition}[Widget]" in f.read_text() for f in node_files)
-    assert "drafting/spine.tex typesets to the same text as drafting/main.tex" in said(r2)
-    assert f"{len(list((q / 'nodes').glob('*.tex')))} node files in nodes/" in said(
+    assert "main/spine.tex typesets to the same text as main/main.tex" in said(r2)
+    assert f"{len(list((q / 'main' / 'nodes').glob('*.tex')))} node files in main/nodes/" in said(
         r2
     )  # the written group says them (T5)
-    assert (q / "drafting" / "main.tex").read_text().count("\\begin{definition}") == 1  # SRC untouched on disk
+    assert (q / "main" / "main.tex").read_text().count("\\begin{definition}") == 1  # SRC untouched on disk
     lemma = next(f for f in node_files if "Alpha" in f.read_text())
     assert "\\begin{proof}\nObvious." in lemma.read_text()  # adjacent proof travels with its statement
-    files = {f.name for f in (q / "nodes").glob("*.tex")}
+    files = {f.name for f in (q / "main" / "nodes").glob("*.tex")}
     assert any(f.endswith(".proof.tex") for f in files), files  # the deferred proof of the theorem
 
     # the source is superseded, not edited: it defines nothing, and no id is defined twice
     line = json.loads((q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()[-1])
-    assert line["action"] == "atomize" and line["superseded"] == ["drafting/main.tex"]
+    assert line["action"] == "atomize" and line["superseded"] == ["main/main.tex"]
     lint = run("lint", cwd=q)
     assert "duplicate-id" not in lint.output and "loom:superseded-file" in lint.output
-    assert 'main = "drafting/spine.tex"' in (q / "config.toml").read_text()  # the default master moved with the spine
+    assert 'main = "main/spine.tex"' in (q / "config.toml").read_text()  # the default master moved with the spine
 
     # superseded
     refused(
         "atomize",
-        "drafting/main.tex",
+        "main/main.tex",
         "--to",
-        "drafting/again.tex",
+        "main/again.tex",
         cwd=q,
         code=1,
         match="is superseded and defines nothing",
@@ -367,24 +368,24 @@ def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
 
 def test_live_makes_a_superseded_document_define_again(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
     assert "duplicate-id" not in run("lint", cwd=q).output
-    said = ok("live", "drafting/main.tex", cwd=q).output
+    said = ok("live", "main/main.tex", cwd=q).output
     # it says what it did: every id the document defines is now defined twice, each named with the command that splits it
     assert "is live, and" in said and "now defined twice" in said and "loom fork pp-" in said
     lint = run("lint", cwd=q)
     assert "duplicate-id" in lint.output  # both define every node now, and neither wins
     assert "loom:superseded-file" not in lint.output
-    refused("live", "drafting/main.tex", cwd=q, code=2, match="is not superseded")  # not superseded any more
+    refused("live", "main/main.tex", cwd=q, code=2, match="is not superseded")  # not superseded any more
 
 
 def test_atomize_retire_moves_the_source(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--retire", cwd=q)
-    assert not (q / "drafting" / "main.tex").exists()
-    assert (q / "retired" / "drafting" / "main.tex").read_text().count("\\begin{definition}") == 1
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", "--retire", cwd=q)
+    assert not (q / "main" / "main.tex").exists()
+    assert (q / "retired" / "main" / "main.tex").read_text().count("\\begin{definition}") == 1
     line = json.loads((q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()[-1])
-    assert line["retired"] == ["retired/drafting/main.tex"] and line["superseded"] == []
+    assert line["retired"] == ["retired/main/main.tex"] and line["superseded"] == []
     assert "duplicate-id" not in run("lint", cwd=q).output  # retired/ is not scanned
 
 
@@ -396,88 +397,88 @@ def test_an_acceptance_follows_its_document_through_atomize(tmp_path: Path) -> N
     for retire in ([], ["--retire"]):
         q = imported(tmp_path / ("retired" if retire else "superseded"))
         ok("accept", "pp-0005", "--force", "--as", "R", cwd=q)
-        ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", *retire, cwd=q)
+        ok("atomize", "main/main.tex", "--to", "main/spine.tex", *retire, cwd=q)
         acc = json_of("status", "--json", cwd=q)["keys"]["pp-0005"]["acceptance"]
         assert acc["fresh"] is True, acc
 
 
 def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    main = q / "drafting" / "main.tex"
+    main = q / "main" / "main.tex"
     main.write_text(main.read_text().replace("\\begin{lemma}", "% !LOOM tags: moved-with-me\n\\begin{lemma}", 1))
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--proofs", "separate", cwd=q)
-    lemma = next(f for f in (q / "nodes").glob("pp-*.tex") if "Alpha" in f.read_text())
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", "--proofs", "separate", cwd=q)
+    lemma = next(f for f in (q / "main" / "nodes").glob("pp-*.tex") if "Alpha" in f.read_text())
     assert lemma.read_text().startswith("% !LOOM tags: moved-with-me\n") and "\\begin{proof}" not in lemma.read_text()
-    proof = next(f for f in (q / "nodes").glob("*.proof.tex") if "Obvious" in f.read_text())
+    proof = next(f for f in (q / "main" / "nodes").glob("*.proof.tex") if "Obvious" in f.read_text())
     assert proof.exists()
 
 
 def test_atomize_sections_and_linearize_round_trip(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    before = (q / "drafting" / "main.tex").read_text()
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--sections", cwd=q)
-    spine = (q / "drafting" / "spine.tex").read_text()
+    before = (q / "main" / "main.tex").read_text()
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", "--sections", cwd=q)
+    spine = (q / "main" / "spine.tex").read_text()
     assert "\\input{nodes/pp-" in spine and "\\section{Results}" not in spine
-    section_file = next(f for f in (q / "nodes").glob("pp-*.tex") if "\\section{Results}" in f.read_text())
+    section_file = next(f for f in (q / "main" / "nodes").glob("pp-*.tex") if "\\section{Results}" in f.read_text())
     assert "\\input{nodes/pp-" in section_file.read_text() and "Prose between" in section_file.read_text()
-    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", "--no-check", cwd=q)
-    assert (q / "drafting" / "back.tex").read_text().split() == before.split()
+    ok("linearize", "main/spine.tex", "--to", "main/back.tex", "--no-check", cwd=q)
+    assert (q / "main" / "back.tex").read_text().split() == before.split()
     refused(
         "linearize",
-        "drafting/back.tex",
+        "main/back.tex",
         "--to",
-        "drafting/back.tex",
+        "main/back.tex",
         cwd=q,
         code=2,
-        match="drafting/back.tex exists; loom does not overwrite it",
+        match="main/back.tex exists; loom does not overwrite it",
     )
 
 
 def test_linearize_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    (q / "sections").mkdir(exist_ok=True)
-    (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nN\n")
-    m = q / "drafting" / "main.tex"
+    (q / "main" / "sections").mkdir(exist_ok=True)
+    (q / "main" / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nN\n")
+    m = q / "main" / "main.tex"
     m.write_text(m.read_text().replace("\\end{document}", "\\nest{sections/nested}\n\\end{document}"))
-    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", cwd=q)
-    flat = (q / "drafting" / "flat.tex").read_text()
+    r = ok("linearize", "main/main.tex", "--to", "main/flat.tex", cwd=q)
+    flat = (q / "main" / "flat.tex").read_text()
     assert "\\subsection{Nested}" in flat and "\\nest{" not in flat
-    assert "it typesets to the same text as drafting/main.tex" in said(r)
+    assert "it typesets to the same text as main/main.tex" in said(r)
     res = scan(load_quilt(q))
-    assert "drafting/flat.tex" in res.masters
+    assert "main/flat.tex" in res.masters
 
 
 def test_linearize_refuses_shared_nodes_keeps_or_forks_them(tmp_path: Path) -> None:
     """A node is defined once and included many times: inlining a file two documents include would define it twice, so linearize refuses and names both continuations."""
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
-    shared = next(f for f in sorted((q / "nodes").glob("pp-*.tex")) if "Alpha" in f.read_text())
-    (q / "drafting" / "talk.tex").write_text(
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
+    shared = next(f for f in sorted((q / "main" / "nodes").glob("pp-*.tex")) if "Alpha" in f.read_text())
+    (q / "main" / "talk.tex").write_text(
         "\\documentclass{article}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
         "\\newtheorem{theorem}{Theorem}\n\\newtheorem{lemma}[theorem]{Lemma}\n"
         "\\begin{document}\n\\input{nodes/" + shared.stem + "}\n\\end{document}\n"
     )
     refused(
         "linearize",
-        "drafting/talk.tex",
+        "main/talk.tex",
         "--to",
-        "drafting/talk-flat.tex",
+        "main/talk-flat.tex",
         "--no-check",
         cwd=q,
         code=1,
-        match="also included by drafting/spine.tex",
+        match="also included by main/spine.tex",
     )
-    assert not (q / "drafting" / "talk-flat.tex").exists()
+    assert not (q / "main" / "talk-flat.tex").exists()
 
-    ok("linearize", "drafting/talk.tex", "--to", "drafting/talk-kept.tex", "--keep-shared", "--no-check", cwd=q)
-    text = (q / "drafting" / "talk-kept.tex").read_text()
+    ok("linearize", "main/talk.tex", "--to", "main/talk-kept.tex", "--keep-shared", "--no-check", cwd=q)
+    text = (q / "main" / "talk-kept.tex").read_text()
     assert "% !LOOM shared:" in text and f"\\input{{nodes/{shared.stem}}}" in text
-    ok("live", "drafting/talk.tex", cwd=q)
+    ok("live", "main/talk.tex", cwd=q)
 
     # the forked lemma cites the definition, which talk.tex never reached: an error its source did not have, so exit 1
-    r = exits(1, "linearize", "drafting/talk.tex", "--to", "drafting/talk-fork.tex", "--fork", "--no-check", cwd=q)
-    assert "errors drafting/talk.tex did not have (1)" in r.stdout and "which its master does not reach" in r.stdout
-    flat = (q / "drafting" / "talk-fork.tex").read_text()
+    r = exits(1, "linearize", "main/talk.tex", "--to", "main/talk-fork.tex", "--fork", "--no-check", cwd=q)
+    assert "errors main/talk.tex did not have (1)" in r.stdout and "which its master does not reach" in r.stdout
+    flat = (q / "main" / "talk-fork.tex").read_text()
     assert "\\input{nodes/" not in flat and "Alpha" in flat
     new_id = flat.split("\\label{")[1].split("}")[0]
     assert new_id.startswith("pp-") and new_id != shared.stem
@@ -490,28 +491,26 @@ def test_selector_survives_atomize(tmp_path: Path) -> None:
     ok("annotate", "pp-0005", "Which lemma?", "--quote", "Beta uses", "--kind", "question", "--as", "R", cwd=q)
     before = run("status", "--explain", "pp-0005", cwd=q).output
     assert "1 open question" in before and "detached" not in before
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
     after = run("status", "--explain", "pp-0005", cwd=q).output
     assert "1 open question" in after and "detached" not in after, after
-    assert "nodes/pp-0005.tex" in after
+    assert "main/nodes/pp-0005.tex" in after
     assert "detached-annotation" not in run("lint", cwd=q).output
 
 
 def widget(q: Path) -> str:
-    """The key of the Widget definition in drafting/main.tex, the environment the one-key atomize tests move."""
+    """The key of the Widget definition in main/main.tex, the environment the one-key atomize tests move."""
     nodes = scan(load_quilt(q)).assembly.nodes
-    return the(
-        nodes, lambda k: nodes[k].env == "definition" and nodes[k].file == "drafting/main.tex", "Widget definition"
-    )
+    return the(nodes, lambda k: nodes[k].env == "definition" and nodes[k].file == "main/main.tex", "Widget definition")
 
 
 def test_id_next_prints_a_free_id_and_inserts_nothing(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    before = (q / "drafting" / "main.tex").read_text()
+    before = (q / "main" / "main.tex").read_text()
     r = ok("id", "--next", cwd=q)
     allocated = r.output.strip()
-    assert allocated.startswith("pp-") and allocated not in (q / "drafting" / "main.tex").read_text()
-    assert (q / "drafting" / "main.tex").read_text() == before
+    assert allocated.startswith("pp-") and allocated not in (q / "main" / "main.tex").read_text()
+    assert (q / "main" / "main.tex").read_text() == before
     js = json_of("id", "--next", "--json", cwd=q)
     assert (js["id"], js["prefix"], js["verdict"]) == (allocated, "pp", allocated)
     refused("id", cwd=q, code=2, match="name a file to label, or pass --next")  # a file, or --next
@@ -520,27 +519,27 @@ def test_id_next_prints_a_free_id_and_inserts_nothing(tmp_path: Path) -> None:
 def test_atomize_one_key_writes_the_node_and_leaves_the_source_to_the_author(tmp_path: Path) -> None:
     q = imported(tmp_path)
     key = widget(q)
-    before = (q / "drafting" / "main.tex").read_text()
+    before = (q / "main" / "main.tex").read_text()
     states_before = sorted(run("status", cwd=q).output.splitlines())
 
     r = ok("atomize", "--key", key, cwd=q)
-    node_file = q / "nodes" / f"{key}.tex"
+    node_file = q / "main" / "nodes" / f"{key}.tex"
     assert node_file.is_file() and key in node_file.read_text()
-    assert (q / "drafting" / "main.tex").read_text() == before, "loom never edits the source"
+    assert (q / "main" / "main.tex").read_text() == before, "loom never edits the source"
     assert f"+\\input{{nodes/{key}}}" in r.output and f"-\\begin{{definition}}[Widget]\\label{{{key}}}" in r.output
     # run again before the patch is applied, it prints the same patch, where it once said "nothing to move" (T3)
-    files = sorted((q / "nodes").glob("*.tex"))
+    files = sorted((q / "main" / "nodes").glob("*.tex"))
     again = ok("atomize", "--key", key, cwd=q)
     assert "already written" in said(again) and again.output.split("\n\n", 1)[-1] == r.output.split("\n\n", 1)[-1]
-    assert sorted((q / "nodes").glob("*.tex")) == files  # and writes nothing more
+    assert sorted((q / "main" / "nodes").glob("*.tex")) == files  # and writes nothing more
     # until it is applied, `status` and `lint` name that rerun, not a fork that would leave both copies (T3)
-    assert json_of("status", "--json", cwd=q)["keys"][key]["fixes"] == [f"loom atomize drafting/main.tex --key {key}"]
+    assert json_of("status", "--json", cwd=q)["keys"][key]["fixes"] == [f"loom atomize main/main.tex --key {key}"]
     dup = the(json_of("lint", "--json", cwd=q, code=1)["diagnostics"], lambda d: d["code"] == "duplicate-id", "dup")
-    assert [f["command"] for f in dup["fixes"]] == [f"loom atomize drafting/main.tex --key {key}"]
+    assert [f["command"] for f in dup["fixes"]] == [f"loom atomize main/main.tex --key {key}"]
 
     # applying the patch is the author's act; afterwards the quilt holds one definition and every state is where it was
     patched = before.replace(node_file.read_text().rstrip("\n"), f"\\input{{nodes/{key}}}")
-    (q / "drafting" / "main.tex").write_text(patched)
+    (q / "main" / "main.tex").write_text(patched)
     assert "duplicate-id" not in run("lint", cwd=q).output, "one definition of the node, once the patch is applied"
     assert sorted(run("status", cwd=q).output.splitlines()) == states_before, "moving a node into nodes/ moves no state"
 
@@ -552,16 +551,16 @@ def test_atomize_key_dry_run_writes_nothing_and_carries_the_edit(tmp_path: Path)
     assert plan["dry_run"] is True
     assert plan["keys"] == [key] and plan["refusals"] == []
     (edit,) = plan["edits"]
-    assert edit["file"] == "drafting/main.tex" and edit["text"] == f"\\input{{nodes/{key}}}"
+    assert edit["file"] == "main/main.tex" and edit["text"] == f"\\input{{nodes/{key}}}"
     (made,) = plan["files"]
-    assert made["path"] == f"nodes/{key}.tex" and made["text"].endswith("\n")
-    text = (q / "drafting" / "main.tex").read_text()
+    assert made["path"] == f"main/nodes/{key}.tex" and made["text"].endswith("\n")
+    text = (q / "main" / "main.tex").read_text()
     assert text[edit["start"] : edit["end"]] == made["text"].rstrip("\n"), "the region is what moves"
-    assert not (q / "nodes" / f"{key}.tex").exists(), "--dry-run writes nothing"
+    assert not (q / "main" / "nodes" / f"{key}.tex").exists(), "--dry-run writes nothing"
     # --json is not a dry run (K4): it writes, and reports the same plan and what it wrote
     done = json_of("atomize", "--key", key, "--json", cwd=q)
-    assert "dry_run" not in done and done["written"] == [f"nodes/{key}.tex"] and done["edits"] == plan["edits"]
-    assert (q / "nodes" / f"{key}.tex").read_text() == made["text"]
+    assert "dry_run" not in done and done["written"] == [f"main/nodes/{key}.tex"] and done["edits"] == plan["edits"]
+    assert (q / "main" / "nodes" / f"{key}.tex").read_text() == made["text"]
 
 
 def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:
@@ -570,8 +569,8 @@ def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:
     section = next(k for k, n in scan(load_quilt(q)).assembly.nodes.items() if n.kind == "section")
 
     ok("atomize", "--key", key, cwd=q)
-    main = q / "drafting" / "main.tex"
-    moved = (q / "nodes" / f"{key}.tex").read_text().rstrip("\n")
+    main = q / "main" / "main.tex"
+    moved = (q / "main" / "nodes" / f"{key}.tex").read_text().rstrip("\n")
     main.write_text(main.read_text().replace(moved, f"\\input{{nodes/{key}}}"))
     refused("atomize", "--key", key, cwd=q, code=1, match="already lives in")
     refused("atomize", "--key", section, cwd=q, code=1, match="is a section")
@@ -587,7 +586,7 @@ def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:
 
 def test_atomize_key_moves_an_attached_proof_with_its_statement(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    main = q / "drafting" / "main.tex"
+    main = q / "main" / "main.tex"
     key = widget(q)
     node = scan(load_quilt(q)).assembly.nodes[key]
     text = main.read_text()
@@ -595,7 +594,7 @@ def test_atomize_key_moves_an_attached_proof_with_its_statement(tmp_path: Path) 
     proof_key = next(k for k, n in scan(load_quilt(q)).assembly.nodes.items() if n.kind == "proof")
 
     ok("atomize", "--key", proof_key, cwd=q)
-    moved = (q / "nodes" / f"{key}.tex").read_text()
+    moved = (q / "main" / "nodes" / f"{key}.tex").read_text()
     assert "\\begin{proof}" in moved and "\\begin{definition}" in moved, "the statement carries its proof"
 
 
@@ -647,7 +646,7 @@ def test_atomize_and_linearize_say_what_they_are_doing_on_a_long_run(tmp_path: P
     monkeypatch.setattr(loom.cli.paper, "Progress", Slow)
     monkeypatch.setattr(loom.cli.history_cmds, "Progress", Slow)
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
-    assert "writing" in said[-1] and "identity test: compiling drafting/main.tex and drafting/spine.tex" in said[-1]
-    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", cwd=q)
-    assert "flattening" in said[-1] and "identity test: compiling drafting/spine.tex" in said[-1]
+    ok("atomize", "main/main.tex", "--to", "main/spine.tex", cwd=q)
+    assert "writing" in said[-1] and "identity test: compiling main/main.tex and main/spine.tex" in said[-1]
+    ok("linearize", "main/spine.tex", "--to", "main/back.tex", cwd=q)
+    assert "flattening" in said[-1] and "identity test: compiling main/spine.tex" in said[-1]

@@ -51,10 +51,10 @@ test('an annotation filed from the command line is drawn into the open document,
 test('an edit keeps the blocks after it in its file, and moves their offsets', async ({ page, served }) => {
 	await page.goto('/master/drafting/main');
 	await allTypeset(page);
-	const blocks = page.locator('[data-pane="0"] .fragment [data-src^="nodes/sy-0002.tex:"]');
+	const blocks = page.locator('[data-pane="0"] .fragment [data-src^="drafting/nodes/sy-0002.tex:"]');
 	const last = await blocks.last().getAttribute('data-src');
 	await watch(page, `[data-pane="0"] .fragment [data-src="${last}"]`);
-	const file = join(served.root, 'nodes', 'sy-0002.tex');
+	const file = join(served.root, 'drafting', 'nodes', 'sy-0002.tex');
 	writeFileSync(file, readFileSync(file, 'utf8').replace('one or two points', 'one or two points, never more'));
 	await expect(page.locator('[data-pane="0"] .fragment').getByText('never more')).toBeVisible({ timeout: 15000 });
 	const after = await page.evaluate(() => {

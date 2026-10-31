@@ -52,7 +52,7 @@ def quilt_at(tmp_path: Path, files: dict[str, str]) -> Path:
     root = tmp_path / "quilt"
     root.mkdir()
     (root / "config.toml").write_text(CONFIG, encoding="utf-8")
-    for rel, text in {"loom.sty": "% local support\n", **files}.items():
+    for rel, text in {"drafting/loom.sty": "% local support\n", **files}.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text, encoding="utf-8")
     return root
@@ -105,11 +105,11 @@ def compiled(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     seen: list[str] = []
 
-    def compile_ok(_root: Path, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
+    def compile_ok(_root: Path, _base: str, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
         seen.append(master)
         return SimpleNamespace(ok=True)
 
-    monkeypatch.setattr(sync, "compile_tex", compile_ok)
+    monkeypatch.setattr(sync, "compile_document", compile_ok)
     return seen
 
 
@@ -176,29 +176,33 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
         {"status": "A", "path": "references.bib"},
     ]
     patch = incoming_patch(quilt, state)
-    assert b"zk-0001}B" in patch and b"a/drafting/main.tex" in patch and b"b/new-section.tex" in patch
+    # the workspace's root is the main document's directory, so its files land there
+    assert b"zk-0001}B" in patch and b"a/drafting/main.tex" in patch and b"b/drafting/new-section.tex" in patch
     report = build(quilt)
     assert report.manifest["incoming"]["workspace"] == str(bare)
-    assert [change["key"] for change in report.manifest["incoming"]["changes"]] == ["zk-0001", "prose:new-section.tex"]
+    assert [change["key"] for change in report.manifest["incoming"]["changes"]] == [
+        "zk-0001",
+        "prose:drafting/new-section.tex",
+    ]
     bib = next(f for f in report.manifest["incoming"]["files"] if f["path"] == "references.bib")
     assert "A collaborator reference" in bib["diff"]
     with pytest.raises(SyncError, match="awaiting incorporation"):
         publish(quilt, state)
 
     after = pull_files(quilt, state)
-    assert sorted(after) == ["drafting/main.tex", "new-section.tex", "references.bib"]
+    assert sorted(after) == ["drafting/main.tex", "drafting/new-section.tex", "drafting/references.bib"]
     assert b"zk-0001}B" in after["drafting/main.tex"] and b"the author's note" in after["drafting/main.tex"]
-    assert (root / "drafting/main.tex").read_bytes() == before and not (root / "new-section.tex").exists()
+    assert (root / "drafting/main.tex").read_bytes() == before and not (root / "drafting/new-section.tex").exists()
     with pytest.raises(ApiError) as refusal:
         handle(root, "sync-incorporate", {"incoming": "0" * 40, "base": state.integrated})
     assert refusal.value.code == "revision-changed"
     finished = handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})["result"]
     state = SyncState.read(root)
     assert finished["integrated"] == state.integrated == state.incoming
-    assert finished["paths"] == ["drafting/main.tex", "new-section.tex", "references.bib"]
+    assert finished["paths"] == ["drafting/main.tex", "drafting/new-section.tex", "drafting/references.bib"]
     text = (root / "drafting/main.tex").read_text(encoding="utf-8")
     assert "zk-0001}B" in text and "% the author's note" in text  # applied hunk by hunk
-    assert (root / "new-section.tex").read_text() == "New collaborator file.\n"
+    assert (root / "drafting/new-section.tex").read_text() == "New collaborator file.\n"
     assert finished["landmarks"] == [f"main-before-pull-{state.incoming[:12]}"]
     assert landmark_text(root, finished["landmarks"][0]) == before.decode()
     assert not (root / ".git").exists()
@@ -358,7 +362,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
             "drafting/toy.tex": PREAMBLE
             + "\\begin{document}\n\\input{shared/common}\n\\begin{lemma}\\label{zk-0002}Toy.\\end{lemma}\n\\end{document}\n",
             "drafting/private.tex": PREAMBLE + "\\begin{document}Not selected.\\end{document}\n",
-            "shared/common.tex": "\\begin{lemma}\\label{zk-0001}Shared.\\end{lemma}\n",
+            "drafting/shared/common.tex": "\\begin{lemma}\\label{zk-0001}Shared.\\end{lemma}\n",
             ".loom/private.txt": "private\n",
         },
     )
@@ -369,28 +373,29 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     assert SyncState.read(root).documents == ["drafting/main.tex", "drafting/toy.tex"]
     tip = run(bare, "rev-parse", "master")
 
-    def toy_fails(_root: Path, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(ok=master != "drafting/toy.tex", first_error="toy failed")
+    def toy_fails(_root: Path, _base: str, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(ok=master != "toy.tex", first_error="toy failed")
 
-    monkeypatch.setattr(sync, "compile_tex", toy_fails)
+    monkeypatch.setattr(sync, "compile_document", toy_fails)
     with pytest.raises(SyncError, match="drafting/toy.tex does not compile"):
         publish(quilt, state)
     assert load_history(quilt.history_dir).landmarks() == []  # a refused publication stamps nothing
-    monkeypatch.setattr(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True))
+    monkeypatch.setattr(sync, "compile_document", lambda *_a, **_k: SimpleNamespace(ok=True))
 
     publication = publish(quilt, state)
-    assert publication.paths == ["drafting/toy.tex", "loom.sty", "main.tex", "shared/common.tex"]
+    # the main document's directory is the workspace's root, so its files publish by their paths from there
+    assert publication.paths == ["loom.sty", "main.tex", "shared/common.tex", "toy.tex"]
     assert set(tree_files(workspace(root), publication.commit)) == set(publication.paths)
     assert len(publication.landmarks) == 2 and run(bare, "rev-parse", "master") == tip
     again = publish(quilt, SyncState.read(root))
     assert again.reused and again.commit == publication.commit and len(load_history(quilt.history_dir).landmarks()) == 2
-    (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, edited.\\end{lemma}\n")
+    (root / "drafting/shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, edited.\\end{lemma}\n")
     edited = publish(quilt, SyncState.read(root))  # what is on disk publishes; nothing has to be committed
     assert edited.commit != publication.commit
     assert b"Shared, edited." in tree_files(workspace(root), edited.commit)["shared/common.tex"]
 
     collision = SyncState.read(root)
-    collision.published_main = "drafting/toy.tex"
+    collision.published_main = "toy.tex"
     with pytest.raises(SyncError, match="two quilt files"):
         publish(quilt, collision)
 
@@ -404,7 +409,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     assert run(bare, "rev-parse", "master") == state.prepared == state.integrated == state.incoming
     assert flat(ok("sync", "publish", cwd=root).stdout).startswith("nothing to publish: ")
 
-    (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, again.\\end{lemma}\n")
+    (root / "drafting/shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, again.\\end{lemma}\n")
     publication = publish(quilt, state)
     saved_git = sync.git
 
@@ -442,7 +447,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     assert state.documents == ["drafting/main.tex"]
 
     # a collaborator's push after preparation is rejected, and the prepared revision kept
-    (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, third.\\end{lemma}\n")
+    (root / "drafting/shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, third.\\end{lemma}\n")
     publication = publish(quilt, state)
     edit(colleague(tmp_path, bare), "collaborator update", {"notes.tex": "A note.\n"})
     with pytest.raises(SyncError, match="has moved since the last fetch"):
@@ -467,12 +472,12 @@ def test_a_pull_that_does_not_apply_or_would_overwrite_a_file_writes_nothing(
     assert "zk-0001}Z" in (root / "drafting/main.tex").read_text()
     assert not [e for e in load_history(quilt.history_dir).landmarks() if "before-pull" in str(e.get("landmark"))]
     (root / "drafting/main.tex").write_text(SOURCE, encoding="utf-8")
-    (root / "extra.tex").write_text("mine\n", encoding="utf-8")
+    (root / "drafting/extra.tex").write_text("mine\n", encoding="utf-8")
     edit(other, "add a file", {"extra.tex": "theirs\n"})
     state = fetch(quilt, state)
-    with pytest.raises(SyncError, match="extra.tex already exists locally"):
+    with pytest.raises(SyncError, match="drafting/extra.tex already exists locally"):
         pull_files(quilt, state)
-    assert (root / "extra.tex").read_text() == "mine\n"
+    assert (root / "drafting/extra.tex").read_text() == "mine\n"
 
 
 def test_a_failure_while_incorporating_restores_every_file(
@@ -504,7 +509,7 @@ def test_sync_follows_a_linearized_main_and_overleaf_keeps_its_file_name(tmp_pat
         tmp_path,
         {
             "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\input{sections/one}\n\\end{document}\n",
-            "sections/one.tex": "\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n",
+            "drafting/sections/one.tex": "\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n",
         },
     )
     bare = overleaf(tmp_path)
@@ -562,7 +567,7 @@ def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated
     tmp_path: Path, compiled: list[str]
 ) -> None:
     root, other = renamed_pair(tmp_path)
-    run(other, "mv", "drafting/main.tex", "drafting/paper.tex")
+    run(other, "mv", "main.tex", "paper.tex")
     run(other, "commit", "-q", "-m", "rename")
     run(other, "push", "-q", "origin", "HEAD:master")
     quilt = load_quilt(root)
@@ -574,7 +579,7 @@ def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated
     ]
     assert 'main = "drafting/paper.tex"' in (root / "config.toml").read_text()
     state = SyncState.read(root)
-    assert state.published_main == "drafting/paper.tex"  # Overleaf keeps the collaborator's name at the next publish
+    assert state.published_main == "paper.tex"  # Overleaf keeps the collaborator's name at the next publish
     assert state.master == "drafting/main.tex"  # the record is followed, never rewritten
     assert json_of("status", "--json", cwd=root)["keys"]["zk-0001"]["acceptance"]["fresh"] is True
     assert not [x for x in json_of("lint", "--json", cwd=root)["diagnostics"] if x["code"] == "loom:document-gone"]
@@ -583,9 +588,9 @@ def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated
 
 def test_a_rename_with_an_edit_is_not_recorded_and_the_document_is_gone(tmp_path: Path, compiled: list[str]) -> None:
     root, other = renamed_pair(tmp_path)
-    text = (other / "drafting/main.tex").read_text(encoding="utf-8")
-    run(other, "rm", "-q", "drafting/main.tex")
-    edit(other, "rename and edit", {"drafting/paper.tex": text.replace("zk-0001}A", "zk-0001}B")})
+    text = (other / "main.tex").read_text(encoding="utf-8")
+    run(other, "rm", "-q", "main.tex")
+    edit(other, "rename and edit", {"paper.tex": text.replace("zk-0001}A", "zk-0001}B")})
     quilt = load_quilt(root)
     state = fetch(quilt, SyncState.read(root))
     handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
@@ -728,3 +733,11 @@ def test_a_sync_directory_inside_the_quilt_is_never_read_as_the_quilt_s(tmp_path
         p.startswith("overleaf/") for p in capture_context(result, "drafting/main.tex", write=False)["hashes"]
     )
     refused("mv", "overleaf/main.tex", "drafting/other.tex", cwd=root, code=2, match="is inside overleaf/")
+
+
+def test_documents_published_together_sit_under_the_main_document_s_directory(tmp_path: Path) -> None:
+    """The main document's directory is the workspace's root, where Overleaf compiles it, so a document beside it in another directory cannot publish with it."""
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE, "talks/talk.tex": SOURCE.replace("zk-0001", "zk-0002")})
+    state = configure(load_quilt(root), str(cloned(tmp_path, overleaf(tmp_path))), "main.tex")
+    with pytest.raises(SyncError, match="outside drafting/, the directory of drafting/main.tex"):
+        update_documents(load_quilt(root), state, "add", "talks/talk.tex")

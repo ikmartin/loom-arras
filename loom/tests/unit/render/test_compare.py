@@ -47,7 +47,7 @@ def test_landmarks_are_ordered_in_time(quilt: Path) -> None:
 
 
 def test_a_display_name_changed_alone_is_no_difference(quilt: Path) -> None:
-    node = quilt / "nodes" / "sy-0003.tex"
+    node = quilt / "drafting" / "nodes" / "sy-0003.tex"
     if not node.is_file():
         pytest.skip("sy-0003 is inline in this fixture")
     node.write_text("% !LOOM name: Renamed\n" + node.read_text(encoding="utf-8"), encoding="utf-8")

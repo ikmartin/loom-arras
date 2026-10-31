@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 
+from loom.paths import document_dir
 from loom.render.assets import publish_graphic
 from loom.render.convert import EQUATION_ENVS, Converter, RenderContext, esc, slug
 from loom.render.fallback import compile_svg, defer, fallback_figure
@@ -207,22 +208,23 @@ class FragmentRenderer:
             return ""
         if master not in self.plan.fallback_preamble:
             closure = self.result.closures.get(master)
-            # the master's own preamble only: it loads preamble.tex and the local .sty files itself when compiled from the quilt root, and copying their text too would define every macro twice
+            # the master's own preamble only: it loads preamble.tex and the local .sty files itself when compiled from its own directory, and copying their text too would define every macro twice
             first = closure.fragments[0] if closure and closure.fragments else None
             self.plan.fallback_preamble[master] = prepare_preamble(
                 first.src.text[first.start : first.end] if first else ""
             )
         return self.plan.fallback_preamble[master]
 
-    def _fallback_for_preamble(self, preamble_text: str, key: str) -> Callable[[str, str, str], str]:
-        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble."""
+    def _fallback_for_preamble(self, preamble_text: str, key: str, base: str = "") -> Callable[[str, str, str], str]:
+        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble, its local files read in `base`."""
         preamble = prepare_preamble(preamble_text)
+        here = self.result.quilt.root / base
 
         def render(latex: str, css: str, data_src: str) -> str:
             sink = self._sink  # this thread's, read before the compile moves to the figure pool
 
             def figure() -> str:
-                res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=self.result.quilt.root)
+                res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=here, scope=base)
                 if res.svg is None:
                     sink.append(
                         Diagnostic(
@@ -263,17 +265,18 @@ class FragmentRenderer:
             sink = self._sink  # this thread's, read before the compile moves to the figure pool
 
             def figure() -> str:
-                root = self.result.quilt.root
+                base = self.result.base_of(master) if master else ""
+                here = self.result.quilt.root / base
                 # a cited paper's xy diagram in a quilt whose preamble does not load xy compiles at the first attempt rather than failing at every one
                 tries = [XY + pre if XY_USED.search(latex) and not XY_LOADED.search(pre) else pre for pre in attempts]
-                res = compile_svg(latex, tries[0], self.plan.svg_cache, texinputs=root)
+                res = compile_svg(latex, tries[0], self.plan.svg_cache, texinputs=here, scope=base)
                 errors = [res.error] if res.svg is None and res.error else []
                 for i, pre in enumerate(tries[1:], start=1):
                     if res.svg is not None:
                         break
                     if i < len(tries) - 1 and "already defined" in (res.error or ""):
                         continue  # dropping the added packages keeps the clash; only the minimal preamble avoids it
-                    res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=root)
+                    res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=here, scope=base)
                     if res.svg is None and res.error:
                         errors.append(res.error)
                 if res.svg is None:
@@ -334,10 +337,15 @@ class FragmentRenderer:
     def _placeholder(self, key: str) -> str:
         return f'<div class="include" data-key="{html.escape(key, quote=True)}"></div>'
 
+    def _node_base(self, node: NodeRec) -> str:
+        """The directory a node's names resolve against: the base of the first document that reaches it, else its own file's."""
+        return self.result.base_of(node.reached_by[0]) if node.reached_by else document_dir(node.file)
+
     def _include_html(self, arg: str, node: NodeRec, mode: str) -> str:
         root = self.result.quilt.root
+        base = self._node_base(node)
         if arg.startswith("graphics:"):
-            rel, err = publish_graphic(root, arg[len("graphics:") :], self.plan.svg_out)
+            rel, err = publish_graphic(root, arg[len("graphics:") :], self.plan.svg_out, base)
             if rel is None:
                 self._sink.append(
                     Diagnostic(
@@ -352,7 +360,7 @@ class FragmentRenderer:
             return f'<figure data-src="{node.file}:0:0"><img src="{rel}"></figure>'
         from loom.scan.expand import resolve_inclusion
 
-        rel, _ = resolve_inclusion(root, arg)
+        rel, _ = resolve_inclusion(root, arg, base=base)
         if rel is None or rel not in self.asm.nodes:
             return ""
         if rel in self._expanding:

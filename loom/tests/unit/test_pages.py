@@ -78,7 +78,7 @@ def test_the_manifest_publishes_each_page_with_who_wrote_it_and_its_links_that_m
     overview = m["references"]["Bellamy19"]["overview"]
     assert overview["by"]["id"] == "Survey Agent" and '<section data-block="overview">' in overview["body_html"]
     # a linked result changes, and the author adds a link to nothing by hand
-    edit(q / "nodes" / "sh-0009.tex", "has $c$ connected components", "has $c$ components")
+    edit(q / "drafting" / "nodes" / "sh-0009.tex", "has $c$ connected components", "has $c$ components")
     with (q / "research-state.md").open("a") as fh:
         fh.write("- See [](quilt:sh-9999).\n")
     exits(1, "build", cwd=q)

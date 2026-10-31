@@ -45,11 +45,11 @@ def test_a_node_file_and_an_inline_copy_conflict(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n" + LEMMA + "\\end{document}\n",
-            "nodes/ab-0001.tex": LEMMA,
+            "drafting/nodes/ab-0001.tex": LEMMA,
         },
     )
     assert r.nodes["ab-0001"].kind == "conflict"
-    assert r.nodes["ab-0001"].conflict == ["drafting/main.tex", "nodes/ab-0001.tex"]
+    assert r.nodes["ab-0001"].conflict == ["drafting/main.tex", "drafting/nodes/ab-0001.tex"]
     assert len(_diag(r, "duplicate-id")) == 1
 
 
@@ -59,7 +59,7 @@ def test_two_masters_sharing_one_node_file_is_not_a_conflict(tmp_path: Path) -> 
         {
             "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n\\end{document}\n",
             "drafting/talk.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n\\end{document}\n",
-            "nodes/ab-0001.tex": LEMMA,
+            "drafting/nodes/ab-0001.tex": LEMMA,
         },
     )
     assert r.nodes["ab-0001"].kind == "environment"  # defined once, included twice: exactly the intended shape

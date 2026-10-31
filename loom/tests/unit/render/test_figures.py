@@ -31,7 +31,8 @@ def quilt(tmp_path: Path, body: str, nodes: dict[str, str] | None = None) -> Pat
         PREAMBLE + "\\begin{document}\n" + body + "\n\\end{document}\n", encoding="utf-8"
     )
     for name, text in (nodes or {}).items():
-        (q / "nodes" / name).write_text(text, encoding="utf-8")
+        (q / "drafting" / "nodes").mkdir(exist_ok=True)
+        (q / "drafting" / "nodes" / name).write_text(text, encoding="utf-8")
     return q
 
 

@@ -37,7 +37,7 @@ def test_a_document_a_block_and_the_words_selected_are_named_with_their_links(se
         {
             "route": "reading",
             "item": {"kind": "document", "id": "drafting/main.tex"},
-            "block": {"src": "nodes/dm-0003.tex:1:4", "key": "dm-0003"},
+            "block": {"src": "drafting/nodes/dm-0003.tex:1:4", "key": "dm-0003"},
             "selection": {"key": "dm-0003", "text": "a finite set"},
             "beside": {"kind": "work", "id": "Calloway14", "place": {"page": 2}},
             "session": sid,

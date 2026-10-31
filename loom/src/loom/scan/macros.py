@@ -323,9 +323,13 @@ def package_macros(packages: set[str]) -> dict[str, Macro]:
     }
 
 
+#: loom's three macros print nothing in a rendering and are drawn by loom itself, so no macro list carries them.
+LOOM_MACROS = frozenset({"uses", "incomplete", "nest"})
+
+
 def to_mathjax(macros: dict[str, Macro]) -> list[dict[str, object]]:
-    """The manifest's macro list: {name, args, body}, sorted by name (book specs/manifest.md §14)."""
-    return [_published(m) for m in sorted(macros.values(), key=lambda x: x.name)]
+    """The manifest's macro list: {name, args, body}, sorted by name, without loom's own three (`LOOM_MACROS`)."""
+    return [_published(m) for m in sorted(macros.values(), key=lambda x: x.name) if m.name not in LOOM_MACROS]
 
 
 def _published(m: Macro) -> dict[str, object]:

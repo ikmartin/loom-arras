@@ -12,7 +12,7 @@ from loom.scan.scan import scan
 from tests.helpers import edit, exits, json_of, ok, refused
 from tests.unit._quilts import demo
 
-LEMMA = "nodes/dm-0002.tex"
+LEMMA = "drafting/nodes/dm-0002.tex"
 
 
 def suggest(q: Path, *args: str) -> str:

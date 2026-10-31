@@ -10,10 +10,11 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import document_dir, under
 from loom.reshape.anchoring import Violation, anchoring_violations, fix_anchoring
 from loom.reshape.ids import Insertion, apply_insertions, plan_insertions, unified_diff
-from loom.reshape.importer import _insert_usepackage, _mirror_quilt, closure_of, inline_bbl
-from loom.reshape.linearize import flatten, from_canon
+from loom.reshape.importer import _mirror_quilt, closure_of, inline_bbl
+from loom.reshape.linearize import flatten, with_macro_block
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt, load_quilt
@@ -27,16 +28,19 @@ class ImportPlan:
     dest_rel: str  # quilt-relative path of the drafted document
     text: str = ""  # the flat paper as received, which the import step keeps as a landmark
     inlined: list[str] = field(default_factory=list)
-    assets: dict[str, str] = field(default_factory=dict)  # quilt-relative path -> absolute source, the non-.tex closure
+    assets: dict[str, str] = field(
+        default_factory=dict
+    )  # quilt-relative path beside the draft -> absolute source, the non-.tex closure
     outside: list[str] = field(default_factory=list)
     exists: bool = False  # the drafted document's path is taken
 
 
 def plan_import(quilt: Quilt, paper_file: Path, dest_rel: str | None = None) -> ImportPlan:
-    """Linearize the paper's master into one flat text and list its assets for copying to the root at their paper-relative paths; the draft goes to `dest_rel`, by default `<drafting>/<name>`."""
+    """Linearize the paper's master into one flat text and list its assets for copying beside the draft at their paper-relative paths, so the draft compiles from its directory as the paper did from its own (P12); the draft goes to `dest_rel`, by default `<stem>/<name>`, a directory of its own."""
     paper_file = paper_file.resolve()
     paper_dir = paper_file.parent
-    dest_rel = dest_rel or f"{quilt.config.drafting}/{paper_file.name}"
+    dest_rel = dest_rel or f"{paper_file.stem}/{paper_file.name}"
+    home = document_dir(dest_rel)
     plan = ImportPlan(paper_dir=paper_dir, master_rel=paper_file.name, dest_rel=dest_rel)
     files, outside = closure_of(paper_dir, paper_file)
     plan.outside = outside
@@ -46,7 +50,7 @@ def plan_import(quilt: Quilt, paper_file: Path, dest_rel: str | None = None) -> 
     for rel, src in files.items():
         if rel == plan.master_rel or rel in flat.inlined:
             continue
-        plan.assets[rel] = str(src)
+        plan.assets[under(home, rel)] = str(src)
     plan.exists = (quilt.root / dest_rel).exists()
     return plan
 
@@ -73,7 +77,9 @@ class DraftPlan:
     violations: list[Violation] = field(default_factory=list)
     spans: list[str] = field(default_factory=list)
     diff: str = ""
-    swapped_block: bool = False
+    added_block: bool = (
+        False  # loom's macro block was put after `\\documentclass`, the document loading neither it nor loom.sty
+    )
 
 
 def plan_draft(
@@ -91,9 +97,7 @@ def plan_draft(
     """
     quilt = result.quilt
     plan = DraftPlan(dest_rel=dest_rel, authored=authored)
-    text, plan.swapped_block = from_canon(authored)
-    if not plan.swapped_block and "\\usepackage{loom}" not in text:
-        text = _insert_usepackage(text)
+    text, plan.added_block = with_macro_block(authored)
     with tempfile.TemporaryDirectory(prefix="loom-draft-") as tmp:
         stage = Path(tmp) / "quilt"
         _mirror_quilt(quilt, stage)

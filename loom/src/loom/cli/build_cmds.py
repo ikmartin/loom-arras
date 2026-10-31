@@ -28,7 +28,7 @@ from loom.tex.bundle import (
     region_text,
     substituted_region,
 )
-from loom.tex.runner import ENGINE_FLAGS, CompileResult, compile_tex, normalise_engine
+from loom.tex.runner import ENGINE_FLAGS, CompileResult, compile_document, normalise_engine
 
 
 def engine_for(result: ScanResult, master: str, override: str | None = None) -> str:
@@ -93,7 +93,7 @@ def compile(  # noqa: A001
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Run latexmk from the root into build/<name>/ for a master (default: the default master), its name its path without .tex, or for a key.
+    """Run latexmk from a master's own directory into build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
     Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
     """
@@ -116,9 +116,10 @@ def compile(  # noqa: A001
         label = f"the draft {Path(draft_file).name}"
         with Progress("compiling", 1) as p:
             p.item(label)
-            res = compile_tex(
+            res = compile_document(
                 root,
-                str(out.relative_to(root)),
+                result.base_of(b.master),
+                out,
                 root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0], engine),
             )
@@ -142,7 +143,9 @@ def compile(  # noqa: A001
         log_run(run_dir, " ".join(parts), root)
         with Progress("compiling", 1) as p:
             p.item(master)
-            res = compile_tex(root, master, root / document_build(master), engine_for(result, master, engine))
+            res = compile_document(
+                root, result.base_of(master), master, root / document_build(master), engine_for(result, master, engine)
+            )
     else:
         key = resolve_key(result, target)
         require_text(result, key)
@@ -157,9 +160,10 @@ def compile(  # noqa: A001
         label = f"{key}'s closure" + (f" with {Path(with_file).name}" if with_file else "")
         with Progress("compiling", 1) as p:
             p.item(key)
-            res = compile_tex(
+            res = compile_document(
                 root,
-                str(out.relative_to(root)),
+                result.base_of(b.master),
+                out,
                 root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0], engine),
             )
@@ -233,7 +237,8 @@ def error_place(res: CompileResult, root: Path) -> dict[str, Any] | None:
     opened = next((f for f in reversed(stack) if f and f.endswith(".tex")), None)
     out: dict[str, Any] = {"file": None, "line": None, "macro": None}
     if opened:
-        p = Path(opened)
+        # the log names files from where latexmk ran, the document's own directory (P12)
+        p = Path(opened) if Path(opened).is_absolute() or res.cwd is None else res.cwd / opened
         rel = (
             p.resolve().relative_to(root.resolve())
             if p.is_absolute() and p.resolve().is_relative_to(root.resolve())
@@ -358,16 +363,19 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
         p.next_stage("compiling", len(result.masters) + len(keys))
         for master in result.masters:
             p.item(master)
-            res = compile_tex(root, master, root / document_build(master), engine_for(result, master))
+            res = compile_document(
+                root, result.base_of(master), master, root / document_build(master), engine_for(result, master)
+            )
             bad = res.usable == "failed"
             documents.append({"document": master, "ok": not bad, **_failed(res, root, bad)})
         for key in keys:
             p.item(key)
             b = build_bundle(result, key)
             out = write_bundle(result, b)
-            res = compile_tex(
+            res = compile_document(
                 root,
-                str(out.relative_to(root)),
+                result.base_of(b.master),
+                out,
                 root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0]),
             )
@@ -461,7 +469,7 @@ def section_text(result: ScanResult, key: str) -> str | None:
 
     masters = sorted(result.masters, key=lambda m: m != result.default_master)
     for m in masters:
-        flat = flatten(result.quilt.root, m).text
+        flat = flatten(result.quilt.root, m, base=result.base_of(m)).text
         try:
             unit = section(flat, key)
         except Exception:  # noqa: BLE001 -- not in this document, or not uniquely: try the next
@@ -557,7 +565,7 @@ def source(target: str, closure: bool, at: str | None, diff: bool, run_dir: str 
         if at is not None:
             raise EnvError(f"--at is for a key; {doc} is a document, whose landmarks `loom history show` prints")
         log_run(run_dir, f"loom source {doc}", result.quilt.root)
-        click.echo(flatten(result.quilt.root, doc).text.rstrip("\n"))
+        click.echo(flatten(result.quilt.root, doc, base=result.base_of(doc)).text.rstrip("\n"))
         return
     key = resolve_key(result, target)
     region = result.assembly.regions.get(key)

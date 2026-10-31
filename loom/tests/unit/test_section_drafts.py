@@ -135,10 +135,10 @@ def test_root_removal_or_escape_refused(quilt):
 
 
 def test_included_section_preserves_inclusion_and_other_file(quilt):
-    (quilt.root / "parts").mkdir()
+    (quilt.root / "drafting" / "parts").mkdir()
     start = TEXT.index("\\section{First}")
     end = TEXT.index("\\section{Second}")
-    (quilt.root / "parts/first.tex").write_text(TEXT[start:end])
+    (quilt.root / "drafting/parts/first.tex").write_text(TEXT[start:end])
     (quilt.root / DOC).write_text(TEXT[:start] + "\\input{parts/first}\n" + TEXT[end:])
     before = (quilt.root / DOC).read_text()
     a = copy(quilt)
@@ -146,7 +146,7 @@ def test_included_section_preserves_inclusion_and_other_file(quilt):
     p = prepare(scan(quilt), a, [], True)
     incorporate(scan(quilt), a, p["token"])
     assert (quilt.root / DOC).read_text() == before
-    assert "New prose." in (quilt.root / "parts/first.tex").read_text()
+    assert "New prose." in (quilt.root / "drafting/parts/first.tex").read_text()
 
 
 def test_close_keeps_snapshot_frees_scope_and_reopen_checks_overlap(quilt):
@@ -239,9 +239,9 @@ def test_source_move_keeps_scope_and_current_destination(quilt):
 
 
 def test_shared_node_in_disjoint_scopes_changes_once(quilt):
-    (quilt.root / "nodes").mkdir()
+    (quilt.root / "drafting" / "nodes").mkdir()
     node = TEXT[TEXT.index("\\begin{lemma}") : TEXT.index("\\end{lemma}") + len("\\end{lemma}")]
-    (quilt.root / "nodes/shared.tex").write_text(node)
+    (quilt.root / "drafting/nodes/shared.tex").write_text(node)
     text = TEXT.replace(node, "\\input{nodes/shared}")
     text = text.replace("Second prose.", "Second prose.\n\\input{nodes/shared}")
     (quilt.root / DOC).write_text(text)
@@ -251,7 +251,7 @@ def test_shared_node_in_disjoint_scopes_changes_once(quilt):
     p = prepare(scan(quilt), a, ["zk-0001"])
     incorporate(scan(quilt), a, p["token"])
     assert (quilt.root / DOC).read_text() == text
-    assert "Shared proposal." in (quilt.root / "nodes/shared.tex").read_text()
+    assert "Shared proposal." in (quilt.root / "drafting/nodes/shared.tex").read_text()
     assert any(
         row["key"] == "zk-0001" and "Shared proposal." in row["current"]
         for row in comparison(scan(quilt), b)["changes"]
@@ -279,12 +279,12 @@ def test_close_draft_with_removed_scope_root_keeps_its_text(quilt):
 
 
 def test_local_style_edit_invalidates_exact_preview(quilt):
-    (quilt.root / "local.sty").write_text("\\newcommand{\\localterm}{x}\n")
+    (quilt.root / "drafting" / "local.sty").write_text("\\newcommand{\\localterm}{x}\n")
     edit(quilt, DOC, "\\begin{document}", "\\usepackage{local}\n\\begin{document}")
     a = copy(quilt)
     edit(quilt, a, "First statement.", "Changed statement.")
     p = prepare(scan(quilt), a, ["zk-0001"])
-    (quilt.root / "local.sty").write_text("\\newcommand{\\localterm}{y}\n")
+    (quilt.root / "drafting" / "local.sty").write_text("\\newcommand{\\localterm}{y}\n")
     with pytest.raises(SyncError, match="context changed"):
         incorporate(scan(quilt), a, p["token"])
 

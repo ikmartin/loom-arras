@@ -573,11 +573,7 @@ def build_manifest(
         _versions(result, manifest, history)
         _history(result, manifest, history)
     closure = result.closures.get(dm) if dm else None
-    mathjax_macros = {
-        k: v
-        for k, v in (closure.macros.items() if closure else [])
-        if v.kind != "let" and k not in ("uses", "incomplete", "nest")
-    }
+    mathjax_macros = {k: v for k, v in (closure.macros.items() if closure else []) if v.kind != "let"}
     # an alphabet declared with \DeclareMathAlphabet is a font the renderer has never heard of, and a body may use commands it does not implement; both are published as the nearest thing it can draw, so an author's own macro renders rather than reaching the page in error colour
     if closure is not None:
         for name, macro in declared_alphabets(closure.clean_text()).items():

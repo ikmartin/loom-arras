@@ -40,7 +40,7 @@ def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untype
     s, d = session
     _, headers, _ = get(s.url + "build/manifest.json")
     before = headers["ETag"]
-    node = d / "nodes" / "dm-0002.tex"
+    node = d / "drafting" / "nodes" / "dm-0002.tex"
     time.sleep(0.3)
     node.write_text(node.read_text().replace("[Orbits]", "[Orbits, revised]"))
     os.utime(node, None)
@@ -73,7 +73,7 @@ def test_serve_no_notification_sent(session, monkeypatch: pytest.MonkeyPatch) ->
         return original(self, method, url, *a, **k)
 
     monkeypatch.setattr(http.client.HTTPConnection, "request", spy)
-    s.rebuild([d / "nodes" / "dm-0001.tex"])
+    s.rebuild([d / "drafting" / "nodes" / "dm-0001.tex"])
     assert calls == []
 
 
@@ -127,16 +127,16 @@ def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
 
     q = tmp_path / "q"
     (q / "annotations").mkdir(parents=True)
-    (q / "nodes").mkdir()
+    (q / "drafting" / "nodes").mkdir(parents=True)
     (q / "config.toml").write_text('[quilt]\nname = "q"\n', encoding="utf-8")
     (q / "annotations" / "log.jsonl").write_text('{"event": "created"}\n', encoding="utf-8")
     (q / "reference-notes.jsonl").write_text('{"work": "doi:10/x"}\n', encoding="utf-8")
-    (q / "nodes" / "n.tex").write_text("\\begin{lemma}\\end{lemma}\n", encoding="utf-8")
+    (q / "drafting" / "nodes" / "n.tex").write_text("\\begin{lemma}\\end{lemma}\n", encoding="utf-8")
 
     watched = {p.relative_to(q).as_posix() for p in snapshot(q)}
     assert "annotations/log.jsonl" in watched
     assert "reference-notes.jsonl" in watched
-    assert {"config.toml", "nodes/n.tex"} <= watched
+    assert {"config.toml", "drafting/nodes/n.tex"} <= watched
 
 
 def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
@@ -154,7 +154,7 @@ def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.M
     s, d = session
     assert not [p for p in snapshot(d) if p.name == "last-seen.json"]
 
-    node = d / "nodes" / "dm-0002.tex"
+    node = d / "drafting" / "nodes" / "dm-0002.tex"
     time.sleep(0.3)
     node.write_text(node.read_text().replace("[Orbits]", "[Orbits, again]"))
     deadline = time.time() + 6
@@ -232,7 +232,7 @@ def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, se
 
     def publish_then_edit(self):
         first_build(self)
-        node = q / "nodes/dm-0002.tex"
+        node = q / "drafting/nodes/dm-0002.tex"
         node.write_text(node.read_text().replace("[Orbits]", "[Edited at startup]"))
 
     monkeypatch.setattr(ServeSession, "first_build", publish_then_edit)
@@ -291,7 +291,7 @@ def test_a_burst_of_edits_publishes_once(session) -> None:  # type: ignore[no-un
     time.sleep(0.3)
     before = s.builds
     for name in ("dm-0001.tex", "dm-0002.tex", "dm-0003.tex"):
-        node = d / "nodes" / name
+        node = d / "drafting" / "nodes" / name
         node.write_text(node.read_text() + "\n% edited\n")
     deadline = time.time() + 6
     while s.builds == before and time.time() < deadline:

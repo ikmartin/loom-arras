@@ -58,7 +58,7 @@ def test_an_author_s_own_undeclared_environment_is_still_not_a_node(tmp_path: Pa
     r = make_quilt(
         tmp_path,
         {
-            "nodes/x.tex": "\\begin{thm}[{\\cite[Theorem 1]{Vir12}}]\\label{ab-0001}\nA.\n\\end{thm}\n",
+            "drafting/nodes/x.tex": "\\begin{thm}[{\\cite[Theorem 1]{Vir12}}]\\label{ab-0001}\nA.\n\\end{thm}\n",
             "digests/Vir12.tex": DIGEST,
         },
     )

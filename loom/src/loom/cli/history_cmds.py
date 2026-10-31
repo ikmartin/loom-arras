@@ -158,7 +158,7 @@ def _draft_new(result: ScanResult, name: str, declared: str | None, dry_run: boo
     else:
         from loom.cli.quilt import ASSETS
 
-        preamble = split_preamble((ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))[0]
+        preamble = split_preamble(to_canon((ASSETS / "init" / "main.tex").read_text(encoding="utf-8")))[0]
     text = preamble.rstrip("\n") + "\n\n\\begin{document}\n\n\\end{document}\n"
     lines = [f"its preamble is {source}'s" if source else "its preamble is loom init's"]
     if dry_run:
@@ -838,8 +838,13 @@ def _linearize(
             names = {node.id or "", *node.aliases, *node.label_offsets}
             body = _rewrite_refs(_relabel(result.files[f].text, node, node.id or "", new_id), names, new_id)
             inner = inner_labels(body, names | {new_id}, new_id)
-            stem = f[: -len(".tex")]
-            pat = re.compile(r"^([ \t]*)\\(input|nest)\{(" + re.escape(stem) + "|" + re.escape(f) + r")\}[ \t]*$", re.M)
+            # the document names the file from the directory it compiles from (P12)
+            base = result.base_of(spine_rel)
+            named = f.removeprefix(f"{base}/") if base else f
+            stem = named[: -len(".tex")]
+            pat = re.compile(
+                r"^([ \t]*)\\(input|nest)\{(" + re.escape(stem) + "|" + re.escape(named) + r")\}[ \t]*$", re.M
+            )
 
             def repl(m: re.Match[str], body: str = body) -> str:
                 b = shift_sectioning(body, 1) if m.group(2) == "nest" else body
@@ -892,7 +897,9 @@ def _linearize(
     if not no_check and spine_rel in result.masters:
         progress.next_stage(f"identity test: compiling {spine_rel} and {to_rel}")
         with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
-            ident = identity_test(root, spine_rel, root, to_rel, Path(tmp), engine_for(result, spine_rel))
+            ident = identity_test(
+                root, spine_rel, root, to_rel, Path(tmp), engine_for(result, spine_rel), base=result.base_of(spine_rel)
+            )
         if not ident.passed and not ident.skipped:
             dest.unlink(missing_ok=True)
             diffs = "\n".join(f"  {i.text}" + (f"  {i.key}" if i.key else "") for i in identity_group(ident)[0].items)

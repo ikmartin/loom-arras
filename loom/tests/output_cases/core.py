@@ -11,7 +11,9 @@ FAIL_TEX = (("FAKE_TEX_FAIL", "1"),)
 
 def duplicate_id(q: Path) -> None:
     """A second file defining `dm-0001`: an error diagnostic, which `lint`, `build` and `check` exit 1 on."""
-    (q / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n", encoding="utf-8")
+    (q / "drafting" / "nodes" / "bad.tex").write_text(
+        "\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n", encoding="utf-8"
+    )
 
 
 def stale(q: Path) -> None:
@@ -20,7 +22,7 @@ def stale(q: Path) -> None:
 
     author(q)
     ok("accept", "dm-0002", "--proofs", "--force", cwd=q)
-    edit(q / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
+    edit(q / "drafting" / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
 
 
 KIND: dict[str, str] = {

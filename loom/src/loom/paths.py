@@ -54,8 +54,6 @@ BIBLIOGRAPHY = f"{DIGESTS}/bibliography.bib"
 UNREADABLE = f"{DIGESTS}/unreadable.json"
 LINKS = f"{DIGESTS}/links.jsonl"
 LINKS_REMOVED = f"{DIGESTS}/links-removed.jsonl"
-#: The three macros, at the root where documents compile.
-STY = "loom.sty"
 MANIFEST = f"{BUILD}/manifest.json"
 CLOSURES = f"{BUILD}/closures"
 
@@ -76,6 +74,17 @@ def documents_named(word: str, pool: Iterable[str]) -> list[str]:
     docs = list(pool)
     exact = [d for d in docs if word in (d, document_name(d))]
     return exact or [d for d in docs if word in (PurePosixPath(d).name, PurePosixPath(d).stem)]
+
+
+def document_dir(path: str) -> str:
+    """The quilt-relative directory a file sits in, '' at the root: the base a document's names resolve against."""
+    parent = PurePosixPath(path).parent.as_posix()
+    return "" if parent == "." else parent
+
+
+def under(base: str, name: str) -> str:
+    """`name` read against the quilt-relative directory `base`, as a quilt-relative path; `name` itself at the root."""
+    return (PurePosixPath(base) / name).as_posix() if base else PurePosixPath(name).as_posix()
 
 
 def document_build(path: str) -> str:

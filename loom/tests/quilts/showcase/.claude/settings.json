@@ -8,7 +8,6 @@
     ],
     "deny": [
       "Edit(/drafting/**)",
-      "Edit(/nodes/**)",
       "Edit(/retired/**)",
       "Edit(/digests/**)",
       "Edit(/refs/**)",

@@ -79,7 +79,7 @@ def _applies(q: Path, printed: str) -> None:
 def test_every_patch_loom_prints_applies_with_git_apply_as_it_stands(tmp_path: Path) -> None:
     """K2: `adopt` and `suggestion` wrote `--- a/PATH` patches and `revert`, `fork` and `id` `--- PATH`, so one took `-p1` and the others `-p0`."""
     q = demo(tmp_path)
-    edit(q / "nodes" / "dm-0001.tex", "\\sigma x = x", "\\sigma(x) = x")
+    edit(q / "drafting" / "nodes" / "dm-0001.tex", "\\sigma x = x", "\\sigma(x) = x")
     _applies(q, ok("revert", "dm-0001@1", cwd=q).stdout)
     _applies(q, ok("fork", "dm-0001", "--in", "drafting/main.tex", "--dry-run", cwd=q).stdout)
     (q / "drafting" / "extra.tex").write_text("\\begin{lemma}\nA.\n\\end{lemma}\n")

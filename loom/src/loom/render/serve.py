@@ -26,7 +26,7 @@ from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher, records_only, snapshot
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
-from loom.tex.runner import compile_tex, normalise_engine
+from loom.tex.runner import compile_document, normalise_engine
 
 DEFAULT_PORT = 8791
 ASSET_SUFFIXES = {
@@ -535,7 +535,9 @@ class ServeSession:
 
         with Progress("compiling", 1) as shown:
             shown.item(master)
-            res = compile_tex(self.quilt.root, master, self.quilt.root / document_build(master), engine)
+            res = compile_document(
+                self.quilt.root, result.base_of(master), master, self.quilt.root / document_build(master), engine
+            )
         print(f"loom serve: compiled {master}: {'ok' if res.ok else 'FAILED ' + res.first_error}", file=sys.stderr)
         if res.ok:
             self.rebuild()

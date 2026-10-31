@@ -102,7 +102,7 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     assert "Edit(.loom/sessions/**)" in allow and "Edit(build/**)" in allow
     # over MCP the commands are the server's tools; `loom` typed in a shell is turned away
     assert "mcp__loom__*" in allow and not any(r.startswith("Bash(") for r in allow)
-    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/nodes/**)" in deny
+    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/drafting/**)" in deny
     # relative to the working directory: passed with --settings, `/x` would be `.claude/x` and match nothing (DR-343-ikmartin)
     assert not any(r.startswith("Edit(/") for r in allow)
     # Claude Code matches only `Edit` rules against paths; a `Write` rule is ignored and says so on every start
@@ -206,10 +206,7 @@ def test_upgrade_refreshes_an_unedited_mode_the_first_time(tmp_path: Path, monke
 
     q = bare(tmp_path)
     shipped = layout.tracked_docs()
-    assert layout.read_versions(q) == {
-        **{Path(rel).name: layout.sha(text) for rel, text in shipped.items()},
-        "loom.sty": layout.sha(layout.shipped_sty()),
-    }
+    assert layout.read_versions(q) == {Path(rel).name: layout.sha(text) for rel, text in shipped.items()}
     shipped["ai/modes/audit.md"] += "\n## New shipped section\n"
     monkeypatch.setattr(layout, "tracked_docs", lambda: shipped)
     r = json_of("upgrade", "--json", cwd=q)
@@ -436,8 +433,8 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     q = bare(tmp_path)
     sid = ok("session", "new", "--name", "sub", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
-    ok("search", "gadget", "--session", sid, cwd=q / "nodes")  # from a subdirectory
-    ok("source", "dm-0003", "--session", sid, cwd=q / "nodes")
+    ok("search", "gadget", "--session", sid, cwd=q / "drafting" / "nodes")  # from a subdirectory
+    ok("source", "dm-0003", "--session", sid, cwd=q / "drafting" / "nodes")
     ok(
         "annotate",
         "dm-0003",
@@ -448,13 +445,13 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         sid,
         "--as",
         "A. Author",
-        cwd=q / "nodes",
+        cwd=q / "drafting" / "nodes",
         env=FIXED,
     )
     log = (q / rel / "run.log").read_text()
     assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate dm-0003" in log
     assert (q / "annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
-    assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory
+    assert not (q / "drafting" / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory
 
 
 def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) -> None:
@@ -487,7 +484,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     missing = sorted(writes_outside_a_session - denied)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
     # and the files those commands own, which a direct edit would otherwise reach
-    for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom/history", "ai"):
+    for d in ("drafting", "digests", "refs", "annotations", ".loom/history", "ai"):
         assert f"Edit(/{d}/**)" in denied_paths, d
     assert "Edit(/reference-notes.jsonl)" in denied_paths
 
@@ -584,35 +581,16 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out
 
 
-def test_upgrade_keeps_an_edited_loom_sty_as_old_and_says_so(tmp_path: Path) -> None:
-    """An edited `loom.sty` is replaced, but kept first as `loom.sty.old`, under a heading of its own."""
+def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
+    """A document carries loom's macro block, so upgrade writes no loom.sty; one a person keeps beside a document is theirs, and upgrade neither replaces nor records it."""
     import loom.ai.layout as layout
 
     q = bare(tmp_path)
-    assert layout.read_versions(q)["loom.sty"] == layout.sha(layout.shipped_sty())
-    sty = q / "loom.sty"
-    edited = sty.read_text() + "% my edit\n"
-    sty.write_text(edited)
-    dry = ok("upgrade", "--dry-run", cwd=q)
-    assert "loom.sty.old" in dry.stdout and sty.read_text() == edited and not (q / "loom.sty.old").exists()
-    said = ok("upgrade", cwd=q).stdout
-    assert sty.read_text() == layout.shipped_sty() and (q / "loom.sty.old").read_text() == edited
-    assert said.startswith("upgraded:") and "loom.sty.old" in said.splitlines()[0], said
-    assert "\nyour edited loom.sty" in said, said
-    again = json_of("upgrade", "--json", cwd=q)
-    assert again["sty"] == "unchanged" and (q / "loom.sty.old").read_text() == edited
-
-
-def test_upgrade_refreshes_a_loom_sty_nobody_edited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import loom.ai.layout as layout
-
-    q = bare(tmp_path)
-    shipped = layout.shipped_sty() + "% a newer loom\n"
-    monkeypatch.setattr(layout, "shipped_sty", lambda: shipped)
+    assert not (q / "loom.sty").exists() and "loom.sty" not in layout.read_versions(q)
+    kept = q / "drafting" / "loom.sty"
+    kept.write_text("% my own\n")
     r = json_of("upgrade", "--json", cwd=q)
-    assert r["sty"] == "written" and "loom.sty" in r["written"]
-    assert (q / "loom.sty").read_text() == shipped and not (q / "loom.sty.old").exists()
-    assert layout.read_versions(q)["loom.sty"] == layout.sha(shipped)
+    assert "loom.sty" not in r["written"] and kept.read_text() == "% my own\n" and not (q / "loom.sty").exists()
 
 
 def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:

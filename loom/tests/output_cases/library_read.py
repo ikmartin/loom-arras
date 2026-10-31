@@ -29,7 +29,7 @@ def related(q: Path) -> None:
 
 def cited_all(q: Path) -> None:
     """The author's documents cite Har77 (no document, no identifier) and Man12 (an arXiv id, nothing fetched)."""
-    node = q / "nodes" / "dm-0003.tex"
+    node = q / "drafting" / "nodes" / "dm-0003.tex"
     node.write_text(node.read_text(encoding="utf-8") + "\nCompare \\cite{Har77} and \\cite{Man12}.\n", encoding="utf-8")
 
 

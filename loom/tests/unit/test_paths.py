@@ -34,7 +34,7 @@ RECORDS = {
 ALLOWED = {
     # an output directory inside a temporary stage, not the quilt's build output
     ("sync.py", 'stage / "build" / f"{index}-{Path(projected).stem}",'),
-    ("section_drafts.py", 'compiled = compile_tex(stage, "paper.tex", stage / "build", result.quilt.config.engine)'),
+    ("section_drafts.py", 'stage, base, under(base, "paper.tex"), stage / "build", result.quilt.config.engine'),
     # text for a person: help naming a file, and init's summary of its ignore file, which changes when the layout moves (plan 0.22.5)
     ("cli/help.py", '"ai/rules.md lists what it may."'),
     ("cli/quilt.py", '"build/ (everything loom can rebuild)",'),

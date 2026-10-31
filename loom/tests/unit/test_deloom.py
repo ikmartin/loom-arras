@@ -123,7 +123,7 @@ def test_the_target_is_never_a_live_document_or_a_source(tmp_path: Path) -> None
     )
     assert into_drafting.exit_code == 2 and "among the quilt's sources" in into_drafting.output
     onto_source = run(
-        "deloom", "main.tex", "--to", "nodes/dm-0001.tex", "--keep-incomplete", "--keep-referenced-ids", cwd=d
+        "deloom", "main.tex", "--to", "drafting/nodes/dm-0001.tex", "--keep-incomplete", "--keep-referenced-ids", cwd=d
     )
     assert onto_source.exit_code == 2 and "sources" in onto_source.output
 

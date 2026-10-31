@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "32623a4050ddb533574bf919b433f961b1396917aac80a1c11fe0dcd9935b6b2",
+   "hash": "f5c516e092488cf3353de6365cd1b0ee4302bf90c61edcac25160cafcf74d192",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "cf94082d3a21584a8038ea6fc326ebe9e499e5963715b96c59c986ba1f30cf52",
+   "hash": "c6108d602f0b696e18efbc242e0654781972ec4a50ddc2768d0f0730f4e5802f",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "075fb438a1151786f3dcc25369f3c107272e8dfc7d60ae75cff593aa3c96d9f8",
+   "hash": "ae84f20d31b004da0f866ad6bbda28428337a9966dc65cc9d08314e66646890a",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -422,7 +422,7 @@
     {
      "affected": [
       {
-       "citation": "cite-nodes-sy-0002-tex-185-sy-0001-eq-fix",
+       "citation": "cite-drafting-nodes-sy-0002-tex-185-sy-0001-eq-fix",
        "key": "sy-0002"
       },
       {
@@ -434,7 +434,7 @@
        "key": "sy-0004"
       },
       {
-       "citation": "cite-nodes-sy-0003-tex-569-sy-0001",
+       "citation": "cite-drafting-nodes-sy-0003-tex-569-sy-0001",
        "key": "sy-0005"
       },
       {
@@ -456,10 +456,10 @@
      "documents": [
       "drafting/main.tex"
      ],
-     "incoming": "fragments/incoming/fb2b1828ee27e428c1a4-proposal.html",
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming": "fragments/incoming/ec21dc537d082ff69d5f-proposal.html",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-0001",
-     "local": "fragments/incoming/fb2b1828ee27e428c1a4-local.html",
+     "local": "fragments/incoming/ec21dc537d082ff69d5f-local.html",
      "math_changed": true,
      "name": "Widget",
      "offered": true,
@@ -472,15 +472,15 @@
        "key": "sy-0002/proof"
       },
       {
-       "citation": "cite-nodes-sy-0003-tex-282-sy-0002",
+       "citation": "cite-drafting-nodes-sy-0003-tex-282-sy-0002",
        "key": "sy-0004"
       },
       {
-       "citation": "cite-nodes-sy-0003-tex-500-sy-0002-proof-eq-step",
+       "citation": "cite-drafting-nodes-sy-0003-tex-500-sy-0002-proof-eq-step",
        "key": "sy-0005"
       },
       {
-       "citation": "cite-nodes-sy-0009-tex-137-sy-0002",
+       "citation": "cite-drafting-nodes-sy-0009-tex-137-sy-0002",
        "key": "sy-0009"
       },
       {
@@ -495,10 +495,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/216dbc75ca8190512bf7-proposal.html",
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming": "fragments/incoming/18cdc7af8794f8405b8c-proposal.html",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-0002",
-     "local": "fragments/incoming/216dbc75ca8190512bf7-local.html",
+     "local": "fragments/incoming/18cdc7af8794f8405b8c-local.html",
      "math_changed": true,
      "name": "Orbits",
      "offered": true,
@@ -507,11 +507,11 @@
     {
      "affected": [
       {
-       "citation": "cite-sections-results-tex-444-sy-0008",
+       "citation": "cite-drafting-sections-results-tex-444-sy-0008",
        "key": "sy-0007/proof"
       },
       {
-       "citation": "cite-sections-appendix-tex-318-sy-0008",
+       "citation": "cite-drafting-sections-appendix-tex-318-sy-0008",
        "key": "sy-000C/proof"
       }
      ],
@@ -522,10 +522,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/81e23da45616493a04a6-proposal.html",
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming": "fragments/incoming/6ba76dc42826f8a47dc8-proposal.html",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-0008",
-     "local": "fragments/incoming/81e23da45616493a04a6-local.html",
+     "local": "fragments/incoming/6ba76dc42826f8a47dc8-local.html",
      "math_changed": true,
      "name": "Gadget",
      "offered": true,
@@ -545,9 +545,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-0202",
-     "local": "fragments/incoming/82b52309e12bdbcbed22-local.html",
+     "local": "fragments/incoming/c3943b68e5a1ebfb7890-local.html",
      "math_changed": true,
      "name": null,
      "offered": true,
@@ -562,9 +562,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-0202/proof",
-     "local": "fragments/incoming/9a565b2736b2298332ba-local.html",
+     "local": "fragments/incoming/765bf9d22180558dcbc2-local.html",
      "math_changed": true,
      "name": null,
      "offered": true,
@@ -576,8 +576,8 @@
      "class": "new",
      "current": "",
      "documents": [],
-     "incoming": "fragments/incoming/71c6c6307b72c30bdc27-proposal.html",
-     "incoming_macros": "adopt:b6fd813f82622e7ea280",
+     "incoming": "fragments/incoming/f0b11c2aacccc40f6366-proposal.html",
+     "incoming_macros": "adopt:5de329d9b7e74b26f168",
      "key": "sy-999C",
      "local": null,
      "math_changed": true,
@@ -588,7 +588,7 @@
    ],
    "choices": {
     "document": false,
-    "fingerprint": "b6fd813f82622e7ea280b8cfa0e69a1ab4c07d721b44bf1d8a60d58edde025af",
+    "fingerprint": "5de329d9b7e74b26f1689dd6f4ec337b10afceb0ca152da3d23aba19660013ed",
     "invalidated": [],
     "kept": [],
     "keys": [],
@@ -600,13 +600,13 @@
    "document_comparison": {
     "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
     "incoming": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-incoming.html",
-    "incoming_macros": "adopt:b6fd813f82622e7ea280",
+    "incoming_macros": "adopt:5de329d9b7e74b26f168",
     "local": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-local.html",
     "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
    },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -144,10 +146,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -157,10 +156,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
-   "fingerprint": "b6fd813f82622e7ea280b8cfa0e69a1ab4c07d721b44bf1d8a60d58edde025af",
+   "fingerprint": "5de329d9b7e74b26f1689dd6f4ec337b10afceb0ca152da3d23aba19660013ed",
    "issues": [],
    "kind": "adopt",
    "label": "Incoming from agent document “aidoc”",
@@ -648,7 +648,7 @@
    "locations": [
     {
      "column": 1,
-     "file": "nodes/sy-0008.tex",
+     "file": "drafting/nodes/sy-0008.tex",
      "line": 1
     }
    ],
@@ -658,7 +658,7 @@
   {
    "code": "double-inclusion",
    "keys": [
-    "nodes/sy-0002.tex"
+    "drafting/nodes/sy-0002.tex"
    ],
    "locations": [
     {
@@ -666,19 +666,19 @@
      "line": 28
     }
    ],
-   "message": "nodes/sy-0002.tex is included twice in drafting/talk.tex",
+   "message": "drafting/nodes/sy-0002.tex is included twice in drafting/talk.tex",
    "severity": "error"
   },
   {
    "code": "duplicate-id",
    "fixes": [
     {
-     "command": "loom fork sy-999B --in drafting/talk.tex",
-     "label": "fork the copy in drafting/talk.tex"
+     "command": "loom fork sy-999B --in drafting/nodes/sy-999B.tex",
+     "label": "fork the copy in drafting/nodes/sy-999B.tex"
     },
     {
-     "command": "loom fork sy-999B --in nodes/sy-999B.tex",
-     "label": "fork the copy in nodes/sy-999B.tex"
+     "command": "loom fork sy-999B --in drafting/talk.tex",
+     "label": "fork the copy in drafting/talk.tex"
     },
     {
      "command": "loom id --next",
@@ -690,15 +690,15 @@
    ],
    "locations": [
     {
-     "file": "drafting/talk.tex",
-     "line": 32
+     "file": "drafting/nodes/sy-999B.tex",
+     "line": 1
     },
     {
-     "file": "nodes/sy-999B.tex",
-     "line": 1
+     "file": "drafting/talk.tex",
+     "line": 32
     }
    ],
-   "message": "sy-999B is defined by drafting/talk.tex and nodes/sy-999B.tex; it has no text until one definition remains",
+   "message": "sy-999B is defined by drafting/nodes/sy-999B.tex and drafting/talk.tex; it has no text until one definition remains",
    "severity": "error"
   },
   {
@@ -736,7 +736,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-0003.tex",
+     "file": "drafting/nodes/sy-0003.tex",
      "line": 14
     }
    ],
@@ -760,7 +760,7 @@
    "keys": [],
    "locations": [
     {
-     "file": "sections/appendix.tex",
+     "file": "drafting/sections/appendix.tex",
      "line": 30
     }
    ],
@@ -802,7 +802,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-000B.tex",
+     "file": "drafting/nodes/sy-000B.tex",
      "line": 1
     }
    ],
@@ -816,7 +816,7 @@
    ],
    "locations": [
     {
-     "file": "sections/appendix.tex",
+     "file": "drafting/sections/appendix.tex",
      "line": 21
     }
    ],
@@ -856,7 +856,7 @@
    "keys": [],
    "locations": [
     {
-     "file": "sections/appendix.tex",
+     "file": "drafting/sections/appendix.tex",
      "line": 28
     }
    ],
@@ -929,7 +929,7 @@
    "locations": [
     {
      "column": 1,
-     "file": "nodes/sy-0008.tex",
+     "file": "drafting/nodes/sy-0008.tex",
      "line": 1
     }
    ],
@@ -969,11 +969,11 @@
   {
    "code": "loom:unlabelled-node",
    "keys": [
-    "sections/appendix.tex#remark:1"
+    "drafting/sections/appendix.tex#remark:1"
    ],
    "locations": [
     {
-     "file": "sections/appendix.tex",
+     "file": "drafting/sections/appendix.tex",
      "line": 17
     }
    ],
@@ -1122,7 +1122,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-0002.tex",
+     "file": "drafting/nodes/sy-0002.tex",
      "line": 8
     }
    ],
@@ -1142,7 +1142,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-0006.tex",
+     "file": "drafting/nodes/sy-0006.tex",
      "line": 7
     }
    ],
@@ -1162,7 +1162,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-000B.tex",
+     "file": "drafting/nodes/sy-000B.tex",
      "line": 5
     }
    ],
@@ -1182,7 +1182,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-000B.tex",
+     "file": "drafting/nodes/sy-000B.tex",
      "line": 5
     }
    ],
@@ -1202,7 +1202,7 @@
    ],
    "locations": [
     {
-     "file": "sections/appendix.tex",
+     "file": "drafting/sections/appendix.tex",
      "line": 30
     }
    ],
@@ -1222,7 +1222,7 @@
    ],
    "locations": [
     {
-     "file": "sections/results.tex",
+     "file": "drafting/sections/results.tex",
      "line": 18
     }
    ],
@@ -1250,7 +1250,7 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-0009.tex",
+     "file": "drafting/nodes/sy-0009.tex",
      "line": 7
     }
    ],
@@ -1264,7 +1264,7 @@
    ],
    "locations": [
     {
-     "file": "sections/results.tex",
+     "file": "drafting/sections/results.tex",
      "line": 18
     }
    ],
@@ -1275,7 +1275,7 @@
    "code": "unreachable",
    "fixes": [
     {
-     "command": "\\input{nodes/sy-0009} in a document, or remove nodes/sy-0009.tex",
+     "command": "\\input{nodes/sy-0009} in a document, or remove drafting/nodes/sy-0009.tex",
      "label": "read it, or let it go"
     }
    ],
@@ -1284,11 +1284,11 @@
    ],
    "locations": [
     {
-     "file": "nodes/sy-0009.tex",
+     "file": "drafting/nodes/sy-0009.tex",
      "line": 1
     }
    ],
-   "message": "no master reaches nodes/sy-0009.tex",
+   "message": "no master reaches drafting/nodes/sy-0009.tex",
    "severity": "info"
   },
   {
@@ -1507,7 +1507,7 @@
    "from": "sy-0002",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-0002.tex",
+    "file": "drafting/nodes/sy-0002.tex",
     "line": 6
    },
    "to": "sy-0001",
@@ -1517,7 +1517,7 @@
    "from": "sy-0002",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-0002.tex",
+    "file": "drafting/nodes/sy-0002.tex",
     "line": 6
    },
    "to": "sy-0001",
@@ -1527,7 +1527,7 @@
    "from": "sy-0009",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-0009.tex",
+    "file": "drafting/nodes/sy-0009.tex",
     "line": 5
    },
    "to": "sy-0002",
@@ -1537,7 +1537,7 @@
    "from": "sy-000B",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-000B.tex",
+    "file": "drafting/nodes/sy-000B.tex",
     "line": 2
    },
    "to": "sy-0003",
@@ -1547,7 +1547,7 @@
    "from": "sy-000B",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-000B.tex",
+    "file": "drafting/nodes/sy-000B.tex",
     "line": 2
    },
    "to": "sy-0006",
@@ -1717,7 +1717,7 @@
    "from": "sy-0002/proof",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0002.tex",
+    "file": "drafting/nodes/sy-0002.tex",
     "line": 13
    },
    "to": "sy-0100",
@@ -1727,7 +1727,7 @@
    "from": "sy-0004",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 9
    },
    "to": "sy-0002",
@@ -1737,7 +1737,7 @@
    "from": "sy-0004",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 10
    },
    "to": "sy-0002",
@@ -1747,7 +1747,7 @@
    "from": "sy-0005",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 13
    },
    "to": "sy-0002",
@@ -1757,7 +1757,7 @@
    "from": "sy-0005",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 13
    },
    "to": "sy-0001",
@@ -1767,7 +1767,7 @@
    "from": "sy-0005",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 14
    },
    "to": "sy-0002/proof",
@@ -1777,7 +1777,7 @@
    "from": "sy-0005",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 14
    },
    "to": "sy-0002",
@@ -1787,7 +1787,7 @@
    "from": "sy-0005",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0003.tex",
+    "file": "drafting/nodes/sy-0003.tex",
     "line": 14
    },
    "to": "sy-0001",
@@ -1797,7 +1797,7 @@
    "from": "sy-0006/proof/2",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0006.tex",
+    "file": "drafting/nodes/sy-0006.tex",
     "line": 8
    },
    "to": "sy-0003",
@@ -1807,7 +1807,7 @@
    "from": "sy-0009/proof",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-0009.tex",
+    "file": "drafting/nodes/sy-0009.tex",
     "line": 8
    },
    "to": "sy-0002",
@@ -1817,7 +1817,7 @@
    "from": "sy-000B/proof",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-000B.tex",
+    "file": "drafting/nodes/sy-000B.tex",
     "line": 6
    },
    "to": "sy-0003",
@@ -1827,7 +1827,7 @@
    "from": "sy-000B/proof",
    "kind": "proof",
    "src": {
-    "file": "nodes/sy-000B.tex",
+    "file": "drafting/nodes/sy-000B.tex",
     "line": 6
    },
    "to": "sy-0006",
@@ -1837,7 +1837,7 @@
    "from": "sy-000C/proof",
    "kind": "proof",
    "src": {
-    "file": "sections/appendix.tex",
+    "file": "drafting/sections/appendix.tex",
     "line": 9
    },
    "to": "sy-0008",
@@ -1847,7 +1847,7 @@
    "from": "sy-000C/proof",
    "kind": "proof",
    "src": {
-    "file": "sections/appendix.tex",
+    "file": "drafting/sections/appendix.tex",
     "line": 10
    },
    "to": "sy-0008",
@@ -1857,7 +1857,7 @@
    "from": "sy-000D/proof",
    "kind": "proof",
    "src": {
-    "file": "sections/appendix.tex",
+    "file": "drafting/sections/appendix.tex",
     "line": 30
    },
    "to": "sy-0007",
@@ -1867,7 +1867,7 @@
    "from": "sy-0007/proof",
    "kind": "proof",
    "src": {
-    "file": "sections/results.tex",
+    "file": "drafting/sections/results.tex",
     "line": 19
    },
    "to": "sy-0001",
@@ -1877,7 +1877,7 @@
    "from": "sy-0007/proof",
    "kind": "proof",
    "src": {
-    "file": "sections/results.tex",
+    "file": "drafting/sections/results.tex",
     "line": 20
    },
    "to": "sy-0008",
@@ -1897,7 +1897,7 @@
    "from": "sy-000A",
    "kind": "statement",
    "src": {
-    "file": "nodes/sy-000A.tex",
+    "file": "drafting/nodes/sy-000A.tex",
     "line": 2
    },
    "to": "Kre99-thm-2.1",
@@ -2130,8 +2130,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-0002.tex",
-       "key": "nodes/sy-0002.tex",
+       "file": "drafting/nodes/sy-0002.tex",
+       "key": "drafting/nodes/sy-0002.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2160,8 +2160,8 @@
              "via": "nested-env"
             }
            ],
-           "file": "nodes/sy-0003.tex",
-           "key": "nodes/sy-0003.tex",
+           "file": "drafting/nodes/sy-0003.tex",
+           "key": "drafting/nodes/sy-0003.tex",
            "shift": 0,
            "via": "input"
           },
@@ -2176,8 +2176,8 @@
                "via": "nested-env"
               }
              ],
-             "file": "nodes/sy-0006.tex",
-             "key": "nodes/sy-0006.tex",
+             "file": "drafting/nodes/sy-0006.tex",
+             "key": "drafting/nodes/sy-0006.tex",
              "shift": 0,
              "via": "input"
             },
@@ -2190,8 +2190,8 @@
                "via": "nested-env"
               }
              ],
-             "file": "nodes/sy-0007.tex",
-             "key": "nodes/sy-0007.tex",
+             "file": "drafting/nodes/sy-0007.tex",
+             "key": "drafting/nodes/sy-0007.tex",
              "shift": 0,
              "via": "input"
             },
@@ -2204,8 +2204,8 @@
                "via": "nested-env"
               }
              ],
-             "file": "nodes/sy-0008.tex",
-             "key": "nodes/sy-0008.tex",
+             "file": "drafting/nodes/sy-0008.tex",
+             "key": "drafting/nodes/sy-0008.tex",
              "shift": 0,
              "via": "input"
             },
@@ -2226,8 +2226,8 @@
          "via": "section"
         }
        ],
-       "file": "sections/results.tex",
-       "key": "sections/results.tex",
+       "file": "drafting/sections/results.tex",
+       "key": "drafting/sections/results.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2249,7 +2249,7 @@
           },
           {
            "children": [],
-           "key": "sections/appendix.tex#remark:1",
+           "key": "drafting/sections/appendix.tex#remark:1",
            "shift": 1,
            "via": "nested-env"
           },
@@ -2265,8 +2265,8 @@
          "via": "section"
         }
        ],
-       "file": "sections/appendix.tex",
-       "key": "sections/appendix.tex",
+       "file": "drafting/sections/appendix.tex",
+       "key": "drafting/sections/appendix.tex",
        "shift": 1,
        "via": "nest"
       },
@@ -2279,8 +2279,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-000A.tex",
-       "key": "nodes/sy-000A.tex",
+       "file": "drafting/nodes/sy-000A.tex",
+       "key": "drafting/nodes/sy-000A.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2293,8 +2293,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-000B.tex",
-       "key": "nodes/sy-000B.tex",
+       "file": "drafting/nodes/sy-000B.tex",
+       "key": "drafting/nodes/sy-000B.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2302,13 +2302,13 @@
        "children": [
         {
          "children": [],
-         "key": "nodes/sy-999B.tex#lemma:1",
+         "key": "drafting/nodes/sy-999B.tex#lemma:1",
          "shift": 0,
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-999B.tex",
-       "key": "nodes/sy-999B.tex",
+       "file": "drafting/nodes/sy-999B.tex",
+       "key": "drafting/nodes/sy-999B.tex",
        "shift": 0,
        "via": "input"
       }
@@ -2333,8 +2333,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-0008.tex",
-       "key": "nodes/sy-0008.tex",
+       "file": "drafting/nodes/sy-0008.tex",
+       "key": "drafting/nodes/sy-0008.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2347,8 +2347,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-0002.tex",
-       "key": "nodes/sy-0002.tex",
+       "file": "drafting/nodes/sy-0002.tex",
+       "key": "drafting/nodes/sy-0002.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2361,8 +2361,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-0002.tex",
-       "key": "nodes/sy-0002.tex",
+       "file": "drafting/nodes/sy-0002.tex",
+       "key": "drafting/nodes/sy-0002.tex",
        "shift": 0,
        "via": "input"
       },
@@ -2381,8 +2381,8 @@
          "via": "nested-env"
         }
        ],
-       "file": "nodes/sy-999A.tex",
-       "key": "nodes/sy-999A.tex",
+       "file": "drafting/nodes/sy-999A.tex",
+       "key": "drafting/nodes/sy-999A.tex",
        "shift": 0,
        "via": "input"
       }
@@ -2486,6 +2486,58 @@
    "state": "draft",
    "uses": []
   },
+  "drafting/nodes/sy-999B.tex#lemma:1": {
+   "closure": [
+    "drafting/nodes/sy-999B.tex#lemma:1"
+   ],
+   "file": "drafting/nodes/sy-999B.tex",
+   "hash": "sha256:dbafc4ed9f644714be590c66c51d43613d24fb04c3301123562e144da98d554a",
+   "incomplete": [],
+   "key": "drafting/nodes/sy-999B.tex#lemma:1",
+   "kind": "statement",
+   "node": "drafting/nodes/sy-999B.tex#lemma:1",
+   "previous_key_match": null,
+   "review_fragment": "fragments/review/196679b0e7fbd9b7e183-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    142
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "drafting/sections/appendix.tex#remark:1": {
+   "closure": [
+    "drafting/sections/appendix.tex#remark:1"
+   ],
+   "file": "drafting/sections/appendix.tex",
+   "hash": "sha256:c724707ee5682e97b2645e844f752bd43603ea4aeef3f07ca642fb04ae9519db",
+   "incomplete": [],
+   "key": "drafting/sections/appendix.tex#remark:1",
+   "kind": "statement",
+   "node": "drafting/sections/appendix.tex#remark:1",
+   "previous_key_match": null,
+   "review_fragment": "fragments/review/b69b9f361bd70f739f42-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    443,
+    522
+   ],
+   "state": "draft",
+   "uses": []
+  },
   "drafting/talk.tex#lemma:1": {
    "closure": [
     "drafting/talk.tex#lemma:1"
@@ -2508,58 +2560,6 @@
    "src": [
     782,
     924
-   ],
-   "state": "draft",
-   "uses": []
-  },
-  "nodes/sy-999B.tex#lemma:1": {
-   "closure": [
-    "nodes/sy-999B.tex#lemma:1"
-   ],
-   "file": "nodes/sy-999B.tex",
-   "hash": "sha256:dbafc4ed9f644714be590c66c51d43613d24fb04c3301123562e144da98d554a",
-   "incomplete": [],
-   "key": "nodes/sy-999B.tex#lemma:1",
-   "kind": "statement",
-   "node": "nodes/sy-999B.tex#lemma:1",
-   "previous_key_match": null,
-   "review_fragment": "fragments/review/81b701325d16dc7c150f-block.html",
-   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
-   "reviews": {
-    "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
-    "open": {}
-   },
-   "src": [
-    0,
-    142
-   ],
-   "state": "draft",
-   "uses": []
-  },
-  "sections/appendix.tex#remark:1": {
-   "closure": [
-    "sections/appendix.tex#remark:1"
-   ],
-   "file": "sections/appendix.tex",
-   "hash": "sha256:c724707ee5682e97b2645e844f752bd43603ea4aeef3f07ca642fb04ae9519db",
-   "incomplete": [],
-   "key": "sections/appendix.tex#remark:1",
-   "kind": "statement",
-   "node": "sections/appendix.tex#remark:1",
-   "previous_key_match": null,
-   "review_fragment": "fragments/review/3948987fa147e85aec0b-block.html",
-   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
-   "reviews": {
-    "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
-    "open": {}
-   },
-   "src": [
-    443,
-    522
    ],
    "state": "draft",
    "uses": []
@@ -2721,7 +2721,7 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "citation": "cite-nodes-sy-0002-tex-214-sy-0001",
+      "citation": "cite-drafting-nodes-sy-0002-tex-214-sy-0001",
       "comparison": {
        "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
        "accepted_macros": "review:b0e87d44e6b71ffd20d9",
@@ -2812,7 +2812,7 @@
     "sy-0001",
     "sy-0002"
    ],
-   "file": "nodes/sy-0002.tex",
+   "file": "drafting/nodes/sy-0002.tex",
    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
    "incomplete": [],
    "key": "sy-0002",
@@ -2947,7 +2947,7 @@
     "sy-0001",
     "sy-0002"
    ],
-   "file": "nodes/sy-0002.tex",
+   "file": "drafting/nodes/sy-0002.tex",
    "hash": "sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c",
    "incomplete": [],
    "key": "sy-0002/proof",
@@ -2992,7 +2992,7 @@
    "closure": [
     "sy-0003"
    ],
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
    "incomplete": [],
    "key": "sy-0003",
@@ -3087,7 +3087,7 @@
     "sy-0002",
     "sy-0003"
    ],
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
    "incomplete": [],
    "key": "sy-0004",
@@ -3165,7 +3165,7 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "citation": "cite-nodes-sy-0003-tex-569-sy-0001",
+      "citation": "cite-drafting-nodes-sy-0003-tex-569-sy-0001",
       "comparison": {
        "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
        "accepted_macros": "review:b0e87d44e6b71ffd20d9",
@@ -3257,7 +3257,7 @@
     "sy-0002",
     "sy-0003"
    ],
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "hash": "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1",
    "incomplete": [],
    "key": "sy-0005",
@@ -3324,7 +3324,7 @@
    "closure": [
     "sy-0006"
    ],
-   "file": "nodes/sy-0006.tex",
+   "file": "drafting/nodes/sy-0006.tex",
    "hash": "sha256:cba9191a047c10fd2aa674bccb9aeda7fb2448c35eb4ef8ca1d5155e7c9e4d54",
    "incomplete": [],
    "key": "sy-0006",
@@ -3437,7 +3437,7 @@
    "closure": [
     "sy-0006"
    ],
-   "file": "nodes/sy-0006.tex",
+   "file": "drafting/nodes/sy-0006.tex",
    "hash": "sha256:6cbefc2a75d69966fab85f20d70e3b1b96f916e48ddd1e1b1f4062c327aa7c87",
    "incomplete": [],
    "key": "sy-0006/proof",
@@ -3469,7 +3469,7 @@
     "sy-0003",
     "sy-0006"
    ],
-   "file": "nodes/sy-0006.tex",
+   "file": "drafting/nodes/sy-0006.tex",
    "hash": "sha256:d3b02c3df966ee98a0ab087667a26a2f9ede66695cb5bd7673c418632ef356f1",
    "incomplete": [],
    "key": "sy-0006/proof/2",
@@ -3502,7 +3502,7 @@
    "closure": [
     "sy-0007"
    ],
-   "file": "nodes/sy-0007.tex",
+   "file": "drafting/nodes/sy-0007.tex",
    "hash": "sha256:28ee0b6075e61a0cc4d6393644d351e1a884f05548eb44203ab8110971ba027d",
    "incomplete": [],
    "key": "sy-0007",
@@ -3594,7 +3594,7 @@
     "sy-0008",
     "sy-0007"
    ],
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "hash": "sha256:8290f0a7296c1ec6b88b9a3ea66936caf6f5a6790966a711d6f7c649ca2794d1",
    "incomplete": [],
    "key": "sy-0007/proof",
@@ -3628,7 +3628,7 @@
    "closure": [
     "sy-0008"
    ],
-   "file": "nodes/sy-0008.tex",
+   "file": "drafting/nodes/sy-0008.tex",
    "hash": "sha256:0dc54f2a1ba940176c36ba5787f42ee257751af4a3873125fe6a64bb538b67a1",
    "incomplete": [],
    "key": "sy-0008",
@@ -3687,7 +3687,7 @@
     "sy-0002",
     "sy-0009"
    ],
-   "file": "nodes/sy-0009.tex",
+   "file": "drafting/nodes/sy-0009.tex",
    "hash": "sha256:2ae3972ff9dc3ff2a6b35f72165247f031529192109d7797d9cd2b54f753d02a",
    "incomplete": [],
    "key": "sy-0009",
@@ -3722,7 +3722,7 @@
     "sy-0002",
     "sy-0009"
    ],
-   "file": "nodes/sy-0009.tex",
+   "file": "drafting/nodes/sy-0009.tex",
    "hash": "sha256:d0aca8e44184ab1d0548e9f73ac483d799176efa6bb6063c6fca59a005f41702",
    "incomplete": [],
    "key": "sy-0009/proof",
@@ -3757,7 +3757,7 @@
     "Kre99-thm-2.1",
     "sy-000A"
    ],
-   "file": "nodes/sy-000A.tex",
+   "file": "drafting/nodes/sy-000A.tex",
    "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
    "incomplete": [],
    "key": "sy-000A",
@@ -3821,7 +3821,7 @@
     "sy-0006",
     "sy-000B"
    ],
-   "file": "nodes/sy-000B.tex",
+   "file": "drafting/nodes/sy-000B.tex",
    "hash": "sha256:f0317517ed76d93d697ad2bdde148168abdd443ce83cc0326124e046f56c66fc",
    "incomplete": [],
    "key": "sy-000B",
@@ -3919,7 +3919,7 @@
     "sy-0006",
     "sy-000B"
    ],
-   "file": "nodes/sy-000B.tex",
+   "file": "drafting/nodes/sy-000B.tex",
    "hash": "sha256:72e0a7ff1431d69ae3002cde5ab57b1bbf4dc01d55d6121e91d435544e984722",
    "incomplete": [],
    "key": "sy-000B/proof",
@@ -3953,7 +3953,7 @@
    "closure": [
     "sy-000C"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:cc31920c84f7c9c9d71b8463e4feda5e205baa4385dec612b5b86eafd1706229",
    "incomplete": [],
    "key": "sy-000C",
@@ -4042,7 +4042,7 @@
     "sy-0008",
     "sy-000C"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:0184b54714a55be3529b9e28d6d618219da220ad711a61f3b85330566bcbd498",
    "incomplete": [
     "Show that there are no fixed points using Definition~\\ref{sy-0008}."
@@ -4077,7 +4077,7 @@
    "closure": [
     "sy-000D"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:86437dfaaa8c6fedeca7aad5b4b8fa2f01780c8cdb7b1ecd4614befde8488ad3",
    "incomplete": [],
    "key": "sy-000D",
@@ -4164,7 +4164,7 @@
     "sy-0007",
     "sy-000D"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:2eded515fe360e21bb7a94a3b12b33d4c982746b5ede8f55d30076199c9f1036",
    "incomplete": [],
    "key": "sy-000D/proof",
@@ -4197,7 +4197,7 @@
    "closure": [
     "sy-000E"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:f3d078831dd78bc2b5c77c5ba402712fa7b408724f4e954582b82a89100a8eca",
    "incomplete": [],
    "key": "sy-000E",
@@ -4280,7 +4280,7 @@
    "closure": [
     "sy-000E"
    ],
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "hash": "sha256:81da139027186924ca9a2ea23235007959775a7f907b030c0c1a82cb482dac3a",
    "incomplete": [],
    "key": "sy-000E/proof",
@@ -4311,7 +4311,7 @@
    "closure": [
     "sy-0202"
    ],
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "hash": "sha256:758281804f1d7265d09be46d4bd4621b7b72eddc56423a06e735b52397607654",
    "incomplete": [],
    "key": "sy-0202",
@@ -4341,7 +4341,7 @@
    "closure": [
     "sy-0202"
    ],
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "hash": "sha256:ea642431f360d0d3227e6cce804ea09c1e0b6e29e2d4ee3767db4111bd83a007",
    "incomplete": [],
    "key": "sy-0202/proof",
@@ -4372,7 +4372,7 @@
    "closure": [
     "sy-999A"
    ],
-   "file": "nodes/sy-999A.tex",
+   "file": "drafting/nodes/sy-999A.tex",
    "hash": "sha256:43fe66048e8df8f77523b2b8769641147d667b96679b04c24cc74afc2580aa2e",
    "incomplete": [],
    "key": "sy-999A",
@@ -4402,7 +4402,7 @@
    "closure": [
     "sy-999A"
    ],
-   "file": "nodes/sy-999A.tex",
+   "file": "drafting/nodes/sy-999A.tex",
    "hash": "sha256:6cbefc2a75d69966fab85f20d70e3b1b96f916e48ddd1e1b1f4062c327aa7c87",
    "incomplete": [],
    "key": "sy-999A/proof",
@@ -4434,8 +4434,8 @@
     "sy-999B"
    ],
    "conflict": [
-    "drafting/talk.tex",
-    "nodes/sy-999B.tex"
+    "drafting/nodes/sy-999B.tex",
+    "drafting/talk.tex"
    ],
    "file": "",
    "hash": "",
@@ -4566,7 +4566,7 @@
      "name": "Hom"
     }
    ],
-   "adopt:b6fd813f82622e7ea280": [
+   "adopt:5de329d9b7e74b26f168": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",
@@ -4586,16 +4586,6 @@
      "args": 0,
      "body": "\\section",
      "name": "chapter"
-    },
-    {
-     "args": 1,
-     "body": "",
-     "name": "incomplete"
-    },
-    {
-     "args": 1,
-     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
-     "name": "nest"
     },
     {
      "args": 0,
@@ -4621,11 +4611,6 @@
      "args": 0,
      "body": "\\paragraph",
      "name": "subsubsection"
-    },
-    {
-     "args": 1,
-     "body": "",
-     "name": "uses"
     }
    ],
    "canon:widgets-v1": [
@@ -4866,16 +4851,6 @@
      "name": "chapter"
     },
     {
-     "args": 1,
-     "body": "",
-     "name": "incomplete"
-    },
-    {
-     "args": 1,
-     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
-     "name": "nest"
-    },
-    {
      "args": 0,
      "body": "\\subparagraph",
      "name": "paragraph"
@@ -4899,11 +4874,6 @@
      "args": 0,
      "body": "\\paragraph",
      "name": "subsubsection"
-    },
-    {
-     "args": 1,
-     "body": "",
-     "name": "uses"
     }
    ],
    "review:b0e87d44e6b71ffd20d9": [
@@ -4928,16 +4898,6 @@
      "name": "chapter"
     },
     {
-     "args": 1,
-     "body": "",
-     "name": "incomplete"
-    },
-    {
-     "args": 1,
-     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
-     "name": "nest"
-    },
-    {
      "args": 0,
      "body": "\\subparagraph",
      "name": "paragraph"
@@ -4961,11 +4921,6 @@
      "args": 0,
      "body": "\\paragraph",
      "name": "subsubsection"
-    },
-    {
-     "args": 1,
-     "body": "",
-     "name": "uses"
     }
    ]
   }
@@ -5210,6 +5165,80 @@
    "taxon": "Remark",
    "title": null
   },
+  "drafting/nodes/sy-999B.tex#lemma:1": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/nodes/sy-999B.tex",
+   "fragment": "fragments/keys/drafting%2Fnodes%2Fsy-999B.tex%23lemma%3A1.html",
+   "id": "drafting/nodes/sy-999B.tex#lemma:1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    142
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
+  },
+  "drafting/sections/appendix.tex#remark:1": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Remark",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/sections/appendix.tex",
+   "fragment": "fragments/keys/drafting%2Fsections%2Fappendix.tex%23remark%3A1.html",
+   "id": "drafting/sections/appendix.tex#remark:1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    443,
+    522
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": null
+  },
   "drafting/talk.tex#lemma:1": {
    "aliases": [],
    "author": [],
@@ -5246,80 +5275,6 @@
    "tags": [],
    "taxon": "Lemma",
    "title": "Doubly defined"
-  },
-  "nodes/sy-999B.tex#lemma:1": {
-   "aliases": [],
-   "author": [],
-   "basis": "local-proof",
-   "basis_reason": "inferred from environment Lemma",
-   "children": [],
-   "created": null,
-   "derived": {
-    "proved": false,
-    "settled": false
-   },
-   "digest": null,
-   "external": false,
-   "file": "nodes/sy-999B.tex",
-   "fragment": "fragments/keys/nodes%2Fsy-999B.tex%23lemma%3A1.html",
-   "id": "nodes/sy-999B.tex#lemma:1",
-   "incomplete": [],
-   "inline_proof": false,
-   "kind": "environment",
-   "numbers": {},
-   "parent": {
-    "drafting/main.tex": "sy-0300"
-   },
-   "proofs": [],
-   "reached_by": [
-    "drafting/main.tex"
-   ],
-   "src": [
-    0,
-    142
-   ],
-   "state": "draft",
-   "style": "plain",
-   "tags": [],
-   "taxon": "Lemma",
-   "title": "Doubly defined"
-  },
-  "sections/appendix.tex#remark:1": {
-   "aliases": [],
-   "author": [],
-   "basis": "expository",
-   "basis_reason": "inferred from environment Remark",
-   "children": [],
-   "created": null,
-   "derived": {
-    "proved": false,
-    "settled": false
-   },
-   "digest": null,
-   "external": false,
-   "file": "sections/appendix.tex",
-   "fragment": "fragments/keys/sections%2Fappendix.tex%23remark%3A1.html",
-   "id": "sections/appendix.tex#remark:1",
-   "incomplete": [],
-   "inline_proof": false,
-   "kind": "environment",
-   "numbers": {},
-   "parent": {
-    "drafting/main.tex": "sy-0300"
-   },
-   "proofs": [],
-   "reached_by": [
-    "drafting/main.tex"
-   ],
-   "src": [
-    443,
-    522
-   ],
-   "state": "draft",
-   "style": "remark",
-   "tags": [],
-   "taxon": "Remark",
-   "title": null
   },
   "sy-0001": {
    "aliases": [],
@@ -5422,7 +5377,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0002.tex",
+   "file": "drafting/nodes/sy-0002.tex",
    "fragment": "fragments/nodes/sy-0002.html",
    "id": "sy-0002",
    "incomplete": [],
@@ -5523,7 +5478,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "fragment": "fragments/nodes/sy-0003.html",
    "id": "sy-0003",
    "incomplete": [],
@@ -5617,7 +5572,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "fragment": "fragments/nodes/sy-0004.html",
    "id": "sy-0004",
    "incomplete": [],
@@ -5701,7 +5656,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0003.tex",
+   "file": "drafting/nodes/sy-0003.tex",
    "fragment": "fragments/nodes/sy-0005.html",
    "id": "sy-0005",
    "incomplete": [],
@@ -5785,7 +5740,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0006.tex",
+   "file": "drafting/nodes/sy-0006.tex",
    "fragment": "fragments/nodes/sy-0006.html",
    "id": "sy-0006",
    "incomplete": [],
@@ -5877,7 +5832,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0007.tex",
+   "file": "drafting/nodes/sy-0007.tex",
    "fragment": "fragments/nodes/sy-0007.html",
    "id": "sy-0007",
    "incomplete": [],
@@ -5972,7 +5927,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0008.tex",
+   "file": "drafting/nodes/sy-0008.tex",
    "fragment": "fragments/nodes/sy-0008.html",
    "id": "sy-0008",
    "incomplete": [],
@@ -6067,7 +6022,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-0009.tex",
+   "file": "drafting/nodes/sy-0009.tex",
    "fragment": "fragments/nodes/sy-0009.html",
    "id": "sy-0009",
    "incomplete": [],
@@ -6104,7 +6059,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-000A.tex",
+   "file": "drafting/nodes/sy-000A.tex",
    "fragment": "fragments/nodes/sy-000A.html",
    "id": "sy-000A",
    "incomplete": [],
@@ -6190,7 +6145,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-000B.tex",
+   "file": "drafting/nodes/sy-000B.tex",
    "fragment": "fragments/nodes/sy-000B.html",
    "id": "sy-000B",
    "incomplete": [],
@@ -6280,7 +6235,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "fragment": "fragments/nodes/sy-000C.html",
    "id": "sy-000C",
    "incomplete": [],
@@ -6370,7 +6325,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "fragment": "fragments/nodes/sy-000D.html",
    "id": "sy-000D",
    "incomplete": [],
@@ -6460,7 +6415,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "fragment": "fragments/nodes/sy-000E.html",
    "id": "sy-000E",
    "incomplete": [],
@@ -6635,7 +6590,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "fragment": "fragments/nodes/sy-0200.html",
    "id": "sy-0200",
    "incomplete": [],
@@ -6723,7 +6678,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "fragment": "fragments/nodes/sy-0201.html",
    "id": "sy-0201",
    "incomplete": [],
@@ -6811,7 +6766,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/results.tex",
+   "file": "drafting/sections/results.tex",
    "fragment": "fragments/nodes/sy-0202.html",
    "id": "sy-0202",
    "incomplete": [],
@@ -6850,7 +6805,7 @@
    "children": [
     "sy-000C",
     "sy-000D",
-    "sections/appendix.tex#remark:1",
+    "drafting/sections/appendix.tex#remark:1",
     "sy-000E"
    ],
    "created": null,
@@ -6860,7 +6815,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "sections/appendix.tex",
+   "file": "drafting/sections/appendix.tex",
    "fragment": "fragments/nodes/sy-0300.html",
    "id": "sy-0300",
    "incomplete": [],
@@ -6984,7 +6939,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "nodes/sy-999A.tex",
+   "file": "drafting/nodes/sy-999A.tex",
    "fragment": "fragments/nodes/sy-999A.html",
    "id": "sy-999A",
    "incomplete": [],
@@ -7020,8 +6975,8 @@
    "author": [],
    "children": [],
    "conflict": [
-    "drafting/talk.tex",
-    "nodes/sy-999B.tex"
+    "drafting/nodes/sy-999B.tex",
+    "drafting/talk.tex"
    ],
    "created": null,
    "derived": {
@@ -7314,7 +7269,7 @@
    "from": "sy-0009",
    "kind": "see",
    "src": {
-    "file": "nodes/sy-0009.tex",
+    "file": "drafting/nodes/sy-0009.tex",
     "line": 4
    },
    "to": "sy-0008"
@@ -7397,15 +7352,6 @@
    "tags": [],
    "taxon": "Definition",
    "title": "Widget"
-  },
-  {
-   "aliases": [],
-   "excerpt": "This lemma is defined twice, so it has no text and loom says so rather than choosing.",
-   "key": "drafting/talk.tex#lemma:1",
-   "kind": "environment",
-   "tags": [],
-   "taxon": "Lemma",
-   "title": "Doubly defined"
   },
   {
    "aliases": [],
@@ -7503,7 +7449,7 @@
   {
    "aliases": [],
    "excerpt": "This lemma is defined twice, so it has no text and loom says so rather than choosing.",
-   "key": "nodes/sy-999B.tex#lemma:1",
+   "key": "drafting/nodes/sy-999B.tex#lemma:1",
    "kind": "environment",
    "tags": [],
    "taxon": "Lemma",
@@ -7530,11 +7476,11 @@
   {
    "aliases": [],
    "excerpt": "An unlabelled remark: gadgets never have odd order.",
-   "key": "sections/appendix.tex#remark:1",
+   "key": "drafting/sections/appendix.tex#remark:1",
    "kind": "environment",
    "tags": [],
    "taxon": "Remark",
-   "title": "sections/appendix.tex#remark:1"
+   "title": "drafting/sections/appendix.tex#remark:1"
   },
   {
    "aliases": [],
@@ -7555,6 +7501,15 @@
    ],
    "taxon": "Lemma",
    "title": "sy-0202"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This lemma is defined twice, so it has no text and loom says so rather than choosing.",
+   "key": "drafting/talk.tex#lemma:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
   },
   {
    "aliases": [],

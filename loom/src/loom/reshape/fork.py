@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from loom.history.ledger import History
 from loom.history.versions import materialize, read_version
-from loom.paths import NODES
+from loom.paths import NODES, under
 from loom.reshape.atomize import _single_node_file, node_region
 from loom.reshape.ids import unified_diff
 from loom.scan.alloc import visible_locals
@@ -188,13 +188,15 @@ def plan_fork(
         patched = src_text[: region.start] + forked + src_text[region.end :]
         plan.patched = rename_labels(_rewrite_refs(patched, names, new_id), inner)
     else:
-        plan.node_file = f"{NODES}/{new_id}.tex"
+        # the copy goes in nodes/ beside the document, and its \input line names it from the document's directory (P12)
+        base = result.base_of(doc)
+        plan.node_file = f"{under(base, NODES)}/{new_id}.tex"
         plan.node_text = forked
-        stem = node.file[: -len(".tex")]
+        named = node.file.removeprefix(f"{base}/") if base else node.file
 
         def repl(m: re.Match[str]) -> str:
             name = m.group(3).strip()
-            if name in (stem, node.file):
+            if name in (named.removesuffix(".tex"), named):
                 return f"{m.group(1)}\\{m.group(2)}{{{NODES}/{new_id}}}"
             return m.group(0)
 

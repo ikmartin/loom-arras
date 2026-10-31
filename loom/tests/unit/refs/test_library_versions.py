@@ -57,7 +57,7 @@ def _versioned(tmp_path: Path) -> Path:
 
 def _cite(q: Path, text: str) -> None:
     """Append a sentence citing something to the demo's node dm-0003, which is in its document."""
-    node = q / "nodes" / "dm-0003.tex"
+    node = q / "drafting" / "nodes" / "dm-0003.tex"
     body = node.read_text(encoding="utf-8")
     node.write_text(body.replace("\\end{proof}", f"{text}\n\\end{{proof}}", 1), encoding="utf-8")
 

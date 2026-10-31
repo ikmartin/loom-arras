@@ -26,7 +26,7 @@ def _make(root: Path, body: str = '[quilt]\nmain = "drafting/main.tex"\n') -> Pa
 
 def test_quilt_discovery_walks_up(tmp_path: Path) -> None:
     root = _make(tmp_path / "q")
-    deep = root / "nodes" / "deeper"
+    deep = root / "drafting" / "nodes" / "deeper"
     deep.mkdir(parents=True)
     assert find_quilt(deep).root == root.resolve()
 

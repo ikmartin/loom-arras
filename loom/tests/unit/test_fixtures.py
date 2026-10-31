@@ -226,5 +226,5 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
         assert (q / ledger).read_text(encoding="utf-8").startswith(old), "the history ledger is append-only"
     new_files = set(after) - set(before)
     # everything loom writes goes into nodes/, the drafting directory it was told to write in, or its own record, where a landmark's text is kept
-    allowed = ("nodes/", f"{drafting}/", ".loom/")
+    allowed = ("drafting/nodes/", f"{drafting}/", ".loom/")
     assert all(rel.startswith(allowed) for rel in new_files), new_files

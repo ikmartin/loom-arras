@@ -17,7 +17,17 @@ from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
 from loom.scan.source import blank_comments
-from loom.sync import SyncError, SyncState, changed_files, current_selection, git, source_label, tree_files, workspace
+from loom.sync import (
+    SyncError,
+    SyncState,
+    changed_files,
+    current_selection,
+    git,
+    local_path,
+    source_label,
+    tree_files,
+    workspace,
+)
 
 
 def _scan_tree(clone: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
@@ -25,10 +35,8 @@ def _scan_tree(clone: Path, commit: str, config: bytes, home: Path, state: SyncS
     stage = home / commit[:12]
     stage.mkdir()
     (stage / "config.toml").write_bytes(config)
-    for rel, data in tree_files(clone, commit).items():
-        if rel == state.published_main:
-            rel = main
-        target = stage / rel
+    for remote, data in tree_files(clone, commit).items():
+        target = stage / local_path(state, main, remote)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
     return scan(load_quilt(stage))

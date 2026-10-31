@@ -95,7 +95,7 @@ Make and find nodes, and see what state each is in.
 
 `loom new [OPTIONS] TAXON [TITLE]`
 
-Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.
+Allocate an id and write nodes/<id>.tex, beside the default document, with a skeleton for TAXON; with --print, print the skeleton instead.
 
 The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configured author; an agent that has not named itself is refused.
 
@@ -104,6 +104,7 @@ The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configu
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
 | `--dry-run` | Say which id and file would be written, and write nothing. |
+| `--to` `FILE` | The node file to write, instead of nodes/<id>.tex beside the default document. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--as` `NAME` | Who writes the node; an agent names itself, including Agent or AI. |
 | `--json` | Print the report as one JSON object. |
@@ -1130,7 +1131,7 @@ The viewer is at /, and the build directory it reads at /build/. One server runs
 
 `loom compile [OPTIONS] [TARGET]`
 
-Run latexmk from the root into build/<name>/ for a master (default: the default master), its name its path without .tex, or for a key.
+Run latexmk from a master's own directory into build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
 Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
 
@@ -1204,7 +1205,7 @@ Apply the fetched pull to the quilt's files, stamping first each document it rea
 
 Pair the quilt with a document workspace through DIR, your clone of it, such as an Overleaf project's.
 
-Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
+Clone the workspace yourself (`git clone URL DIR`), anywhere, inside the quilt or not. Loom runs Git only in DIR and never changes its files or its checked-out branch, so after `publish --push` your branch there is behind until you pull; it skips DIR when it reads the quilt. The remote and branch are the ones DIR's branch follows, and the main document's directory is the workspace's root, as Overleaf compiles a project from its top. DIR is refused when it is the quilt's own repository, holds a quilt, follows a remote of the quilt's repository or sits inside one of loom's own directories, and `publish --push` refuses a workspace that holds a quilt.
 
 | option | description |
 |---|---|
@@ -1247,9 +1248,7 @@ Keep loom's own files current, and documents live.
 
 `loom upgrade [OPTIONS]`
 
-Refresh loom.sty, ai/orientation.md, ai/README.md, the permission and MCP client files, and unedited mode files; report edited ones.
-
-loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
+Refresh ai/orientation.md, ai/README.md, the permission and MCP client files, unedited mode files and the .gitignore lines loom relies on; report edited ones.
 
 | option | description |
 |---|---|

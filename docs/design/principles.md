@@ -35,7 +35,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | [P9](#p9-loom-calls-no-model-and-any-agent-may-attach) | Loom calls no model, and any agent may attach. |
 | [P10](#p10-comments-declare-they-never-command-they-never-change-typeset-output) | Comments declare; they never command; they never change typeset output. |
 | [P11](#p11-the-build-interface-and-the-write-api-are-the-product-boundaries) | The build interface and the write API are the product boundaries. |
-| [P12](#p12-a-document-compiles-from-the-quilt-root-on-any-tex-on-overleaf) | A document compiles from the quilt root, on any TeX, on Overleaf. |
+| [P12](#p12-a-document-compiles-from-its-own-directory-on-any-tex-on-overleaf) | A document compiles from its own directory, on any TeX, on Overleaf. |
 | [P13](#p13-loom-verifies-what-it-can-reports-what-diverges-repairs-nothing-and-never-blocks-work) | Loom verifies what it can, reports what diverges, repairs nothing, and never blocks work. |
 | [P14](#p14-no-unnecessary-friction) | No unnecessary friction. |
 | [P15](#p15-nothing-unchecked-looks-checked) | Nothing unchecked looks checked. |
@@ -122,9 +122,9 @@ A `% !LOOM` directive is a fact the scanner reads, never an action loom performs
 
 Loom and arras share no code; they share specifications. Consequence: loom publishes a build directory conforming to `docs/specs/`, and arras reads it and nothing else. Arras knows only that a directory changed, never what kind of change or why.
 
-### P12. A document compiles from the quilt root, on any TeX, on Overleaf.
+### P12. A document compiles from its own directory, on any TeX, on Overleaf.
 
-Portability is a property of the source, not of the tool. Consequence: all paths are root-relative, local style files sit at the root, and there is no `TEXINPUTS`, no shell escape and no absolute path. A quilt with no document has nothing to compile; the rule binds documents, not quilts.
+Portability is a property of the source, not of the tool. Consequence: a document's paths are relative to its own directory, as LaTeX and Overleaf read them, its local style files, figures and bibliography sit there or below, and there is no `..`, no `TEXINPUTS`, no shell escape and no absolute path. loom's three macros travel inside the document, as a marked block in its preamble, so no file has to sit beside it. A text derived from a document (an agent's copy, a landmark) reads its names from that document's directory. A quilt with no document has nothing to compile; the rule binds documents, not quilts.
 
 ### P13. Loom verifies what it can, reports what diverges, repairs nothing, and never blocks work.
 

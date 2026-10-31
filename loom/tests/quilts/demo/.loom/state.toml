@@ -6,7 +6,7 @@ key = "dm-0002"
 author = "The loom demo"
 date = 2026-09-16T00:00:00Z
 text = "sha256:85937d118b76ff4a0180631929ae406341223152cc763a0205131e076ccf3273"
-preamble = "sha256:3536adcdd34d946abd14b06e2f4d95dffeb8e11b94df6c38fb5495fc477de81f"
+preamble = "sha256:cb4ff970a8c68e129955252576d9e366c4f618acb338062999bc153d330fb3c7"
 master = "drafting/main.tex"
 dependency_version = 1
 basis = "local-proof"
@@ -18,7 +18,7 @@ key = "dm-0002/proof"
 author = "The loom demo"
 date = 2026-09-16T00:00:00Z
 text = "sha256:f61ebff4fab345f0088dcc3f282d13e3fe9871e719640cd9abb5a527ee6d44c6"
-preamble = "sha256:3536adcdd34d946abd14b06e2f4d95dffeb8e11b94df6c38fb5495fc477de81f"
+preamble = "sha256:cb4ff970a8c68e129955252576d9e366c4f618acb338062999bc153d330fb3c7"
 master = "drafting/main.tex"
 dependency_version = 1
 [accept.closure]

@@ -30,7 +30,7 @@ def test_a_working_document_goes_anywhere_loom_reads_and_nothing_else_among_the_
         destination(q, tmp_path / "elsewhere.tex", document=True)
     assert destination(q, "drafting-ai/flat.tex", document=True, agent=True).name == "flat.tex"
     with pytest.raises(EnvError, match="among the quilt's sources"):
-        destination(q, "nodes/patched.tex")
+        destination(q, "drafting/nodes/patched.tex")
     assert destination(q, "build/plain.tex") == (q.root / "build/plain.tex").resolve()
     assert destination(q, tmp_path / "elsewhere.tex") == (tmp_path / "elsewhere.tex").resolve()
 

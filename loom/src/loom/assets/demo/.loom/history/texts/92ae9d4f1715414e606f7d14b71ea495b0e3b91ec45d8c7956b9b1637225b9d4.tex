@@ -1,6 +1,19 @@
 \documentclass{amsart}
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{loom}
+% !LOOM begin loom-macros
+
+\providecommand{\uses}[1]{}
+
+\providecommand{\incomplete}[1]{}
+
+\providecommand{\nest}[1]{\begingroup
+  \let\chapter\section
+  \let\section\subsection
+  \let\subsection\subsubsection
+  \let\subsubsection\paragraph
+  \let\paragraph\subparagraph
+  \input{#1}\endgroup}
+% !LOOM end loom-macros
 
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
@@ -16,17 +29,9 @@
 \title{Widgets and their fixed loci}
 \author{The loom demo}
 
-\NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{loom}[2026/09/16 v0.1 loom macros]
+\begin{document}
+\maketitle
 
-\providecommand{\uses}[1]{}
-
-\providecommand{\incomplete}[1]{}
-
-\providecommand{\nest}[1]{\begingroup
-  \let\chapter\section
-  \let\section\subsection
-  \let\subsection\subsubsection
-  \let\subsubsection\paragraph
-  \let\paragraph\subparagraph
-  \input{#1}\endgroup}
+% !LOOM child: dm-0010
+% !LOOM child: dm-0011
+\end{document}

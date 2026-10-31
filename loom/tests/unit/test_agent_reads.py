@@ -7,7 +7,7 @@ from pathlib import Path
 from tests.helpers import edit, json_of, ok, refused
 from tests.unit._quilts import demo, showcase
 
-LEMMA = "nodes/dm-0002.tex"
+LEMMA = "drafting/nodes/dm-0002.tex"
 
 
 def test_downstream_proofs_lists_the_proofs_that_cite_a_key_with_what_each_proves(tmp_path: Path) -> None:

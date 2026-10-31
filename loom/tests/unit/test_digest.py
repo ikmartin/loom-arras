@@ -89,7 +89,7 @@ def test_postnote_normalization_table() -> None:
 
 def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    node = q / "nodes" / "dm-0002.tex"
+    node = q / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(
         node.read_text().replace(
             "\\end{lemma}",
@@ -136,7 +136,7 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     assert "0805.2065v3" in bib.read_text()
     digest = q / "digests" / "Calloway14.tex"
     digest.write_text(digest.read_text().replace("% !LOOM method:", "% !LOOM requires: tikz-cd\n% !LOOM method:", 1))
-    node = q / "nodes" / "dm-0002.tex"
+    node = q / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().rstrip("\n") + "\nAs in \\cite{Man12}.\n")  # a work nothing cites is one line
     said = ok("lint", cwd=q).output  # a cited work's diagnostics are counted in the text, and listed in the JSON
     assert "loom:version-mismatch" in said and "loom:missing-package" in said
@@ -190,7 +190,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_ex
     assert (q / "digests" / "Ref20.tex").read_text() == digest
     again = json_of("library", "update", "Ref20", "--only", "extract", "--redo", "--json", cwd=q)["works"][0]
     assert (again["extraction"]["uses"], again["extraction"]["numbering"]) == (3, "aux")
-    node = q / "nodes" / "dm-0002.tex"
+    node = q / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(
         node.read_text().replace(
             "\\end{lemma}", "By \\cite[Theorem 3.1]{Ref20} and \\cite[Thm.~3.2, p.~1]{Ref20}.\n\\end{lemma}", 1
@@ -343,7 +343,7 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
 def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) -> None:
     q = demo(tmp_path)
     ok("library", "update", "Ref20", "--only", "extract", cwd=q)
-    node = q / "nodes" / "dm-0002.tex"
+    node = q / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("\\end{lemma}", "By \\cite[Theorem 3.1]{Ref20}.\n\\end{lemma}", 1))
     r = exits(1, "compile", "dm-0002", cwd=q, env={"FAKE_TEX_FAIL": "1"})
     verdict, missing = r.stdout.split("\n\n")[:2]  # the verdict, wrapped, then the missing packages

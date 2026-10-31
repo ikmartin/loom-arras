@@ -581,7 +581,7 @@ def pulled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     subprocess.check_call(["git", "clone", "-q", str(bare), str(project)], stderr=subprocess.DEVNULL)
     quilt = load_quilt(root)
     state = sync.configure(quilt, str(project), "main.tex")
-    monkeypatch.setattr(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True))
+    monkeypatch.setattr(sync, "compile_document", lambda *_a, **_k: SimpleNamespace(ok=True))
     sync.push_publication(quilt, state, sync.publish(quilt, state).commit)
     git(other, "pull", "-q", "--ff-only")
     (other / "main.tex").write_text(source.replace("zk-0001}A", "zk-0001}B"), encoding="utf-8")

@@ -14,7 +14,8 @@ import click
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli.paper import check_prefix
 from loom.cli.report import Group, Item, Report, counted
-from loom.paths import BUILD, DIGESTS, HISTORY, NODES, REFS, STY
+from loom.paths import BUILD, DIGESTS, HISTORY, REFS
+from loom.reshape.linearize import to_canon
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -167,7 +168,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
 
     mkdir(target / drafting)
     mkdir(target / drafting_ai)
-    for d in (NODES, DIGESTS, REFS):
+    for d in (DIGESTS, REFS):
         mkdir(target / d)
     mkdir(target / history)
     write(
@@ -179,9 +180,9 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
             drafting_ai=drafting_ai,
         ),
     )
-    write(target / STY, (ASSETS / STY).read_text(encoding="utf-8"))
     if minimal_master:
-        write(target / drafting / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
+        # the skeleton carries loom's macros in its own preamble, so it compiles from its directory with no file beside it (P12)
+        write(target / drafting / "main.tex", to_canon((ASSETS / "init" / "main.tex").read_text(encoding="utf-8")))
     write(target / history / "ledger.jsonl", "")
     gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
     # a hand compile in the agent's directory scatters the same artifacts as one in the person's

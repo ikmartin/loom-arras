@@ -23,8 +23,8 @@ def _move_out(root: Path, result, key: str) -> None:  # type: ignore[no-untyped-
     n = result.assembly.nodes[key]
     text = result.files[n.file].text
     ls, le = _line_bounds(text, _directive_start(result, n, n.start), n.end)
-    (root / "nodes").mkdir(exist_ok=True)
-    (root / "nodes" / f"{n.id}.tex").write_text(text[ls:le].rstrip("\n") + "\n", encoding="utf-8")
+    (root / "drafting" / "nodes").mkdir(exist_ok=True)
+    (root / "drafting" / "nodes" / f"{n.id}.tex").write_text(text[ls:le].rstrip("\n") + "\n", encoding="utf-8")
     (root / n.file).write_text(text[:ls] + f"\\input{{nodes/{n.id}}}" + text[le:], encoding="utf-8")
 
 

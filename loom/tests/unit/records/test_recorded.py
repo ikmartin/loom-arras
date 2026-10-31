@@ -51,9 +51,11 @@ def test_a_note_on_any_kind_of_key_is_recorded(q: Path) -> None:
 
 
 def test_a_version_written_against_survives_edits_before_any_build(q: Path) -> None:
-    rewrite(q, "nodes/dm-0002.tex", "one or two points", "one or two elements")
+    rewrite(q, "drafting/nodes/dm-0002.tex", "one or two points", "one or two elements")
     ann = comment(q, "dm-0002", "Which elements?", "--quote", "one or two elements")
-    rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")  # moved again, and nothing was built in between
+    rewrite(
+        q, "drafting/nodes/dm-0002.tex", "Every orbit", "Each orbit"
+    )  # moved again, and nothing was built in between
     assert resolved(q)[ann].recorded  # type: ignore[attr-defined]
 
 
@@ -62,7 +64,7 @@ def test_an_edit_restates_the_finding_against_the_text_as_it_is_now(q: Path) -> 
     from loom.render.manifest import key_hash
 
     ann = comment(q, "dm-0002", "Say which orbits.")
-    rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
+    rewrite(q, "drafting/nodes/dm-0002.tex", "Every orbit", "Each orbit")
     ok("annotate", "--edit", ann, "Still: say which orbits.", *WHO, cwd=q)
     a = resolved(q)[ann].annotation  # type: ignore[attr-defined]
     assert a.body == "Still: say which orbits." and a.target_hash == key_hash(open_scan(str(q)), "dm-0002")
@@ -74,7 +76,7 @@ def test_a_reply_records_the_text_it_was_written_against(q: Path) -> None:
 
     parent = comment(q, "dm-0002", "Say which orbits.")
     before = key_hash(open_scan(str(q)), "dm-0002")
-    rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
+    rewrite(q, "drafting/nodes/dm-0002.tex", "Every orbit", "Each orbit")
     ok("annotate", "--reply", parent, "Done.", *WHO, cwd=q)
     got = resolved(q)
     reply = the(got.values(), lambda x: x.annotation.in_reply_to == parent, f"reply to {parent}")  # type: ignore[attr-defined]

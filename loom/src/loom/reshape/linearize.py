@@ -10,15 +10,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import document_dir
 from loom.scan.expand import _read_include_arg, resolve_inclusion
-from loom.scan.source import blank_comments
+from loom.scan.source import MACRO_BLOCK, MACRO_BLOCK_BEGIN, MACRO_BLOCK_END, blank_comments
 from loom.scan.tokenize import tokenize
 from loom.tex.assemble import shift_sectioning
 
-LOOM_STY_BEGIN = "% !LOOM begin loom-macros"
-LOOM_STY_END = "% !LOOM end loom-macros"
 _USEPACKAGE_LOOM = re.compile(r"^[ \t]*\\usepackage\s*(\[[^\]]*\])?\s*\{loom\}[ \t]*\n?", re.M)
-_BLOCK = re.compile(re.escape(LOOM_STY_BEGIN) + r"\n.*?" + re.escape(LOOM_STY_END) + r"\n?", re.S)
+_BLOCK = MACRO_BLOCK
 
 
 @dataclass
@@ -41,9 +40,14 @@ def flatten(
     marker: Callable[[str], str] | None = None,
     *,
     overlay: dict[str, str] | None = None,
+    base: str | None = None,
 ) -> Flattened:
-    """The flattened text of `rel` under `root`. Missing and system files leave the inclusion command as written."""
+    """The flattened text of `rel` under `root`. Missing and system files leave the inclusion command as written.
+
+    Inclusions resolve against `base`, the directory the document compiles from: default `rel`'s own, and its source's for a text derived from another document (an agent copy, a landmark).
+    """
     skip = skip or set()
+    home = document_dir(rel) if base is None else base
     out = Flattened(text="")
 
     def rec(rel: str, shift: int, stack: tuple[str, ...]) -> tuple[str, list[tuple[str, int]]]:
@@ -69,7 +73,7 @@ def flatten(
             name, arg_end = _read_include_arg(clean, t.end)
             if name is None:
                 continue
-            child, _problem = resolve_inclusion(root, name)
+            child, _problem = resolve_inclusion(root, name, base=home)
             if child is None or not child.endswith(".tex") or child in stack or child == rel:
                 continue
             if child in skip:
@@ -108,13 +112,13 @@ def flatten(
 
 
 def loom_macro_block() -> str:
-    """The macros of loom.sty as a marked block, so a paper printed with `loom history show --plain` compiles alone forever and `loom history restore` can put the package line back."""
+    """The macros of loom.sty as a marked block: what a document loom starts, imports or restores carries in its preamble, so it compiles from its own directory with no file beside it (P12)."""
     from importlib import resources
 
     sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
     body = [ln for ln in sty.splitlines() if not ln.startswith(("\\NeedsTeXFormat", "\\ProvidesPackage"))]
     text = "\n".join(body).strip("\n")
-    return f"{LOOM_STY_BEGIN}\n{text}\n{LOOM_STY_END}\n"
+    return f"{MACRO_BLOCK_BEGIN}\n{text}\n{MACRO_BLOCK_END}\n"
 
 
 def to_canon(text: str) -> str:
@@ -123,6 +127,18 @@ def to_canon(text: str) -> str:
     if not m:
         return text
     return text[: m.start()] + loom_macro_block() + text[m.end() :]
+
+
+def with_macro_block(text: str) -> tuple[str, bool]:
+    """`text` with loom's macro block after its `\\documentclass` line, unless it carries the block already or loads loom.sty; (text, whether the block was added)."""
+    if _BLOCK.search(text) or _USEPACKAGE_LOOM.search(blank_comments(text)):
+        return text, False
+    m = re.search(r"\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}[^\n]*\n?", blank_comments(text))
+    if m is None:
+        return text, False
+    end = m.end() if text[m.end() - 1 : m.end()] == "\n" else m.end()
+    head = text[:end] if text[:end].endswith("\n") else text[:end] + "\n"
+    return head + loom_macro_block() + text[end:], True
 
 
 def from_canon(text: str) -> tuple[str, bool]:

@@ -15,7 +15,7 @@ from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
 from loom.history.steps import plan_freeze, slug, stamp_document, text_hash, write_step
-from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS, documents_named
+from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS, documents_named, under
 from loom.render.manifest import own_text
 from loom.reshape.linearize import flatten
 from loom.scan.hashing import pair_hash
@@ -96,11 +96,12 @@ def _shape(result: ScanResult, document: str) -> tuple[dict[str, str], dict[str,
     return bodies, spans, skeletons
 
 
-def _flat_shape(result: ScanResult, text: str) -> tuple[dict[str, str], str]:
+def _flat_shape(result: ScanResult, text: str, base: str) -> tuple[dict[str, str], str]:
+    """`text` scanned as a document in `base`, the directory its source compiles from, beside the styles and bibliographies the quilt's documents load; its node bodies and skeleton."""
     with tempfile.TemporaryDirectory(prefix="loom-adopt-shape-") as temporary:
         root = Path(temporary)
-        doc = result.quilt.config.drafting + "/adoption-snapshot.tex"
-        (root / doc).parent.mkdir(parents=True)
+        doc = under(base, "adoption-snapshot.tex")
+        (root / doc).parent.mkdir(parents=True, exist_ok=True)
         (root / doc).write_text(rename_labels(text, plain=True))
         # Local theorem declarations must remain visible to the scanner: every file a preamble loads, read from disk, since the scan reads a local .sty on demand and never lists it in `files`.
         loaded = {f for c in result.closures.values() for f in c.files if f not in result.masters}
@@ -127,7 +128,7 @@ def _baseline(result: ScanResult, copy: str) -> dict[str, Any]:
             recorded = history.dir / (entry.dir or "") / Path(str(entry.get("from"))).name
             from loom.section_drafts import pinned_inputs
 
-            bodies, skeleton = _flat_shape(pinned_inputs(result, copy), recorded.read_text())
+            bodies, skeleton = _flat_shape(pinned_inputs(result, copy), recorded.read_text(), result.base_of(copy))
             return {"nodes": bodies, "document": skeleton, "mapping": {}}
     raise SyncError(f"{copy} has no recorded baseline; an agent document starts as `loom draft DOC --ai NAME`")
 
@@ -199,7 +200,7 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
     meta = metadata(result, copy)
     scope = meta.get("scope", {"kind": "document"})
     baseline = _baseline(result, copy)
-    proposed_text = rename_labels(flatten(result.quilt.root, copy).text, plain=True)
+    proposed_text = rename_labels(flatten(result.quilt.root, copy, base=result.base_of(copy)).text, plain=True)
     current_text = flatten(result.quilt.root, source).text
     if scope.get("kind") == "section":
         check_overlap(result, source, scope, exclude=copy)
@@ -207,8 +208,8 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
         current_text = extract(current_text, scope)
     from loom.section_drafts import pinned_inputs
 
-    proposed, proposal_document = _flat_shape(pinned_inputs(result, copy), proposed_text)
-    current, current_document = _flat_shape(result, current_text)
+    proposed, proposal_document = _flat_shape(pinned_inputs(result, copy), proposed_text, result.base_of(copy))
+    current, current_document = _flat_shape(result, current_text, result.base_of(source))
     mapping = baseline.get("mapping", {})
     if mapping:
         proposed = {_mapped(k, mapping): _rename(v, mapping) for k, v in proposed.items()}
@@ -310,6 +311,7 @@ def _project(result: ScanResult, source: str, bodies: dict[str, str], document: 
         if file != source and matches and not _MARKER.sub("", text).strip():
             atomic[file] = text
     representations: dict[str, str] = {}
+    base = result.base_of(source)  # inclusions name files against the document's directory (P12)
 
     # An atomic file can contain a statement and its proofs; preserve the original inclusion as a unit.
     def flatten_spine(
@@ -320,7 +322,7 @@ def _project(result: ScanResult, source: str, bodies: dict[str, str], document: 
         locations: list[tuple[str, int]] = []
         at = 0
         for match in _INCLUDE.finditer(text):
-            child = match[1] if match[1].endswith(".tex") else match[1] + ".tex"
+            child = under(base, match[1] if match[1].endswith(".tex") else match[1] + ".tex")
             if child not in skeletons or child in stack:
                 continue
             out += text[at : match.start()]
@@ -491,7 +493,7 @@ def prepare(
                 raise SyncError(fork.refusal)
             new_mapping[head] = fork.new_id
             reserved.add(target.split("-", 1)[1])
-            fork_bodies.update(_flat_shape(result, fork.patched)[0])
+            fork_bodies.update(_flat_shape(result, fork.patched, result.base_of(data["source"]))[0])
         elif row["class"] == "new" and "/" not in key and head not in new_mapping:
             # An identity recorded in history belongs to that old result, even if it is currently absent.
             if head in _history(result).recorded_ids():
@@ -536,7 +538,7 @@ def prepare(
                 + ", ".join("\\" + name for name in missing)
                 + ". Include Preamble changes or revise the edits."
             )
-    final_bodies, _ = _flat_shape(result, final_text)
+    final_bodies, _ = _flat_shape(result, final_text, result.base_of(data["source"]))
     for row in data["changes"]:
         if row["key"] not in selected and row["current"] and row["key"] not in final_bodies:
             raise SyncError(f"Document changes would remove kept result {row['key']}; revise the selection or document")
@@ -676,7 +678,7 @@ def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None
         )
     if (quilt.root / dest_rel).exists():
         raise SyncError(f"{dest_rel} exists; loom does not overwrite it")
-    text = flatten(quilt.root, copy).text
+    text = flatten(quilt.root, copy, base=result.base_of(copy)).text
     # a derived id whose plain id a live document defines, or the history has recorded, takes a fresh id: the plain one belongs to another result
     recorded = history.recorded_ids()
     reserved = visible_locals(result, quilt.config.prefix)
@@ -1013,7 +1015,7 @@ def refresh(result: ScanResult, copy: str, *, write: bool = True) -> dict[str, A
         if row["class"] == "author-only" and not row["current"]:
             spine = spine.replace(_marker(row["key"]), "")
     text = _expand(spine, bodies)
-    refreshed, _ = _flat_shape(result, text)
+    refreshed, _ = _flat_shape(result, text, result.base_of(copy))
     for key in list(updated):
         if bodies.get(key) and key not in refreshed:
             updated.remove(key)

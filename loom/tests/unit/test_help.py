@@ -113,7 +113,7 @@ def test_delete_names_what_was_typed_and_what_to_remove(tmp_path) -> None:  # ty
     assert "dm-0004" in inside.stderr and "drafting/main.tex" in inside.stderr
     assert "environment" in inside.stderr and "loom downstream dm-0004" in inside.stderr
     own = run("delete", "dm-0001", cwd=q)
-    assert own.exit_code == 2 and "nodes/dm-0001.tex" in own.stderr and "loom downstream dm-0001" in own.stderr
+    assert own.exit_code == 2 and "drafting/nodes/dm-0001.tex" in own.stderr and "loom downstream dm-0001" in own.stderr
     assert "environment" not in own.stderr
     other = run("remove", "notes.txt", cwd=q)
     assert other.exit_code == 2 and "notes.txt" in other.stderr

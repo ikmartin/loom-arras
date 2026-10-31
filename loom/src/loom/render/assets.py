@@ -7,23 +7,28 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from loom.paths import under
+
 
 def _digest(path: Path) -> str:
     return hashlib.sha1(path.read_bytes()).hexdigest()[:16]
 
 
-def resolve_graphic(root: Path, name: str) -> Path | None:
+def resolve_graphic(root: Path, name: str, base: str = "") -> Path | None:
+    """The file `\\includegraphics{name}` shows, read against `base`, the directory its document compiles from; None for a name that resolves to nothing, or names an absolute path or `..`."""
     name = name.strip()
+    if not name or name.startswith("/") or ".." in Path(name).parts:
+        return None
     for cand in (name, name + ".pdf", name + ".png", name + ".jpg", name + ".jpeg", name + ".svg"):
-        p = root / cand
+        p = root / under(base, cand)
         if p.is_file():
             return p
     return None
 
 
-def publish_graphic(root: Path, name: str, svg_dir: Path) -> tuple[str | None, str | None]:
-    """Return (relative asset path under build/, error). PDF -> SVG conversion, PNG/JPEG/SVG copied."""
-    src = resolve_graphic(root, name)
+def publish_graphic(root: Path, name: str, svg_dir: Path, base: str = "") -> tuple[str | None, str | None]:
+    """Return (relative asset path under build/, error). PDF -> SVG conversion, PNG/JPEG/SVG copied; `name` is read against `base`."""
+    src = resolve_graphic(root, name, base)
     if src is None:
         return None, f"graphic {name} not found"
     svg_dir.mkdir(parents=True, exist_ok=True)

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loom.clock import stamp
-from loom.paths import REFS, STORAGE
+from loom.paths import REFS, STORAGE, under
 from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, declared, primary
 from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in, identify_document
@@ -22,7 +22,7 @@ from loom.refs.pages import page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations, set_aside_documents
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
-from loom.scan.scan import landmark_documents
+from loom.scan.scan import landmark_bases, landmark_documents
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import match_group, read_args, read_optional, tokenize
 
@@ -300,8 +300,8 @@ def _bibtex(key: str, fields: dict[str, str]) -> str:
     return "\n".join(lines) + "\n}\n"
 
 
-def _named_bibs(root: Path, text: str) -> tuple[list[Path], list[str]]:
-    """The `.bib` files a document names through `\\bibliography` or `\\addbibresource`, resolved against the quilt root; the names that resolve to nothing."""
+def _named_bibs(root: Path, text: str, base: str = "") -> tuple[list[Path], list[str]]:
+    """The `.bib` files a document names through `\\bibliography` or `\\addbibresource`, resolved against `base`, the directory its document compiles from; the names that resolve to nothing, or name `..`."""
     clean = blank_comments(text)
     found: list[Path] = []
     absent: list[str] = []
@@ -315,8 +315,8 @@ def _named_bibs(root: Path, text: str) -> tuple[list[Path], list[str]]:
             name = name.strip()
             if not name:
                 continue
-            p = root / (name if name.endswith(".bib") else name + ".bib")
-            if p.is_file():
+            p = root / under(base, name if name.endswith(".bib") else name + ".bib")
+            if ".." not in Path(name).parts and not name.startswith("/") and p.is_file():
                 found.append(p)
             else:
                 absent.append(name)
@@ -326,8 +326,11 @@ def _named_bibs(root: Path, text: str) -> tuple[list[Path], list[str]]:
 def bib_file(quilt: Quilt) -> str:
     """The first `.bib` a landmark names, quilt-relative, else one in the seed space: the file the author adds an entry to; '' when there is none."""
     root = quilt.root
+    bases = landmark_bases(quilt)
     for rel in landmark_documents(quilt):
-        found, _absent = _named_bibs(root, (root / rel).read_text(encoding="utf-8", errors="replace"))
+        found, _absent = _named_bibs(
+            root, (root / rel).read_text(encoding="utf-8", errors="replace"), bases.get(rel, "")
+        )
         if found:
             return found[0].relative_to(root).as_posix()
     seeds = sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []
@@ -349,6 +352,7 @@ def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
             report.conflicts.append((c.key, kept.source, c.source))
 
     docs = landmark_documents(quilt)
+    bases = landmark_bases(quilt)
     report.canon = len(docs)
     for bib in sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []:
         raw = bib.read_text(encoding="utf-8", errors="replace")
@@ -358,7 +362,7 @@ def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
     history = quilt.config.history.rstrip("/") + "/"
     for rel in docs:
         text = (root / rel).read_text(encoding="utf-8", errors="replace")
-        bibs, absent = _named_bibs(root, text)
+        bibs, absent = _named_bibs(root, text, bases.get(rel, ""))
         report.missing_bib.extend((rel, name) for name in absent)
         # a landmark is named as the author names it, not by where the history keeps it (T4); its step keeps two of one name apart
         step = re.match(r"(\d+)-", Path(rel).parent.name)

@@ -15,11 +15,10 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
-from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from loom.paths import AI, STY
+from loom.paths import AI
 from loom.version import INTERFACE_VERSION, __version__
 
 if TYPE_CHECKING:
@@ -591,15 +590,30 @@ def check_ai_files(root: Path) -> Item:
     )
 
 
-def check_sty(root: Path) -> Item:
-    """The quilt's `loom.sty` is the one this loom ships, which is what `loom upgrade` writes."""
-    shipped = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
-    p = root / STY
-    if not p.is_file():
-        return Item("loom.sty", WARN, QUILT, "missing: a master that loads it will not compile", "loom upgrade")
-    if p.read_text(encoding="utf-8") != shipped:
-        return Item("loom.sty", WARN, QUILT, "not the one this loom ships", "loom upgrade")
-    return Item("loom.sty", OK, QUILT, "current")
+def check_macro_blocks(quilt: Any) -> Item:
+    """Every live document that carries loom's macro block carries this loom's; one an older loom wrote gets the patch that brings it up to date, in the JSON, since loom never edits a document (P7). A `loom.sty` a person keeps is theirs, and not checked."""
+    from loom.reshape.ids import unified_diff
+    from loom.reshape.linearize import loom_macro_block
+    from loom.scan.scan import scan
+    from loom.scan.source import MACRO_BLOCK
+
+    current = loom_macro_block()
+    patches: dict[str, str] = {}
+    for m in scan(quilt).masters:
+        text = (quilt.root / m).read_text(encoding="utf-8", errors="replace")
+        block = MACRO_BLOCK.search(text)
+        if block and block.group(0).rstrip("\n") != current.rstrip("\n"):
+            patches[m] = unified_diff(text, text[: block.start()] + current + text[block.end() :], m)
+    if not patches:
+        return Item("macro block", OK, QUILT, "current")
+    return Item(
+        "macro block",
+        WARN,
+        QUILT,
+        f"older than this loom's in {', '.join(sorted(patches))}",
+        "apply the patch `loom doctor --json` gives as this item's patch: loom never edits a document",
+        extra={"patch": "".join(patches[m] for m in sorted(patches))},
+    )
 
 
 def check_gitignore(root: Path) -> Item:
@@ -670,7 +684,7 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
             check_permissions(root),
             *check_mcp(root),
             check_ai_files(root),
-            check_sty(root),
+            check_macro_blocks(quilt),
             check_gitignore(root),
             check_config(quilt),
         ]

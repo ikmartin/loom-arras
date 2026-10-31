@@ -96,17 +96,17 @@ def test_a_landmark_fragment_is_cached_and_pruned(tmp_path: Path) -> None:
 
 def test_a_conflicted_key_is_published_with_no_text(tmp_path: Path) -> None:
     q = quilt(tmp_path)
-    (q / "nodes").mkdir(exist_ok=True)
-    (q / "nodes" / "pp-0002.tex").write_text(
+    (q / "main" / "nodes").mkdir(exist_ok=True)
+    (q / "main" / "nodes" / "pp-0002.tex").write_text(
         "\\begin{lemma}\\label{pp-0002}\nA second definition.\n\\end{lemma}\n", encoding="utf-8"
     )
-    main = q / "drafting" / "main.tex"
+    main = q / "main" / "main.tex"
     main.write_text(main.read_text().replace("\\end{document}", "\\input{nodes/pp-0002}\n\\end{document}"))
     exits(1, "build", cwd=q, env=FIXED, match="duplicate-id")  # an error exit, and the build is still published
     m = manifest(q)
     node = m["nodes"]["pp-0002"]
     assert node["state"] == "conflicted" and node["fragment"] == "" and node["file"] == ""
-    assert node["conflict"] == ["drafting/main.tex", "nodes/pp-0002.tex"]
+    assert node["conflict"] == ["main/main.tex", "main/nodes/pp-0002.tex"]
     key = m["keys"]["pp-0002"]
     assert key["state"] == "conflicted" and key["hash"] == "" and key["uses"] == []
     assert m["states"]["labels"]["conflicted"] == {"label": "conflicted", "color": "negative"}
@@ -117,12 +117,12 @@ def test_a_conflicted_key_is_published_with_no_text(tmp_path: Path) -> None:
 
 def test_a_key_whose_text_a_landmark_recorded_carries_its_version(tmp_path: Path) -> None:
     q = quilt(tmp_path)
-    ok("stamp", "drafting/main.tex", "-m", "main-v1", cwd=q, env=FIXED)
+    ok("stamp", "main/main.tex", "-m", "main-v1", cwd=q, env=FIXED)
     ok("build", cwd=q, env=FIXED)
     m = manifest(q)
     assert m["keys"]["pp-0002"]["version"] == {"step": "0002", "name": "main-v1"}
     assert m["keys"]["pp-0002/proof"]["version"] == {"step": "0002", "name": "main-v1"}
-    main = q / "drafting" / "main.tex"
+    main = q / "main" / "main.tex"
     main.write_text(main.read_text().replace("Obvious.", "Obvious, really."))
     ok("build", cwd=q, env=FIXED)
     m2 = manifest(q)
