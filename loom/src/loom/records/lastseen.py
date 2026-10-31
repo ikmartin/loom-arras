@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from loom.paths import LAST_SEEN
 from loom.records.snapshots import write_snapshot
 from loom.scan.hashing import hash_text
 
@@ -20,15 +21,15 @@ if TYPE_CHECKING:
     from loom.records.annotations import Record
     from loom.scan.scan import ScanResult
 
-CACHE = "last-seen.json"
+CACHE = LAST_SEEN
 VERSION = 1
 
 
-def cache_path(root: Path, history_dir: Path | None = None) -> Path:
-    return (history_dir or root / ".loom" / "history").parent / CACHE
+def cache_path(root: Path, history_dir: Path) -> Path:
+    return history_dir.parent / CACHE
 
 
-def read_last_seen(root: Path, history_dir: Path | None = None) -> dict[str, str]:
+def read_last_seen(root: Path, history_dir: Path) -> dict[str, str]:
     p = cache_path(root, history_dir)
     if not p.is_file():
         return {}
@@ -42,7 +43,7 @@ def read_last_seen(root: Path, history_dir: Path | None = None) -> dict[str, str
     return {str(k): str(v) for k, v in keys.items()} if isinstance(keys, dict) else {}
 
 
-def write_last_seen(root: Path, texts: dict[str, str], history_dir: Path | None = None) -> None:
+def write_last_seen(root: Path, texts: dict[str, str], history_dir: Path) -> None:
     p = cache_path(root, history_dir)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".tmp")
@@ -63,12 +64,12 @@ def current_texts(result: ScanResult) -> dict[str, str]:
     return out
 
 
-def freeze_moved(result: ScanResult, records: list[Record], history_dir: Path | None = None) -> list[str]:
+def freeze_moved(result: ScanResult, records: list[Record]) -> list[str]:
     """Freeze the previous text of every key that moved and that an annotation was written against; returns those keys.
 
     Called wherever loom rebuilds, which is the moment it can still see both texts. A key that moved with no annotation pointing at its old text costs one hash comparison and nothing else.
     """
-    root = result.quilt.root
+    root, history_dir = result.quilt.root, result.quilt.history_dir
     wanted = {a.target_hash for rec in records for a in rec.annotations if a.target_hash}
     previous = read_last_seen(root, history_dir)
     texts = current_texts(result)

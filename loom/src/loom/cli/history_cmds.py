@@ -34,6 +34,7 @@ from loom.history.steps import (
     write_step,
 )
 from loom.history.versions import matching_version, materialize, parse_address, read_version, version_at
+from loom.paths import BUILD
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
 from loom.reshape.fork import _relabel, _rewrite_refs, inner_labels, plan_fork, unapplied_fork
@@ -567,7 +568,7 @@ def _scan_after(result: ScanResult, action: str, data: dict[str, Any]) -> ScanRe
     root = result.quilt.root
     with tempfile.TemporaryDirectory(prefix="loom-dry-run-") as tmp:
         copy = Path(tmp) / "quilt"
-        shutil.copytree(root, copy, ignore=shutil.ignore_patterns("build", ".git"), symlinks=True)
+        shutil.copytree(root, copy, ignore=shutil.ignore_patterns(BUILD, ".git"), symlinks=True)
         quilt = load_quilt(copy)
         append_entry(quilt.history_dir, action, data, None)
         return scan(quilt)

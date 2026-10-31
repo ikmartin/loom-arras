@@ -19,6 +19,7 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from loom.paths import AI, STY
 from loom.version import INTERFACE_VERSION, __version__
 
 if TYPE_CHECKING:
@@ -483,7 +484,7 @@ def check_permissions(root: Path) -> Item:
 
     wanted = (CLAUDE_SETTINGS, CODEX_RULES)
     present = [rel for rel in wanted if (root / rel).is_file()]
-    layer = (root / "ai").is_dir()
+    layer = (root / AI).is_dir()
     if not layer and not present:
         return Item("permissions", OK, QUILT, "no ai/ (loom ai init writes it and them)")
     shell = variant(root) == SHELL
@@ -511,7 +512,7 @@ def check_mcp(root: Path) -> list[Item]:
     from loom.ai.clients import PROJECT, write_clients
     from loom.ai.layout import SHELL, variant
 
-    if not (root / "ai").is_dir():
+    if not (root / AI).is_dir():
         return [Item("mcp", OK, QUILT, "no ai/ (loom ai init writes the client files)")]
     if variant(root) == SHELL:
         return [Item("mcp", OK, QUILT, "none: agents here run loom in a shell")]
@@ -563,7 +564,7 @@ def check_ai_files(root: Path) -> Item:
     """The mode files and the orientation against what `loom upgrade` would write, by its own dry run; the permission files are the item above."""
     from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, read_versions, sha, tracked_docs, upgrade_layer
 
-    if not (root / "ai").is_dir():
+    if not (root / AI).is_dir():
         return Item("ai files", OK, QUILT, "no ai/ (loom ai init writes it)")
     rep = upgrade_layer(root, write=False)
     stale = [rel for rel in rep.written if rel not in (CLAUDE_SETTINGS, CODEX_RULES)]
@@ -593,7 +594,7 @@ def check_ai_files(root: Path) -> Item:
 def check_sty(root: Path) -> Item:
     """The quilt's `loom.sty` is the one this loom ships, which is what `loom upgrade` writes."""
     shipped = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
-    p = root / "loom.sty"
+    p = root / STY
     if not p.is_file():
         return Item("loom.sty", WARN, QUILT, "missing: a master that loads it will not compile", "loom upgrade")
     if p.read_text(encoding="utf-8") != shipped:

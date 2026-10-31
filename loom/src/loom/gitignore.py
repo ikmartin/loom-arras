@@ -8,17 +8,18 @@ from __future__ import annotations
 from pathlib import Path
 
 from loom.ai.clients import PROJECT_FILES
+from loom.paths import BUILD, SERVE_JSON, SINCE, STORAGE, WORKSPACE
 from loom.records.lastseen import CACHE
 
 MANAGED = (
-    "build/",
-    "digests/storage/**/paper.pdf",
-    "digests/storage/**/src/",
-    "digests/storage/cache/",
+    f"{BUILD}/",
+    f"{STORAGE}/**/paper.pdf",
+    f"{STORAGE}/**/src/",
+    f"{STORAGE}/cache/",
     CACHE,
-    ".loom/serve.json",
-    ".loom/workspace/",
-    ".loom/since/",
+    SERVE_JSON,
+    f"{WORKSPACE}/",
+    f"{SINCE}/",
     *PROJECT_FILES,
 )
 

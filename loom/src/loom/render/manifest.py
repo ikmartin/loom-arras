@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from loom.paths import BUILD
 from loom.refs.identity import declared, identify, primary
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
@@ -325,7 +326,7 @@ def build_manifest(
             "fragment": fragments.get(f"master:{m}", ""),
             "engine": (closure.engine if closure and closure.engine else result.quilt.config.engine),
         }
-        pdf = result.quilt.root / "build" / _stem(m) / f"{_stem(m)}.pdf"
+        pdf = result.quilt.root / BUILD / _stem(m) / f"{_stem(m)}.pdf"
         aux_known = bool(numbers.get(m))
         if pdf.exists():
             entry["compiled"] = _iso(pdf.stat().st_mtime)

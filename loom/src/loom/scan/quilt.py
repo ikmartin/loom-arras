@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.paths import HISTORY
+
 NO_AUTHOR_MESSAGE = (
     'no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --as NAME'
 )
@@ -48,7 +50,7 @@ class QuiltConfig:
     main: str = ""
     drafting: str = "drafting"
     drafting_ai: str = "drafting-ai"  # the documents the person and an agent both edit
-    history: str = ".loom/history"
+    history: str = HISTORY
     research_state: str = "research-state.md"  # the quilt's research state, a page an agent keeps and the person edits
     prefix: str = "q"
     engine: str = "pdflatex"

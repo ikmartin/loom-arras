@@ -16,8 +16,9 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.paths import SESSIONS
 
-DIR = ".loom/sessions"
+DIR = SESSIONS
 INDEX = f"{DIR}/index.jsonl"
 #: The one session new work lands in, named here so the CLI and the viewer cannot disagree about which it is.
 ACTIVE = f"{DIR}/active"

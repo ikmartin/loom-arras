@@ -15,6 +15,7 @@ from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp
+from loom.paths import BUILD, CLOSURES
 from loom.reshape.linearize import flatten
 from loom.scan.model import Diagnostic
 from loom.scan.scan import ScanResult
@@ -53,7 +54,6 @@ def log_run(session: str | None, command: str, root: Path | None = None) -> None
 
 
 #: Where a key's closure document is written and compiled, under the quilt root.
-CLOSURES = Path("build") / "closures"
 
 
 def write_bundle(result: ScanResult, b: Bundle) -> Path:
@@ -142,7 +142,7 @@ def compile(  # noqa: A001
         log_run(run_dir, " ".join(parts), root)
         with Progress("compiling", 1) as p:
             p.item(master)
-            res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master, engine))
+            res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master, engine))
     else:
         key = resolve_key(result, target)
         require_text(result, key)
@@ -358,7 +358,7 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
         p.next_stage("compiling", len(result.masters) + len(keys))
         for master in result.masters:
             p.item(master)
-            res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
+            res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master))
             bad = res.usable == "failed"
             documents.append({"document": master, "ok": not bad, **_failed(res, root, bad)})
         for key in keys:

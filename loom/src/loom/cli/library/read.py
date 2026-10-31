@@ -13,6 +13,7 @@ from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError
 from loom.cli._quilt import open_bib, open_scan, quilt_option
 from loom.cli.library._works import find_result, is_suggestion, logged, one_work, present, works
 from loom.cli.report import Group, Item, Report, counted, table
+from loom.paths import DIGESTS
 from loom.scan.bib import BibEntry
 
 #: What `--where` prints: the work's directory in the store, its PDF, or its unpacked source.
@@ -283,7 +284,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
     from loom.scan.digests import other_version_of
 
     root = result.quilt.root
-    digested = [p.name[: -len(".results.json")] for p in sorted((root / "digests").glob("*.results.json"))]
+    digested = [p.name[: -len(".results.json")] for p in sorted((root / DIGESTS).glob("*.results.json"))]
     keys = [ck for ck in digested if wanted is None or ck in wanted]
     cites = _citations(result)
     hits: list[dict[str, Any]] = []

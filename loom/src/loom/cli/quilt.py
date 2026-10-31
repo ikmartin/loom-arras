@@ -14,6 +14,7 @@ import click
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli.paper import check_prefix
 from loom.cli.report import Group, Item, Report, counted
+from loom.paths import BUILD, DIGESTS, HISTORY, NODES, REFS, STY
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -127,13 +128,17 @@ GITIGNORE = (
 )
 
 
-def _user_dirs() -> tuple[str, str]:
-    """The drafting and `drafting_ai` directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
+def _user_dirs() -> tuple[str, str, str]:
+    """The drafting, `drafting_ai` and history directory names a person's user config asks for, else the defaults.
+
+    Init writes the first two into the quilt so the layout is explicit there, and its ledger into the third, where the quilt's config will look for it.
+    """
     uq = load_user_config().get("quilt", {})
     uq = uq if isinstance(uq, dict) else {}
     drafting = str(uq.get("drafting", "drafting")).strip("/") or "drafting"
     drafting_ai = str(uq.get("drafting_ai", "drafting-ai")).strip("/") or "drafting-ai"
-    return drafting, drafting_ai
+    history = str(uq.get("history", HISTORY)).strip("/") or HISTORY
+    return drafting, drafting_ai, history
 
 
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
@@ -142,7 +147,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
     """
     made: list[Path] = []
-    drafting, drafting_ai = _user_dirs()
+    drafting, drafting_ai, history = _user_dirs()
 
     def mkdir(path: Path) -> None:
         # every directory this call brings into being is recorded, parents included, so undo_minimal_quilt leaves nothing behind
@@ -162,9 +167,9 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
 
     mkdir(target / drafting)
     mkdir(target / drafting_ai)
-    for d in ("nodes", "digests", "refs"):
+    for d in (NODES, DIGESTS, REFS):
         mkdir(target / d)
-    mkdir(target / ".loom" / "history")
+    mkdir(target / history)
     write(
         target / "config.toml",
         CONFIG_TEMPLATE.format(
@@ -174,10 +179,10 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
             drafting_ai=drafting_ai,
         ),
     )
-    write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
+    write(target / STY, (ASSETS / STY).read_text(encoding="utf-8"))
     if minimal_master:
         write(target / drafting / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
-    write(target / ".loom" / "history" / "ledger.jsonl", "")
+    write(target / history / "ledger.jsonl", "")
     gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
     # a hand compile in the agent's directory scatters the same artifacts as one in the person's
     gitignore += "".join(
@@ -224,7 +229,7 @@ def write_demo_quilt(target: Path) -> None:
     demo = ASSETS / "demo"
     target.mkdir(parents=True, exist_ok=True)
     shutil.copytree(
-        str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns("build", "__pycache__", ".gitignore")
+        str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns(BUILD, "__pycache__", ".gitignore")
     )
     # written from the one source, never from the demo's copy of it
     (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")

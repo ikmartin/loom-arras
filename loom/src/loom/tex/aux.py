@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from loom.paths import BUILD
 from loom.scan.tokenize import match_group
 
 _NEWLABEL = re.compile(r"\\newlabel\{")
@@ -65,7 +66,7 @@ def parse_aux(text: str) -> dict[str, AuxNumber]:
 def aux_path_for(root: Path, master_rel: str) -> Path | None:
     """`build/<stem>/<stem>.aux` if present, else the .aux beside the master, else None."""
     stem = Path(master_rel).stem
-    candidates = [root / "build" / stem / f"{stem}.aux", root / Path(master_rel).with_suffix(".aux")]
+    candidates = [root / BUILD / stem / f"{stem}.aux", root / Path(master_rel).with_suffix(".aux")]
     for c in candidates:
         if c.is_file():
             return c

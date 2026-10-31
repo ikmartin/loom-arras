@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.paths import SINCE
 from loom.scan.scan import ScanResult
 
 #: Where the markers live, one file per agent name.
-MARKERS = Path(".loom") / "since"
+MARKERS = SINCE
 
 
 @dataclass

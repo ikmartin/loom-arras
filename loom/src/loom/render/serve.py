@@ -20,7 +20,8 @@ from typing import Any
 from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
-from loom.refs.pages import STORAGE, storage_root
+from loom.paths import BUILD, SERVE_JSON
+from loom.refs.pages import storage_root
 from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher, records_only, snapshot
 from loom.scan.quilt import Quilt
@@ -48,7 +49,9 @@ ASSET_SUFFIXES = {
 }
 
 
-SERVE_JSON = ".loom/serve.json"
+#: The addresses the server answers loom's files at, fixed wherever the directories behind them sit.
+BUILD_URL = "/build/"
+STORE_URL = "/digests/storage/"
 #: How often an idle stream says it is still open, so a proxy or a sleeping laptop does not drop it unseen.
 HEARTBEAT = 15.0
 
@@ -175,15 +178,15 @@ class LoomHandler(SimpleHTTPRequestHandler):
 
     def _resolve(self) -> Path | None:
         path = self.path.split("?", 1)[0].split("#", 1)[0]
-        if path.startswith("/build/"):
-            rel = path[len("/build/") :]
+        if path.startswith(BUILD_URL):
+            rel = path[len(BUILD_URL) :]
             target = (self.build_dir / rel).resolve()
             return target if str(target).startswith(str(self.build_dir.resolve())) and target.is_file() else None
-        if path.startswith("/" + STORAGE + "/"):
+        if path.startswith(STORE_URL):
             # the first thing the server offers that it did not generate: a work's fetched PDF or source, so the
             # viewer can open a reference at the place a comment points to. Localhost only, read only, and still
             # confined to one directory by the same prefix check the build tree gets (DR-110).
-            rel = unquote(path[len("/" + STORAGE + "/") :])
+            rel = unquote(path[len(STORE_URL) :])
             target = (self.refs_dir / rel).resolve()
             return target if str(target).startswith(str(self.refs_dir.resolve())) and target.is_file() else None
         if path == "/_api" or path.startswith("/_api/"):
@@ -321,7 +324,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         """
         import re as _re
 
-        m = _re.fullmatch(r"/build/transcripts/(s-\d{4}-\d{2}-\d{2}-\d{4})/(\d+)\.json", self.path.split("?", 1)[0])
+        m = _re.fullmatch(
+            _re.escape(BUILD_URL) + r"transcripts/(s-\d{4}-\d{2}-\d{2}-\d{4})/(\d+)\.json", self.path.split("?", 1)[0]
+        )
         if m is None or self.quilt_root is None:
             return False
         from loom.mailbox import page
@@ -530,7 +535,7 @@ class ServeSession:
 
         with Progress("compiling", 1) as shown:
             shown.item(master)
-            res = compile_tex(self.quilt.root, master, self.quilt.root / "build" / Path(master).stem, engine)
+            res = compile_tex(self.quilt.root, master, self.quilt.root / BUILD / Path(master).stem, engine)
         print(f"loom serve: compiled {master}: {'ok' if res.ok else 'FAILED ' + res.first_error}", file=sys.stderr)
         if res.ok:
             self.rebuild()
@@ -542,7 +547,7 @@ class ServeSession:
             (LoomHandler,),
             {
                 "bundle_dir": self.bundle_dir,
-                "build_dir": self.quilt.root / "build",
+                "build_dir": self.quilt.root / BUILD,
                 "refs_dir": storage_root(self.quilt.root),
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
                 "quilt_root": self.quilt.root,

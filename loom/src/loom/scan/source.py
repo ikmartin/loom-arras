@@ -9,13 +9,14 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from loom.paths import AI, BUILD, LOOM, REFS, STORAGE
 from loom.scan.model import SourceFile
 
-SKIP_DIRS = {"build", ".git", "node_modules", ".loom", ".svelte-kit", ".claude"}
+SKIP_DIRS = {BUILD, ".git", "node_modules", LOOM, ".svelte-kit", ".claude"}
 SKIP_PREFIXES = (
-    "ai/",
-    "refs/",
-    "digests/storage/",
+    f"{AI}/",
+    f"{REFS}/",
+    f"{STORAGE}/",
 )  # run outputs, the author's seed space and loom's store of other people's documents are not the quilt's text: a fetched e-print under the store is a whole paper carrying its own labels, and a digest lives in digests/ itself (8.16, DR-108, DR-192)
 IGNORE_RE = re.compile(r"^\s*%\s*!LOOM\s+ignore\s*$", re.M)
 _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")

@@ -11,6 +11,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from loom.paths import BUILD, MANIFEST
+
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
@@ -334,7 +336,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
                 from loom.render.publish import publish
 
-                manifest_path = root / "build/manifest.json"
+                manifest_path = root / MANIFEST
                 if manifest_path.is_file():
                     manifest = json.loads(manifest_path.read_text())
                     if manifest.get("reviewer", {}).get("name") == reviewer:
@@ -344,7 +346,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                                 and contribution.get("fingerprint") == data["fingerprint"]
                             ):
                                 contribution["choices"] = answer
-                        publish(root / "build", {}, manifest)
+                        publish(root / BUILD, {}, manifest)
             else:
                 data = comparison(result, copy)
                 chosen = decisions(result, copy, reviewer, data=data)
@@ -393,7 +395,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             status = _str(body, "status", required=True) or ""
             import json
 
-            manifest_path = root / "build" / "manifest.json"
+            manifest_path = root / MANIFEST
             if not manifest_path.is_file():
                 raise ApiError("review-unavailable", "build the quilt before reviewing", status=409)
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -408,7 +410,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             from loom.render.publish import publish
 
             manifest["unresolved"] = rows_for(result, manifest)
-            publish(root / "build", {}, manifest)
+            publish(root / BUILD, {}, manifest)
             return {"ok": True, "result": f"{key}: {status}"}
         try:
             keys = pending(result, reviewer)

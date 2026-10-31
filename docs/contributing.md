@@ -57,6 +57,7 @@ The construction principles C1–C5 (`docs/design/principles.md`) govern how the
 - Never edit anything under `~/notes/`. Paper sources, the author's included, are copies under the workspace's gitignored `tests/fixtures/`, never committed, and neither are the quilts `demos/build.py` builds from them.
 - Prose is never hard-wrapped: one line per paragraph, in Markdown, docstrings and comments. `scripts/checks/hardwrap.py` enforces it on added lines.
 - Docstrings follow `CLAUDE.md`'s two styles and describe the current state only; review documentation with its ten passes.
+- A path loom uses inside a quilt is named once, in `loom/src/loom/paths.py`; `loom/tests/unit/test_paths.py` refuses one spelled out anywhere else.
 
 ## How the documents change
 

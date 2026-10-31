@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.paths import LINKS, LINKS_REMOVED
 
 #: The vocabulary, closed. Each is read "<from> <kind> <to>".
 KINDS: dict[str, str] = {
@@ -57,7 +58,7 @@ class Link:
 
 
 def links_path(root: Path) -> Path:
-    return root / "digests" / "links.jsonl"
+    return root / LINKS
 
 
 def read_links(root: Path) -> list[Link]:
@@ -154,7 +155,7 @@ def remove_link(root: Path, link_id: str) -> Link:
 
 def record_removal(root: Path, gone: Link, by: str, why: str = "") -> None:
     """Append what was removed, who removed it and why to `digests/links-removed.jsonl`, since the live file keeps no tombstones."""
-    path = root / "digests" / "links-removed.jsonl"
+    path = root / LINKS_REMOVED
     path.parent.mkdir(parents=True, exist_ok=True)
     entry: dict[str, Any] = {"link": gone.to_json(), "removed_by": by, "when": stamp()}
     if why:

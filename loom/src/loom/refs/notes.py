@@ -11,7 +11,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-NOTES = "reference-notes.jsonl"
+from loom.paths import REFERENCE_NOTES
+
+NOTES = REFERENCE_NOTES
 
 
 def notes_path(root: Path) -> Path:

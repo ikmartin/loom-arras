@@ -5,10 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from loom.paths import BIBLIOGRAPHY as BIBLIOGRAPHY
 from loom.scan.tokenize import match_group
-
-#: The quilt's bibliography, which `loom library update` gathers into from the landmarks; the only `.bib` loom reads for references.
-BIBLIOGRAPHY = "digests/bibliography.bib"
 
 _ENTRY = re.compile(r"@(\w+)\s*[{(]")
 _FIELD = re.compile(r"\s*([A-Za-z][\w-]*)\s*=\s*")

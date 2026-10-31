@@ -13,10 +13,10 @@ from loom.cli._common import ContentError, EnvError, destination
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
+from loom.paths import WORKSPACE
 from loom.scan.quilt import Quilt
 from loom.scan.scan import scan
 from loom.sync import (
-    WORKSPACE,
     Publication,
     SourceError,
     SyncError,

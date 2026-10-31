@@ -19,6 +19,7 @@ from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, refuse_interrupted, text_hash, write_step
+from loom.paths import BUILD, LOOM, RETIRED
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
@@ -554,7 +555,7 @@ def _atomize(
     targets = [(s_rel, quilt_relative(result.quilt, destination(result.quilt, d, source=True))) for s_rel, d in targets]
     if retire:
         for s_rel, _ in targets:
-            if (root / "retired" / s_rel).exists():
+            if (root / RETIRED / s_rel).exists():
                 raise EnvError(f"retired/{s_rel} exists; atomize never overwrites")
     plans = []
     progress.next_stage("planning", len(targets))
@@ -614,7 +615,7 @@ def _atomize(
         progress.next_stage(f"identity test: compiling {plan.src} and {plan.dest}")
         ident = _identity_for(result, root, plan.src, plan.dest)
         for pl in plans if retire else []:
-            target_path = root / "retired" / pl.src
+            target_path = root / RETIRED / pl.src
             target_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(root / pl.src), str(target_path))
         append_entry(result.quilt.history_dir, "atomize", record, actor_for(root))
@@ -761,7 +762,7 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
         scratch = Path(tmp)
         after = scratch / "quilt"
-        shutil.copytree(root, after, ignore=shutil.ignore_patterns("build", ".git", ".loom"))
+        shutil.copytree(root, after, ignore=shutil.ignore_patterns(BUILD, ".git", LOOM))
         (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
         return identity_test(root, master, after, master, scratch, engine_for(result, master))
 

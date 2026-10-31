@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from loom.history.ledger import History
 from loom.history.versions import materialize, read_version
+from loom.paths import NODES
 from loom.reshape.atomize import _single_node_file, node_region
 from loom.reshape.ids import unified_diff
 from loom.scan.alloc import visible_locals
@@ -187,14 +188,14 @@ def plan_fork(
         patched = src_text[: region.start] + forked + src_text[region.end :]
         plan.patched = rename_labels(_rewrite_refs(patched, names, new_id), inner)
     else:
-        plan.node_file = f"nodes/{new_id}.tex"
+        plan.node_file = f"{NODES}/{new_id}.tex"
         plan.node_text = forked
         stem = node.file[: -len(".tex")]
 
         def repl(m: re.Match[str]) -> str:
             name = m.group(3).strip()
             if name in (stem, node.file):
-                return f"{m.group(1)}\\{m.group(2)}{{nodes/{new_id}}}"
+                return f"{m.group(1)}\\{m.group(2)}{{{NODES}/{new_id}}}"
             return m.group(0)
 
         plan.patched = rename_labels(_rewrite_refs(_INPUT.sub(repl, src_text), names, new_id), inner)

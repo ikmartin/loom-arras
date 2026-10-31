@@ -14,6 +14,7 @@ from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
 from loom.cli.report import Group, Report, counted
 from loom.clock import today
+from loom.paths import NODES
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import PREFIX, next_local
 from loom.scan.scan import ScanResult
@@ -115,7 +116,7 @@ def new(
         return
     pre = prefix or result.quilt.config.prefix
     node_id = f"{pre}-{next_local(visible_locals(result, pre))}"
-    path = result.quilt.root / "nodes" / f"{node_id}.tex"
+    path = result.quilt.root / NODES / f"{node_id}.tex"
     if path.exists():
         raise EnvError(f"{path} already exists")
     rel = path.relative_to(result.quilt.root).as_posix()
@@ -124,7 +125,7 @@ def new(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
     home = result.default_master or result.quilt.config.main
-    line = f"\\input{{nodes/{node_id}}}"
+    line = f"\\input{{{NODES}/{node_id}}}"
     Report(
         f"{node_id}  {'would write' if dry_run else 'wrote'} {rel}, a new {name.lower()}; no document reaches it yet",
         dry_run=dry_run,

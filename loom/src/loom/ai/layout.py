@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
+from loom.paths import AI, ANNOTATIONS, BUILD, DIGESTS, LEDGER, NODES, REFERENCE_NOTES, REFS, RETIRED, SESSIONS, STY
 from loom.scan.quilt import QuiltConfig
 
 #: The modes loom ships, in the order the index lists them. Each file's `When it fits:` line is the index's entry for it, the one copy; a file in a quilt's `ai/modes/` whose name is not here is not a mode, so one loom no longer ships is inert.
@@ -59,25 +60,22 @@ NOT_TOOLS = frozenset({"mcp", "serve"})
 #: The one agent command that may reach the network, when the quilt's config allows it.
 NETWORK = frozenset({"library update"})
 AGENT_WRITES = (
-    ".loom/sessions",
-    "build",
+    SESSIONS,
+    BUILD,
 )  # the only places an agent may write, besides the quilt's `[quilt] drafting_ai`
 # `.loom` is not read-only wholesale any more: a session's own directory is under it and is where an agent writes its
 # journal and its notes, so the parts that are the record -- the history and the acceptance ledger -- are named instead.
 # The person's drafting directory is read-only too, under the name the quilt gives it (`agent_dirs`).
-AGENT_READONLY = ("nodes", "retired", "digests", "refs", "annotations", ".loom/history", "ai")
+AGENT_READONLY = (NODES, RETIRED, DIGESTS, REFS, ANNOTATIONS)
 AGENT_READONLY_FILES = (
-    "ai/orientation.md",
-    "ai/rules.md",
-    "ai/formatting.md",
+    f"{AI}/orientation.md",
+    f"{AI}/rules.md",
+    f"{AI}/formatting.md",
     "config.toml",
-    "reference-notes.jsonl",
-    ".loom/state.toml",
-    ".loom/sessions/index.jsonl",
+    REFERENCE_NOTES,
+    LEDGER,
+    f"{SESSIONS}/index.jsonl",
 )
-
-#: The style file at every quilt's root: loom's, so always replaced by upgrade, and its shipped hash recorded with the mode files'.
-STY = "loom.sty"
 
 #: The line loom puts in each agent's root file, one per variant: an agent attached over MCP starts from the server's tool, and one working through a shell from the command.
 MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit."
@@ -98,10 +96,10 @@ def shipped_sty() -> str:
 
 def record_version(root: Path, name: str, text: str) -> None:
     """Set one file's shipped hash in `ai/.loom-modes-version`, leaving the others; nothing without an `ai/`."""
-    if not (root / "ai").is_dir():
+    if not (root / AI).is_dir():
         return
     versions = {**read_versions(root), name: sha(text)}
-    (root / "ai" / VERSION_FILE).write_text(
+    (root / AI / VERSION_FILE).write_text(
         "\n".join(f"{k} {v}" for k, v in sorted(versions.items())) + "\n", encoding="utf-8"
     )
 
@@ -173,11 +171,11 @@ def tracked_docs() -> dict[str, str]:
     """
     allowed = "\n".join(f"  - `loom {c}`" for c in sorted(AGENT_COMMANDS))
     out = {
-        f"ai/{RULES}": _asset(RULES).replace("{allowed_commands}", allowed),
-        "ai/orientation.md": _asset("orientation.md"),
-        "ai/formatting.md": _asset("formatting.md"),
+        f"{AI}/{RULES}": _asset(RULES).replace("{allowed_commands}", allowed),
+        f"{AI}/orientation.md": _asset("orientation.md"),
+        f"{AI}/formatting.md": _asset("formatting.md"),
     }
-    out.update({f"ai/modes/{m}.md": _asset("modes", f"{m}.md") for m in MODES})
+    out.update({f"{AI}/modes/{m}.md": _asset("modes", f"{m}.md") for m in MODES})
     return out
 
 
@@ -186,7 +184,7 @@ def sha(text: str) -> str:
 
 
 def read_versions(root: Path) -> dict[str, str]:
-    p = root / "ai" / VERSION_FILE
+    p = root / AI / VERSION_FILE
     out: dict[str, str] = {}
     if p.is_file():
         for line in p.read_text(encoding="utf-8").splitlines():
@@ -199,12 +197,12 @@ def read_versions(root: Path) -> dict[str, str]:
 def write_versions(root: Path, texts: dict[str, str]) -> None:
     """Record the shipped hash of each of `texts` (quilt-relative path -> text) under its file name, which is how `upgrade_layer` looks it up."""
     lines = [f"{Path(rel).name} {sha(t)}" for rel, t in sorted(texts.items(), key=lambda kv: Path(kv[0]).name)]
-    (root / "ai" / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / AI / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def agent_dirs(config: QuiltConfig) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting and `drafting_ai` names in them."""
-    return AGENT_WRITES + (config.drafting_ai,), (config.drafting,) + AGENT_READONLY
+    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting, `drafting_ai` and history directories in them."""
+    return AGENT_WRITES + (config.drafting_ai,), (config.drafting, *AGENT_READONLY, config.history, AI)
 
 
 def quilt_config(root: Path) -> QuiltConfig:
@@ -323,7 +321,7 @@ def ensure_root_line(root: Path, write: bool = True, *, shell: bool = False) -> 
 
 def init_layer(root: Path, *, shell: bool = False) -> LayerReport:
     """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them in one variant: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
-    ai = root / "ai"
+    ai = root / AI
     if ai.exists():
         raise FileExistsError(str(ai))
     rep = LayerReport()
@@ -336,13 +334,13 @@ def init_layer(root: Path, *, shell: bool = False) -> LayerReport:
         rep.written.append(rel)
     for name in ("README.md",):
         (ai / name).write_text(_asset(name), encoding="utf-8")
-        rep.written.append(f"ai/{name}")
+        rep.written.append(f"{AI}/{name}")
     sty = root / STY
     write_versions(
         root,
         {**texts, STY: shipped_sty()} if sty.is_file() and sty.read_text(encoding="utf-8") == shipped_sty() else texts,
     )
-    rep.written.append(f"ai/{VERSION_FILE}")
+    rep.written.append(f"{AI}/{VERSION_FILE}")
     for rel, text in vendor_files(quilt_config(root), shell=shell).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -359,7 +357,7 @@ def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) 
     """
     if shell is None:
         shell = variant(root) == SHELL
-    ai = root / "ai"
+    ai = root / AI
     rep = LayerReport()
     if not ai.is_dir():
         return rep
@@ -421,9 +419,9 @@ def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) 
         if not p.is_file() or p.read_text(encoding="utf-8") != text:
             if write:
                 p.write_text(text, encoding="utf-8")
-            rep.written.append(f"ai/{name}")
+            rep.written.append(f"{AI}/{name}")
         else:
-            rep.unchanged.append(f"ai/{name}")
+            rep.unchanged.append(f"{AI}/{name}")
     # a quilt with ai/ has both permission files, so a missing one is written like a stale one
     for rel, text in vendor_files(quilt_config(root), shell=shell).items():
         p = root / rel

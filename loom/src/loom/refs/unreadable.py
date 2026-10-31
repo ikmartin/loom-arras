@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.paths import UNREADABLE
 
-FILE = "digests/unreadable.json"
+FILE = UNREADABLE
 
 #: The two claims. `unreadable` is keyed by citekey, `forget` by citekey or `sha256:<hash>`.
 KINDS = ("unreadable", "forget")

@@ -9,6 +9,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from loom.paths import DIGESTS
 from loom.scan.bib import BibEntry
 from loom.scan.model import Diagnostic
 from loom.scan.scan import ScanResult
@@ -29,7 +30,7 @@ class Problem:
 
 def recorded_works(root: Path) -> list[str]:
     """Every citekey with a `digests/<ck>.results.json`, in order."""
-    return [p.name[: -len(".results.json")] for p in sorted((root / "digests").glob("*.results.json"))]
+    return [p.name[: -len(".results.json")] for p in sorted((root / DIGESTS).glob("*.results.json"))]
 
 
 def moved_anchors(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) -> tuple[int, list[Problem]]:

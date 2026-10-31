@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from loom.paths import DIGESTS
 from loom.refs.fetch import Fetched, fetch_work, identifier_for, work_dir
 from loom.refs.identity import declared
 from loom.refs.pages import read_map, storage_root
@@ -582,7 +583,7 @@ def survey(result: ScanResult) -> list[WorkState]:
                 candidate=ident or "" if via == "candidate" else "",
                 source=_has_source(root, entry),
                 pdf=(home / "paper.pdf").is_file(),
-                digest=(root / "digests" / f"{ck}.tex").is_file(),
+                digest=(root / DIGESTS / f"{ck}.tex").is_file(),
                 unreadable=(d.why if (d := declared_unreadable.get(ck)) else ""),
             )
         )
@@ -687,7 +688,7 @@ def _extract_step(
         except Exception as exc:  # noqa: BLE001 -- one paper that will not build must not stop the other twenty
             w.extract_error = f"{type(exc).__name__}: {exc}"
             continue
-        target = root / "digests" / f"{w.citekey}.tex"
+        target = root / DIGESTS / f"{w.citekey}.tex"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
         w.restored, w.contradicted = _restore_verified(result, w.citekey, text)
@@ -768,7 +769,7 @@ def _record_step(result: ScanResult, works: list[WorkState], written: list[str])
     rescan = scan(load_quilt(root))
     for w in works:
         if w.citekey in written:
-            rel = f"digests/{w.citekey}.tex"
+            rel = f"{DIGESTS}/{w.citekey}.tex"
             hits = [d for d in rescan.lint if any(loc.file == rel for loc in d.locations) or w.citekey in d.message]
             w.lint = tally(hits, None).replace(" in your documents", "") if hits else ""
     return sum(record_extracted(rescan, ck) for ck in dict.fromkeys([*written, *want]))

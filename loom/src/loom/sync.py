@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from loom.clock import stamp
+from loom.paths import REVIEW_ORIGINS, SOURCE_SYNC, WORKSPACE
 from loom.reshape.importer import closure_of
 from loom.scan.quilt import Quilt
 from loom.tex.runner import compile_tex
@@ -24,8 +25,6 @@ from loom.tex.runner import compile_tex
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
-#: Loom's clone of the document workspace, under the quilt root.
-WORKSPACE = ".loom/workspace"
 #: The ref in the clone that holds the last prepared publication.
 PUBLICATION_REF = "refs/loom/publication"
 
@@ -59,7 +58,7 @@ class SyncState:
 
     @classmethod
     def read(cls, root: Path) -> SyncState:
-        path = root / ".loom" / "source-sync.json"
+        path = root / SOURCE_SYNC
         if not path.is_file():
             raise SyncError("document workspace is not configured; run `loom sync init URL` first")
         try:
@@ -89,7 +88,7 @@ class SyncState:
     def write(self, root: Path) -> None:
         if self.master not in self.documents:
             self.documents.insert(0, self.master)
-        path = root / ".loom" / "source-sync.json"
+        path = root / SOURCE_SYNC
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".tmp")
         from loom.review_origins import read, write
@@ -672,8 +671,8 @@ def incorporate(quilt: Quilt, state: SyncState, actor: str | None = None) -> dic
     documents = _reaching(root, current_selection(state, result)[1], set(after))
     history_dir = quilt.history_dir
     touched = [
-        root / ".loom/review-origins.json",
-        root / ".loom/source-sync.json",
+        root / REVIEW_ORIGINS,
+        root / SOURCE_SYNC,
         root / "config.toml",
         history_dir / "ledger.jsonl",
         *(root / path for path in after),

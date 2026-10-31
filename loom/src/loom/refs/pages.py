@@ -14,6 +14,8 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from loom.paths import STORAGE
+
 # A numbered heading: "3", "3.1", "A.2". A bare single capital is deliberately NOT a number -- "C (F ) = Spec Sym(F )"
 # and "E = C x_D X" are lines from a real paper in this corpus, and a lone letter matches far more mathematics than
 # it does appendices. An appendix is found by the word, or by a letter that carries a subsection number.
@@ -83,10 +85,6 @@ class PageMap:
             else:
                 break
         return found
-
-
-#: Loom's own store of other people's documents: everything it fetched or copied, keyed by the work's identifier. The author's seed space is `refs/` at the quilt root, which loom reads and never writes.
-STORAGE = "digests/storage"
 
 
 def storage_root(root: Path) -> Path:

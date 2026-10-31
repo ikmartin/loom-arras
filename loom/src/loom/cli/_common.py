@@ -11,6 +11,8 @@ from typing import Any
 
 import click
 
+from loom.paths import BUILD
+
 EXIT_CONTENT = 1
 EXIT_USAGE = 2
 
@@ -169,7 +171,7 @@ def destination(
         not drafting
         and not source
         and rel is not None
-        and not rel.startswith("build/")
+        and not rel.startswith(f"{BUILD}/")
         and (in_drafting or target.suffix in SOURCE_SUFFIXES)
     ):
         raise EnvError(

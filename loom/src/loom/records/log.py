@@ -13,10 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from loom.anchors import Anchor, is_page_anchor
+from loom.paths import ANNOTATION_LOG
 from loom.records.annotations import KINDS, Annotation, Record
 from loom.records.selectors import Selector
 
-LOG = "annotations/log.jsonl"
+LOG = ANNOTATION_LOG
 EVENTS = ("created", "replied", "edited", "resolved", "discarded")
 
 

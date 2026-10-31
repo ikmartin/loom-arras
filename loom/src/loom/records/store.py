@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
+from loom.paths import REVIEW_OBSERVATIONS
 from loom.records.annotations import ASKING, Annotation, Record, load_records
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
@@ -103,8 +104,11 @@ def _fresh(states: dict[str, KeyState]) -> dict[str, KeyState]:
 
 class Records:
     def __init__(self, root: Path, history_dir: Path | None = None, *, reviewer: str | None = None) -> None:
+        from loom.scan.quilt import load_quilt
+
         self.root = root
-        self.history_dir = history_dir
+        # the history wherever `[quilt] history` puts it, read from the quilt's config when the caller has not
+        self.history_dir = history_dir if history_dir is not None else load_quilt(root).history_dir
         self.rows = read_ledger(root)
         from loom.scan.quilt import reviewer_identity
 
@@ -343,7 +347,7 @@ class Records:
 
     def _observe_causes(self, states: dict[str, KeyState]) -> None:
         """Remember the first scan that saw each unresolved cause, once per acceptance epoch."""
-        path = self.root / ".loom" / "review-observations.json"
+        path = self.root / REVIEW_OBSERVATIONS
         try:
             old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         except (OSError, ValueError):

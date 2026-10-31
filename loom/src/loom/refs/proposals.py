@@ -20,6 +20,7 @@ from typing import Any
 from loom.anchors import Anchor as Anchor  # re-exported: a result's anchor is the shared type
 from loom.clock import stamp
 from loom.digest.extract import ABBREV
+from loom.paths import DIGESTS
 
 # Contract §9.9. `proposed` is written, and not yet vouched for; `extracted` is loom's own reading of a source;
 # `verified` is a person having compared the rendering to the source text and accepted it. Read through `state_of`.
@@ -116,19 +117,19 @@ def discard_refusal(r: Result, citekey: str) -> str:
 
 
 def results_path(root: Path, citekey: str) -> Path:
-    return root / "digests" / f"{citekey}.results.json"
+    return root / DIGESTS / f"{citekey}.results.json"
 
 
 def proposed_path(root: Path, citekey: str) -> Path:
-    return root / "digests" / f"{citekey}.proposed.tex"
+    return root / DIGESTS / f"{citekey}.proposed.tex"
 
 
 def digest_path(root: Path, citekey: str) -> Path:
-    return root / "digests" / f"{citekey}.tex"
+    return root / DIGESTS / f"{citekey}.tex"
 
 
 def log_path(root: Path, citekey: str) -> Path:
-    return root / "digests" / f"{citekey}.proposals.jsonl"
+    return root / DIGESTS / f"{citekey}.proposals.jsonl"
 
 
 def load_results(root: Path, citekey: str) -> dict[str, Result]:
@@ -483,7 +484,7 @@ def find_result(result: Any, target: str) -> tuple[str, str, dict[str, Result]]:
     An id carries its work's prefix but not its citekey, and the two differ, so the id is looked up rather than parsed.
     """
     root = result.quilt.root
-    for path in sorted((root / "digests").glob("*.results.json")):
+    for path in sorted((root / DIGESTS).glob("*.results.json")):
         citekey = path.name[: -len(".results.json")]
         results = load_results(root, citekey)
         if target in results:

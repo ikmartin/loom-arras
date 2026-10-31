@@ -15,6 +15,7 @@ from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
 from loom.history.steps import plan_freeze, slug, stamp_document, text_hash, write_step
+from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS
 from loom.render.manifest import own_text
 from loom.reshape.linearize import flatten
 from loom.scan.hashing import pair_hash
@@ -610,7 +611,7 @@ def prepare(
     }
     prepared["decision"] = decisions(result, copy, who, data=data)
     prepared["token"] = _digest(prepared)
-    home = root / "build/adoption"
+    home = root / BUILD / "adoption"
     home.mkdir(parents=True, exist_ok=True)
     (home / (prepared["token"] + ".json")).write_text(json.dumps(prepared, indent=2) + "\n")
     return prepared
@@ -763,7 +764,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     if not re.fullmatch("[0-9a-f]{64}", token):
         raise SyncError("Invalid preview token")
     root = result.quilt.root
-    path = root / "build/adoption" / (token + ".json")
+    path = root / BUILD / "adoption" / (token + ".json")
     if not path.is_file():
         raise SyncError("Preview unavailable; inspect the contribution again")
     saved = json.loads(path.read_text())
@@ -795,7 +796,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
             raise SyncError(f"{rel} appeared after the preview; inspect the contribution again")
     # Everything incorporation may write, as it was: restored byte for byte if any step fails.
     touched_files = [
-        root / ".loom/review-origins.json",
+        root / REVIEW_ORIGINS,
         history.dir / "ledger.jsonl",
         *(root / p for p in saved["paths"]),
     ]
@@ -1106,7 +1107,7 @@ def decisions(
         Current selected keys, document choice and comparison fingerprint.
     """
     data = data if data is not None else comparison(result, copy)
-    path = result.quilt.root / ".loom/adoption-decisions.json"
+    path = result.quilt.root / ADOPTION_DECISIONS
     stored = json.loads(path.read_text()) if path.is_file() else {}
     row = stored.get(reviewer or "", {}).get(data["copy"], {})
     if row.get("fingerprint") == data["fingerprint"]:
@@ -1198,7 +1199,7 @@ def decide(
         "document": document,
         "kept": sorted(set(kept or []) - set(keys)),
     }
-    path = result.quilt.root / ".loom/adoption-decisions.json"
+    path = result.quilt.root / ADOPTION_DECISIONS
     stored = json.loads(path.read_text()) if path.is_file() else {}
     stored.setdefault(reviewer, {})[data["copy"]] = row
     path.parent.mkdir(parents=True, exist_ok=True)

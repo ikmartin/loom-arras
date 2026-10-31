@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
+from loom.paths import BUILD, MANIFEST
 from loom.scan.scan import ScanResult
 from loom.section_drafts import check_overlap, metadata
 from loom.sync import SyncError
@@ -88,7 +89,7 @@ def close_draft(
     root = result.quilt.root
     before = (root / copy).read_bytes()
     build(result.quilt)
-    manifest = json.loads((root / "build/manifest.json").read_text())
+    manifest = json.loads((root / MANIFEST).read_text())
     if (root / copy).read_bytes() != before:
         raise SyncError("The agent document changed while closing; inspect it and close again")
     master = next(m for m in manifest["masters"] if m["path"] == copy)
@@ -115,15 +116,15 @@ def close_draft(
     digest = hashlib.sha256(before + json.dumps(frozen, sort_keys=True).encode()).hexdigest()
     home = result.quilt.history_dir / "closed-drafts" / digest
     write_atomic(home / "source.tex", before)
-    write_atomic(home / "fragment.html", (root / "build" / master["fragment"]).read_bytes())
-    fragments = [(root / "build" / master["fragment"]).read_text()]
+    write_atomic(home / "fragment.html", (root / BUILD / master["fragment"]).read_bytes())
+    fragments = [(root / BUILD / master["fragment"]).read_text()]
     if context:
-        context_html = (root / "build" / context["fragment"]).read_text()
+        context_html = (root / BUILD / context["fragment"]).read_text()
         write_atomic(home / "context.html", context_html)
         fragments.append(context_html)
     for fragment in fragments:
         for asset in re.findall(r'(?:src|href)="((?:svg|graphics)/[^"?#]+)"', fragment):
-            path = root / "build" / asset
+            path = root / BUILD / asset
             if path.is_file():
                 write_atomic(home / "assets" / asset, path.read_bytes())
     write_atomic(home / "view.json", json.dumps(frozen))

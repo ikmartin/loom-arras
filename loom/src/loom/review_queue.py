@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from loom.paths import REVIEW_DECISIONS
 from loom.records.store import Records
 from loom.render.manifest import own_text
 from loom.scan.hashing import mathematical_hash
@@ -14,7 +15,7 @@ from loom.scan.scan import ScanResult
 
 
 def _path(root: Path) -> Path:
-    return root / ".loom" / "review-decisions.json"
+    return root / REVIEW_DECISIONS
 
 
 def _data(root: Path) -> dict[str, Any]:

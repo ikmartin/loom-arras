@@ -14,10 +14,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loom.clock import stamp
+from loom.paths import REFS, STORAGE
 from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, declared, primary
 from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in, identify_document
-from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
+from loom.refs.pages import page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations, set_aside_documents
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
@@ -529,7 +530,7 @@ def _duplicates(bib: dict[str, BibEntry], aside: set[str]) -> list[tuple[str, li
 
 
 #: The author's seed space: where they drop reference PDFs and `.bib` files. Loom reads it and never writes it.
-SEED = "refs"
+SEED = REFS
 #: Every document ever copied into the store, by content hash, so a file is copied once and never again -- not when it is renamed, not when it is deleted from the seed space and not when it is dropped a second time.
 LEDGER = "copied.json"
 

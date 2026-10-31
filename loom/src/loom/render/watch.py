@@ -13,13 +13,28 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 from loom.mailbox import INBOX
+from loom.paths import (
+    ADOPTION_DECISIONS,
+    AI,
+    ANNOTATION_LOG,
+    ANNOTATIONS,
+    BUILD,
+    LOOM,
+    REFERENCE_NOTES,
+    REVIEW_DECISIONS,
+    REVIEW_OBSERVATIONS,
+    REVIEW_ORIGINS,
+    SERVE_JSON,
+    SESSIONS,
+    SINCE,
+)
 from loom.records.lastseen import CACHE
 
-SKIP = {"build", ".git", "node_modules", ".svelte-kit"}
+SKIP = {BUILD, ".git", "node_modules", ".svelte-kit"}
 SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 #: What a change to records alone touches; see `records_only`.
-RECORDS = ("annotations/", "comments/", ".loom/sessions/")
-RECORD_FILES = ("reference-notes.jsonl", ".loom/review-decisions.json", ".loom/review-origins.json")
+RECORDS = (f"{ANNOTATIONS}/", f"{SESSIONS}/")
+RECORD_FILES = (REFERENCE_NOTES, REVIEW_DECISIONS, REVIEW_ORIGINS)
 
 
 def _files(root: Path) -> Iterator[Path]:
@@ -43,24 +58,24 @@ def snapshot(root: Path) -> dict[Path, float]:
     seen: dict[Path, float] = {}
     for p in _files(root):
         # A session's inbox is read live through `/_api/events`; rebuilding the manifest per message would re-render what the reader has open.
-        if p.suffix not in SUFFIXES or p.name in (CACHE, "review-observations.json", INBOX):
+        if p.suffix not in SUFFIXES or p.name in (CACHE, Path(REVIEW_OBSERVATIONS).name, INBOX):
             continue
         rel = p.relative_to(root)
         # Review decisions publish only queue metadata through the API; Finish review rebuilds the view.
         # and `serve.json` is the server's own note of where it listens, which no build reads
-        if rel.as_posix() in (".loom/review-decisions.json", ".loom/adoption-decisions.json", ".loom/serve.json"):
+        if rel.as_posix() in (REVIEW_DECISIONS, ADOPTION_DECISIONS, SERVE_JSON):
             continue
         # where each agent last looked (`loom since`), which no build reads either
-        if rel.parts[:2] == (".loom", "since"):
+        if rel.as_posix().startswith(f"{SINCE}/"):
             continue
         # `annotations/log.jsonl` is where every comment, reply and finding lands, and `reference-notes.jsonl` is
         # where an accepted citation does. Neither was watched -- the directory list still said `comments/`, the name
         # the log replaced in 0.10, and `.jsonl` was not a watched suffix -- so a write through `loom serve`'s own API
         # appended to the log and the page it came from never changed (DR-174).
         if (
-            rel.parts[0] in ("ai", "annotations", "comments", ".loom")
+            rel.parts[0] in (AI, ANNOTATIONS, LOOM)
             or p.suffix in (".tex", ".sty", ".cls", ".bib")
-            or rel.as_posix() in ("config.toml", "reference-notes.jsonl")
+            or rel.as_posix() in ("config.toml", REFERENCE_NOTES)
         ):
             try:
                 seen[p] = p.stat().st_mtime
@@ -70,7 +85,7 @@ def snapshot(root: Path) -> dict[Path, float]:
 
 
 #: The records loom's own commands append to, looked at between full scans: an agent's annotation is drawn within a fraction of a second rather than on the next scan.
-FAST = ("annotations/log.jsonl", "reference-notes.jsonl", ".loom/sessions/index.jsonl")
+FAST = (ANNOTATION_LOG, REFERENCE_NOTES, f"{SESSIONS}/index.jsonl")
 #: How often the fast lane looks.
 FAST_INTERVAL = 0.2
 

@@ -14,6 +14,7 @@ from typing import Any
 
 from loom.history.ledger import History, load_history
 from loom.history.versions import read_version
+from loom.paths import BUILD
 from loom.render.canon import CanonDoc, _preamble_for, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
 from loom.render.manifest import own_text
@@ -153,7 +154,7 @@ def _cached(
         h.update(part.encode("utf-8", errors="replace"))
         h.update(b"\0")
     rel = f"{CACHE}/{h.hexdigest()[:32]}.html"
-    path = root / "build" / rel
+    path = root / BUILD / rel
     if not path.is_file():
         write_atomic(path, _render(renderer, result, context, text, preamble, spans))
     return rel
@@ -187,8 +188,8 @@ def compare(result: ScanResult, left: str, right: str) -> dict[str, Any]:
         result=result,
         numbers={m: read_numbers(root, m) for m in result.masters},
         cite_labels={m: read_cite_labels(root, m) for m in result.masters},
-        svg_cache=root / "build" / "cache" / "svg",
-        svg_out=root / "build" / "svg",
+        svg_cache=root / BUILD / "cache" / "svg",
+        svg_out=root / BUILD / "svg",
     )
     renderer = FragmentRenderer(plan)
     pairs: list[dict[str, Any]] = []

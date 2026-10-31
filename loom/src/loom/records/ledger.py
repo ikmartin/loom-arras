@@ -9,6 +9,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import LEDGER
+
 HEADER = "# .loom/state.toml -- written by `loom accept`. Do not edit.\nschema = 1\n"
 
 
@@ -54,7 +56,7 @@ def _q(s: str) -> str:
 
 
 def ledger_path(root: Path) -> Path:
-    return root / ".loom" / "state.toml"
+    return root / LEDGER
 
 
 def read_ledger(root: Path) -> list[AcceptRow]:

@@ -21,6 +21,7 @@ from loom.mcp.prompts import TARGET, TARGET_SAID, link_argv, message, mode_argv,
 from loom.mcp.resources import TEMPLATES, NotAResource, reading
 from loom.mcp.resources import listed as resources_listed
 from loom.mcp.tools import CallRefused, ToolSpec, argv, hints, schema, tools
+from loom.paths import BUILD
 
 #: A result longer than this many characters goes to a file the agent reads with its own tools: about ten thousand tokens, where Claude Code starts warning, and well under every client's own limit.
 LARGE = 40_000
@@ -261,7 +262,7 @@ def _session(root: Path, given: object) -> str | None:
 
 def _keep(root: Path, session: object, what: str, text: str) -> str:
     """Write a large result under `build/agent/<session>/`, which an agent may read and write and nothing commits, named for `what` produced it; its quilt-relative path."""
-    where = root / "build" / "agent" / (_session(root, session) or "none")
+    where = root / BUILD / "agent" / (_session(root, session) or "none")
     where.mkdir(parents=True, exist_ok=True)
     stem = datetime.now().strftime("%Y-%m-%dT%H-%M-%S") + "-" + what
     path, n = where / f"{stem}.txt", 2

@@ -16,6 +16,7 @@ from typing import Any
 from urllib.parse import quote
 
 from loom.history.ledger import load_history
+from loom.paths import BUILD, STORAGE
 from loom.records.lastseen import freeze_moved
 from loom.records.store import Records
 from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
@@ -104,7 +105,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         if not results and not notes:
             continue
         m = read_map(home)
-        rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
+        rel = f"spans/{artifacts['dir'].removeprefix(STORAGE + '/')}.json"
         # what the geometry is made from: the results' anchors and words, the notes on the pages and their drawn boxes, the copy filed, and the matching code
         key = hashlib.sha256(
             json.dumps(
@@ -122,7 +123,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                 ]
             ).encode()
         ).hexdigest()[:32]
-        kept = root / "build" / "cache" / "spans" / f"{key}.json"
+        kept = root / BUILD / "cache" / "spans" / f"{key}.json"
         if kept.is_file():
             body = kept.read_text(encoding="utf-8")
             if body:
@@ -243,7 +244,7 @@ def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
     h.update(doc.path.encode())
     h.update(doc.src.text.encode("utf-8", errors="replace"))
     h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
-    for p in sorted([*(root / "build").glob(f"{doc.stem}/*.aux"), *(root / "build").glob(f"{doc.stem}/*.bbl")]):
+    for p in sorted([*(root / BUILD).glob(f"{doc.stem}/*.aux"), *(root / BUILD).glob(f"{doc.stem}/*.bbl")]):
         h.update(p.read_bytes())
     return h.hexdigest()
 
@@ -350,7 +351,7 @@ def build(
         The scan, the manifest, and what was rendered and skipped.
     """
     root = quilt.root
-    build_dir = root / "build"
+    build_dir = root / BUILD
     cache_dir = build_dir / "cache"
 
     def told(stage: str, item: str = "", n: int = 0, total: int | None = None) -> None:
@@ -361,7 +362,7 @@ def build(
     result = reuse if reuse is not None else scan(quilt)
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
-    freeze_moved(result, records.records, quilt.history_dir)
+    freeze_moved(result, records.records)
     marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}

@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from loom.paths import REVIEW_ORIGINS
+
 
 def read(root: Path) -> dict[str, dict[str, Any]]:
     """Read the shared provenance store, empty when nothing has been incorporated.
@@ -20,7 +22,7 @@ def read(root: Path) -> dict[str, dict[str, Any]]:
     dict
         Per-node provenance: where each key's incorporated text came from.
     """
-    path = root / ".loom/review-origins.json"
+    path = root / REVIEW_ORIGINS
     return json.loads(path.read_text()) if path.is_file() else {}
 
 
@@ -34,7 +36,7 @@ def write(root: Path, origins: dict[str, dict[str, Any]]) -> None:
     origins : dict
         Complete per-node provenance, including unrelated contributions retained by the caller.
     """
-    path = root / ".loom/review-origins.json"
+    path = root / REVIEW_ORIGINS
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(origins, indent=2, sort_keys=True) + "\n")

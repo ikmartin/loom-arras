@@ -11,6 +11,7 @@ from functools import cached_property
 from pathlib import Path
 
 from loom.history.ledger import History, load_history
+from loom.paths import NOTES_DIR, RETIRED
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
@@ -138,7 +139,7 @@ def _stems_taken(masters: list[str]) -> list[Diagnostic]:
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
     """Directories the scan never enters: `retired/`, `notes/`, the author's reference material, and the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own."""
-    return ("retired", "notes", Path(quilt.config.history).as_posix())
+    return (RETIRED, NOTES_DIR, Path(quilt.config.history).as_posix())
 
 
 def landmark_documents(quilt: Quilt) -> list[str]:

@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.paths import DIGESTS
 from loom.scan.bib import citekey_slug
 from loom.scan.digests import ALWAYS_LOADED, loaded_packages
 from loom.scan.directives import list_value
@@ -61,7 +62,7 @@ def plan_digest_import(result: ScanResult, path: Path, as_citekey: str | None) -
     declared = set(result.taxa) | {"proof", "document", "equation", "align", "itemize", "enumerate", "description"}
     undeclared = sorted({e for e in _ENV.findall(text) if e not in declared and not e.endswith("*") and e[0].islower()})
     undeclared = [e for e in undeclared if e in {t for t in re.findall(r"\\begin\{([a-z]+)\}\s*\[\{\\cite", text)}]
-    return DigestImport(old, new, text, f"digests/{new}.tex", renamed, missing, undeclared)
+    return DigestImport(old, new, text, f"{DIGESTS}/{new}.tex", renamed, missing, undeclared)
 
 
 def write_digest_import(root: Path, plan: DigestImport) -> Path:

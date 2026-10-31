@@ -16,6 +16,7 @@ from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.graph import keyed, natural, when
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp, today
+from loom.paths import BUILD
 from loom.records.annotations import (
     GRADED,
     KINDS,
@@ -51,11 +52,11 @@ def _master_compiles(result: ScanResult, master: str | None = None) -> tuple[boo
     if master is None:
         return True, ""
     root = result.quilt.root
-    pdf = root / "build" / Path(master).stem / f"{Path(master).stem}.pdf"
+    pdf = root / BUILD / Path(master).stem / f"{Path(master).stem}.pdf"
     newest = max((result.files[f].abspath.stat().st_mtime for f in result.files), default=0.0)
     if pdf.exists() and pdf.stat().st_mtime >= newest:
         return True, ""
-    res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
+    res = compile_tex(root, master, root / BUILD / Path(master).stem, engine_for(result, master))
     return res.ok, res.first_error
 
 

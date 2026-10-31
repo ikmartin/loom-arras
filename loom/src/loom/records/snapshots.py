@@ -9,14 +9,12 @@ from pathlib import Path
 
 from loom.scan.hashing import normalize, sha256
 
-DEFAULT_HISTORY = Path(".loom") / "history"
+
+def snapshots_dir(root: Path, history_dir: Path) -> Path:
+    return history_dir / "texts"
 
 
-def snapshots_dir(root: Path, history_dir: Path | None = None) -> Path:
-    return (history_dir if history_dir is not None else root / DEFAULT_HISTORY) / "texts"
-
-
-def write_snapshot(root: Path, text: str, history_dir: Path | None = None) -> tuple[str, bool]:
+def write_snapshot(root: Path, text: str, history_dir: Path) -> tuple[str, bool]:
     """Store the normalised text; return (hash, written)."""
     norm = normalize(text)
     digest = sha256(norm)
@@ -29,12 +27,12 @@ def write_snapshot(root: Path, text: str, history_dir: Path | None = None) -> tu
     return digest, True
 
 
-def read_snapshot(root: Path, digest: str, history_dir: Path | None = None) -> str | None:
+def read_snapshot(root: Path, digest: str, history_dir: Path) -> str | None:
     p = snapshots_dir(root, history_dir) / f"{digest.split(':', 1)[-1]}.tex"
     return p.read_text(encoding="utf-8") if p.is_file() else None
 
 
-def write_raw(root: Path, text: str, history_dir: Path | None = None) -> str:
+def write_raw(root: Path, text: str, history_dir: Path) -> str:
     """Store `text` exactly, as `<hex>.md`, and return its hash: a page's Markdown, which `normalize` would change (it drops `%` lines and the trailing spaces of a hard break)."""
     from loom.scan.hashing import sha256
 
@@ -47,6 +45,6 @@ def write_raw(root: Path, text: str, history_dir: Path | None = None) -> str:
     return digest
 
 
-def read_raw(root: Path, digest: str, history_dir: Path | None = None) -> str | None:
+def read_raw(root: Path, digest: str, history_dir: Path) -> str | None:
     p = snapshots_dir(root, history_dir) / f"{digest.split(':', 1)[-1]}.md"
     return p.read_text(encoding="utf-8") if p.is_file() else None

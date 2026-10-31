@@ -60,7 +60,7 @@ def test_a_moved_key_is_frozen_from_the_cache_when_an_annotation_names_its_old_t
     """The cache is where a version no writer froze is kept from: when a key's text moves and an annotation names the text loom last saw, that text is frozen and the cache moves on. A key that moved and that nothing names freezes nothing."""
     q = demo(tmp_path)
     before = current_texts(open_scan(str(q)))
-    write_last_seen(q, before)
+    write_last_seen(q, before, q / ".loom" / "history")
     edit(q / LEMMA, ORIGINAL, "Orbits have at most two points")
     edit(q / "nodes" / "dm-0001.tex", "Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
     named = [SimpleNamespace(annotations=[SimpleNamespace(target_hash=hash_text(before["dm-0002"]))])]
@@ -68,7 +68,7 @@ def test_a_moved_key_is_frozen_from_the_cache_when_an_annotation_names_its_old_t
     assert freeze_moved(open_scan(str(q)), named) == ["dm-0002"]  # type: ignore[arg-type]
     frozen = texts(q)
     assert len(frozen) == 1 and ORIGINAL in frozen[0].read_text()
-    assert ORIGINAL not in read_last_seen(q)["dm-0002"]
+    assert ORIGINAL not in read_last_seen(q, q / ".loom" / "history")["dm-0002"]
     assert freeze_moved(open_scan(str(q)), named) == []  # type: ignore[arg-type]  # nothing has moved since
 
 

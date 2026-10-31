@@ -6,6 +6,7 @@ import click
 
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.report import Group, Item, Report, counted
+from loom.paths import AI
 
 
 @click.command()
@@ -18,8 +19,9 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
     """
     from loom.ai.clients import write_clients
-    from loom.ai.layout import SHELL, STY, refresh_sty, upgrade_layer, variant
+    from loom.ai.layout import SHELL, refresh_sty, upgrade_layer, variant
     from loom.gitignore import ensure, missing
+    from loom.paths import STY
 
     quilt = open_quilt(quilt_path)
     root = quilt.root
@@ -32,7 +34,7 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     sty, old = refresh_sty(root, write=not dry_run)
     if sty == "written":
         written.append(STY)
-    has_ai = (root / "ai").is_dir()
+    has_ai = (root / AI).is_dir()
     if has_ai:
         shell = variant(root) == SHELL
         rep = upgrade_layer(root, write=not dry_run, shell=shell)

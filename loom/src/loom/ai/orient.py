@@ -5,6 +5,7 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
+from loom.paths import AI
 from loom.records.store import Records
 from loom.render.threads import SESSION_FILES
 from loom.scan.quilt import Quilt
@@ -25,15 +26,15 @@ def static_text(root: Path) -> str:
     shipped = tracked_docs()  # as `ai init` writes them: the rules with their list of allowed commands filled in
     out: list[str] = []
     for name in STATIC:
-        p = root / "ai" / name
-        text = p.read_text(encoding="utf-8") if p.is_file() else shipped[f"ai/{name}"]
+        p = root / AI / name
+        text = p.read_text(encoding="utf-8") if p.is_file() else shipped[f"{AI}/{name}"]
         out.append(text.rstrip("\n"))
     return "\n\n---\n\n".join(out) + "\n"
 
 
 def mode_text(root: Path, name: str) -> str:
     """Mode `name`'s file, the quilt's own copy where it has one, else the shipped one; `name` is one of `MODES`."""
-    p = root / "ai" / "modes" / f"{name}.md"
+    p = root / AI / "modes" / f"{name}.md"
     if p.is_file():
         return p.read_text(encoding="utf-8")
     return resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")

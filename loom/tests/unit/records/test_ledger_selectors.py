@@ -28,15 +28,16 @@ def test_ledger_append_only_and_latest_row_wins(tmp_path: Path) -> None:
 
 
 def test_snapshots_content_addressed_never_overwritten(tmp_path: Path) -> None:
-    h1, w1 = write_snapshot(tmp_path, "a\n\n\n b  \n")
-    h2, w2 = write_snapshot(tmp_path, "a\n\n b\n")
+    hist = tmp_path / ".loom" / "history"
+    h1, w1 = write_snapshot(tmp_path, "a\n\n\n b  \n", hist)
+    h2, w2 = write_snapshot(tmp_path, "a\n\n b\n", hist)
     assert h1 == h2 and w1 and not w2
     p = tmp_path / ".loom" / "history" / "texts" / (h1.split(":")[1] + ".tex")
     assert p.read_text() == "a\n\n b\n"
     p.write_text("tampered")
-    write_snapshot(tmp_path, "a\n\n b\n")
+    write_snapshot(tmp_path, "a\n\n b\n", hist)
     assert p.read_text() == "tampered"  # never overwritten
-    assert read_snapshot(tmp_path, h1) == "tampered" and read_snapshot(tmp_path, "sha256:nope") is None
+    assert read_snapshot(tmp_path, h1, hist) == "tampered" and read_snapshot(tmp_path, "sha256:nope", hist) is None
 
 
 def test_selector_resolution_unique_by_context_and_detached() -> None:

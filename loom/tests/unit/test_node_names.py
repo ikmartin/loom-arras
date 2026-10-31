@@ -24,13 +24,13 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
     after = open_scan(str(q))
     assert after.nodes["dm-0001"].directives["name"] == "Fixed points"
     assert key_hash(after, "dm-0001") != original
-    assert "Fixed points" not in read_snapshot(q, original)
+    assert "Fixed points" not in read_snapshot(q, original, q / ".loom" / "history")
     states = Records(q).key_states(after)
     assert all(states[k].fresh for k in ("dm-0001", "dm-0002", "dm-0002/proof"))
     assert pending(after) == ["dm-0002/proof"]
     ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     saved = Records(q).latest["dm-0001"].text
-    assert "Fixed points" in read_snapshot(q, saved)
+    assert "Fixed points" in read_snapshot(q, saved, q / ".loom" / "history")
     source.write_text(source.read_text().replace("Fixed points", "Fixed-point definition"))
     assert Records(q).key_states(open_scan(str(q)))["dm-0001"].fresh
     source.write_text(source.read_text().replace("\\end{definition}", "A new hypothesis.\n\\end{definition}"))
@@ -115,7 +115,7 @@ def test_missing_old_snapshot_never_establishes_name_equivalence(tmp_path: Path)
     q = demo(tmp_path)
     ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     original = Records(q).latest["dm-0001"].text
-    (snapshots_dir(q) / f"{original.split(':')[1]}.tex").unlink()
+    (snapshots_dir(q, q / ".loom" / "history") / f"{original.split(':')[1]}.tex").unlink()
     source = q / "nodes/dm-0001.tex"
     source.write_text(source.read_text().replace("\\end{definition}", "% !LOOM name: A name\n\\end{definition}"))
     assert not Records(q).key_states(open_scan(str(q)))["dm-0001"].fresh

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, load_history
+from loom.paths import BUILD, LOOM, NOTES_DIR, RETIRED
 from loom.scan.expand import Expansion, Segment
 from loom.scan.labels import LABEL_DEF, derived_of, is_id_shaped, plain_key
 from loom.scan.model import SourceFile
@@ -146,8 +147,7 @@ def capture_context(result: ScanResult, source: str, *, write: bool = True) -> d
     for path in root.rglob("*"):
         rel = path.relative_to(root)
         if any(
-            p
-            in {"build", ".git", ".loom", "node_modules", ".venv", "notes", "retired", result.quilt.config.drafting_ai}
+            p in {BUILD, ".git", LOOM, "node_modules", ".venv", NOTES_DIR, RETIRED, result.quilt.config.drafting_ai}
             for p in rel.parts
         ):
             continue
@@ -242,7 +242,7 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
     document = replace_section(meta["context"]["document"], proposal, meta["scope"])
     document = split_preamble(proposal)[0] + split_preamble(document)[1]
     digest = hashlib.sha256((document + meta["context"]["path"]).encode()).hexdigest()
-    home = result.quilt.root / "build/draft-previews" / digest
+    home = result.quilt.root / BUILD / "draft-previews" / digest
     pdf = home / "paper.pdf"
     if not pdf.is_file():
         with tempfile.TemporaryDirectory(prefix="loom-section-paper-") as temporary:
@@ -256,7 +256,7 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
                 )
             write_atomic(pdf, compiled.pdf.read_bytes())
     return {
-        "pdf": str(pdf.relative_to(result.quilt.root / "build")),
+        "pdf": str(pdf.relative_to(result.quilt.root / BUILD)),
         "message": "Preview uses the saved paper context and this draft's preamble and section.",
     }
 
@@ -276,7 +276,7 @@ def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str
         context_source = meta["context"].get("source", meta["source"])
         context_id = "context/paper-" + Path(meta["context"]["path"]).name + "-" + Path(meta["source"]).stem + ".tex"
         renderer = FragmentRenderer(
-            RenderPlan(snap, {}, result.quilt.root / "build/cache/svg", result.quilt.root / "build/svg")
+            RenderPlan(snap, {}, result.quilt.root / BUILD / "cache" / "svg", result.quilt.root / BUILD / "svg")
         )
         macro_name = "draft:" + copy
         manifest["macros"]["sets"][macro_name] = to_mathjax(snap.closures[copy].macros)

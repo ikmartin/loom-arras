@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from loom.paths import NODES
 from loom.reshape.anchoring import anchoring_violations
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -52,7 +53,7 @@ def _wanted(result: ScanResult, src_rel: str, keys: list[str], plan: AtomizePlan
         if n.kind == "section":
             plan.refusals.append(f"{n.key} is a section; one-node atomize moves theorem-like nodes and their proofs")
             continue
-        if n.file == f"nodes/{n.id}.tex":
+        if n.file == f"{NODES}/{n.id}.tex":
             plan.refusals.append(f"{n.key} already lives in {n.file}")
             continue
         out.add(n.key)
@@ -183,20 +184,22 @@ def plan_atomize(
                     f"{n.key} contains \\include, which cannot move into a node file (\\include forces a page break and its own .aux)"
                 )
                 continue
-            moves.append(Move(n.key, f"nodes/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
+            moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
             claimed.add(n.key)
         elif n.kind == "proof" and n.key not in claimed:
             stmt = asm.nodes.get(n.of or "")
             if n.id:
                 ls, le = _line_bounds(text, n.start, n.end)
-                moves.append(Move(n.key, f"nodes/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
+                moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
                 claimed.add(n.key)
             elif (
                 stmt is not None and stmt.id and (n.attach_via == "ref" or proofs == "separate" or stmt.file != src_rel)
             ):
                 suffix = "" if n.ordinal <= 1 else f".{n.ordinal}"
                 ls, le = _line_bounds(text, n.start, n.end)
-                moves.append(Move(n.key, f"nodes/{stmt.id}.proof{suffix}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
+                moves.append(
+                    Move(n.key, f"{NODES}/{stmt.id}.proof{suffix}.tex", ls, le, text[ls:le].rstrip("\n") + "\n")
+                )
                 claimed.add(n.key)
     if sections:
         for n in nodes_here:
@@ -239,7 +242,7 @@ def _atomize_sections(
         b = offset_map(n.end)
         ls, le = _line_bounds(spine, a, b)
         body = spine[ls:le].rstrip("\n") + "\n"
-        section_moves.append(Move(n.key, f"nodes/{n.id}.tex", ls, le, body))
+        section_moves.append(Move(n.key, f"{NODES}/{n.id}.tex", ls, le, body))
     outer: list[Move] = []
     for m in sorted(section_moves, key=lambda x: x.start):
         if any(o.start <= m.start and m.end <= o.end for o in outer):

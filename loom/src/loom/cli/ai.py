@@ -15,6 +15,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.cli.review import STATUSES
+from loom.paths import AI, DIGESTS
 from loom.records.annotations import KINDS, SEVERITIES
 
 if TYPE_CHECKING:
@@ -192,11 +193,11 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
 
     if shell is None:
         shell = variant(root) == SHELL
-    if not (root / "ai").exists():
+    if not (root / AI).exists():
         if write:
             rep = init_layer(root, shell=shell)
         else:
-            rep = LayerReport(written=[*tracked_docs(), "ai/README.md", f"ai/{VERSION_FILE}"])
+            rep = LayerReport(written=[*tracked_docs(), f"{AI}/README.md", f"{AI}/{VERSION_FILE}"])
             rep.written += [*vendor_files(quilt_config(root), shell=shell), *ensure_root_line(root, False, shell=shell)]
     else:
         rep = upgrade_layer(root, write=write, shell=shell)
@@ -230,7 +231,7 @@ def ai_init(mcp: bool | None, client: str | None, dry_run: bool, as_json: bool, 
         return
     from loom.ai.layout import SHELL, variant
 
-    existed = (quilt.root / "ai").is_dir()
+    existed = (quilt.root / AI).is_dir()
     shell = variant(quilt.root) == SHELL if mcp is None else not mcp
     rep, clients = install_layer(quilt.root, write=not dry_run, shell=shell)
     written = sorted(dict.fromkeys(str(rel) for rel in rep.written))
@@ -495,7 +496,7 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
     from loom.refs.proposals import DISCARDED, VERIFIED, edit_diff, load_results, read_events, state_of
 
     out: list[dict[str, Any]] = []
-    for path in sorted((root / "digests").glob("*.results.json")):
+    for path in sorted((root / DIGESTS).glob("*.results.json")):
         ck = path.name[: -len(".results.json")]
         reasons = {e.get("id"): e.get("reason", "") for e in read_events(root, ck) if e.get("event") == "discarded"}
         for rid, r in sorted(load_results(root, ck).items()):

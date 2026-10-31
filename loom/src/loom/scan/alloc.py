@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import subprocess
 
+from loom.paths import ANNOTATION_LOG, LEDGER
 from loom.scan.labels import LOOMLOCAL
 from loom.scan.scan import ScanResult
 
@@ -16,7 +17,7 @@ def visible_locals(result: ScanResult, prefix: str) -> set[str]:
     for src in result.files.values():
         found.update(pat.findall(src.text))
     root = result.quilt.root
-    ledger = root / ".loom" / "state.toml"
+    ledger = root / LEDGER
     if ledger.is_file():
         found.update(pat.findall(ledger.read_text(encoding="utf-8", errors="replace")))
     history = result.quilt.history_dir
@@ -25,7 +26,7 @@ def visible_locals(result: ScanResult, prefix: str) -> set[str]:
         for step in history.iterdir():
             if step.is_dir() and step.name != "texts":
                 found.update(pat.findall(" ".join(p.name for p in step.iterdir())))
-    log = root / "annotations" / "log.jsonl"
+    log = root / ANNOTATION_LOG
     if log.is_file():
         found.update(pat.findall(log.read_text(encoding="utf-8", errors="replace")))
     try:

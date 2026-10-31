@@ -9,7 +9,7 @@ import click
 
 from loom.cli._common import EnvError, note
 from loom.cli._quilt import open_quilt, quilt_option
-from loom.render.serve import DEFAULT_PORT, ServeSession, locate_bundle, open_url
+from loom.render.serve import BUILD_URL, DEFAULT_PORT, ServeSession, locate_bundle, open_url
 
 
 @click.command()
@@ -46,7 +46,7 @@ def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | Non
             f"cannot listen on port {port}: {why}; pass --port N for another, or stop what holds it"
         ) from exc
     # the URL first: a cold first build compiles every block the converter cannot translate, and a silent wait looks like a hang
-    note(f"loom serve: {session.url}  (build directory at {session.url}build/; Ctrl-C to stop)")
+    note(f"loom serve: {session.url}  (build directory at {session.url.rstrip('/')}{BUILD_URL}; Ctrl-C to stop)")
     if open_browser:
         webbrowser.open(session.url)
     # A terminal closed or a `kill` stops a server with SIGTERM, not Ctrl-C; either way it stops cleanly, so `.loom/serve.json` never tells a command that something is still listening.
