@@ -111,3 +111,28 @@ def test_the_macros_come_from_the_block_or_a_loom_sty_beside_the_document(tmp_pa
         if d["code"] in ("loom:macros-unloaded", "loom:macro-shadowed")
     }
     assert found == {("loom:macros-unloaded", "paper/neither.tex")}
+
+
+def test_a_compile_leaves_the_document_s_directory_as_it_found_it(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """latexmk reads a `.bcf`, `.aux` or `.toc` it finds where it runs, and runs biber there, so a document compiles in a clean copy of its directory: an editor's leftovers are neither read nor overwritten."""
+    import loom.tex.runner as runner
+
+    q = paper_quilt(tmp_path)
+    leftovers = {name: f"% the editor's {name}\n" for name in ("main.aux", "main.bbl", "main.bcf", "main.toc")}
+    for name, text in leftovers.items():
+        (q / "paper" / name).write_text(text, encoding="utf-8")
+    before = sorted(p.name for p in (q / "paper").iterdir())
+    ran_in: list[Path] = []
+    real = runner.compile_tex
+
+    def watched(cwd: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        ran_in.append(cwd)
+        assert not any((cwd / name).exists() for name in leftovers), "a leftover was staged"
+        return real(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(runner, "compile_tex", watched)
+    ok("compile", "paper/main.tex", cwd=q)
+    assert ran_in and not ran_in[0].is_relative_to(q)  # a copy, not the author's directory
+    assert sorted(p.name for p in (q / "paper").iterdir()) == before
+    assert {name: (q / "paper" / name).read_text() for name in leftovers} == leftovers
+    assert "qq-0001" in parse_aux((q / "build/paper/main/main.aux").read_text())

@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -142,7 +143,9 @@ def compile_document(
     halt_on_error: bool = True,
     timeout: int = 600,
 ) -> CompileResult:
-    """Compile a document from `base`, the quilt-relative directory it compiles from (P12).
+    """Compile a document from `base`, the quilt-relative directory it compiles from (P12), in a clean copy of that directory (`stage_document`).
+
+    A document's directory holds whatever its author's editor left there, and latexmk reads a `.bcf`, `.aux` or `.toc` it finds in its working directory and runs biber there even under `-outdir`; compiling the directory in place both depends on those leftovers and writes into it. The log's relative names are the document's directory's, which `CompileResult.cwd` says.
 
     Parameters
     ----------
@@ -163,8 +166,48 @@ def compile_document(
     -------
     CompileResult
     """
-    cwd = root / base
-    return compile_tex(cwd, os.path.relpath(root / tex, cwd), outdir, engine, halt_on_error, timeout)
+    tex_rel = Path(tex).relative_to(root).as_posix() if Path(tex).is_absolute() else Path(tex).as_posix()
+    with tempfile.TemporaryDirectory(prefix="loom-compile-") as tmp:
+        stage = stage_document(root, base, [tex_rel], Path(tmp))
+        cwd = stage / base
+        res = compile_tex(cwd, os.path.relpath(stage / tex_rel, cwd), outdir, engine, halt_on_error, timeout)
+    res.cwd = root / base
+    return res
+
+
+def stage_document(root: Path, base: str, extra: list[str], dest: Path) -> Path:
+    """A copy of the document directory `base` under `dest`, at its quilt-relative place, for latexmk to run in; returns `dest`.
+
+    Left out: build products (`BUILD_PRODUCTS`; a `.bbl` stays when the directory has no `.bib`, as an arXiv source ships only that), hidden directories, the directories loom keeps and never reads as a document's (`scan.source.SKIP_DIRS`, and at the root `SKIP_PREFIXES`), and the sync directory. `extra` (quilt-relative files, the document itself when it sits elsewhere, as an agent copy or a closure does) is copied to its own place. Files are copied, never linked, since a package may rewrite a file in its working directory (a TikZ externalisation, a `filecontents`).
+    """
+    from loom.scan.source import SKIP_DIRS, SKIP_PREFIXES
+    from loom.sync import skipped_directory
+
+    synced = skipped_directory(root)
+    top = root / base
+    has_bib = any(top.rglob("*.bib"))
+
+    def ignore(folder: str, names: list[str]) -> set[str]:
+        rel = Path(folder).relative_to(root).as_posix()
+        skip = set()
+        for n in names:
+            path = Path(folder) / n
+            where = f"{rel}/{n}" if rel != "." else n
+            if path.is_dir() and (
+                n.startswith(".") or n in SKIP_DIRS or f"{where}/".startswith(SKIP_PREFIXES) or where == synced
+            ):
+                skip.add(n)
+            elif n.endswith(BUILD_PRODUCTS) and not (n.endswith(".bbl") and not has_bib):
+                skip.add(n)
+        return skip
+
+    shutil.copytree(top, dest / base, ignore=ignore, dirs_exist_ok=True)
+    for rel in extra:
+        target = dest / rel
+        if (root / rel).is_file() and not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(root / rel, target)
+    return dest
 
 
 def compile_tex(
