@@ -298,7 +298,7 @@ def test_annotations_and_acceptances_are_not_rewritten(quilt):
     from loom.review_origins import read
 
     root = quilt.root
-    annotations = root / "annotations/log.jsonl"
+    annotations = root / ".loom/annotations/log.jsonl"
     annotations.parent.mkdir()
     annotations.write_text("")
     edit(quilt, "\\begin{lemma}\\label{zk-0001-ai}", "\\begin{lemma}\\label{zk-0001-ai}\n% !LOOM name: Better name")

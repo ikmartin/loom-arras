@@ -16,6 +16,7 @@ from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library import _works
 from loom.cli.library.decide import _short
 from loom.cli.report import Group, Item, Progress, Report, counted
+from loom.paths import DIGESTS
 
 _JSON = "Print the report as one JSON object."
 #: What `import --name` takes: a key BibTeX reads and a file name every system keeps.
@@ -216,14 +217,14 @@ def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None
 @click.option("--json", "as_json", is_flag=True, help=_JSON)
 @quilt_option
 def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Copy a digest from another quilt into digests/, rewriting its citekey and id prefix when --name renames it.
+    """Copy a digest from another quilt into .loom/digests/, rewriting its citekey and id prefix when --name renames it.
 
     It never overwrites a digest already there.
     """
     from loom.digest.importer import plan_digest_import, write_digest_import
 
     refuse_under_agent(
-        "loom library import", "A digest is the author's file once it is in digests/; say which one to bring in."
+        "loom library import", f"A digest is the author's file once it is in {DIGESTS}/; say which one to bring in."
     )
     if citekey is not None and not CITEKEY.fullmatch(citekey):
         raise EnvError(f"--name {citekey!r} is not a citekey: letters and digits, and _ : . + - after the first")

@@ -9,8 +9,10 @@ from loom.records.log import replay
 
 
 def write(root: Path, *events: dict[str, object]) -> None:
-    (root / "annotations").mkdir(parents=True, exist_ok=True)
-    (root / "annotations" / "log.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
+    (root / ".loom/annotations").mkdir(parents=True, exist_ok=True)
+    (root / ".loom/annotations" / "log.jsonl").write_text(
+        "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8"
+    )
 
 
 def created(**over: object) -> dict[str, object]:
@@ -73,7 +75,7 @@ def test_a_reply_to_nothing_is_reported(tmp_path: Path) -> None:
 
 def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Path) -> None:
     """A line loom did not write is reported with its line number and why, and the lines around it still load."""
-    (tmp_path / "annotations").mkdir()
+    (tmp_path / ".loom/annotations").mkdir(parents=True)
     lines = [
         json.dumps(created()),
         "{not json",
@@ -85,16 +87,16 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
         json.dumps({"event": "edited", "id": "a-1999-01-01-0001", "body": "x"}),
         json.dumps(created(id="a-2026-09-18-0002", body="Still here.")),
     ]
-    (tmp_path / "annotations" / "log.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (tmp_path / ".loom/annotations" / "log.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     records, problems = replay(tmp_path)
-    assert problems[0].startswith("annotations/log.jsonl:2: ")  # the JSON decoder's own words follow
+    assert problems[0].startswith(".loom/annotations/log.jsonl:2: ")  # the JSON decoder's own words follow
     assert problems[1:] == [
-        "annotations/log.jsonl:3: not a review event",
-        "annotations/log.jsonl:4: not a review event",
-        "annotations/log.jsonl:5: created without an id",
-        "annotations/log.jsonl:6: created 'a-2026-09-18-0003' names no session",
-        "annotations/log.jsonl:7: resolved without an id",
-        "annotations/log.jsonl:8: edited names unknown annotation a-1999-01-01-0001",
+        ".loom/annotations/log.jsonl:3: not a review event",
+        ".loom/annotations/log.jsonl:4: not a review event",
+        ".loom/annotations/log.jsonl:5: created without an id",
+        ".loom/annotations/log.jsonl:6: created 'a-2026-09-18-0003' names no session",
+        ".loom/annotations/log.jsonl:7: resolved without an id",
+        ".loom/annotations/log.jsonl:8: edited names unknown annotation a-1999-01-01-0001",
     ]
     assert [a.id for r in records for a in r.annotations] == ["a-2026-09-18-0001", "a-2026-09-18-0002"]
 

@@ -155,11 +155,11 @@ def test_a_relation_dry_run_writes_nothing_and_says_what_it_would(tmp_path: Path
     args = ("library", "relate", "Calloway14-prop-3.2", "Calloway14-prop-3.3", "--kind", "depends-on", "--why", "w")
     r = json_of(*args, "--as", "Tester", "--dry-run", "--json", cwd=q)
     assert r["dry_run"] is True and r["link"]["id"] == "link-0001" and r["link"]["by"] == "Tester"
-    assert not (q / "digests" / "links.jsonl").exists()
+    assert not (q / ".loom/digests" / "links.jsonl").exists()
     ok(*args, "--as", "Tester", cwd=q)
     refused(*args, "--as", "Tester", "--dry-run", cwd=q, code=2, match="link-0001 already says that")
     refused(*args, "--undo", "link-0001", cwd=q, code=2, match="not both")
-    lines = (q / "digests" / "links.jsonl").read_text().splitlines()
+    lines = (q / ".loom/digests" / "links.jsonl").read_text().splitlines()
     assert [json.loads(ln)["id"] for ln in lines] == ["link-0001"]
 
 

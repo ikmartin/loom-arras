@@ -44,8 +44,8 @@ def test_check_finds_a_wrong_document_an_empty_digest_a_guessed_map_and_shared_d
     # the first page carries Calloway14's title and not its own: the wrong PDF filed against the right entry
     (home / "pages" / "0001.txt").write_text("Fixed loci of involutions on separated spaces\nI. Calloway\n")
     (home / "sections.json").write_text(json.dumps({"sha256": "0" * 64, "pages": 300, "chars": 1, "sections": []}))
-    (q / "digests" / f"{ck}.tex").write_text("% !LOOM digest: Vir12\n")
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    (q / ".loom/digests" / f"{ck}.tex").write_text("% !LOOM digest: Vir12\n")
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@misc{DupA, title={One}, loom-file={file/abc}}\n@misc{DupB, title={Two}, loom-file={file/abc}}\n")
     before = sorted((p, p.stat().st_mtime_ns) for p in q.rglob("*") if p.is_file())
     r = exits(1, "library", "check", cwd=q)
@@ -83,11 +83,11 @@ def test_check_names_a_pdf_whose_first_page_carries_no_title_of_its_own(tmp_path
 def test_a_verify_dry_run_names_what_it_would_record_and_writes_nothing(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
-    before = (q / "digests" / f"{ck}.results.json").read_text()
+    before = (q / ".loom/digests" / f"{ck}.results.json").read_text()
     r = ok("library", "verify", f"{ck}-thm-4.1", "--dry-run", *AS, cwd=q)
     assert r.stdout.startswith("dry run: would verify 1 result") and f"{ck}-thm-4.1" in r.stdout
-    assert (q / "digests" / f"{ck}.results.json").read_text() == before
-    assert not (q / "digests" / f"{ck}.tex").exists()
+    assert (q / ".loom/digests" / f"{ck}.results.json").read_text() == before
+    assert not (q / ".loom/digests" / f"{ck}.tex").exists()
     # the dry run shows both texts, which is what the refusal without a terminal points to (T3)
     assert "Every widget is a gadget" in r.stderr and "G" in r.stderr
     off = refused("library", "verify", f"{ck}-thm-4.1", *AS, cwd=q, code=2, match="--dry-run shows them")
@@ -98,7 +98,7 @@ def test_answering_no_to_verify_is_a_verdict_and_records_nothing(tmp_path: Path)
     """T1: "n" ended `Aborted!`, exit 1, with no verdict and no pointer to `discard`."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
-    before = (q / "digests" / f"{ck}.results.json").read_text()
+    before = (q / ".loom/digests" / f"{ck}.results.json").read_text()
     import importlib
     from types import SimpleNamespace
 
@@ -110,7 +110,7 @@ def test_answering_no_to_verify_is_a_verdict_and_records_nothing(tmp_path: Path)
         r = ok("library", "verify", f"{ck}-thm-4.1", *AS, cwd=q)
     assert r.stdout.startswith(f"not verified: {ck}-thm-4.1; nothing recorded") and "Aborted" not in r.output
     assert f"loom library discard {ck}-thm-4.1 --why '…'" in r.stdout
-    assert (q / "digests" / f"{ck}.results.json").read_text() == before
+    assert (q / ".loom/digests" / f"{ck}.results.json").read_text() == before
 
 
 def test_discarding_a_discarded_result_keeps_its_first_reason(tmp_path: Path) -> None:
@@ -134,14 +134,14 @@ def test_import_takes_its_citekey_from_name(tmp_path: Path) -> None:
     """`--name` files the digest under another citekey; the dry run writes nothing and names where it would."""
     q = demo(tmp_path)
     src = tmp_path / "elsewhere.tex"
-    src.write_text((q / "digests" / "Calloway14.tex").read_text())
+    src.write_text((q / ".loom/digests" / "Calloway14.tex").read_text())
     dry = ok("library", "import", str(src), "--name", "Other20", "--dry-run", cwd=q)
     assert (
-        dry.stdout.startswith("dry run: would write digests/Other20.tex")
-        and not (q / "digests" / "Other20.tex").exists()
+        dry.stdout.startswith("dry run: would write .loom/digests/Other20.tex")
+        and not (q / ".loom/digests" / "Other20.tex").exists()
     )
     ok("library", "import", str(src), "--name", "Other20", cwd=q)
-    assert (q / "digests" / "Other20.tex").read_text().startswith("% !LOOM digest: Other20\n")
+    assert (q / ".loom/digests" / "Other20.tex").read_text().startswith("% !LOOM digest: Other20\n")
 
 
 def test_verify_finds_a_quotation_across_a_line_break_where_propose_did(tmp_path: Path) -> None:

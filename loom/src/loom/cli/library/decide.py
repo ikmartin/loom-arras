@@ -16,6 +16,7 @@ from loom.cli._common import ContentError, EnvError, NotFoundError, refuse_under
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library import _works
 from loom.cli.report import Group, Item, Report, counted
+from loom.paths import REFERENCE_NOTES
 from loom.scan.scan import ScanResult
 
 _AS = "Who is deciding, when the user config and git do not say."
@@ -99,7 +100,7 @@ def verify(
 ) -> None:
     """Record that a result's transcription is faithful, or accept a citation suggestion.
 
-    A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in reference-notes.jsonl and resolves it; your bibliography is never touched.
+    A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in .loom/reference-notes.jsonl and resolves it; your bibliography is never touched.
     """
     from loom.refs.notes import decide_citation
     from loom.refs.proposals import PROPOSAL_ABBREV, verify_result
@@ -147,7 +148,7 @@ def verify(
     for kind, tid, what in targets:
         if kind == "citation":
             decide_citation(root, tid, "accept", None, who, None)
-            said = [f"accepted {tid}", "recorded in reference-notes.jsonl; your bibliography is unchanged"]
+            said = [f"accepted {tid}", f"recorded in {REFERENCE_NOTES}; your bibliography is unchanged"]
             done.append({"kind": kind, "id": tid, "work": what.payload})
         else:
             _show_both_texts(result, what, tid, statement)

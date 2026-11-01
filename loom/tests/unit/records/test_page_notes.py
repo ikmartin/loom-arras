@@ -73,7 +73,7 @@ def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
 def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_path: Path) -> None:
     """`recorded` is whether the artifact the anchor names is the one in the store; `detached` is a quotation that no longer locates in the page's committed text; a box is never detached. The target is the work's identifier and the citekey is found through the bibliography, so a renamed citekey changes nothing. None of it touches a key's own text."""
     q = demo(tmp_path)
-    home = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1"
+    home = q / ".loom/digests" / "storage" / "doi" / "10.4171_demo_14-1"
     sha = "feed" * 16
     (home / "sections.json").write_text(json.dumps({"sha256": sha, "pages": 2, "chars": 60, "sections": []}))
     (home / "pages").mkdir(exist_ok=True)

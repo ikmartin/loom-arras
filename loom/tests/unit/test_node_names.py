@@ -99,7 +99,7 @@ def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -
         source.read_text().replace("\\end{definition}", "% !LOOM name: Invisible display name\n\\end{definition}")
     )
     ok("build", cwd=q)
-    fragments = list((q / "build/fragments").rglob("*.html"))
+    fragments = list((q / ".loom/build/fragments").rglob("*.html"))
     assert fragments and not any("Invisible display name" in p.read_text() for p in fragments)
     ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     assert any(

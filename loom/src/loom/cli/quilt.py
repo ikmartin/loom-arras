@@ -13,9 +13,8 @@ import click
 
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli.paper import check_prefix
-from loom.cli.report import Group, Item, Report, counted
-from loom.paths import BUILD, DIGESTS, HISTORY, REFS
-from loom.reshape.linearize import to_canon
+from loom.cli.report import Group, Item, Report
+from loom.paths import AI, HISTORY, LOOM, LOOM_GITIGNORE
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -23,11 +22,9 @@ ASSETS = resources.files("loom") / "assets"
 
 CONFIG_TEMPLATE = """[quilt]
 name = "{name}"
-main = "{drafting}/main.tex"    # default master
-drafting = "{drafting}"           # working documents, every one live
-drafting_ai = "{drafting_ai}"     # documents you and an agent both edit, live but never reviewed or published
 prefix = "{prefix}"               # default id prefix for loom new
-engine = "pdflatex"         # default engine; % !TEX program in a master overrides
+engine = "pdflatex"         # default engine; % !TEX program in a document overrides
+# main = "paper/main.tex"   # the default LaTeX document; unset, the only document there is
 
 [library]
 online = false              # may loom library update look identifiers up (zbMATH Open, Crossref) and fetch documents (arXiv); --online allows one run
@@ -112,43 +109,30 @@ def setup_ai(target: Path, choice: str, *, write: bool = True) -> tuple[list[str
         layer, clients = install_layer(target, write=write)
         written = [*layer.written, *clients.written]
     said = {
-        "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt and approve the loom server it asks to start; CLAUDE.md and ai/ tell it how loom works.",
-        "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session, which starts the loom server; AGENTS.md and ai/ tell it how loom works.",
-        "other": "AI: another agent. Run it in this quilt: an app that reads .mcp.json starts the loom server, and loom ai init --client prints the entry for one configured elsewhere; AGENTS.md and ai/ tell it how loom works.",
+        "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt and approve the loom server it asks to start; CLAUDE.md and {AI}/ tell it how loom works.",
+        "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session, which starts the loom server; AGENTS.md and {AI}/ tell it how loom works.",
+        "other": f"AI: another agent. Run it in this quilt: an app that reads .mcp.json starts the loom server, and loom ai init --client prints the entry for one configured elsewhere; AGENTS.md and {AI}/ tell it how loom works.",
         "none": "AI: none. loom ai init writes the agent layer should that change.",
     }[choice]
     return written, [said]
 
 
-#: What the `.gitignore` init writes leaves out, as `init` says it.
-GITIGNORE = (
-    "build/ (everything loom can rebuild)",
-    "refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)",
-    "but not refs/**/pages/ or sections.json: the page text an anchor names is committed",
-    "all stray LaTeX files (.aux, .log, .bbl and the rest)",
-)
-
-
-def _user_dirs() -> tuple[str, str, str]:
-    """The drafting, `drafting_ai` and history directory names a person's user config asks for, else the defaults.
-
-    Init writes the first two into the quilt so the layout is explicit there, and its ledger into the third, where the quilt's config will look for it.
-    """
+def _user_history() -> str:
+    """The history directory a person's user config asks for, else the default: init writes the ledger where the quilt's config will look for it."""
     uq = load_user_config().get("quilt", {})
     uq = uq if isinstance(uq, dict) else {}
-    drafting = str(uq.get("drafting", "drafting")).strip("/") or "drafting"
-    drafting_ai = str(uq.get("drafting_ai", "drafting-ai")).strip("/") or "drafting-ai"
-    history = str(uq.get("history", HISTORY)).strip("/") or HISTORY
-    return drafting, drafting_ai, history
+    return str(uq.get("history", HISTORY)).strip("/") or HISTORY
 
 
-def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
-    """Write the skeleton of a quilt into `target`.
+def write_minimal_quilt(target: Path, prefix: str) -> list[Path]:
+    """Write a quilt's three entries into `target`: `config.toml`, the tutorial `README.md`, and `.loom/` with its ignore file and an empty history.
 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
     """
+    from loom.gitignore import LOOM_IGNORE
+
     made: list[Path] = []
-    drafting, drafting_ai, history = _user_dirs()
+    history = _user_history()
 
     def mkdir(path: Path) -> None:
         # every directory this call brings into being is recorded, parents included, so undo_minimal_quilt leaves nothing behind
@@ -166,41 +150,15 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
             made.append(path)
         path.write_text(text, encoding="utf-8")
 
-    mkdir(target / drafting)
-    mkdir(target / drafting_ai)
-    for d in (DIGESTS, REFS):
-        mkdir(target / d)
+    mkdir(target / LOOM)
     mkdir(target / history)
-    write(
-        target / "config.toml",
-        CONFIG_TEMPLATE.format(
-            name=target.resolve().name,
-            prefix=prefix,
-            drafting=drafting,
-            drafting_ai=drafting_ai,
-        ),
-    )
-    if minimal_master:
-        # the skeleton carries loom's macros in its own preamble, so it compiles from its directory with no file beside it (P12)
-        write(target / drafting / "main.tex", to_canon((ASSETS / "init" / "main.tex").read_text(encoding="utf-8")))
+    write(target / "config.toml", CONFIG_TEMPLATE.format(name=target.resolve().name, prefix=prefix))
     write(target / history / "ledger.jsonl", "")
-    gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
-    # a hand compile in the agent's directory scatters the same artifacts as one in the person's
-    gitignore += "".join(
-        ln.replace(f"{drafting}/", f"{drafting_ai}/", 1) + "\n"
-        for ln in gitignore.splitlines()
-        if ln.startswith(f"{drafting}/*.")
+    write(target / LOOM_GITIGNORE, LOOM_IGNORE)
+    # the tutorial is written with this quilt's own id prefix, so no example in it is one the person has to translate
+    write(
+        target / "README.md", (ASSETS / "init" / "readme.md").read_text(encoding="utf-8").replace("q-0", f"{prefix}-0")
     )
-    write(target / ".gitignore", gitignore)
-    # the orientation is written with this quilt's own directory names and id prefix, so nothing in it is an example the author has to translate
-    readme = (
-        (ASSETS / "init" / "readme.md")
-        .read_text(encoding="utf-8")
-        .replace("drafting-ai/", f"{drafting_ai}/")
-        .replace("drafting/", f"{drafting}/")
-        .replace("q-0", f"{prefix}-0")
-    )
-    write(target / "README.md", readme)
     return sorted(made, key=lambda q: len(q.parts), reverse=True)
 
 
@@ -223,23 +181,21 @@ def undo_minimal_quilt(target: Path, existed: bool, made: list[Path]) -> None:
 
 
 def write_demo_quilt(target: Path) -> None:
-    """Copy the demo's content over the skeleton `write_minimal_quilt` just wrote.
+    """Copy the demo quilt into `target`, with loom's ignore lines written from `loom.gitignore` rather than copied, so they are this loom's."""
+    from loom.ai.clients import write_clients
+    from loom.gitignore import ensure, write_loom_ignore
 
-    `.gitignore` comes from `assets/init/`, never from the demo's own copy. The demo is a quilt like any other and has nothing of its own to ignore -- and when it carried a copy, that copy named `refs/pdf/` and `refs/src/` for three plans after DR-108 moved the artifacts into `refs/<work-id>/`, so a demo quilt ignored two directories that no longer existed and committed the PDFs that did.
-    """
     demo = ASSETS / "demo"
     target.mkdir(parents=True, exist_ok=True)
     shutil.copytree(
-        str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns(BUILD, "__pycache__", ".gitignore")
+        str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", ".gitignore")
     )
-    # written from the one source, never from the demo's copy of it
-    (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")
     for cache in target.rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
-    from loom.ai.clients import write_clients
-
-    # the demo carries the agent layer, so it gets what starts the loom server, for this machine and this path
+    write_loom_ignore(target)
+    # the demo carries the agent layer, so it gets what starts the loom server, for this machine and this path, and the root lines that keep those files out of the repository
     write_clients(target)
+    ensure(target)
 
 
 @click.command()
@@ -319,7 +275,7 @@ def init(
     if demo:
         write_demo_quilt(target)
     else:
-        made = write_minimal_quilt(target, chosen, minimal_master=paper is None)
+        made = write_minimal_quilt(target, chosen)
     _write_user_config_template()
     imported = None
     if paper is not None:
@@ -336,13 +292,11 @@ def init(
     _, said_ai = setup_ai(target, choice)
     gitted = git_init and _git_init(target)
     groups = list(imported.groups) if imported else []
-    # one line, not one per glob: the file says them for whoever wants them (T2)
-    setup = [Item(f"wrote .gitignore: {counted(len(GITIGNORE), 'pattern')} for what loom regenerates or keeps local")]
-    setup += [Item(line) for line in said_ai]
+    setup = [Item(line) for line in said_ai]
     if gitted:
         setup.append(Item(f"ran git init in {target}, as --git asked; loom itself reads no history"))
     here_now = target.resolve() == Path.cwd().resolve()
-    first = "loom doctor; loom lint" + ("" if paper else '; loom new lemma "Title"')
+    first = "loom doctor; loom lint"
     groups.append(Group("", setup, limit=None, next=first if here_now else f"cd {target}, then {first}"))
     Report(
         f"{made_it}; {imported.said}" if imported else made_it,
@@ -374,10 +328,10 @@ def _init_dry_run(
     imported = None
     with tempfile.TemporaryDirectory(prefix="loom-init-dry-run-") as tmp:
         skeleton = Path(tmp) / (target.resolve().name or "quilt")
-        made = write_minimal_quilt(skeleton, prefix or "q", minimal_master=paper is None)
+        made = write_minimal_quilt(skeleton, prefix or "q")
         files = sorted(p.relative_to(skeleton).as_posix() for p in made if p.is_file())
         if demo:
-            files = ["the demo quilt's files", ".gitignore"]
+            files = ["the demo quilt's files", LOOM_GITIGNORE]
         if paper is not None:
             from loom.cli.paper import run_import
 

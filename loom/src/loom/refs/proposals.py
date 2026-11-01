@@ -2,11 +2,11 @@
 
 Three files per cited work, and the split between them is the whole design.
 
-- `digests/<citekey>.tex` holds **verified nodes only**. It is what a bundle `\\input`s.
-- `digests/<citekey>.proposed.tex` holds proposals. loom scans it, **nothing ever `\\input`s it**, and the scan makes no edge to a proposal from outside it (`loom:cites-proposed-node` reports the citation instead), so a proposal cannot enter a closure or reach a compile. It is a `.tex` rather than rows in JSON because a proposal exists to be *looked at*, and the pipeline that turns LaTeX into something a person can look at is the one that reads `.tex` files.
-- `digests/<citekey>.results.json` carries what the document cannot: both texts, the anchor, the level, the state and the provenance. Contract §9 governs its shape, so a digest weft wrote is readable here.
+- `.loom/digests/<citekey>.tex` holds **verified nodes only**. It is what a bundle `\\input`s.
+- `.loom/digests/<citekey>.proposed.tex` holds proposals. loom scans it, **nothing ever `\\input`s it**, and the scan makes no edge to a proposal from outside it (`loom:cites-proposed-node` reports the citation instead), so a proposal cannot enter a closure or reach a compile. It is a `.tex` rather than rows in JSON because a proposal exists to be *looked at*, and the pipeline that turns LaTeX into something a person can look at is the one that reads `.tex` files.
+- `.loom/digests/<citekey>.results.json` carries what the document cannot: both texts, the anchor, the level, the state and the provenance. Contract §9 governs its shape, so a digest weft wrote is readable here.
 
-Events append to `digests/<citekey>.proposals.jsonl`, which is what makes a discard visible to the agent that proposed it: `loom library propose` refuses a discarded work-and-local-id and returns the reason in the same turn.
+Events append to `.loom/digests/<citekey>.proposals.jsonl`, which is what makes a discard visible to the agent that proposed it: `loom library propose` refuses a discarded work-and-local-id and returns the reason in the same turn.
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ def discard_refusal(r: Result, citekey: str) -> str:
     """Why `r` cannot be discarded, or '' when it can: a verified result is in the digest, and an extracted one is corrected, never discarded."""
     state = state_of(r)
     if state == VERIFIED:
-        return f"{r.id} is verified and in digests/{citekey}.tex; edit or remove it there"
+        return f"{r.id} is verified and in {DIGESTS}/{citekey}.tex; edit or remove it there"
     if state == EXTRACTED:
         # extracting again gives the same text, so the way to correct a wrong one is the author's own rendering
         return (
@@ -354,7 +354,7 @@ def _reconcile_method(text: str, want: str) -> str:
 
 
 def append_to_digest(root: Path, citekey: str, prefix: str, r: Result) -> Path:
-    """Put a verified node into `digests/<citekey>.tex`, creating the file with a header when it is the first."""
+    """Put a verified node into `.loom/digests/<citekey>.tex`, creating the file with a header when it is the first."""
     path = digest_path(root, citekey)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.is_file():
@@ -366,7 +366,7 @@ def append_to_digest(root: Path, citekey: str, prefix: str, r: Result) -> Path:
 
 
 def rewrite_in_digest(root: Path, citekey: str, r: Result) -> bool:
-    """Replace a verified node's body in `digests/<citekey>.tex` with its record's statement; False when the node is not there.
+    """Replace a verified node's body in `.loom/digests/<citekey>.tex` with its record's statement; False when the node is not there.
 
     A re-verify with the author's own text once changed the record and not the document, so `loom source`, every bundle and the viewer kept the text the author had corrected -- and an agent asked what the author changed reported the document faithfully and was wrong. `\\uses` lines at the head of the body are the dependency record and are kept.
     """
@@ -535,7 +535,7 @@ def verify_result(
     if local or taxon:
         if state_of(r) != PROPOSED:
             raise LookupError(
-                f"{rid} is {state_of(r)} and may already be cited; rename it in digests/{citekey}.tex by hand"
+                f"{rid} is {state_of(r)} and may already be cited; rename it in {DIGESTS}/{citekey}.tex by hand"
             )
         try:
             new_taxon, number = check_local(local or r.local, taxon)
@@ -570,7 +570,7 @@ def verify_result(
         # re-verifying says the record is faithful, so the document is brought to the record; a mechanical node's
         # text is the digest's own, and only an edit replaces it
         raise LookupError(
-            f"{rid} is not in digests/{citekey}.tex in the shape loom writes; put your text there by hand"
+            f"{rid} is not in {DIGESTS}/{citekey}.tex in the shape loom writes; put your text there by hand"
         )
     r.state = VERIFIED
     act = {"act": "verified", "by": author, "when": stamp()}
@@ -599,12 +599,12 @@ def verify_result(
         + (f" (renamed from {renamed})" if renamed else "")
     ]
     if was_proposed:
-        out.append(f"written into digests/{citekey}.tex")
+        out.append(f"written into {DIGESTS}/{citekey}.tex")
     # The ledger is what `loom status` reads, and what makes a later `transcription-changed` detectable at all.
     # Written after the node is in the digest, because the row names the text it saw there.
     rescan = scan(load_quilt(root))
     if rid not in rescan.nodes:
-        raise LookupError(f"{rid} is recorded but is in no digest loom can scan; check digests/{citekey}.tex")
+        raise LookupError(f"{rid} is recorded but is in no digest loom can scan; check {DIGESTS}/{citekey}.tex")
     write_acceptance(rescan, [rid], author)
     return out
 

@@ -12,4 +12,4 @@ Open with the conceptual core: one or two exact sentences a reader can keep, whi
 
 Core: [intuition], [definition], [worked-examples], [answer]. Optional: [edge-cases], [stress-test], [follow-up], [open-questions].
 
-Annotations only where the question exposed a fault in a key, recorded as `ai/rules.md` says.
+Annotations only where the question exposed a fault in a key, recorded as `.loom/ai/rules.md` says.

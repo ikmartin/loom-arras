@@ -99,7 +99,7 @@ def test_a_quilt_with_no_research_state_lists_none(tmp_path: Path) -> None:
 
 def test_a_prompt_per_mode_described_by_the_quilts_own_copy(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    mode = q / "ai" / "modes" / "quick.md"
+    mode = q / ".loom/ai" / "modes" / "quick.md"
     mode.write_text(mode.read_text().replace("When it fits: a question asked in passing", "When it fits: a quick one"))
     got = prompts(q)
     assert [p.name for p in got] == MODES

@@ -1,4 +1,4 @@
-"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images are copied; everything lands content-addressed under build/svg/."""
+"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images are copied; everything lands content-addressed under .loom/build/svg/."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def resolve_graphic(root: Path, name: str, base: str = "") -> Path | None:
 
 
 def publish_graphic(root: Path, name: str, svg_dir: Path, base: str = "") -> tuple[str | None, str | None]:
-    """Return (relative asset path under build/, error). PDF -> SVG conversion, PNG/JPEG/SVG copied; `name` is read against `base`."""
+    """Return (relative asset path under .loom/build/, error). PDF -> SVG conversion, PNG/JPEG/SVG copied; `name` is read against `base`."""
     src = resolve_graphic(root, name, base)
     if src is None:
         return None, f"graphic {name} not found"

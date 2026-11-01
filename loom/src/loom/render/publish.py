@@ -45,7 +45,7 @@ def publish(
     prune_prefixes: tuple[str, ...] = (),
     keep: set[str] | frozenset[str] = frozenset(),
 ) -> None:
-    """Write every file in `files` (paths relative to build/) whose bytes differ from what is there, remove stale files under `prune_prefixes` that are in neither `files` nor `keep`, then the manifest.
+    """Write every file in `files` (paths relative to .loom/build/) whose bytes differ from what is there, remove stale files under `prune_prefixes` that are in neither `files` nor `keep`, then the manifest.
 
     Parameters
     ----------

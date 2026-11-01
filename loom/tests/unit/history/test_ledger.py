@@ -157,7 +157,7 @@ def test_a_path_nothing_moved_and_no_longer_live_is_gone(tmp_path: Path) -> None
 
 
 def test_a_retired_source_is_gone_and_its_atomized_spine_is_the_successor(tmp_path: Path) -> None:
-    """atomize --retire moves the source to retired/; that copy is not a document, and the spine it wrote is where the document went."""
+    """atomize --retire moves the source to .loom/retired/; that copy is not a document, and the spine it wrote is where the document went."""
     d = _moves(
         tmp_path,
         {
@@ -165,14 +165,14 @@ def test_a_retired_source_is_gone_and_its_atomized_spine_is_the_successor(tmp_pa
             "from": ["drafting/a.tex", "drafting/b.tex"],
             "to": ["drafting/a2.tex", "drafting/b2.tex"],
             "superseded": [],
-            "retired": ["retired/drafting/a.tex", "retired/drafting/b.tex"],
+            "retired": [".loom/retired/drafting/a.tex", ".loom/retired/drafting/b.tex"],
         },
     )
     h = load_history(d)
     live = {"drafting/a2.tex", "drafting/b2.tex"}
     assert h.successors() == {"drafting/a.tex": "drafting/a2.tex", "drafting/b.tex": "drafting/b2.tex"}
     assert h.current_document("drafting/b.tex", live) == "drafting/b2.tex"
-    assert h.current_document("retired/drafting/a.tex", live) is None
+    assert h.current_document(".loom/retired/drafting/a.tex", live) is None
 
 
 def test_a_move_line_is_followed_the_latest_move_wins_and_a_cycle_ends(tmp_path: Path) -> None:

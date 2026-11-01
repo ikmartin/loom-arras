@@ -41,7 +41,7 @@ def test_aux_number_drops_grouping_braces() -> None:
 def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ok("compile", cwd=d)
-    aux = d / "build" / "drafting" / "main" / "main.aux"
+    aux = d / ".loom/build" / "drafting" / "main" / "main.aux"
     assert aux.exists()
     n = parse_aux(aux.read_text())
     assert n["dm-0001"].number == "1.1" and n["dm-0003"].number == "2.1"
@@ -96,7 +96,7 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in text and "\\begin{theorem}[Main]\\label{dm-0003}" in text
     assert "Take" not in text  # dm-0002's proof is not part of the closure
     ok("compile", "dm-0003", cwd=d)
-    assert (d / "build" / "closures" / "dm-0003" / "dm-0003.pdf").exists()
+    assert (d / ".loom/build" / "closures" / "dm-0003" / "dm-0003.pdf").exists()
 
 
 def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
@@ -108,14 +108,14 @@ def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     (tmp_path / "proposal.diff").write_text(diff)
     assert apply_unified_diff(original, diff) == proposed
     ok("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
-    text = (d / "build" / "closures" / "dm-0002.tex").read_text()
+    text = (d / ".loom/build" / "closures" / "dm-0002.tex").read_text()
     assert "Orbits have at most two points" in text and "Every orbit of a widget" not in text
     assert node.read_text() == original
     (tmp_path / "replacement.tex").write_text(
         "\\begin{lemma}[Orbits]\\label{dm-0002}\nReplaced statement.\n\\end{lemma}\n"
     )
     ok("compile", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
-    assert "Replaced statement." in (d / "build" / "closures" / "dm-0002.tex").read_text()
+    assert "Replaced statement." in (d / ".loom/build" / "closures" / "dm-0002.tex").read_text()
 
 
 def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
@@ -133,7 +133,7 @@ def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
         "\\begin{lemma}[Drafted]\\label{dm-0019}\nUses Lemma~\\ref{lem:orbits}.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nP\n\\end{proof}\n"
     )
     ok("compile", "--draft", str(draft), cwd=d)
-    out = d / "build" / "closures" / "draft-draft-dm-0019.tex"
+    out = d / ".loom/build" / "closures" / "draft-draft-dm-0019.tex"
     text = out.read_text()
     assert "% id: dm-0002" in text and "% id: dm-0001" in text and "Drafted" in text
     draft.write_text("\\begin{lemma}\\label{dm-0019}\nSee \\ref{nope}.\n\\end{lemma}\n")
@@ -154,7 +154,7 @@ def test_compile_refuses_an_engine_it_does_not_know(tmp_path: Path) -> None:
     """`--engine` is a choice of the engines loom runs, refused by name rather than silently replaced by pdflatex (K3)."""
     d = demo(tmp_path)
     r = refused("compile", "--engine", "troff", cwd=d, code=2, match="'troff' is not one of")
-    assert "pdflatex" in r.output and not (d / "build").exists()
+    assert "pdflatex" in r.output and not (d / ".loom/build").exists()
 
 
 def test_compile_failure_reports_first_error(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -177,7 +177,7 @@ def test_with_names_a_file_first_and_then_a_suggestion(tmp_path: Path) -> None:
     )  # fmt: skip
     ann = c.stdout.split()[0]
     ok("compile", "dm-0002", "--with", ann, cwd=d)
-    closure = (d / "build" / "closures" / "dm-0002.tex").read_text()
+    closure = (d / ".loom/build" / "closures" / "dm-0002.tex").read_text()
     assert "at most two points" in closure and "one or two points" not in closure
 
     refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="is on dm-0002, not dm-0003")
@@ -277,7 +277,7 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     from loom.cli.build_cmds import compile_report
     from loom.tex.runner import CompileResult
 
-    out = tmp_path / "build" / "drafting" / "main"
+    out = tmp_path / ".loom/build" / "drafting" / "main"
     out.mkdir(parents=True)
     log = out / "main.log"
     log.write_text(UNDEFINED_LOG)
@@ -289,9 +289,9 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     text = report.render()
     assert report.verdict.startswith("drafting/main.tex did not compile: ! Undefined control sequence")
     assert "\\nosuchmacro" in report.verdict and "drafting/nodes/dm-0003.tex:10" in report.verdict, report.verdict
-    assert "build/drafting/main/main.log" in text, text
+    assert ".loom/build/drafting/main/main.log" in text, text
     data = report.to_json()
-    assert data["log"] == "build/drafting/main/main.log"
+    assert data["log"] == ".loom/build/drafting/main/main.log"
     assert data["error_at"] == {"file": "drafting/nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
 
 

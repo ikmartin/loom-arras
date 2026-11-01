@@ -176,15 +176,13 @@ def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends
     r2 = ok("import", str(p / "main.tex"), "--to", "main/main-2.tex", "--yes", cwd=q)
     assert (q / "main" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
     assert r2.stdout.rstrip().splitlines()[-1].strip() == "next: loom lint; loom build"
-    refused("import", str(p / "main.tex"), "--to", "notes/x.tex", "--yes", cwd=q, code=2, match="is inside notes/")
+    refused("import", str(p / "main.tex"), "--to", ".loom/x.tex", "--yes", cwd=q, code=2, match="is inside .loom/")
 
 
 def bare_quilt(tmp_path: Path) -> Path:
-    """A quilt from plain `init`, without the skeleton's drafting/main.tex, which an import of main.tex would refuse to overwrite."""
+    """A quilt from plain `init`, which holds no document."""
     ok("init", str(tmp_path / "q"), "--prefix", "pp", "--yes", cwd=tmp_path)
-    q = tmp_path / "q"
-    (q / "drafting" / "main.tex").unlink()
-    return q
+    return tmp_path / "q"
 
 
 def test_import_asks_before_writing(tmp_path: Path) -> None:
@@ -383,10 +381,10 @@ def test_atomize_retire_moves_the_source(tmp_path: Path) -> None:
     q = imported(tmp_path)
     ok("atomize", "main/main.tex", "--to", "main/spine.tex", "--retire", cwd=q)
     assert not (q / "main" / "main.tex").exists()
-    assert (q / "retired" / "main" / "main.tex").read_text().count("\\begin{definition}") == 1
+    assert (q / ".loom/retired" / "main" / "main.tex").read_text().count("\\begin{definition}") == 1
     line = json.loads((q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()[-1])
-    assert line["retired"] == ["retired/main/main.tex"] and line["superseded"] == []
-    assert "duplicate-id" not in run("lint", cwd=q).output  # retired/ is not scanned
+    assert line["retired"] == [".loom/retired/main/main.tex"] and line["superseded"] == []
+    assert "duplicate-id" not in run("lint", cwd=q).output  # .loom/retired/ is not scanned
 
 
 def test_an_acceptance_follows_its_document_through_atomize(tmp_path: Path) -> None:

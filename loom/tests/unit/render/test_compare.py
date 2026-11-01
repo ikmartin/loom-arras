@@ -57,21 +57,23 @@ def test_a_display_name_changed_alone_is_no_difference(quilt: Path) -> None:
 def test_the_hashes_are_the_fragments_and_a_rendering_is_made_once(quilt: Path) -> None:
     """A pair's hashes are the `data-hash` the build wrote on the same nodes, so a viewer with nothing serving marks what loom would; a second request renders nothing."""
     build(load_quilt(quilt))
-    master = (quilt / "build" / "fragments" / "masters" / "drafting-ai" / "aidoc.html").read_text(encoding="utf-8")
+    master = (quilt / ".loom/build" / "fragments" / "masters" / "drafting-ai" / "aidoc.html").read_text(
+        encoding="utf-8"
+    )
     written = dict(re.findall(r'data-pair="([^"]*)" data-hash="([^"]*)"', master))
     got = pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
     assert got["sy-0002"]["right"]["hash"] == written["sy-0002"]
-    rendered = sorted((quilt / "build" / "compare").iterdir())
+    rendered = sorted((quilt / ".loom/build" / "compare").iterdir())
     times = [p.stat().st_mtime_ns for p in rendered]
     assert b"review-changed" in rendered[0].read_bytes()
     pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
-    assert sorted((quilt / "build" / "compare").iterdir()) == rendered
+    assert sorted((quilt / ".loom/build" / "compare").iterdir()) == rendered
     assert [p.stat().st_mtime_ns for p in rendered] == times
 
 
 def test_a_landmark_fragment_carries_pairs_and_no_live_wiring(quilt: Path) -> None:
     build(load_quilt(quilt))
-    landmark = (quilt / "build" / "fragments" / "canon" / "widgets-v1.html").read_text(encoding="utf-8")
+    landmark = (quilt / ".loom/build" / "fragments" / "canon" / "widgets-v1.html").read_text(encoding="utf-8")
     assert 'data-pair="sy-0002"' in landmark and 'data-pair="sy-0002/proof"' in landmark
     nodes = re.findall(r'<(?:div|details) class="env[^>]*>', landmark)
     assert nodes and not [n for n in nodes if "data-key=" in n or "data-id=" in n]

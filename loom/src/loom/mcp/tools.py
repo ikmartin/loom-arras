@@ -186,7 +186,7 @@ def schema(spec: ToolSpec) -> dict[str, Any]:
 
 
 def hints(spec: ToolSpec) -> dict[str, bool]:
-    """The tool's annotations from what its command does (`ACTS`): a reader is read-only; a derivation rewrites only `build/` and may be repeated; a write adds; a replacement puts new text in place of old."""
+    """The tool's annotations from what its command does (`ACTS`): a reader is read-only; a derivation rewrites only `.loom/build/` and may be repeated; a write adds; a replacement puts new text in place of old."""
     act = ACTS[spec.path]
     return {
         "read_only_hint": act == "read",

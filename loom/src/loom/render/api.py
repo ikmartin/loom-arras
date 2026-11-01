@@ -503,7 +503,7 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 def _compare(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """The differing pairs of two items, rendered with their changed words.
 
-    Body: `left` and `right`, each a live document's path or a landmark (`DOC@STEP`, a name or a step). Writes nothing a record holds: its renderings go to `build/compare/`, named by their inputs.
+    Body: `left` and `right`, each a live document's path or a landmark (`DOC@STEP`, a name or a step). Writes nothing a record holds: its renderings go to `.loom/build/compare/`, named by their inputs.
     """
     from loom.render.compare import CompareError, compare
 

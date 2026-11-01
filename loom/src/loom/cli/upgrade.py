@@ -1,4 +1,4 @@
-"""`loom upgrade`: refresh the generated AI-layer files and the `.gitignore` lines loom relies on to the installed loom's versions; edited mode files are kept and a `.new` written beside them."""
+"""`loom upgrade`: refresh the generated AI-layer files and the ignore lines loom relies on to the installed loom's versions; edited mode files are kept and a `.new` written beside them."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import click
 
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.report import Group, Item, Report, counted
-from loom.paths import AI
+from loom.paths import AI, LOOM_GITIGNORE
 
 
 @click.command()
@@ -14,19 +14,19 @@ from loom.paths import AI
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Refresh ai/orientation.md, ai/README.md, the permission and MCP client files, unedited mode files and the .gitignore lines loom relies on; report edited ones."""
+    """Refresh .loom/.gitignore and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones."""
     from loom.ai.clients import write_clients
     from loom.ai.layout import SHELL, upgrade_layer, variant
-    from loom.gitignore import ensure, missing
+    from loom.gitignore import ensure, missing, write_loom_ignore
 
     quilt = open_quilt(quilt_path)
     root = quilt.root
     written: list[str] = []
     kept: list[str] = []
     beside: list[str] = []
-    added = missing(root) if dry_run else ensure(root)
-    if added:
-        written.append(".gitignore")
+    if write_loom_ignore(root, write=not dry_run):
+        written.append(LOOM_GITIGNORE)
+    added: list[str] = []
     has_ai = (root / AI).is_dir()
     if has_ai:
         shell = variant(root) == SHELL
@@ -34,6 +34,9 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
         written += [str(rel) for rel in rep.written]
         # the client files follow the variant: what starts the server over MCP, nothing in a shell
         written += write_clients(root, write=not dry_run, shell=shell).written
+        added = missing(root) if dry_run else ensure(root)
+        if added:
+            written.append(".gitignore")
         kept += [str(rel) for rel in rep.kept]
         beside = [rel for rel in kept if f"{rel}.new" in rep.new_beside]
     groups = [
@@ -85,13 +88,13 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
         )
         verdict = ("" if dry_run else "upgraded: ") + "; ".join(parts) + merge
     else:
-        verdict = "already current" + (": ai/ and .gitignore" if has_ai else ": .gitignore")
+        verdict = "already current" + (f": {AI}/ and the ignore files" if has_ai else f": {LOOM_GITIGNORE}")
     Report(
         verdict,
         dry_run=dry_run,
         ok=not beside,
         groups=[g for g in groups if g.items],
-        lines=[] if has_ai else ["no ai/ to upgrade; loom ai init creates it"],
+        lines=[] if has_ai else [f"no {AI}/ to upgrade; loom ai init creates it"],
         data={
             "written": written,
             "kept": kept,

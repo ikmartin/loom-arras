@@ -36,7 +36,7 @@ def test_citekey_slug() -> None:
 
 
 def test_the_quilts_bibliography_is_the_only_bib_read(tmp_path: Path) -> None:
-    """An author's `.bib`, a fetched source's, a run's: none is the quilt's bibliography until `loom library update` gathers an entry into `digests/bibliography.bib`."""
+    """An author's `.bib`, a fetched source's, a run's: none is the quilt's bibliography until `loom library update` gathers an entry into `.loom/digests/bibliography.bib`."""
     from tests.unit.scan.helpers import PREAMBLE, make_quilt
 
     result = make_quilt(
@@ -45,7 +45,7 @@ def test_the_quilts_bibliography_is_the_only_bib_read(tmp_path: Path) -> None:
             "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\end{document}\n",
             "refs.bib": "@book{Author, title={Mine}}\n",
             "refs/arxiv/1/src/theirs.bib": "@book{Theirs, title={Theirs}}\n",
-            "digests/bibliography.bib": "@book{Owned, title={Owned}}\n",
+            ".loom/digests/bibliography.bib": "@book{Owned, title={Owned}}\n",
         },
     )
     assert set(result.bib) == {"Owned"}

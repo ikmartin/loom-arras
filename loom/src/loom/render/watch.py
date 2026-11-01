@@ -1,6 +1,6 @@
 """Poll file mtimes, the tree every second and loom's own records five times a second, and rebuild when something the build depends on changed, the skeleton of the site generator's watcher with the roots parameterised.
 
-Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and session files other than the inbox. Build-written observation caches are excluded to avoid an extra rebuild. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
+Watched: every .tex, .sty, .cls, .bib under the quilt root outside loom's build output and store, config.toml, and loom's records under `.loom/` (the ledger and snapshots, the annotation log, the reference notes, the agents' files, session files other than the inbox). Build-written observation caches are excluded to avoid an extra rebuild. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
 """
 
 from __future__ import annotations
@@ -15,22 +15,28 @@ from pathlib import Path
 from loom.mailbox import INBOX
 from loom.paths import (
     ADOPTION_DECISIONS,
-    AI,
     ANNOTATION_LOG,
     ANNOTATIONS,
     BUILD,
+    DIGESTS,
     LOOM,
     REFERENCE_NOTES,
+    RETIRED,
     REVIEW_DECISIONS,
     REVIEW_OBSERVATIONS,
     REVIEW_ORIGINS,
     SERVE_JSON,
     SESSIONS,
     SINCE,
+    STORAGE,
 )
 from loom.records.lastseen import CACHE
 
-SKIP = {BUILD, ".git", "node_modules", ".svelte-kit"}
+SKIP = {".git", "node_modules", ".svelte-kit"}
+#: Pruned by quilt-relative path: the build output, which a build writes and which holds thousands of files, and loom's store of other people's documents, which no build reads as source.
+PRUNED = (BUILD, STORAGE)
+#: The directories under `.loom/` watched for their sources alone, as any of the quilt's directories is; everything else there is a record.
+SOURCES_ONLY = (f"{DIGESTS}/", f"{RETIRED}/")
 SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 #: What a change to records alone touches; see `records_only`.
 RECORDS = (f"{ANNOTATIONS}/", f"{SESSIONS}/")
@@ -38,13 +44,13 @@ RECORD_FILES = (REFERENCE_NOTES, REVIEW_DECISIONS, REVIEW_ORIGINS)
 
 
 def _files(root: Path) -> Iterator[Path]:
-    """Every file under `root` outside the directories `SKIP` names and the sync directory, which are pruned rather than walked: a quilt's `build/` holds thousands of files and is polled every second."""
+    """Every file under `root` outside the directories `SKIP` names, `PRUNED` and the sync directory, which are pruned rather than walked, since the tree is polled every second."""
     from loom.sync import skipped_directory
 
     synced = skipped_directory(root)
-    pruned = root / synced if synced else None
+    pruned = {root / d for d in PRUNED} | ({root / synced} if synced else set())
     for here, dirs, names in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP and Path(here) / d != pruned]
+        dirs[:] = [d for d in dirs if d not in SKIP and Path(here) / d not in pruned]
         for name in names:
             yield Path(here) / name
 
@@ -62,7 +68,7 @@ def snapshot(root: Path) -> dict[Path, float]:
     seen: dict[Path, float] = {}
     for p in _files(root):
         # A session's inbox is read live through `/_api/events`; rebuilding the manifest per message would re-render what the reader has open.
-        if p.suffix not in SUFFIXES or p.name in (CACHE, Path(REVIEW_OBSERVATIONS).name, INBOX):
+        if p.suffix not in SUFFIXES or p.name in (Path(CACHE).name, Path(REVIEW_OBSERVATIONS).name, INBOX):
             continue
         rel = p.relative_to(root)
         # Review decisions publish only queue metadata through the API; Finish review rebuilds the view.
@@ -72,14 +78,12 @@ def snapshot(root: Path) -> dict[Path, float]:
         # where each agent last looked (`loom since`), which no build reads either
         if rel.as_posix().startswith(f"{SINCE}/"):
             continue
-        # `annotations/log.jsonl` is where every comment, reply and finding lands, and `reference-notes.jsonl` is
-        # where an accepted citation does. Neither was watched -- the directory list still said `comments/`, the name
-        # the log replaced in 0.10, and `.jsonl` was not a watched suffix -- so a write through `loom serve`'s own API
-        # appended to the log and the page it came from never changed (DR-174).
+        # loom's records under `.loom/` count whatever their suffix: a write through `loom serve`'s own API to the annotation log or the reference notes must redraw the page it came from (DR-174)
+        posix = rel.as_posix()
         if (
-            rel.parts[0] in (AI, ANNOTATIONS, LOOM)
+            (posix.startswith(f"{LOOM}/") and not posix.startswith(SOURCES_ONLY))
             or p.suffix in (".tex", ".sty", ".cls", ".bib")
-            or rel.as_posix() in ("config.toml", REFERENCE_NOTES)
+            or posix == "config.toml"
         ):
             try:
                 seen[p] = p.stat().st_mtime

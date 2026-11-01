@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from loom.paths import document_dir, under
 from loom.scan.macros import expand, parse_macros
@@ -16,6 +16,8 @@ from loom.scan.source import MACRO_BLOCK, read_source
 from loom.scan.tokenize import read_args, tokenize
 
 STANDARD_STYLES = {"plain", "definition", "remark"}
+#: `\\usepackage{loom}` or `\\RequirePackage{loom}`, alone or in a list.
+LOOM_PACKAGE = re.compile(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}")
 SECTIONING = ["part", "chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph"]
 
 
@@ -101,10 +103,7 @@ def build_closure(
     text = closure.clean_text()
     closure.macros = parse_macros(text)
     # loom's macros come from loom.sty, kept beside the document, or from the marked block in its own preamble
-    closure.loads_loom = bool(
-        re.search(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}", text)
-        or MACRO_BLOCK.search(closure.raw_text())
-    )
+    closure.loads_loom = bool(LOOM_PACKAGE.search(text) or MACRO_BLOCK.search(closure.raw_text()))
     for d in directives:
         if d.form == "tex" and d.key == "program" and d.file == master.path:
             closure.engine = d.value
@@ -325,3 +324,19 @@ def taxa_conflicts(closures: list[PreambleClosure]) -> list[tuple[str, list[tupl
         for env, taxon in c.taxa.items():
             by_env.setdefault(env, []).append((c.master, f"{taxon.name}/{taxon.style}"))
     return [(env, decls) for env, decls in by_env.items() if len({d[1] for d in decls}) > 1]
+
+
+def loom_sty_missing(closure: PreambleClosure, root: Path, base: str) -> bool:
+    """Whether `closure` loads loom as a package found nowhere: no macro block, no `loom.sty` among its files, and none on the TeX path from `base`, the directory its document compiles from.
+
+    With no kpsewhich on PATH the TeX path is trusted, since nothing can compile there either way. Called for live documents only (`loom:macros-missing`, `loom doctor`), never for a cited paper's closure.
+    """
+    import shutil
+
+    from loom.scan.expand import _kpsewhich
+
+    if MACRO_BLOCK.search(closure.raw_text()) or not LOOM_PACKAGE.search(closure.clean_text()):
+        return False
+    if any(PurePosixPath(f).name == "loom.sty" for f in closure.files):
+        return False
+    return shutil.which("kpsewhich") is not None and not _kpsewhich("loom.sty", root / base)

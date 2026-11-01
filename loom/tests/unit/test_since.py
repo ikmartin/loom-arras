@@ -23,7 +23,7 @@ def look(q: Path, *more: str, who: str = AGENT, env: dict[str, str] | None = Non
 
 
 def last_id(q: Path) -> str:
-    return str(json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])["id"])
+    return str(json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])["id"])
 
 
 @pytest.fixture
@@ -148,10 +148,10 @@ def test_each_name_has_its_own_marker_and_a_dry_run_leaves_it(q: Path) -> None:
 
 
 def test_the_marker_is_neither_committed_nor_watched(q: Path) -> None:
-    from loom.gitignore import MANAGED
+    from loom.gitignore import LOOM_LINES
     from loom.render.watch import snapshot
 
     look(q)
-    assert ".loom/since/" in MANAGED
-    assert ".loom/since/" in (q / ".gitignore").read_text()
+    assert "since/" in LOOM_LINES
+    assert "\nsince/\n" in (q / ".loom" / ".gitignore").read_text()
     assert marker_path(q, AGENT) not in snapshot(q), "a look would rebuild the site"

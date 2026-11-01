@@ -4,7 +4,7 @@ This spec says exactly what loom reads from an author's LaTeX and what each cons
 
 ## 1. What is read
 
-Loom scans every `.tex` file under the quilt root outside `build/`, `.loom/`, `ai/`, `refs/`, `digests/storage/`, `notes/`, `retired/`, the history and tool directories, unless its first twenty lines include the line `% !LOOM ignore`. A master is any file read here with `\documentclass`, wherever it sits, named by its path without `.tex`; it compiles from its own directory, so every name it gives (`\input`, a package, a figure, a bibliography) is read against that directory at every depth, a name with `..` reaches nothing, and files it reaches by `\input`, `\include` or `\nest` (an `\input` one heading level down) are read in its context. Files no master reaches are scanned too.
+Loom scans every `.tex` file under the quilt root outside `.loom/`, the history, sync and tool directories, and every digest in `.loom/digests/` outside its store, unless its first twenty lines include the line `% !LOOM ignore`. A master is any file read here with `\documentclass`, wherever it sits, named by its path without `.tex`; it compiles from its own directory, so every name it gives (`\input`, a package, a figure, a bibliography) is read against that directory at every depth, a name with `..` reaches nothing, and files it reaches by `\input`, `\include` or `\nest` (an `\input` one heading level down) are read in its context. Files no master reaches are scanned too.
 
 Comments are blanked first: each, from an unescaped `%` to the end of the line, becomes spaces, except in `verbatim`, `lstlisting`, `comment` and `filecontents` environments and `\verb`. A commented-out environment defines nothing, and a commented-out `\ref` is no dependency. Directives (section 8) are read before blanking.
 
@@ -56,7 +56,7 @@ paperlocal := [A-Za-z0-9.]+ ("-" [A-Za-z0-9.]+)*   a paper's number: thm-4.1
 derived    := prefix "-" loomlocal "-ai"           an agent document's copy
 ```
 
-A prefix that is a citekey slug takes `paperlocal`; others take `loomlocal` or `derived`. A slug is a citekey stripped to ASCII letters and digits (`Fulton-Int:1998` gives `FultonInt1998`); loom knows the slugs of the citekeys in `digests/bibliography.bib` and the prefixes digests declare. So `sec-intro` is an id only if `sec` is a slug, while `\label{fig-0001}` on a lemma is its id whatever the quilt's prefix.
+A prefix that is a citekey slug takes `paperlocal`; others take `loomlocal` or `derived`. A slug is a citekey stripped to ASCII letters and digits (`Fulton-Int:1998` gives `FultonInt1998`); loom knows the slugs of the citekeys in `.loom/digests/bibliography.bib` and the prefixes digests declare. So `sec-intro` is an id only if `sec` is a slug, while `\label{fig-0001}` on a lemma is its id whatever the quilt's prefix.
 
 ### 3.2 Never reused
 
@@ -136,7 +136,7 @@ A directive is a line whose first non-blank characters are `% !LOOM` (the space 
 
 ## 9. Digest nodes
 
-A digest is a file whose first twenty lines carry `% !LOOM digest: CITEKEY`, kept at `digests/CITEKEY.tex` and specified in [digests.md](digests.md). Its theorem-like environments, proofs and sections are digest nodes: a cited paper's results, with locators in their titles, never proved here.
+A digest is a file whose first twenty lines carry `% !LOOM digest: CITEKEY`, kept at `.loom/digests/CITEKEY.tex` and specified in [digests.md](digests.md). Its theorem-like environments, proofs and sections are digest nodes: a cited paper's results, with locators in their titles, never proved here.
 
 ```tex
 \begin{theorem}[{\cite[Theorem 4.1]{Man12}}]\label{Man12-thm-4.1}

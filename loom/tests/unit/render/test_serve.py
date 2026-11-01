@@ -107,7 +107,7 @@ def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[
 def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignore[no-untyped-def]
     """The viewer opens a reference at the place a comment points to, so the server offers what was fetched -- the first thing it serves that it did not generate (DR-110). Localhost, read only, and confined to the store by the same prefix check the build tree gets."""
     s, d = session
-    home = d / "digests" / "storage" / "arxiv" / "0805.2065v2"
+    home = d / ".loom/digests" / "storage" / "arxiv" / "0805.2065v2"
     home.mkdir(parents=True, exist_ok=True)
     (home / "paper.pdf").write_bytes(b"%PDF-1.4\nfetched\n")
 
@@ -126,16 +126,16 @@ def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
     from loom.render.watch import snapshot
 
     q = tmp_path / "q"
-    (q / "annotations").mkdir(parents=True)
+    (q / ".loom/annotations").mkdir(parents=True)
     (q / "drafting" / "nodes").mkdir(parents=True)
     (q / "config.toml").write_text('[quilt]\nname = "q"\n', encoding="utf-8")
-    (q / "annotations" / "log.jsonl").write_text('{"event": "created"}\n', encoding="utf-8")
-    (q / "reference-notes.jsonl").write_text('{"work": "doi:10/x"}\n', encoding="utf-8")
+    (q / ".loom/annotations" / "log.jsonl").write_text('{"event": "created"}\n', encoding="utf-8")
+    (q / ".loom/reference-notes.jsonl").write_text('{"work": "doi:10/x"}\n', encoding="utf-8")
     (q / "drafting" / "nodes" / "n.tex").write_text("\\begin{lemma}\\end{lemma}\n", encoding="utf-8")
 
     watched = {p.relative_to(q).as_posix() for p in snapshot(q)}
-    assert "annotations/log.jsonl" in watched
-    assert "reference-notes.jsonl" in watched
+    assert ".loom/annotations/log.jsonl" in watched
+    assert ".loom/reference-notes.jsonl" in watched
     assert {"config.toml", "drafting/nodes/n.tex"} <= watched
 
 
@@ -319,8 +319,8 @@ def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) 
     """An append to the annotation log is seen within a fraction of a second though the tree is scanned only every ten, so an agent's finding reaches a served page without waiting out a scan (plan 0.19.2)."""
     from loom.render.watch import Watcher
 
-    (tmp_path / "annotations").mkdir()
-    entries = tmp_path / "annotations" / "log.jsonl"
+    (tmp_path / ".loom/annotations").mkdir(parents=True)
+    entries = tmp_path / ".loom/annotations" / "log.jsonl"
     entries.write_text("")
     seen: list[list[Path]] = []
     w = Watcher(tmp_path, seen.append, interval=10.0)

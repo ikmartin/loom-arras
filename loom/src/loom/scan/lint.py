@@ -19,6 +19,7 @@ from loom.scan.graph import Graph
 from loom.scan.macros import LOOM_MACROS
 from loom.scan.model import Diagnostic, Fix, Location
 from loom.scan.nodes import Assembly, NodeRec
+from loom.scan.preamble import LOOM_PACKAGE, loom_sty_missing
 from loom.scan.scan import ScanResult
 
 COMMON_THEOREM_ENVS = {
@@ -349,9 +350,21 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                         [Location(path, files[path].line_of(env.start))],
                     )
                 )
-    # loom macros without loom.sty, and shadowed macros
+    # loom macros without loom.sty, a loom.sty found nowhere, and shadowed macros
     for master, closure in result.closures.items():
         exp = result.expansions[master]
+        base = result.base_of(master)
+        if master in result.files and loom_sty_missing(closure, result.quilt.root, base):
+            src = result.files[master]
+            named = LOOM_PACKAGE.search(src.clean)
+            diags.append(
+                Diagnostic(
+                    "error",
+                    "loom:macros-missing",
+                    f"{master} loads loom, but no loom.sty sits beside it or on the TeX path, so it does not compile; keep loom.sty in {base or 'the quilt root'}/, or put loom's macro block in place of \\usepackage{{loom}}, the patch `loom doctor --json` gives",
+                    [Location(master, src.line_of(named.start()) if named else 1)],
+                )
+            )
         used = sorted({m for m in LOOM_MACROS if re.search(r"\\" + m + r"(?![A-Za-z@])", exp.text)})
         if used and not closure.loads_loom:
             names = ", ".join("\\" + m for m in used)
@@ -430,7 +443,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     for ck in sorted({c.citekey for c in edges.cites}):
         entry = result.bib.get(ck)
         if entry is not None and not declared(entry):
-            # a lookup already made is named here, read from refs/; lint itself never touches the network
+            # a lookup already made is named here, read from loom's store; lint itself never touches the network
             found = load_candidates(result.quilt.root, entry)
             if found:
                 best = found[0]

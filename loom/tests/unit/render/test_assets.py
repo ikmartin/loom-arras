@@ -1,4 +1,4 @@
-"""Graphics for fragments: a PDF figure becomes SVG by pdftocairo, else `dvisvgm --pdf`; a raster or SVG is copied; everything lands content-addressed under build/svg/."""
+"""Graphics for fragments: a PDF figure becomes SVG by pdftocairo, else `dvisvgm --pdf`; a raster or SVG is copied; everything lands content-addressed under .loom/build/svg/."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def test_a_graphic_is_found_with_or_without_its_extension(tmp_path: Path) -> Non
 def test_a_raster_is_copied_under_its_content_hash(tmp_path: Path) -> None:
     (tmp_path / "a.png").write_bytes(b"\x89PNG one")
     (tmp_path / "b.PNG").write_bytes(b"\x89PNG one")
-    out = tmp_path / "build" / "svg"
+    out = tmp_path / ".loom/build" / "svg"
     rel, err = publish_graphic(tmp_path, "a", out)
     assert err is None and rel is not None and rel.startswith("svg/") and rel.endswith(".png")
     assert (out.parent / rel).read_bytes() == b"\x89PNG one"
@@ -39,7 +39,7 @@ def test_a_raster_is_copied_under_its_content_hash(tmp_path: Path) -> None:
 
 def test_a_pdf_is_converted_by_pdftocairo_once(tmp_path: Path) -> None:
     (tmp_path / "cone.pdf").write_bytes(b"%PDF-1.4\n%FAKE-LOOM\nx\n")
-    out = tmp_path / "build" / "svg"
+    out = tmp_path / ".loom/build" / "svg"
     rel, err = publish_graphic(tmp_path, "cone", out)
     assert err is None and rel is not None and rel.endswith(".svg") and "<svg" in (out.parent / rel).read_text()
     assert calls() == ["pdftocairo"]

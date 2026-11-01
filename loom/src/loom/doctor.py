@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from loom.paths import AI
+from loom.paths import AI, LOOM_GITIGNORE
 from loom.version import INTERFACE_VERSION, __version__
 
 if TYPE_CHECKING:
@@ -485,7 +485,7 @@ def check_permissions(root: Path) -> Item:
     present = [rel for rel in wanted if (root / rel).is_file()]
     layer = (root / AI).is_dir()
     if not layer and not present:
-        return Item("permissions", OK, QUILT, "no ai/ (loom ai init writes it and them)")
+        return Item("permissions", OK, QUILT, f"no {AI}/ (loom ai init writes it and them)")
     shell = variant(root) == SHELL
     shipped = vendor_files(quilt_config(root), shell=shell)
     stale = [rel for rel in present if (root / rel).read_text(encoding="utf-8") != shipped[rel]]
@@ -497,7 +497,7 @@ def check_permissions(root: Path) -> Item:
         )
     said = [f"{rel} missing: an agent here runs without loom's table" for rel in absent]
     said += [f"{rel}: not what this loom lets agents run" for rel in stale]
-    # beside an ai/, `loom upgrade` writes both; without one, `loom ai init` does
+    # beside an .loom/ai/, `loom upgrade` writes both; without one, `loom ai init` does
     return Item("permissions", WARN, QUILT, "; ".join(said), "loom upgrade" if layer else "loom ai init")
 
 
@@ -512,7 +512,7 @@ def check_mcp(root: Path) -> list[Item]:
     from loom.ai.layout import SHELL, variant
 
     if not (root / AI).is_dir():
-        return [Item("mcp", OK, QUILT, "no ai/ (loom ai init writes the client files)")]
+        return [Item("mcp", OK, QUILT, f"no {AI}/ (loom ai init writes the client files)")]
     if variant(root) == SHELL:
         return [Item("mcp", OK, QUILT, "none: agents here run loom in a shell")]
     rep = write_clients(root, write=False)
@@ -564,7 +564,7 @@ def check_ai_files(root: Path) -> Item:
     from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, read_versions, sha, tracked_docs, upgrade_layer
 
     if not (root / AI).is_dir():
-        return Item("ai files", OK, QUILT, "no ai/ (loom ai init writes it)")
+        return Item("ai files", OK, QUILT, f"no {AI}/ (loom ai init writes it)")
     rep = upgrade_layer(root, write=False)
     stale = [rel for rel in rep.written if rel not in (CLAUDE_SETTINGS, CODEX_RULES)]
     shipped, recorded = tracked_docs(), read_versions(root)
@@ -591,21 +591,37 @@ def check_ai_files(root: Path) -> Item:
 
 
 def check_macro_blocks(quilt: Any) -> Item:
-    """Every live document that carries loom's macro block carries this loom's; one an older loom wrote gets the patch that brings it up to date, in the JSON, since loom never edits a document (P7). A `loom.sty` a person keeps is theirs, and not checked."""
+    """Every live document that carries loom's macro block carries this loom's, and one that loads loom.sty finds it (`loom:macros-missing`). Each gets the patch that puts this loom's block in place, in the JSON, since loom never edits a document (P7). A `loom.sty` a person keeps is theirs, and not checked."""
     from loom.reshape.ids import unified_diff
-    from loom.reshape.linearize import loom_macro_block
+    from loom.reshape.linearize import loom_macro_block, to_canon
+    from loom.scan.preamble import loom_sty_missing
     from loom.scan.scan import scan
     from loom.scan.source import MACRO_BLOCK
 
     current = loom_macro_block()
     patches: dict[str, str] = {}
-    for m in scan(quilt).masters:
+    unfound: list[str] = []
+    result = scan(quilt)
+    for m in result.masters:
         text = (quilt.root / m).read_text(encoding="utf-8", errors="replace")
         block = MACRO_BLOCK.search(text)
         if block and block.group(0).rstrip("\n") != current.rstrip("\n"):
             patches[m] = unified_diff(text, text[: block.start()] + current + text[block.end() :], m)
-    if not patches:
+        elif m in result.closures and loom_sty_missing(result.closures[m], quilt.root, result.base_of(m)):
+            unfound.append(m)
+            if to_canon(text) != text:
+                patches[m] = unified_diff(text, to_canon(text), m)
+    if not patches and not unfound:
         return Item("macro block", OK, QUILT, "current")
+    if unfound:
+        return Item(
+            "macro block",
+            WARN,
+            QUILT,
+            f"{', '.join(sorted(unfound))} {'loads' if len(unfound) == 1 else 'load'} loom, but no loom.sty sits beside {'it' if len(unfound) == 1 else 'them'} or on the TeX path",
+            "keep loom.sty beside the document, or apply the patch `loom doctor --json` gives as this item's patch: loom never edits a document",
+            extra={"patch": "".join(patches[m] for m in sorted(patches))},
+        )
     return Item(
         "macro block",
         WARN,
@@ -617,10 +633,13 @@ def check_macro_blocks(quilt: Any) -> Item:
 
 
 def check_gitignore(root: Path) -> Item:
-    """The `.gitignore` lines loom relies on (`loom.gitignore.MANAGED`), which `loom upgrade` adds."""
+    """The ignore lines loom relies on (`loom.gitignore`): `.loom/.gitignore` as this loom writes it, and the client lines in the root `.gitignore` where the agent layer is; `loom upgrade` writes both."""
+    from loom.gitignore import loom_ignore_current
     from loom.gitignore import missing as lacking
 
-    missing = lacking(root)
+    if not loom_ignore_current(root):
+        return Item(".gitignore", WARN, QUILT, f"{LOOM_GITIGNORE} is missing or not this loom's", "loom upgrade")
+    missing = lacking(root) if (root / AI).is_dir() else []
     if not missing:
         return Item(".gitignore", OK, QUILT, "has loom's lines")
     return Item(".gitignore", WARN, QUILT, f"lacks {', '.join(missing)}", "loom upgrade")

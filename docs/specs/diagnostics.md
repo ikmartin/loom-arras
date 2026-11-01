@@ -52,6 +52,7 @@ Source and structure:
 - `loom:duplicate-label` (error): a non-id label defined twice anywhere in the quilt.
 - `loom:macros-unloaded` (error): `\uses`, `\incomplete`, or `\nest` used in a master that carries neither loom's macro block nor `\usepackage{loom}` with a `loom.sty` beside it.
 - `loom:macro-shadowed` (warning): the preamble defines one of the three names outside loom's macro block and `loom.sty`.
+- `loom:macros-missing` (error): a live document loads `\usepackage{loom}` with no `loom.sty` beside it and none on the TeX path, so it does not compile; `loom doctor` gives the patch that puts loom's macro block in its place.
 - `loom:taxon-conflict` (warning): two masters declare different taxa for one environment.
 - `loom:prefix-is-citekey` (warning): the quilt's id prefix equals a bibliography key.
 - `loom:unknown-directive` (warning): a `% !LOOM` key not in the inventory.
@@ -85,7 +86,7 @@ Review:
 - `loom:retired-ledger-key` (info): a ledger row whose key no longer exists.
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
-- `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads.
+- `loom:foreign-annotations` (warning): a line of `.loom/annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads.
 
 References and digests:
 

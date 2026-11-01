@@ -20,7 +20,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 def mcp_command(as_name: str, quilt_path: str | None) -> None:
     """Serve this quilt's agent commands as MCP tools over stdio, for an agent's app to start; it runs until the app closes it.
 
-    One tool per agent command, named for it (`loom status` is `loom_status`), its options its arguments; the author's commands are not tools. Each call runs the command it names, as NAME, and its result is that command's report. The instructions tell the agent to call `loom_ai_orient` first. A result too long for a reply is written under `build/agent/` and the tool returns its path.
+    One tool per agent command, named for it (`loom status` is `loom_status`), its options its arguments; the author's commands are not tools. Each call runs the command it names, as NAME, and its result is that command's report. The instructions tell the agent to call `loom_ai_orient` first. A result too long for a reply is written under `.loom/build/agent/` and the tool returns its path.
     """
     if not is_agent(as_name):
         raise EnvError(

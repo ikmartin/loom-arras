@@ -1,0 +1,34 @@
+{
+  "175f2b6483a3eb13e21263c6a653860ac64bde027cc5d0ac95e6691732d0f179": {
+    "from": "arden-cycle-spaces.tex",
+    "to": "arxiv/2504.01234v1",
+    "when": "2026-09-14T09:15:00Z"
+  },
+  "8c21ed504f947f16b6e2a65bfa9d470795c14ab522320757cb5f27e5b4e59a8f": {
+    "from": "arden-cycle-spaces.pdf",
+    "to": "arxiv/2504.01234v1",
+    "when": "2026-09-14T09:10:00Z"
+  },
+  "b37ce5dc842486cbdab936197730d54ce2f27ed107ce410872938701ea808adb": {
+    "from": "arden-cycle-spaces-v2.tex",
+    "to": "file/e43d5afaac8f10f0",
+    "when": "2026-09-14T09:15:00Z"
+  },
+  "c7af5b0d095ff4ad6e26a86e523d6c92f936cf946b34fdd8591df106cb4b050f": {
+    "by": "The loom showcase",
+    "forced": "it does not show it is Halloway26: its title is not Halloway26's in full and Halloway26 names no author to look for in its byline",
+    "from": "Halloway - 2026 - Notes on balanced quivers.pdf",
+    "to": "work/4ed9b695",
+    "when": "2026-09-17T11:15:00Z"
+  },
+  "e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45": {
+    "from": "bellamy-median-orders.pdf",
+    "to": "doi/10.4171_showcase_19-2",
+    "when": "2026-09-14T09:10:00Z"
+  },
+  "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724": {
+    "from": "arden-cycle-spaces-v2.pdf",
+    "to": "file/e43d5afaac8f10f0",
+    "when": "2026-09-14T09:15:00Z"
+  }
+}

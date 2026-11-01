@@ -82,7 +82,7 @@ def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
     written(q, stays, "dm-0001", "A note worth keeping.")
     ok("annotate", "--reply", ann, "An answer to it.", "--session", stays, "--as", WHO, cwd=q)
     ok("annotate", "--resolve", ann, "Done.", "--session", stays, "--as", WHO, cwd=q)
-    with (q / "annotations" / "log.jsonl").open("a", encoding="utf-8") as fh:
+    with (q / ".loom/annotations" / "log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write("not json, kept as it stands\n")
     (q / ".loom" / "sessions" / gone).mkdir(parents=True, exist_ok=True)
     (q / ".loom" / "sessions" / gone / "run.log").write_text("x\n")
@@ -92,7 +92,7 @@ def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
 
 def records(q: Path) -> tuple[bytes, bytes, str | None]:
     return (
-        (q / "annotations" / "log.jsonl").read_bytes(),
+        (q / ".loom/annotations" / "log.jsonl").read_bytes(),
         (q / ".loom" / "sessions" / "index.jsonl").read_bytes(),
         active(q),
     )
@@ -105,11 +105,11 @@ def test_purge_erases_a_session_what_was_written_in_it_and_what_answers_it_and_n
     from loom.records.log import replay
 
     q, gone, stays, ann = purgeable(tmp_path)
-    before = (q / "annotations" / "log.jsonl").read_text().splitlines(keepends=True)
+    before = (q / ".loom/annotations" / "log.jsonl").read_text().splitlines(keepends=True)
     said = ok("session", "delete", gone, "--purge", "--yes", cwd=q)
     # the note and the reply to it: the edit and the resolve are events on an annotation, not annotations
-    assert said.stdout.strip() == f"erased {gone} and 2 annotations from annotations/log.jsonl"
-    after = (q / "annotations" / "log.jsonl").read_text().splitlines(keepends=True)
+    assert said.stdout.strip() == f"erased {gone} and 2 annotations from .loom/annotations/log.jsonl"
+    after = (q / ".loom/annotations" / "log.jsonl").read_text().splitlines(keepends=True)
     events = [json.loads(x) for x in after if x.startswith("{")]
     assert not [e for e in events if e.get("session") == gone or ann in (e.get("id"), e.get("reply_to"))]
     # nothing else is touched: what is kept is the old log with the erased lines taken out, in order

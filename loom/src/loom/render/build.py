@@ -16,9 +16,10 @@ from typing import Any
 from urllib.parse import quote
 
 from loom.history.ledger import load_history
-from loom.paths import BUILD, STORAGE, document_build, document_name
+from loom.paths import BUILD, document_build, document_name
 from loom.records.lastseen import freeze_moved
 from loom.records.store import Records
+from loom.refs.pages import storage_root, store_home
 from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
 from loom.render.keys import aux_bytes, code_hash
@@ -98,14 +99,14 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
             "open": sum(1 for a in notes if a["status"] == "open" and a["in_reply_to"] is None),
         }
         artifacts = ref.get("artifacts") or {}
-        home = root / str(artifacts.get("dir", ""))
+        home = store_home(root, str(artifacts.get("dir", "")))
         if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
         results = {rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page}
         if not results and not notes:
             continue
         m = read_map(home)
-        rel = f"spans/{artifacts['dir'].removeprefix(STORAGE + '/')}.json"
+        rel = f"spans/{home.relative_to(storage_root(root)).as_posix()}.json"
         # what the geometry is made from: the results' anchors and words, the notes on the pages and their drawn boxes, the copy filed, and the matching code
         key = hashlib.sha256(
             json.dumps(

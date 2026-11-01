@@ -29,7 +29,7 @@ class Problem:
 
 
 def recorded_works(root: Path) -> list[str]:
-    """Every citekey with a `digests/<ck>.results.json`, in order."""
+    """Every citekey with a `.loom/digests/<ck>.results.json`, in order."""
     return [p.name[: -len(".results.json")] for p in sorted((root / DIGESTS).glob("*.results.json"))]
 
 
@@ -153,7 +153,7 @@ def wrong_documents(
 
 
 def empty_digests(root: Path, works: Iterable[str]) -> list[Problem]:
-    """Works with a `digests/<ck>.tex` and no result recorded for it."""
+    """Works with a `.loom/digests/<ck>.tex` and no result recorded for it."""
     from loom.refs.proposals import digest_path, load_results
 
     return [

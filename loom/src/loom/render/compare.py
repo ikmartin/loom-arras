@@ -1,6 +1,6 @@
 """Compare's texts: the differing pairs of two items, rendered with their changed words when a viewer asks, never at build.
 
-A pair is two nodes with one plain key (`zk-0001` and `zk-0001-ai`, or a key in a landmark and today). Rendering is cached by content under `build/compare/`, so a pair renders once however many comparisons ask for it.
+A pair is two nodes with one plain key (`zk-0001` and `zk-0001-ai`, or a key in a landmark and today). Rendering is cached by content under `.loom/build/compare/`, so a pair renders once however many comparisons ask for it.
 """
 
 from __future__ import annotations

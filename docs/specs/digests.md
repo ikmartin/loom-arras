@@ -4,7 +4,7 @@ A digest is loom's copy of one cited work's results, each a digest node with a p
 
 ## 1. Files
 
-All under `digests/` in the quilt:
+All under `.loom/digests/` in the quilt:
 
 | Path | Holds |
 |---|---|
@@ -113,11 +113,11 @@ Nothing `\input`s `<citekey>.proposed.tex`, and no edge leads to a proposal from
 
 ## 10. The bibliography and the store
 
-Every library step reads `bibliography.bib`. Gathering, the first step of `loom library update`, adds entries from the landmarks, from `.bib` files in `refs/`, and for documents no entry names. Loom only appends: an entry is never rewritten or removed, so a hand correction survives.
+Every library step reads `bibliography.bib`. Gathering, the first step of `loom library update`, adds entries from the bibliographies the person's documents name, read from each document's own directory, then from the landmarks, and for stored documents no entry names. Loom only appends: an entry is never rewritten or removed, so a hand correction survives.
 
-`storage/<scheme>/<id>/` holds a work's `paper.pdf` and `src/` (not committed) and page text (committed, so anyone can re-check an anchor). Beside the page text, `overview.md` is the work's **overview**: a reading of the paper an agent writes with `loom write WORK` and the author may edit, committed, and never part of the digest. It is not the digest's `\section*{Overview}`, which is the paper's opening paragraphs copied at extraction; `loom library read WORK` prints the overview where there is one and the opening otherwise. A document dropped in `refs/` or given to `loom library add` is filed against an entry only on a strong match: an identifier on its first pages equal to the entry's, or the entry's whole title with its first author leading the byline (`loom/src/loom/refs/ingest.py`). Anything weaker is never filed against that entry, unless the author forces it, and the report says why.
+`storage/<scheme>/<id>/` holds a work's `paper.pdf` and `src/` (not committed) and page text (committed, so anyone can re-check an anchor). Beside the page text, `overview.md` is the work's **overview**: a reading of the paper an agent writes with `loom write WORK` and the author may edit, committed, and never part of the digest. It is not the digest's `\section*{Overview}`, which is the paper's opening paragraphs copied at extraction; `loom library read WORK` prints the overview where there is one and the opening otherwise. A document given to `loom library add`, from anywhere, is filed against an entry only on a strong match: an identifier on its first pages equal to the entry's, or the entry's whole title with its first author leading the byline (`loom/src/loom/refs/ingest.py`). Anything weaker is never filed against that entry, unless the author forces it, and the report says why.
 
-Copying is once per content hash (`storage/copied.json`): a document renamed or dropped again is not copied again, and nothing leaves the store when `refs/` changes. A second document for a work is a copy, recorded and not filed, or another version, filed beside the first under a sibling entry (`<key>A`), never over it: the document an anchor was checked against must never change.
+Copying is once per content hash (`storage/copied.json`, which names where each copy went relative to the store): a document renamed or given again is not copied again, and nothing leaves the store when the original is deleted. A second document for a work is a copy, recorded and not filed, or another version, filed beside the first under a sibling entry (`<key>A`), never over it: the document an anchor was checked against must never change.
 
 ## 11. Who runs what
 
@@ -129,7 +129,7 @@ Loom uses the network only under `online = true` in `[library]` of `config.toml`
 
 Today the library is organised around what the author's documents cite. Loom must also serve a reader with no draft, for whom a work read but not cited is first-class.
 
-- Gathering seeds the bibliography from landmarks, and otherwise only from what the author drops in `refs/` or files with `library add`; seeding it from a reader's reading is ([not built yet](../design/README.md#decided-not-yet-built)).
+- Gathering seeds the bibliography from the documents' bibliographies and the landmarks, and otherwise only from what the author files with `library add`; seeding it from a reader's reading is ([not built yet](../design/README.md#decided-not-yet-built)).
 - `update` fetches bibliography entries only, never a cited work's own references; following a reader's reading is ([not built yet](../design/README.md#decided-not-yet-built)).
 - Ingest starts from works cited with a locator and no digest, as `loom status --undigested`, `loom ai orient` and `loom:undigested-citekey` list them; a trigger for works read but not cited is ([not built yet](../design/README.md#decided-not-yet-built)).
 - Uncited works are demoted: `loom library` folds them into one line and never says they need an agent; `update` takes cited works first; lint counts their diagnostics in one line; `library search` ranks a result higher per citation in the author's documents. Treating a read work as a cited one is ([not built yet](../design/README.md#decided-not-yet-built)).

@@ -518,7 +518,7 @@ def test_history_restore_drafts_a_landmark_as_a_new_document_and_records_it(tmp_
         code=2,
         match="exists; loom does not overwrite it",
     )
-    refused("history", "restore", "v1", "--to", "retired/v1.tex", cwd=q, code=2, match="is inside retired/")
+    refused("history", "restore", "v1", "--to", ".loom/retired/v1.tex", cwd=q, code=2, match="is inside .loom/")
     refused("history", "restore", "v1", cwd=q, code=2, match="needs --to FILE")
     refused("history", "restore", "nope", "--to", "main/x.tex", cwd=q, code=2, match="no landmark answers to nope")
     refused(

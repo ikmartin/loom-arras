@@ -20,6 +20,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
+from loom.paths import AI, ANNOTATION_LOG, BIBLIOGRAPHY, SINCE, STORAGE
+
 REPO = Path(__file__).resolve().parents[1]
 SOURCES = REPO / "tests" / "quilts" / "sources"
 QUILTS = REPO / "tests" / "quilts"
@@ -134,10 +136,14 @@ def _apply(root: Path, lines: list[str]) -> tuple[str, str]:
 
 
 def _copy_sources(name: str, dest: Path) -> None:
+    """The author's files of `sources/<name>/`, in a quilt as `loom init` leaves one: with loom's ignore file, the source's own lines kept below loom's."""
+    from loom.gitignore import write_loom_ignore
+
     src = SOURCES / name
     if not src.is_dir():
         raise SystemExit(f"{src} is missing")
     shutil.copytree(src, dest)
+    write_loom_ignore(dest)
 
 
 def _later(name: str, rel: str, dest: Path) -> None:
@@ -167,7 +173,7 @@ def build_synthetic(dest: Path) -> None:
 
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
-    (dest / "ai").mkdir(parents=True)
+    (dest / AI).mkdir(parents=True)
     quick = g.run("session", "new", "--name", "quick").split()[0]
 
     # The author rewrites the definition, so everything that depends on it goes stale.
@@ -492,7 +498,7 @@ def _annotation_ids(root: Path, session: str) -> list[str]:
     """The ids a session created, read back out of the log so the generator can reply to and resolve them."""
     import json
 
-    log = root / "annotations" / "log.jsonl"
+    log = root / ANNOTATION_LOG
     out: list[str] = []
     for line in log.read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -524,10 +530,9 @@ def build_demo(dest: Path) -> None:
     g.run("accept", "dm-0002", "--proofs", "--as", "The loom demo", "--force")
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
-    # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document behind its digest rather than prose about a paper nobody holds. The author drops the PDF into the seed space and gathering files it under the identifier it prints; the source is added beside it, and the digest is extracted by the command that extracts one.
-    (dest / "refs").mkdir(exist_ok=True)
-    shutil.copy(DEMO_WORKS / "calloway-fixed-loci.pdf", dest / "refs" / "calloway-fixed-loci.pdf")
+    # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document behind its digest rather than prose about a paper nobody holds. Gathering reads the entry from the document's bibliography, the author adds the PDF, which is filed under the identifier it prints, and the source beside it; the digest is extracted by the command that extracts one.
     g.run("library", "update", "--only", "gather")
+    g.run("library", "add", str(DEMO_WORKS / "calloway-fixed-loci.pdf"))
     g.run("library", "add", str(DEMO_WORKS / "calloway-fixed-loci.tex"), "--for", "Calloway14")
     g.run("library", "update", "Calloway14", "--only", "map")
     g.run("library", "update", "Calloway14", "--only", "extract", "--no-compile")
@@ -651,14 +656,11 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-14T09:05:00Z")
     g.run("stamp", "drafting/main-atomic.tex", "-m", "flows-v1")
 
-    # ---- The seed space, and loom's store. --------------------------------------------------------------
-    # The author drops the two PDFs they hold into `refs/`; gathering reads the landmark's bibliography and files each document under the identifier it states on its own first page.
-    (dest / "refs").mkdir(exist_ok=True)
-    for pdf in sorted(WORKS.glob("*.pdf")):
-        if pdf != ARDEN_V2.with_suffix(".pdf"):
-            shutil.copy(pdf, dest / "refs" / pdf.name)
+    # ---- Loom's store. -------------------------------------------------------------------------------------
+    # Gathering reads the document's bibliography; the author adds the PDFs they hold, and each is filed under the identifier it states on its own first page.
     g.at("2026-09-14T09:10:00Z")
     g.run("library", "update", "--only", "gather")
+    g.run("library", "add", *(str(pdf) for pdf in sorted(WORKS.glob("*.pdf")) if pdf != ARDEN_V2.with_suffix(".pdf")))
     g.at("2026-09-14T09:15:00Z")
     # The source goes into the store before the digest is made: a digest extracted from a file only this machine holds cites pages nobody else can open, which is the invariant extraction enforces (plan 0.13 §4).
     g.run("library", "add", str(WORKS / "arden-cycle-spaces.tex"), "--for", "Arden24")
@@ -1328,15 +1330,18 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
 
-    # ---- An orphan document, healed by the store. ----------------------------------------------------------- A document dropped into `refs/` is filed and offered an entry; the author deletes the entry; the store outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, gathering's adoption).
+    # ---- An orphan document, healed by the store. ----------------------------------------------------------- A document filed for an entry the author then deletes: the store outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, gathering's adoption).
     g.at("2026-09-17T11:15:00Z")
-    _tiny_pdf(g.root / "refs" / "Halloway - 2026 - Notes on balanced quivers.pdf")
-    g.run("library", "update", "--only", "gather")
-    bib = g.root / "digests" / "bibliography.bib"
-    # the entry and the comment line gathering wrote above it, and nothing else
+    bib = g.root / BIBLIOGRAPHY
     text = bib.read_text(encoding="utf-8")
-    entry = re.compile(r"\n% from [^\n]*\n@.*?\n\}\n", re.S)
-    bib.write_text(entry.sub(lambda m: "" if "Notes on balanced quivers" in m[0] else m[0], text), encoding="utf-8")
+    bib.write_text(
+        text + "\n@misc{Halloway26,\n  title = {Notes on balanced quivers},\n  year = {2026},\n}\n", encoding="utf-8"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = Path(tmp) / "Halloway - 2026 - Notes on balanced quivers.pdf"
+        _tiny_pdf(pdf)
+        g.run("library", "add", str(pdf), "--for", "Halloway26", "--force", "--as", SHOWCASE)
+    bib.write_text(text, encoding="utf-8")
     g.run(
         "library", "update", "--only", "gather"
     )  # adopted: the entry is back, from the ledger's record of how the document arrived
@@ -1428,8 +1433,6 @@ def build_showcase(dest: Path) -> None:
     g.run("live", "drafting/sketch.tex")
 
     _write_expected_lint(g)
-    # The seed space is the author's and is not in version control, so the committed quilt is what a coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second gathering from filing the same documents again.
-    shutil.rmtree(dest / "refs")
 
 
 def _showcase_referee_report(*, formula: str, expand: str, integrality: str, document: str) -> str:
@@ -1553,10 +1556,9 @@ def _differences(a: Path, b: Path) -> list[str]:
         # The generator uses these copies while building the quilt, but the
         # quilt's .gitignore deliberately keeps them out of its committed copy.
         return not (
-            rel.startswith("refs/")
-            or rel.startswith(".loom/since/")
-            or rel.startswith("digests/storage/cache/")
-            or (rel.startswith("digests/storage/") and "/src/" in rel)
+            rel.startswith(f"{SINCE}/")
+            or rel.startswith(f"{STORAGE}/cache/")
+            or (rel.startswith(f"{STORAGE}/") and "/src/" in rel)
         )
 
     files = {rel for p in a.rglob("*") if p.is_file() if committed(rel := p.relative_to(a).as_posix())}

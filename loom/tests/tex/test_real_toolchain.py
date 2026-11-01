@@ -77,10 +77,10 @@ def test_loom_compiles_beside_an_editor_s_leftovers_without_reading_or_writing_t
     assert ".bcf" in {Path(n).suffix for n in leftovers}, sorted(leftovers)
 
     ok("compile", "paper/main.tex", cwd=q)
-    log = (q / "build" / "paper" / "main" / "main.log").read_text(encoding="utf-8", errors="replace")
+    log = (q / ".loom/build" / "paper" / "main" / "main.log").read_text(encoding="utf-8", errors="replace")
     assert "undefined" not in log, [ln for ln in log.splitlines() if "undefined" in ln][:5]
     assert {name: (paper / name).read_bytes() for name in leftovers} == leftovers  # neither read over nor written
     text = subprocess.run(
-        ["pdftotext", str(q / "build/paper/main/main.pdf"), "-"], capture_output=True, text=True
+        ["pdftotext", str(q / ".loom/build/paper/main/main.pdf"), "-"], capture_output=True, text=True
     ).stdout
     assert "TeXbook" in text and "preparation system" not in text

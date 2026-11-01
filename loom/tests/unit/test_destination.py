@@ -13,14 +13,12 @@ from tests.unit._quilts import demo
 
 def test_a_working_document_goes_anywhere_loom_reads_and_nothing_else_among_the_sources(tmp_path: Path) -> None:
     q = load_quilt(demo(tmp_path))
-    for there in ("drafting/flat.tex", "paper/main.tex", "flat.tex"):
+    for there in ("drafting/flat.tex", "paper/main.tex", "flat.tex", "notes/flat.tex", "build/flat.tex"):
         assert destination(q, there, document=True) == (q.root / there).resolve()
     for there, said in (
-        ("notes/flat.tex", "is inside notes/"),
-        ("retired/flat.tex", "is inside retired/"),
+        (".loom/retired/flat.tex", "is inside .loom/"),
         (".loom/flat.tex", "is inside .loom/"),
-        ("build/flat.tex", "is inside build/"),
-        ("refs/flat.tex", "is inside refs/"),
+        (".loom/build/flat.tex", "is inside .loom/"),
         ("drafting-ai/flat.tex", "where agents' documents are kept"),
         ("paper/flat.md", "is a .tex file"),
     ):
@@ -31,7 +29,7 @@ def test_a_working_document_goes_anywhere_loom_reads_and_nothing_else_among_the_
     assert destination(q, "drafting-ai/flat.tex", document=True, agent=True).name == "flat.tex"
     with pytest.raises(EnvError, match="among the quilt's sources"):
         destination(q, "drafting/nodes/patched.tex")
-    assert destination(q, "build/plain.tex") == (q.root / "build/plain.tex").resolve()
+    assert destination(q, ".loom/build/plain.tex") == (q.root / ".loom/build/plain.tex").resolve()
     assert destination(q, tmp_path / "elsewhere.tex") == (tmp_path / "elsewhere.tex").resolve()
 
 

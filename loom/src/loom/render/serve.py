@@ -1,6 +1,6 @@
 """`loom serve`: one loop with three jobs, watch, serve, compile.
 
-Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged, and `/_api/stream` says each time a new one is published, so a viewer that listens fetches it at once rather than on its next poll.
+Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and .loom/build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged, and `/_api/stream` says each time a new one is published, so a viewer that listens fetches it at once rather than on its next poll.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
-from loom.paths import BUILD, SERVE_JSON, document_build
+from loom.paths import BUILD, SERVE_JSON, STORE_ADDRESS, document_build
 from loom.refs.pages import storage_root
 from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher, records_only, snapshot
@@ -51,7 +51,7 @@ ASSET_SUFFIXES = {
 
 #: The addresses the server answers loom's files at, fixed wherever the directories behind them sit.
 BUILD_URL = "/build/"
-STORE_URL = "/digests/storage/"
+STORE_URL = f"/{STORE_ADDRESS}/"
 #: How often an idle stream says it is still open, so a proxy or a sleeping laptop does not drop it unseen.
 HEARTBEAT = 15.0
 

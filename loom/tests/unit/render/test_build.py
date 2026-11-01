@@ -45,7 +45,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ok("compile", cwd=d)
     ok("build", cwd=d)
-    b = d / "build"
+    b = d / ".loom/build"
     assert (b / "manifest.json").exists()
     assert (b / "fragments" / "nodes" / "dm-0003.html").exists()
     assert (b / "fragments" / "masters" / "drafting" / "main.html").exists()
@@ -116,7 +116,7 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     d = synthetic(tmp_path)
     ok("compile", cwd=d)
     exits(1, "build", cwd=d)  # the synthetic quilt has three intentional errors
-    b = d / "build"
+    b = d / ".loom/build"
     node = (b / "fragments" / "nodes" / "sy-0003.html").read_text()
     assert node.startswith(
         '<div data-fragment="node" class="env env-theorem" id="sy-0003" data-id="sy-0003"'
@@ -162,7 +162,7 @@ def test_build_incremental_by_hash(tmp_path: Path) -> None:
     assert set(fourth.rendered) == {"dm-0003", "drafting/main.tex"}
     fifth = build(load_quilt(d))
     assert "dm-0001" in fifth.rendered and "dm-0003" not in fifth.rendered
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     assert len(m["nodes"]) == len(first.manifest["nodes"])
 
 
@@ -210,7 +210,7 @@ def test_force_renders_every_fragment_again(tmp_path: Path) -> None:
 def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     d = demo(tmp_path)
     build(load_quilt(d))
-    before = (d / "build" / "manifest.json").read_text()
+    before = (d / ".loom/build" / "manifest.json").read_text()
     original = publish_mod.write_atomic
 
     def boom(path: Path, data: str | bytes) -> None:
@@ -224,8 +224,8 @@ def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.Mo
     )
     with pytest.raises(RuntimeError):
         build(load_quilt(d))
-    assert (d / "build" / "manifest.json").read_text() == before
-    assert not list((d / "build").rglob("*.tmp"))
+    assert (d / ".loom/build" / "manifest.json").read_text() == before
+    assert not list((d / ".loom/build").rglob("*.tmp"))
 
 
 def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
@@ -236,7 +236,7 @@ def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
     A cold build, where every file is new, and a rebuild after one node changed, which is what a served quilt does on every save.
     """
     d = demo(tmp_path)
-    b = d / "build"
+    b = d / ".loom/build"
     renames: list[tuple[Path, Path]] = []
     handed: list[str] = []
     real_replace, real_publish = os.replace, build_mod.publish
@@ -253,7 +253,7 @@ def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
     monkeypatch.setattr(build_mod, "publish", publish)
 
     def renamed() -> list[Path]:
-        """What the build renamed into build/ outside loom's own cache, in order, having checked that each came from beside its target and that the manifest came once and last; the manifest left out."""
+        """What the build renamed into .loom/build/ outside loom's own cache, in order, having checked that each came from beside its target and that the manifest came once and last; the manifest left out."""
         into = [(src, dst) for src, dst in renames if dst.is_relative_to(b) and not dst.is_relative_to(b / "cache")]
         renames.clear()
         assert [dst for src, dst in into if src != dst.with_name(dst.name + ".tmp")] == []
@@ -275,7 +275,7 @@ def test_the_manifest_is_renamed_into_place_after_every_file_it_publishes(
 
 def test_publish_skips_identical_bytes_and_keeps_named_files(tmp_path: Path) -> None:
     """A file whose bytes are already on disk is not rewritten, and a `keep` path survives the prune without being passed as content."""
-    b = tmp_path / "build"
+    b = tmp_path / ".loom/build"
     publish_mod.publish(b, {"fragments/a.html": "<p>a</p>", "fragments/b.html": "<p>b</p>"}, {})
     a_stat = (b / "fragments" / "a.html").stat()
     os.utime(b / "fragments" / "a.html", ns=(a_stat.st_atime_ns, a_stat.st_mtime_ns - 10**9))
@@ -298,20 +298,20 @@ def test_publish_skips_identical_bytes_and_keeps_named_files(tmp_path: Path) -> 
 def test_warm_build_leaves_skipped_fragments_in_place(tmp_path: Path) -> None:
     d = demo(tmp_path)
     build(load_quilt(d))
-    frags = sorted((d / "build" / "fragments").rglob("*.html"))
+    frags = sorted((d / ".loom/build" / "fragments").rglob("*.html"))
     stamps = {p: p.stat().st_mtime_ns for p in frags}
     texts = {p: p.read_text() for p in frags}
     assert build(load_quilt(d)).rendered == []
-    assert sorted((d / "build" / "fragments").rglob("*.html")) == frags
+    assert sorted((d / ".loom/build" / "fragments").rglob("*.html")) == frags
     assert all(p.stat().st_mtime_ns == stamps[p] and p.read_text() == texts[p] for p in frags)
 
 
 def test_build_dir_deletable_and_regenerated(tmp_path: Path) -> None:
     d = demo(tmp_path)
     build(load_quilt(d))
-    shutil.rmtree(d / "build")
+    shutil.rmtree(d / ".loom/build")
     rep = build(load_quilt(d))
-    assert (d / "build" / "manifest.json").exists() and rep.rendered
+    assert (d / ".loom/build" / "manifest.json").exists() and rep.rendered
 
 
 def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> None:
@@ -335,7 +335,7 @@ def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> N
     r = exits(1, "build", cwd=d)  # an error exit is fine; a traceback is not
     assert "RecursionError" not in r.output
     assert "inclusion-cycle" in r.output
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
 
     def cycles(node: dict) -> int:  # type: ignore[type-arg]
         return int(bool(node.get("cycle"))) + sum(cycles(c) for c in node.get("children", []))
@@ -405,6 +405,7 @@ def test_a_reference_to_an_enumerated_item_is_not_an_equation(tmp_path: Path) ->
 
     q = tmp_path / "q"
     ok("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path)
+    (q / "drafting").mkdir()
     (q / "drafting" / "main.tex").write_text(
         "\\documentclass{amsart}\n\\usepackage{amsthm,enumitem}\n\\usepackage{loom}\n\\newtheorem{theorem}{Theorem}\n\\begin{document}\n"
         "\\begin{theorem}\\label{pp-0001}\nWe have\n\\begin{equation}\\begin{split}a&=b\\end{split}\\label{eq:x}\\end{equation}\n"
@@ -502,7 +503,7 @@ def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path
         "annotate", "dm-0002", "Redundant here.", "--quote", QUOTE, "--in", "drafting/outline.tex", *who, cwd=d
     ).output.split()[0]
     ok("build", cwd=d)
-    frag = d / "build" / "fragments"
+    frag = d / ".loom/build" / "fragments"
     outline = (frag / "masters" / "drafting" / "outline.html").read_text()
     main = (frag / "masters" / "drafting" / "main.html").read_text()
     node = (frag / "nodes" / "dm-0002.html").read_text()
@@ -518,8 +519,8 @@ def test_a_build_from_a_kept_scan_publishes_what_a_fresh_one_does(tmp_path: Path
 
     def published() -> dict[str, bytes]:
         out = {}
-        for p in sorted((d / "build").rglob("*")):
-            rel = p.relative_to(d / "build").as_posix()
+        for p in sorted((d / ".loom/build").rglob("*")):
+            rel = p.relative_to(d / ".loom/build").as_posix()
             if p.is_file() and not rel.startswith("cache/"):
                 out[rel] = p.read_bytes()
         return out
@@ -575,7 +576,7 @@ def test_a_published_file_removed_from_disk_is_written_again(tmp_path: Path) -> 
     """Publishing compares with what this process last wrote rather than reading every file back, and a file gone from disk is still put back."""
     from loom.render.publish import publish
 
-    out = tmp_path / "build"
+    out = tmp_path / ".loom/build"
     publish(out, {"source/a.tex": "A."}, {"v": 1}, ("source/",))
     (out / "source" / "a.tex").unlink()
     publish(out, {"source/a.tex": "A."}, {"v": 1}, ("source/",))

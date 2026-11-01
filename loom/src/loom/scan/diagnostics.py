@@ -23,6 +23,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:reference-to-loose": ("error", False),
     "loom:duplicate-label": ("error", False),
     "loom:macros-unloaded": ("error", False),
+    "loom:macros-missing": ("error", False),
     "loom:macro-shadowed": ("warning", False),
     "loom:taxon-conflict": ("warning", False),
     "loom:prefix-is-citekey": ("warning", False),

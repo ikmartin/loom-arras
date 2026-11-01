@@ -1,0 +1,13 @@
+# loom's files that stay on this machine: what it rebuilds, its caches and runtime state, and its copies of other people's documents. Everything else here is committed: the history, the acceptance ledger, annotations, sessions, digests, and a stored document's page text, which lets a coauthor who holds no PDF re-check a transcription. `loom upgrade` rewrites the lines above the last.
+build/
+serve.json
+since/
+last-seen.json
+sessions/*/attached.json
+sessions/*/cursors/
+digests/storage/**/paper.pdf
+digests/storage/**/src/
+digests/storage/cache/
+# your own lines go below this one; loom upgrade keeps them
+# The showcase commits its store's PDFs, as the demo does and as no quilt of your own should: every cited work here is invented and compiled from LaTeX in this repository, so the bytes are ours to publish, and committing them lets a fresh clone open the viewer with every `cited:` locator resolving to a real page.
+!digests/storage/**/paper.pdf

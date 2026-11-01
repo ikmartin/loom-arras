@@ -8,6 +8,7 @@ from loom.cli._common import EnvError, NotFoundError
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library._works import find_result, logged
 from loom.cli.report import Report
+from loom.paths import LINKS_REMOVED
 from loom.refs.links import KINDS
 
 
@@ -131,7 +132,7 @@ def _undo(quilt_path: str | None, link_id: str, why: str, who: str | None, dry_r
         Report(
             f"would remove {target.id}: {target.frm} {target.kind} {target.to}",
             dry_run=True,
-            lines=["would be recorded in digests/links-removed.jsonl"],
+            lines=[f"would be recorded in {LINKS_REMOVED}"],
             data={"link": target.to_json(), "removed_by": by, "why": why.strip()},
         ).emit(as_json)
         return

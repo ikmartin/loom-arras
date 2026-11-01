@@ -68,7 +68,7 @@ SRC is not modified; the history records that the spine superseded it, so it def
 | `--sections` | Also move labelled sections and subsections to nodes/. |
 | `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
 | `--to-dir` `DIR` | With --all: the directory the spines are written under. |
-| `--retire` | Move SRC into retired/ once its spine is written, instead of leaving it superseded in place. |
+| `--retire` | Move SRC into .loom/retired/ once its spine is written, instead of leaving it superseded in place. |
 | `--dry-run` | Say what would be written and moved, and write nothing; no identity test. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -465,7 +465,7 @@ Removed: `\usepackage{loom}`, `% !LOOM` lines, `\uses{…}`, and every label tha
 
 | option | description |
 |---|---|
-| `--to` `FILE` | The file to write: one flat document, never among the quilt's sources (build/ or outside the quilt). |
+| `--to` `FILE` | The file to write: one flat document, never among the quilt's sources (.loom/build/ or outside the quilt). |
 | `--keep-referenced-ids` | Keep the id label of a referenced result that has no label of yours, and the references to it. |
 | `--keep-incomplete` | Keep every \incomplete{…}, defined to print nothing as loom.sty defines it. |
 | `--dry-run` | Say what would be removed and written, and write nothing. |
@@ -580,7 +580,7 @@ A work with no document is declared unreadable -- the Stacks Project is a living
 
 `loom library import [OPTIONS] PATH`
 
-Copy a digest from another quilt into digests/, rewriting its citekey and id prefix when --name renames it.
+Copy a digest from another quilt into .loom/digests/, rewriting its citekey and id prefix when --name renames it.
 
 It never overwrites a digest already there.
 
@@ -612,7 +612,7 @@ Token geometry is thirty times the size of plain page text, so it is produced fo
 
 An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.
 
-The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
+The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `.loom/digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
 
 | option | description |
 |---|---|
@@ -637,7 +637,7 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 
 Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
+The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
 
 | option | description |
 |---|---|
@@ -706,7 +706,7 @@ Each step is a no-op where its work is done, so a second run does only what is n
 
 | option | description |
 |---|---|
-| `--only` | Run one step: gather (the bibliography, from the landmarks and refs/), resolve, fetch, extract or map. |
+| `--only` | Run one step: gather (the bibliography, from the documents and the landmarks), resolve, fetch, extract or map. |
 | `--redo` | Do the steps again where they are done: ask the lookups again, re-extract, re-map; verified results are kept. |
 | `--online` | Let this run look identifiers up and fetch documents, without setting [library] online in config.toml. |
 | `--no-candidates` | Fetch only on identifiers an entry declares, never on a lookup's candidate. |
@@ -721,7 +721,7 @@ Each step is a no-op where its work is done, so a second run does only what is n
 
 Record that a result's transcription is faithful, or accept a citation suggestion.
 
-A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in reference-notes.jsonl and resolves it; your bibliography is never touched.
+A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in .loom/reference-notes.jsonl and resolves it; your bibliography is never touched.
 
 | option | description |
 |---|---|
@@ -1018,9 +1018,9 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 `loom ai init [OPTIONS]`
 
-Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
+Write the agent layer: .loom/ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
 
-The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
+The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where .loom/ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
 
 | option | description |
 |---|---|
@@ -1036,7 +1036,7 @@ The permission files say what agents may run, for Claude Code (.claude/settings.
 
 Print mode NAME in full: when it fits, what it is for, and what its report shows.
 
-The quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.
+The quilt's own copy in .loom/ai/modes/ is printed, so an edit the author made there holds; with no .loom/ai/, the shipped one. `loom ai orient` lists every mode with its one line.
 
 | option | description |
 |---|---|
@@ -1086,7 +1086,7 @@ Reopen a retained agent document when its scope and identities are available.
 
 Serve this quilt's agent commands as MCP tools over stdio, for an agent's app to start; it runs until the app closes it.
 
-One tool per agent command, named for it (`loom status` is `loom_status`), its options its arguments; the author's commands are not tools. Each call runs the command it names, as NAME, and its result is that command's report. The instructions tell the agent to call `loom_ai_orient` first. A result too long for a reply is written under `build/agent/` and the tool returns its path.
+One tool per agent command, named for it (`loom status` is `loom_status`), its options its arguments; the author's commands are not tools. Each call runs the command it names, as NAME, and its result is that command's report. The instructions tell the agent to call `loom_ai_orient` first. A result too long for a reply is written under `.loom/build/agent/` and the tool returns its path.
 
 | option | description |
 |---|---|
@@ -1101,7 +1101,7 @@ Build the site and the PDFs, serve them, and exchange sources with a workspace.
 
 `loom build [OPTIONS]`
 
-Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
+Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
 Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
 
@@ -1131,7 +1131,7 @@ The viewer is at /, and the build directory it reads at /build/. One server runs
 
 `loom compile [OPTIONS] [TARGET]`
 
-Run latexmk from a master's own directory into build/<name>/ (default: the default master), its name its path without .tex, or for a key.
+Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
 Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
 
@@ -1248,7 +1248,7 @@ Keep loom's own files current, and documents live.
 
 `loom upgrade [OPTIONS]`
 
-Refresh ai/orientation.md, ai/README.md, the permission and MCP client files, unedited mode files and the .gitignore lines loom relies on; report edited ones.
+Refresh .loom/.gitignore and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones.
 
 | option | description |
 |---|---|

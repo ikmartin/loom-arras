@@ -1,4 +1,4 @@
-"""`annotations/log.jsonl`: every review event, appended, never rewritten.
+"""`.loom/annotations/log.jsonl`: every review event, appended, never rewritten.
 
 One line per event, current state by replay. It replaced a tree of `annotations.json` files, one per run and one per author per day, each rewritten whole whenever anything in it changed — which is why an annotation could only ever be *replied* to. An agent re-checking a finding that still stands now `edited`s it: the history stays in the log, one current body is shown, and a finding stops accumulating restatements of itself.
 

@@ -155,7 +155,7 @@ def discard(
 
 
 def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) -> tuple[LayerReport, ClientReport]:
-    """Write the agent layer into a quilt, or refresh it where `ai/` exists, with the MCP client files of its variant.
+    """Write the agent layer into a quilt, or refresh it where `.loom/ai/` exists, with the MCP client files of its variant.
 
     Parameters
     ----------
@@ -169,7 +169,7 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
     Returns
     -------
     LayerReport
-        `written` (quilt-relative paths), and where `ai/` existed, `kept` and `new_beside` for edited mode files, as `loom upgrade` reports them.
+        `written` (quilt-relative paths), and where `.loom/ai/` existed, `kept` and `new_beside` for edited mode files, as `loom upgrade` reports them.
     ClientReport
         The client files written, current, left alone or, in the shell variant, removed.
 
@@ -201,7 +201,13 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
             rep.written += [*vendor_files(quilt_config(root), shell=shell), *ensure_root_line(root, False, shell=shell)]
     else:
         rep = upgrade_layer(root, write=write, shell=shell)
-    return rep, write_clients(root, write, shell=shell)
+    clients = write_clients(root, write, shell=shell)
+    if write:
+        # the client files name this machine's paths, so the root .gitignore keeps them out of the repository
+        from loom.gitignore import ensure
+
+        ensure(root)
+    return rep, clients
 
 
 @ai.command(name="init")
@@ -221,9 +227,9 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def ai_init(mcp: bool | None, client: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
+    """Write the agent layer: .loom/ai/ (orientation, rules, modes), CLAUDE.md, AGENTS.md and GEMINI.md, the permission files, and what starts the loom MCP server for each agent's app.
 
-    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
+    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Over MCP, the default, the server's files are .mcp.json (Claude Code, VS Code), .codex/config.toml, .gemini/settings.json and .cursor/mcp.json, gitignored because they name this machine's paths; one that holds settings of your own is left alone, and --client prints the entry to add to it, or to an app configured outside the quilt. Where .loom/ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
     """
     quilt = open_quilt(quilt_path)
     if client is not None:
@@ -392,7 +398,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 def ai_mode(name: str, session: str | None, quilt_path: str | None) -> None:
     """Print mode NAME in full: when it fits, what it is for, and what its report shows.
 
-    The quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.
+    The quilt's own copy in .loom/ai/modes/ is printed, so an edit the author made there holds; with no .loom/ai/, the shipped one. `loom ai orient` lists every mode with its one line.
     """
     from loom.ai.layout import MODES
     from loom.ai.orient import mode_text

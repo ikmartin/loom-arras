@@ -83,7 +83,7 @@ def read_command(
 ) -> None:
     """Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.
+    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
     """
     if where is not None and pages is not None:
         raise EnvError("--where prints where the work is kept; give PAGES or --where, not both")

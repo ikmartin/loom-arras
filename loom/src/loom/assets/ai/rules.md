@@ -45,7 +45,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 | a trial | the script in your session's directory, cited by path; its inputs and exact outputs in the report | the same |
 | a decision that governs the work, a problem opened or closed, a convention fixed | a line in the research state, `loom write state - --base HASH` | the same |
 
-**A report is one transcript message**, `loom session say`: in a shell `- --as "…"` with the text on stdin, over MCP the text itself. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question (quick's answer is the message itself); then the mode's blocks, each under `## [name]`. The viewer folds a long report after its first block, so what the author must read goes there. Link what you name (`ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message. Asked for several modes, write one message per mode, covering every target it ran on; asked to plan first, the plan is a message of its own, before the work.
+**A report is one transcript message**, `loom session say`: in a shell `- --as "…"` with the text on stdin, over MCP the text itself. Its first line names the mode and the target (`Mode: flow, on Section 8 of drafting-ai/examples-shared.tex`); then `## [summary]`, or `## [intuition]` for a question (quick's answer is the message itself); then the mode's blocks, each under `## [name]`. The viewer folds a long report after its first block, so what the author must read goes there. Link what you name (`.loom/ai/formatting.md`). When you were asked for no mode, a report is whatever the answer needs, and a short answer is a short message. Asked for several modes, write one message per mode, covering every target it ran on; asked to plan first, the plan is a message of its own, before the work.
 
 **On an agent document, annotate with intention**: an annotation there marks a place the author must look, never a change you have already made. Your report lists the changes.
 
@@ -80,8 +80,8 @@ Loom is still how anything durable is recorded. A fault you find while answering
 
 ## Never
 
-- Never write a file yourself outside your session's directory, `build/SESSION/` and the agent documents (`orientation.md` §2), and never delete anything outside `build/SESSION/`. Loom's own commands, such as `loom compile`, write where they write.
-- Never write `annotations/log.jsonl` by hand; `loom annotate` appends to it.
+- Never write a file yourself outside your session's directory, `.loom/build/SESSION/` and the agent documents (`orientation.md` §2), and never delete anything outside `.loom/build/SESSION/`. Loom's own commands, such as `loom compile`, write where they write.
+- Never write `.loom/annotations/log.jsonl` by hand; `loom annotate` appends to it.
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written, and refuses you; `orientation.md` §3 names the ones that make the author's claims:
 
 {allowed_commands}

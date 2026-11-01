@@ -169,7 +169,7 @@ def transcript(root: Path, sid: str) -> Transcript:
     return _TRANSCRIPTS[p]
 
 
-#: A block heading in a report: any level, the block's name in brackets, and whatever the agent wrote after it (`ai/rules.md`, Where work goes).
+#: A block heading in a report: any level, the block's name in brackets, and whatever the agent wrote after it (`.loom/ai/rules.md`, Where work goes).
 BLOCK_HEADING = re.compile(r"^(?P<hashes>#{1,6})[ \t]*\[(?P<name>[a-z][a-z0-9-]*)\][ \t]*(?P<rest>.*)$", re.M)
 
 

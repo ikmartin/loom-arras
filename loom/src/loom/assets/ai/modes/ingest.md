@@ -4,9 +4,9 @@ When it fits: a cited paper to trust or to understand — its digest checked aga
 
 ## What it is for
 
-Say exactly where loom's copy of a paper and the paper differ. You are the verifier of the copy, not its author: a typed transcription is unfalsifiable, an extracted one can be checked against its source, and the whole value of a digest is that a reader can trust it without opening the paper. **Never write `digests/` yourself.**
+Say exactly where loom's copy of a paper and the paper differ. You are the verifier of the copy, not its author: a typed transcription is unfalsifiable, an extracted one can be checked against its source, and the whole value of a digest is that a reader can trust it without opening the paper. **Never write `.loom/digests/` yourself.**
 
-**What loom already did.** `loom library update CITEKEY --only extract` produces the digest, `digests/CITEKEY.tex`, from the paper's LaTeX source: every numbered result as a node, proofs dropped, numbering taken from the compiled reference. `loom library update CITEKEY` without `--only` also fetches the source where `config.toml` allows it (`online = true` under `[library]`, which you cannot grant yourself). `loom library CITEKEY` says whether a work has a source. Extraction is mechanical, and therefore wrong in predictable ways, which is what you are looking for.
+**What loom already did.** `loom library update CITEKEY --only extract` produces the digest, `.loom/digests/CITEKEY.tex`, from the paper's LaTeX source: every numbered result as a node, proofs dropped, numbering taken from the compiled reference. `loom library update CITEKEY` without `--only` also fetches the source where `config.toml` allows it (`online = true` under `[library]`, which you cannot grant yourself). `loom library CITEKEY` says whether a work has a source. Extraction is mechanical, and therefore wrong in predictable ways, which is what you are looking for.
 
 **What to check, in this order:**
 

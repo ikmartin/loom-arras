@@ -178,9 +178,9 @@ def compile_document(
 def stage_document(root: Path, base: str, extra: list[str], dest: Path) -> Path:
     """A copy of the document directory `base` under `dest`, at its quilt-relative place, for latexmk to run in; returns `dest`.
 
-    Left out: build products (`BUILD_PRODUCTS`; a `.bbl` stays when the directory has no `.bib`, as an arXiv source ships only that), hidden directories, the directories loom keeps and never reads as a document's (`scan.source.SKIP_DIRS`, and at the root `SKIP_PREFIXES`), and the sync directory. `extra` (quilt-relative files, the document itself when it sits elsewhere, as an agent copy or a closure does) is copied to its own place. Files are copied, never linked, since a package may rewrite a file in its working directory (a TikZ externalisation, a `filecontents`).
+    Left out: build products (`BUILD_PRODUCTS`; a `.bbl` stays when the directory has no `.bib`, as an arXiv source ships only that), hidden directories, the directories never read as a document's (`scan.source.SKIP_DIRS`), and the sync directory. `extra` (quilt-relative files, the document itself when it sits elsewhere, as an agent copy or a closure does) is copied to its own place. Files are copied, never linked, since a package may rewrite a file in its working directory (a TikZ externalisation, a `filecontents`).
     """
-    from loom.scan.source import SKIP_DIRS, SKIP_PREFIXES
+    from loom.scan.source import SKIP_DIRS
     from loom.sync import skipped_directory
 
     synced = skipped_directory(root)
@@ -193,9 +193,7 @@ def stage_document(root: Path, base: str, extra: list[str], dest: Path) -> Path:
         for n in names:
             path = Path(folder) / n
             where = f"{rel}/{n}" if rel != "." else n
-            if path.is_dir() and (
-                n.startswith(".") or n in SKIP_DIRS or f"{where}/".startswith(SKIP_PREFIXES) or where == synced
-            ):
+            if path.is_dir() and (n.startswith(".") or n in SKIP_DIRS or where == synced):
                 skip.add(n)
             elif n.endswith(BUILD_PRODUCTS) and not (n.endswith(".bbl") and not has_bib):
                 skip.add(n)

@@ -261,7 +261,7 @@ def _session(root: Path, given: object) -> str | None:
 
 
 def _keep(root: Path, session: object, what: str, text: str) -> str:
-    """Write a large result under `build/agent/<session>/`, which an agent may read and write and nothing commits, named for `what` produced it; its quilt-relative path."""
+    """Write a large result under `.loom/build/agent/<session>/`, which an agent may read and write and nothing commits, named for `what` produced it; its quilt-relative path."""
     where = root / BUILD / "agent" / (_session(root, session) or "none")
     where.mkdir(parents=True, exist_ok=True)
     stem = datetime.now().strftime("%Y-%m-%dT%H-%M-%S") + "-" + what

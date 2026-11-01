@@ -62,7 +62,7 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
         ["library", "ignore", "Bellamy19", "--why", "no", "--as", "A. Author"],
         ["library", "drop", "--work", "Bellamy19", "--yes"],
         ["library", "verify", "a-0000-00-00-0000", "--as", "A. Author"],
-        ["library", "import", str(q / "digests" / "Bellamy19.tex"), "--name", "Other20"],
+        ["library", "import", str(q / ".loom/digests" / "Bellamy19.tex"), "--name", "Other20"],
         ["ai", "discard", "--before", "2100-01-01"],
         ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--as", "A. Author"],
         ["sync", "publish", "--push"],
@@ -90,5 +90,5 @@ def test_an_agent_may_remove_only_a_link_a_session_asserted(tmp_path: Path) -> N
     refused(*undo, theirs.id, "--as", "Referee (Agent)", code=2, match="asserted by A. Author")
     ok(*undo, mine.id, env=marked)
     assert [x.id for x in read_links(q)].count(theirs.id) == 1
-    removed = [json.loads(ln) for ln in (q / "digests" / "links-removed.jsonl").read_text().splitlines()]
+    removed = [json.loads(ln) for ln in (q / ".loom/digests" / "links-removed.jsonl").read_text().splitlines()]
     assert removed[-1]["link"]["id"] == mine.id and removed[-1]["removed_by"] and removed[-1]["why"] == "a misreading"

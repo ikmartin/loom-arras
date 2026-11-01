@@ -199,7 +199,7 @@ test('a citation suggestion is accepted from its box, which then says so, and le
 	await expect(box.getByTestId('outcome')).toHaveText('· accepted', { timeout: 15000 });
 	await expect(box.getByTestId('verb-accept')).toHaveCount(0);
 	await expect(box.getByTestId('verb-reject')).toHaveCount(0);
-	const written = readFileSync(join(served.root, 'reference-notes.jsonl'), 'utf8');
+	const written = readFileSync(join(served.root, '.loom/reference-notes.jsonl'), 'utf8');
 	expect(written).toContain('a textbook reference would do');
 	expect(written).toContain('"verified": false'); // never a second source of identity truth
 	expect(served.log().filter((e) => e.event === 'resolved' && e.id === id)).toHaveLength(1);
@@ -220,7 +220,7 @@ test('a citation suggestion is rejected from its box, which resolves it and note
 	await expect(box.getByTestId('verb-reopen')).toBeVisible();
 	const resolved = served.log().filter((e) => e.event === 'resolved' && e.id === id);
 	expect(resolved).toHaveLength(1);
-	expect(existsSync(join(served.root, 'reference-notes.jsonl')) ? readFileSync(join(served.root, 'reference-notes.jsonl'), 'utf8') : '').not.toContain('a textbook reference would do');
+	expect(existsSync(join(served.root, '.loom/reference-notes.jsonl')) ? readFileSync(join(served.root, '.loom/reference-notes.jsonl'), 'utf8') : '').not.toContain('a textbook reference would do');
 });
 
 /** Comments shown in place (`inline` beneath the block, `floating` at the mark), with the reply written inside the box that is showing them. */
@@ -429,7 +429,7 @@ test('Review\'s Sessions closes, reopens and deletes a session through the same 
  * The synthetic quilt carries no proposal, and a proposal's quotation is checked against the page it names, so the page text comes first. Returns the proposed node's id.
  */
 function proposeKre99(served: Served, statement: string): string {
-	const home = join(served.root, 'digests/storage/arxiv/math_9810166v2');
+	const home = join(served.root, '.loom/digests/storage/arxiv/math_9810166v2');
 	mkdirSync(join(home, 'pages'), { recursive: true });
 	writeFileSync(join(home, 'pages/0012.txt'), `Theorem 9.9. ${statement}\n`);
 	writeFileSync(join(home, 'sections.json'), JSON.stringify({ sha256: '0'.repeat(64), pages: 12, chars: 80, sections: [{ n: '1', title: 'Introduction', page: 1 }] }));
@@ -439,7 +439,7 @@ function proposeKre99(served: Served, statement: string): string {
 
 /** One result of a work's results file, by id. */
 function resultOf(served: Served, citekey: string, id: string): Record<string, unknown> {
-	const file = JSON.parse(readFileSync(join(served.root, 'digests', `${citekey}.results.json`), 'utf8')) as { results: Record<string, unknown>[] };
+	const file = JSON.parse(readFileSync(join(served.root, '.loom/digests', `${citekey}.results.json`), 'utf8')) as { results: Record<string, unknown>[] };
 	return file.results.find((r) => r.id === id)!;
 }
 
@@ -462,7 +462,7 @@ test('a proposed result is verified from the queue by its key, and the results f
 	expect(verified.statement).toBe(statement);
 	expect((verified.origin as { act: string }[]).map((o) => o.act)).toEqual(['proposed', 'verified']);
 	// nothing is left waiting, so the shadow file of proposals is gone
-	expect(existsSync(join(served.root, 'digests/Kre99.proposed.tex'))).toBe(false);
+	expect(existsSync(join(served.root, '.loom/digests/Kre99.proposed.tex'))).toBe(false);
 });
 
 test('a proposed result edited before it is verified records the author’s rendering and both parties', async ({ page, served }) => {
@@ -505,7 +505,7 @@ test('a proposed result is discarded from the queue with its one-line reason ask
 	expect(gone.state).toBe('discarded');
 	expect((gone.origin as { act: string }[]).map((o) => o.act)).toEqual(['proposed', 'discarded']);
 	// the reason is kept in the work's proposal log, which `loom library propose` hands back to whatever proposes it again
-	const events = readFileSync(join(served.root, 'digests/Kre99.proposals.jsonl'), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+	const events = readFileSync(join(served.root, '.loom/digests/Kre99.proposals.jsonl'), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
 	expect(events.filter((e) => e.event === 'discarded' && e.id === id).map((e) => e.reason)).toEqual(['the paper states it for schemes only']);
 });
 
@@ -545,8 +545,8 @@ test('finishing review over an OK whose dependency is still stale is refused, an
 
 test('finishing review records an acceptance for each pending OK, and clears the decision', async ({ page, served }) => {
 	// Finish accepts only when the master compiles; a PDF newer than every source is loom's sign that it already did, so no TeX run happens in this suite (the compile itself is loom's to test).
-	mkdirSync(join(served.root, 'build/main'), { recursive: true });
-	writeFileSync(join(served.root, 'build/main/main.pdf'), '%PDF-1.4\n');
+	mkdirSync(join(served.root, '.loom/build/drafting/main'), { recursive: true });
+	writeFileSync(join(served.root, '.loom/build/drafting/main/main.pdf'), '%PDF-1.4\n');
 	const ledger = acceptedKeys(served);
 	await markOk(page, 'sy-0001');
 	await expect.poll(() => decisions(served)['sy-0001']?.status).toBe('ok');
@@ -577,7 +577,7 @@ test('compare asks the publisher, which narrows a changed node to its changed wo
 	await expect(right.locator('mark.review-changed').first()).toBeVisible();
 	await expect(page.locator('[data-pane="0"] .env[data-pair="sy-0002"]')).toBeHidden();
 	// the rendering is cached under the build directory, and asking again renders nothing new
-	const cached = () => readdirSync(join(served.root, 'build', 'compare')).sort();
+	const cached = () => readdirSync(join(served.root, '.loom/build', 'compare')).sort();
 	const first = cached();
 	expect(first.length).toBeGreaterThan(0);
 	await page.getByTestId('compare-stop').click();

@@ -194,7 +194,7 @@ def test_contact_goes_to_crossref_only_when_set() -> None:
 def test_candidates_are_kept_with_the_entry_they_answer_and_forgotten_when_it_changes(tmp_path: Path) -> None:
     found = R.Resolver(http=Recorded("zbmath_edidin_graham")).candidates(R.query_for(EDIDIN))
     path = R.save(tmp_path, EDIDIN, found)
-    assert path == tmp_path / "digests" / "storage" / identify(EDIDIN)[0].path / "resolved.json"
+    assert path == tmp_path / ".loom/digests" / "storage" / identify(EDIDIN)[0].path / "resolved.json"
     assert [c.id for c in R.load(tmp_path, EDIDIN)] == ["doi:10.1353/ajm.1998.0020"]
     edited = BibEntry(EDIDIN.key, EDIDIN.type, {**EDIDIN.fields, "year": "1999"})
     assert R.load(tmp_path, edited) == []
@@ -206,7 +206,7 @@ def test_candidates_are_kept_with_the_entry_they_answer_and_forgotten_when_it_ch
 def demo(tmp_path: Path) -> Path:
     ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     q = tmp_path / "q"
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(
             "\n@article{Edi98,\n  title = {Localization in Equivariant Intersection Theory and the Bott Residue Formula},\n  author = {Edidin, Dan and Graham, William},\n  year = {1998},\n}\n"
         )
@@ -228,7 +228,7 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     q = demo(tmp_path)
     cfg = q / "config.toml"
     cfg.write_text(cfg.read_text().replace("online = false", "online = true"))
-    before = (q / "digests" / "bibliography.bib").read_text()
+    before = (q / ".loom/digests" / "bibliography.bib").read_text()
     lint = " ".join(ok("lint", cwd=q).output.split())
     assert "Edi98 states no identifier" in lint and "loom library update --online" in lint
 
@@ -237,7 +237,7 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     said = r.stdout.split("looked up: the best candidate for each (1)\n")[1]
     assert said.startswith("  Edi98: strong") and "doi:10.1353/ajm.1998.0020" in said, r.stdout
     assert (
-        q / "digests" / "bibliography.bib"
+        q / ".loom/digests" / "bibliography.bib"
     ).read_text() == before  # a lookup records candidates elsewhere and never writes the bibliography
 
     data = json_of("library", "update", "Edi98", "--only", "resolve", "--json", cwd=q)
@@ -250,7 +250,7 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     assert "add doi = {10.1353/ajm.1998.0020}" in lint
 
     ok("build", cwd=q)
-    ref = json.loads((q / "build" / "manifest.json").read_text())["references"]["Edi98"]
+    ref = json.loads((q / ".loom/build" / "manifest.json").read_text())["references"]["Edi98"]
     assert ref["candidates"][0] == {
         "id": "doi:10.1353/ajm.1998.0020",
         "source": "zbMATH Open",

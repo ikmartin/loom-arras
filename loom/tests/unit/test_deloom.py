@@ -98,19 +98,19 @@ def test_the_command_refuses_naming_each_blocker_and_its_flag(tmp_path: Path) ->
     main = d / "drafting/main.tex"
     text = main.read_text()
     main.write_text(text.replace("\\end{document}", "\\incomplete{Later.}\n\\end{document}"))
-    refused = run("deloom", "main.tex", "--to", "build/plain.tex", cwd=d)
+    refused = run("deloom", "main.tex", "--to", ".loom/build/plain.tex", cwd=d)
     assert refused.exit_code == 1
     assert "\\incomplete" in refused.output and "--keep-incomplete" in refused.output
     # the mark is named where the author wrote it, not by a line of the flattened text (T5)
     mark = next(i for i, ln in enumerate(main.read_text().splitlines(), 1) if "\\incomplete{Later.}" in ln)
     assert f"drafting/main.tex:{mark}" in " ".join(refused.output.split()), refused.output
-    assert not (d / "build/plain.tex").exists()
+    assert not (d / ".loom/build/plain.tex").exists()
     done = ok(
-        "deloom", "main", "--to", "build/plain.tex", "--keep-incomplete", "--keep-referenced-ids", "--json", cwd=d
+        "deloom", "main", "--to", ".loom/build/plain.tex", "--keep-incomplete", "--keep-referenced-ids", "--json", cwd=d
     )
     answer = json.loads(done.stdout)
     assert answer["source"] == "drafting/main.tex" and answer["kept_incomplete"]
-    plain = (d / "build/plain.tex").read_text()
+    plain = (d / ".loom/build/plain.tex").read_text()
     assert "\\uses" not in plain and "\\usepackage{loom}" not in plain
     assert not [i for i in answer["removed"] if i in plain]
 
@@ -133,9 +133,9 @@ def test_a_superseded_document_is_named_as_one(tmp_path: Path) -> None:
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     d = tmp_path / "demo"
     ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=d)
-    r = run("deloom", "drafting/main.tex", "--to", "build/plain.tex", cwd=d)
+    r = run("deloom", "drafting/main.tex", "--to", ".loom/build/plain.tex", cwd=d)
     assert (
         r.exit_code == 2 and "is superseded" in r.output and "loom live drafting/main.tex" in " ".join(r.output.split())
     )
-    r = run("deloom", "nowhere.tex", "--to", "build/plain.tex", cwd=d)
+    r = run("deloom", "nowhere.tex", "--to", ".loom/build/plain.tex", cwd=d)
     assert r.exit_code == 2 and "the documents are" in r.output and "loom status" not in r.output

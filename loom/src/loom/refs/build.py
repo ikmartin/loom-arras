@@ -56,7 +56,7 @@ class WorkState:
     restored: list[str] = field(default_factory=list)
     #: Of those, the ones the fresh extraction now states differently, for the author to look at again.
     contradicted: list[str] = field(default_factory=list)
-    #: The author's standing claim that this work has no document to hold, or '' -- `digests/unreadable.json`.
+    #: The author's standing claim that this work has no document to hold, or '' -- `.loom/digests/unreadable.json`.
     unreadable: str = ""
     #: The candidates this run's lookup found, best first; None when it asked nothing.
     lookup: list[Candidate] | None = None

@@ -27,6 +27,7 @@ def diagram(n: int) -> str:
 def quilt(tmp_path: Path, body: str, nodes: dict[str, str] | None = None) -> Path:
     q = tmp_path / "q"
     ok("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path)
+    (q / "drafting").mkdir()
     (q / "drafting" / "main.tex").write_text(
         PREAMBLE + "\\begin{document}\n" + body + "\n\\end{document}\n", encoding="utf-8"
     )
@@ -60,9 +61,9 @@ def test_each_figure_compiles_once_though_a_node_its_document_and_its_review_pre
     monkeypatch.setenv("FAKE_TEX_LOG", str(log))
     ok("build", cwd=q)
     assert latex_runs(log) == 3, log.read_text(encoding="utf-8")
-    manifest = (q / "build" / "manifest.json").read_text(encoding="utf-8")
+    manifest = (q / ".loom/build" / "manifest.json").read_text(encoding="utf-8")
     assert "review_fragment" in manifest  # the previews were drawn, from the cache
-    preview = next((q / "build" / "fragments" / "review").glob("*-block.html")).read_text(encoding="utf-8")
+    preview = next((q / ".loom/build" / "fragments" / "review").glob("*-block.html")).read_text(encoding="utf-8")
     assert 'class="diagram"' in preview and "failed" not in preview
 
 
@@ -88,7 +89,7 @@ def test_the_figures_of_one_document_compile_at_the_same_time(tmp_path: Path, mo
     ok("build", cwd=q)
     assert most >= 4, most
     assert time.perf_counter() - started < 4 * 0.3 + 1.0
-    master = (q / "build" / "fragments" / "masters" / "drafting" / "main.html").read_text(encoding="utf-8")
+    master = (q / ".loom/build" / "fragments" / "masters" / "drafting" / "main.html").read_text(encoding="utf-8")
     assert master.count("<svg/>") == 4 and "loom-figure" not in master
 
 

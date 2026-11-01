@@ -57,7 +57,7 @@ def log_run(session: str | None, command: str, root: Path | None = None) -> None
 
 
 def write_bundle(result: ScanResult, b: Bundle) -> Path:
-    """Write a key's closure document under build/closures/, for `loom compile KEY` and `loom check` to run latexmk on.
+    """Write a key's closure document under .loom/build/closures/, for `loom compile KEY` and `loom check` to run latexmk on.
 
     Internal: `loom source KEY --closure` is how a reader or an agent gets the text, so nothing copies one elsewhere and nothing gitignores it.
     """
@@ -93,7 +93,7 @@ def compile(  # noqa: A001
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Run latexmk from a master's own directory into build/<name>/ (default: the default master), its name its path without .tex, or for a key.
+    """Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
     Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
     """

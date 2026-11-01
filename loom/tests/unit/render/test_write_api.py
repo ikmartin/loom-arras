@@ -123,7 +123,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, dec
     )
     assert status == 200, made
     ann = [e for e in log(d) if e.get("body") == "Cite Manolache, Prop 3.2."][0]["id"]
-    notes = d / "reference-notes.jsonl"
+    notes = d / ".loom/reference-notes.jsonl"
     before = notes.read_text() if notes.exists() else ""
 
     status, body = post(
@@ -384,7 +384,7 @@ def _library_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ann = the(log(q), lambda e: e.get("body") == "Cite Manolache." and e["event"] == "created", "suggestion")["id"]
     said = succeeds(s, "library-cite", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
     assert said["result"].startswith(f"accepted {ann}")
-    crumb = json.loads((q / "reference-notes.jsonl").read_text().splitlines()[-1])
+    crumb = json.loads((q / ".loom/reference-notes.jsonl").read_text().splitlines()[-1])
     # the payload names the work and the body argues for it, as `loom library verify` records it
     assert (crumb["work"], crumb["claim"], crumb["for"]) == (work, "Cite Manolache.", ["dm-0003"]), crumb
     assert crumb["accepted"]["who"] == WHO, crumb
@@ -409,7 +409,7 @@ def proposed(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path, str]:
 
 def result_state(q: Path, node: str) -> str:
     ck = node.split("-", 1)[0]
-    recs = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]
+    recs = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"]
     return str(the(recs, lambda r: r["id"] == node, node)["state"])
 
 
@@ -745,7 +745,7 @@ def _start(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert [(c["copy"], c["to"]) for c in offered] == [("drafting-ai/survey.tex", "drafting/survey-1.tex")]
     body = {"copy": "drafting-ai/survey.tex", "reviewer": WHO, "to": "drafting/survey-1.tex"}
     refuses(s, "adopt-start", {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
-    refuses(s, "adopt-start", {**body, "to": "notes/survey.tex"}, 409, "bad-field", "is inside notes/")
+    refuses(s, "adopt-start", {**body, "to": ".loom/survey.tex"}, 409, "bad-field", "is inside .loom/")
     assert succeeds(s, "adopt-start", body)["result"]["to"] == "drafting/survey-1.tex"
     assert "\\label{dm-0900}" in (root / "drafting/survey-1.tex").read_text()
     manifest = json.loads(get(s.url + "build/manifest.json")[2])

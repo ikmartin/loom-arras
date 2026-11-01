@@ -193,7 +193,7 @@ def destination(
         and target.suffix in SOURCE_SUFFIXES
     ):
         raise EnvError(
-            f"{path} would be among the quilt's sources, which loom never writes; write it under build/ or outside the quilt"
+            f"{path} would be among the quilt's sources, which loom never writes; write it under {BUILD}/ or outside the quilt"
         )
     if target.exists() and not overwrite:
         raise EnvError(f"{path} exists; loom does not overwrite it")

@@ -75,10 +75,10 @@ PROBE = "--no-such-option-k5"
 
 @pytest.mark.parametrize("path", sorted(c for c in command_tree() if c not in AGENT_COMMANDS))
 def test_an_agent_may_not_run_an_author_command(path: str, tmp_path) -> None:  # type: ignore[no-untyped-def]
-    """K5: under an agent marker every command outside `AGENT_COMMANDS` refuses, exit 2, naming ai/rules.md, before it parses anything."""
+    """K5: under an agent marker every command outside `AGENT_COMMANDS` refuses, exit 2, naming .loom/ai/rules.md, before it parses anything."""
     r = run(*path.split(), PROBE, cwd=tmp_path, env={"AI_AGENT": "1"})
     assert r.exit_code == 2, r.output
-    assert f"may not run `loom {path}`" in r.stderr and "ai/rules.md" in r.stderr, r.output
+    assert f"may not run `loom {path}`" in r.stderr and ".loom/ai/rules.md" in r.stderr, r.output
     assert "No such option" not in r.output and r.stdout == ""
 
 
@@ -131,4 +131,8 @@ def test_the_librarys_help_is_a_map_of_its_work() -> None:
     out = ok("library", "--help").stdout
     heads = [ln.rstrip(":") for ln in out.splitlines() if ln and not ln.startswith(" ") and ln.endswith(":")]
     assert heads[-4:] == ["Read", "Decide", "Fill", "Upkeep"], heads
-    assert "  propose*" in out and "  verify " in out and out.rstrip().endswith("(ai/rules.md lists which).")
+    assert (
+        "  propose*" in out
+        and "  verify " in out
+        and " ".join(out.split()).endswith("(.loom/ai/rules.md lists which).")
+    )

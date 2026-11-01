@@ -44,7 +44,7 @@ def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
     refused("source", "drafting/main.tex", "--closure", cwd=d, code=2, match="already carries what it includes")
 
     # a path loom does not scan is not a document
-    refused("source", "ai/runs/t/nope.tex", cwd=d, code=2, match="no such key: ai/runs/t/nope.tex")
+    refused("source", ".loom/ai/runs/t/nope.tex", cwd=d, code=2, match="no such key: .loom/ai/runs/t/nope.tex")
 
 
 def test_a_statements_closure_covers_the_proof_it_prints(tmp_path: Path) -> None:
@@ -59,7 +59,7 @@ def test_a_statements_closure_covers_the_proof_it_prints(tmp_path: Path) -> None
 def test_source_on_an_equation_label_prints_what_holds_it(tmp_path: Path) -> None:
     """An equation's label names a region, not a node, so `source` prints the node the equation sits inside."""
     d = demo(tmp_path)
-    digest = d / "digests" / "Calloway14.tex"
+    digest = d / ".loom/digests" / "Calloway14.tex"
     digest.write_text(
         digest.read_text()
         + "\n\\section*{Overview}\nWe prove\n\\begin{equation}\\label{Calloway14-eqx}x=y\\end{equation}\n"

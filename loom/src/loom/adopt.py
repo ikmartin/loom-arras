@@ -696,6 +696,7 @@ def start(result: ScanResult, copy: str, dest_rel: str, actor: str | None = None
             f"{copy} cannot be started as a working document as it is: "
             + "; ".join(plan.spans or [f"line {v.line}" for v in plan.violations])
         )
+    (quilt.root / dest_rel).parent.mkdir(parents=True, exist_ok=True)
     (quilt.root / dest_rel).write_text(plan.text, encoding="utf-8")
     entry = append_entry(
         quilt.history_dir,

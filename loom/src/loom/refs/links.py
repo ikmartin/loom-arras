@@ -4,7 +4,7 @@ A digest of twenty papers that cannot point between them is twenty documents in 
 
 **Written freely, not proposed.** An assertion about a relation has no page span to check it against, so a verification step would be theatre. Links are tier 3: never citable, never in a closure, never in a digest's `.tex`. They are navigation, not mathematics, and every surface that shows one says so.
 
-They live in one file at `digests/links.jsonl` rather than per work, because a link's two ends are usually in two different digests and a record that lives in one of them is misfiled half the time.
+They live in one file at `.loom/digests/links.jsonl` rather than per work, because a link's two ends are usually in two different digests and a record that lives in one of them is misfiled half the time.
 """
 
 from __future__ import annotations
@@ -154,7 +154,7 @@ def remove_link(root: Path, link_id: str) -> Link:
 
 
 def record_removal(root: Path, gone: Link, by: str, why: str = "") -> None:
-    """Append what was removed, who removed it and why to `digests/links-removed.jsonl`, since the live file keeps no tombstones."""
+    """Append what was removed, who removed it and why to `.loom/digests/links-removed.jsonl`, since the live file keeps no tombstones."""
     path = root / LINKS_REMOVED
     path.parent.mkdir(parents=True, exist_ok=True)
     entry: dict[str, Any] = {"link": gone.to_json(), "removed_by": by, "when": stamp()}

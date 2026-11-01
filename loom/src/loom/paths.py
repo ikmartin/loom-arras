@@ -8,38 +8,36 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import PurePosixPath
 
-#: Loom's own directory: its records, sessions and history.
+#: Loom's own directory: everything loom writes in a quilt, records and derived output alike, lives under it.
 LOOM = ".loom"
 #: Everything loom can rebuild; deletable at any moment.
-BUILD = "build"
+BUILD = f"{LOOM}/build"
 #: Digests of cited works, their results and proposals, and the bibliography.
-DIGESTS = "digests"
+DIGESTS = f"{LOOM}/digests"
 #: Loom's store of other people's documents, keyed by the work's identifier.
 STORAGE = f"{DIGESTS}/storage"
+#: The address the viewer reaches the store at, under its root, fixed wherever `STORAGE` sits: the server answers it and the manifest's `artifacts.dir` is written in it.
+STORE_ADDRESS = "digests/storage"
 #: The annotation log's directory.
-ANNOTATIONS = "annotations"
+ANNOTATIONS = f"{LOOM}/annotations"
 #: What an agent is given: orientation, rules, formatting, modes.
-AI = "ai"
+AI = f"{LOOM}/ai"
 #: Where `atomize --retire` sets a converted source aside.
-RETIRED = "retired"
+RETIRED = f"{LOOM}/retired"
 SESSIONS = f"{LOOM}/sessions"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
 #: The default of `[quilt] history`; code reads the setting, never this.
 HISTORY = f"{LOOM}/history"
 
-#: Where `loom new`, atomize and fork write node files.
+#: Where `loom new`, atomize and fork write node files, relative to the document they serve.
 NODES = "nodes"
-#: The author's seed space for PDFs and `.bib` files, which loom reads and never writes.
-REFS = "refs"
-#: The author's own reference material, which loom never scans.
-NOTES_DIR = "notes"
 
 #: The acceptance ledger, written only by `loom accept`.
 LEDGER = f"{LOOM}/state.toml"
 ANNOTATION_LOG = f"{ANNOTATIONS}/log.jsonl"
 #: Works an agent proposed citing and the author accepted.
-REFERENCE_NOTES = "reference-notes.jsonl"
+REFERENCE_NOTES = f"{LOOM}/reference-notes.jsonl"
 #: The running server's address and token.
 SERVE_JSON = f"{LOOM}/serve.json"
 REVIEW_DECISIONS = f"{LOOM}/review-decisions.json"
@@ -47,8 +45,10 @@ REVIEW_ORIGINS = f"{LOOM}/review-origins.json"
 REVIEW_OBSERVATIONS = f"{LOOM}/review-observations.json"
 ADOPTION_DECISIONS = f"{LOOM}/adoption-decisions.json"
 SOURCE_SYNC = f"{LOOM}/source-sync.json"
-#: Loom's cache of the last text it saw for every key, a file beside the history directory, wherever that is.
-LAST_SEEN = "last-seen.json"
+#: Loom's cache of the last text it saw for every key, in `.loom/` wherever `[quilt] history` puts the history.
+LAST_SEEN = f"{LOOM}/last-seen.json"
+#: Loom's ignore file, saying which of its files stay on one machine.
+LOOM_GITIGNORE = f"{LOOM}/.gitignore"
 #: The quilt's bibliography, gathered from the landmarks.
 BIBLIOGRAPHY = f"{DIGESTS}/bibliography.bib"
 UNREADABLE = f"{DIGESTS}/unreadable.json"
@@ -88,5 +88,5 @@ def under(base: str, name: str) -> str:
 
 
 def document_build(path: str) -> str:
-    """Where a document compiles to, `build/<name>`; latexmk names what it writes there by the file's own stem."""
+    """Where a document compiles to, `.loom/build/<name>`; latexmk names what it writes there by the file's own stem."""
     return f"{BUILD}/{document_name(path)}"

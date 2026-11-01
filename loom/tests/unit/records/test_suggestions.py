@@ -180,19 +180,21 @@ def test_the_manifest_carries_each_open_suggestions_change(tmp_path: Path) -> No
     lost = suggest(q, "--quote", "the one-point orbits", "--payload", "the fixed points", "--placement", "replace")
     edit(q / LEMMA, "the one-point orbits", "the orbits of size one")
     ok("build", cwd=q)
-    m = json.loads((q / "build" / "manifest.json").read_text())
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     change = m["annotations"][ready]["change"]
     assert change["state"] == "ready" and change["moved"] is True
-    fragment = (q / "build" / change["fragment"]).read_text()
+    fragment = (q / ".loom/build" / change["fragment"]).read_text()
     assert "review-changed" in fragment and "most" in fragment
-    assert (q / "build" / change["diff"]).read_text().startswith(f"--- a/{LEMMA}")
+    assert (q / ".loom/build" / change["diff"]).read_text().startswith(f"--- a/{LEMMA}")
     assert m["annotations"][lost]["change"] == {"state": "unplaced", "why": m["annotations"][lost]["change"]["why"]}
     assert "no longer stands" in m["annotations"][lost]["change"]["why"]
     # taken, then resolved as applied: the change gives way to what was recorded
     edit(q / LEMMA, "one or two points", "at most two points")
     ok("build", cwd=q)
-    assert json.loads((q / "build" / "manifest.json").read_text())["annotations"][ready]["change"] == {"state": "taken"}
+    assert json.loads((q / ".loom/build" / "manifest.json").read_text())["annotations"][ready]["change"] == {
+        "state": "taken"
+    }
     ok("annotate", "--resolve", ready, "--applied", "--as", "Tom", cwd=q)
     ok("build", cwd=q)
-    entry = json.loads((q / "build" / "manifest.json").read_text())["annotations"][ready]
+    entry = json.loads((q / ".loom/build" / "manifest.json").read_text())["annotations"][ready]
     assert "change" not in entry and entry["applied"]["hash"]

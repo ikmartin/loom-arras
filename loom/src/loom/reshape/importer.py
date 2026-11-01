@@ -6,7 +6,7 @@ import re
 import shutil
 from pathlib import Path
 
-from loom.paths import BUILD, LOOM
+from loom.paths import LOOM
 from loom.scan.quilt import Quilt
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import read_args, tokenize
@@ -147,7 +147,7 @@ def _mirror_quilt(quilt: Quilt, stage: Path) -> None:
         rel = p.relative_to(quilt.root)
         if synced is not None and rel.is_relative_to(synced):
             continue
-        if rel.parts[0] in (BUILD, ".git", LOOM, "node_modules") or p.suffix not in (
+        if rel.parts[0] in (".git", LOOM, "node_modules") or p.suffix not in (
             ".tex",
             ".sty",
             ".cls",

@@ -318,8 +318,8 @@ def test_init_refuses_the_quilt_s_repository_and_loom_s_own_directories(tmp_path
     run(root, "worktree", "add", "-q", "-b", "side", str(tmp_path / "side"))
     refused("sync", "init", str(tmp_path / "side"), cwd=root, code=2, match="worktree of this quilt's own repository")
     bare = overleaf(tmp_path)
-    for inside, owner in ((".loom/overleaf", ".loom/"), ("build/overleaf", "build/")):
-        refused("sync", "init", str(cloned(root, bare, inside)), cwd=root, code=2, match=f"is inside {owner}")
+    for inside in (".loom/overleaf", ".loom/build/overleaf"):
+        refused("sync", "init", str(cloned(root, bare, inside)), cwd=root, code=2, match="is inside .loom/")
     config = root / "config.toml"
     config.write_text(config.read_text().replace("[quilt]\n", '[quilt]\nhistory = "hist"\n', 1))
     refused("sync", "init", str(cloned(root, bare, "hist/overleaf")), cwd=root, code=2, match="is inside hist/")

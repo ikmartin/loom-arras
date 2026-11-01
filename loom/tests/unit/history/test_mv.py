@@ -29,7 +29,7 @@ def demo(tmp_path: Path) -> Path:
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     d = tmp_path / "demo"
     shutil.rmtree(d / ".loom", ignore_errors=True)
-    shutil.rmtree(d / "annotations", ignore_errors=True)
+    shutil.rmtree(d / ".loom/annotations", ignore_errors=True)
     return d
 
 
@@ -104,7 +104,7 @@ def test_mv_records_a_rename_made_by_hand_and_the_document_is_no_longer_gone(tmp
     assert gone(d) == []
     assert fresh(d)
     ok("build", cwd=d)
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     assert [a["in"] for a in m["annotations"].values() if a["body_html"].startswith("<p>Read here.")] == [
         "drafting/paper.tex"
     ]
@@ -162,7 +162,7 @@ REFUSALS: dict[str, tuple[Callable[[Path], None], str, str, str]] = {
     "OLD an agent's": (_nothing, "drafting-ai/x.tex", "drafting/x.tex", "where agents' documents are kept"),
     "NEW among agents'": (_nothing, "drafting/main.tex", "drafting-ai/main.tex", "where agents' documents are kept"),
     "NEW not .tex": (_nothing, "drafting/main.tex", "drafting/main.txt", "is not a .tex file"),
-    "NEW in retired": (_nothing, "drafting/main.tex", "retired/main.tex", "is inside retired/, which loom never reads as a document"),
+    "NEW in retired": (_nothing, "drafting/main.tex", ".loom/retired/main.tex", "is inside .loom/, which loom never reads as a document"),
     "NEW in the history": (_nothing, "drafting/main.tex", ".loom/history/x.tex", "is inside .loom/"),
     "OLD outside the quilt": (_nothing, "/nonexistent/a.tex", "drafting/x.tex", "is outside the quilt"),
     "OLD a node file": (_part, "drafting/part.tex", "drafting/part2.tex", "is not a live document"),

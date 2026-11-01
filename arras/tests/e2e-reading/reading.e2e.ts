@@ -11,7 +11,7 @@ const PAGE2 = '/library/Bellamy19?page=2';
 
 /** Bellamy19 as the served copy's manifest has it: its work id, where its pages are filed, and its sidecar. */
 function bellamy(served: Served): { work: string; artifacts: { dir: string }; spans: { path: string } } {
-	return JSON.parse(readFileSync(join(served.root, 'build/manifest.json'), 'utf8')).references.Bellamy19;
+	return JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).references.Bellamy19;
 }
 
 /** Open page 2 with a session chosen, and wait until the paper has been drawn again for the narrower pane; returns the session. */
@@ -293,7 +293,7 @@ test('a locator in the URL is lit while the URL carries it, and a note is focuse
 	// a note by id: one written here, since the showcase's own are in a closed session and closed sessions' annotations are hidden until shown
 	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note to focus by its id');
 	await opened(page, served);
-	const pageText = readFileSync(join(served.root, bellamy(served).artifacts.dir, 'pages/0002.txt'), 'utf8');
+	const pageText = readFileSync(join(served.root, '.loom', bellamy(served).artifacts.dir, 'pages/0002.txt'), 'utf8') // `artifacts.dir` is the store's address, digests/storage/…, which loom keeps under .loom/;
 	const a = pageText.indexOf('totally unimodular');
 	await page.goto(`${PAGE2}&span=${a}-${a + 'totally unimodular'.length}`);
 	const lit = page.locator('[data-testid="pdf-page-2"] .mark.transient');
@@ -380,7 +380,7 @@ test('a selection records the lines it covers and nothing else', async ({ page, 
 
 	const written = served.written('the quads of this note are the lines it covers');
 	const id = String(written.id);
-	const sidecar = join(served.root, 'build', bellamy(served).spans.path);
+	const sidecar = join(served.root, '.loom/build', bellamy(served).spans.path);
 	await expect
 		.poll(() => JSON.parse(readFileSync(sidecar, 'utf8')).marks?.[id]?.length ?? 0, { timeout: 15000 })
 		.toBeGreaterThan(0);

@@ -9,7 +9,7 @@ def codes(r):  # type: ignore[no-untyped-def]
 
 def test_edge_family_alias_classification_closure(tmp_path: Path) -> None:
     r = make_quilt(
-        tmp_path, {"drafting/main.tex": SINGLE_FILE, "digests/bibliography.bib": "@article{Man12, title={x}}\n"}
+        tmp_path, {"drafting/main.tex": SINGLE_FILE, ".loom/digests/bibliography.bib": "@article{Man12, title={x}}\n"}
     )
     edges = {(e.src, e.to, e.kind, e.via) for e in r.edges.edges}
     assert ("ab-0003/proof", "ab-0001", "proof", "uses") in edges
@@ -63,7 +63,7 @@ def test_directives_macros_prefix_disable(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": "\\documentclass{amsart}\n\\newtheorem{lemma}{Lemma}\n\\newcommand{\\uses}[1]{}\n% !LOOM bogus: 1\n\\begin{document}\n\\begin{lemma}\nA \\uses{x}\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n\\end{document}\n",
-            "digests/bibliography.bib": "@misc{Man12, title={t}}\n",
+            ".loom/digests/bibliography.bib": "@misc{Man12, title={t}}\n",
         },
         config=cfg,
     )
@@ -80,7 +80,7 @@ def test_dependency_cycle_and_slug_collision(tmp_path: Path) -> None:
         {
             "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\nUses \\ref{ab-0002}.\n\\end{lemma}\n\\begin{proof}P\\end{proof}\n\\begin{lemma}\\label{ab-0002}\nUses \\ref{ab-0001}.\n\\end{lemma}\n\\begin{proof}P\\end{proof}\n\\end{document}\n",
-            "digests/bibliography.bib": "@misc{stacks-project, title={s}}\n@misc{stacksproject, title={s2}}\n",
+            ".loom/digests/bibliography.bib": "@misc{stacks-project, title={s}}\n@misc{stacksproject, title={s2}}\n",
         },
     )
     c = codes(r)

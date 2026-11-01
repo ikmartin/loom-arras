@@ -17,7 +17,7 @@ Status: version 2, implemented by loom and arras (2026-10-31; version 1, 2026-09
 
 ## Versioning
 
-**[decided]** The interface has an integer version, `interface_version`, written into every manifest. Version 1 is this draft. A change that a conforming viewer of version n could misrender bumps the version; a purely additive change (a new optional field, a new publisher code) does not. Publishers and viewers each declare the versions they produce or accept; a viewer that receives a manifest with a version it does not accept renders the problems page with a single diagnostic saying so and nothing else.
+**[decided]** The interface has an integer version, `interface_version`, written into every manifest. Version 2 is this draft. A change that a conforming viewer of version n could misrender bumps the version; a purely additive change (a new optional field, a new publisher code) does not. Publishers and viewers each declare the versions they produce or accept; a viewer that receives a manifest with a version it does not accept renders the problems page with a single diagnostic saying so and nothing else.
 
 **[decided]** The spec files are versioned together with the workspace repository; the fixture directory records the interface version it conforms to.
 

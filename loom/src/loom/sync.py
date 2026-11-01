@@ -198,13 +198,13 @@ def skipped_directory(root: Path) -> str | None:
 
 
 def copy_ignore(root: Path, *patterns: str) -> Callable[[str, list[str]], set[str]]:
-    """A `shutil.copytree` ignore for a copy of the quilt at `root`: `patterns` by name, as `shutil.ignore_patterns` takes them, and the sync directory by path."""
-    by_name = shutil.ignore_patterns(*patterns)
+    """A `shutil.copytree` ignore for a copy of the quilt at `root`: a pattern with a `/` is a quilt-relative path (`BUILD`), the others names as `shutil.ignore_patterns` takes them; the sync directory is left out by path."""
+    by_name = shutil.ignore_patterns(*(p for p in patterns if "/" not in p))
     synced = skipped_directory(root)
-    pruned = root / synced if synced else None
+    pruned = {root / p for p in patterns if "/" in p} | ({root / synced} if synced else set())
 
     def ignore(folder: str, names: list[str]) -> set[str]:
-        return set(by_name(folder, names)) | {n for n in names if Path(folder) / n == pruned}
+        return set(by_name(folder, names)) | {n for n in names if Path(folder) / n in pruned}
 
     return ignore
 

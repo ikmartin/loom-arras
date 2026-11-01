@@ -48,7 +48,7 @@ def test_a_document_reads_its_names_from_its_own_directory(tmp_path: Path) -> No
     assert not [d for d in result.diagnostics if d.code == "missing-include"]
     ok("compile", "paper/main.tex", cwd=q)
     # the fake TeX reads `\input` from its working directory, so the node's number shows the compile ran in paper/
-    assert "qq-0001" in parse_aux((q / "build/paper/main/main.aux").read_text())
+    assert "qq-0001" in parse_aux((q / ".loom/build/paper/main/main.aux").read_text())
 
 
 def test_dotdot_is_refused_by_every_resolver(tmp_path: Path) -> None:
@@ -72,10 +72,10 @@ def test_an_agent_copy_and_a_landmark_read_their_source_s_directory(tmp_path: Pa
     assert result.base_of("drafting-ai/aidoc.tex") == "paper"
     assert "paper/local.sty" in result.closures["drafting-ai/aidoc.tex"].files
     ok("compile", "drafting-ai/aidoc.tex", cwd=q)
-    assert (q / "build/drafting-ai/aidoc/aidoc.pdf").is_file()
+    assert (q / ".loom/build/drafting-ai/aidoc/aidoc.pdf").is_file()
     ok("stamp", "paper/main.tex", "-m", "first", cwd=q)
     assert set(landmark_bases(load_quilt(q)).values()) == {"paper"}
-    assert bib_file(load_quilt(q)) == "paper/refs.bib"
+    assert bib_file(scan(load_quilt(q))) == "paper/refs.bib"
 
 
 def test_loom_new_and_atomize_write_node_files_beside_the_document(tmp_path: Path) -> None:
@@ -135,4 +135,4 @@ def test_a_compile_leaves_the_document_s_directory_as_it_found_it(tmp_path: Path
     assert ran_in and not ran_in[0].is_relative_to(q)  # a copy, not the author's directory
     assert sorted(p.name for p in (q / "paper").iterdir()) == before
     assert {name: (q / "paper" / name).read_text() for name in leftovers} == leftovers
-    assert "qq-0001" in parse_aux((q / "build/paper/main/main.aux").read_text())
+    assert "qq-0001" in parse_aux((q / ".loom/build/paper/main/main.aux").read_text())

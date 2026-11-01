@@ -38,7 +38,7 @@ def both(q: Path) -> None:
 
 def a_digest(q: Path) -> None:
     """A digest from another quilt to import: the demo's own Calloway14, copied outside the quilt."""
-    (q.parent / "elsewhere.tex").write_text((q / "digests" / "Calloway14.tex").read_text(encoding="utf-8"))
+    (q.parent / "elsewhere.tex").write_text((q / ".loom/digests" / "Calloway14.tex").read_text(encoding="utf-8"))
 
 
 ELSEWHERE = "../elsewhere.tex"

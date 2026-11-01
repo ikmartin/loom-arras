@@ -4,7 +4,7 @@ Where something was read from. A **PDF anchor** names a page of an artifact by t
 
 `quads` is one rectangle per line, in points with the origin at the top left. For a text anchor it is derived at build time from the offsets and never recorded; for a box it *is* the anchor, and is recorded. Recording never fails: what cannot be found in the text is recorded as geometry.
 
-A result's anchor lives in `digests/<citekey>.results.json`; an annotation's lives in the `anchor` field of its `created` event, beside the `exact`/`prefix`/`suffix` triple annotations have always carried (`records/selectors.py`), and is told from a plain text selector by carrying `kind`.
+A result's anchor lives in `.loom/digests/<citekey>.results.json`; an annotation's lives in the `anchor` field of its `created` event, beside the `exact`/`prefix`/`suffix` triple annotations have always carried (`records/selectors.py`), and is told from a plain text selector by carrying `kind`.
 """
 
 from __future__ import annotations

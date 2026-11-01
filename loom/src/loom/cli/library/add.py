@@ -138,7 +138,7 @@ def add_command(
                     continue
                 if not best:
                     skipped.append((path, identity.weak))
-                    where = bib_file(result.quilt) if where is None else where
+                    where = bib_file(result) if where is None else where
                     fixes[path] = _fix_for(identity, where)
                     row.update(outcome="skipped", reason=identity.weak)
                     continue

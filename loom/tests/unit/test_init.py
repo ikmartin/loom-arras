@@ -12,23 +12,18 @@ from tests.helpers import json_of, ok, refused, said
 from tests.unit._quilts import demo
 
 
-def test_init_creates_layout(tmp_path: Path) -> None:
-    ok("init", str(tmp_path / "q"), "--prefix", "zz", "--yes")
+def test_init_writes_a_config_a_readme_and_loom_s_directory_and_nothing_else(tmp_path: Path) -> None:
+    """A quilt comes nearly empty: the person lays it out, and everything loom writes later goes under `.loom/`."""
+    ok("init", str(tmp_path / "q"), "--prefix", "zz", "--ai", "none", "--yes")
     q = tmp_path / "q"
-    for rel in (
-        "config.toml",
-        "drafting/main.tex",
-        "digests",
-        "refs",
-        ".gitignore",
-        "README.md",
-    ):
-        assert (q / rel).exists(), rel
-    # the skeleton carries loom's macro block, and nodes/ is made beside a document when loom first writes a node file
-    assert not (q / "loom.sty").exists() and not (q / "nodes").exists()
-    assert not (q / "comments").exists()  # annotations live in annotations/log.jsonl; there is no comments/
-    assert 'prefix = "zz"' in (q / "config.toml").read_text()
-    assert "% !LOOM begin loom-macros" in (q / "drafting/main.tex").read_text()
+    assert sorted(p.name for p in q.iterdir()) == [".loom", "README.md", "config.toml"]
+    assert sorted(p.relative_to(q).as_posix() for p in (q / ".loom").rglob("*")) == [
+        ".loom/.gitignore",
+        ".loom/history",
+        ".loom/history/ledger.jsonl",
+    ]
+    config = (q / "config.toml").read_text()
+    assert 'prefix = "zz"' in config and "drafting" not in config and "\nmain =" not in config
     ok("lint", cwd=q)
 
 
@@ -60,33 +55,36 @@ def test_a_nonempty_directory_says_what_is_actually_wrong(tmp_path: Path) -> Non
     refused("init", "--yes", cwd=full, code=2, match="the current directory")
 
 
-def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path: Path) -> None:
-    """A quilt is files, and loom reads no history: it makes a repository only when `--git` asks for one, and says so when it does. The ignore file is written either way, since it costs nothing and is right the day the quilt becomes a repository."""
-    plain = ok("init", str(tmp_path / "n"), "--prefix", "a", "--yes")
-    assert not (tmp_path / "n" / ".git").exists()
-    assert (tmp_path / "n" / ".gitignore").is_file()
-    # said in one line, not one per pattern: the file holds them (T2)
-    assert "wrote .gitignore: 4 patterns" in plain.output and "build/" not in plain.output
+def test_init_writes_loom_s_ignore_file_always_and_a_repository_only_when_asked(tmp_path: Path) -> None:
+    """A quilt is files, and loom reads no history: it makes a repository only when `--git` asks for one, and says so when it does. Loom's ignore file is written either way, since it costs nothing and is right the day the quilt becomes a repository; the root `.gitignore` is the person's, and gets only the agent client files' lines, when the agent layer writes them."""
+    ok("init", str(tmp_path / "n"), "--prefix", "a", "--ai", "none", "--yes")
+    assert not (tmp_path / "n" / ".git").exists() and not (tmp_path / "n" / ".gitignore").exists()
 
-    asked = ok("init", str(tmp_path / "g"), "--prefix", "a", "--yes", "--git")
+    asked = ok("init", str(tmp_path / "g"), "--prefix", "a", "--ai", "claude", "--yes", "--git")
     assert (tmp_path / "g" / ".git").is_dir()
     assert "git init" in asked.output  # never a silent side effect
+    assert (tmp_path / "g" / ".gitignore").read_text().splitlines()[1:] == [
+        ".mcp.json",
+        ".codex/config.toml",
+        ".gemini/settings.json",
+        ".cursor/mcp.json",
+    ]
 
-    # nothing a node is made of is ignored: only derived directories and LaTeX's own leavings
-    ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
-    assert "build/" in ignored
+    # nothing a node is made of is ignored: only what loom rebuilds, its runtime state and its copies of other people's documents
+    ignored = [
+        ln for ln in (tmp_path / "n" / ".loom" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")
+    ]
+    assert "build/" in ignored and "serve.json" in ignored and "last-seen.json" in ignored
     # the artifacts are ignored and the page text is not: an anchor stays re-checkable by a coauthor with no PDF
     assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
-    assert "refs/" in ignored  # the seed space is the author's pile of other people's PDFs
-    assert not any(
-        ln.endswith(".tex") or ln in ("drafting/nodes/", "drafting/", "digests/", "comments/") for ln in ignored
-    )
+    assert not any(ln.endswith(".tex") or ln in ("digests/", "annotations/", "history/", "sessions/") for ln in ignored)
 
 
-def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
-    """A quilt is usable for planning from the first minute: `conjecture` owes a proof and shows as a gap, `question` owes nothing (plan 0.2 §4)."""
-    ok("init", str(tmp_path / "q"), "--yes")
-    main = (tmp_path / "q" / "drafting" / "main.tex").read_text()
+def test_the_starter_preamble_declares_candidate_taxa() -> None:
+    """A document loom starts with no document to take a preamble from is usable for planning from the first minute: `conjecture` owes a proof and shows as a gap, `question` owes nothing (plan 0.2 §4)."""
+    from loom.cli.quilt import ASSETS
+
+    main = (ASSETS / "init" / "main.tex").read_text(encoding="utf-8")
     assert "\\newtheorem{conjecture}[theorem]{Conjecture}" in main
     assert "\\newtheorem{question}[theorem]{Question}" in main
 
@@ -98,25 +96,16 @@ def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
     assert style_of("question") == "remark"
 
 
-def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path, home: Path) -> None:
-    """The README init writes is an orientation for the author: what each directory holds, the loop of stamping a landmark and restoring from one with a worked example, and the contract page as its last section. Its paths and ids are this quilt's own, so a quilt that renamed its directories reads its own names back and nothing in the example has to be translated."""
-    cfg = home / ".config" / "loom"
-    cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "config.toml").write_text('[quilt]\ndrafting = "work"\ndrafting_ai = "shared"\n', encoding="utf-8")
+def test_init_readme_teaches_loom_and_lays_out_nothing(tmp_path: Path) -> None:
+    """The README init writes is a tutorial, safe to delete: what a document, a node and a cited paper are to loom, the loop of stamping a landmark and restoring from one with a worked example, and the contract page as its last section. It names no directory the person must use, and its ids carry this quilt's prefix."""
     ok("init", str(tmp_path / "q"), "--prefix", "ab", "--yes")
     text = (tmp_path / "q" / "README.md").read_text()
-
-    for heading in ("**`work/`**", "**`shared/`**", "**`nodes/`**", "**`refs/`**"):
-        assert heading in text, heading
-    assert "at the quilt root" in text and "Created empty" in text  # refs/ is the author's seed space
-    assert '$ loom stamp work/main.tex -m "referee revisions"' in text
-    assert (
-        "$ loom history show referee-revisions --plain" in text
-        and "loom history restore NAME --to work/FILE.tex" in text
-    )
+    assert "safe to delete" in text and "`.loom/`" in text and "loom library add FILE" in text
+    assert '$ loom stamp paper/main.tex -m "referee revisions"' in text
+    assert "$ loom history show referee-revisions --plain" in text
     assert "## The contract" in text
     assert "\\label{ab-0004}" in text  # the example id carries this quilt's prefix, not one to be copied blindly
-    assert "drafting/" not in text and "drafting-ai/" not in text and "canon" not in text and "q-0" not in text
+    assert "drafting/" not in text and "drafting-ai/" not in text and "refs/" not in text and "q-0" not in text
 
 
 def test_init_asks_only_which_ai_and_writes_no_author(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,17 +138,17 @@ def test_init_asks_which_ai_and_writes_the_agent_layer_for_any(tmp_path: Path) -
     """Any AI gets the agent layer, Claude, Codex or another; none gets nothing. Loom starts no agent, so nothing names a command to start one (plan 0.20.1)."""
     r = ok("init", str(tmp_path / "c"), "--ai", "claude", cwd=tmp_path)
     c = tmp_path / "c"
-    assert not (c / "ai" / "ai-config.toml").exists() and "[ai]" not in (c / "config.toml").read_text()
+    assert not (c / ".loom/ai" / "ai-config.toml").exists() and "[ai]" not in (c / "config.toml").read_text()
     perms = json.loads((c / ".claude" / "settings.json").read_text())["permissions"]
     assert "mcp__loom__*" in perms["allow"] and "Bash(loom *)" in perms["deny"]
     assert (c / ".mcp.json").is_file() and "approve the loom server" in r.output
     assert "AI: Claude (Claude Code). Run it in this quilt" in r.output and "launch" not in r.output
     o = ok("init", str(tmp_path / "o"), "--ai", "other", cwd=tmp_path)
-    assert (tmp_path / "o" / "ai" / "orientation.md").is_file() and "AI: another agent" in o.output
+    assert (tmp_path / "o" / ".loom/ai" / "orientation.md").is_file() and "AI: another agent" in o.output
     # no terminal, no flag: no AI, and no layer
     n = ok("init", str(tmp_path / "n"), cwd=tmp_path)
     assert "AI: none" in n.output
-    assert not (tmp_path / "n" / ".claude").exists() and not (tmp_path / "n" / "ai").exists()
+    assert not (tmp_path / "n" / ".claude").exists() and not (tmp_path / "n" / ".loom/ai").exists()
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
@@ -247,19 +236,20 @@ def test_demo_has_outline_master(tmp_path: Path) -> None:
     assert "dm-0007/proof" not in keys
 
 
-def test_init_and_upgrade_keep_the_same_gitignore_lines(tmp_path: Path) -> None:
-    """One list, `loom.gitignore.MANAGED`: the template `init` writes carries all of it, and `upgrade` gives an older quilt what it lacks and nothing else."""
-    from loom.gitignore import MANAGED, missing
+def test_upgrade_rewrites_loom_s_ignore_lines_and_keeps_the_person_s(tmp_path: Path) -> None:
+    """One list each (`loom.gitignore`): `upgrade` rewrites `.loom/.gitignore` above its own-lines marker and keeps what the person wrote below it, and gives the root `.gitignore` the client lines it lacks, touching nothing else there."""
+    from loom.gitignore import CLIENT_LINES, LOOM_IGNORE, OWN, missing
 
-    ok("init", tmp_path / "q", "--prefix", "zz", "--yes")
+    ok("init", tmp_path / "q", "--prefix", "zz", "--ai", "claude", "--yes")
     q = tmp_path / "q"
-    assert missing(q) == []
-    (q / ".gitignore").write_text("build/\n# mine\nnotes/\n")
+    assert missing(q) == [] and (q / ".loom" / ".gitignore").read_text() == LOOM_IGNORE
+    (q / ".loom" / ".gitignore").write_text(f"build/\n{OWN}\n!digests/storage/**/paper.pdf\n")
+    (q / ".gitignore").write_text("# mine\nscratch/\n")
     said = ok("upgrade", cwd=q).output
-    assert ".loom/serve.json" in said
+    assert ".loom/.gitignore" in said
+    assert (q / ".loom" / ".gitignore").read_text() == LOOM_IGNORE + "!digests/storage/**/paper.pdf\n"
     lines = (q / ".gitignore").read_text().splitlines()
-    assert lines[:3] == ["build/", "# mine", "notes/"] and missing(q) == []
-    assert lines.count("build/") == 1 and all(line in lines for line in MANAGED)
+    assert lines[:2] == ["# mine", "scratch/"] and missing(q) == [] and all(line in lines for line in CLIENT_LINES)
 
 
 def test_init_inside_a_quilt_names_import(tmp_path: Path) -> None:

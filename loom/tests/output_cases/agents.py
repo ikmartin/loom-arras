@@ -52,7 +52,7 @@ def closed_copy(q: Path) -> None:
 
 def no_ai(q: Path) -> None:
     """A quilt without the agent layer, which `ai init` writes."""
-    shutil.rmtree(q / "ai")
+    shutil.rmtree(q / ".loom/ai")
 
 
 def marked(q: Path) -> None:
@@ -185,7 +185,7 @@ CASES: dict[str, list[Case]] = {
     ],
     "ai init": [
         Case((), setup=no_ai),
-        Case((), why="ai/ exists: refreshes it"),
+        Case((), why=".loom/ai/ exists: refreshes it"),
         Case(("--dry-run",), setup=no_ai, unchanged=True),
     ],
     "ai orient": [Case(()), Case(NOWHERE, exit=2, why="names no session")],
@@ -239,7 +239,7 @@ CASES: dict[str, list[Case]] = {
         Case((), setup=incoming),
         Case(("--patch",), setup=incoming),
         Case(("--patch",), setup=paired, why="nothing incoming"),
-        Case(("--patch", "--to", "build/pull.patch"), setup=incoming),
+        Case(("--patch", "--to", ".loom/build/pull.patch"), setup=incoming),
         Case(("--patch", "--to", "pull.patch"), setup=patch_file, exit=2, why="the file exists", unchanged=True),
         Case(("--to", "pull.patch"), setup=incoming, exit=2, why="--to without --patch", unchanged=True),
         Case((), exit=2, why="not paired"),

@@ -1,4 +1,4 @@
-"""`loom ai init` and `loom upgrade`: the `ai/` directory, the vendor files, and their refresh.
+"""`loom ai init` and `loom upgrade`: the `.loom/ai/` directory, the vendor files, and their refresh.
 
 Mode files are the author's once written: `.loom-modes-version` records the shipped hash of each, so upgrade overwrites only files still equal to what it shipped and writes `<mode>.md.new` beside an edited one.
 """
@@ -11,12 +11,12 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-from loom.paths import AI, ANNOTATIONS, BUILD, DIGESTS, LEDGER, REFERENCE_NOTES, REFS, RETIRED, SESSIONS
+from loom.paths import AI, ANNOTATIONS, BUILD, DIGESTS, LEDGER, REFERENCE_NOTES, RETIRED, SESSIONS
 from loom.scan.quilt import QuiltConfig
 
-#: The modes loom ships, in the order the index lists them. Each file's `When it fits:` line is the index's entry for it, the one copy; a file in a quilt's `ai/modes/` whose name is not here is not a mode, so one loom no longer ships is inert.
+#: The modes loom ships, in the order the index lists them. Each file's `When it fits:` line is the index's entry for it, the one copy; a file in a quilt's `.loom/ai/modes/` whose name is not here is not a mode, so one loom no longer ships is inert.
 MODES = ["quick", "question", "audit", "referee", "review", "simplify", "flow", "draft", "ingest"]
-RULES = "rules.md"  # `ai/rules.md`: not a mode, and no longer filed among them
+RULES = "rules.md"  # `.loom/ai/rules.md`: not a mode, and no longer filed among them
 # The one list: every loom command an agent may run, by its full path in the command tree. Everything else loom offers is the author's, so a command added later is denied until it is named here -- which an enumeration of forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
@@ -34,7 +34,7 @@ AGENT_COMMANDS = frozenset(
         "mcp",
     }
 )  # fmt: skip
-#: What each agent command does to the quilt, which is what an MCP tool's hints say (`loom.mcp.tools.hints`): `read` changes nothing but loom's own command log; `derive` rewrites what `build/` derives; `write` adds to a record, a session, a document of the agent's or the library, or moves the agent's own marker (`since`); `replace` puts new text in place of a page's. Every command in `AGENT_COMMANDS` is here, and nothing else.
+#: What each agent command does to the quilt, which is what an MCP tool's hints say (`loom.mcp.tools.hints`): `read` changes nothing but loom's own command log; `derive` rewrites what `.loom/build/` derives; `write` adds to a record, a session, a document of the agent's or the library, or moves the agent's own marker (`since`); `replace` puts new text in place of a page's. Every command in `AGENT_COMMANDS` is here, and nothing else.
 ACTS: dict[str, str] = {
     **dict.fromkeys(
         (
@@ -63,10 +63,8 @@ AGENT_WRITES = (
     SESSIONS,
     BUILD,
 )  # the only places an agent may write, besides the quilt's `[quilt] drafting_ai`
-# `.loom` is not read-only wholesale any more: a session's own directory is under it and is where an agent writes its
-# journal and its notes, so the parts that are the record -- the history and the acceptance ledger -- are named instead.
-# The person's drafting directory is read-only too, under the name the quilt gives it (`agent_dirs`).
-AGENT_READONLY = (RETIRED, DIGESTS, REFS, ANNOTATIONS)
+# `.loom` is not read-only wholesale: a session's own directory and the build output are under it, and a deny there would beat both allows, so the parts that are the record are named instead. The person's drafting directory is read-only too, under the name the quilt gives it (`agent_dirs`).
+AGENT_READONLY = (RETIRED, DIGESTS, ANNOTATIONS)
 AGENT_READONLY_FILES = (
     f"{AI}/orientation.md",
     f"{AI}/rules.md",
@@ -273,7 +271,7 @@ def ensure_root_line(root: Path, write: bool = True, *, shell: bool = False) -> 
 
 
 def init_layer(root: Path, *, shell: bool = False) -> LayerReport:
-    """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them in one variant: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
+    """Write `.loom/ai/` and the vendor files into a quilt that has no `.loom/ai/` yet, the permission files for every tool among them in one variant: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
     ai = root / AI
     if ai.exists():
         raise FileExistsError(str(ai))
@@ -300,7 +298,7 @@ def init_layer(root: Path, *, shell: bool = False) -> LayerReport:
 
 
 def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) -> LayerReport:
-    """Refresh the generated files of an existing `ai/`; keep edited mode files and write `.new` beside them.
+    """Refresh the generated files of an existing `.loom/ai/`; keep edited mode files and write `.new` beside them.
 
     The permission files keep the variant they are in (`variant`) unless `shell` says which; with none, MCP. With `write` false nothing is written and the report says what would be: `loom doctor`'s dry run, byte for byte what `loom upgrade` compares.
     """
@@ -368,7 +366,7 @@ def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) 
             rep.written.append(f"{AI}/{name}")
         else:
             rep.unchanged.append(f"{AI}/{name}")
-    # a quilt with ai/ has both permission files, so a missing one is written like a stale one
+    # a quilt with .loom/ai/ has both permission files, so a missing one is written like a stale one
     for rel, text in vendor_files(quilt_config(root), shell=shell).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:

@@ -23,7 +23,7 @@ SPLIT = (
 
 
 def _results_bytes(q: Path) -> dict[str, bytes]:
-    return {p.name: p.read_bytes() for p in sorted((q / "digests").glob("*.results.json"))}
+    return {p.name: p.read_bytes() for p in sorted((q / ".loom/digests").glob("*.results.json"))}
 
 
 def test_state_of_reads_a_mechanical_result_as_extracted_until_a_person_verifies_it() -> None:
@@ -41,7 +41,7 @@ def test_state_of_reads_a_mechanical_result_as_extracted_until_a_person_verifies
 def test_a_mechanical_result_reads_extracted_everywhere_and_no_file_is_written(tmp_path: Path) -> None:
     """Results recorded before 0.18.5b say `verified` with no person's act, as the author's quilt's 3,140 do; every reader says `extracted`, and the stored files stay byte for byte."""
     q = demo(tmp_path)
-    stored = q / "digests" / f"{CK}.results.json"
+    stored = q / ".loom/digests" / f"{CK}.results.json"
     stored.write_text(stored.read_text().replace('"state": "extracted"', '"state": "verified"'))
     before = _results_bytes(q)
     assert {r["state"] for r in json.loads(stored.read_text())["results"]} == {"verified"}
@@ -55,7 +55,7 @@ def test_a_mechanical_result_reads_extracted_everywhere_and_no_file_is_written(t
     row = next(w for w in json_of("library", "--json", cwd=q)["works"] if w["citekey"] == CK)
     assert (row["extracted"], row["verified"], row["waiting"]) == (5, 0, 0)
     ok("build", cwd=q)
-    results = json.loads((q / "build" / "manifest.json").read_text())["references"][CK]["results"]
+    results = json.loads((q / ".loom/build" / "manifest.json").read_text())["references"][CK]["results"]
     assert {r["state"] for r in results.values()} == {"extracted"}
     assert _results_bytes(q) == before
 
@@ -77,7 +77,7 @@ def test_a_person_verifying_an_extracted_result_makes_it_verified_through_a_redo
 ) -> None:
     """Verified by the author, a mechanical result reads `verified by NAME`, and a fresh extraction that no longer states it puts it back."""
     q = demo(tmp_path)
-    digest = q / "digests" / f"{CK}.tex"
+    digest = q / ".loom/digests" / f"{CK}.tex"
     text = digest.read_text()
     start = text.index("\\begin{proposition}[{\\cite[Proposition 3.2")
     end = text.index("\\end{proposition}", start) + len("\\end{proposition}\n")
@@ -117,9 +117,9 @@ def test_a_result_read_off_a_preprint_carries_the_version(tmp_path: Path) -> Non
     from loom.scan.scan import scan
 
     q = demo(tmp_path)
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n")
-    (q / "digests" / "Split.tex").write_text(SPLIT, encoding="utf-8")
+    (q / ".loom/digests" / "Split.tex").write_text(SPLIT, encoding="utf-8")
     assert record_extracted(scan(load_quilt(q)), "Split") == 1
 
     said = "read from arXiv:2001.00002v1; the bibliography cites doi:10.1090/S1"
@@ -129,7 +129,7 @@ def test_a_result_read_off_a_preprint_carries_the_version(tmp_path: Path) -> Non
     assert said in ok("library", "search", "widget splits", cwd=q).stderr
     assert "the bibliography cites" not in ok("library", "why", RID, cwd=q).stdout
     ok("build", cwd=q)
-    refs = json.loads((q / "build" / "manifest.json").read_text())["references"]
+    refs = json.loads((q / ".loom/build" / "manifest.json").read_text())["references"]
     assert refs["Split"]["results"]["Split-thm-1"]["version"] == {
         "extracted_from": "arXiv:2001.00002v1",
         "cited": "doi:10.1090/S1",

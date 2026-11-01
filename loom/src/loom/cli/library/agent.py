@@ -79,7 +79,7 @@ def propose_command(
 ) -> None:
     """An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.
 
-    The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
+    The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `.loom/digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
     """
     from loom.cli._common import agent_marker, whoever
     from loom.cli._quilt import open_quilt

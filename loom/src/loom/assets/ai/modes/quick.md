@@ -6,7 +6,7 @@ When it fits: a question asked in passing whose answer is worth finding again â€
 
 A short, durable answer. Prioritize brevity, clarity and accuracy, in that order, and check the answer once against the source or a digest before writing it.
 
-If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a fault, record it as `ai/rules.md` says (on an agent document, fix it) and say so.
+If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a fault, record it as `.loom/ai/rules.md` says (on an agent document, fix it) and say so.
 
 ## Report
 

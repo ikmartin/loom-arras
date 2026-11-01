@@ -34,5 +34,5 @@ def test_gemini_writes_over_the_server_its_settings_name(tmp_path: Path) -> None
     )
     said = f"\n$ {' '.join(cmd)}\nexit {proc.returncode}\n--- stdout\n{proc.stdout}\n--- stderr\n{proc.stderr}"
     said += "\n(a folder Gemini CLI does not trust has its .gemini/settings.json ignored)"
-    mine = [ln for ln in (q / "annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
+    mine = [ln for ln in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
     assert mine and '"author": "Gemini CLI Agent"' in mine[-1], "no annotation over MCP as Gemini CLI Agent" + said

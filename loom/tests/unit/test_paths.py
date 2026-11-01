@@ -15,9 +15,9 @@ from tests.unit._quilts import demo
 
 SRC = Path(loom.__file__).parent
 #: Directories loom names; a path built from one of these as a literal belongs in `loom.paths`.
-DIRS = ("build", ".loom", "digests", "annotations", "ai", "nodes", "retired", "refs", "notes")
+DIRS = ("build", ".loom", "digests", "annotations", "ai", "nodes", "retired")
 #: The prefixes a literal quilt path starts with.
-PREFIXES = tuple(f"{d}/" for d in ("build", ".loom", "digests", "annotations", "ai"))
+PREFIXES = tuple(f"{d}/" for d in ("build", ".loom", "digests", "annotations", "ai", "retired"))
 #: loom's record files, by name.
 RECORDS = {
     "reference-notes.jsonl",
@@ -35,9 +35,6 @@ ALLOWED = {
     # an output directory inside a temporary stage, not the quilt's build output
     ("sync.py", 'stage / "build" / f"{index}-{Path(projected).stem}",'),
     ("section_drafts.py", 'stage, base, under(base, "paper.tex"), stage / "build", result.quilt.config.engine'),
-    # text for a person: help naming a file, and init's summary of its ignore file, which changes when the layout moves (plan 0.22.5)
-    ("cli/help.py", '"ai/rules.md lists what it may."'),
-    ("cli/quilt.py", '"build/ (everything loom can rebuild)",'),
 }
 
 

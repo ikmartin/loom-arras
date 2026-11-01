@@ -11,7 +11,7 @@ from functools import cached_property
 from pathlib import Path
 
 from loom.history.ledger import History, load_history
-from loom.paths import NOTES_DIR, RETIRED, document_dir
+from loom.paths import document_dir
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
@@ -21,7 +21,7 @@ from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
 from loom.scan.relations import RelationRec, find_relations
-from loom.scan.source import SKIP_DIRS, SKIP_PREFIXES, discover_files, read_source
+from loom.scan.source import SKIP_DIRS, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
 
@@ -158,11 +158,11 @@ class ScanResult:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material, the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own, and the sync directory when it sits inside the quilt, whose files are copies of the quilt's sources."""
+    """Directories the scan never enters besides `.loom/`: the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own, and the sync directory when it sits inside the quilt, whose files are copies of the quilt's sources."""
     from loom.sync import skipped_directory
 
     synced = skipped_directory(quilt.root)
-    return (RETIRED, NOTES_DIR, Path(quilt.config.history).as_posix(), *((synced,) if synced else ()))
+    return (Path(quilt.config.history).as_posix(), *((synced,) if synced else ()))
 
 
 def unread_dir(quilt: Quilt, rel: str) -> str | None:
@@ -183,9 +183,6 @@ def unread_dir(quilt: Quilt, rel: str) -> str | None:
     for part in Path(rel).parts[:-1]:
         if part in SKIP_DIRS:
             return part
-    for prefix in SKIP_PREFIXES:
-        if rel.startswith(prefix):
-            return prefix.rstrip("/")
     return next((d for d in skipped_dirs(quilt) if rel.startswith(f"{d}/")), None)
 
 

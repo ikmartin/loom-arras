@@ -49,7 +49,7 @@ def mapped(tmp_path: Path) -> tuple[Path, str]:
     """
     q = demo(tmp_path)
     ck = "Vir12"  # not Calloway14: the demo already ships a digest under that key
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Vir12, title={Virtual pull-backs}, author={Manolache, C.}, year={2012}}\n")
     home = work_home(q, ck)
     pages = home / "pages"

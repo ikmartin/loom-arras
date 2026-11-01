@@ -63,7 +63,7 @@ def bibliography_groups(quilt: Quilt) -> tuple[list[Group], dict[str, Any]]:
 
     scanned = scan_bibliography(quilt)
     bib = scanned.report()
-    if not scanned.added and not scanned.copied and not scanned.problems():
+    if not scanned.added and not scanned.problems():
         return [], bib.to_json()
     head = Group("bibliography", [Item(bib.verdict), *(Item(line) for line in bib.lines)], limit=None, counted=False)
     rest = [
@@ -484,7 +484,7 @@ def import_command(
 @click.option(
     "--retire",
     is_flag=True,
-    help="Move SRC into retired/ once its spine is written, instead of leaving it superseded in place.",
+    help=f"Move SRC into {RETIRED}/ once its spine is written, instead of leaving it superseded in place.",
 )
 @click.option(
     "--dry-run", is_flag=True, help="Say what would be written and moved, and write nothing; no identity test."
@@ -558,7 +558,7 @@ def _atomize(
     if retire:
         for s_rel, _ in targets:
             if (root / RETIRED / s_rel).exists():
-                raise EnvError(f"retired/{s_rel} exists; atomize never overwrites")
+                raise EnvError(f"{RETIRED}/{s_rel} exists; atomize never overwrites")
     plans = []
     progress.next_stage("planning", len(targets))
     for s_rel, d_rel in targets:
@@ -602,7 +602,7 @@ def _atomize(
                 )
             )
     plan = plans[0]
-    retired = [f"retired/{pl.src}" for pl in plans] if retire else []
+    retired = [f"{RETIRED}/{pl.src}" for pl in plans] if retire else []
     superseded = [] if retire else [pl.src for pl in plans]
     record = {
         "from": [pl.src for pl in plans],
@@ -622,7 +622,7 @@ def _atomize(
             shutil.move(str(root / pl.src), str(target_path))
         append_entry(result.quilt.history_dir, "atomize", record, actor_for(root))
     for pl in plans:
-        if result.quilt.config.main in (pl.src, f"retired/{pl.src}") and (
+        if result.quilt.config.main in (pl.src, f"{RETIRED}/{pl.src}") and (
             result.quilt.config.main != pl.dest if dry_run else set_main_forced(result.quilt, pl.dest)
         ):
             wrote.append(Item(f"config.toml: main = {pl.dest}"))
@@ -636,7 +636,7 @@ def _atomize(
             )
         )
     if retired:
-        groups.append(Group(f"{would}moved to retired/", [Item(r) for r in sorted(retired)]))
+        groups.append(Group(f"{would}moved to {RETIRED}/", [Item(r) for r in sorted(retired)]))
     groups += unlabelled
     groups += identity_group(ident)
     failed = ident is not None and not ident.passed and not ident.skipped
@@ -764,7 +764,7 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
         scratch = Path(tmp)
         after = scratch / "quilt"
-        shutil.copytree(root, after, ignore=copy_ignore(root, BUILD, ".git", LOOM))
+        shutil.copytree(root, after, ignore=copy_ignore(root, ".git", LOOM))
         (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
         return identity_test(root, master, after, master, scratch, engine_for(result, master))
 
@@ -776,7 +776,7 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     "to",
     required=True,
     metavar="FILE",
-    help="The file to write: one flat document, never among the quilt's sources (build/ or outside the quilt).",
+    help=f"The file to write: one flat document, never among the quilt's sources ({BUILD}/ or outside the quilt).",
 )
 @click.option(
     "--keep-referenced-ids",

@@ -23,7 +23,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/library-verify` | `{node, statement?, local?, taxon?, author?}` | verifies a proposed result, editing the rendering first when `statement` is given |
 | `POST` | `/_api/library-discard` | `{node, why, author?}` | discards a proposed result, keeping why |
 | `POST` | `/_api/locate` | `{citekey, page?, text? , rects?, span?}` | answers with the anchor loom would record and its page; **writes nothing** |
-| `POST` | `/_api/compare` | `{left, right}` | answers with the differing pairs of two items, each a live document's path, a landmark (its path, `DOC@STEP`, its name, its step) or a live node's key, each side rendered with its changed words; **writes nothing** a record holds, its renderings cached under `build/compare/` by their inputs |
+| `POST` | `/_api/compare` | `{left, right}` | answers with the differing pairs of two items, each a live document's path, a landmark (its path, `DOC@STEP`, its name, its step) or a live node's key, each side rendered with its changed words; **writes nothing** a record holds, its renderings cached under `.loom/build/compare/` by their inputs |
 | `POST` | `/_api/session-use` | `{session, author?}` | makes one session the one writing lands in, resuming it when closed |
 | `POST` | `/_api/session-rename` | `{session, title, author?}` | retitles one; the id does not change, because it is the address |
 | `POST` | `/_api/session-delete` | `{session, reason?, author?}` | tombstones one; its annotations stay in the log |

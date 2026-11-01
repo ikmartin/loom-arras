@@ -64,7 +64,7 @@ def parse_aux(text: str) -> dict[str, AuxNumber]:
 
 
 def aux_path_for(root: Path, master_rel: str) -> Path | None:
-    """`build/<name>/<stem>.aux` if present (`document_build`), else the .aux beside the master, else None."""
+    """`.loom/build/<name>/<stem>.aux` if present (`document_build`), else the .aux beside the master, else None."""
     candidates = [
         root / document_build(master_rel) / f"{Path(master_rel).stem}.aux",
         root / Path(master_rel).with_suffix(".aux"),

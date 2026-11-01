@@ -165,7 +165,7 @@ def test_close_keeps_snapshot_frees_scope_and_reopen_checks_overlap(quilt):
     manifest = build(quilt).manifest
     closed = next(m for m in manifest["masters"] if m["path"] == a)
     assert closed["closed"] and "zk-0001-ai-01" in closed["closed_keys"]
-    assert "Proposal." in (quilt.root / "build" / closed["fragment"]).read_text()
+    assert "Proposal." in (quilt.root / ".loom/build" / closed["fragment"]).read_text()
     assert (quilt.root / a).read_bytes() == before
     b = copy(quilt, name="replacement")
     with pytest.raises(SyncError, match="overlaps"):
@@ -189,10 +189,10 @@ def test_saved_context_stays_readable_until_refresh(quilt):
     manifest = build(quilt).manifest
     master = next(m for m in manifest["masters"] if m["path"] == a)
     assert master["context_changed"]
-    html = (quilt.root / "build" / master["fragment"]).read_text()
+    html = (quilt.root / ".loom/build" / master["fragment"]).read_text()
     assert "data-context-document=" in html
     context = next(m for m in manifest["masters"] if m["path"] == master["context_document"])
-    assert "First statement." in (quilt.root / "build" / context["fragment"]).read_text()
+    assert "First statement." in (quilt.root / ".loom/build" / context["fragment"]).read_text()
     refresh(scan(quilt), a)
     assert "Changed outside scope." in pinned_scan(scan(quilt), a).files[DOC].text
 
@@ -264,7 +264,7 @@ def test_section_preview_compiles_in_saved_paper_context(quilt):
 
     a = copy(quilt, "zk-0200", "second")
     preview = preview_in_paper(scan(quilt), a)
-    assert (quilt.root / "build" / preview["pdf"]).read_bytes().startswith(b"%PDF")
+    assert (quilt.root / ".loom/build" / preview["pdf"]).read_bytes().startswith(b"%PDF")
     assert (quilt.root / DOC).read_text() == TEXT
 
 

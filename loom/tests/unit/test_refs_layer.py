@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from loom.paths import STORAGE
 from loom.refs.fetch import ARRIVAL, arrival_score, arxiv_id, identifier_for, source_title
 from loom.refs.resolve import Candidate, query_for, save
 from loom.scan.bib import BibEntry, parse_bib
@@ -82,7 +83,7 @@ def test_build_json_orders_by_how_often_a_work_is_cited(tmp_path: Path) -> None:
     """Most of a real bibliography is cited rarely or not at all, so the report leads with the most-cited works; ties are alphabetical."""
     q = demo(tmp_path)
     # a work cited by two keys and named after every other, so only the counts can put it first
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Zed20, title={Zeds}, author={Zed, A.}, year={2020}}\n")
     edit(q / "drafting" / "nodes" / "dm-0001.tex", "\\end{definition}", "See \\cite{Zed20}.\n\\end{definition}")
     edit(
@@ -187,23 +188,13 @@ def test_map_and_coverage_need_no_pdf_to_be_useful(tmp_path: Path) -> None:
 
 
 def test_the_page_text_is_committed_and_the_pdf_is_not(tmp_path: Path) -> None:
-    """Plan 0.12 §4.2: an anchor is re-checkable by a coauthor who holds no PDF, which only works if the text is in the repository. The demo ships its own `.gitignore`, which must carry every store and seed-space rule `loom init` writes."""
-    from importlib import resources
+    """Plan 0.12 §4.2: an anchor is re-checkable by a coauthor who holds no PDF, which only works if the text is in the repository. `loom init --demo` writes loom's own lines, not the fixture's, which commits its PDFs by a line of its own."""
+    from loom.gitignore import LOOM_IGNORE
 
-    q = demo(tmp_path)
-    ignored = (q / ".gitignore").read_text()
-    assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
-    assert "\nrefs/\n" in ignored, "the seed space is the author's pile of other people's PDFs"
-    rules = [ln for ln in ignored.splitlines() if ln and not ln.startswith("#")]
+    rules = [ln for ln in LOOM_IGNORE.splitlines() if ln and not ln.startswith("#")]
+    assert "digests/storage/**/paper.pdf" in rules and "digests/storage/**/src/" in rules
     assert not any("pages" in ln for ln in rules), "the page text an anchor is checked against is committed"
-    assert "refs/pdf/" not in ignored, "the store is digests/storage/<work-id>/, and refs/ is ignored whole"
-
-    assets = resources.files("loom").joinpath("assets")
-    canonical = assets.joinpath("init", "gitignore").read_text(encoding="utf-8")
-    shipped = assets.joinpath("demo", ".gitignore").read_text(encoding="utf-8").splitlines()
-    wanted = [ln for ln in canonical.splitlines() if ln.startswith(("refs/", "digests/storage"))]
-    assert wanted, "init's .gitignore names the seed space and the store"
-    assert [ln for ln in wanted if ln not in shipped] == [], "the demo's copy has drifted from init's"
+    assert (demo(tmp_path) / ".loom" / ".gitignore").read_text() == LOOM_IGNORE
 
 
 def test_normalisation_joins_hyphenation_and_folds_ligatures() -> None:
@@ -260,7 +251,7 @@ def test_a_quotation_that_is_not_on_the_page_is_refused_with_the_page(tmp_path: 
     propose(
         q, ck, "thm-4.1", 12, "Every widget is a doohickey", "X", code=1, match="Every widget is a gadget"
     )  # the page's own text must come back with the refusal
-    assert not (q / "digests" / f"{ck}.results.json").exists()
+    assert not (q / ".loom/digests" / f"{ck}.results.json").exists()
 
 
 def test_the_level_one_gate_is_about_order_not_derived_data(tmp_path: Path) -> None:
@@ -274,8 +265,8 @@ def test_a_proposal_is_in_no_bundle_and_no_closure(tmp_path: Path) -> None:
     """The guarantee is structural: the file exists, loom scans it, and nothing inputs it (plan 0.12 §4.1)."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    shadow = q / "digests" / f"{ck}.proposed.tex"
-    assert shadow.is_file() and not (q / "digests" / f"{ck}.tex").exists()
+    shadow = q / ".loom/digests" / f"{ck}.proposed.tex"
+    assert shadow.is_file() and not (q / ".loom/digests" / f"{ck}.tex").exists()
     for tex in q.rglob("*.tex"):
         if tex != shadow:
             assert shadow.name not in tex.read_text(), f"{tex} inputs the proposals file"
@@ -318,9 +309,11 @@ def test_verifying_moves_it_into_the_digest_and_records_both_parties(tmp_path: P
     rid = f"{ck}-thm-1.1"
     r = ok("library", "verify", rid, "--statement", "Z", "--as", "isaac", "--yes", cwd=q)
     assert "faithful transcription" in r.output and "with your own rendering" in r.output
-    assert not (q / "digests" / f"{ck}.proposed.tex").exists(), "the shadow file goes when nothing is proposed"
-    assert "Z" in (q / "digests" / f"{ck}.tex").read_text()
-    acts = [o["act"] for o in json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]]
+    assert not (q / ".loom/digests" / f"{ck}.proposed.tex").exists(), "the shadow file goes when nothing is proposed"
+    assert "Z" in (q / ".loom/digests" / f"{ck}.tex").read_text()
+    acts = [
+        o["act"] for o in json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
+    ]
     assert acts == ["proposed", "edited", "verified"], (
         "a record that credits an agent with your sentence cannot be audited"
     )
@@ -330,9 +323,9 @@ def test_an_edit_never_touches_the_anchor(tmp_path: Path) -> None:
     """The author edits `statement`; `source_text` and the anchor it names are untouched, so the node stays re-checkable."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    before = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
+    before = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"][0]
     ok("library", "verify", f"{ck}-thm-1.1", "--statement", "rewritten", "--as", "isaac", "--yes", cwd=q)
-    after = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
+    after = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"][0]
     assert after["statement"] == "rewritten" and after["source_text"] == before["source_text"]
     assert after["anchor"] == before["anchor"]
 
@@ -371,7 +364,7 @@ def test_the_manifest_keeps_the_digest_and_its_proposals_apart(tmp_path: Path) -
     ok("library", "verify", f"{ck}-thm-1.1", "--as", "i", "--yes", cwd=q)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     ok("build", cwd=q)
-    ref = json.loads((q / "build" / "manifest.json").read_text())["references"][ck]
+    ref = json.loads((q / ".loom/build" / "manifest.json").read_text())["references"][ck]
     assert ref["digest"]["file"].endswith(f"{ck}.tex") and not ref["digest"]["file"].endswith(".proposed.tex")
     assert ref["proposed"]["file"].endswith(".proposed.tex")
     assert ref["proposed"]["nodes"] == [f"{ck}-thm-4.1"]
@@ -388,7 +381,7 @@ def test_proposed_is_a_state_the_whole_viewer_can_read(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     ok("build", cwd=q)
-    m = json.loads((q / "build" / "manifest.json").read_text())
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     assert "proposed" in m["states"]["labels"]
     assert m["keys"][f"{ck}-thm-1.1"]["state"] == "proposed"
 
@@ -429,7 +422,7 @@ def test_links_are_never_citable_and_never_in_a_digest(tmp_path: Path) -> None:
     for tex in q.rglob("*.tex"):
         assert "link-0001" not in tex.read_text(), f"{tex} names a link"
     ok("build", cwd=q)
-    m = json.loads((q / "build" / "manifest.json").read_text())
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     assert [x["kind"] for x in m["links"]] == ["depends-on"]
     # a link is not an edge: it must not appear where the graph and the closure look
     assert not any(e.get("via") == "link" for e in m["edges"])
@@ -451,7 +444,7 @@ def test_the_link_cli_refuses_an_end_that_is_not_a_result(tmp_path: Path) -> Non
         match="no result nope-0001",
         cwd=q,
     )
-    assert not (q / "digests" / "links.jsonl").exists()
+    assert not (q / ".loom/digests" / "links.jsonl").exists()
 
 
 def test_recheck_makes_transcription_verified_falsifiable(tmp_path: Path) -> None:
@@ -560,7 +553,7 @@ def test_a_pdf_on_disk_does_not_stop_loom_looking_for_the_source(
     from loom.refs.fetch import Fetched
 
     q, ck = mapped(tmp_path)  # Vir12 states no identifier
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Dec13, title={Declared}, author={Dee, A.}, year={2013}, eprint={1301.00001}}\n")
     for key in (ck, "Dec13"):
         home = work_home(q, key)
@@ -614,7 +607,9 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
     # proposing is the agent's, and still works
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     # and nothing was recorded as verified by anyone
-    states = {r["id"]: r["state"] for r in json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]}
+    states = {
+        r["id"]: r["state"] for r in json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"]
+    }
     assert "verified" not in states.values()
 
 
@@ -650,7 +645,7 @@ def test_a_result_stated_under_two_numbers_is_citable_by_either(tmp_path: Path) 
     assert numbers_of("3.2.1") == ["3.2.1"], "a dotted number is one number"
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", number="1.1, 1.2")
-    tex = (q / "digests" / f"{ck}.proposed.tex").read_text()
+    tex = (q / ".loom/digests" / f"{ck}.proposed.tex").read_text()
     assert f"\\label{{{ck}-thm-1.1}}\\label{{{ck}-thm-1.2}}" in tex, (
         "the id is the first number and the rest are aliases"
     )
@@ -678,11 +673,11 @@ def test_a_pdf_link_in_the_bibliography_is_fetchable() -> None:
 
 
 def test_the_session_is_named_the_same_way_in_every_record(tmp_path: Path) -> None:
-    """Provenance showed one run under two spellings, `ai/runs/X` and `X`; the id is one string and has no other form."""
+    """Provenance showed one run under two spellings, `.loom/ai/runs/X` and `X`; the id is one string and has no other form."""
     q, ck = mapped(tmp_path)
     sid = ok("session", "new", "--name", "fixed stacks", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
-    origin = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
+    origin = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
     assert origin[0]["session"] == sid
 
 
@@ -695,7 +690,7 @@ def test_a_statement_that_brings_its_own_environment_is_refused(tmp_path: Path) 
         r"\begin{definition*}X\end{definition*}",
     ):
         propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", bad, code=1, match="body only")
-    assert not (q / "digests" / f"{ck}.proposed.tex").exists()
+    assert not (q / ".loom/digests" / f"{ck}.proposed.tex").exists()
     # an enumerate inside the body is the body, and is fine
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", r"Let $f$: \begin{enumerate}\item a\end{enumerate}")
 
@@ -741,7 +736,7 @@ def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path)
     assert r.anchor.page == 12 and r.anchor.last == 13
     ctx, found = page_context(q, r)
     assert found and "every gadget is a widget" in ctx, "the continuation is on screen, where a dropped clause shows"
-    assert "p.~12--13" in (q / "digests" / f"{ck}.proposed.tex").read_text()
+    assert "p.~12--13" in (q / ".loom/digests" / f"{ck}.proposed.tex").read_text()
 
 
 def test_a_run_may_correct_its_own_unverified_proposal(tmp_path: Path) -> None:
@@ -750,7 +745,7 @@ def test_a_run_may_correct_its_own_unverified_proposal(tmp_path: Path) -> None:
     r1, r2 = new_session(q, "R1"), new_session(q, "R2")
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "first", session=r1)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "second", session=r1, supersedes=f"{ck}-thm-1.1")
-    rs = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]
+    rs = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"]
     assert len(rs) == 1 and rs[0]["statement"] == "second", "the same id, corrected -- not a second proposal"
     # another run may not overwrite it: that is not a correction, it is a disagreement for the author
     propose(
@@ -791,7 +786,7 @@ def test_an_authors_edit_is_kept_and_shown(tmp_path: Path) -> None:
     assert why.count("the author's edit") == 1
     assert "-Let $f$ be DM." in why and "+Let $f$ be DM-type." in why and "-Let $f$ be DM-type with" not in why
     # and the document has it: a re-verify once changed the record and left the digest -- and so `loom source` -- as it was
-    digest = (q / "digests" / f"{ck}.tex").read_text()
+    digest = (q / ".loom/digests" / f"{ck}.tex").read_text()
     assert "Let $f$ be DM-type.\n" in digest and "perfect theory" not in digest
     assert "Let $f$ be DM-type." in ok("source", f"{ck}-thm-1.1", cwd=q).output
 
@@ -860,7 +855,7 @@ def test_a_pending_proposal_carries_the_words_its_page_does_not_have(tmp_path: P
         "Let $f$ be a nice DM-type morphism with a perfect obstruction theory",
     )
     ok("build", cwd=q)
-    manifest = json.loads((q / "build" / "manifest.json").read_text())
+    manifest = json.loads((q / ".loom/build" / "manifest.json").read_text())
     _, row = the(
         manifest["references"][ck]["results"].items(), lambda kv: kv[0].endswith("thm-1.1"), "result ending thm-1.1"
     )
@@ -923,10 +918,10 @@ def test_the_author_can_correct_the_locator_when_verifying(tmp_path: Path) -> No
         "i",
         cwd=q,
     )
-    recs = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]
+    recs = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"]
     assert [x["id"] for x in recs] == [f"{ck}-cor-1.1.1"] and recs[0]["taxon"] == "corollary"
     assert any(o.get("act") == "renamed" and o.get("was") == f"{ck}-thm-1.1" for o in recs[0]["origin"])
-    assert f"{ck}-cor-1.1.1" in (q / "digests" / f"{ck}.tex").read_text()
+    assert f"{ck}-cor-1.1.1" in (q / ".loom/digests" / f"{ck}.tex").read_text()
 
 
 def test_the_ingest_mode_says_one_thing_about_a_work_with_no_source() -> None:
@@ -958,7 +953,7 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(
             {"session": open_session(q), "node": f"{ck}-thm-4.1", "why": "not the paper's", "author": "i"},
         )
         assert gone["ok"]
-    recs = {x["id"]: x for x in json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]}
+    recs = {x["id"]: x for x in json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"]}
     assert recs[f"{ck}-cor-1.1.1"]["state"] == "verified" and recs[f"{ck}-cor-1.1.1"]["statement"] == "S'"
     assert recs[f"{ck}-thm-4.1"]["state"] == "discarded"
     with pytest.raises(ApiError):
@@ -979,13 +974,13 @@ def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
         "library", "propose", ck, "--local", "eq-1", "--source-file", "main.tex", "--level", "1",
         "--source-text", quote, "--statement", "[X]^{vir} = \\iota_* \\sum \\frac{[X_i]^{vir}}{e(N_i^{vir})}", cwd=q,
     )  # fmt: skip
-    rec = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
+    rec = json.loads((q / ".loom/digests" / f"{ck}.results.json").read_text())["results"][0]
     a = rec["anchor"]
     assert a["kind"] == "tex" and a["path"].endswith("src/main.tex") and "page" not in a
     raw = (q / a["path"]).read_bytes()
     assert raw[a["bytes"][0] : a["bytes"][1]].decode().split() == quote.split()
     assert rec["taxon"] == "equation" and rec["id"].endswith("-eq-1")
-    shadow = (q / "digests" / f"{ck}.proposed.tex").read_text()
+    shadow = (q / ".loom/digests" / f"{ck}.proposed.tex").read_text()
     assert "\\begin{theorem}[{\\cite[Equation (1)]{" in shadow, "a display is named as the paper names it"
     refused(
         "library", "propose", ck, "--local", "eq-2", "--source-file", "main.tex",
@@ -1016,7 +1011,7 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
     )
     record_source(home, "arxiv:1607.00001", "candidate")
     ok("library", "update", ck, "--only", "extract", cwd=q)
-    head = (q / "digests" / f"{ck}.tex").read_text().splitlines()[:5]
+    head = (q / ".loom/digests" / f"{ck}.tex").read_text().splitlines()[:5]
     assert "% !LOOM extracted-from: arxiv:1607.00001" in head
     # the entry declares no identifier, so what it cites is the work itself, which a lookup's preprint may not be (audit §5)
     from loom.refs.identity import synthetic
@@ -1146,7 +1141,7 @@ def test_a_selection_on_a_real_page_becomes_an_anchor(tmp_path: Path) -> None:
     got = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})
     a = got["anchor"]
     assert a["basis"] == "text" and a["page"] == 2 and a["quads"], got["result"]
-    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    page_text = (q / ".loom/digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
     assert page_text[a["start"] : a["end"]] == text
     assert got["page_box"] == {"width": 612.0, "height": 792.0}  # US Letter, in points
 
@@ -1168,7 +1163,7 @@ def _no_copy(tmp_path: Path) -> Path:
     import shutil
 
     q = demo(tmp_path)
-    shutil.rmtree(q / "digests" / "storage" / "doi" / "10.4171_demo_14-1")
+    shutil.rmtree(q / ".loom/digests" / "storage" / "doi" / "10.4171_demo_14-1")
     return q
 
 
@@ -1178,7 +1173,7 @@ def _source_only(tmp_path: Path) -> Path:
 
     (tmp_path / "b").mkdir(exist_ok=True)
     q = demo(tmp_path / "b")
-    home = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1"
+    home = q / ".loom/digests" / "storage" / "doi" / "10.4171_demo_14-1"
     source = (
         Path(__file__).resolve().parents[2] / "tests" / "quilts" / "sources" / "demo-works" / "calloway-fixed-loci.tex"
     )
@@ -1193,20 +1188,20 @@ def _source_only(tmp_path: Path) -> Path:
 def test_extract_reads_the_store_alone(tmp_path: Path) -> None:
     """A digest made from a file on the author's desktop cites pages nobody else can open, so extraction reads only what the store holds, and a source the author holds reaches it through `library add`."""
     q = _no_copy(tmp_path)
-    (q / "digests" / "Calloway14.tex").unlink()
+    (q / ".loom/digests" / "Calloway14.tex").unlink()
     loose = tmp_path / "paper.tex"
     loose.write_text("\\documentclass{article}\\begin{document}\\end{document}\n", encoding="utf-8")
     r = ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
-    assert not (q / "digests" / "Calloway14.tex").exists() and "loom library add FILE --for CITEKEY" in r.stdout
+    assert not (q / ".loom/digests" / "Calloway14.tex").exists() and "loom library add FILE --for CITEKEY" in r.stdout
     ok("library", "add", loose, "--for", "Calloway14", cwd=q)
     ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
-    assert (q / "digests" / "Calloway14.tex").is_file()
+    assert (q / ".loom/digests" / "Calloway14.tex").is_file()
 
 
 def test_extract_with_no_source_says_how_to_get_one(tmp_path: Path) -> None:
     """A work with no source names both routes: fetching where an identifier serves it, and adding source already held."""
     q = _no_copy(tmp_path)
-    (q / "digests" / "Calloway14.tex").unlink()
+    (q / ".loom/digests" / "Calloway14.tex").unlink()
     r = ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
     said = " ".join(r.stdout.split())
     assert "blocked: no arXiv id to fetch a source on (1) Calloway14" in said, r.stdout
@@ -1319,7 +1314,7 @@ def test_ignore_sets_a_document_aside_by_citekey_or_by_a_prefix_of_a_stored_hash
 
     q = demo(tmp_path)
     sha = "9f2c" + "0" * 60
-    record_copy(q, sha, "refs/whatever.pdf", "digests/storage/file/9f2c/paper.pdf")
+    record_copy(q, sha, "whatever.pdf", q / STORAGE / "file" / "9f2c")
     ok("library", "ignore", "9f2c00", "--as", "A. Author", "--why", "a duplicate scan", cwd=q)
     ok("library", "ignore", "Calloway14", "--as", "A. Author", "--why", "deliberately not cited", cwd=q)
     assert set(declarations(q, "forget")) == {f"sha256:{sha}", "Calloway14"}
@@ -1344,7 +1339,7 @@ def test_source_alone_is_enough_to_extract_from_and_a_work_with_neither_is_block
     from loom.refs.fetch import work_dir
 
     q = _no_copy(tmp_path)
-    (q / "digests" / "Calloway14.tex").unlink()
+    (q / ".loom/digests" / "Calloway14.tex").unlink()
     result = open_scan(str(q))
     src = work_dir(q, result.bib["Calloway14"]) / "src"
     src.mkdir(parents=True)
@@ -1359,7 +1354,7 @@ def test_an_extracted_result_is_located_on_the_page_it_is_printed_on() -> None:
 
     The page is found in the work's committed page text, so it holds whether or not the paper compiled: the showcase extracts with `--no-compile`, and every result still carries the page it is printed on. What is recorded is a page whose text carries the result, never the `.aux`'s claim taken on trust.
     """
-    results = json.loads((SHOWCASE / "digests" / "Arden24.results.json").read_text())["results"]
+    results = json.loads((SHOWCASE / ".loom/digests" / "Arden24.results.json").read_text())["results"]
     by_id = {r["id"]: r for r in results}
 
     # the locator a reader sees, and the anchor a viewer follows, agree
@@ -1373,7 +1368,7 @@ def test_an_extracted_result_is_located_on_the_page_it_is_printed_on() -> None:
     # the anchor says where the statement is, not merely which sheet it is on
     assert prop["anchor"]["basis"] == "text"
     assert prop["anchor"]["end"] > prop["anchor"]["start"]
-    page_text = (SHOWCASE / "digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / "0001.txt").read_text()
+    page_text = (SHOWCASE / ".loom/digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / "0001.txt").read_text()
     said = page_text[prop["anchor"]["start"] : prop["anchor"]["end"]]
     assert said.startswith("Proposition 2.1"), said[:60]
     assert "quiver whose underlying graph" in said, said[:120]
@@ -1383,7 +1378,9 @@ def test_an_extracted_result_is_located_on_the_page_it_is_printed_on() -> None:
         page = r["anchor"].get("page") or 0
         if not page:
             continue
-        text = (SHOWCASE / "digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / f"{page:04d}.txt").read_text()
+        text = (
+            SHOWCASE / ".loom/digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / f"{page:04d}.txt"
+        ).read_text()
         label = r["locator"].split("[", 1)[1].split(",", 1)[0]
         assert label in text, f"{r['id']} claims {label} on page {page}"
 
@@ -1398,7 +1395,7 @@ def test_a_work_with_no_filed_copy_keeps_its_source_anchor(tmp_path: Path) -> No
         None,
         "{\\cite[Theorem 1.1, p.~4]{Nobody12}}",
         "Let X be a scheme.",
-        "digests/Nobody12.tex",
+        ".loom/digests/Nobody12.tex",
         "abc",
     )
     assert a.kind == "tex" and a.page == 0  # a page in the locator is not a page anybody can open
@@ -1423,7 +1420,7 @@ def test_an_anchor_round_trips_in_both_bases() -> None:
             Anchor(kind="tex", sha256="c" * 64, path="src/main.tex", bytes=[100, 200]),
             {"kind", "sha256", "path", "bytes"},
         ),
-        (Anchor(kind="tex", sha256="d" * 64, path="digests/X.tex"), {"kind", "sha256", "path"}),
+        (Anchor(kind="tex", sha256="d" * 64, path=".loom/digests/X.tex"), {"kind", "sha256", "path"}),
     ]
     for a, keys in cases:
         out = Result(id="x", local="l", anchor=a).to_json()["anchor"]
@@ -1500,9 +1497,9 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         cwd=q,
     )
 
-    events = [json.loads(line) for line in (q / "annotations" / "log.jsonl").read_text().splitlines()]
+    events = [json.loads(line) for line in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines()]
     text, box, ident = events[-3], events[-2], events[-1]  # appended in order, after the showcase's own
-    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    page_text = (q / ".loom/digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
     assert text["target"] == "doi:10.4171/showcase/19-2" and text["against"].startswith("sha256:")
     assert (
         text["anchor"]["basis"] == "text"
@@ -1602,7 +1599,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
         },
     )
     assert written["ok"], written
-    event = json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
+    event = json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])
     recorded = {k: v for k, v in event["anchor"].items() if k not in ("exact", "prefix", "suffix")}
     # the preview carries derived quads so the viewer can draw before anything is written; the record does not
     assert recorded == {k: v for k, v in preview.items() if k != "quads"}
@@ -1630,7 +1627,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     q = showcase(tmp_path)
     who = ("--as", "A. Author")
     # the showcase carries reading notes of its own; what is asserted is what these two add
-    before = sum(1 for line in (q / "annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
+    before = sum(1 for line in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
     a = ok(
         "annotate",
         "Bellamy19",
@@ -1659,7 +1656,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     ).stdout.split()[0]
     # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
     exits(1, "build", cwd=q)
-    manifest = json.loads((q / "build" / "manifest.json").read_text())
+    manifest = json.loads((q / ".loom/build" / "manifest.json").read_text())
     ref = manifest["references"]["Bellamy19"]
     assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 2
     assert manifest["annotations"][a]["target"] == {
@@ -1670,7 +1667,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     }
     assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
     assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]
-    side = json.loads((q / "build" / ref["spans"]["path"]).read_text())
+    side = json.loads((q / ".loom/build" / ref["spans"]["path"]).read_text())
     assert a in side["marks"] and len(side["marks"][a]) == 1  # one line
     assert side["marks"][b] == [[82.0, 278.0, 529.0, 316.0]]  # as drawn
     assert "Bellamy19-prop-3.1" in side["quads"]  # the results are still there beside them
@@ -1685,7 +1682,7 @@ def test_a_locator_by_offsets_lights_the_same_place_a_selection_would(tmp_path: 
     from loom.render.api import handle
 
     q = showcase(tmp_path)
-    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    page_text = (q / ".loom/digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
     a = page_text.index("totally unimodular")
     by_span = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "span": [a, a + len("totally unimodular")]})
     by_text = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": "totally unimodular"})
@@ -1714,14 +1711,14 @@ def test_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> None:
         "ok": False,
     }
     assert got["basis"] == "text" and got["start"] > 0 and got["end"] > got["start"]
-    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    page_text = (q / ".loom/digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
     assert page_text[got["start"] : got["end"]] == "totally unimodular"
 
     write_serve_json(q, 8791)  # this process is alive, so the link is offered
     said = ok("library", "locate", "Bellamy19", "totally unimodular", "--page", "2", cwd=q).output
     assert f"span={got['start']}-{got['end']}" in said, said
     # a quotation found on the word boxes and not in the committed text is a box, and names its rectangle instead
-    edit(q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt", "The function L is a", "The map L is a")
+    edit(q / ".loom/digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt", "The function L is a", "The map L is a")
     drawn = ok("library", "locate", "Bellamy19", "The function L is a quasi-polynomial", "--page", "2", cwd=q).output
     assert "matched by its region" in drawn and "&box=" in drawn and "span=" not in drawn, drawn
     assert said.startswith("found on Bellamy19 p.2: 2 words on 1 line, matched in its text layer"), (
@@ -1813,7 +1810,7 @@ def test_read_where_prints_where_an_artifact_would_go_and_says_when_nothing_is_t
     # a document `refs scan` filed names its own directory, and `library read --where` looks where every other reader does
     from loom.refs.pages import storage_root
 
-    bib = q / "digests" / "bibliography.bib"
+    bib = q / ".loom/digests" / "bibliography.bib"
     bib.write_text(
         bib.read_text()
         + "\n@misc{Filed20, title={A filed thing}, author={Doe, A.}, year={2020}, loom-file={file/0123abcd}}\n"
@@ -1832,7 +1829,7 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
     )
     assert not home.exists()
 
-    title = parse_bib((q / "digests" / "bibliography.bib").read_text())["Man12"].fields["title"]
+    title = parse_bib((q / ".loom/digests" / "bibliography.bib").read_text())["Man12"].fields["title"]
     # a PDF whose first page carries another title is refused: filed under the wrong work, every anchor would read the wrong paper (CLI study, defect 9)
     wrong = _fake_pdf(tmp_path / "wrong.pdf", "Advanced Topics in the Arithmetic of Elliptic Curves")
     refused("library", "add", wrong, "--for", "Man12", cwd=q, code=2, match="does not show it is Man12")
@@ -1909,7 +1906,7 @@ def test_library_drop_removes_records_by_work_session_or_state_and_never_the_dig
     sid = new_session(q)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
-    digest_before = (q / "digests" / "Calloway14.tex").read_text()
+    digest_before = (q / ".loom/digests" / "Calloway14.tex").read_text()
     refused("library", "drop", cwd=q, code=2, match="give exactly one of --work, --session or --proposed")
     refused("library", "drop", "--work", ck, "--proposed", cwd=q, code=2, match="give exactly one of")
     refused("library", "drop", "--proposed", cwd=q, code=2, match="dropping needs confirmation; pass --yes")
@@ -1921,7 +1918,7 @@ def test_library_drop_removes_records_by_work_session_or_state_and_never_the_dig
     assert load_results(q, ck) == {} and len(load_results(q, "Calloway14")) == 5  # extracted results stay
     ok("library", "drop", "--work", "Calloway14", "--yes", cwd=q)
     assert load_results(q, "Calloway14") == {}
-    assert (q / "digests" / "Calloway14.tex").read_text() == digest_before
+    assert (q / ".loom/digests" / "Calloway14.tex").read_text() == digest_before
     assert ok("library", "drop", "--proposed", "--yes", cwd=q).output.strip() == "nothing to drop"
 
 
@@ -1943,7 +1940,7 @@ def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Pa
     assert every == ["link-0001", "link-0002", "link-0003"]
     undo = ("library", "relate", "--undo", "link-0002", "--why", "A misreading.", "--as", "A. Author")
     assert ok(*undo, cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
-    removed = json.loads((q / "digests" / "links-removed.jsonl").read_text())
+    removed = json.loads((q / ".loom/digests" / "links-removed.jsonl").read_text())
     assert (
         removed["link"]["id"] == "link-0002"
         and removed["why"] == "A misreading."
@@ -1960,11 +1957,11 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
     """`library update --redo` rewrites the digest from the paper's source, and keeps a node `library verify` put there while `results.json` says verified (CLI study, defect 3)."""
     q = demo(tmp_path)
     ck = "Calloway14"
-    extracted = (q / "digests" / f"{ck}.tex").read_text()
+    extracted = (q / ".loom/digests" / f"{ck}.tex").read_text()
     # the paper's source, extracted afresh: what the digest held before the author verified anything, without needing TeX
     monkeypatch.setattr("loom.digest.extract.extract_digest", lambda *_a, **_k: (extracted, None))
     # a source to extract from, which the store keeps out of git and so a checkout's demo does not carry
-    src = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1" / "src"
+    src = q / ".loom/digests" / "storage" / "doi" / "10.4171_demo_14-1" / "src"
     shutil.rmtree(src, ignore_errors=True)
     src.mkdir(parents=True)
     (src / "paper.tex").write_text(
@@ -1981,7 +1978,7 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
     )
     rid = f"{ck}-rem-4.1"
     ok("library", "verify", rid, "--as", "A. Author", "--yes", cwd=q)
-    digest = q / "digests" / f"{ck}.tex"
+    digest = q / ".loom/digests" / f"{ck}.tex"
     assert f"\\label{{{rid}}}" in digest.read_text()
     r = ok("library", "update", ck, "--redo", cwd=q)
     assert (

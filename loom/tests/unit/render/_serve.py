@@ -56,5 +56,7 @@ def post(url: str, body: dict[str, Any], token: str | None = None) -> tuple[int,
 def log(q: Path) -> list[dict[str, Any]]:
     """Every event in the quilt's annotation log, in order."""
     return [
-        json.loads(x) for x in (q / "annotations" / "log.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()
+        json.loads(x)
+        for x in (q / ".loom/annotations" / "log.jsonl").read_text(encoding="utf-8").splitlines()
+        if x.strip()
     ]

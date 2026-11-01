@@ -21,7 +21,7 @@ def test_cli_version() -> None:
 
 
 def bodies(q: Path) -> list[str]:
-    log = q / "annotations" / "log.jsonl"
+    log = q / ".loom/annotations" / "log.jsonl"
     return [json.loads(ln).get("body", "") for ln in log.read_text().splitlines() if ln.strip()]
 
 

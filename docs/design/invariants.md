@@ -99,7 +99,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### An agent deletes nothing from a session's directory
 
-**Rule.** An agent never deletes a file in a session's directory, since an annotation or a note may point at it. Its scripts, backups and staging files go under `build/SESSION/`, and the permission file denies `Bash(rm *)`.
+**Rule.** An agent never deletes a file in a session's directory, since an annotation or a note may point at it. Its scripts, backups and staging files go under `.loom/build/SESSION/`, and the permission file denies `Bash(rm *)`.
 
 **Why.** An agent tidying a session cluttered with its own intermediates tried to `rm` a file one of its own annotations pointed at. A shell permission cannot be confined to one directory, so the fix was a separate place for intermediates.
 
@@ -161,7 +161,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Review records are appended, never rewritten
 
-**Rule.** Every review event is one line appended to `annotations/log.jsonl`, and an annotation's state is the replay of its events. The history ledger and a session's inbox are appended the same way (P2).
+**Rule.** Every review event is one line appended to `.loom/annotations/log.jsonl`, and an annotation's state is the replay of its events. The history ledger and a session's inbox are appended the same way (P2).
 
 **Why.** Records were files rewritten whole. When an agent resolved its own finding, the parent and the writer were two copies of one file and the second write clobbered the resolution, which is the case an agent hits on every re-check.
 
@@ -269,7 +269,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### A document is filed only on a strong match
 
-**Rule.** A PDF is filed against a bibliography entry, by `library add` or by gathering `refs/`, only when its text holds the entry's identifier, or the entry's full title with its first author leading the byline. Anything weaker is skipped, and the reason given.
+**Rule.** A PDF is filed against a bibliography entry, by `library add`, only when its text holds the entry's identifier, or the entry's full title with its first author leading the byline. Anything weaker is skipped, and the reason given.
 
 **Why.** A handbook that named Olsson fifth and shared half the title of his 2003 paper was filed as that paper on those two weak signals, and the real paper was then skipped because the slot was taken.
 

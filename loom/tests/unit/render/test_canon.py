@@ -48,13 +48,13 @@ def quilt(tmp_path: Path) -> Path:
 
 
 def manifest(q: Path) -> dict:
-    return json.loads((q / "build" / "manifest.json").read_text())
+    return json.loads((q / ".loom/build" / "manifest.json").read_text())
 
 
 def test_a_landmark_is_a_fragment_without_identity(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("build", cwd=q, env=FIXED)
-    frag = (q / "build" / "fragments" / "canon" / "main.html").read_text()
+    frag = (q / ".loom/build" / "fragments" / "canon" / "main.html").read_text()
     assert 'data-fragment="canon"' in frag and 'data-macros="canon:main"' in frag
     assert "<h1" in frag and "Widgets" in frag
     assert 'class="env env-lemma"' in frag
@@ -90,7 +90,7 @@ def test_a_landmark_fragment_is_cached_and_pruned(tmp_path: Path) -> None:
     assert f"canon:{LANDMARK}" in warm.skipped and warm.rendered == []  # unchanged: skipped
     (q / LANDMARK).unlink()
     ok("build", cwd=q, env=FIXED)
-    assert not (q / "build" / "fragments" / "canon" / "main.html").exists()
+    assert not (q / ".loom/build" / "fragments" / "canon" / "main.html").exists()
     assert manifest(q)["canon"] == []
 
 
@@ -112,7 +112,7 @@ def test_a_conflicted_key_is_published_with_no_text(tmp_path: Path) -> None:
     assert m["states"]["labels"]["conflicted"] == {"label": "conflicted", "color": "negative"}
     d = the(m["diagnostics"], lambda x: x["code"] == "duplicate-id", "duplicate-id diagnostic")
     assert [f["command"] for f in d["fixes"]][0].startswith("loom fork pp-0002 --in")
-    assert not (q / "build" / "fragments" / "nodes" / "pp-0002.html").exists()
+    assert not (q / ".loom/build" / "fragments" / "nodes" / "pp-0002.html").exists()
 
 
 def test_a_key_whose_text_a_landmark_recorded_carries_its_version(tmp_path: Path) -> None:

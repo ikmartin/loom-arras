@@ -8,11 +8,12 @@ from pathlib import Path
 
 import pytest
 
+from loom.paths import STORAGE
 from loom.scan.bib import parse_bib
 from tests.helpers import edit, json_of, ok, refused, said
 from tests.unit._quilts import demo, propose, work_home
 
-BIB = "digests/bibliography.bib"
+BIB = ".loom/digests/bibliography.bib"
 HANDBOOK = "Logarithmic geometry and moduli\nDan Abramovich, Qile Chen, Danny Gillam, Yuhao Huang, Martin Olsson, Matthew Satriano, and Shenghao Sun\n"
 OLSSON = "Logarithmic geometry and algebraic stacks\nMartin C. Olsson\nAnn. Sci. Ecole Norm. Sup.\n"
 
@@ -51,13 +52,13 @@ def test_redo_keeps_a_verified_result_byte_identical(tmp_path: Path, monkeypatch
 
     q = demo(tmp_path)
     ck = "Calloway14"
-    extracted = (q / "digests" / f"{ck}.tex").read_text()
+    extracted = (q / ".loom/digests" / f"{ck}.tex").read_text()
     monkeypatch.setattr("loom.digest.extract.extract_digest", lambda *_a, **_k: (extracted, None))
     _source_in_store(q)
     propose(q, ck, "rem-4.1", 2, "Let X = {a, b} carry the indiscrete topology", "The indiscrete pair stands.")
     rid = f"{ck}-rem-4.1"
     ok("library", "verify", rid, "--as", "A. Author", "--yes", cwd=q)
-    digest = q / "digests" / f"{ck}.tex"
+    digest = q / ".loom/digests" / f"{ck}.tex"
 
     def node(text: str) -> str:
         start = text.index(f"\\label{{{rid}}}")
@@ -93,18 +94,17 @@ def test_online_is_refused_under_an_agent_without_standing_consent(tmp_path: Pat
 
 def test_a_dry_run_says_what_each_step_would_do_and_writes_nothing(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    # The demo's cited work has its source in the store; a checkout may or may not carry that untracked file, so the test writes it rather than depend on it, and removes the untracked PDF a checkout may have left in refs/.
+    # The demo's cited work has its source in the store; a checkout may or may not carry that untracked file, so the test writes it rather than depend on it.
     src = work_home(q, "Calloway14") / "src"
     src.mkdir(parents=True, exist_ok=True)
     (src / "calloway-fixed-loci.tex").write_text(
         "\\documentclass{article}\n\\begin{document}\nFixed loci.\n\\end{document}\n"
     )
-    (q / "refs" / "calloway-fixed-loci.pdf").unlink(missing_ok=True)
-    _fake_pdf(q / "refs" / "Hartshorne - 1977 - Algebraic Geometry.pdf", "Algebraic Geometry\nRobin Hartshorne")
+    ledger = (q / STORAGE / "copied.json").read_text()
     data = json_of("library", "update", "--dry-run", "--json", cwd=q)
     assert data["dry_run"] and data["would"] == {"resolve": ["Har77"], "fetch": ["Man12"], "extract": [], "map": []}
-    assert [a["key"] for a in data["scan"]["added"]] == [] and data["scan"]["copied"], "it says what it would file"
-    assert not (q / "digests" / "storage" / "copied.json").read_text().count("Hartshorne")
+    assert [a["key"] for a in data["scan"]["added"]] == []
+    assert (q / STORAGE / "copied.json").read_text() == ledger
     assert {w["citekey"] for w in data["works"]} == {"Calloway14", "Har77", "Man12"}
 
 
@@ -145,7 +145,7 @@ def test_a_pdf_naming_another_work_is_refused_and_force_records_the_override(tmp
     refused("library", "add", handbook, "--force", code=2, match="--force applies only with --for", cwd=q)
     ok("library", "add", handbook, "--for", "olsson03", "--force", "--as", "A. Author", cwd=q)
     assert (work_home(q, "olsson03") / "paper.pdf").is_file()
-    ledger = json.loads((q / "digests" / "storage" / "copied.json").read_text())
+    ledger = json.loads((q / ".loom/digests" / "storage" / "copied.json").read_text())
     row = next(v for v in ledger.values() if v["from"] == "Handbook of Moduli.pdf")
     assert row["forced"].startswith("it is abramovich16's") and row["by"] == "A. Author"
     # without --for it is filed under the work it shows it is

@@ -18,7 +18,7 @@ from tests.helpers import edit, ok
 def demo(tmp_path: Path) -> Path:
     ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     q = tmp_path / "q"
-    shutil.rmtree(q / "annotations", ignore_errors=True)
+    shutil.rmtree(q / ".loom/annotations", ignore_errors=True)
     shutil.rmtree(q / ".loom", ignore_errors=True)
     return q
 
@@ -36,7 +36,7 @@ LEMMA = Path("drafting") / "nodes" / "dm-0002.tex"
 def test_an_edit_under_an_annotation_freezes_the_text_it_was_written_against(
     tmp_path: Path, history: str | None
 ) -> None:
-    """The comment freezes the version it names; the cache moves on with the quilt. `[quilt] history` moves the ledger, the frozen texts and this cache together."""
+    """The comment freezes the version it names; the cache moves on with the quilt. `[quilt] history` moves the ledger and the frozen texts, and the cache stays in `.loom/`, where loom's ignore file covers it."""
     q = demo(tmp_path)
     if history:
         edit(q / "config.toml", "[library]", f'history = "{history}"\n\n[library]')
@@ -45,7 +45,7 @@ def test_an_edit_under_an_annotation_freezes_the_text_it_was_written_against(
     ok("build", cwd=q)
     # the comment froze the version it was written against, before anything moved
     assert len(texts(q, hist)) == 1 and ORIGINAL in texts(q, hist)[0].read_text()
-    assert (hist.parent / "last-seen.json").is_file()
+    assert (q / ".loom" / "last-seen.json").is_file()
     cache = read_last_seen(q, hist)
     assert "dm-0002" in cache and ORIGINAL in cache["dm-0002"]
 
@@ -97,6 +97,6 @@ def test_a_version_written_against_between_scans_is_kept(tmp_path: Path) -> None
     ok("build", cwd=q)
 
     assert any("as we now check" in p.read_text() for p in texts(q))
-    m = json.loads((q / "build" / "manifest.json").read_text())
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     (a,) = m["annotations"].values()
     assert (a["detached"], a["recorded"], a["anchored"]) == (False, True, True)

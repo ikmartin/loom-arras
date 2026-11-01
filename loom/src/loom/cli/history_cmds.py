@@ -296,7 +296,7 @@ def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quil
     history = _history(result)
     doc = _rel(root, document) if document else None
     if doc is not None and result.document_role(doc) != "person":
-        raise NotFoundError("document", f"{document} is not a live document in {result.quilt.config.drafting}/")
+        raise NotFoundError("document", f"{document} is not a live document of the person's")
     name = slug(message)
     if doc is not None:
         if history.landmark(name) is not None:
@@ -1136,6 +1136,7 @@ def history_restore(name: str, to: str | None, dry_run: bool, as_json: bool, qui
         after = scan(quilt, overlay={dest_rel: plan.text})
         data: dict[str, Any] = {"action": "restore", **record}
     else:
+        dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(plan.text, encoding="utf-8")
         entry = append_entry(quilt.history_dir, "restore", record, actor_for(root))
         after = scan(load_quilt(root))

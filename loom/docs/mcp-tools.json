@@ -89,7 +89,7 @@
    "read_only_hint": true
   },
   "command": "loom ai mode",
-  "description": "Print mode NAME in full: when it fits, what it is for, and what its report shows.\n\nThe quilt's own copy in ai/modes/ is printed, so an edit the author made there holds; with no ai/, the shipped one. `loom ai orient` lists every mode with its one line.",
+  "description": "Print mode NAME in full: when it fits, what it is for, and what its report shows.\n\nThe quilt's own copy in .loom/ai/modes/ is printed, so an edit the author made there holds; with no .loom/ai/, the shipped one. `loom ai orient` lists every mode with its one line.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -269,7 +269,7 @@
    "read_only_hint": false
   },
   "command": "loom build",
-  "description": "Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nRendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.",
+  "description": "Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nRendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -332,7 +332,7 @@
    "read_only_hint": false
   },
   "command": "loom compile",
-  "description": "Run latexmk from a master's own directory into build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
+  "description": "Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -768,7 +768,7 @@
    "read_only_hint": false
   },
   "command": "loom library propose",
-  "description": "An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.\n\nThe only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.",
+  "description": "An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.\n\nThe only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `.loom/digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -847,7 +847,7 @@
    "read_only_hint": true
   },
   "command": "loom library read",
-  "description": "Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.\n\nThe page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/.",
+  "description": "Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.\n\nThe page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1049,7 +1049,7 @@
      "type": "boolean"
     },
     "only": {
-     "description": "Run one step: gather (the bibliography, from the landmarks and refs/), resolve, fetch, extract or map.",
+     "description": "Run one step: gather (the bibliography, from the documents and the landmarks), resolve, fetch, extract or map.",
      "enum": [
       "gather",
       "resolve",

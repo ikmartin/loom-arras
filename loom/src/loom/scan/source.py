@@ -1,6 +1,6 @@
 """File discovery and decoding.
 
-Every .tex under the root except build/ is a source file. Decoding tries UTF-8, then Mac Roman, then Latin-1; the fallback is reported by the caller as loom:non-utf8-source. Comments are blanked to spaces so every later stage sees the same offsets as the raw text.
+Every .tex under the root outside `.loom/` and tool directories is a source file, and so is every digest, which `.loom/digests/` holds. Decoding tries UTF-8, then Mac Roman, then Latin-1; the fallback is reported by the caller as loom:non-utf8-source. Comments are blanked to spaces so every later stage sees the same offsets as the raw text.
 """
 
 from __future__ import annotations
@@ -9,32 +9,34 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from loom.paths import AI, BUILD, LOOM, REFS, STORAGE
+from loom.paths import DIGESTS, LOOM, STORAGE
 from loom.scan.model import SourceFile
 
-SKIP_DIRS = {BUILD, ".git", "node_modules", LOOM, ".svelte-kit", ".claude"}
-SKIP_PREFIXES = (
-    f"{AI}/",
-    f"{REFS}/",
-    f"{STORAGE}/",
-)  # run outputs, the author's seed space and loom's store of other people's documents are not the quilt's text: a fetched e-print under the store is a whole paper carrying its own labels, and a digest lives in digests/ itself (8.16, DR-108, DR-192)
+#: Directories never read, by name at any depth: loom's own, whose digests alone are read on purpose, and tools'.
+SKIP_DIRS = {".git", "node_modules", LOOM, ".svelte-kit", ".claude"}
 IGNORE_RE = re.compile(r"^\s*%\s*!LOOM\s+ignore\s*$", re.M)
 _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")
 _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontents\*?)\}.*?\\end\{\1\}", re.S)
 
 
 def discover_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
-    """Quilt-relative posix paths of every .tex file under root, sorted, skipping build/ and tool directories and the directories in `skip_top`, given relative to root (`retired/`, `notes/` and the history directory, whose files are never source)."""
+    """Quilt-relative posix paths of every .tex file under root, sorted: every one outside `SKIP_DIRS` and the directories in `skip_top` (the history directory and the sync directory, given relative to root), and every digest.
+
+    Digests are read from `.loom/digests/` on purpose, outside the store: a fetched e-print under the store is a whole paper carrying its own labels (DR-108, DR-192).
+    """
     found: list[str] = []
     for path in root.rglob("*.tex"):
         rel = path.relative_to(root)
         if any(part in SKIP_DIRS for part in rel.parts[:-1]):
             continue
-        if rel.as_posix().startswith(SKIP_PREFIXES):
-            continue
         if len(rel.parts) > 1 and rel.as_posix().startswith(tuple(f"{d.strip('/')}/" for d in skip_top)):
             continue
         found.append(rel.as_posix())
+    digests = root / DIGESTS
+    if digests.is_dir():
+        found += [
+            p.relative_to(root).as_posix() for p in digests.rglob("*.tex") if not p.is_relative_to(root / STORAGE)
+        ]
     return sorted(found)
 
 

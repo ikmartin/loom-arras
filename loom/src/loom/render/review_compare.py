@@ -70,7 +70,7 @@ def _fallback(
 def _render(
     renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
 ) -> str:
-    """One preview's markup, from `build/cache/previews/` when a build has rendered the same thing before.
+    """One preview's markup, from `.loom/build/cache/previews/` when a build has rendered the same thing before.
 
     Keyed on everything the markup is made from: the text, the preamble, the highlighted spans, the node it is drawn as, and the renderer's `salt`. A served quilt rebuilds on every change and a quilt with thousands of results has a preview for each, so rendering them all again on each rebuild was most of its time.
     """

@@ -11,6 +11,7 @@ from typing import Any
 
 from loom.paths import BUILD, document_name
 from loom.refs.identity import declared, identify, primary
+from loom.refs.pages import store_address
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
@@ -72,7 +73,7 @@ def _version(result: ScanResult, ck: str) -> dict[str, Any]:
         "citekey": ck,
         "work": str(wid) if wid else "",
         "artifacts": {
-            "dir": home.relative_to(result.quilt.root).as_posix() if home else "",
+            "dir": store_address(result.quilt.root, home) if home else "",
             "pdf": bool(home and (home / "paper.pdf").is_file()),
             "source": bool(home and (home / "src").is_dir()),
         },
@@ -519,7 +520,7 @@ def build_manifest(
             "work": str(wid) if wid else "",
             "works": [str(w) for w in identify(bib)] if bib else [],
             "artifacts": {
-                "dir": home.relative_to(result.quilt.root).as_posix() if home else "",
+                "dir": store_address(result.quilt.root, home) if home else "",
                 "pdf": bool(home and (home / "paper.pdf").is_file()),
                 "source": bool(home and (home / "src").is_dir()),
             },

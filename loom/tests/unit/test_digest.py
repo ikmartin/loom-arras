@@ -61,7 +61,7 @@ Unlabelled theorem.
 def demo(tmp_path: Path) -> Path:
     ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     q = tmp_path / "q"
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@misc{Ref20, title={Widgets}, author={Ref, A.}, year={2020}, eprint={2001.00001v2}}\n")
     (tmp_path / "paper").mkdir()
     (tmp_path / "paper" / "ref.tex").write_text(REF)
@@ -110,7 +110,7 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     assert ("dm-0002", "Calloway14-sec-3") in post  # a postnote naming a section resolves to the section node
     lint = ok("lint", cwd=q).output
     assert "loom:unmatched-postnote" in lint and "Lemma 99" in lint
-    digest = q / "digests" / "Calloway14.tex"
+    digest = q / ".loom/digests" / "Calloway14.tex"
     digest.write_text(
         digest.read_text().replace(
             "\\label{Calloway14-prop-3.2}", "\\label{Calloway14-prop-3.2}\\label{Calloway14-lem-99}", 1
@@ -126,15 +126,15 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     q = demo(tmp_path)
     # A digest whose source is a preprint, against a bibliography that now cites a later one: the demo's own cited work
     # is filed under a DOI, which carries no version, so the mismatch is made here rather than borrowed.
-    (q / "digests" / "Man12.tex").write_text(
+    (q / ".loom/digests" / "Man12.tex").write_text(
         "% !LOOM digest: Man12\n% !LOOM extracted-from: arXiv:0805.2065v2\n% !LOOM method: extract\n\n"
         "\\begin{theorem}[{\\cite[Theorem 1]{Man12}}]\\label{Man12-thm-1}\nA.\n\\end{theorem}\n",
         encoding="utf-8",
     )
-    bib = q / "digests" / "bibliography.bib"
+    bib = q / ".loom/digests" / "bibliography.bib"
     bib.write_text(bib.read_text().replace("eprint  = {0805.2065v2}", "eprint  = {0805.2065v3}", 1))
     assert "0805.2065v3" in bib.read_text()
-    digest = q / "digests" / "Calloway14.tex"
+    digest = q / ".loom/digests" / "Calloway14.tex"
     digest.write_text(digest.read_text().replace("% !LOOM method:", "% !LOOM requires: tikz-cd\n% !LOOM method:", 1))
     node = q / "drafting" / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().rstrip("\n") + "\nAs in \\cite{Man12}.\n")  # a work nothing cites is one line
@@ -150,7 +150,7 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
 def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_exists(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = ok("library", "update", "Ref20", "--only", "extract", cwd=q)
-    text = (q / "digests" / "Ref20.tex").read_text()
+    text = (q / ".loom/digests" / "Ref20.tex").read_text()
     head = text.splitlines()[:5]
     assert head[0] == "% !LOOM digest: Ref20" and head[1] == "% !LOOM prefix: Ref20"
     assert head[2] == "% !LOOM extracted-from: arXiv:2001.00001v2"  # the artifact parsed, not the work cited (DR-109)
@@ -185,9 +185,9 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_ex
     ]
     assert "digest Ref20 requires xy, which the preamble of drafting/main.tex does not load" in " ".join(lint)
     # a digest that exists is done, and a second run leaves it as it is
-    digest = (q / "digests" / "Ref20.tex").read_text()
+    digest = (q / ".loom/digests" / "Ref20.tex").read_text()
     assert "nothing new this run" in ok("library", "update", "Ref20", "--only", "extract", cwd=q).stdout
-    assert (q / "digests" / "Ref20.tex").read_text() == digest
+    assert (q / ".loom/digests" / "Ref20.tex").read_text() == digest
     again = json_of("library", "update", "Ref20", "--only", "extract", "--redo", "--json", cwd=q)["works"][0]
     assert (again["extraction"]["uses"], again["extraction"]["numbering"]) == (3, "aux")
     node = q / "drafting" / "nodes" / "dm-0002.tex"
@@ -213,7 +213,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_ex
 def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = ok("library", "update", "Ref20", "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})
-    text = (q / "digests" / "Ref20.tex").read_text()
+    text = (q / ".loom/digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: emulated" in text and "numbered by counting the results in order" in r.output
     assert "its compile failed" in r.output
     for local in ("def-2.1", "lem-2.2", "thm-3.1", "thm-3.2", "sec-2", "sec-3"):
@@ -223,11 +223,11 @@ def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
 def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     q = demo(tmp_path)
     ok("library", "update", "Ref20", "--only", "extract", cwd=q)
-    src = q / "digests" / "Ref20.tex"
+    src = q / ".loom/digests" / "Ref20.tex"
     ok("init", str(tmp_path / "lib"), "--demo", cwd=tmp_path)
     lib = tmp_path / "lib"
     r = ok("library", "import", str(src), "--name", "Other20", cwd=lib)
-    text = (lib / "digests" / "Other20.tex").read_text()
+    text = (lib / ".loom/digests" / "Other20.tex").read_text()
     assert text.startswith("% !LOOM digest: Other20\n")
     assert "Ref20" not in text
     assert "\\label{Other20-thm-3.1}" in text and "\\uses{Other20-lem-2.2, Other20-def-2.1}" in text
@@ -337,7 +337,7 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
     assert home == storage_root(q) / "arxiv" / "0805.2065v2"
     assert any((home / "src").iterdir()) and (home / "paper.pdf").is_file()
     ignored = (q / ".gitignore").read_text().splitlines()
-    assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
+    assert ".loom/digests/storage/**/paper.pdf" in ignored and ".loom/digests/storage/**/src/" in ignored
 
 
 def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) -> None:
@@ -355,10 +355,10 @@ def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) 
 def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_path: Path) -> None:
     """A digest extracted from a preprint while the bibliography cites the published article carries numbers and pages from the wrong document. It is the fault that was sitting in demos/relloc: `\\cite[Definition 2.1, p.~4]` against an article beginning at page 201 (DR-109)."""
     q = demo(tmp_path)
-    d = q / "digests" / "Split.tex"
+    d = q / ".loom/digests" / "Split.tex"
     d.parent.mkdir(parents=True, exist_ok=True)
-    (q / "digests" / "bibliography.bib").write_text(
-        (q / "digests" / "bibliography.bib").read_text()
+    (q / ".loom/digests" / "bibliography.bib").write_text(
+        (q / ".loom/digests" / "bibliography.bib").read_text()
         + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
         encoding="utf-8",
     )
@@ -388,12 +388,12 @@ def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_pat
 def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> None:
     """An agent reading a digest through `loom library WORK`, `library read WORK` or `loom source` is told its numbers are another version's, rather than finding it only in `loom lint` and filing the preprint's numbering as an extraction bug (WQ-37, DR-313-ikmartin)."""
     q = demo(tmp_path)
-    (q / "digests" / "bibliography.bib").write_text(
-        (q / "digests" / "bibliography.bib").read_text()
+    (q / ".loom/digests" / "bibliography.bib").write_text(
+        (q / ".loom/digests" / "bibliography.bib").read_text()
         + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
         encoding="utf-8",
     )
-    (q / "digests" / "Split.tex").write_text(
+    (q / ".loom/digests" / "Split.tex").write_text(
         "% !LOOM digest: Split\n% !LOOM prefix: Split\n% !LOOM extracted-from: arXiv:2001.00002v1\n"
         "% !LOOM published-as: doi:10.1090/S1\n% !LOOM method: extract\n"
         "\\section*{Overview}\nO.\n\\begin{theorem}[{\\cite[Theorem 1]{Split}}]\\label{Split-thm-1}\nS.\n\\end{theorem}\n",
@@ -470,11 +470,11 @@ def _extract(tmp_path: Path, src: str, key: str) -> str:
     q = demo(tmp_path)
     paper = tmp_path / f"{key}.tex"
     paper.write_text(src)
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(f"\n@misc{{{key}, title={{X}}, author={{Y, Z.}}, year={{2000}}}}\n")
     ok("library", "add", str(paper), "--for", key, cwd=q)
     ok("library", "update", key, "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})  # numbered by emulation
-    return (q / "digests" / f"{key}.tex").read_text()
+    return (q / ".loom/digests" / f"{key}.tex").read_text()
 
 
 def test_a_wrapper_around_a_theorem_environment_is_one_and_shares_its_counter(tmp_path: Path) -> None:
@@ -636,7 +636,7 @@ Unnumbered second.
 
 
 def _cited(q: Path, key: str) -> None:
-    with (q / "digests" / "bibliography.bib").open("a") as fh:
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(f"\n@misc{{{key}, title={{X}}, author={{Y, Z.}}, year={{2000}}}}\n")
 
 
@@ -649,7 +649,7 @@ def test_emulated_numbering_follows_the_starred_appendix_duplicate_and_cap_rules
     _cited(q, "Nu01")
     ok("library", "add", paper, "--for", "Nu01", cwd=q)
     r = ok("library", "update", "Nu01", "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})
-    text = (q / "digests" / "Nu01.tex").read_text()
+    text = (q / ".loom/digests" / "Nu01.tex").read_text()
     labels = re.findall(r"\\label\{(Nu01-[^}]*)\}", text)
     aliases = ("Nu01-a", "Nu01-b")  # the paper's own labels ride along, prefixed
     assert [x for x in labels if "-sec-" not in x and x not in ("Nu01-setup", *aliases)] == [
@@ -671,7 +671,7 @@ def test_a_compiled_paper_with_an_unlabelled_result_says_numbering_mixed(tmp_pat
     """DR-180, contract §2.9: a compile that succeeded does not make every number the .aux's; an unlabelled result counted by emulation marks the header `mixed`, and a fully labelled paper claims nothing."""
     q = demo(tmp_path)
     r = ok("library", "update", "Ref20", "--only", "extract", cwd=q)  # REF's last theorem is unlabelled
-    text = (q / "digests" / "Ref20.tex").read_text()
+    text = (q / ".loom/digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: mixed" in text and "numbering: emulated" not in text
     said = " ".join(r.stdout.split())
     assert (
@@ -682,7 +682,7 @@ def test_a_compiled_paper_with_an_unlabelled_result_says_numbering_mixed(tmp_pat
     edit(labelled, "\\begin{thm}\nUnlabelled theorem.", "\\begin{thm}\\label{last}\nLabelled now.")
     ok("library", "add", labelled, "--for", "Ref20", cwd=q)  # filed beside the first source, as Ref20A
     r = ok("library", "update", "Ref20A", "--only", "extract", cwd=q)
-    assert "% !LOOM numbering" not in (q / "digests" / "Ref20A.tex").read_text()
+    assert "% !LOOM numbering" not in (q / ".loom/digests" / "Ref20A.tex").read_text()
     assert "numbered as the paper's own compile numbers them" in r.stdout and "numbered by counting" not in r.stdout
 
 
@@ -716,7 +716,7 @@ def test_a_result_on_a_sectioning_counter_steps_it_and_an_aux_number_resynchroni
 def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(tmp_path: Path) -> None:
     """A fragment naming two works is refused by name: the overview of `romagny` once named a different paper on each run, because a set was asked for its first element (CLI study, defect 12)."""
     q = demo(tmp_path)
-    bib = q / "digests" / "bibliography.bib"
+    bib = q / ".loom/digests" / "bibliography.bib"
     bib.write_text(
         bib.read_text()
         + "\n@article{Romagny05, title={Group actions on stacks}, author={Romagny, M.}}\n"

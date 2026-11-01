@@ -26,7 +26,7 @@ All stacks are algebraic.
 
 
 def test_a_quilt_with_only_a_digest_sees_its_results(tmp_path: Path) -> None:
-    r = make_quilt(tmp_path, {"digests/Vir12.tex": DIGEST})
+    r = make_quilt(tmp_path, {".loom/digests/Vir12.tex": DIGEST})
     assert {k for k, n in r.nodes.items() if n.kind == "environment"} == {
         "Vir12-thm-4.1",
         "Vir12-def-4.2",
@@ -46,7 +46,7 @@ def test_a_document_s_declaration_wins(tmp_path: Path) -> None:
         tmp_path,
         {
             "drafting/main.tex": preamble + "\\begin{document}\nHello.\n\\end{document}\n",
-            "digests/Vir12.tex": DIGEST,
+            ".loom/digests/Vir12.tex": DIGEST,
         },
     )
     assert r.nodes["Vir12-thm-4.1"].taxon == "Satz"
@@ -59,7 +59,7 @@ def test_an_author_s_own_undeclared_environment_is_still_not_a_node(tmp_path: Pa
         tmp_path,
         {
             "drafting/nodes/x.tex": "\\begin{thm}[{\\cite[Theorem 1]{Vir12}}]\\label{ab-0001}\nA.\n\\end{thm}\n",
-            "digests/Vir12.tex": DIGEST,
+            ".loom/digests/Vir12.tex": DIGEST,
         },
     )
     assert "ab-0001" not in r.nodes

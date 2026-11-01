@@ -9,13 +9,13 @@ A quilt is a research project in a directory marked by a `config.toml` with a `[
 What lives where:
 
 - **The author's sources:** documents, node files, style files, the bibliography and figures, wherever the author keeps them. A document's files sit in its own directory or below, because a document compiles from its own directory (P12).
-- **`drafting/`** is where `loom init` puts the author's first document, and **`drafting-ai/`** holds documents the author and an agent both edit (below). Both names are settings, and the author's documents may sit anywhere else as well.
-- **`digests/`** holds digests of cited works and loom's store of their documents. **`refs/`** is the author's drop folder for PDFs and `.bib` files, which loom reads and never writes. **`notes/`** is the author's own reference material, which loom never scans or writes.
-- **`.loom/`** holds loom's durable records: the acceptance ledger, the history, sessions. **`annotations/log.jsonl`** is the annotation log. **`build/`** is everything derivable and can be deleted at any time.
+- **`drafting-ai/`** (the `drafting_ai` setting) holds documents the author and an agent both edit (below), made when the first is written.
+- **`.loom/`** holds everything loom writes: the acceptance ledger, the history and sessions; `annotations/log.jsonl`, the annotation log; `digests/`, the digests of cited works, the quilt's bibliography and loom's store of their documents; `reference-notes.jsonl`; `ai/`, what agents are given; `retired/`, sources `atomize --retire` set aside; and `build/`, everything derivable, which can be deleted at any time.
+- **`research-state.md`** at the root (the `research_state` setting) is the research state, written when an agent first keeps one.
 
-Every `.tex` file is scanned except under `build/`, `.loom/`, `refs/`, `notes/`, `digests/storage/`, the history and tooling directories, and files whose first twenty lines say `% !LOOM ignore`. Nothing is inferred from where a file sits (P5); the exclusions are exclusions, not inferences.
+`loom init` writes `config.toml`, a README that teaches loom, and `.loom/`, and nothing else. Every `.tex` file is scanned except under `.loom/` (whose digests are read on purpose), the history and sync directories, tooling directories, and files whose first twenty lines say `% !LOOM ignore`. Nothing is inferred from where a file sits (P5); the exclusions are exclusions, not inferences.
 
-**Open.** A quilt today assumes a paper in places: `loom init` writes an article skeleton, `status` counts "keys of yours", and an empty `drafting/` is reported as a problem. For the Learner, a quilt with only works and notes must be complete and unremarkable (not built yet, see [README](README.md#decided-not-yet-built)).
+**Open.** A quilt still assumes a paper in places: `status` counts "keys of yours". For the Learner, a quilt with only works and notes must be complete and unremarkable (not built yet, see [README](README.md#decided-not-yet-built)).
 
 ## Documents
 
@@ -65,7 +65,7 @@ Acceptance is personal: each reviewer's latest rows are their own, and a coautho
 
 ## Annotations
 
-An annotation is the one record of review, written only by `loom annotate` and appended to `annotations/log.jsonl`. It has an author (a person, or an agent naming itself), a session, a target, and one of five kinds:
+An annotation is the one record of review, written only by `loom annotate` and appended to `.loom/annotations/log.jsonl`. It has an author (a person, or an agent naming itself), a session, a target, and one of five kinds:
 
 | kind | for |
 |---|---|
@@ -134,4 +134,4 @@ Things are shown where they live (V7): a statement in a document that holds it, 
 
 ## Coauthors
 
-Coauthors clone the quilt. Sources, the history, annotations and digests are shared; `build/`, `refs/` and personal settings are not, and identity is never stored in the quilt. Acceptance is per reviewer. Two coauthors who allocate the same id on separate branches get a conflicted key after the merge, which `loom fork` resolves. A coauthor who works in Overleaf edits a document workspace that `loom sync` exchanges with the quilt through the author's own clone of it, in a directory the author names: fetched changes are reviewed and incorporated by the author, who stamps each document first (P7).
+Coauthors clone the quilt. Sources, the history, annotations and digests are shared; `.loom/.gitignore` names what is not (the build output, runtime state, and the store's copies of other people's documents), personal settings stay in the user config, and identity is never stored in the quilt. Acceptance is per reviewer. Two coauthors who allocate the same id on separate branches get a conflicted key after the merge, which `loom fork` resolves. A coauthor who works in Overleaf edits a document workspace that `loom sync` exchanges with the quilt through the author's own clone of it, in a directory the author names: fetched changes are reviewed and incorporated by the author, who stamps each document first (P7).

@@ -34,5 +34,5 @@ def test_codex_writes_over_the_server_its_config_names(tmp_path: Path) -> None:
         cmd, cwd=q, env=person_env(), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=600
     )
     said = f"\n$ {' '.join(cmd)}\nexit {proc.returncode}\n--- stdout\n{proc.stdout}\n--- stderr\n{proc.stderr}"
-    mine = [ln for ln in (q / "annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
+    mine = [ln for ln in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
     assert mine and '"author": "Codex Agent"' in mine[-1], "no annotation over MCP as Codex Agent" + said

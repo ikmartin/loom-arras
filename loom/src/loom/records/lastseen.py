@@ -26,7 +26,8 @@ VERSION = 1
 
 
 def cache_path(root: Path, history_dir: Path) -> Path:
-    return history_dir.parent / CACHE
+    """The cache, in `.loom/` wherever the history is, so loom's ignore file always covers it."""
+    return root / CACHE
 
 
 def read_last_seen(root: Path, history_dir: Path) -> dict[str, str]:

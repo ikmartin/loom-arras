@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from loom.paths import STORAGE
 from loom.refs.scan import versions_of
 from loom.scan.bib import parse_bib
 from loom.scan.quilt import load_quilt
@@ -12,7 +13,7 @@ from loom.scan.scan import scan
 from tests.helpers import json_of, ok, run
 from tests.unit._quilts import demo, work_home
 
-BIB = "digests/bibliography.bib"
+BIB = ".loom/digests/bibliography.bib"
 CK, V = "Calloway14", "Calloway14A"
 OLSSON = "Logarithmic geometry and algebraic stacks\nMartin C. Olsson\nAnn. Sci. Ecole Norm. Sup.\n"
 OLSSON_BIB = "\n@article{olsson03, author={Olsson, Martin C.}, title={Logarithmic geometry and algebraic stacks}, year={2003}, doi={10.1016/olsson.03}}\n"
@@ -49,9 +50,9 @@ def _versioned(tmp_path: Path) -> Path:
             f"  year = {{2014}},\n  eprint = {{1301.00001v1}},\n  archiveprefix = {{arXiv}},\n"
             f"  loom-copy-of = {{{CK}}},\n  loom-file = {{file/0123456789abcdef}},\n}}\n"
         )
-    (q / "digests" / f"{V}.tex").write_text(PREPRINT, encoding="utf-8")
+    (q / ".loom/digests" / f"{V}.tex").write_text(PREPRINT, encoding="utf-8")
     ok("library", "update", V, "--only", "extract", cwd=q)
-    assert (q / "digests" / f"{V}.results.json").is_file()
+    assert (q / ".loom/digests" / f"{V}.results.json").is_file()
     return q
 
 
@@ -87,10 +88,11 @@ def test_an_identical_document_is_recorded_as_a_duplicate_and_not_filed(tmp_path
         in said
     )
     assert "olsson03A" not in (q / BIB).read_text()
-    ledger = json.loads((q / "digests" / "storage" / "copied.json").read_text())
+    ledger = json.loads((q / ".loom/digests" / "storage" / "copied.json").read_text())
     copies = {v["from"]: v for v in ledger.values() if v.get("duplicate-of")}
     assert set(copies) == {"same.pdf", "stated.pdf"} and {v["duplicate-of"] for v in copies.values()} == {"olsson03"}
-    home = work_home(q, "olsson03").relative_to(q).as_posix()
+    # the ledger names where a document is filed relative to the store, so it survives a move of the store
+    home = work_home(q, "olsson03").relative_to(q / STORAGE).as_posix()
     assert {v["to"] for v in copies.values()} == {home}
     # another version: the same title and byline over two pages
     other = _fake_pdf(tmp_path / "other.pdf", OLSSON + "preprint\fan appendix the journal dropped")
@@ -103,33 +105,11 @@ def test_an_identical_document_is_recorded_as_a_duplicate_and_not_filed(tmp_path
     assert "olsson03B" not in (q / BIB).read_text()
 
 
-def test_gathering_records_an_identical_document_as_a_duplicate(tmp_path: Path) -> None:
-    """Gathering's own sibling branch keeps the same rule as `library add`: a copy is recorded and reported, and offers no entry."""
-    from loom.refs.scan import scan_bibliography
-
-    q = demo(tmp_path)
-    (q / BIB).open("a", encoding="utf-8").write(OLSSON_BIB)
-    seed = q / "refs"
-    _fake_pdf(seed / "olsson.pdf", OLSSON + "first copy")
-    scan_bibliography(load_quilt(q))
-    _fake_pdf(seed / "olsson again.pdf", OLSSON + "a second download")
-    _fake_pdf(seed / "olsson preprint.pdf", OLSSON + "preprint\fan appendix")
-    report = scan_bibliography(load_quilt(q))
-    assert report.copies == [("refs/olsson again.pdf", "olsson03", "same title, authors and 1 page")], report.lines()
-    assert [of for _key, of in report.siblings] == ["olsson03"], report.lines()
-    assert "copies of a filed document, recorded and not filed again" in "\n".join(report.lines())
-    entries = parse_bib((q / BIB).read_text())
-    assert [k for k, e in entries.items() if e.fields.get("loom-copy-of")] == ["olsson03A"]
-    ledger = json.loads((q / "digests" / "storage" / "copied.json").read_text())
-    assert any(v["from"] == "refs/olsson again.pdf" and v.get("duplicate-of") == "olsson03" for v in ledger.values())
-    assert scan_bibliography(load_quilt(q)).copies == [], "recorded once: the ledger has seen those bytes"
-
-
 def test_a_version_is_not_extracted_unless_cited_or_named(tmp_path: Path) -> None:
     """A second document of a work brings no second digest: `update` skips an uncited version with a source, and extracts it when the author names it or cites it."""
     q = _versioned(tmp_path)
-    (q / "digests" / f"{V}.tex").unlink()
-    (q / "digests" / f"{V}.results.json").unlink()
+    (q / ".loom/digests" / f"{V}.tex").unlink()
+    (q / ".loom/digests" / f"{V}.results.json").unlink()
     src = work_home(q, V) / "src"
     src.mkdir(parents=True)
     (src / "paper.tex").write_text("\\documentclass{article}\n\\begin{document}\nPreprint.\n\\end{document}\n")
@@ -174,8 +154,8 @@ def test_a_key_counts_as_digested_when_a_version_is(tmp_path: Path) -> None:
     from loom.records.store import Records
 
     q = _versioned(tmp_path)
-    (q / "digests" / f"{CK}.tex").unlink()
-    (q / "digests" / f"{CK}.results.json").unlink()
+    (q / ".loom/digests" / f"{CK}.tex").unlink()
+    (q / ".loom/digests" / f"{CK}.results.json").unlink()
     result = scan(load_quilt(q))
     assert not [d for d in result.lint if d.code == "loom:undigested-citekey"], result.lint
     assert [e.to for e in result.edges.edges if e.via == "postnote"] == [f"{V}-prop-3.2"]
@@ -186,7 +166,7 @@ def test_a_key_counts_as_digested_when_a_version_is(tmp_path: Path) -> None:
 def test_the_manifest_names_a_work_s_versions_and_a_version_s_work(tmp_path: Path) -> None:
     q = _versioned(tmp_path)
     ok("build", cwd=q)
-    refs = json.loads((q / "build" / "manifest.json").read_text())["references"]
+    refs = json.loads((q / ".loom/build" / "manifest.json").read_text())["references"]
     assert refs[CK]["versions"] == [
         {
             "citekey": V,

@@ -33,7 +33,7 @@ def test_a_title_reaches_the_session_it_names(tmp_path: Path) -> None:
 
     # and a write command files against the same session
     ok("annotate", "dm-0003", "a finding", "--kind", "question", "--as", "A. Author", cwd=d)
-    events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
+    events = [json.loads(x) for x in (d / ".loom/annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     created = [e for e in events if e["event"] == "created"]
     assert created[-1]["session"] == sid, f"filed under {created[-1]['session']!r}, not the session that made it"
 
@@ -47,12 +47,12 @@ def test_an_unmatched_session_is_an_error_and_never_a_path(tmp_path: Path, name:
     """A session is an id, so there is no path to abuse: an unmatched `--session`, even one naming a directory of the author's, is refused and creates nothing, at the quilt root or inside that directory."""
     d = quilt(tmp_path)
     started(d, "a real sitting")
-    (d / "build").mkdir(exist_ok=True)
+    (d / ".loom/build").mkdir(exist_ok=True)
     before = sorted(p.name for p in d.iterdir())
 
     refused("source", "dm-0003", "--session", name, cwd=d, code=2, match="no session matches")
     assert sorted(p.name for p in d.iterdir()) == before, "nothing may be created at the quilt root"
-    assert not (d / "build" / "run.log").exists()
+    assert not (d / ".loom/build" / "run.log").exists()
 
 
 def test_an_ambiguous_title_names_its_matches(tmp_path: Path) -> None:

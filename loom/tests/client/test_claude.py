@@ -131,7 +131,7 @@ def test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_sh
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
     result, ran = turn(q, OVER_MCP)
-    mine = [ln for ln in (q / "annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
+    mine = [ln for ln in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines() if "client check" in ln]
     assert mine and '"author": "Claude Code Agent"' in mine[-1], (
         f"no annotation over MCP as Claude Code Agent: {result}"
     )

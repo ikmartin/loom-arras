@@ -1,6 +1,6 @@
-"""The quilt's own bibliography: `digests/bibliography.bib`, gathered from the landmarks and only ever appended to.
+"""The quilt's own bibliography, `.loom/digests/bibliography.bib`, gathered from the documents and the landmarks and only ever appended to.
 
-A landmark cites through a `.bib` it names or through an inline `thebibliography`; both are read. An entry from a `.bib` is copied verbatim, so nothing the author wrote is lost. A `\\bibitem` is free text, so it becomes an entry holding that text in `loom-text`, the identifiers found in it, and a best-effort author, title and year, marked `loom-parsed = {heuristic}`. An entry already in the file is never rewritten or removed: the author corrects a heuristic entry by hand, and the next scan leaves the correction alone.
+A document or a landmark cites through a `.bib` it names or through an inline `thebibliography`; both are read. An entry from a `.bib` is copied verbatim, so nothing the author wrote is lost. A `\\bibitem` is free text, so it becomes an entry holding that text in `loom-text`, the identifiers found in it, and a best-effort author, title and year, marked `loom-parsed = {heuristic}`. An entry already in the file is never rewritten or removed: the author corrects a heuristic entry by hand, and the next scan leaves the correction alone.
 """
 
 from __future__ import annotations
@@ -14,15 +14,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loom.clock import stamp
-from loom.paths import REFS, STORAGE, under
+from loom.paths import STORAGE, under
 from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, declared, primary
-from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in, identify_document
+from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in
 from loom.refs.pages import page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations, set_aside_documents
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
-from loom.scan.scan import landmark_bases, landmark_documents
+from loom.scan.scan import ScanResult, landmark_bases, landmark_documents, scan
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import match_group, read_args, read_optional, tokenize
 
@@ -53,27 +53,18 @@ _TITLE_GROUP = re.compile(r"\{\s*\\(?:it|em|sl|itshape)\b\s*")
 class Candidate:
     key: str
     text: str  # BibTeX, ready to append
-    source: str  # the landmark it came from
+    source: str  # the document or landmark it came from
     compare: str = ""  # the text two sources are compared by
 
 
 @dataclass
 class ScanReport:
     canon: int = 0  # landmarks read
+    documents: int = 0  # live documents read
     added: list[Candidate] = field(default_factory=list)
     present: int = 0  # entries the file already had
     conflicts: list[tuple[str, str, str]] = field(default_factory=list)  # (key, kept source, other source)
     missing_bib: list[tuple[str, str]] = field(default_factory=list)  # (landmark, .bib it names that is absent)
-    copied: list[tuple[str, str]] = field(default_factory=list)  # (seed file, where it was filed)
-    already: int = 0  # documents the ledger had seen before
-    derived: list[str] = field(default_factory=list)  # entries offered for a document that stated an identifier
-    unnamed: list[str] = field(default_factory=list)  # entries offered for a document that stated none
-    #: (seed file, why) for a document that resembles an entry without showing plainly that it is that entry's.
-    unmatched: list[tuple[str, str]] = field(default_factory=list)
-    siblings: list[tuple[str, str]] = field(default_factory=list)  # (new key, the work it is a second document of)
-    #: (seed file, the version it is a copy of, why): recorded in the ledger and not filed.
-    copies: list[tuple[str, str, str]] = field(default_factory=list)
-    unmapped: list[tuple[str, str]] = field(default_factory=list)  # (file, why no page text was written)
     adopted: list[tuple[str, str]] = field(default_factory=list)  # (new key, the store directory nothing named)
     forgotten: int = 0  # stored documents a tombstone says not to offer again
     duplicates: list[tuple[str, list[str]]] = field(
@@ -88,15 +79,15 @@ class ScanReport:
         return len(self.conflicts) + len(self.missing_bib) + len(self.duplicates)
 
     def report(self) -> Report:
-        """The scan as a report: what the bibliography holds and gained, what came in from `refs/`, and each finding that needs the author.
+        """The scan as a report: what the bibliography holds and gained, and each finding that needs the author.
 
         Store paths stay in the JSON; the text names the citekey and the file the author dropped.
         """
         from loom.cli.report import Group, Item, Report, counted
 
-        # A `\bibitem` and a document dropped in `refs/` both carry `loom-parsed`; counting them together said "from \bibitem text" about a PDF that came from no bibliography at all.
-        from_seed = {c.key for c in self.added if c.text and "loom-source" in c.text}
-        heuristic = {c.key for c in self.added if "loom-parsed" in c.text and c.key not in from_seed}
+        # a `\bibitem` and a stored document an entry is offered for both carry `loom-parsed`; only the first came from bibliography text
+        from_store = {c.key for c in self.added if c.text and "loom-source" in c.text}
+        heuristic = {c.key for c in self.added if "loom-parsed" in c.text and c.key not in from_store}
         total = self.present + len(self.added)
         new = f"{len(self.added)} new" if self.added else "none new"
         verdict = (
@@ -105,25 +96,16 @@ class ScanReport:
         if self.problems():
             verdict += f"; {counted(self.problems(), 'finding')} for you"
         lines: list[str] = []
-        if self.copied or self.already:
-            copied = f"{len(self.copied)} new" if self.copied else "none new"
-            offered = len(self.derived) + len(self.unnamed)
-            lines.append(
-                f"{SEED}/: {counted(len(self.copied) + self.already, 'document')} in loom's store, {copied}"
-                + (f", {counted(offered, 'new entry', 'new entries')} offered" if offered else "")
-            )
         if self.forgotten:
             lines.append(
                 f"{counted(self.forgotten, 'stored document')} not offered: forgotten; "
                 "loom library ignore WORK --undo --why '…' offers one again"
             )
-        if not self.canon:
-            lines.append(
-                "no landmarks to gather from: the bibliography grows when you `loom stamp DOCUMENT -m NAME` a document"
-            )
+        if not self.canon and not self.documents:
+            lines.append("no documents or landmarks to gather from: the bibliography grows from what a document cites")
 
         def origin(c: Candidate) -> str:
-            if c.key in from_seed:
+            if c.key in from_store:
                 return f"read from {_shown(c.source)} itself"
             return f"from {_shown(c.source)}" + (
                 ", parsed heuristically from \\bibitem text" if c.key in heuristic else ""
@@ -131,7 +113,7 @@ class ScanReport:
 
         groups = [
             Group(
-                "conflicts: the landmarks disagree, and the first is kept",
+                "conflicts: two sources disagree, and the first is kept",
                 [Item(f"{kept} (kept) and {other}", key=key) for key, kept, other in sorted(self.conflicts)],
                 problem=True,
             ),
@@ -148,26 +130,11 @@ class ScanReport:
             ),
             Group("new entries", [Item(origin(c), key=c.key) for c in sorted(self.added, key=lambda c: c.key.lower())]),
             Group(
-                "second documents, filed beside the first",
-                [Item(f"a second document for {old}", key=new_key) for new_key, old in sorted(self.siblings)],
-            ),
-            Group(
-                "copies of a filed document, recorded and not filed again",
-                [Item(f"{name}: {why}", key=of) for name, of, why in sorted(self.copies)],
-            ),
-            Group(
                 "entries for stored documents",
                 [
                     Item("a document in loom's store, which the bibliography no longer named", key=key)
                     for key, _ in sorted(self.adopted)
                 ],
-            ),
-            Group("no page text", [Item(why, key=name) for name, why in sorted(self.unmapped)]),
-            Group(
-                "not filed against an entry, so offered one of their own",
-                [Item(f"{name}: {why}") for name, why in sorted(self.unmatched)],
-                limit=None,
-                next="loom library add FILE --for WORK files one you know is that work",
             ),
         ]
         return Report(
@@ -178,19 +145,12 @@ class ScanReport:
             dry_run=self.dry_run,
             data={
                 "landmarks": self.canon,
+                "documents": self.documents,
                 "entries": total,
                 "present": self.present,
                 "added": [{"key": c.key, "source": c.source} for c in self.added],
                 "conflicts": [{"key": k, "kept": a, "other": b} for k, a, b in self.conflicts],
                 "missing_bib": [{"landmark": d, "bib": f"{n}.bib"} for d, n in self.missing_bib],
-                "copied": [{"from": a, "to": b} for a, b in self.copied],
-                "already": self.already,
-                "derived": list(self.derived),
-                "unnamed": list(self.unnamed),
-                "siblings": [{"key": a, "of": b} for a, b in self.siblings],
-                "copies": [{"file": a, "of": b, "why": c} for a, b, c in self.copies],
-                "unmapped": [{"file": a, "why": b} for a, b in self.unmapped],
-                "unmatched": [{"file": a, "why": b} for a, b in self.unmatched],
                 "adopted": [{"key": a, "home": b} for a, b in self.adopted],
                 "forgotten": self.forgotten,
                 "duplicates": [{"from": a, "keys": b} for a, b in self.duplicates],
@@ -323,22 +283,32 @@ def _named_bibs(root: Path, text: str, base: str = "") -> tuple[list[Path], list
     return found, absent
 
 
-def bib_file(quilt: Quilt) -> str:
-    """The first `.bib` a landmark names, quilt-relative, else one in the seed space: the file the author adds an entry to; '' when there is none."""
-    root = quilt.root
-    bases = landmark_bases(quilt)
-    for rel in landmark_documents(quilt):
+def bib_file(result: ScanResult) -> str:
+    """The first `.bib` a landmark names, quilt-relative, else the first the person's documents name, the default document's first: the file the author adds an entry to; '' when there is none."""
+    root = result.quilt.root
+    bases = landmark_bases(result.quilt)
+    for rel in landmark_documents(result.quilt):
         found, _absent = _named_bibs(
             root, (root / rel).read_text(encoding="utf-8", errors="replace"), bases.get(rel, "")
         )
         if found:
             return found[0].relative_to(root).as_posix()
-    seeds = sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []
-    return seeds[0].relative_to(root).as_posix() if seeds else ""
+    for rel in _documents(result):
+        found, _absent = _named_bibs(root, result.expansions[rel].text, result.base_of(rel))
+        if found:
+            return found[0].relative_to(root).as_posix()
+    return ""
 
 
-def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
-    """Every entry the landmarks carry, first source winning; a second source disagreeing is a conflict."""
+def _documents(result: ScanResult) -> list[str]:
+    """The person's live documents, the default first: where a bibliography is wherever one names it."""
+    docs = sorted(m for m in result.masters if result.document_role(m) == "person" and m in result.expansions)
+    return sorted(docs, key=lambda m: m != result.default_master)
+
+
+def candidates(result: ScanResult, report: ScanReport) -> dict[str, Candidate]:
+    """Every entry the person's documents and the landmarks carry, the documents first, first source winning; a second source disagreeing is a conflict."""
+    quilt = result.quilt
     root = quilt.root
     out: dict[str, Candidate] = {}
 
@@ -351,14 +321,26 @@ def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
         ):
             report.conflicts.append((c.key, kept.source, c.source))
 
+    live = _documents(result)
+    report.documents = len(live)
+    for rel in live:
+        text = result.expansions[rel].text
+        bibs, _absent = _named_bibs(
+            root, text, result.base_of(rel)
+        )  # a live document's missing `.bib` is the lint's to report
+        for bib in bibs:
+            raw = bib.read_text(encoding="utf-8", errors="replace")
+            for key, entry_text in raw_entries(raw).items():
+                offer(
+                    Candidate(
+                        key, entry_text.rstrip() + "\n", f"{rel} via {bib.relative_to(root).as_posix()}", entry_text
+                    )
+                )
+        for key, item in bibitems(text).items():
+            offer(Candidate(key, _bibtex(key, bibitem_fields(item)), rel, item))
     docs = landmark_documents(quilt)
     bases = landmark_bases(quilt)
     report.canon = len(docs)
-    for bib in sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []:
-        raw = bib.read_text(encoding="utf-8", errors="replace")
-        source = bib.relative_to(root).as_posix()
-        for key, entry_text in raw_entries(raw).items():
-            offer(Candidate(key, entry_text.rstrip() + "\n", source, entry_text))
     history = quilt.config.history.rstrip("/") + "/"
     for rel in docs:
         text = (root / rel).read_text(encoding="utf-8", errors="replace")
@@ -390,25 +372,27 @@ def _append(path: Path, entries: list[Candidate]) -> None:
     path.write_text("".join(chunks), encoding="utf-8")
 
 
-def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
-    """Append every entry a landmark carries that the quilt's bibliography does not have yet.
+def scan_bibliography(quilt: Quilt, *, write: bool = True, result: ScanResult | None = None) -> ScanReport:
+    """Append every entry a document or a landmark carries that the quilt's bibliography does not have yet.
 
     Parameters
     ----------
     quilt : Quilt
         The quilt to scan.
     write : bool, default True
-        Append to `digests/bibliography.bib`; False reports what would be added.
+        Append to the quilt's bibliography; False reports what would be added.
+    result : ScanResult, optional
+        The quilt's scan, when the caller has one; default a fresh scan.
 
     Returns
     -------
     ScanReport
-        What was added, how many entries were already there, conflicts between landmarks, and named `.bib` files that do not exist.
+        What was added, how many entries were already there, conflicts between sources, and `.bib` files a landmark names that do not exist.
     """
     report = ScanReport(dry_run=not write)
     path = quilt.root / BIBLIOGRAPHY
     existing = parse_bib(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else {}
-    from_canon = [c for key, c in candidates(quilt, report).items() if key not in existing]
+    from_canon = [c for key, c in candidates(result or scan(quilt), report).items() if key not in existing]
     report.present = len(existing)
     report.added += from_canon
     if write:
@@ -416,14 +400,6 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
         existing = parse_bib(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else existing
     else:
         existing = {**existing, **parse_bib("".join(c.text for c in from_canon))}
-    # the documents the author dropped, after the entries, so a PDF is matched against everything the bibliography now knows
-    from_seed = [c for c in copy_documents(quilt, existing, report, write=write) if c.key not in existing]
-    report.added += from_seed
-    if write:
-        _append(path, from_seed)
-        existing = parse_bib(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else existing
-    else:
-        existing = {**existing, **parse_bib("".join(c.text for c in from_seed))}
     # last, and against everything the bibliography now knows: a document the store holds and no entry names
     orphans = [c for c in adopt_orphans(quilt, existing, report) if c.key not in existing]
     report.added += orphans
@@ -533,9 +509,7 @@ def _duplicates(bib: dict[str, BibEntry], aside: set[str]) -> list[tuple[str, li
     return sorted((came[home], sorted(keys)) for home, keys in by_home.items() if len(keys) > 1)
 
 
-#: The author's seed space: where they drop reference PDFs and `.bib` files. Loom reads it and never writes it.
-SEED = REFS
-#: Every document ever copied into the store, by content hash, so a file is copied once and never again -- not when it is renamed, not when it is deleted from the seed space and not when it is dropped a second time.
+#: Every document ever copied into the store, by content hash, so a file is copied once and never again -- not when it is renamed, deleted or given a second time.
 LEDGER = "copied.json"
 
 
@@ -551,11 +525,19 @@ def load_ledger(root: Path) -> dict[str, dict[str, str]]:
     return data if isinstance(data, dict) else {}
 
 
-def record_copy(root: Path, sha: str, source: str, dest: str, extra: dict[str, str] | None = None) -> None:
-    """Append one copy to the ledger, with `extra` fields such as an override `library add --force` made. Nothing is ever removed from it."""
+def record_copy(root: Path, sha: str, source: str, home: Path, extra: dict[str, str] | None = None) -> None:
+    """Append one copy to the ledger, with `extra` fields such as an override `library add --force` made. Nothing is ever removed from it.
+
+    `home` is recorded relative to the store (`doi/10.1090_…`), so the ledger survives a move of the store.
+    """
     path = storage_root(root) / LEDGER
     ledger = load_ledger(root)
-    ledger[sha] = {"from": source, "to": dest, "when": stamp(), **(extra or {})}
+    ledger[sha] = {
+        "from": source,
+        "to": home.relative_to(storage_root(root)).as_posix(),
+        "when": stamp(),
+        **(extra or {}),
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -596,12 +578,10 @@ def _own_account(pdf: Path) -> tuple[WorkId | None, dict[str, str]]:
     return None, fields
 
 
-def _entry_for(
-    pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "", filed: str = ""
-) -> str:
+def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, *, source: str, filed: str = "") -> str:
     """A bibliography entry for a document that had none, carrying where it came from.
 
-    `source` overrides the seed path for a document that did not come from the seed space; it is what a later scan reads to know this entry already names that document.
+    `source` is what a later scan reads to know this entry already names that document.
     """
     out = dict(fields)
     if wid is not None:
@@ -609,7 +589,7 @@ def _entry_for(
             out["eprint"], out["archiveprefix"] = wid.value, "arXiv"
         else:
             out[wid.scheme] = wid.value
-    out["loom-source"] = source or f"{SEED}/{pdf.name}"
+    out["loom-source"] = source
     # where the document went, when that is not derivable from an identifier it does not state
     if filed:
         out["loom-file"] = filed
@@ -663,7 +643,7 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
 
     See Also
     --------
-    copy_documents : The seed space's side of the same job, which files a document the store has not seen.
+    file_document : How `loom library add` files a document the store has not seen.
     """
     store = storage_root(quilt.root)
     if not store.is_dir():
@@ -691,15 +671,15 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         if f"{home.parent.name}/{home.name}" in claimed:
             continue
         rel = home.relative_to(quilt.root).as_posix()
-        # where it was dropped, when the ledger remembers: the stored copy is always called `paper.pdf`, so the name a reference manager gave it -- which is the only title worth trusting (DR-191) -- survives only there
-        came = str(ledger.get(rel, {}).get("from", "")) or rel
+        # where it was added from, when the ledger remembers: the stored copy is always called `paper.pdf`, so the name a reference manager gave it -- which is the only title worth trusting (DR-191) -- survives only there
+        came = str(ledger.get(f"{home.parent.name}/{home.name}", {}).get("from", "")) or rel
         if _spaced(came) in sources:
             continue  # an entry already names this document by where it came from
         sha = sha256_of(pdf)
         if sha in aside:
             report.forgotten += 1
             continue
-        filed_at = str(records.get(sha, {}).get("to", "")).removeprefix(STORAGE + "/")
+        filed_at = str(records.get(sha, {}).get("to", ""))
         if filed_at and filed_at != f"{home.parent.name}/{home.name}" and filed_at in claimed:
             continue  # the same bytes, filed again under the work they are and named there: a stale copy, not an orphan
         wid, said = _own_account(pdf)  # the real file, for what the document says about itself
@@ -725,89 +705,6 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
             )
         )
         report.adopted.append((key, rel))
-    return offers
-
-
-def copy_documents(
-    quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport, *, write: bool = True
-) -> list[Candidate]:
-    """Copy every document in the seed space the store has not seen before, and offer an entry for one the bibliography does not have.
-
-    Copy-once is by content hash and by the ledger, never by what is on disk: a document the author has since deleted from `refs/` is not copied again, and neither is one they renamed. Where it goes is decided by what it says about itself -- its own identifier, the entry it shows plainly it is (`identify_document`, the rule `library add` files on), or its hash. A second document for a work that already has one is a copy when `same_document` says so, recorded in the ledger and not filed; otherwise it is another version, filed beside the first under a sibling key rather than over it, because a preprint often carries results the published version drops (DR-192).
-    """
-    root = quilt.root
-    seed = root / SEED
-    if not seed.is_dir():
-        return []
-    ledger = load_ledger(root)
-    aside = set_aside_documents(root)
-    taken = set(bib)
-    offers: list[Candidate] = []
-    for pdf in sorted(seed.rglob("*.pdf")):
-        sha = sha256_of(pdf)
-        rel = pdf.relative_to(root).as_posix()
-        if sha in ledger:
-            report.already += 1
-            continue
-        if sha in aside:
-            report.forgotten += 1
-            continue
-        ledger[sha] = {"from": rel}  # the same bytes dropped twice in one gathering are one document, offered once
-        wid, said = _own_account(pdf)
-        # filed against an entry only on the rule `library add` files on; anything weaker is its own document
-        identity = identify_document(pdf, bib)
-        best = identity.best()
-        citekey = best[0].citekey if len(best) == 1 else one_work_of([m.citekey for m in best], bib) if best else ""
-        if not citekey:
-            why = f"it names {' and '.join(m.citekey for m in best)} equally" if best else identity.weak
-            if why and not why.startswith("nothing in the bibliography"):
-                report.unmatched.append((rel, why))
-        entry = bib.get(citekey)
-        # where the entry's document lives, `loom-file` first, as every reader looks (`work_dir`)
-        try:
-            claimed = work_dir(root, entry) if entry is not None else None
-        except FetchRefused:
-            claimed = None
-        own = storage_root(root) / (wid.path if wid else f"file/{sha[:16]}")
-        if claimed is not None and own == claimed and (claimed / "paper.pdf").is_file():
-            own = (
-                storage_root(root) / f"file/{sha[:16]}"
-            )  # a second document stating the work's own identifier is filed by its content, never over the first
-        if claimed is not None and not (claimed / "paper.pdf").is_file():
-            home = claimed  # the work the bibliography already names, with nothing filed for it yet
-        elif claimed is not None and entry is not None:
-            top = primary_of(bib).get(citekey, citekey)
-            same, why = same_document(pdf, wid, stored_versions(root, bib, top))
-            if same:
-                report.copies.append((rel, same, why))
-                if write:
-                    to = work_dir(root, bib[same]).relative_to(root).as_posix()
-                    record_copy(root, sha, rel, to, {"duplicate-of": same})
-                continue
-            home = own  # another version of that work: beside the first, under a sibling key
-            sibling = _free_key(top, taken)
-            taken.add(sibling)
-            offers.append(_sibling(pdf, wid, bib[top], sibling, source=rel, home=own.relative_to(storage_root(root))))
-            report.siblings.append((sibling, top))
-        else:
-            home = own  # nothing in the bibliography claims it
-            key = _derived_key(pdf, sha, taken)
-            taken.add(key)
-            here = own.relative_to(storage_root(root)).as_posix()
-            offers.append(
-                Candidate(key, _entry_for(pdf, wid, said, key, source=rel, filed="" if wid else here), rel, rel)
-            )
-            (report.derived if wid else report.unnamed).append(key)
-        report.copied.append((rel, home.relative_to(root).as_posix()))
-        if not write:
-            continue  # a dry run says what it would copy and copies, maps and records nothing
-        home.mkdir(parents=True, exist_ok=True)
-        shutil.copy(pdf, home / "paper.pdf")
-        try:
-            write_map(home, home / "paper.pdf")
-        except Exception as exc:  # noqa: BLE001 -- no poppler, or a PDF with no text layer: the copy stands either way
-            report.unmapped.append((rel, str(exc)))
-        record_copy(root, sha, rel, home.relative_to(root).as_posix())
     return offers
 
 
@@ -900,8 +797,7 @@ def plan_filing(
 
 def record_copy_of(quilt: Quilt, bib: dict[str, BibEntry], f: Filing) -> None:
     """Record in the copy ledger that `f` is a copy of `f.copy_of`'s document, so it is never offered again and nothing is filed."""
-    to = work_dir(quilt.root, bib[f.copy_of]).relative_to(quilt.root).as_posix()
-    record_copy(quilt.root, f.sha, f.source, to, {"duplicate-of": f.copy_of})
+    record_copy(quilt.root, f.sha, f.source, work_dir(quilt.root, bib[f.copy_of]), {"duplicate-of": f.copy_of})
 
 
 def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
@@ -930,7 +826,7 @@ def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
         else:
             shutil.copy(f.path, dest / f.path.name)
     extra = {"forced": f.forced, "by": by} if f.forced else None
-    record_copy(root, f.sha, f.source, f.home.relative_to(root).as_posix(), extra)
+    record_copy(root, f.sha, f.source, f.home, extra)
     if f.replaces:
         declare(root, "forget", f"sha256:{f.replaces}", f"set aside from {f.citekey}: {f.replaces_why}", by)
         declare(root, "forget", f.citekey, f"replaced by {f.source}", by, undo=True)

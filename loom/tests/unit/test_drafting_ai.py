@@ -85,7 +85,7 @@ def test_status_and_the_manifest_count_the_persons_nodes_once(tmp_path: Path) ->
     keys = json_of("status", "--json", cwd=q)["keys"]
     assert "dm-0004" in keys and "dm-0004-ai" not in keys
     ok("build", cwd=q)
-    m = json.loads((q / "build" / "manifest.json").read_text())
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     # an agent's document is the one the history made: `copy_of` says whose copy it is, and no master carries a directory
     assert {x["path"]: x.get("copy_of") for x in m["masters"]} == {
         "drafting/main.tex": None,
@@ -172,7 +172,7 @@ def test_the_agent_may_write_in_its_directory_under_the_quilts_own_names(tmp_pat
     cfg.write_text(
         cfg.read_text().replace('drafting = "drafting"', 'drafting = "drafting"\ndrafting_ai = "with-agent"')
     )
-    shutil.rmtree(q / "ai")
+    shutil.rmtree(q / ".loom/ai")
     shutil.rmtree(q / ".claude", ignore_errors=True)
     ok("ai", "init", cwd=q)
     perms = json.loads((q / ".claude" / "settings.json").read_text())["permissions"]
@@ -182,12 +182,11 @@ def test_the_agent_may_write_in_its_directory_under_the_quilts_own_names(tmp_pat
     assert doctor["permissions"] == "ok"
 
 
-def test_init_makes_the_agents_directory_and_names_it(tmp_path: Path) -> None:
+def test_init_leaves_the_agents_directory_to_be_made_when_first_written(tmp_path: Path) -> None:
     ok("init", str(tmp_path / "q"), cwd=tmp_path)
     q = tmp_path / "q"
-    assert (q / "drafting-ai").is_dir()
-    assert 'drafting_ai = "drafting-ai"' in (q / "config.toml").read_text()
-    assert "drafting-ai/*.aux" in (q / ".gitignore").read_text()
+    assert not (q / "drafting-ai").exists() and "drafting_ai" not in (q / "config.toml").read_text()
+    assert load_quilt(q).config.drafting_ai == "drafting-ai"
 
 
 def test_the_document_workspace_never_selects_an_agents_document(tmp_path: Path) -> None:
@@ -426,7 +425,7 @@ def test_adopt_refuses_what_a_document_written_from_scratch_cannot_take(tmp_path
     refused("adopt", "survey.tex", cwd=q, code=2, match="--to drafting/NAME.tex")
     refused("adopt", "survey.tex", "dm-0900-ai", "--to", "drafting/s.tex", cwd=q, code=2, match="no changes to choose")
     refused("adopt", "survey.tex", "--to", "drafting/main.tex", cwd=q, code=2, match="exists")
-    refused("adopt", "survey.tex", "--to", "notes/s.tex", cwd=q, code=2, match="is inside notes/")
+    refused("adopt", "survey.tex", "--to", ".loom/s.tex", cwd=q, code=2, match="is inside .loom/")
     refused("adopt", "survey.tex", "--to", "drafting-ai/s.tex", cwd=q, code=2, match="where agents' documents are kept")
     refused("adopt", "survey.tex", "--to", "drafting/s.tex", cwd=q, code=2, match="author's", env={"CLAUDECODE": "1"})
     assert not (q / "drafting" / "s.tex").exists()

@@ -37,7 +37,7 @@ def _named(quilt: Quilt, result: ScanResult, needles: tuple[str, ...]) -> list[s
     "--only",
     type=click.Choice(STEPS),
     default=None,
-    help="Run one step: gather (the bibliography, from the landmarks and refs/), resolve, fetch, extract or map.",
+    help="Run one step: gather (the bibliography, from the documents and the landmarks), resolve, fetch, extract or map.",
 )
 @click.option(
     "--redo",
@@ -103,7 +103,7 @@ def update_command(
         plan_report(ws, plan, online=allowed, scan=scanned).emit(as_json)
         return
     scanned = scan_bibliography(quilt) if gather else None
-    if result is None or (scanned is not None and (scanned.added or scanned.copied)):
+    if result is None or (scanned is not None and scanned.added):
         result = open_scan(quilt_path)
     # this run's consent, written nowhere: the config is the standing answer (DR-193)
     result.quilt.config.online = allowed

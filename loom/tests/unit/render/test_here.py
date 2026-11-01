@@ -97,7 +97,7 @@ def test_the_place_is_held_in_memory_and_served_only_with_the_token(tmp_path: Pa
         p.relative_to(q).as_posix(): p.read_bytes() for p in q.rglob("*") if p.is_file() and "build" not in p.parts
     }
     assert after == before and not any(b"private words" in b for b in after.values())
-    assert not any(b"private words" in p.read_bytes() for p in (q / "build").rglob("*") if p.is_file())
+    assert not any(b"private words" in p.read_bytes() for p in (q / ".loom/build").rglob("*") if p.is_file())
     token = json.loads(get(s.url + "_api")[2])["token"]
     assert get(s.url + "_api/here")[0] == 403
     assert get(s.url + "_api/here", {"X-Loom-Token": token, "Origin": "http://evil.example"})[0] == 403

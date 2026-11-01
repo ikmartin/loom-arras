@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_nothing_shipped_is_ignored() -> None:
-    """A quilt's own `.gitignore` keeps its fetched papers out of the quilt's repository, as it would for an author; any other rule hiding a shipped file is a fault."""
+    """A quilt's own ignore files, at its root and in `.loom/`, keep its fetched papers out of the quilt's repository, as they would for an author; any other rule hiding a shipped file is a fault."""
     ignored = _git("ls-files", "--others", "--ignored", "--exclude-standard")
     rules = subprocess.run(
         ["git", "check-ignore", "-v", "--no-index", "--stdin"],
@@ -34,11 +34,12 @@ def test_nothing_shipped_is_ignored() -> None:
         capture_output=True,
         text=True,
     ).stdout.splitlines()
-    hidden = [
-        r.split("\t", 1)[1]
-        for r in rules
-        if not (WORKSPACE / r.split(":", 1)[0]).parent.joinpath("config.toml").is_file()
-    ]
+
+    def a_quilt_s(rule: str) -> bool:
+        where = (WORKSPACE / rule.split(":", 1)[0]).parent
+        return (where.parent if where.name == ".loom" else where).joinpath("config.toml").is_file()
+
+    hidden = [r.split("\t", 1)[1] for r in rules if not a_quilt_s(r)]
     assert hidden == [], "a workspace .gitignore line hides these"
 
 

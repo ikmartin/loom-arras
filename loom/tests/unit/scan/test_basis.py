@@ -39,7 +39,7 @@ Terminology only.\end{remark}
 This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
 \end{document}
 """,
-            "digests/bibliography.bib": "@article{Paper, title={A paper}}\n",
+            ".loom/digests/bibliography.bib": "@article{Paper, title={A paper}}\n",
         },
     )
     assert {k: result.nodes[k].basis for k in [f"ab-000{i}" for i in range(1, 10)]} == {

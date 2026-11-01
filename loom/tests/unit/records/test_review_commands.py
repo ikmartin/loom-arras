@@ -37,7 +37,7 @@ def session(d: Path, title: str = "r1") -> tuple[str, Path]:
 
 def events(root: Path) -> list[dict]:
     """Every line of the annotation log, in the order it was appended."""
-    p = root / "annotations" / "log.jsonl"
+    p = root / ".loom/annotations" / "log.jsonl"
     return [json.loads(ln) for ln in p.read_text().splitlines() if ln.strip()] if p.is_file() else []
 
 
@@ -47,7 +47,7 @@ def demo(tmp_path: Path, clean: bool = True) -> Path:
     d = tmp_path / "demo"
     if clean:
         shutil.rmtree(d / ".loom", ignore_errors=True)
-        shutil.rmtree(d / "annotations", ignore_errors=True)
+        shutil.rmtree(d / ".loom/annotations", ignore_errors=True)
     return d
 
 
@@ -136,12 +136,12 @@ def test_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> Non
 
     save_author("The loom demo")
     ok("build", cwd=d)
-    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    manifest = json.loads((d / ".loom/build" / "manifest.json").read_text())
     cause = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
     comparison = cause["comparison"]
-    assert cause["citation"] in (d / "build" / manifest["masters"][0]["fragment"]).read_text()
-    accepted_html = (d / "build" / comparison["accepted"]).read_text()
-    current_html = (d / "build" / comparison["current"]).read_text()
+    assert cause["citation"] in (d / ".loom/build" / manifest["masters"][0]["fragment"]).read_text()
+    accepted_html = (d / ".loom/build" / comparison["accepted"]).read_text()
+    current_html = (d / ".loom/build" / comparison["current"]).read_text()
     assert "sigma" in accepted_html
     assert "sigma" in current_html
     assert "review-changed" in accepted_html + current_html
@@ -173,7 +173,7 @@ def test_comparison_uses_preamble_saved_with_dependent_acceptance(tmp_path: Path
     master = d / "drafting" / "main.tex"
     master.write_text(master.read_text().replace("\\operatorname{Fix}", "\\operatorname{Fixed}"))
     ok("build", cwd=d)
-    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    manifest = json.loads((d / ".loom/build" / "manifest.json").read_text())
     causes = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"]
     comparison = the(causes, lambda c: c["kind"] == "dependency-changed", "dependency-changed cause")["comparison"]
     old = manifest["macros"]["sets"][comparison["accepted_macros"]]
@@ -708,14 +708,14 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     second = bad.output.split()[0]
 
     ok("library", "verify", first, *AS, cwd=d)
-    notes = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
+    notes = [json.loads(ln) for ln in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if ln.strip()]
     assert len(notes) == 1
     assert notes[0]["for"] == ["dm-0002"] and notes[0]["identifier"] == {"verified": False}
     assert notes[0]["from"]["annotation"] == first and "Kreck" in notes[0]["claim"]
     assert set(notes[0]["from"]) == {"session", "annotation"} and notes[0]["from"]["session"].startswith("s-")
 
     ok("library", "discard", second, "--why", "Har77 is about something else.", *AS, cwd=d)
-    still = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
+    still = [json.loads(ln) for ln in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if ln.strip()]
     assert len(still) == 1  # rejecting records nothing; the reason rides on the resolve event
 
     # both suggestions are resolved either way, so neither sits open forever
@@ -840,7 +840,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "objection": 2
     }
     ok("build", cwd=d)
-    frag = (d / "build" / "fragments" / "nodes" / "dm-0003.html").read_text()
+    frag = (d / ".loom/build" / "fragments" / "nodes" / "dm-0003.html").read_text()
     assert frag.count('<mark class="annotation"') == 3
     # Day 2: the author rewrites the proof; the proof annotations detach; the agent re-checks clean
     f = d / "drafting" / "nodes" / "dm-0003.tex"
@@ -876,14 +876,14 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     assert any(ln.startswith("-") and r"\sigma x = x" in ln for ln in diff), explain.output
     assert any(ln.startswith("+") and r"\sigma(x) = x" in ln for ln in diff), explain.output
     ok("build", cwd=d)
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     cause = m["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
-    assert cause["diff"] and (d / "build" / cause["diff"]).exists()
+    assert cause["diff"] and (d / ".loom/build" / cause["diff"]).exists()
     ok("accept", "--stale", "--yes", "--force", *AS, cwd=d)
     s = status_json(d)
     assert s["summary"]["stale"] == 0
     ok("build", cwd=d)
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     assert m["annotations"] and any(a["detached"] for a in m["annotations"].values())
 
 
@@ -1071,7 +1071,7 @@ def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Pat
         cwd=d,
     )
     ok("library", "verify", named.output.split()[0], *AS, cwd=d)
-    note = json.loads((d / "reference-notes.jsonl").read_text().splitlines()[0])
+    note = json.loads((d / ".loom/reference-notes.jsonl").read_text().splitlines()[0])
     assert note["work"].startswith("Kreschmer,")
     assert note["claim"].startswith("The parity count")
 
@@ -1101,7 +1101,7 @@ def test_the_cli_and_the_write_api_record_one_citation_the_same_way(
                 "library-cite",
                 {"session": open_session(d), "annotation": ann, "decision": "accept", "author": AS[1]},
             )
-        notes.append([json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()])
+        notes.append([json.loads(x) for x in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if x.strip()])
         resolved.append([e for e in events(d) if e.get("id") == ann and e["event"] == "resolved"])
     assert notes[0] == notes[1] and len(notes[0]) == 1, notes
     assert notes[0][0]["work"].startswith("Kreschmer,") and notes[0][0]["claim"].startswith("The parity count")
@@ -1163,7 +1163,7 @@ def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) ->
     quotes = ["\\noindent\\textbf{Problem 1:}", "(\\S~\\ref{sy-0201})", "follow -- mostly"]
     ids = [ok("annotate", "sy-0200", "Look.", "--quote", q, *AS, cwd=d).output.split()[0] for q in quotes]
     exits(1, "build", cwd=d)
-    frag = (d / "build" / "fragments" / "nodes" / "sy-0200.html").read_text()
+    frag = (d / ".loom/build" / "fragments" / "nodes" / "sy-0200.html").read_text()
     assert "annotation-block" not in frag
     for ann in ids:
         assert f'<mark class="annotation" data-annotation="{ann}">' in frag, ann
@@ -1221,7 +1221,7 @@ def test_status_is_the_authors_to_do_list_not_the_literatures(tmp_path: Path) ->
     """A digest holds every result of a cited paper; relloc printed 150 rows of which 92 were Manolache's, and the summary counted his one `incomplete` and his 92 `loose` as the author's (F4, A3, A4)."""
     q = synthetic(tmp_path)
     # a result of the cited paper that nothing in this quilt uses, which is most of a real digest
-    digest = q / "digests" / "Kre99.tex"
+    digest = q / ".loom/digests" / "Kre99.tex"
     digest.write_text(
         digest.read_text()
         + "\n\\begin{theorem}[{\\cite[Theorem 9.9, p.~40]{Kre99}}]\\label{Kre99-thm-9.9}\n"
@@ -1269,7 +1269,7 @@ def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
     assert "transcription verified" in line and "accepted" not in line
 
     # and what moved is the transcription, not the author's own text
-    p = q / "digests" / "Kre99.tex"
+    p = q / ".loom/digests" / "Kre99.tex"
     p.write_text(p.read_text().replace("is well defined", "is well-defined", 1))
     e = ok("status", "--explain", "Kre99-thm-2.1", cwd=q).output
     assert "transcription verified, stale" in e and "its transcription changed" in e
@@ -1307,7 +1307,7 @@ def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
     ok("annotate", "sy-0001#eq:fix", "The fixed locus wants a name.", "--session", sid, cwd=d, env=AGENT)
     ann = [e["id"] for e in events(d) if e["event"] == "created"][-1]
     exits(1, "build", cwd=d)
-    frag = (d / "build" / "fragments" / "nodes" / "sy-0001.html").read_text()
+    frag = (d / ".loom/build" / "fragments" / "nodes" / "sy-0001.html").read_text()
     display = next(ln for ln in frag.split("<div") if 'data-label="eq:fix"' in ln)
     assert "annotation-block" in display and ann in display
     assert "<mark" not in display
@@ -1330,7 +1330,7 @@ def test_an_annotation_may_name_the_document_it_is_read_in(tmp_path: Path) -> No
     reply = ok("annotate", "--reply", ann, "Agreed.", *AS, cwd=d).output.split()[0]
     assert events(d)[-1]["in"] == "drafting/outline.tex"  # a reply is read where its parent is
     ok("build", cwd=d)
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     assert (
         m["annotations"][ann]["in"] == "drafting/outline.tex"
         and m["annotations"][reply]["in"] == "drafting/outline.tex"
@@ -1379,7 +1379,7 @@ def test_an_annotation_whose_document_stops_holding_the_node_is_detached(tmp_pat
     edit(outline, "\\input{nodes/dm-0002}", "% dm-0002 taken out")
     # the outline now refers to a node it no longer holds, so the build reports an error and publishes all the same
     exits(1, "build", cwd=d, match="reference-to-loose")
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     assert m["annotations"][ann]["detached"] is True
 
 
@@ -1470,12 +1470,12 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
     whole = ok("annotate", "drafting/main.tex", "The title is too long.", *AS, cwd=d).output.split()[0]
     ok("linearize", *FLAT, cwd=d)
     ok("build", cwd=d)
-    m = json.loads((d / "build" / "manifest.json").read_text())
+    m = json.loads((d / ".loom/build" / "manifest.json").read_text())
     got = m["annotations"][ann]
     assert got["in"] == "drafting/main-flat.tex" and got["detached"] is False and got["anchored"] is True, got
     assert m["annotations"][whole]["target"]["key"] == "drafting/main-flat.tex"
     assert m["annotations"][whole]["detached"] is False
-    assert ann in (d / "build" / "fragments" / "masters" / "drafting" / "main-flat.html").read_text()
+    assert ann in (d / ".loom/build" / "fragments" / "masters" / "drafting" / "main-flat.html").read_text()
     # the record keeps the path it was written with
     assert [e["in"] for e in events(d) if e.get("id") == ann] == ["drafting/main.tex"]
 
@@ -1502,7 +1502,7 @@ def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(
     )
     ann = r.output.split()[0]
     ok("build", cwd=d)
-    entry = json.loads((d / "build/manifest.json").read_text())["annotations"][ann]
+    entry = json.loads((d / ".loom/build/manifest.json").read_text())["annotations"][ann]
     assert entry["payload"] == payload
     html = entry["payload_html"]
     assert 'class="env env-lemma"' in html and "env-proof" in html
@@ -1599,7 +1599,7 @@ def test_status_rows_read_as_the_reader_reads_them(tmp_path: Path) -> None:
         "\\begin{lemma}[Orbits]",
         "\\begin{lemma}[\\emph{Orbits} of $\\sigma$]",
     )
-    aux = d / "build" / "drafting" / "main" / "main.aux"
+    aux = d / ".loom/build" / "drafting" / "main" / "main.aux"
     aux.parent.mkdir(parents=True, exist_ok=True)
     aux.write_text("\\newlabel{dm-0002}{{2.1}{3}}\n")
     row = status_row(ok("status", cwd=d).output, "dm-0002")

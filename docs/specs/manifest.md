@@ -1,6 +1,6 @@
-# Manifest: `build/manifest.json`
+# Manifest: `.loom/build/manifest.json`
 
-The manifest is the only index a viewer reads. It carries the graph and everything non-textual: nodes, keys, edges, inclusion trees, numbering, states and causes, annotations, threads, diagnostics, tags, taxa, macros, search entries. Text lives in fragments. Interface version 1.
+The manifest is the only index a viewer reads. It carries the graph and everything non-textual: nodes, keys, edges, inclusion trees, numbering, states and causes, annotations, threads, diagnostics, tags, taxa, macros, search entries. Text lives in fragments. Interface version 2.
 
 Field names are fixed; unknown fields must be ignored by viewers. All timestamps are ISO 8601 UTC. All hashes are `sha256:<hex>`.
 
@@ -395,7 +395,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
   "work": "doi:10.1090/S1056-3911-2011-00606-1",
   "works": ["doi:10.1090/S1056-3911-2011-00606-1", "arXiv:0805.2065v2"],
   "artifacts": {"dir": "digests/storage/doi/10.1090_S1056-3911-2011-00606-1", "pdf": true, "source": false},
-  "digest": {"file": "digests/Man12.tex", "fragment": "fragments/digests/Man12.html",
+  "digest": {"file": ".loom/digests/Man12.tex", "fragment": "fragments/digests/Man12.html",
              "source": "arXiv:0805.2065v2", "extracted_from": "arXiv:0805.2065v2",
              "published_as": "doi:10.1090/S1056-3911-2011-00606-1",
              "method": "extract", "nodes": ["Man12-setup", "Man12-thm-4.1"]},
@@ -408,7 +408,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 `digest` is null for an undigested citekey. Each entry also carries `slug`, the prefix of the digest's node ids: the prefix the digest declares in its header, or the citekey with every character outside `[A-Za-z0-9]` removed when it declares none (DR-45, DR-109).
 
-**[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is where what loom holds for the work lives, under `digests/storage/` (DR-192), servable under the viewer's origin, and the two flags say which of the source and the PDF are present; both are false until someone fetches, adds or drops a copy, and neither the PDF nor the source is in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5. All of these are additive and the interface version is unchanged (DR-108, DR-109, DR-110).
+**[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is the address of what loom holds for the work, `digests/storage/<scheme>/<id>` under the viewer's root, which a publisher serves from its store wherever that sits (DR-192), and the two flags say which of the source and the PDF are present; both are false until someone fetches, adds or drops a copy, and neither the PDF nor the source is in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5. All of these are additive and the interface version is unchanged (DR-108, DR-109, DR-110).
 
 **[decided]** `spans` points at a **sidecar** holding the geometry of the work's anchors: `{"artifact": <sha256>, "pages": {"2": {"width": 612, "height": 792, "rotate": 0}}, "quads": {"<result id>": [[x0, y0, x1, y1], …]}, "marks": {"<annotation id>": [[x0, y0, x1, y1], …]}}`, one rectangle per line — `quads` for the work's results by result id, `marks` for the notes on its pages by annotation id (DR-209). `rotate` is the page's own rotation in degrees, read from the document. `reading` on the reference counts those notes, and how many still await an answer, since they are in no key's row. It stands **beside** the manifest rather than inside it, for the reason `source` does: the manifest is loaded whole on every poll and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, so a stale copy is noticed while the publisher rebuilds underneath. **Quads are derived and never recorded for a text anchor**: an anchor says where it is in the page's text, and the rectangles are computed from the word boxes at build time; a box anchor's rectangles are the anchor itself and are recorded. A work whose PDF is not on the publishing machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
 
@@ -418,9 +418,9 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `unreadable`, present only where the author has declared one, is `{"why": …, "who": …, "when": …}`: the standing claim that the work has no document to hold at all. Nothing in a bibliography entry says so, which is why it is declared and never inferred, and a viewer says it rather than showing an empty pane (DR-198).
 
-**[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).
+**[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `.loom/digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).
 
-**[decided]** `results`, by result id, is what `digests/<citekey>.results.json` records for each of the work's results (`digests.md`), as a viewer needs it:
+**[decided]** `results`, by result id, is what `.loom/digests/<citekey>.results.json` records for each of the work's results (`digests.md`), as a viewer needs it:
 
 ```json
 "Man12-thm-4.1": {"state": "extracted", "level": 3, "class": "mechanical", "page": 12, "artifact": "4b8db624054b",

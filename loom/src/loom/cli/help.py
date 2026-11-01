@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from loom.cli._common import EnvError, agent_marker, is_agent
+from loom.paths import AI
 
 #: Names a person reaches for that loom answers with a reason rather than a command (K1: a refusal is a line of help); `delete_answer` says it for what was typed.
 DELETE = ("delete", "rm", "remove")
@@ -72,7 +73,7 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
 AGENT_MARK = "*"
 #: Long enough that a first sentence is never cut; the help wraps it instead.
 FULL = 10_000
-AGENT_LEGEND = "* an agent may run it, or some of its subcommands (ai/rules.md lists which)."
+AGENT_LEGEND = f"* an agent may run it, or some of its subcommands ({AI}/rules.md lists which)."
 
 
 def agent_runs(path: str) -> bool:
@@ -184,7 +185,7 @@ def refuse_agent(group: click.Group, args: list[str]) -> None:
     )
     raise EnvError(
         f"an agent is running this shell ({marker} is set) and may not run `loom {path}`, which is the author's{named}; "
-        "ai/rules.md lists what it may."
+        f"{AI}/rules.md lists what it may."
     )
 
 

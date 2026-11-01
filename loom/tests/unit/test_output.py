@@ -69,7 +69,7 @@ def _env(case: Case) -> dict[str, str | None]:
 
 
 #: What a run may write without changing the quilt: what it builds, and the caches and logs loom keeps for itself.
-SCRATCH = ("build/", ".loom/serve.json", ".loom/review-observations.json", "last-seen.json", ".loom/sessions/")
+SCRATCH = (".loom/build/", ".loom/serve.json", ".loom/review-observations.json", "last-seen.json", ".loom/sessions/")
 
 
 def files_of(q: Path) -> dict[str, bytes]:
@@ -111,7 +111,7 @@ def test_the_text_leads_with_its_verdict_and_fits(path: str, i: int, case: Case,
     long = [ln for ln in lines if len(ln) > WIDTH]
     assert long == [], f"lines over {WIDTH} columns" + describe(argv, r)
     text = r.stdout + r.stderr
-    assert "digests/storage/" not in text, "a storage path in the text" + describe(argv, r)
+    assert ".loom/digests/storage/" not in text, "a storage path in the text" + describe(argv, r)
     assert not HASH.search(r.stdout), f"a hash in the text: {HASH.search(r.stdout)}" + describe(argv, r)
 
 

@@ -156,7 +156,7 @@ async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promis
 		const served: Served = {
 			root,
 			url,
-			log: () => parseLines(join(root, 'annotations/log.jsonl')),
+			log: () => parseLines(join(root, '.loom/annotations/log.jsonl')),
 			written(body) {
 				const mine = served.log().filter((e) => e.event === 'created' && e.body === body);
 				expect(mine, `the log's created entries with the body ${JSON.stringify(body)}`).toHaveLength(1);

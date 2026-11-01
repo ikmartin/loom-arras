@@ -88,7 +88,7 @@ def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> N
         assert not r.is_error and f"({AGENT})" in r.content[0].text, r.content[0].text
 
     attached(q, body)
-    log = (q / "annotations" / "log.jsonl").read_text().splitlines()[-1]
+    log = (q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1]
     assert f'"author": "{AGENT}"' in log and '"kind": "agent"' in log
     runs = [ln for p in (q / ".loom" / "sessions").glob("*/run.log") for ln in p.read_text().splitlines()]
     mine = [ln for ln in runs if "(over MCP)" in ln]
@@ -104,7 +104,7 @@ def test_a_result_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path)
 
     async def body(client: Any) -> None:
         r = await client.call_tool("loom_source", {"target": "dm-0097"})
-        assert not r.is_error and "so it is in build/agent/" in r.content[0].text, r.content[0].text[:300]
+        assert not r.is_error and "so it is in .loom/build/agent/" in r.content[0].text, r.content[0].text[:300]
         kept = q / r.meta["loom/file"]
         assert kept.is_file() and "A long remark." in kept.read_text() and len(kept.read_text()) > 40_000
 
@@ -113,7 +113,7 @@ def test_a_result_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path)
 
 def test_each_mode_is_a_prompt_expanding_to_the_quilts_own_copy_and_its_checked_target(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    mode = q / "ai" / "modes" / "audit.md"
+    mode = q / ".loom/ai" / "modes" / "audit.md"
     mode.write_text(mode.read_text() + "\nThis quilt's own line.\n")
     new_session(q)
 
@@ -172,7 +172,7 @@ def test_a_resource_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Pat
 
     async def body(client: Any) -> None:
         r = await client.read_resource("quilt:dm-0097")
-        assert "so it is in build/agent/" in r.contents[0].text, r.contents[0].text[:300]
+        assert "so it is in .loom/build/agent/" in r.contents[0].text, r.contents[0].text[:300]
         assert "A long remark." in (q / r.meta["loom/file"]).read_text()
 
     attached(q, body)

@@ -14,7 +14,7 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from loom.paths import STORAGE
+from loom.paths import STORAGE, STORE_ADDRESS
 
 # A numbered heading: "3", "3.1", "A.2". A bare single capital is deliberately NOT a number -- "C (F ) = Spec Sym(F )"
 # and "E = C x_D X" are lines from a real paper in this corpus, and a lone letter matches far more mathematics than
@@ -92,6 +92,16 @@ def storage_root(root: Path) -> Path:
     return root / STORAGE
 
 
+def store_address(root: Path, home: Path) -> str:
+    """A work's directory in the store as the viewer addresses it, `digests/storage/<scheme>/<id>` under the viewer's root, wherever the store sits: the manifest's `artifacts.dir`."""
+    return f"{STORE_ADDRESS}/{home.relative_to(storage_root(root)).as_posix()}"
+
+
+def store_home(root: Path, address: str) -> Path:
+    """The directory on disk that `store_address` gave `address`."""
+    return storage_root(root) / address.removeprefix(f"{STORE_ADDRESS}/")
+
+
 def sha256_of(path: Path) -> str:
     """The artifact's content hash, which is what an anchor names (digest contract §9.2)."""
     h = hashlib.sha256()
@@ -141,7 +151,7 @@ def page_box(bbox_xml: str) -> tuple[float, float] | None:
 def token_boxes(pdf: Path, page: int, home: Path | None = None) -> str:
     """The `-bbox-layout` XML for one page, written per page on demand and never in bulk (§4.2).
 
-    With `home`, the work's directory in the store, the output is cached under `digests/storage/cache/boxes/` — which the shipped `.gitignore` ignores. It used to be written beside the page text as `pages/NNNN.boxes.xml`, which that file **commits**: 60 KB a page of derived geometry entering the repository the first time anyone ran `loom refs locate`.
+    With `home`, the work's directory in the store, the output is cached under `.loom/digests/storage/cache/boxes/` — which the shipped `.gitignore` ignores. It used to be written beside the page text as `pages/NNNN.boxes.xml`, which that file **commits**: 60 KB a page of derived geometry entering the repository the first time anyone ran `loom refs locate`.
     """
     if home is None:
         return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])

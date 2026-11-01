@@ -75,7 +75,7 @@ def build_committed() -> None:
 def _publish_showcase() -> None:
     """Compile and publish the showcase, so that a fresh clone opens the viewer on it with citation labels and page numbers.
 
-    Nothing this writes is committed -- `build/` is gitignored by the quilt -- so it is skipped where TeX is absent, and `loom build` runs anyway: the manifest, the fragments and the page images of a pending proposal need no TeX distribution.
+    Nothing this writes is committed -- `.loom/build/` is gitignored by the quilt -- so it is skipped where TeX is absent, and `loom build` runs anyway: the manifest, the fragments and the page images of a pending proposal need no TeX distribution.
     """
     env = isolated_env()
     loom = str(VENV / "loom")
