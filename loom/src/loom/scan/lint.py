@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from loom.paths import COPIES
 from loom.refs.identity import declared
 from loom.refs.resolve import load as load_candidates
 from loom.scan.bib import citekey_slug
@@ -59,10 +60,10 @@ COMMON_THEOREM_ENVS = {
 }
 
 
-def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
-    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent document's derived id.
+def _derived_in_person_document(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
+    """`loom:derived-id-in-person-document`: a person's document defines or cites an agent document's derived id.
 
-    A document in `[quilt] drafting` reaching a derived node defines it; a node that document reaches referring to one cites it. The derived node itself is reported once, not again for each reference it makes.
+    A person's document reaching a derived node defines it; a node that document reaches referring to one cites it. The derived node itself is reported once, not again for each reference it makes.
     """
     nodes = result.assembly.nodes
 
@@ -76,7 +77,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
             out.append(
                 Diagnostic(
                     "error",
-                    "loom:derived-id-in-drafting",
+                    "loom:derived-id-in-person-document",
                     f"{key} is an agent document's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'person')} defines it; a person's document names the plain id, {n.derived_of}",
                     [_loc(result, n)],
                     [key],
@@ -89,7 +90,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
             out.append(
                 Diagnostic(
                     "error",
-                    "loom:derived-id-in-drafting",
+                    "loom:derived-id-in-person-document",
                     f"{e.src} cites {e.to}, an agent document's id; a person's document cites the plain id, {target.derived_of}",
                     [Location(e.file, e.line)],
                     [e.src],
@@ -99,13 +100,13 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
 
 
 def _agent_documents(result: ScanResult) -> list[Diagnostic]:
-    """`loom:agent-document-unrecorded` and `loom:plain-id-in-drafting-ai`: every document in the agent's drafting directory was made by a step, and defines derived ids only.
+    """`loom:agent-document-unrecorded` and `loom:plain-id-in-agent-document`: every agent document was made by a step, and defines derived ids only.
 
-    A document no step made has no record of where it came from, so it can be neither adopted nor refreshed; a plain id defined there writes into the person's id space from a file no adoption reads.
+    A document put in `.loom/copies/` by hand has no record of where it came from, so it can be neither adopted nor refreshed; a plain id defined in an agent document writes into the person's id space from a file no adoption reads.
     """
-    ai = result.quilt.config.drafting_ai.rstrip("/")
     record = result.history
-    recorded = set(record.copies(result.masters)) | set(record.written(result.masters)) if record is not None else set()
+    recorded = set(record.copies(result.masters)) if record is not None else set()
+    agents = {m for m in result.masters if result.document_role(m) == "agent"}
     source = result.default_master or "DOC"
     out: list[Diagnostic] = []
     for m in sorted(result.masters):
@@ -115,28 +116,49 @@ def _agent_documents(result: ScanResult) -> list[Diagnostic]:
             Diagnostic(
                 "error",
                 "loom:agent-document-unrecorded",
-                f"{m} is in {ai}/ but no step made it, so it can be neither adopted nor refreshed; an agent document starts as a copy of one of the person's, or from scratch with --new",
+                f"{m} is in {COPIES}/ but no step made it, so it can be neither adopted nor refreshed; an agent document starts as a copy of one of the person's, and a document of the agent's own goes anywhere else the quilt lets it write",
                 [Location(m, 1)],
                 fixes=[
-                    Fix("copy the document it works from, NAME being a new file", f"loom draft {source} --ai NAME.tex"),
-                    Fix("or start one from scratch", "loom draft --ai NAME.tex --new"),
+                    Fix("copy the document it works from, NAME being a new file", f"loom draft {source} --ai NAME.tex")
                 ],
             )
         )
     for key, n in sorted(result.assembly.nodes.items()):
-        if not n.id or n.derived_of or not n.file.startswith(ai + "/"):
+        if not n.id or n.derived_of or n.file not in agents:
             continue
         out.append(
             Diagnostic(
                 "error",
-                "loom:plain-id-in-drafting-ai",
-                f"{n.id} is defined in {n.file}, in the agent's drafting directory, where every id is derived; a new node there takes a fresh id with -ai after it",
+                "loom:plain-id-in-agent-document",
+                f"{n.id} is defined in {n.file}, an agent document, where every id is derived; a new node there takes a fresh id with -ai after it",
                 [_loc(result, n)],
                 [key],
                 fixes=[Fix("take a fresh id, and add -ai to it", "loom id --next")],
             )
         )
     return out
+
+
+def _agent_permissions(result: ScanResult) -> list[Diagnostic]:
+    """`loom:agent-permissions-stale`: Claude Code's permission file is not what `[agents] deny` and this loom make it, so the boundary it enforces is an older one."""
+    from loom.ai.layout import CLAUDE_SETTINGS, SHELL, variant, vendor_files
+
+    root = result.quilt.root
+    path = root / CLAUDE_SETTINGS
+    if not path.is_file():
+        return []
+    wanted = vendor_files(result.quilt.config, shell=variant(root) == SHELL)[CLAUDE_SETTINGS]
+    if path.read_text(encoding="utf-8") == wanted:
+        return []
+    return [
+        Diagnostic(
+            "warning",
+            "loom:agent-permissions-stale",
+            f"{CLAUDE_SETTINGS} is not what [agents] deny and this loom make it, so Claude Code holds agents to an older boundary; loom's own commands already hold them to this one",
+            [Location(CLAUDE_SETTINGS, 1)],
+            fixes=[Fix("rewrite it, in a terminal of your own", "loom upgrade")],
+        )
+    ]
 
 
 def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic]:
@@ -180,8 +202,9 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                     ],
                 )
             )
-    diags.extend(_derived_in_drafting(result, edges))
+    diags.extend(_derived_in_person_document(result, edges))
     diags.extend(_agent_documents(result))
+    diags.extend(_agent_permissions(result))
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     for path, directives in asm.directives.items():

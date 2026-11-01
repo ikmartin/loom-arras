@@ -11,7 +11,7 @@ from functools import cached_property
 from pathlib import Path
 
 from loom.history.ledger import History, load_history
-from loom.paths import document_dir
+from loom.paths import COPIES, document_dir
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
@@ -105,11 +105,10 @@ class ScanResult:
 
     @cached_property
     def agent_documents(self) -> frozenset[str]:
-        """The live documents an agent and the person both edit: every copy and every document written from scratch the history records, where its moves have taken them, and any document in the agent's drafting directory, which a file put there by hand keeps an agent's (`loom:agent-document-unrecorded`)."""
+        """The live documents an agent and the person both edit: every copy the history records, where its moves have taken it, and any document in `.loom/copies/`, which a file put there by hand keeps an agent's (`loom:agent-document-unrecorded`)."""
         history = self.history if self.history is not None else load_history(self.quilt.history_dir)
-        live = set(self.masters)
-        here = {m for m in self.masters if Path(m).parent.as_posix() == self.quilt.config.drafting_ai}
-        return frozenset({*history.copies(live), *history.written(live), *here})
+        here = {m for m in self.masters if m.startswith(f"{COPIES}/")}
+        return frozenset({*history.copies(set(self.masters)), *here})
 
     @cached_property
     def _bases(self) -> dict[str, str]:
@@ -118,9 +117,6 @@ class ScanResult:
         bases = {m: document_dir(m) for m in self.masters}
         for copy, source in history.copies(live).items():
             bases[copy] = document_dir(source)
-        if self.default_master is not None:
-            for written in history.written(live):
-                bases[written] = document_dir(self.default_master)
         bases.update({p: b for p, b in self.base_overrides.items() if p in bases})
         return bases
 
@@ -135,7 +131,7 @@ class ScanResult:
         Returns
         -------
         str
-            A person's document's own directory; an agent copy's source's, where the history's moves have taken it; a document written from scratch, the default document's, whose preamble it was given; '' at the root. A path that is not a live document gives its own directory.
+            A person's document's own directory; an agent copy's source's, where the history's moves have taken it; '' at the root. A path that is not a live document gives its own directory.
         """
         return self._bases.get(path, document_dir(path))
 

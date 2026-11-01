@@ -30,10 +30,14 @@ MODEL = "haiku"
 #: What one turn may spend, in dollars, before the client stops it; many times what two tool calls cost.
 BUDGET = "1.00"
 
+#: Where the boundary test writes: an open file of the person's, the agent's copies, a directory `[agents] deny` names, and one of loom's records.
+WRITTEN = (("notes", "client-check.txt"), (".loom/copies", "client-check.txt"))
+REFUSED = (("drafting", "client-check.txt"), (".loom/annotations", "client-check.txt"))
 WRITES = (
-    "This turn checks this folder's permission settings and nothing else; run no command. "
-    "With the Write tool, create drafting-ai/client-check.txt and then drafting/client-check.txt, each holding the one word marker. "
-    "The settings are expected to refuse one of the two: attempt both, never write either file another way, and stop once both are attempted."
+    "This turn checks this folder's permission settings and nothing else; run no command. With the Write tool, create "
+    + ", then ".join(f"{d}/{f}" for d, f in WRITTEN + REFUSED)
+    + ", each holding the one word marker. "
+    "The settings are expected to refuse two of the four: attempt all four, never write any file another way, and stop once all four are attempted."
 )
 OVER_MCP = (
     "This turn checks this folder's loom MCP server and nothing else. "
@@ -69,15 +73,15 @@ def quilt(tmp_path: Path, *flags: str) -> Path:
     return tmp_path / "q"
 
 
-def turn(q: Path, prompt: str) -> tuple[dict[str, Any], list[str]]:
+def turn(q: Path, prompt: str, mode: str | None = None) -> tuple[dict[str, Any], list[str]]:
     """Run one turn of the client in `q` with loom's generated settings, and return its JSON result and every loom command it ran, as the arguments after `loom`.
 
-    The command passes `.claude/settings.json` as `--settings`, with four additions that leave its permissions alone: a cheap model, a spending cap, the result as JSON, and no transcript kept. A fifth, `--setting-sources project,local`, leaves out the person's own settings, since an allow of theirs would let through a write loom's file refuses, which is the failure this tier exists to see; the project's reading of the file, the one DR-343-ikmartin measured beside `--settings`, stays. The client runs with the person's HOME, where its login is, and their PATH, with a shim first on it that records each `loom` command before running this checkout's loom.
+    The command passes `.claude/settings.json` as `--settings`, and `mode` as `--permission-mode`, the person's own choice of how the client asks, with four additions that leave its permissions alone: a cheap model, a spending cap, the result as JSON, and no transcript kept. A fifth, `--setting-sources project,local`, leaves out the person's own settings, since an allow of theirs would let through a write loom's file refuses, which is the failure this tier exists to see; the project's reading of the file, the one DR-343-ikmartin measured beside `--settings`, stays. The client runs with the person's HOME, where its login is, and their PATH, with a shim first on it that records each `loom` command before running this checkout's loom.
     """
     assert CLAUDE is not None
     cmd = [CLAUDE, "-p", prompt, "--settings", ".claude/settings.json"]
     cmd += ["--model", MODEL, "--max-budget-usd", BUDGET, "--output-format", "json", "--no-session-persistence"]
-    cmd += ["--setting-sources", "project,local"]
+    cmd += ["--setting-sources", "project,local"] + (["--permission-mode", mode] if mode else [])
     shims, log = q.parent / "bin", q.parent / "loom-commands.log"
     shims.mkdir(exist_ok=True)
     loom = Path(sys.executable).parent / "loom"
@@ -101,17 +105,23 @@ def refusals(result: dict[str, Any], *tools: str) -> list[dict[str, Any]]:
     return [d.get("tool_input") or {} for d in result["permission_denials"] if d.get("tool_name") in tools]
 
 
-def test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors(tmp_path: Path) -> None:
-    """DR-343-ikmartin and DR-275-ikmartin: the allow must hold where a launched turn reads it, under `--settings` from the quilt's root, and the deny on the author's drafting directory must refuse the Write tool, not only Edit. The unit tier checks the rules as text; only the client says what they do."""
+def test_a_launched_claude_writes_where_the_quilt_lets_it_and_not_where_it_protects(tmp_path: Path) -> None:
+    """Plan 0.22.6, DR-343-ikmartin and DR-275-ikmartin: with `[agents] deny = ["drafting/"]`, a turn run in the mode that accepts edits writes an open file and its copies, and is refused the listed directory and loom's records, by the Write tool and not only Edit. The person's mode decides the open file, the denies hold whatever the mode; the unit tier checks the rules as text, and only the client says what they do."""
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
-    result, _ = turn(q, WRITES)
+    config = q / "config.toml"
+    config.write_text(config.read_text(encoding="utf-8") + '\n[agents]\ndeny = ["drafting/"]\n', encoding="utf-8")
+    ok("upgrade", cwd=q)
+    for d, _ in WRITTEN + REFUSED:
+        (q / d).mkdir(parents=True, exist_ok=True)  # each refusal is then the boundary's, never a missing directory's
+    result, _ = turn(q, WRITES, mode="acceptEdits")
     tried = [Path(str(i.get("file_path", ""))).parts[-2:] for i in refusals(result, "Write", "Edit", "MultiEdit")]
-    assert ("drafting-ai", "client-check.txt") not in tried, f"the allow on drafting-ai/ did not hold: {result}"
-    assert (q / "drafting-ai" / "client-check.txt").is_file(), f"nothing was written in drafting-ai/: {result}"
-    assert not (q / "drafting" / "client-check.txt").exists(), f"the deny on drafting/ did not hold: {result}"
-    # the file's absence proves nothing unless the write was tried and refused
-    assert ("drafting", "client-check.txt") in tried, f"no write to drafting/ was refused: {result}"
+    for d, f in WRITTEN:
+        assert (Path(d).name, f) not in tried and (q / d / f).is_file(), f"nothing was written in {d}/: {result}"
+    for d, f in REFUSED:
+        assert not (q / d / f).exists(), f"the deny on {d}/ did not hold: {result}"
+        # the file's absence proves nothing unless the write was tried and refused
+        assert (Path(d).name, f) in tried, f"no write to {d}/ was refused: {result}"
 
 
 def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(tmp_path: Path) -> None:
@@ -127,7 +137,7 @@ def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(tmp
 
 
 def test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_shell(tmp_path: Path) -> None:
-    """The default variant: the client starts the server from the `.mcp.json` loom wrote, its tools are allowed outright, and `loom` typed in a shell is refused; the record's author is the name the file gave the server, so the shim on PATH, which the server's absolute command never passes through, logs no `loom` at all."""
+    """The default variant: the client starts the server from the `.mcp.json` loom wrote, which names no `--quilt` since the client runs it in the project, its tools are allowed outright, and `loom` typed in a shell is refused; the record's author is the name the file gave the server, so the shim on PATH, which the server's absolute command never passes through, logs no `loom` at all."""
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
     result, ran = turn(q, OVER_MCP)

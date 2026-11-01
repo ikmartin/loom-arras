@@ -1533,24 +1533,24 @@ def test_status_counts_each_agent_documents_work_apart_from_the_authors(tmp_path
     """What waits in an agent document -- an `\\incomplete`, an open annotation -- is listed under that document, and never among the author's rows (plan 0.21.2)."""
     q = synthetic(tmp_path)
     s = status_json(q)
-    a = s["agent_documents"]["drafting-ai/aidoc.tex"]
-    assert a["source"] == "drafting/main.tex" and a["from_scratch"] is False
+    a = s["agent_documents"][".loom/copies/aidoc.tex"]
+    assert a["source"] == "drafting/main.tex"
     assert list(a["keys"]) == ["sy-000C-ai/proof"] and a["keys"]["sy-000C-ai/proof"]["counterpart"] == "sy-000C/proof"
     assert a["summary"] == {"keys": 1, "incomplete": 1, "open": 0}
     assert not [
-        k for k in s["keys"] if "-ai" in k or k.startswith("drafting-ai/")
+        k for k in s["keys"] if "-ai" in k or k.startswith(".loom/copies/")
     ]  # the author's rows stay the author's
     out = ok("status", cwd=q).stdout
     assert (
-        "in drafting-ai/aidoc.tex (1)" in out and "next: loom status --master drafting-ai/aidoc.tex --in-order" in out
+        "in .loom/copies/aidoc.tex (1)" in out and "next: loom status --master .loom/copies/aidoc.tex --in-order" in out
     )
-    assert "; 1 agent document: drafting-ai/aidoc.tex 1 incomplete" in " ".join(out.split("\n\n")[0].split())
-    assert "- agent documents: drafting-ai/aidoc.tex 1 incomplete" in ok("ai", "orient", cwd=q).stdout
+    assert "; 1 agent document: .loom/copies/aidoc.tex 1 incomplete" in " ".join(out.split("\n\n")[0].split())
+    assert "- agent documents: .loom/copies/aidoc.tex 1 incomplete" in ok("ai", "orient", cwd=q).stdout
     # a filter applies to the agent documents as to the author's keys
     assert (
-        json_of("status", "--master", "drafting/main.tex", "--json", cwd=q)["agent_documents"]["drafting-ai/aidoc.tex"][
-            "keys"
-        ]
+        json_of("status", "--master", "drafting/main.tex", "--json", cwd=q)["agent_documents"][
+            ".loom/copies/aidoc.tex"
+        ]["keys"]
         == {}
     )
 

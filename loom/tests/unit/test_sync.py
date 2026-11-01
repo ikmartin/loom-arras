@@ -31,9 +31,7 @@ from loom.sync import (
 )
 from tests.helpers import json_of, ok, refused
 
-CONFIG = (
-    '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\nprefix = "zk"\nengine = "pdflatex"\n'
-)
+CONFIG = '[quilt]\nname = "test"\nmain = "drafting/main.tex"\nprefix = "zk"\nengine = "pdflatex"\n'
 PREAMBLE = "\\documentclass{article}\n\\usepackage{loom}\n\\newtheorem{lemma}{Lemma}\n"
 SOURCE = PREAMBLE + "\\begin{document}\n\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n\\end{document}\n"
 

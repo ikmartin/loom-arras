@@ -1,6 +1,6 @@
 """Every path loom uses inside a quilt, relative to the quilt root, named once.
 
-Quilt-relative POSIX strings, so each works both as `root / X` and in a string comparison. A path set in `config.toml` (`[quilt] drafting`, `drafting_ai`, `history`, `research_state`) is read from the config; `HISTORY` here is only that setting's default. `loom/tests/unit/test_paths.py` refuses a quilt path spelled out anywhere else.
+Quilt-relative POSIX strings, so each works both as `root / X` and in a string comparison. A path set in `config.toml` (`[quilt] history`, `research_state`) is read from the config; `HISTORY` here is only that setting's default. `loom/tests/unit/test_paths.py` refuses a quilt path spelled out anywhere else.
 """
 
 from __future__ import annotations
@@ -25,6 +25,8 @@ AI = f"{LOOM}/ai"
 #: Where `atomize --retire` sets a converted source aside.
 RETIRED = f"{LOOM}/retired"
 SESSIONS = f"{LOOM}/sessions"
+#: Agent copies of documents, made by `loom draft DOC --ai NAME` and read by the scan on purpose.
+COPIES = f"{LOOM}/copies"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
 #: The default of `[quilt] history`; code reads the setting, never this.

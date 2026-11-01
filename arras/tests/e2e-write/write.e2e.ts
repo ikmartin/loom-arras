@@ -617,11 +617,11 @@ test('AI contributions preview selected changes before incorporation and leave m
 	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';
 	writeFileSync(join(served.root, document), text);
 	served.loom(['draft', document, '--ai', 'adoption-proposal']);
-	const copy = join(served.root, 'drafting-ai/adoption-proposal.tex');
+	const copy = join(served.root, '.loom/copies/adoption-proposal.tex');
 	writeFileSync(copy, readFileSync(copy, 'utf8').replace('Original statement.', 'Proposed statement.'));
 	await page.goto('/review/incoming');
 	await expect(page.getByLabel('Contribution')).toContainText('adoption-proposal');
-	await page.getByLabel('Contribution').selectOption('drafting-ai/adoption-proposal.tex');
+	await page.getByLabel('Contribution').selectOption('.loom/copies/adoption-proposal.tex');
 	const row = page.getByTestId('adoption-sy-0900');
 	await expect(row).toContainText('Proposed statement');
 	await row.getByRole('button', {name: 'Use proposed version', exact: true}).click();

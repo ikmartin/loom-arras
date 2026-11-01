@@ -19,7 +19,7 @@ def prose_sections(result: ScanResult) -> dict[str, tuple[str, str]]:
         if node.kind in ("section", "master", "file")
         and not node.derived_of
         and node.file.endswith(".tex")
-        and not node.file.startswith(result.quilt.config.drafting_ai + "/")
+        and result.document_role(node.file) != "agent"
     }
 
 

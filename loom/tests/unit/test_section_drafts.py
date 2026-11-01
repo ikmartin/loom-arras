@@ -37,7 +37,7 @@ Second statement uses \ref{zk-0001}.
 def quilt(tmp_path: Path):
     save_author("Tester")
     (tmp_path / "drafting").mkdir()
-    (tmp_path / "drafting-ai").mkdir()
+    (tmp_path / ".loom" / "copies").mkdir(parents=True)
     (tmp_path / "config.toml").write_text('[quilt]\nname="sections"\nprefix="zk"\nmain="drafting/main.tex"\n')
     (tmp_path / DOC).write_text(TEXT)
     return load_quilt(tmp_path)
@@ -46,7 +46,7 @@ def quilt(tmp_path: Path):
 def copy(q, key="zk-0100", name="first"):
     result = scan(q)
     h = load_history(q.history_dir)
-    target = f"drafting-ai/{name}.tex"
+    target = f".loom/copies/{name}.tex"
     p = plan_copy(result, h, DOC, target, key)
     check_overlap(result, DOC, p.scope)
     context = capture_context(result, DOC)

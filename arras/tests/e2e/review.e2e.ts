@@ -71,7 +71,7 @@ test('prose is inspected in Incoming without mathematical acceptance controls', 
 });
 
 test('AI proof attribution distinguishes the source from the reviewer', async ({page}) => {
- await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.unresolved=[{...row('sy-0002/proof'),contribution:'drafting-ai/proposal.tex',source_label:'AI revision'}];m.keys['sy-0002/proof'].acceptance.causes=[{kind:'dependency-changed',id:'sy-0002',diff:null}];});
+ await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.unresolved=[{...row('sy-0002/proof'),contribution:'.loom/copies/proposal.tex',source_label:'AI revision'}];m.keys['sy-0002/proof'].acceptance.causes=[{kind:'dependency-changed',id:'sy-0002',diff:null}];});
  await page.goto('/review');
  await expect(page.getByText('Existing proof · statement changed in the AI revision')).toBeVisible();
  await expect(page.getByText('Reviewing as Luisa')).toBeVisible();

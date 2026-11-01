@@ -47,7 +47,7 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert {p.stem for p in (q / ".loom/ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
     assert root_text == (q / "AGENTS.md").read_text() == (q / "GEMINI.md").read_text()
-    assert "`loom_ai_orient`" in root_text and ".loom/sessions/" in root_text and "loom ai init" in root_text
+    assert "`loom_ai_orient`" in root_text and "names as protected" in root_text and "loom ai init" in root_text
     assert "# Orientation: working in a quilt" in (q / ".loom/ai" / "orientation.md").read_text()
     # what agents may run is written for every tool, whichever the person uses (DR-283)
     assert (q / ".claude" / "settings.json").is_file() and (q / ".codex" / "rules" / "loom.rules").is_file()
@@ -100,16 +100,23 @@ def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
 
 
 def test_ai_init_permissions_generated(tmp_path: Path) -> None:
-    """The generated settings let the agent edit its session and `.loom/build/`, in `Edit` rules only; what it is denied is test_the_allow_list_and_the_permission_file_cannot_disagree."""
+    """The generated settings let the agent edit its session, `.loom/build/` and its copies, in `Edit` rules only; what it is denied is test_the_allow_list_and_the_permission_file_cannot_disagree."""
     q = bare(tmp_path)
     data = json.loads((q / ".claude" / "settings.json").read_text())
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
     # `.loom` is not denied wholesale: the session an agent writes in lives under it (plan 0.13 §5)
-    assert "Edit(.loom/sessions/**)" in allow and "Edit(.loom/build/**)" in allow
+    assert allow[:3] == ["Edit(.loom/sessions/**)", "Edit(.loom/build/**)", "Edit(.loom/copies/**)"]
     # over MCP the commands are the server's tools; `loom` typed in a shell is turned away
     assert "mcp__loom__*" in allow and not any(r.startswith("Bash(") for r in allow)
-    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/drafting/**)" in deny
+    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/config.toml)" in deny
+    # a fresh quilt protects only loom's records, the config and the research state: the person's files are open
+    assert not [
+        r
+        for r in deny
+        if r.startswith("Edit(")
+        and not r.startswith(("Edit(/.loom/", "Edit(/config.toml)", "Edit(/research-state.md)"))
+    ]
     # relative to the working directory: passed with --settings, `/x` would be `.claude/x` and match nothing (DR-343-ikmartin)
     assert not any(r.startswith("Edit(/") for r in allow)
     # Claude Code matches only `Edit` rules against paths; a `Write` rule is ignored and says so on every start
@@ -492,7 +499,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     missing = sorted(writes_outside_a_session - denied)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
     # and the files those commands own, which a direct edit would otherwise reach
-    for d in ("drafting", ".loom/digests", ".loom/annotations", ".loom/history", ".loom/ai", ".loom/retired"):
+    for d in (".loom/digests", ".loom/annotations", ".loom/history", ".loom/ai", ".loom/retired", ".loom/since"):
         assert f"Edit(/{d}/**)" in denied_paths, d
     assert "Edit(/.loom/reference-notes.jsonl)" in denied_paths
 
@@ -623,12 +630,12 @@ def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_print
     save_author("Tester")
     q = demo(tmp_path)
     ok("draft", "drafting/main.tex", "--ai", "Referee Agent.tex", cwd=q)
-    copy = q / "drafting-ai" / "Referee Agent.tex"
+    copy = q / ".loom" / "copies" / "Referee Agent.tex"
     copy.write_text(copy.read_text().replace("restricts to a map", "restricts, by the agent, to a map"))
     main = q / "drafting" / "main.tex"
     main.write_text(main.read_text().replace("restricts to a map", "restricts, by the author, to a map"))
     fixes = [f for c in json_of("ai", "drafts", "--json", cwd=q)["groups"][0]["items"] for f in c.get("fixes", [])]
-    assert fixes and all(shlex.split(f)[3:] == ["drafting-ai/Referee Agent.tex"] for f in fixes), fixes
+    assert fixes and all(shlex.split(f)[3:] == [".loom/copies/Referee Agent.tex"] for f in fixes), fixes
     refreshed = run("ai", "refresh", "Referee Agent.tex", cwd=q)
     assert refreshed.exit_code == 1, refreshed.output
     line = next(ln for ln in refreshed.stdout.splitlines() if "loom ai refresh" in ln)
@@ -660,3 +667,38 @@ def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: P
     lines = [ln for ln in text.splitlines() if ln.startswith("  a-")]
     assert lines and all(f"by {r['author']['id']}" in text for r in rows)
     assert len({ln.index(" by ") for ln in lines}) == 1, lines  # one column, whatever the row
+
+
+def test_the_deny_list_is_rendered_into_the_permission_file_beside_what_is_always_protected() -> None:
+    """`[agents] deny` adds to loom's own table and never replaces it: a directory pattern, a file pattern at any depth and an anchored one each become Edit denies; a negation is refused rather than rendered, since Claude Code lets a deny beat any allow."""
+    from loom.ai.layout import permissions_json
+    from loom.scan.quilt import QuiltConfig
+
+    config = QuiltConfig.from_dict(
+        {"quilt": {}, "agents": {"deny": ["paper/", "*.bib", "/notes/plan.md", "!paper/x.tex"]}}
+    )
+    assert config.agents_deny == ["paper/", "*.bib", "/notes/plan.md"]
+    assert any("negates" in w for w in config.warnings)
+    deny = json.loads(permissions_json(config))["permissions"]["deny"]
+    for rule in (
+        "Edit(/**/paper/**)",
+        "Edit(/**/*.bib)",
+        "Edit(/**/*.bib/**)",
+        "Edit(/notes/plan.md)",
+        "Edit(/notes/plan.md/**)",
+    ):
+        assert rule in deny, rule
+    assert "Edit(/.loom/annotations/**)" in deny and "Edit(/config.toml)" in deny
+    assert not any("paper/x.tex" in r for r in deny)
+
+
+def test_an_old_instruction_line_is_replaced_where_it_stands(tmp_path: Path) -> None:
+    """A root file an older loom wrote keeps one line, the current one, where the old one stood, and the person's text around it."""
+    from loom.ai.layout import MCP_LINE, OLD_LINES, ensure_root_line
+
+    (tmp_path / "CLAUDE.md").write_text(
+        f"# Mine\n\n{OLD_LINES[0]}\n\nMore of mine.\n{OLD_LINES[1]}\n", encoding="utf-8"
+    )
+    assert "CLAUDE.md" in ensure_root_line(tmp_path)
+    assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"# Mine\n\n{MCP_LINE}\n\nMore of mine.\n"
+    assert "CLAUDE.md" not in ensure_root_line(tmp_path)

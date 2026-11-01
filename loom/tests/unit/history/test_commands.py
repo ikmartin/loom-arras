@@ -342,7 +342,7 @@ def test_a_step_is_never_recorded_beside_an_interrupted_one(tmp_path: Path, monk
         refused(*args, code=2, match="rm -r .loom/history/0002-v1", cwd=q)
     refused("draft", "main/main.tex", "--ai", "copy", code=2, match="interrupted", cwd=q)
     assert sorted(p.name for p in hist.iterdir()) == before, "a refusal writes nothing"
-    assert not (q / "drafting-ai" / "copy.tex").exists(), "draft refuses before it writes the copy"
+    assert not (q / ".loom" / "copies" / "copy.tex").exists(), "draft refuses before it writes the copy"
     shutil.rmtree(hist / "0002-v1")
     ok("stamp", "main/main.tex", "-m", "v1", cwd=q)
     assert [e["dir"] for e in ledger(q) if "dir" in e] == ["0001-main", "0002-v1"]

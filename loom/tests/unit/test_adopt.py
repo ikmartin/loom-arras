@@ -13,7 +13,7 @@ from loom.scan.scan import scan
 from loom.sync import SyncError
 
 DOC = "drafting/main.tex"
-COPY = "drafting-ai/proposal.tex"
+COPY = ".loom/copies/proposal.tex"
 TEXT = r"""\documentclass{article}
 \newtheorem{lemma}{Lemma}
 \begin{document}
@@ -34,7 +34,7 @@ def quilt(tmp_path: Path):
 
     save_author("Tester")
     (tmp_path / "drafting").mkdir()
-    (tmp_path / "drafting-ai").mkdir()
+    (tmp_path / ".loom" / "copies").mkdir(parents=True)
     (tmp_path / "config.toml").write_text('[quilt]\nname="test"\nprefix="zk"\nmain="drafting/main.tex"\n')
     (tmp_path / DOC).write_text(TEXT)
     q = load_quilt(tmp_path)
@@ -628,9 +628,9 @@ def test_refresh_conflict_names_the_command_with_its_path_quoted(tmp_path):
     from loom.scan.quilt import save_author
 
     save_author("Tester")
-    spaced = "drafting-ai/my proposal.tex"
+    spaced = ".loom/copies/my proposal.tex"
     (tmp_path / "drafting").mkdir()
-    (tmp_path / "drafting-ai").mkdir()
+    (tmp_path / ".loom" / "copies").mkdir(parents=True)
     (tmp_path / "config.toml").write_text('[quilt]\nname="test"\nprefix="zk"\nmain="drafting/main.tex"\n')
     (tmp_path / DOC).write_text(TEXT)
     q = load_quilt(tmp_path)
@@ -662,11 +662,11 @@ def test_an_unlabelled_node_is_document_level_and_never_a_missing_proposal(tmp_p
         "\\begin{remark}\nAn unlabelled remark.\n\\end{remark}\n\n\\end{document}",
     )
     ok("draft", "drafting/main.tex", "--ai", "review", cwd=q)
-    assert "No changes to incorporate" in ok("adopt", "drafting-ai/review.tex", "--json", cwd=q).stdout
-    edit_file(q / "drafting-ai" / "review.tex", "An unlabelled remark.", "An unlabelled remark, revised.")
-    waiting = ok("adopt", "drafting-ai/review.tex", "--json", cwd=q).stdout
+    assert "No changes to incorporate" in ok("adopt", ".loom/copies/review.tex", "--json", cwd=q).stdout
+    edit_file(q / ".loom" / "copies" / "review.tex", "An unlabelled remark.", "An unlabelled remark, revised.")
+    waiting = ok("adopt", ".loom/copies/review.tex", "--json", cwd=q).stdout
     assert "--document-changes" in waiting
-    r = ok("adopt", "drafting-ai/review.tex", "--document-changes", "--json", cwd=q)
+    r = ok("adopt", ".loom/copies/review.tex", "--document-changes", "--json", cwd=q)
     assert "+An unlabelled remark, revised." in r.stdout
 
 
@@ -700,8 +700,8 @@ def test_adopts_preview_says_what_it_is_doing_on_a_long_run(tmp_path, monkeypatc
     save_author("Tester")
     q = demo(tmp_path)
     ok("draft", "drafting/main.tex", "--ai", "review", cwd=q)
-    edit_file(q / "drafting-ai" / "review.tex", "Every orbit", "Each orbit")
-    ok("adopt", "drafting-ai/review.tex", "--json", cwd=q)
+    edit_file(q / ".loom" / "copies" / "review.tex", "Every orbit", "Each orbit")
+    ok("adopt", ".loom/copies/review.tex", "--json", cwd=q)
     assert "comparing review.tex with the document it was drafted from" in said[-1]
     assert "checking drafting/main.tex with the selected changes" in said[-1]
 

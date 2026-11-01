@@ -77,7 +77,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **Why.** The permission file's `Write` rules passed every unit test and were never enforced: Claude Code matches only `Edit` rules to paths. Then root-relative allows passed too, but under `--settings` a leading `/` means `.claude/`, so every write a launched agent made was refused.
 
 **Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it:
-- `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors`;
+- `loom/tests/client/test_claude.py::test_a_launched_claude_writes_where_the_quilt_lets_it_and_not_where_it_protects`;
 - `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`, on the shell variant;
 - `::test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_shell`, on the MCP variant.
 
@@ -86,6 +86,18 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **Record.** DR-275-ikmartin, DR-343-ikmartin
 
 **2026-10-26.** Launch commands are gone with launching (plan 0.20.1); the client tier runs `claude -p` itself, as a person starting an agent in the quilt would.
+
+**2026-11-01.** The boundary test writes an open file, the agent's copies, a directory `[agents] deny` names and one of loom's records, in the mode that accepts edits, since outside the protected paths whether the client asks is the person's setting (plan 0.22.6).
+
+### Where an agent may write is one table, which loom's own commands enforce in every client
+
+**Rule.** `loom/src/loom/agents.py` holds the boundary: the agent's own places (its session, `.loom/build/`, `.loom/copies/`), what is always protected (loom's records under `.loom/`, the history, `config.toml`, the research state), and the person's `[agents] deny`. Every loom command that writes a path an agent chose refuses an agent a protected one by its one predicate, and Claude Code's permission file is rendered from its tables. Every `.loom/` path loom names is an agent's place or protected.
+
+**Why.** Only Claude Code's file can refuse an edit by path, so a boundary kept only there held for one client of four. And a record added under `.loom/` without a deny of its own would be open to an agent's edits, since the agent's places sit beside the records there and a deny on `.loom/` would beat their allows.
+
+**Guard.** `loom/tests/unit/test_paths.py::test_every_path_under_loom_is_an_agents_place_or_protected`, `loom/tests/unit/test_destination.py::test_an_agent_is_refused_what_the_quilt_protects_and_a_person_is_not`, `loom/tests/unit/test_ai_layer.py::test_the_deny_list_is_rendered_into_the_permission_file_beside_what_is_always_protected`
+
+**Record.** Plan 0.22.6
 
 ### Agent instructions name only commands the agent may run
 

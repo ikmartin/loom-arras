@@ -337,26 +337,6 @@ def attach_adoptions(
                     "issues": [str(exc)],
                 }
             )
-    # an agent document written from scratch has nothing to compare; it waits here until a working document is started from it
-    history = load_history(result.quilt.history_dir)
-    started = history.started(result.masters)
-    drafting = result.quilt.config.drafting
-    for copy in history.written(result.masters):
-        if copy in started:
-            continue
-        stem = Path(copy).stem
-        suggested = stem.removesuffix("-ai") if stem.endswith("-ai") else f"{stem}-1"
-        # a free file, since a start never overwrites; another directory's file of the same stem is no obstacle
-        while (result.quilt.root / f"{drafting}/{suggested}.tex").exists():
-            suggested += "-1"
-        contributions.append(
-            {
-                "kind": "start",
-                "copy": copy,
-                "label": f"Agent document “{stem}”, written from scratch",
-                "to": f"{drafting}/{suggested}.tex",
-            }
-        )
     # Preserve the existing pull field for clients; contributions adds the common source inventory.
     pulled = manifest.get("incoming")
     manifest["contributions"] = (

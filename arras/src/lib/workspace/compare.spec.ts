@@ -14,7 +14,7 @@ describe('lcs', () => {
 
 describe('with a base: a copy against its source', () => {
 	const main = doc('drafting/main.tex');
-	const copy = doc('drafting-ai/aidoc.tex', { copyOf: 'drafting/main.tex', copy: true });
+	const copy = doc('.loom/copies/aidoc.tex', { copyOf: 'drafting/main.tex', copy: true });
 	const left = [f('s1', 'h1'), f('s2', 'h2'), f('s3'), f('s4', 's4', 's4', '2'), f('gone')];
 	const right = [ai('s1', 'h1*'), ai('s4', 's4', '1'), ai('s2', 'h2*'), ai('s3'), ai('new')];
 	const bases: Record<string, string> = { 's1-ai': 'h0', 's2-ai': 'h2' };

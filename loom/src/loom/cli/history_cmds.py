@@ -34,7 +34,7 @@ from loom.history.steps import (
     write_step,
 )
 from loom.history.versions import matching_version, materialize, parse_address, read_version, version_at
-from loom.paths import BUILD
+from loom.paths import BUILD, COPIES
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
 from loom.reshape.fork import _relabel, _rewrite_refs, inner_labels, plan_fork, unapplied_fork
@@ -67,19 +67,13 @@ def _history(result: ScanResult) -> History:
 
 
 @click.command()
-@click.argument("document", required=False, default=None)
+@click.argument("document")
 @click.option(
     "--ai",
     "ai_name",
     required=True,
     metavar="NAME",
-    help="The agent document to write, directly in the agent's drafting directory.",
-)
-@click.option(
-    "--new",
-    "new",
-    is_flag=True,
-    help="Write it from scratch, drafted from no document: the default document's preamble and an empty body.",
+    help=f"The agent document to write, {COPIES}/NAME.tex.",
 )
 @click.option(
     "--as",
@@ -93,99 +87,38 @@ def _history(result: ScanResult) -> History:
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def draft(
-    document: str | None,
+    document: str,
     ai_name: str,
-    new: bool,
     declared: str | None,
     section: str | None,
     dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Draft an agent document NAME from a live working document, or with --new from scratch: flat, in the agent's drafting directory, with every label it defines derived.
+    """Draft an agent document NAME from a live working document: flat, in `.loom/copies/`, with every label it defines derived.
 
-    A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document written from scratch has a step too, with no source, and is taken in with `loom adopt NAME --to FILE`. Starting a document from an old version of one is `loom history restore`.
+    A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document of an agent's own needs no command: it is a file the agent writes where the quilt lets it. Starting a document from an old version of one is `loom history restore`.
     """
     from loom.sync import SyncError
 
-    if new and document:
-        raise EnvError(
-            f"--new writes an agent document drafted from no document; drop {document}, or drop --new to copy it"
-        )
-    if new and section:
-        raise EnvError("--section copies a section of a document; an agent document written from scratch has none")
-    if not new and not document:
-        raise EnvError("loom draft needs DOCUMENT, the working document to copy, or --new to write one from scratch")
     try:
         result = open_scan(quilt_path)
-        if new:
-            _draft_new(result, ai_name, declared, dry_run, as_json)
-        else:
-            _draft_ai(result, document or "", ai_name, declared, dry_run, as_json, section)
+        _draft_ai(result, document, ai_name, declared, dry_run, as_json, section)
     except (ValueError, SyncError) as exc:
         raise EnvError(str(exc)) from exc
 
 
 def _ai_destination(result: ScanResult, name: str) -> str:
-    """The agent document `--ai NAME` names: directly under `[quilt] drafting_ai`, never an existing file."""
+    """The agent document `--ai NAME` names: directly under `.loom/copies/`, never an existing file."""
     quilt = result.quilt
-    dest_rel = name if "/" in name else f"{quilt.config.drafting_ai}/{name}"
+    dest_rel = name if "/" in name else f"{COPIES}/{name}"
     if not dest_rel.endswith(".tex"):
         dest_rel += ".tex"
-    if Path(dest_rel).parent.as_posix() != quilt.config.drafting_ai:
-        raise EnvError(f"an agent document goes directly under {quilt.config.drafting_ai}/, not at {dest_rel}")
+    if Path(dest_rel).parent.as_posix() != COPIES:
+        raise EnvError(f"an agent document goes directly under {COPIES}/, not at {dest_rel}")
     if (quilt.root / dest_rel).exists():
         raise EnvError(f"{dest_rel} exists; draft never overwrites")
     return dest_rel
-
-
-def _draft_new(result: ScanResult, name: str, declared: str | None, dry_run: bool, as_json: bool) -> None:
-    """`loom draft --ai NAME --new`: the default document's preamble over an empty body, and a copy step with no source.
-
-    With no default document the preamble is `loom init`'s. The step freezes nothing; its `scope` is `new`, so it reserves no part of any document.
-    """
-    from loom.history.steps import FreezePlan
-    from loom.section_drafts import split_preamble
-
-    root = result.quilt.root
-    actor = writer(root, declared)[0] or None
-    dest_rel = _ai_destination(result, name)
-    history = _history(result)
-    refuse_interrupted(history)
-    source = result.default_master
-    if source:
-        preamble = split_preamble(flatten(root, source).text)[0]
-    else:
-        from loom.cli.quilt import ASSETS
-
-        preamble = split_preamble(to_canon((ASSETS / "init" / "main.tex").read_text(encoding="utf-8")))[0]
-    text = preamble.rstrip("\n") + "\n\n\\begin{document}\n\n\\end{document}\n"
-    lines = [f"its preamble is {source}'s" if source else "its preamble is loom init's"]
-    if dry_run:
-        step = history.next_step()
-        Report(
-            f"would write {dest_rel}, an agent document written from scratch, and record it as step {step:04d}",
-            dry_run=True,
-            lines=lines,
-            data={"action": "copy", "step": step, "to": dest_rel},
-        ).emit(as_json)
-        return
-    dest = root / dest_rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(text, encoding="utf-8")
-    entry = write_step(
-        history,
-        "copy",
-        f"new-{Path(dest_rel).stem}",
-        FreezePlan(),
-        actor,
-        extra={"to": dest_rel, "scope": {"kind": "new"}, "suffix": "-ai"},
-    )
-    Report(
-        f"wrote {dest_rel}, an agent document written from scratch; step {entry.step:04d} records it",
-        lines=lines,
-        data={**entry.to_dict(), "line": entry.line},
-    ).emit(as_json)
 
 
 def _draft_ai(
@@ -609,11 +542,10 @@ def live(file: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> Non
 
 
 def _document_path(result: ScanResult, rel: str, given: str) -> None:
-    """Refuse `rel` unless it can name one of the person's documents: a `.tex` inside the quilt where the scan reads, outside the agent's drafting directory.
+    """Refuse `rel` unless it can name one of the person's documents: a `.tex` inside the quilt where the scan reads, and no agent's.
 
     `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directory that keeps the scan out is named, since a retired path or one in the history is the likeliest slip.
     """
-    drafting_ai = result.quilt.config.drafting_ai
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
         raise EnvError(f"{given} is outside the quilt; loom mv moves documents within it")
     unread = unread_dir(result.quilt, rel)
@@ -621,8 +553,8 @@ def _document_path(result: ScanResult, rel: str, given: str) -> None:
         raise EnvError(f"{rel} is inside {unread}/, which loom never reads as a document; loom mv moves only documents")
     if not rel.endswith(".tex"):
         raise EnvError(f"{rel} is not a .tex file; loom mv moves only documents")
-    if Path(rel).parent.as_posix() == drafting_ai:
-        raise EnvError(f"{rel} is in {drafting_ai}/, where agents' documents are kept; loom mv moves only yours")
+    if result.document_role(rel) == "agent":
+        raise EnvError(f"{rel} is an agent's document; loom mv moves only yours")
 
 
 def _named_documents(result: ScanResult) -> set[str]:
@@ -781,7 +713,7 @@ def _linearize(
     if spine_rel not in result.files:
         raise NotFoundError("file", f"{spine} is not a scanned file of this quilt")
     progress.next_stage("flattening")
-    to_rel = destination(result.quilt, to, document=True, agent=True).relative_to(root.resolve()).as_posix()
+    to_rel = destination(result.quilt, to, document=True).relative_to(root.resolve()).as_posix()
     if do_fork and keep_shared:
         raise EnvError("--fork and --keep-shared exclude each other")
     exp = result.expansions.get(spine_rel)
@@ -1179,15 +1111,8 @@ def _detail(e: Entry) -> str:
         return f"{e.get('copy')} incorporated ({len(e.get('taken') or [])} selected nodes); mathematics not accepted"
     if e.action == "refresh":
         return f"{e.get('copy')} updated from its working document"
-    if e.action == "copy" and not frm:
-        return f"written from scratch -> {to}"
     if e.action == "copy":
         return f"{frm} -> {to} ({len(e.get('bases') or {})} nodes based)"
-    if e.action == "start":
-        renamed = len(e.get("renamed") or {})
-        return f"{e.get('copy')} -> {(to or {}).get('path')}, a working document started from it" + (
-            f"; {renamed} of its ids took a fresh one" if renamed else ""
-        )
     if e.action == "move":
         how = (
             "" if e.get("moved") else (" (renamed in a pull)" if e.get("via") == "sync" else " (renamed outside loom)")

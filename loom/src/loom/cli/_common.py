@@ -134,7 +134,6 @@ def destination(
     path: str | Path,
     *,
     document: bool = False,
-    agent: bool = False,
     source: bool = False,
     overwrite: bool = False,
 ) -> Path:
@@ -147,9 +146,7 @@ def destination(
     path : str or Path
         What `--to` said; a relative path is the quilt root's, as every path loom takes is.
     document : bool, default False
-        The command writes a working document: a `.tex` anywhere in the quilt the scan reads, outside the agent's drafting directory.
-    agent : bool, default False
-        With `document`, the agent's drafting directory is allowed too (`linearize` of an agent document).
+        The command writes a working document: a `.tex` anywhere in the quilt the scan reads.
     source : bool, default False
         The command writes a source file that takes another's place (`atomize`), so it may go wherever a source may.
     overwrite : bool, default False
@@ -163,7 +160,7 @@ def destination(
     Raises
     ------
     EnvError
-        A working document that is no `.tex`, lies outside the quilt, where the scan does not read, or in the agent's drafting directory; anything else among the quilt's sources, which loom never writes; or a file that exists.
+        A working document that is no `.tex`, lies outside the quilt or where the scan does not read; anything else among the quilt's sources, which loom never writes; a file that exists; or, under an agent, a path the quilt protects from agents (`refuse_protected`).
     """
     from loom.scan.scan import unread_dir
 
@@ -181,10 +178,6 @@ def destination(
             raise EnvError(
                 f"{path} is inside {unread}/, which loom never reads as a document; put it anywhere else in the quilt"
             )
-        if not agent and Path(rel).parent.as_posix() == quilt.config.drafting_ai:
-            raise EnvError(
-                f"{path} is in {quilt.config.drafting_ai}/, where agents' documents are kept; put a working document anywhere else in the quilt"
-            )
     if (
         not document
         and not source
@@ -195,13 +188,32 @@ def destination(
         raise EnvError(
             f"{path} would be among the quilt's sources, which loom never writes; write it under {BUILD}/ or outside the quilt"
         )
+    refuse_protected(quilt, target)
     if target.exists() and not overwrite:
         raise EnvError(f"{path} exists; loom does not overwrite it")
     return target
 
 
+def refuse_protected(quilt: Any, target: Path) -> None:
+    """Refuse an agent a file the quilt protects from agents, whichever command writes it and whatever client runs the agent (K5).
+
+    Claude Code's permission file refuses the agent's own edits; this refuses the same paths when a loom command is the writer, which is the only refusal an agent in any other client meets. A person is never refused here.
+    """
+    if not agent_marker():
+        return
+    root = Path(quilt.root).resolve()
+    resolved = target.resolve()
+    if not resolved.is_relative_to(root):
+        return
+    from loom.agents import refusal
+
+    why = refusal(quilt.config, resolved.relative_to(root).as_posix())
+    if why is not None:
+        raise EnvError(f"{resolved.relative_to(root).as_posix()}: {why}; write it elsewhere, or leave it to the author")
+
+
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
-#: Loom reads them only to refuse the author's verbs, never to change what any other command does.
+#: Loom reads them only to refuse what an agent may not do (the author's verbs, a protected path), never to change what any other command does.
 AGENT_MARKERS = ("AI_AGENT", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CODEX_SANDBOX", "CURSOR_AGENT", "GEMINI_CLI")
 
 

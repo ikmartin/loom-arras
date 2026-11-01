@@ -9,7 +9,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from loom.paths import DIGESTS, LOOM, STORAGE
+from loom.paths import COPIES, DIGESTS, LOOM, STORAGE
 from loom.scan.model import SourceFile
 
 #: Directories never read, by name at any depth: loom's own, whose digests alone are read on purpose, and tools'.
@@ -20,9 +20,9 @@ _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontent
 
 
 def discover_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
-    """Quilt-relative posix paths of every .tex file under root, sorted: every one outside `SKIP_DIRS` and the directories in `skip_top` (the history directory and the sync directory, given relative to root), and every digest.
+    """Quilt-relative posix paths of every .tex file under root, sorted: every one outside `SKIP_DIRS` and the directories in `skip_top` (the history directory and the sync directory, given relative to root), every digest, and every agent copy.
 
-    Digests are read from `.loom/digests/` on purpose, outside the store: a fetched e-print under the store is a whole paper carrying its own labels (DR-108, DR-192).
+    Digests are read from `.loom/digests/` on purpose, outside the store: a fetched e-print under the store is a whole paper carrying its own labels (DR-108, DR-192). Agent copies are read from `.loom/copies/`, where `loom draft --ai` makes them.
     """
     found: list[str] = []
     for path in root.rglob("*.tex"):
@@ -37,6 +37,9 @@ def discover_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
         found += [
             p.relative_to(root).as_posix() for p in digests.rglob("*.tex") if not p.is_relative_to(root / STORAGE)
         ]
+    copies = root / COPIES
+    if copies.is_dir():
+        found += [p.relative_to(root).as_posix() for p in copies.glob("*.tex") if p.is_file()]
     return sorted(found)
 
 

@@ -64,7 +64,7 @@
    "read_only_hint": true
   },
   "command": "loom ai drafts",
-  "description": "List each agent document: the working document it was drafted from and what has moved there since, or that it was written from scratch.\n\nBefore a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against. One written from scratch is never stale, and names the working document started from it, if any.",
+  "description": "List each agent document: the working document it was drafted from and what has moved there since.\n\nBefore a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -473,12 +473,12 @@
    "read_only_hint": false
   },
   "command": "loom draft",
-  "description": "Draft an agent document NAME from a live working document, or with --new from scratch: flat, in the agent's drafting directory, with every label it defines derived.\n\nA copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document written from scratch has a step too, with no source, and is taken in with `loom adopt NAME --to FILE`. Starting a document from an old version of one is `loom history restore`.",
+  "description": "Draft an agent document NAME from a live working document: flat, in `.loom/copies/`, with every label it defines derived.\n\nA copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document of an agent's own needs no command: it is a file the agent writes where the quilt lets it. Starting a document from an old version of one is `loom history restore`.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
     "ai": {
-     "description": "The agent document to write, directly in the agent's drafting directory.",
+     "description": "The agent document to write, .loom/copies/NAME.tex.",
      "type": "string"
     },
     "document": {
@@ -492,16 +492,13 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
-    "new": {
-     "description": "Write it from scratch, drafted from no document: the default document's preamble and an empty body.",
-     "type": "boolean"
-    },
     "section": {
      "description": "Copy only this section or subsection and its descendants.",
      "type": "string"
     }
    },
    "required": [
+    "document",
     "ai"
    ],
    "type": "object"

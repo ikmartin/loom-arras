@@ -6,16 +6,28 @@ How AI agents take part in a quilt: what they may do, what only the author may d
 
 An agent reads the quilt through loom, never by reading directories wholesale: `loom status` for what needs doing, `loom search` to resolve "Theorem 4.8" to its id, `loom source KEY --closure` for exactly the context a key rests on, `loom library search` and `loom library read` for the literature. Reading through loom means what it reads is what loom resolved, and what it quotes can be checked against the page it came from.
 
-It writes only through loom's records and its own places:
+It writes the quilt's files where the quilt lets it (below), and everything else through loom's records and its own places:
 
 - **Annotations** on any target, with a kind, a severity where something is wrong, and proposed text as a payload the author can apply (`model.md`).
 - **Proposed library results**, each quotation checked against the page before it is stored, waiting for the author to verify.
 - **Relations** between results, each with its reason.
-- **Agent documents** in `drafting-ai/`, copies it makes with `loom draft DOC --ai NAME` and edits there; the author adopts what they want.
+- **Agent documents** in `.loom/copies/`, copies it makes with `loom draft DOC --ai NAME` and edits there; the author adopts what they want. A copy is how an agent works on a document the quilt protects, or gives the author changes to choose among before any lands.
 - **Pages**, through `loom write`: the quilt's research state, its goals, open problems, conventions and decisions, and each cited work's overview, a reading of the paper. The author edits a page directly; an agent writes one only through the command, which refuses a write from a stale read (`--base`) and records who wrote what in the history. A page says who wrote it and is never a source.
 - **Notes** about the mathematics (not built yet, see [README](README.md#decided-not-yet-built)).
 - **The session's transcript**, with `loom session say` (below).
 - **Files it hands the author** in its session's directory, which is never deleted from, and intermediates in `.loom/build/SESSION/`, which it may overwrite.
+
+### Where an agent may write
+
+Anywhere the quilt does not protect. What is protected is one table in `loom/src/loom/agents.py`:
+
+- **Always:** loom's records under `.loom/` (every one named, since the agent's own places sit beside them there), the history wherever `[quilt] history` puts it, `config.toml`, and the research state, which an agent writes only through `loom write`. An agent that could edit the config could remove a protection, and P2 has only loom write its logs.
+- **What the person adds:** `[agents] deny` in `config.toml`, gitignore-style patterns from the quilt root, empty in a fresh quilt. `["paper/"]` keeps an agent out of a paper; it then works on a copy. A negated pattern is refused, since no client can let an allow undo a deny.
+- **The agent's own places,** whatever the list says: its session's directory, `.loom/build/` and `.loom/copies/`.
+
+The table is enforced two ways, and the orientation says which holds where (P15). Loom's own commands refuse an agent a protected path in any client, by the same predicate (`denied_by`). Of the agents' apps, only Claude Code's permission file can refuse an edit by path, so loom renders the table into `.claude/settings.json`; Codex, Gemini CLI and Cursor are told the list and asked to keep it. The person's edit to the list reaches Claude Code's file at `loom upgrade`, and `loom lint` warns until it has (`loom:agent-permissions-stale`). Outside the protected paths, whether Claude Code asks before an edit is the person's setting in it, not loom's.
+
+An edit to an open file is not a loom write: it acts on the person's permission to the agent (P7). An agent's edit to an accepted result shows it stale, with its cause, as anyone's does (P3, P15).
 
 Every write names its writer with `--as`, and an agent's name says it is an agent (it contains "Agent" or "AI"), so that every record says what wrote it. Identity is declared, never sniffed from a shell; a session command with no declared name refuses.
 
@@ -37,7 +49,7 @@ An agent that wants one of these acts writes a suggestion on the thing concerned
 
 An agent attaches over MCP, or through the shell if it has no MCP, such as Aider. `loom ai init` writes the agent layer in one of two variants, `--mcp` (the default) or `--shell`. The variant is read back from `.claude/settings.json`, and `loom upgrade` keeps it. Both are generated from one table of agent commands (`AGENT_COMMANDS` in `loom/src/loom/ai/layout.py`):
 
-- **Over MCP**, `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` carry one line telling the agent to call `loom_ai_orient`, and to ask the author to run `loom ai init` and approve the server if it has no loom tools. The permission files allow the server's tools (`mcp__loom__*`) and the agent's write directories. They deny every other path, and they deny `loom` typed in a shell, which steers the agent to its tools. The boundary itself is loom's refusal under an agent marker.
+- **Over MCP**, `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` carry one line telling the agent to call `loom_ai_orient`, and to ask the author to run `loom ai init` and approve the server if it has no loom tools. The permission files allow the server's tools (`mcp__loom__*`) and the agent's own places, and deny the protected paths (above) and `loom` typed in a shell, which steers the agent to its tools. Claude Code's `.mcp.json` starts the server with no `--quilt`, since Claude Code runs it in the project, where `loom mcp` finds the quilt by walking up; the other apps' files name the quilt's path. The boundary itself is loom's refusal under an agent marker.
 - **In the shell**, the line says to run `loom ai orient`. The permission files allow each agent command and deny every other one.
 
 In either variant, a loom command outside the table refuses under an agent's shell before it reads anything.

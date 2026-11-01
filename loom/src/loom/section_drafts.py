@@ -151,11 +151,10 @@ def capture_context(result: ScanResult, source: str, *, write: bool = True) -> d
     # Local assets may be read through author macros; preserve the document's directory's inputs conservatively.
     for path in (root / result.base_of(source)).rglob("*"):
         rel = path.relative_to(root)
-        if any(p in {".git", LOOM, "node_modules", ".venv", result.quilt.config.drafting_ai} for p in rel.parts):
+        if any(p in {".git", LOOM, "node_modules", ".venv"} for p in rel.parts):
             continue
         if (
-            path.is_relative_to(root / result.quilt.config.drafting_ai)
-            or (synced is not None and path.is_relative_to(root / synced))
+            (synced is not None and path.is_relative_to(root / synced))
             or path.is_symlink()
             or not path.is_file()
             or path.is_relative_to(result.quilt.history_dir)

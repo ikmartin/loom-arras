@@ -142,6 +142,12 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
     from loom.cli.review import agent_line
 
     lines.append(f"- agent documents: {agent_line(payload) or 'none'}")
+    from loom.agents import always_protected
+
+    deny = ", ".join(f"`{p}`" for p in cfg.agents_deny) or "nothing more"
+    lines.append(
+        f"- protected, which no agent writes: {', '.join(f'`{p}`' for p in always_protected(cfg))}; and what `[agents] deny` names: {deny}"
+    )
     from loom.cli.diagnostics import tally
 
     lines.append(f"- lint: {tally(result.lint, result)}; run `loom lint` for the list")

@@ -16,7 +16,7 @@ describe("a document's history", () => {
 		expect(h.at).toBeUndefined();
 		expect(h.landmarks.map((c) => c.name)).toEqual(['widgets-v3', 'widgets-v2', 'widgets-v1']);
 		expect(h.kept).toEqual([]);
-		expect(h.copies.map((x) => x.path)).toEqual(['drafting-ai/aidoc.tex']);
+		expect(h.copies.map((x) => x.path)).toEqual(['.loom/copies/aidoc.tex']);
 	});
 
 	it("is, for a landmark, its draft's, at the landmark", () => {
@@ -34,7 +34,7 @@ describe("a document's history", () => {
 	});
 
 	it('is, for an agent copy, the draft it was copied from', () => {
-		expect(historyOf(fixture, 'drafting-ai/aidoc.tex')).toEqual({ of: 'copy', copy: 'drafting-ai/aidoc.tex', source: 'drafting/main.tex' });
+		expect(historyOf(fixture, '.loom/copies/aidoc.tex')).toEqual({ of: 'copy', copy: '.loom/copies/aidoc.tex', source: 'drafting/main.tex' });
 	});
 
 	it('is nothing for a draft with neither, a landmark no live draft leads to, or a closed copy', () => {
@@ -42,8 +42,8 @@ describe("a document's history", () => {
 		const m = structuredClone(fixture);
 		delete m.canon![0].in;
 		expect(historyOf(m, V1)).toBeNull();
-		m.masters.find((x) => x.path === 'drafting-ai/aidoc.tex')!.closed = true;
-		expect(historyOf(m, 'drafting-ai/aidoc.tex')).toBeNull();
+		m.masters.find((x) => x.path === '.loom/copies/aidoc.tex')!.closed = true;
+		expect(historyOf(m, '.loom/copies/aidoc.tex')).toBeNull();
 	});
 });
 

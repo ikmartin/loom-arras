@@ -1,6 +1,6 @@
 """The MCP client files: the file each agent's app reads to start `loom mcp` for a quilt, generated per machine and never committed.
 
-Each holds one server, `loom`, started as `<loom> mcp --as "<App> Agent" --quilt <root>` with both paths absolute: apps differ on the working directory and the environment they give a server, and the file names this machine's loom anyway. The project files are gitignored (`loom.gitignore.MANAGED`), and `loom doctor` fails when git tracks one. A file that holds anything else is the person's: loom leaves it alone and says what to add.
+Each holds one server, `loom`, started as `<loom> mcp --as "<App> Agent" --quilt <root>` with both paths absolute: apps differ on the working directory and the environment they give a server, and the file names this machine's loom anyway. An app that starts the server in the project directory (`Client.walks_up`) is given no `--quilt`, since `loom mcp` finds the quilt by walking up from there, so a quilt moved on disk keeps its agent. The project files are gitignored (`loom.gitignore.CLIENT_LINES`), and `loom doctor` fails when git tracks one. A file that holds anything else is the person's: loom leaves it alone and says what to add.
 """
 
 from __future__ import annotations
@@ -32,6 +32,8 @@ class Client:
         Where an app configured outside the quilt keeps the file, said with its entry.
     extra : tuple of (str, object), default ()
         Fields loom's entry carries beside the command: the transport, and the approval the shell allows grant.
+    walks_up : bool, default False
+        The app starts the server in the project directory, so the entry names no `--quilt`; shown for Claude Code by the client tier, and assumed for no other app.
     """
 
     key: str
@@ -40,6 +42,7 @@ class Client:
     form: str
     where: str = ""
     extra: tuple[tuple[str, Any], ...] = ()
+    walks_up: bool = False
 
     @property
     def agent(self) -> str:
@@ -47,7 +50,7 @@ class Client:
 
 
 CLIENTS = (
-    Client("claude-code", "Claude Code", ".mcp.json", "json", extra=(("type", "stdio"),)),
+    Client("claude-code", "Claude Code", ".mcp.json", "json", extra=(("type", "stdio"),), walks_up=True),
     Client("codex", "Codex", ".codex/config.toml", "codex", extra=(("default_tools_approval_mode", "approve"),)),
     Client("gemini-cli", "Gemini CLI", ".gemini/settings.json", "json", extra=(("trust", True),)),
     Client("cursor", "Cursor", ".cursor/mcp.json", "json"),
@@ -102,7 +105,7 @@ def render(client: Client, root: Path) -> str:
     cmd, pre = command()
     entry: dict[str, Any] = {
         "command": cmd,
-        "args": [*pre, "mcp", "--as", client.agent, "--quilt", str(root.resolve())],
+        "args": [*pre, "mcp", "--as", client.agent, *([] if client.walks_up else ["--quilt", str(root.resolve())])],
         **dict(client.extra),
     }
     if client.form == "codex":

@@ -29,12 +29,12 @@ def pairs(root: Path, left: str, right: str) -> dict[str, dict]:  # type: ignore
 
 def test_an_agent_copy_against_its_source_gives_each_change_its_direction(quilt: Path) -> None:
     """The fixture's copy: `sy-0002` changed by the agent (the source holds the base), `sy-0001` changed on both sides since the copy; the unchanged, moved, new and deleted nodes are no pair."""
-    got = pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
+    got = pairs(quilt, "drafting/main.tex", ".loom/copies/aidoc.tex")
     assert sorted(got) == ["sy-0001", "sy-0002"]
     assert got["sy-0002"]["base"] == "left" and got["sy-0001"]["base"] == "both"
     assert got["sy-0002"]["left"]["key"] == "sy-0002" and got["sy-0002"]["right"]["key"] == "sy-0002-ai"
     # the direction belongs to the documents, not the panes
-    assert pairs(quilt, "drafting-ai/aidoc.tex", "drafting/main.tex")["sy-0002"]["base"] == "right"
+    assert pairs(quilt, ".loom/copies/aidoc.tex", "drafting/main.tex")["sy-0002"]["base"] == "right"
 
 
 def test_landmarks_are_ordered_in_time(quilt: Path) -> None:
@@ -57,16 +57,16 @@ def test_a_display_name_changed_alone_is_no_difference(quilt: Path) -> None:
 def test_the_hashes_are_the_fragments_and_a_rendering_is_made_once(quilt: Path) -> None:
     """A pair's hashes are the `data-hash` the build wrote on the same nodes, so a viewer with nothing serving marks what loom would; a second request renders nothing."""
     build(load_quilt(quilt))
-    master = (quilt / ".loom/build" / "fragments" / "masters" / "drafting-ai" / "aidoc.html").read_text(
+    master = (quilt / ".loom/build" / "fragments" / "masters" / ".loom" / "copies" / "aidoc.html").read_text(
         encoding="utf-8"
     )
     written = dict(re.findall(r'data-pair="([^"]*)" data-hash="([^"]*)"', master))
-    got = pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
+    got = pairs(quilt, "drafting/main.tex", ".loom/copies/aidoc.tex")
     assert got["sy-0002"]["right"]["hash"] == written["sy-0002"]
     rendered = sorted((quilt / ".loom/build" / "compare").iterdir())
     times = [p.stat().st_mtime_ns for p in rendered]
     assert b"review-changed" in rendered[0].read_bytes()
-    pairs(quilt, "drafting/main.tex", "drafting-ai/aidoc.tex")
+    pairs(quilt, "drafting/main.tex", ".loom/copies/aidoc.tex")
     assert sorted((quilt / ".loom/build" / "compare").iterdir()) == rendered
     assert [p.stat().st_mtime_ns for p in rendered] == times
 

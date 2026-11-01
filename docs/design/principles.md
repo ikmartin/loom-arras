@@ -100,7 +100,7 @@ Where a file lives carries no meaning. Consequence: one file per node and twelve
 
 ### P6. Config only for what the preamble cannot say.
 
-The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the drafting directories, the id prefix and a default engine, and little else.
+The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the id prefix, a default engine and the paths agents may not write, and little else.
 
 ### P7. Loom changes an author's file only when the author incorporates a change, and keeps the old text first.
 

@@ -1382,14 +1382,13 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     from loom.history.ledger import load_history
 
     history = load_history(result.quilt.history_dir)
-    copies, written = history.copies(result.masters), set(history.written(result.masters))
+    copies = history.copies(result.masters)
     return {
         "summary": summarise(result, keys),
         "keys": keys,
         "agent_documents": {
             m: {
                 "source": copies.get(m, ""),
-                "from_scratch": m in written,
                 "keys": rows,
                 "summary": agent_summary(rows),
             }

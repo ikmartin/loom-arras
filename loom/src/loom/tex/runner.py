@@ -154,7 +154,7 @@ def compile_document(
     base : str
         The document's directory, `ScanResult.base_of`; '' at the root.
     tex : str or Path
-        The file to compile, quilt-relative or absolute; named to latexmk from `base`, so an agent copy compiles as `../drafting-ai/x.tex` from its source's directory.
+        The file to compile, quilt-relative or absolute; named to latexmk from `base`, so an agent copy compiles as `../.loom/copies/x.tex` from its source's directory.
     outdir : Path
         Where latexmk writes.
     engine : str, default 'pdflatex'

@@ -23,7 +23,7 @@ Second prose.
   writeFileSync(join(root,sourcePath),text);
   loom(['draft',sourcePath,'--ai','first-scope','--section','sy-0A00']);
   loom(['draft',sourcePath,'--ai','second-scope','--section','sy-0B00']);
-  const draft = join(root,'drafting-ai/first-scope.tex');
+  const draft = join(root,'.loom/copies/first-scope.tex');
   writeFileSync(draft,readFileSync(draft,'utf8').replace('Original','Proposed').replace('First prose.','New prose.').replace('\\begin{document}','\\newcommand{\\extra}{E}\n\\begin{document}'));
   });
  }
@@ -36,7 +36,7 @@ for (const width of [736, 1100, 1440]) {
   await page.setViewportSize({width, height:1000});
   await page.goto('/review/incoming');
   await expect(page.getByLabel('Contribution')).toContainText('first-scope');
-  await page.getByLabel('Contribution').selectOption('drafting-ai/first-scope.tex');
+  await page.getByLabel('Contribution').selectOption('.loom/copies/first-scope.tex');
   const row = page.getByTestId('adoption-sy-0A01');
   const use = row.getByRole('button',{name:'Use proposed version',exact:true});
   await expect(row).toContainText('Proposed');
@@ -68,7 +68,7 @@ for (const width of [736, 1100, 1440]) {
   expect(applied).toContain('First prose.');
   expect(applied).toContain('Second prose.');
   expect(applied).toContain('\\newcommand{\\extra}');
-  await page.goto('/master/drafting-ai/first-scope');
+  await page.goto('/master/.loom/copies/first-scope');
   await page.getByRole('button',{name:'Close draft',exact:true}).click();
   await expect(page.getByRole('button',{name:'Close and keep saved copy'})).toBeVisible();
   await page.getByRole('button',{name:'Close and keep saved copy'}).click();

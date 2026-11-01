@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-from loom.paths import AI, ANNOTATIONS, BUILD, DIGESTS, LEDGER, REFERENCE_NOTES, RETIRED, SESSIONS
+from loom.paths import AI
 from loom.scan.quilt import QuiltConfig
 
 #: The modes loom ships, in the order the index lists them. Each file's `When it fits:` line is the index's entry for it, the one copy; a file in a quilt's `.loom/ai/modes/` whose name is not here is not a mode, so one loom no longer ships is inert.
@@ -59,25 +59,14 @@ ACTS: dict[str, str] = {
 NOT_TOOLS = frozenset({"mcp", "serve"})
 #: The one agent command that may reach the network, when the quilt's config allows it.
 NETWORK = frozenset({"library update"})
-AGENT_WRITES = (
-    SESSIONS,
-    BUILD,
-)  # the only places an agent may write, besides the quilt's `[quilt] drafting_ai`
-# `.loom` is not read-only wholesale: a session's own directory and the build output are under it, and a deny there would beat both allows, so the parts that are the record are named instead. The person's drafting directory is read-only too, under the name the quilt gives it (`agent_dirs`).
-AGENT_READONLY = (RETIRED, DIGESTS, ANNOTATIONS)
-AGENT_READONLY_FILES = (
-    f"{AI}/orientation.md",
-    f"{AI}/rules.md",
-    f"{AI}/formatting.md",
-    "config.toml",
-    REFERENCE_NOTES,
-    LEDGER,
-    f"{SESSIONS}/index.jsonl",
-)
-
 #: The line loom puts in each agent's root file, one per variant: an agent attached over MCP starts from the server's tool, and one working through a shell from the command.
-MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit."
-SHELL_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit."
+MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write anywhere but the paths `loom_ai_orient` names as protected."
+SHELL_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write anywhere but the paths `loom ai orient` names as protected."
+#: Lines an older loom wrote, each replaced where it stands so an upgraded quilt holds one line, not two.
+OLD_LINES = (
+    "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit.",
+    "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit.",
+)
 #: The two ways an agent reaches loom: through the MCP server's tools, the default, or by typing `loom` in a shell, for an agent with no MCP.
 MCP, SHELL = "mcp", "shell"
 VERSION_FILE = ".loom-modes-version"
@@ -151,11 +140,6 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
     (root / AI / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def agent_dirs(config: QuiltConfig) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting, `drafting_ai` and history directories in them."""
-    return AGENT_WRITES + (config.drafting_ai,), (config.drafting, *AGENT_READONLY, config.history, AI)
-
-
 def quilt_config(root: Path) -> QuiltConfig:
     """The config of the quilt at `root`, or the defaults where there is none yet: the names the permission file is written with."""
     from loom.scan.quilt import NoQuiltError, load_quilt
@@ -169,22 +153,19 @@ def quilt_config(root: Path) -> QuiltConfig:
 def permissions_json(config: QuiltConfig, *, shell: bool = False) -> str:
     """`.claude/settings.json` for a quilt, generated from the one table rather than written by hand.
 
-    Over MCP, the default, the agent's commands are the loom server's tools, allowed as `mcp__loom__*`, and the author's are not tools at all; `loom` typed in a shell is denied, which steers an agent to the tools and is not the boundary -- loom's own refusal under an agent (K5) is. With `shell`, for an agent that has no MCP, the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, since Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71) -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. The directories are the quilt's own names (`agent_dirs`), so a quilt that renames `drafting` keeps it read-only.
+    Over MCP, the default, the agent's commands are the loom server's tools, allowed as `mcp__loom__*`, and the author's are not tools at all; `loom` typed in a shell is denied, which steers an agent to the tools and is not the boundary -- loom's own refusal under an agent (K5) is. With `shell`, for an agent that has no MCP, the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, since Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71) -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. The paths are `loom.agents`'s: the agent's places allowed, and what is always protected and what `[agents] deny` names denied; every other file is left to the client, which asks or not as the person runs it.
 
-    The file is read twice and its two path forms are for different readings (DR-343-ikmartin): as the project's settings, `/x` is the quilt root, but an untrusted folder's allow rules are dropped there; passed with `--settings`, every rule holds but `/x` is under `.claude/`. So the allows are relative to the working directory, the quilt root an agent is started in, and the denies keep `/`, which anchors `/*.tex` to the root where a relative `*.tex` would refuse the agent's own drafts.
+    The file is read twice and its two path forms are for different readings (DR-343-ikmartin): as the project's settings, `/x` is the quilt root, but an untrusted folder's allow rules are dropped there; passed with `--settings`, every rule holds but `/x` is under `.claude/`. So the allows are relative to the working directory, the quilt root an agent is started in, and the denies keep `/`, which anchors `/config.toml` to the root where a relative `config.toml` would refuse every file of that name.
     """
     import json
 
-    writes, readonly = agent_dirs(config)
+    from loom.agents import claude_allows, claude_denies
+
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
-    allow = [f"Edit({d}/**)" for d in writes]
+    allow = [f"Edit({d})" for d in claude_allows()]
     # the agent's own commands, allowed outright: approving each of them is friction with nothing to decide
     allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)] if shell else ["mcp__loom__*"]
-    deny = [f"Edit(/{d}/**)" for d in readonly]
-    deny += [f"Edit(/{f})" for f in AGENT_READONLY_FILES]
-    # the research state is a page: an agent writes it through `loom write`, which records the write, never by hand
-    deny.append(f"Edit(/{config.research_state})")
-    deny += [f"Edit(/*.{ext})" for ext in ("tex", "sty", "bib")]
+    deny = [f"Edit({d})" for d in claude_denies(config)]
     deny += [f"Bash(loom {c}*)" for c in author_commands()] if shell else ["Bash(loom *)"]
     deny.append("Bash(rm *)")
     return json.dumps({"permissions": {"allow": allow, "deny": deny}}, indent=2) + "\n"
@@ -250,9 +231,10 @@ ROOT_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md")
 def ensure_root_line(root: Path, write: bool = True, *, shell: bool = False) -> list[str]:
     """Put loom's one line, the variant's, into each agent's root file without taking the files over; returns what was written, or with `write` false what would be.
 
-    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. The other variant's line is replaced where it stands; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
+    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. The other variant's line, and any line an older loom wrote (`OLD_LINES`), is replaced where it stands; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
     """
     line, other = (SHELL_LINE, MCP_LINE) if shell else (MCP_LINE, SHELL_LINE)
+    replaced = (other, *OLD_LINES)
     written: list[str] = []
     for name in ROOT_FILES:
         p = root / name
@@ -263,8 +245,11 @@ def ensure_root_line(root: Path, write: bool = True, *, shell: bool = False) -> 
         written.append(name)
         if not write:
             continue
-        if other in lines:
-            p.write_text("\n".join(line if x == other else x for x in lines) + "\n", encoding="utf-8")
+        if any(x in replaced for x in lines):
+            kept = [line if x in replaced else x for x in lines]
+            # two old lines become one: the first keeps its place
+            kept = [x for i, x in enumerate(kept) if x != line or kept.index(line) == i]
+            p.write_text("\n".join(kept) + "\n", encoding="utf-8")
             continue
         p.write_text(existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + line + "\n", encoding="utf-8")
     return written

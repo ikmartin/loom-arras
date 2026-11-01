@@ -558,7 +558,7 @@ def pulled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     root = tmp_path / "quilt"
     (root / "drafting").mkdir(parents=True)
     (root / "config.toml").write_text(
-        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\nprefix = "zk"\nengine = "pdflatex"\n',
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\nprefix = "zk"\nengine = "pdflatex"\n',
         encoding="utf-8",
     )
     source = (
@@ -654,7 +654,7 @@ def _adoption(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     root = demo(tmp_path)
     save_author(WHO)
     ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=root)
-    copy = root / "drafting-ai/contribution.tex"
+    copy = root / ".loom/copies/contribution.tex"
     text = copy.read_text()
     # An ordinary source change to an existing inline statement.
     text = text.replace("Closedness is where", "The revised closedness is where")
@@ -688,10 +688,10 @@ def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyP
     source.write_text(TEXT)
     save_author(WHO)
     ok("draft", "drafting/main.tex", "--ai", "first.tex", "--section", "zk-0100", cwd=root)
-    draft = root / "drafting-ai/first.tex"
+    draft = root / ".loom/copies/first.tex"
     draft.write_text(draft.read_text().replace("First statement.", "Proposal."))
     s = serve(root)
-    body = {"copy": "drafting-ai/first.tex", "reviewer": WHO}
+    body = {"copy": ".loom/copies/first.tex", "reviewer": WHO}
     for endpoint in ("adopt-close", "adopt-reopen", "adopt-refresh", "adopt-paper"):
         refuses(s, endpoint, {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
     builds = s.builds
@@ -722,36 +722,6 @@ def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyP
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert next(m for m in manifest["masters"] if m["path"] == body["copy"])["closed"]
     succeeds(s, "adopt-reopen", body)
-
-
-@case("adopt-start")
-def _start(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Incoming offers an agent document written from scratch until a working document is started from it, at the file it suggests or another the author names."""
-    from loom.scan.quilt import save_author
-    from tests.helpers import ok
-
-    root = demo(tmp_path)
-    save_author(WHO)
-    ok("draft", "--ai", "survey.tex", "--new", cwd=root)
-    draft = root / "drafting-ai/survey.tex"
-    draft.write_text(
-        draft.read_text().replace(
-            "\\begin{document}\n", "\\begin{document}\n\\begin{remark}\\label{dm-0900-ai}\nA remark.\n\\end{remark}\n"
-        )
-    )
-    s = serve(root)
-    manifest = json.loads(get(s.url + "build/manifest.json")[2])
-    offered = [c for c in manifest["contributions"] if c["kind"] == "start"]
-    assert [(c["copy"], c["to"]) for c in offered] == [("drafting-ai/survey.tex", "drafting/survey-1.tex")]
-    body = {"copy": "drafting-ai/survey.tex", "reviewer": WHO, "to": "drafting/survey-1.tex"}
-    refuses(s, "adopt-start", {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
-    refuses(s, "adopt-start", {**body, "to": ".loom/survey.tex"}, 409, "bad-field", "is inside .loom/")
-    assert succeeds(s, "adopt-start", body)["result"]["to"] == "drafting/survey-1.tex"
-    assert "\\label{dm-0900}" in (root / "drafting/survey-1.tex").read_text()
-    manifest = json.loads(get(s.url + "build/manifest.json")[2])
-    assert not [c for c in manifest["contributions"] if c["kind"] == "start"]
-    master = next(m for m in manifest["masters"] if m["path"] == "drafting-ai/survey.tex")
-    assert master["from_scratch"] and master["started"] == "drafting/survey-1.tex" and "copy_of" not in master
 
 
 def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
@@ -842,7 +812,7 @@ def _reviewer_settings(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> N
 def _compare(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, root = synthetic(serve, tmp_path)
     before = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if "build" not in p.parts)
-    said = succeeds(s, "compare", {"left": "drafting/main.tex", "right": "drafting-ai/aidoc.tex"})
+    said = succeeds(s, "compare", {"left": "drafting/main.tex", "right": ".loom/copies/aidoc.tex"})
     pairs = {p["pair"]: p for p in said["pairs"]}
     assert pairs["sy-0002"]["base"] == "left" and pairs["sy-0001"]["base"] == "both", pairs
     # the renderings are served from the build directory, and nothing outside it moved

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from loom.paths import AI, ANNOTATION_LOG, BIBLIOGRAPHY, SINCE, STORAGE
+from loom.paths import AI, ANNOTATION_LOG, BIBLIOGRAPHY, COPIES, SINCE, STORAGE
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCES = REPO / "tests" / "quilts" / "sources"
@@ -380,7 +380,7 @@ def build_synthetic(dest: Path) -> None:
     # An agent's copy of the paper (plan 0.17.1), then the agent's edits in it, one of each kind a copy can differ from its source by: a node changed, a node changed here and again by the author below, a node written new under the author's next number, a node deleted, and a node moved unchanged.
     g.at("2026-09-16T10:00:00Z")
     g.run("draft", "drafting/main.tex", "--ai", "aidoc.tex")
-    ai = "drafting-ai/aidoc.tex"
+    ai = f"{COPIES}/aidoc.tex"
     g.edit(
         ai,
         "Every orbit of a widget has one or two points;",

@@ -34,7 +34,8 @@ def files(q: Path) -> dict[str, bytes]:
     return {p.relative_to(q).as_posix(): p.read_bytes() for p in sorted(q.rglob("*")) if p.is_file()}
 
 
-def test_ai_init_writes_a_file_per_app_naming_its_agent_this_loom_and_this_quilt(tmp_path: Path) -> None:
+def test_ai_init_writes_a_file_per_app_naming_its_agent_this_loom_and_where_the_quilt_is(tmp_path: Path) -> None:
+    """Claude Code starts the server in the project, where `loom mcp` walks up to the quilt, so its file names no path; every other app is given the quilt's."""
     q = demo(tmp_path)
     for rel in PROJECT_FILES:
         (q / rel).unlink()
@@ -45,7 +46,9 @@ def test_ai_init_writes_a_file_per_app_naming_its_agent_this_loom_and_this_quilt
     for c in PROJECT:
         assert c.file is not None and is_agent(c.agent)
         got = entry(q, c.file)
-        assert got["command"] == cmd and got["args"] == [*pre, "mcp", "--as", c.agent, "--quilt", str(q.resolve())]
+        quilt = [] if c.walks_up else ["--quilt", str(q.resolve())]
+        assert got["command"] == cmd and got["args"] == [*pre, "mcp", "--as", c.agent, *quilt]
+    assert [c.key for c in PROJECT if c.walks_up] == ["claude-code"]
     assert entry(q, ".mcp.json")["type"] == "stdio" and entry(q, ".gemini/settings.json")["trust"] is True
     assert entry(q, ".codex/config.toml")["default_tools_approval_mode"] == "approve"
     data = json_of("ai", "init", "--json", cwd=q)
@@ -67,14 +70,14 @@ def test_every_client_file_is_gitignored(tmp_path: Path) -> None:
     )  # the permission files are the quilt's, and committed
 
 
-def test_the_file_written_for_claude_code_starts_the_server_from_anywhere(tmp_path: Path) -> None:
-    """What the app does with `.mcp.json`: run its command, from a directory that is not the quilt, and call a tool."""
+def test_the_file_written_for_claude_code_starts_the_server_from_inside_the_quilt(tmp_path: Path) -> None:
+    """What the app does with `.mcp.json`: run its command in the project, here a directory of it, and call a tool; the server walks up to the quilt."""
     from mcp import Client
     from mcp.client.stdio import StdioServerParameters
 
     q = demo(tmp_path)
     got = entry(q, ".mcp.json")
-    server = StdioServerParameters(command=got["command"], args=got["args"], cwd=tmp_path, env=dict(os.environ))
+    server = StdioServerParameters(command=got["command"], args=got["args"], cwd=q / "drafting", env=dict(os.environ))
 
     async def main() -> None:
         async with Client(server) as client:  # type: ignore[arg-type]
@@ -135,7 +138,7 @@ def test_a_client_file_git_tracks_is_not_written(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=q, check=True)
     subprocess.run(["git", "add", "-f", ".mcp.json"], cwd=q, check=True)
     claude = q / ".mcp.json"
-    claude.write_text(claude.read_text().replace(str(q.resolve()), "/elsewhere"))
+    claude.write_text(claude.read_text().replace('"--as",', '"--quilt", "/elsewhere", "--as",'))
     r = ok("ai", "init", cwd=q)
     assert "tracked by git, so not written" in r.stdout and "git rm --cached .mcp.json" in flat(r.stdout)
     assert "/elsewhere" in claude.read_text()

@@ -15,7 +15,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.cli.review import STATUSES
-from loom.paths import AI, DIGESTS
+from loom.paths import AI, COPIES, DIGESTS
 from loom.records.annotations import KINDS, SEVERITIES
 
 if TYPE_CHECKING:
@@ -417,9 +417,9 @@ def ai_mode(name: str, session: str | None, quilt_path: str | None) -> None:
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
-    """List each agent document: the working document it was drafted from and what has moved there since, or that it was written from scratch.
+    """List each agent document: the working document it was drafted from and what has moved there since.
 
-    Before a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against. One written from scratch is never stale, and names the working document started from it, if any.
+    Before a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against.
     """
     from loom.cli._quilt import open_scan
     from loom.draft_lifecycle import closed_drafts
@@ -452,8 +452,6 @@ def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
         return
     history = load_history(result.quilt.history_dir)
     states = sorted(copy_states(result, history), key=lambda st: st.copy)
-    written = history.written(result.masters)
-    started = history.started(result.masters)
     data = {
         "copies": [
             {
@@ -463,16 +461,11 @@ def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
             }
             for st in states
         ]
-        + [{"copy": w, "source": None, "from_scratch": True, "started": started.get(w)} for w in written]
     }
-    if not states and not written:
-        Report(
-            f"no agent documents: loom draft DOC --ai NAME copies one into {result.quilt.config.drafting_ai}/, and loom draft --ai NAME --new writes one from scratch",
-            data=data,
-        ).emit(as_json)
+    if not states:
+        Report(f"no agent documents: loom draft DOC --ai NAME copies one into {COPIES}/", data=data).emit(as_json)
         return
-    # one written from scratch has nothing to go stale against, and nothing to refresh from
-    items = [Item(f"{w}  written from scratch" + (f"  started {started[w]}" if w in started else "")) for w in written]
+    items: list[Item] = []
     for st in states:
         if not st.stale:
             items.append(Item(f"{st.copy}  drafted from {st.source}  fresh"))
@@ -489,7 +482,7 @@ def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
         )
     stale = sum(1 for st in states if st.stale)
     Report(
-        counted(len(states) + len(written), "agent document")
+        counted(len(states), "agent document")
         + (f", {stale} stale: refresh it before a large instruction" if stale else ", every one fresh"),
         ok=not stale,
         groups=[Group("agent documents", items, limit=None)],

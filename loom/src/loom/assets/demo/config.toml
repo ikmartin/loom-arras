@@ -1,7 +1,6 @@
 [quilt]
 name = "The loom demo"
 main = "drafting/main.tex"    # default master
-drafting = "drafting"           # working documents, every one live
 prefix = "dm"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 

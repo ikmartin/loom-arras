@@ -1,0 +1,1 @@
+function e(e){return!!e?.copy_of}export{e as t};

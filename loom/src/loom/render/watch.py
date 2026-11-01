@@ -18,6 +18,7 @@ from loom.paths import (
     ANNOTATION_LOG,
     ANNOTATIONS,
     BUILD,
+    COPIES,
     DIGESTS,
     LOOM,
     REFERENCE_NOTES,
@@ -36,7 +37,7 @@ SKIP = {".git", "node_modules", ".svelte-kit"}
 #: Pruned by quilt-relative path: the build output, which a build writes and which holds thousands of files, and loom's store of other people's documents, which no build reads as source.
 PRUNED = (BUILD, STORAGE)
 #: The directories under `.loom/` watched for their sources alone, as any of the quilt's directories is; everything else there is a record.
-SOURCES_ONLY = (f"{DIGESTS}/", f"{RETIRED}/")
+SOURCES_ONLY = (f"{DIGESTS}/", f"{RETIRED}/", f"{COPIES}/")
 SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 #: What a change to records alone touches; see `records_only`.
 RECORDS = (f"{ANNOTATIONS}/", f"{SESSIONS}/")

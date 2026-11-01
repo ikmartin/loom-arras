@@ -174,7 +174,8 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
     env = next(iter(r.taxa), None)
     master = r.default_master
     landmark = next(iter(r.canon_files), None)
-    drafting = r.quilt.config.drafting
+    # written beside the default document, where a person's new document would go
+    drafting = str(Path(master).parent) if master else "drafting"
     commands: list[list[str]] = [
         ["lint"],
         ["lint", "--json"],

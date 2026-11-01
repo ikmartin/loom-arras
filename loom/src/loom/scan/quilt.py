@@ -22,10 +22,12 @@ NO_AUTHOR_MESSAGE = (
 
 CONFIG_KEYS: dict[str, set[str]] = {
     # `history` is the record's directory, documented and never written by init
-    "quilt": {"name", "main", "drafting", "drafting_ai", "history", "prefix", "engine", "research_state"},
+    "quilt": {"name", "main", "history", "prefix", "engine", "research_state"},
     # `online`: whether loom may use the network for cited works; `contact`: the address the lookup services are given
     "library": {"online", "contact"},
     "lint": {"disable"},
+    # `deny`: where an agent may not write, gitignore-style, beside what is always protected (`loom.agents`)
+    "agents": {"deny"},
     "author": {"name"},
     # `[basis]` names environments, so any key is valid there and each value is checked instead
     "basis": set(),
@@ -41,15 +43,13 @@ class NoAuthorError(Exception):
 
 
 # the `[quilt]` keys a person may set for every quilt in their user config; the quilt's own value wins
-USER_QUILT_KEYS = ("name", "drafting", "drafting_ai", "history")
+USER_QUILT_KEYS = ("name", "history")
 
 
 @dataclass
 class QuiltConfig:
     name: str = ""
     main: str = ""
-    drafting: str = "drafting"
-    drafting_ai: str = "drafting-ai"  # the documents the person and an agent both edit
     history: str = HISTORY
     research_state: str = "research-state.md"  # the quilt's research state, a page an agent keeps and the person edits
     prefix: str = "q"
@@ -59,6 +59,7 @@ class QuiltConfig:
     author: str = ""  # [author] name: who this quilt's records name
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
+    agents_deny: list[str] = field(default_factory=list)  # [agents] deny: the patterns loom accepted, in order
     basis: dict[str, str] = field(default_factory=dict)  # [basis]: environment name -> basis, over the built-in names
     warnings: list[str] = field(default_factory=list)
 
@@ -90,8 +91,6 @@ class QuiltConfig:
                 if key in uq and key not in q:
                     q[key] = uq[key]
         cfg.name = str(q.get("name", cfg.name)).strip()
-        cfg.drafting = str(q.get("drafting", cfg.drafting)).strip("/") or cfg.drafting
-        cfg.drafting_ai = str(q.get("drafting_ai", cfg.drafting_ai)).strip("/") or cfg.drafting_ai
         cfg.history = str(q.get("history", cfg.history)).strip("/") or cfg.history
         cfg.research_state = str(q.get("research_state", cfg.research_state)).strip("/") or cfg.research_state
         cfg.main = str(q.get("main", ""))
@@ -100,6 +99,7 @@ class QuiltConfig:
         cfg.online = bool(table("library").get("online", False))
         cfg.contact = str(table("library").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
+        cfg.agents_deny = _agents_deny(table("agents").get("deny", []), cfg.warnings)
         from loom.scan.nodes import NAMED_BASES
 
         for env_name, basis in table("basis").items():
@@ -114,14 +114,27 @@ class QuiltConfig:
         return cfg
 
 
+def _agents_deny(value: Any, warnings: list[str]) -> list[str]:
+    """`[agents] deny`'s entries loom can enforce; each refused one is a warning, and stays protected only if another entry covers it."""
+    from loom.agents import compile_pattern
+
+    if not isinstance(value, list):
+        warnings.append("config.toml: agents.deny is not a list of patterns; ignored")
+        return []
+    out: list[str] = []
+    for entry in value:
+        got = compile_pattern(entry) if isinstance(entry, str) else f"{entry!r} is not a string"
+        if isinstance(got, str):
+            warnings.append(f"config.toml: agents.deny entry {got}; ignored")
+        else:
+            out.append(entry)
+    return out
+
+
 @dataclass
 class Quilt:
     root: Path
     config: QuiltConfig
-
-    @property
-    def drafting_ai_dir(self) -> Path:
-        return self.root / self.config.drafting_ai
 
     @property
     def history_dir(self) -> Path:

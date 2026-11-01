@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 
 import loom
-from loom.ai.layout import agent_dirs
+from loom import paths
+from loom.agents import AGENT_PLACES, LOOM_DIRS, LOOM_FILES, claude_denies, denied_by
 from loom.records.store import Records
 from loom.scan.quilt import load_quilt
 from tests.helpers import ok
@@ -84,13 +85,12 @@ def test_no_module_but_paths_spells_out_a_quilt_path() -> None:
 
 
 def test_the_history_setting_is_honoured_wherever_the_history_is_reached(tmp_path: Path) -> None:
-    """A quilt whose `[quilt] history` names another directory has its agents' read-only list, its records' snapshots and `init`'s ledger there."""
+    """A quilt whose `[quilt] history` names another directory has its agents' protection, its records' snapshots and `init`'s ledger there."""
     q = demo(tmp_path)
     config = q / "config.toml"
     config.write_text(config.read_text().replace("[quilt]\n", '[quilt]\nhistory = "hist"\n', 1))
     quilt = load_quilt(q)
-    _, readonly = agent_dirs(quilt.config)
-    assert "hist" in readonly and ".loom/history" not in readonly
+    assert "/hist/**" in claude_denies(quilt.config) and denied_by(quilt.config, "hist/ledger.jsonl") == "hist/"
     assert Records(q).history_dir == q / "hist"
 
     user = Path(os.environ["XDG_CONFIG_HOME"]) / "loom" / "config.toml"
@@ -99,3 +99,17 @@ def test_the_history_setting_is_honoured_wherever_the_history_is_reached(tmp_pat
     ok("init", str(tmp_path / "fresh"), "--prefix", "zz", "--yes")
     assert (tmp_path / "fresh" / "hist" / "ledger.jsonl").is_file()
     assert not (tmp_path / "fresh" / ".loom" / "history").exists()
+
+
+def test_every_path_under_loom_is_an_agents_place_or_protected() -> None:
+    """Every `.loom/` path `loom.paths` names is either where an agent writes or in loom's own table, so a record added later is protected until someone decides otherwise: Claude Code's denies name them one by one, since a deny on `.loom/` would beat the places' allows."""
+    from loom.scan.quilt import QuiltConfig
+
+    named = {v for k, v in vars(paths).items() if k.isupper() and isinstance(v, str) and v.startswith(f"{paths.LOOM}/")}
+    under = lambda rel, dirs: any(rel == d or rel.startswith(f"{d}/") for d in dirs)  # noqa: E731
+    protected = (*LOOM_DIRS, paths.HISTORY)
+    loose = sorted(p for p in named if not under(p, AGENT_PLACES) and not under(p, protected) and p not in LOOM_FILES)
+    assert not loose, f"neither an agent's place nor protected: {loose}"
+    for p in named:
+        if p == paths.SESSIONS + "/index.jsonl" or not under(p, AGENT_PLACES):
+            assert denied_by(QuiltConfig(), p) is not None, p

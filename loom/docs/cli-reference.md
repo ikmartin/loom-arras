@@ -40,14 +40,14 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 
 `loom import [OPTIONS] FILE`
 
-Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark, and the working document drafted from it at once in the drafting directory.
+Bring a paper into the quilt: the paper as received kept as a landmark, and the working document drafted from it at once, with its styles, bibliography and figures beside it in a directory of its own.
 
 | option | description |
 |---|---|
 | `--yes`, `-y` | Import without asking for confirmation. |
 | `--no-check` | Skip the identity test. |
 | `--fix-anchoring` | Rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
-| `--to` `FILE` | The working document to draft, directly in the drafting directory (default: the paper's file name there). |
+| `--to` `FILE` | The working document to draft, a .tex anywhere the scan reads (default: STEM/FILE, the paper's file in a directory of its own). |
 | `--dry-run` | Say what the import would write, and write nothing; no identity test. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -755,16 +755,15 @@ Hand a document to an agent, take its changes back, the sessions you both work i
 
 ### `loom draft`
 
-`loom draft [OPTIONS] [DOCUMENT]`
+`loom draft [OPTIONS] DOCUMENT`
 
-Draft an agent document NAME from a live working document, or with --new from scratch: flat, in the agent's drafting directory, with every label it defines derived.
+Draft an agent document NAME from a live working document: flat, in `.loom/copies/`, with every label it defines derived.
 
-A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document written from scratch has a step too, with no source, and is taken in with `loom adopt NAME --to FILE`. Starting a document from an old version of one is `loom history restore`.
+A copy step records what each of its nodes began from, and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. A document of an agent's own needs no command: it is a file the agent writes where the quilt lets it. Starting a document from an old version of one is `loom history restore`.
 
 | option | description |
 |---|---|
-| `--ai` `NAME` | The agent document to write, directly in the agent's drafting directory. |
-| `--new` | Write it from scratch, drafted from no document: the default document's preamble and an empty body. |
+| `--ai` `NAME` | The agent document to write, .loom/copies/NAME.tex. |
 | `--as` `NAME` | Who drafts it; an agent names itself, including Agent or AI. |
 | `--section` `ID` | Copy only this section or subsection and its descendants. |
 | `--dry-run` | Say what would be written, and write nothing. |
@@ -777,7 +776,7 @@ A copy step records what each of its nodes began from, and who drafted it: `--as
 
 Preview an agent document's changes to the working document it was drafted from, and incorporate them once confirmed; mathematics is never accepted.
 
-The preview is the dry run: without a terminal to confirm on, or with --json or --to, adopt stops there and names the `--incorporate TOKEN` that applies exactly it. An agent document written from scratch (`loom draft --ai NAME --new`) has no working document to incorporate into: `--to FILE` starts one from it, every id it defines made plain.
+The preview is the dry run: without a terminal to confirm on, or with --json or --to, adopt stops there and names the `--incorporate TOKEN` that applies exactly it.
 
 | option | description |
 |---|---|
@@ -785,7 +784,7 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 | `--preamble-changes` | Include the separately reviewed preamble changes. |
 | `--document-only` | Include document-level changes while keeping every node version. |
 | `--incorporate` `TOKEN` | Incorporate exactly the previously inspected preview. |
-| `--to` `FILE` | Write the preview's patch to FILE without incorporating; never among the quilt's sources. For an agent document written from scratch, the working document to start from it. |
+| `--to` `FILE` | Write the preview's patch to FILE without incorporating; never among the quilt's sources. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1004,9 +1003,9 @@ Withdrawing appends an event like any other change, so a sitting's annotations c
 
 `loom ai drafts [OPTIONS]`
 
-List each agent document: the working document it was drafted from and what has moved there since, or that it was written from scratch.
+List each agent document: the working document it was drafted from and what has moved there since.
 
-Before a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against. One written from scratch is never stale, and names the working document started from it, if any.
+Before a large instruction, an agent checks its document here: a stale one is refreshed first, or the agent says what it is working against.
 
 | option | description |
 |---|---|

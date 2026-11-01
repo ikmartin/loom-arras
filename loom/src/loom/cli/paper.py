@@ -247,7 +247,7 @@ def run_import(
     dry_run: bool = False,
     to: str | None = None,
 ) -> Imported:
-    """The import of 6.1: the assets at the root, the paper as received kept as a landmark named for the working document, and that document drafted from it at once at `to` (default the paper's name in the drafting directory), with the identity test between them.
+    """The import of 6.1: the paper as received kept as a landmark named for the working document, and that document drafted from it at once at `to` (default `<stem>/<name>`, a directory of its own, its assets beside it), with the identity test between them.
 
     Every refusal raises before anything is written; the plan is shown on stderr only when a terminal is asked to confirm it, and is in the refusal when one is not. `dry_run` stops at the plan, which needs no confirmation and writes nothing; the identity test needs the written document, so it does not run.
     """
@@ -420,7 +420,7 @@ def run_import(
     "to",
     default=None,
     metavar="FILE",
-    help="The working document to draft, directly in the drafting directory (default: the paper's file name there).",
+    help="The working document to draft, a .tex anywhere the scan reads (default: STEM/FILE, the paper's file in a directory of its own).",
 )
 @click.option("--dry-run", is_flag=True, help="Say what the import would write, and write nothing; no identity test.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
@@ -435,7 +435,7 @@ def import_command(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark, and the working document drafted from it at once in the drafting directory."""
+    """Bring a paper into the quilt: the paper as received kept as a landmark, and the working document drafted from it at once, with its styles, bibliography and figures beside it in a directory of its own."""
     quilt = open_quilt(quilt_path)
     path = Path(file).expanduser()
     if not path.is_file():

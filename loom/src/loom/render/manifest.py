@@ -314,8 +314,6 @@ def build_manifest(
     record = result.history
     copies = record.copies(result.masters) if record is not None else {}
     bases = {c: record.bases(c, result.masters) for c in copies} if record is not None else {}
-    written = set(record.written(result.masters)) if record is not None else set()
-    started = record.started(result.masters) if record is not None else {}
     # the person's documents first, then the agent's: every list a viewer draws from this one reads in that order
     for m in sorted(result.masters, key=lambda m: result.document_role(m) != "person"):
         closure = result.closures.get(m)
@@ -333,10 +331,6 @@ def build_manifest(
             entry["compiled"] = _iso(pdf.stat().st_mtime)
             entry["pdf"] = pdf_rel
         entry["numbering_known"] = aux_known
-        if m in written:
-            entry["from_scratch"] = True
-            if m in started:
-                entry["started"] = started[m]
         if m in copies:
             entry["copy_of"] = copies[m]
             from loom.reshape.linearize import flatten

@@ -1,7 +1,6 @@
 [quilt]
 name = "The synthetic quilt"
 main = "drafting/main.tex"
-drafting = "drafting"
 prefix = "sy"
 engine = "pdflatex"
 

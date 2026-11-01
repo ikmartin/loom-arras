@@ -69,10 +69,10 @@ def test_an_agent_copy_and_a_landmark_read_their_source_s_directory(tmp_path: Pa
     q = paper_quilt(tmp_path)
     ok("draft", "paper/main.tex", "--ai", "aidoc.tex", cwd=q)
     result = scan(load_quilt(q))
-    assert result.base_of("drafting-ai/aidoc.tex") == "paper"
-    assert "paper/local.sty" in result.closures["drafting-ai/aidoc.tex"].files
-    ok("compile", "drafting-ai/aidoc.tex", cwd=q)
-    assert (q / ".loom/build/drafting-ai/aidoc/aidoc.pdf").is_file()
+    assert result.base_of(".loom/copies/aidoc.tex") == "paper"
+    assert "paper/local.sty" in result.closures[".loom/copies/aidoc.tex"].files
+    ok("compile", ".loom/copies/aidoc.tex", cwd=q)
+    assert (q / ".loom/build/.loom/copies/aidoc/aidoc.pdf").is_file()
     ok("stamp", "paper/main.tex", "-m", "first", cwd=q)
     assert set(landmark_bases(load_quilt(q)).values()) == {"paper"}
     assert bib_file(scan(load_quilt(q))) == "paper/refs.bib"

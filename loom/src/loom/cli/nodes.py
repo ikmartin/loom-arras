@@ -7,7 +7,7 @@ import shlex
 
 import click
 
-from loom.cli._common import EnvError, NotFoundError, destination, find_session, whoever, writer
+from loom.cli._common import EnvError, NotFoundError, destination, find_session, refuse_protected, whoever, writer
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
@@ -131,6 +131,7 @@ def new(
     )
     if path.exists():
         raise EnvError(f"{path} already exists")
+    refuse_protected(result.quilt, path)
     rel = path.relative_to(result.quilt.root.resolve() if to else result.quilt.root).as_posix()
     name = result.taxa[env].name if env in result.taxa else env
     if not dry_run:

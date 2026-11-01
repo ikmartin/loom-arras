@@ -31,6 +31,10 @@ online = false              # may loom library update look identifiers up (zbMAT
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
+
+[agents]
+# where an agent may not write, gitignore-style from the quilt root, e.g. ["paper/"]; .loom/, config.toml and the research state are always protected
+deny = []
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.

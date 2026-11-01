@@ -469,10 +469,10 @@ def mcp_items(data: dict[str, Any]) -> list[dict[str, Any]]:
 def test_the_client_files(box: Box) -> None:
     q = quilt(box)
     (q / ".cursor" / "mcp.json").unlink()
-    edit(q / ".mcp.json", str(q.resolve()), "/elsewhere")
+    edit(q / ".codex" / "config.toml", str(q.resolve()), "/elsewhere")
     [got] = mcp_items(doctor(box, cwd=q))
     assert (got["status"], got["remedy"]) == ("warn", "loom ai init")
-    assert got["detail"].startswith("missing: .cursor/mcp.json; naming another loom or path: .mcp.json")
+    assert got["detail"].startswith("missing: .cursor/mcp.json; naming another loom or path: .codex/config.toml")
     (q / ".gemini" / "settings.json").write_text('{"theme": "Dracula"}\n')
     ok("ai", "init", cwd=q)
     [got] = mcp_items(doctor(box, cwd=q))

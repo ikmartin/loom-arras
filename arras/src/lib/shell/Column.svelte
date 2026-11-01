@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the author's under Documents, the agent's under AI Documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the author's under Documents, each agent copy beneath the document it copies, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { isAgentDocument } from '$lib/manifest/documents';
@@ -16,6 +16,7 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
+	import type { Master } from '$lib/manifest/types';
 	import { page } from '$app/state';
 	import { sectionOf, sectionsOf } from '$lib/review/sections';
 
@@ -55,6 +56,11 @@
 	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && !isAgentDocument(m)));
 	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
 	const closed = $derived(masters.filter((m) => m.closed));
+	// an agent's copy is read beside the document it copies, so it sits beneath that document's row; one whose document is not listed (closed, context-only, gone) stands on its own after them
+	const copiesOf = (path: string) => withAgent.filter((m) => m.copy_of === path);
+	const unplaced = $derived(withAgent.filter((m) => !own.some((o) => o.path === m.copy_of)));
+	// a copy of one section says which, since several sections of one document may each have a copy
+	const section = (m: Master) => (m.scope?.kind === 'section' ? m.scope.title ?? m.scope.key ?? '' : '');
 	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which is what the author types and what the read view's URL names them by; the path itself where two files share a name.
 	const filename = (path: string) => documentLabel(masters, path);
 	const outline = $derived(onDocument && contents.length > 0);
@@ -169,11 +175,9 @@
 					<div class="page-panel rail-scroll">{@render panel()}</div>
 				{:else if primary === 'docs'}
 					<div class="part docs-part rail-scroll" data-testid="docs-part" style:flex={outline ? `0 0 ${share * 100}%` : '1 1 auto'}>
-					{#snippet doc(path: string, href: string)}
-						{@const here = onDocument && path === currentDoc}
-						<li>
-							<a {href} class:here aria-current={here ? 'page' : undefined}>{filename(path)}</a>
-						</li>
+					{#snippet link(m: Master)}
+						{@const here = onDocument && m.path === currentDoc}
+						<a href={masterUrl(m.path)} class:here aria-current={here ? 'page' : undefined}>{filename(m.path)}{#if section(m)}<span class="aside">{section(m)}</span>{/if}</a>
 					{/snippet}
 					{#if store.manifest?.research_state}
 						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
@@ -185,22 +189,32 @@
 					{#if own.length}
 						<p class="rail-label">Documents</p>
 						<ul class="plain docs" data-testid="docs-drafts">
-							{#each own as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+							{#each own as m (m.path)}
+								{@const copies = copiesOf(m.path)}
+								<li>
+									{@render link(m)}
+									{#if copies.length}
+										<!-- the agent's copies of this document, which the person and an agent both edit -->
+										<ul class="plain docs copies" data-testid="docs-copies">
+											{#each copies as c (c.path)}<li>{@render link(c)}</li>{/each}
+										</ul>
+									{/if}
+								</li>
+							{/each}
 						</ul>
 					{/if}
-					{#if withAgent.length || closed.length}
-						<!-- the documents the person and an agent both edit -->
-						<p class="rail-label">AI Documents</p>
-						{#if withAgent.length}
-							<ul class="plain docs" data-testid="docs-drafts-ai">
-								{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+					{#if unplaced.length || closed.length}
+						<p class="rail-label">Agent documents</p>
+						{#if unplaced.length}
+							<ul class="plain docs" data-testid="docs-agent">
+								{#each unplaced as m (m.path)}<li>{@render link(m)}</li>{/each}
 							</ul>
 						{/if}
 						{#if closed.length}
 							<details class="closed" data-testid="docs-closed">
 								<summary>Closed agent documents</summary>
 								<ul class="plain docs">
-									{#each closed as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+									{#each closed as m (m.path)}<li>{@render link(m)}</li>{/each}
 								</ul>
 							</details>
 						{/if}
@@ -538,6 +552,17 @@
 	.docs a.here {
 		color: var(--ink);
 		font-weight: 600;
+	}
+	/* An agent's copies hang from their document's row, indented under it with a rule, as a tree's children are. */
+	.docs.copies {
+		margin: 0 0 0 0.55rem;
+		padding-left: 0.5rem;
+		border-left: 1px solid var(--rule);
+	}
+	.docs .aside {
+		margin-left: 0.4em;
+		color: var(--ink-faint);
+		font-size: 0.9em;
 	}
 	/* Filled where a copy is filed, hollow where none is. */
 	.library .dot {
