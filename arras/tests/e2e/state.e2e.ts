@@ -21,7 +21,7 @@ test.describe('the research state', () => {
 	test('a quilt with no research state has no row', async ({ page }) => {
 		await serve(page, (m) => delete m.research_state);
 		await page.goto('/master/drafting/main');
-		await expect(page.getByTestId('docs-drafts')).toBeVisible();
+		await expect(page.getByTestId('docs-tree')).toBeVisible();
 		await expect(page.getByTestId('docs-state')).toHaveCount(0);
 	});
 

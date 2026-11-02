@@ -78,7 +78,8 @@ function locate(path) {
 	if (!rel) return shell;
 	const found = within(root, rel) ?? within(root, join(rel, 'index.html'));
 	if (found) return found;
-	if (rel.startsWith('_app/') || ASSETS.has(extname(rel).toLowerCase())) return null;
+	// a project file's route ends in the file's own suffix, and is a route all the same
+	if (!rel.startsWith('file/') && (rel.startsWith('_app/') || ASSETS.has(extname(rel).toLowerCase()))) return null;
 	return shell;
 }
 

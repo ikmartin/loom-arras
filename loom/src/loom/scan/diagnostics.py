@@ -83,6 +83,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:plain-id-in-agent-document": ("error", False),
     # the agents' boundary (plan 0.22.6): the permission file Claude Code reads lags `[agents] deny`
     "loom:agent-permissions-stale": ("warning", False),
+    # the viewer's front door (plan 0.22.7): `[quilt] home` names no file the viewer shows
+    "loom:home-missing": ("warning", False),
     # the PDF invariant (plan 0.13 §4): a warning and never an error, because loom cannot fetch without consent
     "loom:no-readable-copy": ("warning", False),
 }

@@ -90,7 +90,7 @@ test.describe('V2 · say it once, in the place that governs it', () => {
 		await expect(tabs(page, 1)).toHaveCount(1);
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		// and so does choosing it in the panel
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'main.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'main.tex' }).click();
 		await expect(tabs(page, 0)).toHaveCount(1);
 	});
 
@@ -166,7 +166,7 @@ test.describe('V5 · following a connection must not cost the thing you followed
 
 	test('a panel click does not split', async ({ page }) => {
 		await page.goto('/master/drafting/main');
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(pane(page, 1)).toHaveCount(0);
 		await expect(tabs(page, 0)).toHaveCount(2);
 	});
@@ -237,7 +237,7 @@ test.describe('the arrangement', () => {
 
 	test('⇄ moves a tab and focus follows it', async ({ page }) => {
 		await page.goto('/master/drafting/main');
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(tabs(page, 0)).toHaveCount(2);
 		await tabs(page, 0).nth(1).getByTestId('tab-move').click();
 		await expect(tabs(page, 0)).toHaveCount(1);
@@ -256,7 +256,7 @@ test.describe('the arrangement', () => {
 		const body = pane(page, 0).locator('> .body');
 		const at = await body.evaluate((b) => b.scrollTop);
 		expect(at).toBeGreaterThan(0);
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await tabs(page, 0).first().getByRole('tab').click();
 		await expect.poll(() => body.evaluate((b) => b.scrollTop)).toBeGreaterThan(at / 2);
 	});
@@ -285,13 +285,13 @@ test.describe('coming back to a document', () => {
 	test('a tab switched away from and back to is taken back as it was, with nothing typeset again', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await allTypeset(page);
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(tabs(page, 0)).toHaveCount(2);
 		await allTypeset(page);
 		await tabs(page, 0).first().getByRole('tab').click();
 		await allTypeset(page);
 		await watchTypesetting(page);
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await allTypeset(page);
 		await page.evaluate(() => ((window as unknown as { typeset: string[] }).typeset = []));
 		await tabs(page, 0).first().getByRole('tab').click();

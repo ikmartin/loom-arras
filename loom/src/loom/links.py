@@ -1,6 +1,6 @@
 """Links an agent or a person writes into what the viewer shows (plan 0.14 phase 3, specs/dialect.md §2.13).
 
-Two schemes and one grammar. `quilt:KEY[#PLACE]` names something this quilt owns by its fixed key -- a node, a document, an annotation, a session, the research state (`quilt:state`) -- and `cited:SCHEME:VALUE[?page=N&quote=…]` names a place in a cited work by its global identifier. **Only what the viewer can show is linkable**: an included file that is no document, a session's drafts, a deleted session are refused, because a link to something the viewer does not display is a link to nothing.
+Two schemes and one grammar. `quilt:KEY[#PLACE]` names something this quilt owns by its fixed key -- a node, a document, an annotation, a session, the research state (`quilt:state`), or a shown file by its path with its suffix (`quilt:notes/day1.md#setup`) -- and `cited:SCHEME:VALUE[?page=N&quote=…]` names a place in a cited work by its global identifier. **Only what the viewer can show is linkable**: an included `.tex` file, a hidden file (a session's drafts among them), a deleted session are refused, because a link to something the viewer does not display is a link to nothing.
 
 A link is checked when it is posted (`loom session say`, `loom annotate`) and printed correctly by `loom link`, so an agent never composes one by hand.
 """
@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, quote
+from urllib.parse import parse_qs, quote, unquote
 
 #: A markdown link whose destination is one of the two schemes.
 LINK = re.compile(r"\]\(((?:quilt|cited):[^)\s]+)\)")
@@ -27,7 +27,7 @@ class LinkError(ValueError):
 class Target:
     """What a link names: its kind, the key it is addressed by, and the place in it, if any."""
 
-    kind: str  # node | document | annotation | session | work | page
+    kind: str  # node | document | annotation | session | work | page | file
     key: str
     place: str = ""
     href: str = ""
@@ -92,6 +92,9 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
         if not (root / result.quilt.config.research_state).is_file():
             raise LinkError(f"{href}: this quilt has no research state yet")
         return Target("page", "state", href=href)
+    path = unquote(key)
+    if Path(path).suffix and not path.endswith(".tex") and (root / path).is_file():
+        return _file(result, root, href, path, place)
     landmarks = {**{Path(p).stem: p for p in result.canon_files}, **{p: p for p in result.canon_files}}
     if key in landmarks:
         if place:
@@ -107,12 +110,34 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
             _reached(result, href, place, canonical)
         return Target("document", canonical, place, href)
     if node is not None and node.kind == "file":
-        raise LinkError(f"{href}: {key} is a file the documents include, and the viewer shows no file on its own")
+        raise LinkError(f"{href}: {key} is a file the documents include; link the keys it holds, or the document")
     if place:
         owner = _owner(result, _key(result, href, place))
         if owner != _owner(result, canonical):
             raise LinkError(f"{href}: {place} is not in {key}")
     return Target("node", canonical, place, href)
+
+
+def _file(result: Any, root: Path, href: str, path: str, place: str) -> Target:
+    """A shown file by its path: a Markdown file or notebook at one of its headings, a PDF at `page=N`, an HTML page at an anchor, anything else whole."""
+    from loom.files import DRAWN, LINKABLE, Shown, headings, kind_of, render_file_markdown, render_notebook
+
+    if not Shown.of(result.quilt).is_shown(path):
+        raise LinkError(f"{href}: {path} is hidden from the viewer")
+    kind = kind_of(root, path, set(result.masters))
+    if kind not in LINKABLE:
+        raise LinkError(f"{href}: a LaTeX file is linked by its document or its keys")
+    if place and kind in DRAWN:
+        text = (root / path).read_text(encoding="utf-8", errors="replace")
+        body = render_file_markdown(text, path, {}) if kind == "markdown" else render_notebook(text, path, {})
+        if place not in headings(body):
+            raise LinkError(f"{href}: {path} has no heading {place}")
+    elif place and kind == "pdf":
+        if not re.fullmatch(r"page=[1-9]\d*", place):
+            raise LinkError(f"{href}: a place in a PDF is page=N, from 1")
+    elif place and kind != "html":
+        raise LinkError(f"{href}: {path} is linked whole")
+    return Target("file", path, place, href)
 
 
 def _key(result: Any, href: str, key: str) -> str:
@@ -190,8 +215,8 @@ def refuse_bad_links(result: Any, root: Path, text: str) -> None:
 
 
 def quilt_link(key: str, place: str = "") -> str:
-    """`[](quilt:KEY#PLACE)`, the empty text the viewer fills with its own name for the thing."""
-    return f"[](quilt:{key}{'#' + place if place else ''})"
+    """`[](quilt:KEY#PLACE)`, the empty text the viewer fills with its own name for the thing; a file's path is percent-encoded, so a space does not end the link."""
+    return f"[](quilt:{quote(key, safe='/:._-~')}{'#' + place if place else ''})"
 
 
 def cited_link(scheme: str, value: str, page: int | None = None, text: str | None = None) -> str:

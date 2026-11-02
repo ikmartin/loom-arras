@@ -6,6 +6,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -146,9 +147,9 @@ def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.M
 
     polls = [0]
 
-    def counted(root: Path) -> dict[Path, float]:
+    def counted(root: Path, shown: Any = None) -> dict[Path, float]:
         polls[0] += 1
-        return snapshot(root)
+        return snapshot(root, shown)
 
     monkeypatch.setattr(watch, "snapshot", counted)
     s, d = session

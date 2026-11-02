@@ -124,6 +124,7 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:agent-document-unrecorded` (error, subject `source`): a document in `.loom/copies/` that no `copy` step made, so it can be neither adopted nor refreshed; carries the fix `loom draft DOC --ai NAME.tex`, DOC the default document.
 - `loom:plain-id-in-agent-document` (error, subject `source`): a plain id defined in an agent document, where every id is derived; carries the fix `loom id --next`, whose id takes `-ai`.
 - `loom:agent-permissions-stale` (warning): `.claude/settings.json` is not what `[agents] deny` and this loom make it, so Claude Code holds agents to an older boundary than loom's own commands do; carries the fix `loom upgrade`.
+- `loom:home-missing` (warning): `[quilt] home` names a file the viewer does not show — missing, or hidden — so the viewer opens on the root README.md or the default document instead (plan 0.22.7).
 - `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document. One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (DR-297-ikmartin).
 
 ## 4. Adding a code

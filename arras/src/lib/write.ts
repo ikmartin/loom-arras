@@ -18,6 +18,8 @@ export interface Capabilities {
 	token?: string;
 	/** Whether the publisher says when it publishes a new manifest, at `/_api/stream` (manifest/stream.ts). */
 	stream?: boolean;
+	/** The origin an HTML file is framed from, never the viewer's own; absent where none runs, and a page is then drawn with no script. */
+	frames?: string;
 }
 
 /** The versions of the write API this viewer knows how to speak. */

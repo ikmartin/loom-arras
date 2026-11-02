@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -912,15 +913,17 @@ def _lift_display_math(html_text: str) -> str:
     return re.sub(r"<p>(.*?)</p>", split, html_text, flags=re.S)
 
 
-def render_markdown(text: str) -> str:
+def render_markdown(text: str, *, tokens: Callable[[list[Any]], None] | None = None) -> str:
     """Markdown rendered into the dialect's inline subset, math included.
 
-    Every body loom publishes as HTML comes through here -- annotations and transcript messages -- and all of them are written by people and agents who use `$...$` without thinking about it.
+    Every body loom publishes as HTML comes through here -- annotations, transcript messages and the project's Markdown files -- and all of them are written by people and agents who use `$...$` without thinking about it.
 
     Parameters
     ----------
     text : str
         The Markdown as it was written.
+    tokens : callable, optional
+        Given the parsed tokens to change in place before they are rendered; a file's headings and relative links are set this way (`loom.files`). Mathematics is already lifted out, as `loommathxNx` words.
 
     Returns
     -------
@@ -933,7 +936,13 @@ def render_markdown(text: str) -> str:
 
         # CommonMark has no tables, so an agent's `| a | b |` comparison arrived as one run-on paragraph; the dialect has them (specs/dialect.md §2.12), so the GFM table rule is enabled
         md = MarkdownIt("commonmark", {"html": False}).enable("table")
-        out = str(md.render(protected)).strip()
+        if tokens is None:
+            out = str(md.render(protected)).strip()
+        else:
+            env: dict[str, Any] = {}
+            parsed = md.parse(protected, env)
+            tokens(parsed)
+            out = str(md.renderer.render(parsed, md.options, env)).strip()
     except Exception:  # noqa: BLE001
         import html
 

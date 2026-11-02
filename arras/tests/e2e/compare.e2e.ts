@@ -93,7 +93,7 @@ test('a changed tab ends compare', async ({ page }) => {
 	await open(page, '/master/drafting/main', '/master/.loom/copies/aidoc');
 	// the right pane takes another document, as a reader choosing one from the panel does
 	await pane(page, 1).locator('.fragment').first().click();
-	await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+	await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 	await expect(pane(page, 1).getByTestId('item-tab').filter({ hasText: 'talk.tex' })).toHaveCount(1);
 	await expect(page.getByTestId('compare-stop')).toHaveCount(0);
 	await expect(page.locator('.compare-mark')).toHaveCount(0);

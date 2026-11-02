@@ -3,16 +3,17 @@ import { expect, test } from '@playwright/test';
 
 test("an agent's copy sits beneath the document it copies, and nowhere else in the column", async ({ page }) => {
 	await page.goto('/');
-	const drafts = page.getByTestId('docs-drafts');
-	const main = drafts.locator(':scope > li').filter({ has: page.getByRole('link', { name: 'main.tex', exact: true }) });
+	const tree = page.getByTestId('docs-tree');
+	const main = tree.getByTestId('docs-file').filter({ has: page.getByRole('link', { name: 'main.tex', exact: true }) });
 	await expect(main.getByTestId('docs-copies')).toContainText('aidoc.tex');
-	await expect(drafts.locator(':scope > li > a', { hasText: 'aidoc.tex' })).toHaveCount(0);
+	// the copy lives under `.loom/`, which the tree hides, so its one row is the one beneath its document
+	await expect(tree.getByRole('link', { name: 'aidoc.tex' })).toHaveCount(1);
 	await expect(page.getByTestId('docs-agent')).toHaveCount(0);
 	// indented under its document, as a tree's child is
 	const x = async (name: string) => (await page.getByTestId('docs-part').getByRole('link', { name, exact: true }).boundingBox())!.x;
 	expect(await x('aidoc.tex')).toBeGreaterThan(await x('main.tex'));
-	// `/` opens the person's default document, never the agent's
-	await expect(page).toHaveURL(/\/master\/drafting\/main$/);
+	// `/` opens the quilt's front door, never the agent's document
+	await expect(page).toHaveURL(/\/file\/README\.md$/);
 });
 
 test("Review gives an agent's document no tab", async ({ page }) => {

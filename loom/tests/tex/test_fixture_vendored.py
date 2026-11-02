@@ -16,7 +16,7 @@ FIXTURE = REPO / "tests" / "fixture"
 SVG = re.compile(r"<svg\b.*?</svg>", re.S)
 REFRESH = "if the change is intended, regenerate with docs/specs/tools/refresh-fixture.sh"
 #: The build directories refresh-fixture.sh copies into the fixture, besides manifest.json.
-VENDORED = ("fragments", "svg", "source", "diffs", "transcripts")
+VENDORED = ("fragments", "svg", "source", "diffs", "transcripts", "files")
 
 
 def _norm_fragment(text: str) -> str:

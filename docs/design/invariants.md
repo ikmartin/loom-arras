@@ -347,6 +347,18 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** Found 2026-10-30 by reading the code for the open-quilt study, and reproduced before it was fixed. An agent writes the build output, served at `/build/`, and an HTML or SVG page it left there ran as the viewer when the author opened it, for instance from a link in a transcript. The page read the token from `/_api` and posted a write naming no author, which the publisher takes for the author's own click; `review-finish` posted that way records the author's acceptance. The token kept other sites out but not a page served from the viewer's own origin.
 
-**Guard.** `loom/tests/unit/render/test_write_api.py::test_a_page_the_quilt_holds_is_served_with_no_origin_of_the_viewers`, `loom/tests/unit/render/test_write_api.py::test_the_token_is_served_only_to_the_viewers_own_origin`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`review-decision`, `review-finish`), `arras/tests/e2e-write/origin.e2e.ts`
+**Guard.** `loom/tests/unit/render/test_write_api.py::test_a_page_the_quilt_holds_is_served_with_no_origin_of_the_viewers`, `loom/tests/unit/render/test_write_api.py::test_the_token_is_served_only_to_the_viewers_own_origin`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`review-decision`, `review-finish`), `loom/tests/unit/render/test_files_served.py::test_a_shown_file_is_served_sandboxed_on_the_viewers_origin`, `loom/tests/unit/render/test_files_served.py::test_an_html_page_runs_on_the_frames_origin_with_the_bridge_and_nothing_of_looms`, `arras/tests/e2e-write/origin.e2e.ts`, `arras/tests/e2e-write/files.e2e.ts`
 
 **Record.** `docs/reports/open-quilt-study.md`
+
+**2026-11-02.** The project's shown files are served sandboxed on the viewer's origin too, at `/_files/`. An HTML file the viewer frames runs on a second loopback origin, the frames origin, where its scripts and embedded players work: that origin serves shown files and nothing of loom's, answers only its own host, and is refused by the write API like any other page, so a framed page still never runs as the viewer (plan 0.22.7).
+
+### Loom opens only documents in their application
+
+**Rule.** `POST /_api/open` opens an application by a plain name, or a shown file whose suffix is on `loom.files.OPENABLE` (notebooks, spreadsheets, office documents, Anki packages, audio, video, books) and that has no executable bit. Any other file, a hidden one, and a name that could be a path or an option are refused.
+
+**Why.** An agent may write nearly anywhere in the quilt, so it can write a file and a link to it that the person clicks. A click that opened a script, a `.command` or an application bundle would run the agent's code as the person.
+
+**Guard.** `loom/tests/unit/test_files.py::test_loom_opens_an_application_or_a_document_and_never_a_file_that_runs_code`, `loom/tests/unit/render/test_files_served.py::test_open_is_the_persons_click_and_never_runs_code`
+
+**Record.** Plan 0.22.7

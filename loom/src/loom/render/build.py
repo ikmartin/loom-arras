@@ -517,11 +517,14 @@ def build(
     manifest["unresolved"] = rows_for(result, manifest)
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)
+    from loom.files import BODIES, attach_files
+
+    attach_files(result, manifest, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/", "spans/", "transcripts/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/", "transcripts/", f"{BODIES}/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

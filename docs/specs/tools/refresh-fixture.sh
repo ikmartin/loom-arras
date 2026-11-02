@@ -28,6 +28,7 @@ cp -R "$Q/.loom/build/fragments" "$OUT/fragments"
 [ -d "$Q/.loom/build/diffs" ] && cp -R "$Q/.loom/build/diffs" "$OUT/diffs"
 [ -d "$Q/.loom/build/source" ] && cp -R "$Q/.loom/build/source" "$OUT/source"
 [ -d "$Q/.loom/build/transcripts" ] && cp -R "$Q/.loom/build/transcripts" "$OUT/transcripts"
+[ -d "$Q/.loom/build/files" ] && cp -R "$Q/.loom/build/files" "$OUT/files"
 VERSION=$(cd "$LOOM" && .venv/bin/loom --version | awk '{print $2}')
 IFACE=$(python3 -c "import json;print(json.load(open('$OUT/manifest.json'))['interface_version'])")
 printf 'interface %s\nloom %s\ngenerated %s\n' "$IFACE" "$VERSION" "$LOOM_FIXED_TIME" > "$OUT/VERSION"

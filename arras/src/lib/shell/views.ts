@@ -4,6 +4,7 @@ import type { Manifest } from '$lib/manifest/types';
 import { isAgentDocument } from '$lib/manifest/documents';
 import { canonUrl, masterUrl } from '$lib/nav';
 import { route } from '$lib/paths';
+import { itemForFile, pathFor } from '$lib/workspace/item';
 
 export interface Index {
 	label: string;
@@ -19,10 +20,15 @@ export function primaryOf(routeId: string | null): Primary {
 }
 
 /**
- * The address Docs returns to: what was open, as it was left (`reading`, the workspace's own address or the one remembered from an earlier visit); else the default document; else the newest landmark, since a corpus whose drafting directory is empty is still worth reading; `''` when there is nothing to read.
+ * The address Docs returns to: what was open, as it was left (`reading`, the workspace's own address or the one remembered from an earlier visit); else the quilt's front door (`corpus.home`: `[quilt] home`, else its README); else the default document; else the newest landmark, since a corpus whose drafting directory is empty is still worth reading; `''` when there is nothing to read.
  */
 export function readingAddress(m: Manifest | null, reading = ''): string {
 	if (reading) return reading;
+	const home = m?.corpus?.home;
+	if (m && home) {
+		if (home === m.research_state?.path) return route('/page/state');
+		return pathFor(m, itemForFile(m, home));
+	}
 	const master = m?.masters.find((x) => x.default) ?? m?.masters.find((x) => !isAgentDocument(x) && !x.closed && !x.context_only);
 	if (master) return masterUrl(master.path);
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;

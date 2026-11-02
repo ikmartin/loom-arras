@@ -99,7 +99,7 @@ export function sideOf(item: Item, m: Manifest): Side {
 	};
 }
 
-const WHAT: Partial<Record<Item['kind'], string>> = { work: 'a paper', session: 'a session', context: "a node's context" };
+const WHAT: Partial<Record<Item['kind'], string>> = { work: 'a paper', session: 'a session', context: "a node's context", page: 'the research state', file: 'a file' };
 
 /**
  * Why the two front tabs cannot be compared, or '' when they can.

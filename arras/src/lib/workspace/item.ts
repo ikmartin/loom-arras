@@ -3,22 +3,23 @@
 // An item's identity is its kind and id. Its view and its place in it are state, not identity: a second tab of one document would be one document in two states (W8).
 
 import { base } from '$app/paths';
-import { canonStem, canonUrl, keyFromParam, masterName, masterUrl, nodeUrl, workUrl } from '$lib/nav';
+import type { Manifest } from '$lib/manifest/types';
+import { anchorId, canonStem, canonUrl, keyFromParam, masterName, masterUrl, nodeUrl, workUrl } from '$lib/nav';
 import { route } from '$lib/paths';
 import { placeParams, readKeys, type WorkLink } from '$lib/worklink';
 
-export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session' | 'page';
+export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session' | 'page' | 'file';
 
 /** A place on a work's page: the work-link keys without the work's identifier, which the item already names. */
 export type Place = Omit<WorkLink, 'id'>;
 
 export interface Item {
 	kind: ItemKind;
-	/** A document's path, a work's citekey, a node's key, a session's id. */
+	/** A document's path, a work's citekey, a node's key, a session's id, a project file's path. */
 	id: string;
 	/** An internal view: a work's `info`; absent means the first. */
 	view?: string;
-	/** An element to scroll to, by its published id: a document's section or result, a node's proof. */
+	/** An element to scroll to, by its published id: a document's section or result, a node's proof, a file's heading; a PDF file's `page=N`. */
 	anchor?: string;
 	/** Where on a work's pages. */
 	place?: Place;
@@ -108,6 +109,8 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 			return { kind: 'session', id: safe(tail), ...(query.get('view') ? { view: query.get('view')! } : {}) };
 		case 'page':
 			return { kind: 'page', id: safe(tail) };
+		case 'file':
+			return { kind: 'file', id: tail.split('/').map(safe).join('/'), ...(anchor ? { anchor } : {}) };
 		default:
 			return null;
 	}
@@ -151,7 +154,33 @@ export function pathFor(m: Documents | null, item: Item): string {
 			return route('/session/' + encodeURIComponent(item.id)) + (item.view ? '?view=' + encodeURIComponent(item.view) : '');
 		case 'page':
 			return route('/page/' + encodeURIComponent(item.id));
+		case 'file':
+			return fileRoute(item.id) + hash;
 	}
+}
+
+/**
+ * What a row of the project's tree opens: a document as itself; an included `.tex` file as the document that reads it, at its first key, where it holds one (V7); every other file as a file item.
+ */
+export function itemForFile(m: Manifest, path: string): Item {
+	const file = m.files?.find((f) => f.path === path);
+	if (file?.kind === 'document' || m.masters.some((x) => x.path === path) || !!m.canon?.some((c) => c.path === path)) return { kind: 'document', id: path };
+	if (file?.kind === 'tex') {
+		const first = Object.entries(m.nodes)
+			.filter(([, n]) => n.file === path && n.reached_by.length)
+			.sort(([, a], [, b]) => a.src[0] - b.src[0])[0];
+		if (first) {
+			const [key, n] = first;
+			const main = m.masters.find((x) => x.default)?.path;
+			return { kind: 'document', id: main && n.reached_by.includes(main) ? main : n.reached_by[0], anchor: anchorId(key) };
+		}
+	}
+	return { kind: 'file', id: path };
+}
+
+/** A project file's address in the viewer: `/file/` and its path, each segment encoded. */
+export function fileRoute(path: string): string {
+	return route('/file/' + path.split('/').map(encodeURIComponent).join('/'));
 }
 
 function safe(s: string): string {

@@ -1,8 +1,9 @@
 <script lang="ts">
 	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the documents — the author's under Documents, each agent copy beneath the document it copies, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
 	import Contents from './Contents.svelte';
+	import FileTree from './FileTree.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { isAgentDocument } from '$lib/manifest/documents';
 	import { documentLabel } from '$lib/workspace/names';
@@ -179,14 +180,16 @@
 						{@const here = onDocument && m.path === currentDoc}
 						<a href={masterUrl(m.path)} class:here aria-current={here ? 'page' : undefined}>{filename(m.path)}{#if section(m)}<span class="aside">{section(m)}</span>{/if}</a>
 					{/snippet}
-					{#if store.manifest?.research_state}
+					{#if store.manifest?.files}
+						<FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} />
+					{:else if store.manifest?.research_state}
 						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
 						{@const onState = page.route.id === '/page/[id]'}
 						<ul class="plain docs state" data-testid="docs-state">
 							<li><a href={route('/page/state')} class:here={onState} aria-current={onState ? 'page' : undefined}>Research state</a></li>
 						</ul>
 					{/if}
-					{#if own.length}
+					{#if own.length && !store.manifest?.files}
 						<p class="rail-label">Documents</p>
 						<ul class="plain docs" data-testid="docs-drafts">
 							{#each own as m (m.path)}

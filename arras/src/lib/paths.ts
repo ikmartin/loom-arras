@@ -37,6 +37,11 @@ export function artifactUrl(dir: string): string {
 	return dataRoot().replace(/build\/$/, '') + dir.replace(/^\/+|\/+$/g, '') + '/paper.pdf';
 }
 
+/** A project file as the publisher serves it, sandboxed, beside the app: an image, a PDF, text, an HTML page with no script. */
+export function filesUrl(path: string): string {
+	return base + '/_files/' + path.split('/').map(encodeURIComponent).join('/');
+}
+
 /** A route of this app, prefixed by the base path the bundle was built for. */
 export function route(path: string): string {
 	return base + path;

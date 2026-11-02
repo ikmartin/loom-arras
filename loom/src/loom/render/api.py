@@ -54,7 +54,7 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper", "here")
+READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper", "here", "open")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "review-decision", "adopt-decision")
@@ -107,8 +107,10 @@ class ApiError(Exception):
 
 
 def discovery() -> dict[str, Any]:
-    """The answer to `GET /_api`."""
-    return {"write_api": WRITE_API_VERSION, "capabilities": list(CAPABILITIES)}
+    """The answer to `GET /_api`; `open` is offered only on a machine that can open an application."""
+    from loom.files import can_open
+
+    return {"write_api": WRITE_API_VERSION, "capabilities": [*CAPABILITIES, *(["open"] if can_open() else [])]}
 
 
 def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | None:
@@ -120,6 +122,22 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
     if not isinstance(value, str):
         raise ApiError("bad-field", f"{name} must be a string")
     return value
+
+
+def _open(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`open`: the application `app`, or the shown file `file` in its application, started for the person on their click; nothing in the quilt changes (`loom.files.open_command` says what it refuses)."""
+    from loom.files import OpenRefused, Shown, launch, open_command
+    from loom.scan.quilt import load_quilt
+
+    app, file = _str(body, "app"), _str(body, "file")
+    if (app is None) == (file is None):
+        raise ApiError("bad-request", "name an app or a file, not both")
+    try:
+        argv = open_command(Shown.of(load_quilt(root)), app=app, file=file)
+    except OpenRefused as exc:
+        raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-file" else 400) from exc
+    launch(argv)
+    return {"ok": True, "result": "opened", "opened": app or file}
 
 
 #: Where the reader is, by quilt: the last place a viewer tab reported (`here`), the stamp it came at, and when by this process's clock. Held in memory only, never written: it is where a person is, not a record.
@@ -176,10 +194,12 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     dict
         `{"ok": True, "result": <what the CLI would have printed>}`.
     """
-    if endpoint not in CAPABILITIES:
+    if endpoint not in discovery()["capabilities"]:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
     if endpoint == "here":
         return _here(root, body)
+    if endpoint == "open":
+        return _open(root, body)
     if endpoint == "library-cite":
         return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):

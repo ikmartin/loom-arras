@@ -100,7 +100,7 @@ Where a file lives carries no meaning. Consequence: one file per node and twelve
 
 ### P6. Config only for what the preamble cannot say.
 
-The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the id prefix, a default engine and the paths agents may not write, and little else.
+The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the file the viewer opens on, the id prefix, a default engine and the paths agents may not write, and little else.
 
 ### P7. Loom changes an author's file only when the author incorporates a change, and keeps the old text first.
 
@@ -168,7 +168,7 @@ Unless something has a good reason to be shown, don't show it. Corollaries: simp
 
 ### V7. Show a thing where it lives.
 
-A statement is read in a document that holds it, a cited result on its work's page, an annotation on the words it marks. Loom's pieces exist to be addressed, not to be read apart: a view of a thing away from where it lives is only the fallback for something that lives nowhere you can open, such as a result in no document or a work with no PDF, and a preview (a hover card, the graph's inspector) is a glance, not a home. Consequence: a link to a result opens a document that holds it (the one the link stands in, else one on screen, else the one looked at last); a reference opens the work's PDF at the place it names; there is no view of all results. The principle governs the viewer: an agent's context is still the closure.
+A statement is read in a document that holds it, a cited result on its work's page, an annotation on the words it marks. Loom's pieces exist to be addressed, not to be read apart: a view of a thing away from where it lives is only the fallback for something that lives nowhere you can open, such as a result in no document or a work with no PDF, and a preview (a hover card, the graph's inspector) is a glance, not a home. Consequence: a link to a result opens a document that holds it (the one the link stands in, else one on screen, else the one looked at last); a reference opens the work's PDF at the place it names; an included `.tex` file opens the document that reads it, at its place; there is no view of all results. The principle governs the viewer: an agent's context is still the closure.
 
 ## A · Annotations
 

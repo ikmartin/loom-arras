@@ -20,10 +20,11 @@ from typing import Any
 from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
+from loom.files import FILES_URL, Shown
 from loom.paths import BUILD, SERVE_JSON, STORE_ADDRESS, document_build
 from loom.refs.pages import storage_root
 from loom.render.build import BuildReport, build
-from loom.render.watch import Watcher, records_only, snapshot
+from loom.render.watch import Watcher, scan_unread, snapshot
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
 from loom.tex.runner import compile_document, normalise_engine
@@ -54,8 +55,15 @@ BUILD_URL = "/build/"
 STORE_URL = f"/{STORE_ADDRESS}/"
 #: How often an idle stream says it is still open, so a proxy or a sleeping laptop does not drop it unseen.
 HEARTBEAT = 15.0
-#: The headers everything but the viewer's bundle is served with -- `/build/`, `/digests/storage/` and every JSON answer -- so a page there runs no script and has an opaque origin, never the viewer's: an agent writes the build output, and a page that ran as the viewer could read the token and post the author's acts.
+#: The headers everything but the viewer's bundle is served with -- `/build/`, `/digests/storage/`, `/_files/` and every JSON answer -- so a page there runs no script and has an opaque origin, never the viewer's: an agent writes the build output and the project's files, and a page that ran as the viewer could read the token and post the author's acts.
 CONFINED = {"Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"}
+#: What the frames origin adds to an HTML page so that the page can ask the viewer to open a link and say what is selected in it, and nothing else. `%s` is the viewer's origin, the only window it posts to.
+BRIDGE = """<script>(function(){var V=%s;function post(m){try{parent.postMessage(m,V)}catch(e){}}
+document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';
+if(/^(quilt|cited|app):/i.test(h)){e.preventDefault();post({loom:'open',href:h});return}
+if(/^https?:/i.test(h)&&!a.target){e.preventDefault();window.open(a.href,'_blank','noopener')}},true);
+var t;document.addEventListener('selectionchange',function(){clearTimeout(t);t=setTimeout(function(){post({loom:'selection',text:String(window.getSelection()||'').trim().slice(0,4000)})},150)});
+window.addEventListener('hashchange',function(){post({loom:'place',hash:decodeURIComponent(location.hash.slice(1))})});})();</script>"""
 
 
 def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
@@ -188,6 +196,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
     publication_lock: Any = None
     #: The server's publications, set when it owns a build: what `/_api/stream` reports.
     publications: Publications | None = None
+    #: What the viewer shows of the quilt, which `/_files/` answers; None serves no project file.
+    shown: Shown | None = None
+    #: The frames origin's address, which `GET /_api` gives the viewer; '' when there is none.
+    frames: str = ""
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -206,6 +218,14 @@ class LoomHandler(SimpleHTTPRequestHandler):
             rel = unquote(path[len(STORE_URL) :])
             target = (self.refs_dir / rel).resolve()
             return target if str(target).startswith(str(self.refs_dir.resolve())) and target.is_file() else None
+        if path.startswith(FILES_URL):
+            # a project file the viewer shows, sandboxed like the build output: an image, a PDF, text, or an HTML page drawn with no script where no frames origin runs
+            rel = unquote(path[len(FILES_URL) :])
+            if self.shown is None or not self.shown.is_shown(rel):
+                return None
+            root = self.shown.root.resolve()
+            target = (root / rel).resolve()
+            return target if target.is_relative_to(root) and target.is_file() else None
         if path == "/_api" or path.startswith("/_api/"):
             return None  # answered by do_GET and do_POST, never from the file tree
         rel = path.lstrip("/")
@@ -215,7 +235,8 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 return target
             if target.is_dir() and (target / "index.html").is_file():
                 return target / "index.html"
-        if rel.startswith("_app/") or Path(rel).suffix.lower() in ASSET_SUFFIXES:
+        # a project file's route in the viewer ends in the file's own suffix, `.png` or `.json` among them, and is a route all the same
+        if not rel.startswith("file/") and (rel.startswith("_app/") or Path(rel).suffix.lower() in ASSET_SUFFIXES):
             return None  # a missing asset is a 404, never the app shell
         return (
             self.bundle_dir / "index.html"
@@ -374,7 +395,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
             if elsewhere:
                 self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": elsewhere}})
                 return
-            self._json(HTTPStatus.OK, {**discovery(), "token": self.token, "stream": self.publications is not None})
+            frames = {"frames": self.frames} if self.frames else {}
+            self._json(
+                HTTPStatus.OK, {**discovery(), "token": self.token, "stream": self.publications is not None, **frames}
+            )
             return
         target = self._resolve()
         if target is None or not target.is_file():
@@ -384,7 +408,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
         ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         if target.suffix in (".html", ".js", ".css", ".json", ".svg"):
             ctype += "; charset=utf-8"
-        held = self.path.split("?", 1)[0].startswith((BUILD_URL, STORE_URL))
+        held = self.path.split("?", 1)[0].startswith((BUILD_URL, STORE_URL, FILES_URL))
         etag = '"' + hashlib.sha256(data).hexdigest()[:32] + '"'
         if self.headers.get("If-None-Match") == etag:
             self.send_response(HTTPStatus.NOT_MODIFIED)
@@ -467,6 +491,63 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
 
+class FramesHandler(SimpleHTTPRequestHandler):
+    """The frames origin: the project's shown files on a port of their own, so an HTML page runs as a page of its own origin, never the viewer's.
+
+    It answers GET and HEAD for shown files and nothing else -- no `/_api`, no bundle, no build output, no store -- and only to a request addressed to its own host and port, which keeps a rebinding domain out. An HTML page gets `BRIDGE`. A page here can read the project's other shown files, as any page on a local server can, but never the viewer: the write API refuses this origin (`from_elsewhere`) and sends no CORS headers.
+    """
+
+    shown: Shown | None = None
+    #: The viewer origins a page may be told to post to: this server's sibling at 127.0.0.1 and at localhost.
+    viewers: tuple[str, ...] = ()
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        if os.environ.get("LOOM_SERVE_LOG"):
+            super().log_message(format, *args)
+
+    def _target(self) -> Path | None:
+        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
+        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}") or self.shown is None:
+            return None
+        rel = unquote(self.path.split("?", 1)[0].split("#", 1)[0].lstrip("/"))
+        if not self.shown.is_shown(rel):
+            return None
+        root = self.shown.root.resolve()
+        target = (root / rel).resolve()
+        return target if target.is_relative_to(root) and target.is_file() else None
+
+    def _answer(self, body: bool) -> None:
+        from urllib.parse import parse_qs, urlsplit
+
+        target = self._target()
+        if target is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        data = target.read_bytes()
+        ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        if target.suffix.lower() in (".html", ".htm"):
+            asked = (parse_qs(urlsplit(self.path).query).get("loom-viewer") or [""])[0]
+            viewer = asked if asked in self.viewers else (self.viewers[0] if self.viewers else "")
+            script = (BRIDGE % json.dumps(viewer)).encode("utf-8")
+            at = data.lower().rfind(b"</body>")
+            data = data[:at] + script + data[at:] if at != -1 else data + script
+            ctype = "text/html; charset=utf-8"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if body:
+            self.wfile.write(data)
+
+    def do_GET(self) -> None:  # noqa: N802
+        self._answer(True)
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        self._answer(False)
+
+
 class ServeSession:
     def __init__(
         self,
@@ -484,6 +565,8 @@ class ServeSession:
         self.lock = threading.Lock()
         self.builds = 0
         self.httpd: ThreadingHTTPServer | None = None
+        self.frames: ThreadingHTTPServer | None = None
+        self.shown = Shown.of(quilt)
         self.watcher: Watcher | None = None
         self.last_report: BuildReport | None = None
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
@@ -497,18 +580,18 @@ class ServeSession:
     ) -> None:
         """Publish the quilt as it is now, building only what changed since the last publication.
 
-        The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change to records alone (`records`, or a watcher's change that `records_only` judges so) builds from the last scan.
+        The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change the scan does not read (`records`, or a watcher's change that `scan_unread` judges so: a record, or a Markdown file) builds from the last scan.
         """
         root = self.quilt.root
         with self.lock:
-            seen = snapshot(root)
+            seen = snapshot(root, self.shown)
             if changed is not None:
                 changed = [p for p, m in seen.items() if self.published.get(p) != m] + [
                     p for p in self.published if p not in seen
                 ]
                 if not changed:
                     return
-                records = records_only(root, changed)
+                records = scan_unread(root, changed)
             reuse = self.last_report.result if records and self.last_report is not None else None
             if progress is None and changed is not None:
                 from loom.cli.report import Progress
@@ -542,11 +625,11 @@ class ServeSession:
         """The last publication's scan while nothing the scan reads has changed since, for the write API to annotate against rather than scanning again; None otherwise."""
         if self.last_report is None:
             return None
-        now = snapshot(self.quilt.root)
+        now = snapshot(self.quilt.root, self.shown)
         changed = [p for p, m in now.items() if self.published.get(p) != m] + [
             p for p in self.published if p not in now
         ]
-        return self.last_report.result if records_only(self.quilt.root, changed) else None
+        return self.last_report.result if scan_unread(self.quilt.root, changed) else None
 
     def _compile_default(self) -> None:
         from loom.scan.scan import scan
@@ -591,8 +674,18 @@ class ServeSession:
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
         handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]
+        shown = self.shown
+        frames = type(
+            "Frames",
+            (FramesHandler,),
+            {"shown": shown, "viewers": (f"http://127.0.0.1:{self.port}", f"http://localhost:{self.port}")},
+        )
+        self.frames = ThreadingHTTPServer(("127.0.0.1", 0), frames)
+        handler.shown = shown  # type: ignore[attr-defined]
+        handler.frames = f"http://127.0.0.1:{self.frames.server_address[1]}"  # type: ignore[attr-defined]
+        threading.Thread(target=self.frames.serve_forever, name="loom-frames", daemon=True).start()
         # Capture inputs before clients can change them, including during the first build.
-        self.watcher = Watcher(self.quilt.root, self.rebuild, self.interval)
+        self.watcher = Watcher(self.quilt.root, self.rebuild, self.interval, shown)
         threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
 
     def start(self) -> None:
@@ -626,9 +719,10 @@ class ServeSession:
         self.publications.close()
         if self.watcher:
             self.watcher.stop()
-        if self.httpd:
-            self.httpd.shutdown()
-            self.httpd.server_close()
+        for server in (self.httpd, self.frames):
+            if server:
+                server.shutdown()
+                server.server_close()
         # nothing is listening any more, so nothing should tell a command that something is
         (self.quilt.root / SERVE_JSON).unlink(missing_ok=True)
         from loom.render.api import forget_place

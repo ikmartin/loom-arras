@@ -15,10 +15,11 @@ export interface Block {
 	key: string;
 }
 
-/** Words selected, or a region drawn: in a document by key, on a paper by page with rectangles in points from the page's top left. */
+/** Words selected, or a region drawn: in a document by key, on a paper by page with rectangles in points from the page's top left, in a project file by its path. */
 export interface Selection {
 	item: string;
 	key?: string;
+	file?: string;
 	page?: number;
 	text?: string;
 	rects?: number[][];
@@ -64,9 +65,10 @@ export interface PlaceInput {
 	session: string | null;
 }
 
-/** An item as the publisher is told it: what it is and which, and a paper's place; the view, anchor and note are the viewer's. */
+/** An item as the publisher is told it: what it is and which, a paper's place and a file's; the view, a document's anchor and the note are the viewer's. */
 function bare(item: Item | null): Record<string, unknown> | undefined {
 	if (!item) return undefined;
+	if (item.kind === 'file') return { kind: item.kind, id: item.id, ...(item.anchor ? { place: item.anchor } : {}) };
 	return { kind: item.kind, id: item.id, ...(item.place ? { place: item.place } : {}) };
 }
 
@@ -103,6 +105,12 @@ function textSelection(item: string): Selection | null {
 	const range = sel.getRangeAt(0);
 	const at = range.commonAncestorContainer;
 	const el = at.nodeType === Node.ELEMENT_NODE ? (at as Element) : at.parentElement;
+	// a project file's drawn body says which file it is; its words are quoted as written
+	const file = el?.closest<HTMLElement>('[data-file]')?.dataset.file;
+	if (file) {
+		const words = sel.toString().trim();
+		return words ? { item, file, text: words.slice(0, 4000) } : null;
+	}
 	if (!el?.closest('[data-src]')) return null;
 	const text = quoteOf(range);
 	const key = keyOf(at, '');

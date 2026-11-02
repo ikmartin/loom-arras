@@ -356,7 +356,7 @@ test.describe('sessions', () => {
 test.describe('sections', () => {
 	test('the column lists no results: a result is read where it lives, and found by ⌘K', async ({ page }) => {
 		await page.goto('/node/sy-0003');
-		await expect(page.getByTestId('docs-drafts')).toBeVisible();
+		await expect(page.getByTestId('docs-tree')).toBeVisible();
 		await expect(page.getByTestId('nodes-toggle')).toHaveCount(0);
 		await expect(page.getByTestId('nodes-list')).toHaveCount(0);
 		// found by ⌘K, which is search's one way in
@@ -368,7 +368,7 @@ test.describe('sections', () => {
 			await page.goto(path);
 			await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
 			// the documents stand there instead, with the contents folded under the open one
-			await expect(page.getByTestId('docs-drafts')).toBeVisible();
+			await expect(page.getByTestId('docs-tree')).toBeVisible();
 		}
 		// the Library fills the panel with its own filters, which is the other half of the same rule
 		await page.goto('/review/library');

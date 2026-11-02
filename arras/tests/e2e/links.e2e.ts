@@ -54,7 +54,7 @@ test.describe('the one rule', () => {
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 		// put main.tex behind the talk, opened from the side panel into the reader's pane
 		await pane(page, 0).getByRole('tab').first().click();
-		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await page.getByTestId('docs-tree').getByRole('link', { name: 'talk.tex' }).click();
 		await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(2);
 		await expect(pane(page, 0).getByRole('tab', { selected: true })).toContainText('talk.tex');
 		await pane(page, 1).getByTestId('message-1').locator('a').click();

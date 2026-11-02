@@ -1,6 +1,6 @@
 // Where a followed link opens (plan 0.14): **one rule, for every link in the viewer.** A link names an item and a place in it. If the item is already open, in either pane, it is brought to the front of its pane at that place and the pane takes focus — a document's links to its own content are the same case. If it is not open, it opens as a new tab in the pane the reader is not in, so both ends of the connection stay on screen (V5); with one pane, the second is made. A click outside every pane — the side panel, the rail — is a choice of what to read, and opens in the focused pane.
 //
-// Two link forms name things (specs/dialect.md §2.13): `quilt:KEY[#PLACE]` for what the quilt owns — a node, a document, an annotation, a session — and `cited:SCHEME:VALUE` for a place in a cited work. The viewer's own paths are read too.
+// Two link forms name things (specs/dialect.md §2.13): `quilt:KEY[#PLACE]` for what the quilt owns — a node, a document, an annotation, a session, a project file by its path — and `cited:SCHEME:VALUE` for a place in a cited work. The viewer's own paths are read too. `app:NAME` asks the publisher to open an application, on this click; any other scheme opens outside the viewer, whose tab it never replaces.
 //
 // One capture-phase listener for the whole viewer, so no renderer decides for itself and a link the router would otherwise follow is answered before it does.
 
@@ -12,7 +12,14 @@ import { isWorkLink, locate, parseWorkLink, resultPlace } from '$lib/worklink';
 import { anchorId, keyTarget, keyUrl, nodeUrl } from '$lib/nav';
 import { isDocument } from '$lib/review/run';
 import { itemFromPath, itemKey, pathFor, type Item } from './item';
+export { itemForFile } from './item';
 import { workspace } from './store.svelte';
+import { write } from '$lib/write';
+
+/** The kinds of project file a `quilt:` link opens as a file item; a `.tex` file is linked by its document or its keys. */
+const LINKED = new Set(['markdown', 'html', 'pdf', 'image', 'notebook', 'text', 'other']);
+/** Schemes never followed anywhere: what a page could run as script or read off this machine. */
+const NEVER = /^(?:javascript|vbscript|data|file|blob):/i;
 
 /** The pane an element stands in, or -1 when it is in none. */
 export function paneOfElement(el: Element | null): number {
@@ -60,6 +67,8 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 	if ((m.sessions ?? []).some((s) => s.id === key) || m.threads[key]) return { kind: 'session', id: key };
 	if (key === 'state' && m.research_state) return { kind: 'page', id: 'state' };
 	if (isDocument(m, key)) return { kind: 'document', id: key, ...(place ? { anchor: anchorId(place) } : {}) };
+	const file = m.files?.find((f) => f.path === key);
+	if (file && LINKED.has(file.kind)) return { kind: 'file', id: key, ...(place ? { anchor: place } : {}) };
 	const paper = paperAt(m, key);
 	if (paper) return paper;
 	const at = itemFromPath(m, keyUrl(m, key));
@@ -68,6 +77,29 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 	// a place in a node is a region of it (`KEY#label`) or another key it holds, such as its proof
 	const region = m.regions?.[`${key}#${place}`];
 	return { ...at, anchor: anchorId(region ? `${key}#${place}` : place) };
+}
+
+/**
+ * Ask the publisher to open the application `app`, or the file `file` in its application, for this click; the refusal, where there is one, is the answer.
+ */
+export async function openOutside(target: { app: string } | { file: string }): Promise<string> {
+	const done = await write('open', target);
+	return done.ok ? '' : (done.error?.message ?? 'loom could not open it');
+}
+
+/** Follow a link a framed page handed over (`HtmlFrame`): a `quilt:` or `cited:` link as any link in the viewer, an `app:` one by the publisher; nothing else. */
+export function followFromFrame(m: Manifest, href: string, from: number): void {
+	if (/^app:/i.test(href)) {
+		void openOutside({ app: decodeURIComponent(href.slice(4)) });
+		return;
+	}
+	if (!/^(quilt|cited):/i.test(href)) return;
+	const item = itemForHref(m, href);
+	if (item) follow(item, from, m);
+	else if (isWorkLink(href)) {
+		const link = parseWorkLink(href);
+		if (link) pdf.open(link);
+	}
 }
 
 /**
@@ -200,6 +232,26 @@ export function interceptLinks(active: () => boolean, manifest: () => Manifest |
 			if (!here) return;
 			e.preventDefault();
 			follow({ ...here, anchor: decodeURIComponent(href.slice(1)), note: undefined }, from);
+			return;
+		}
+		if (NEVER.test(href)) {
+			e.preventDefault();
+			return;
+		}
+		if (/^app:/i.test(href)) {
+			// an application, opened by the publisher on this machine; where none is served, the link says why
+			e.preventDefault();
+			void openOutside({ app: decodeURIComponent(href.slice(4)) }).then((why) => {
+				if (why) a.title = why;
+			});
+			return;
+		}
+		const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(href)?.[1]?.toLowerCase();
+		const outside = !!scheme && scheme !== 'quilt' && scheme !== 'cited' && (scheme === 'http' || scheme === 'https' ? new URL(href).origin !== location.origin : true);
+		if (outside) {
+			// another site, or another application's own scheme, which the browser asks about: never in the viewer's tab
+			e.preventDefault();
+			window.open(href, '_blank', 'noopener');
 			return;
 		}
 		if (isWorkLink(href)) {

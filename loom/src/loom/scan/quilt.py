@@ -22,7 +22,7 @@ NO_AUTHOR_MESSAGE = (
 
 CONFIG_KEYS: dict[str, set[str]] = {
     # `history` is the record's directory, documented and never written by init
-    "quilt": {"name", "main", "history", "prefix", "engine", "research_state"},
+    "quilt": {"name", "main", "home", "history", "prefix", "engine", "research_state"},
     # `online`: whether loom may use the network for cited works; `contact`: the address the lookup services are given
     "library": {"online", "contact"},
     "lint": {"disable"},
@@ -50,6 +50,7 @@ USER_QUILT_KEYS = ("name", "history")
 class QuiltConfig:
     name: str = ""
     main: str = ""
+    home: str = ""  # the file the viewer opens on when it remembers no place; unset, the root README.md
     history: str = HISTORY
     research_state: str = "research-state.md"  # the quilt's research state, a page an agent keeps and the person edits
     prefix: str = "q"
@@ -94,6 +95,7 @@ class QuiltConfig:
         cfg.history = str(q.get("history", cfg.history)).strip("/") or cfg.history
         cfg.research_state = str(q.get("research_state", cfg.research_state)).strip("/") or cfg.research_state
         cfg.main = str(q.get("main", ""))
+        cfg.home = str(q.get("home", "")).strip().strip("/")
         cfg.prefix = str(q.get("prefix", cfg.prefix))
         cfg.engine = str(q.get("engine", cfg.engine))
         cfg.online = bool(table("library").get("online", False))

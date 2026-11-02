@@ -36,6 +36,18 @@ export interface Publishes {
 export interface Corpus {
   name: string;
   root_label: string;
+  /** The file the viewer opens on when it remembers no place: `[quilt] home`, else the root README.md; null when there is neither. */
+  home?: string | null;
+}
+
+/** A file of the project the viewer shows, by its quilt-relative path (plan 0.22.7). */
+export interface ProjectFile {
+  path: string;
+  /** What the viewer does with it: a LaTeX document (`document`) or another `.tex` file, a drawn or framed kind, text, or `other`, opened in its application. */
+  kind: "document" | "tex" | "markdown" | "html" | "pdf" | "image" | "notebook" | "text" | "other" | (string & {});
+  bytes: number;
+  /** A Markdown file's or notebook's body as the publisher drew it, by its path under the build directory. */
+  body?: string;
 }
 
 /** A landmark: a flat, self-contained copy of a document as it stood when loom recorded a step. It is a document, not a corpus of nodes: nothing in it has an identity. */
@@ -566,6 +578,8 @@ export interface Manifest {
   references: Record<string, Reference>;
   /** The quilt's research state (plan 0.21.3); absent until one is written. */
   research_state?: Page;
+  /** Every file of the project the viewer shows, hidden ones left out (plan 0.22.7); absent from an older publisher. */
+  files?: ProjectFile[];
   /** Asserted relations between two results, each with a reason. Nobody verifies these and every surface that shows one says so: they are navigation, not mathematics, and are never citable and never in a closure. */
   links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };

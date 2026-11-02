@@ -161,6 +161,26 @@ def _agent_permissions(result: ScanResult) -> list[Diagnostic]:
     ]
 
 
+def _home(result: ScanResult) -> list[Diagnostic]:
+    """`loom:home-missing`: `[quilt] home` names no file the viewer shows, so the viewer opens as if it were unset."""
+    from loom.files import Shown
+
+    named = result.quilt.config.home
+    root = result.quilt.root
+    if not named or ((root / named).is_file() and Shown.of(result.quilt).is_shown(named)):
+        return []
+    why = "is hidden from the viewer" if (root / named).is_file() else "does not exist"
+    return [
+        Diagnostic(
+            "warning",
+            "loom:home-missing",
+            f"[quilt] home names {named}, which {why}, so the viewer opens on README.md or the default document instead",
+            [Location("config.toml", 1)],
+            fixes=[Fix("name a file the viewer shows, or remove the line", "edit config.toml")],
+        )
+    ]
+
+
 def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic]:
     asm = result.assembly
     files = result.files
@@ -205,6 +225,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     diags.extend(_derived_in_person_document(result, edges))
     diags.extend(_agent_documents(result))
     diags.extend(_agent_permissions(result))
+    diags.extend(_home(result))
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     for path, directives in asm.directives.items():

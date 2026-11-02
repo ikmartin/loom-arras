@@ -86,13 +86,14 @@ interface Linked extends Named {
 	annotations: Record<string, { kind: string; target: { key: string }; in_reply_to?: string | null }>;
 	sessions?: { id: string; title: string }[];
 	canon?: { path: string }[];
+	files?: { path: string; kind: string }[];
 	research_state?: unknown;
 }
 
 /**
  * The viewer's name for what `href` names.
  *
- * An annotation is its kind on what it is about (`objection on Theorem 2.1`), a reply `reply on …` as What it did names it, a session its title, `quilt:state` the research state, a document its file, any other key as `keyName` has it; a work its citekey, with the page when one is named. A key the manifest does not know is shown as itself.
+ * An annotation is its kind on what it is about (`objection on Theorem 2.1`), a reply `reply on …` as What it did names it, a session its title, `quilt:state` the research state, a document its file, a project file its file name, any other key as `keyName` has it; a work its citekey, with the page when one is named. A key the manifest does not know is shown as itself.
  */
 export function linkName(m: Linked, href: string): string {
 	if (href.startsWith('cited:')) {
@@ -111,6 +112,11 @@ export function linkName(m: Linked, href: string): string {
 	const session = (m.sessions ?? []).find((s) => s.id === key);
 	if (session) return session.title;
 	if (key === 'state' && m.research_state) return 'the research state';
+	if (m.files?.some((f) => f.path === key && f.kind !== 'document' && f.kind !== 'tex')) {
+		const name = key.split('/').pop() ?? key;
+		const page = /^page=(\d+)$/.exec(place)?.[1];
+		return page ? `${name} p. ${page}` : name;
+	}
 	if (m.canon?.some((c) => c.path === key)) return key.split('/').pop() ?? key;
 	if (place && m.masters.some((x) => x.path === key)) return keyName(m, place);
 	if (place) return keyName(m, m.regions?.[`${key}#${place}`] ? `${key}#${place}` : place);

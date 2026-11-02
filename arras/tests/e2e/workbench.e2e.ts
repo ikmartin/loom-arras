@@ -5,7 +5,7 @@ import { serve } from '../manifest';
 test('the column lists the working drafts and no landmarks, which Review › History links', async ({ page }) => {
 	// a list rather than a dropdown: a dropdown shows one name at a time and cannot say which draft is conflicted; a landmark is reached through its draft's history
 	await page.goto('/');
-	await expect(page.getByTestId('docs-drafts')).toBeVisible();
+	await expect(page.getByTestId('docs-tree')).toBeVisible();
 	await expect(page.getByTestId('column')).not.toContainText('Landmarks');
 	await expect(page.getByTestId('column').locator('a[href^="/canon/"]')).toHaveCount(0);
 	await page.goto('/review/history');
@@ -54,13 +54,14 @@ test('a doubly defined id has no text, and says where both definitions are', asy
 test('without working documents, document views point at landmarks and the graph keeps the corpus', async ({ page }) => {
 	await serve(page, (m) => {
 		m.masters = [];
+		m.corpus.home = null;
 	});
 	for (const path of ['/review', '/master/drafting/main']) {
 		await page.goto(path);
 		await expect(page.getByTestId('no-drafts')).toBeVisible();
 		await expect(page.getByTestId('no-drafts')).toContainText('Nothing is being worked on');
 	}
-	// `/` and Docs open the newest landmark, which stands in for the document
+	// with no front door, `/` and Docs open the newest landmark, which stands in for the document
 	await page.goto('/');
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 	await expect(page.getByTestId('primary-docs')).toHaveAttribute('href', '/canon/widgets-v3');

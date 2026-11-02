@@ -108,6 +108,7 @@ def reading(uri: str, quilt: Quilt) -> Reading:
     quilt:KEY#PLACE        loom source KEY, the node the place is in
     quilt:LANDMARK         loom history show NAME
     quilt:state            no command: `research_state`, as `loom ai orient` prints it
+    quilt:PATH.SUFFIX      refused: a file of the quilt, read as the file itself
     cited:ID               loom library read ID
     cited:ID?page=N        loom library read ID N
 
@@ -145,6 +146,8 @@ def reading(uri: str, quilt: Quilt) -> Reading:
         if closure or place:
             raise NotAResource(f"{uri}: the research state is read whole")
         return Reading(None, MARKDOWN)
+    if PurePosixPath(key).suffix and not key.endswith(".tex") and (quilt.root / key).is_file():
+        raise NotAResource(f"{uri}: a file of the quilt, which you read as {key} itself")
     marks = landmarks(quilt)
     if key in marks:
         if closure or place:

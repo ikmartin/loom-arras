@@ -16,6 +16,7 @@ import NodeControls from './items/NodeControls.svelte';
 import ContextItem from './items/ContextItem.svelte';
 import SessionItem from './items/SessionItem.svelte';
 import PageItem from './items/PageItem.svelte';
+import FileItem from './items/FileItem.svelte';
 import PlainControls from './items/PlainControls.svelte';
 import NodePreview from './items/NodePreview.svelte';
 import WorkPreview from './items/WorkPreview.svelte';
@@ -95,7 +96,9 @@ export const kinds: Record<ItemKind, Kind> = {
 		]
 	},
 	// a page loom keeps (plan 0.21.3); the research state is the one a quilt has, and a work's overview is read on the work's Info
-	page: { tab: () => 'Research state', renderer: PageItem, controls: PlainControls }
+	page: { tab: () => 'Research state', renderer: PageItem, controls: PlainControls },
+	// a file of the project (plan 0.22.7), named by its file name as the tree shows it
+	file: { tab: (item) => item.id.split('/').pop() ?? item.id, renderer: FileItem, controls: PlainControls }
 };
 
 /** The tab label of an item. */

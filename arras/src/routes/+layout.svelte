@@ -68,8 +68,8 @@
 	const warnings = $derived(m ? m.diagnostics.filter((d) => d.severity === 'warning').length : 0);
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
 
-	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context and sessions, each an item in the workspace. The tables, the graph and home render full width outside it.
-	const READING = new Set(['/master/[...name]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]', '/page/[id]']);
+	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes, a node's context, sessions and the project's files, each an item in the workspace. The tables, the graph and home render full width outside it.
+	const READING = new Set(['/master/[...name]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/context/[...key]', '/session/[id]', '/page/[id]', '/file/[...path]']);
 	const inReading = $derived(READING.has(page.route.id ?? ''));
 	$effect(() => {
 		workspace.onScreen = inReading;

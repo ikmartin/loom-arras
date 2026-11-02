@@ -10,7 +10,7 @@ async function openContents(page: Page): Promise<void> {
 
 test('the column leads with the quilt, Settings and the fold, then Docs and Review, and holds no list of views', async ({ page }) => {
 	await page.goto('/master/drafting/main');
-	await expect(page.getByTestId('docs-drafts')).toBeVisible();
+	await expect(page.getByTestId('docs-tree')).toBeVisible();
 	await openContents(page);
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
 	await expect(page.getByTestId('quilt-name')).toHaveText(manifest.corpus.name);

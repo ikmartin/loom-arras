@@ -30,10 +30,12 @@ def test_discovery_lists_what_this_publisher_serves(session) -> None:  # type: i
     status, _, raw = get(s.url + "_api")
     assert status == 200
     body = json.loads(raw)
-    from loom.render.api import CAPABILITIES
+    from loom.render.api import discovery
 
     assert body["write_api"] == 1
-    assert body["capabilities"] == CAPABILITIES
+    assert body["capabilities"] == discovery()["capabilities"]
+    # the frames origin is named, and it is not this server
+    assert body["frames"].startswith("http://127.0.0.1:") and body["frames"] != s.url.rstrip("/")
 
 
 def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # type: ignore[no-untyped-def]
@@ -909,12 +911,29 @@ def test_each_endpoint_writes_and_refuses_over_the_wire(
     CASES[endpoint](serve, tmp_path, monkeypatch)
 
 
+@case("open")
+def _open(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loom import files
+
+    if not files.can_open():
+        pytest.skip("loom opens applications on macOS and Linux")
+    launched: list[list[str]] = []
+    monkeypatch.setattr(files, "launch", launched.append)
+    s, q, _ = on_demo(serve, tmp_path)
+    (q / "deck.apkg").write_bytes(b"PK")
+    succeeds(s, "open", {"app": "Anki"})
+    succeeds(s, "open", {"file": "deck.apkg"})
+    assert len(launched) == 2
+    refuses(s, "open", {"file": "README.md"}, 400, "not-openable", "never opens a file that may run code")
+
+
 def test_every_capability_has_a_case_and_a_row_in_the_spec() -> None:
-    """A capability served without a case above fails here, as does a case for one no longer served, and one specs/write-api.md does not list."""
+    """A capability served without a case above fails here, as does a case for one no longer served, and one specs/write-api.md does not list; `open`, served only where loom can open an application, has its case and its row everywhere."""
     import re
 
     from loom.render.api import CAPABILITIES
 
+    CAPABILITIES = [*CAPABILITIES, "open"]  # noqa: N806
     assert sorted(CASES) == sorted(CAPABILITIES)
     spec = (REPO.parent / "docs" / "specs" / "write-api.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"^\| `POST` \| `/_api/([\w-]+)`", spec, re.M))

@@ -47,6 +47,8 @@ export function rememberedIn(m: Manifest): string {
 					? (m.sessions ?? []).some((x) => x.id === it.id) || !!m.threads[it.id]
 					: it.kind === 'page'
 						? it.id === 'state' && !!m.research_state
-						: !!m.nodes[it.id];
+						: it.kind === 'file'
+							? !!m.files?.some((f) => f.path === it.id)
+							: !!m.nodes[it.id];
 	return there ? at : '';
 }

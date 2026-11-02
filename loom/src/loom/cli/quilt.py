@@ -25,6 +25,7 @@ name = "{name}"
 prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a document overrides
 # main = "paper/main.tex"   # the default LaTeX document; unset, the only document there is
+# home = "README.md"        # the file the viewer opens on when it remembers no place; unset, README.md
 
 [library]
 online = false              # may loom library update look identifiers up (zbMATH Open, Crossref) and fetch documents (arXiv); --online allows one run

@@ -124,6 +124,12 @@ def _item(result: ScanResult, item: Any, page: Any = None) -> dict[str, Any] | N
         return {"kind": kind, "session": ident, "name": found.title if found else ident, "link": f"quilt:{ident}"}
     if kind == "page" and ident == "state":
         return {"kind": kind, "name": "the research state", "link": "quilt:state"}
+    if kind == "file":
+        from urllib.parse import quote
+
+        place = item.get("place")
+        at = f"#{place}" if isinstance(place, str) and place else ""
+        return {"kind": kind, "path": ident, "name": ident, "link": f"quilt:{quote(ident, safe='/._-~')}{at}"}
     return {"kind": kind, "name": ident, "link": None}
 
 
@@ -145,6 +151,8 @@ def _resolve(result: ScanResult, place: dict[str, Any]) -> dict[str, Any]:
         if isinstance(sel, dict):
             if sel.get("key"):
                 out["selection"] = {**_key(result, str(sel["key"])), "text": str(sel.get("text") or "")}
+            elif isinstance(sel.get("file"), str) and out["item"] and out["item"].get("path") == sel["file"]:
+                out["selection"] = {"path": sel["file"], "name": sel["file"], "text": str(sel.get("text") or "")}
             elif isinstance(sel.get("page"), int) and out["item"] and out["item"].get("work"):
                 at = _work(result, out["item"]["work"], sel["page"])
                 out["selection"] = {**at, "text": str(sel.get("text") or ""), "rects": sel.get("rects") or []}

@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "60cafa1460d5cf376d397679e876add842c417c667189298510258d4127d9261",
+   "hash": "c409f65d629ae8e88b46e885cd93f45bcc2a069f52c7355850fe39eea6516533",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "28a70e0b86472da6a864924afd3b079d61175bc6fe5c0617338cb6f83e6a2e54",
+   "hash": "79c7dd0b59dc1e246ebfcfb6da51420821c9ade3cf5acb2615d7535b486edf68",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "adb898f67695d3a91fa67a56f83f38114234d5e2887e0dd22238f504c393e5cf",
+   "hash": "a8cc188c9c7ddf3d25abf889c28bc5ffcca31253137bdb95d0d0c805a9e2a263",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -621,6 +621,7 @@
   }
  ],
  "corpus": {
+  "home": "README.md",
   "name": "The synthetic quilt",
   "root_label": "Widgets, gadgets, and their fixed loci"
  },
@@ -1922,6 +1923,152 @@
    },
    "to": "Kre99-thm-2.1",
    "via": "postnote"
+  }
+ ],
+ "files": [
+  {
+   "bytes": 1241,
+   "kind": "text",
+   "path": "EXPECTED-LINT.txt"
+  },
+  {
+   "body": "files/README.md.html",
+   "bytes": 750,
+   "kind": "markdown",
+   "path": "README.md"
+  },
+  {
+   "bytes": 145,
+   "kind": "text",
+   "path": "config.toml"
+  },
+  {
+   "bytes": 948,
+   "kind": "pdf",
+   "path": "drafting/figures/fig.pdf"
+  },
+  {
+   "bytes": 804,
+   "kind": "text",
+   "path": "drafting/loom.sty"
+  },
+  {
+   "bytes": 170,
+   "kind": "text",
+   "path": "drafting/macros.sty"
+  },
+  {
+   "bytes": 2128,
+   "kind": "document",
+   "path": "drafting/main.tex"
+  },
+  {
+   "bytes": 402,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0002.tex"
+  },
+  {
+   "bytes": 596,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0003.tex"
+  },
+  {
+   "bytes": 232,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0006.tex"
+  },
+  {
+   "bytes": 125,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0007.tex"
+  },
+  {
+   "bytes": 198,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0008.tex"
+  },
+  {
+   "bytes": 319,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-0009.tex"
+  },
+  {
+   "bytes": 127,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-000A.tex"
+  },
+  {
+   "bytes": 243,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-000B.tex"
+  },
+  {
+   "bytes": 162,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-999A.tex"
+  },
+  {
+   "bytes": 143,
+   "kind": "tex",
+   "path": "drafting/nodes/sy-999B.tex"
+  },
+  {
+   "bytes": 320,
+   "kind": "tex",
+   "path": "drafting/old.tex"
+  },
+  {
+   "bytes": 388,
+   "kind": "text",
+   "path": "drafting/refs.bib"
+  },
+  {
+   "bytes": 870,
+   "kind": "tex",
+   "path": "drafting/sections/appendix.tex"
+  },
+  {
+   "bytes": 673,
+   "kind": "tex",
+   "path": "drafting/sections/results.tex"
+  },
+  {
+   "bytes": 1017,
+   "kind": "document",
+   "path": "drafting/talk.tex"
+  },
+  {
+   "bytes": 130,
+   "kind": "other",
+   "path": "notes/deck.apkg"
+  },
+  {
+   "bytes": 73,
+   "kind": "image",
+   "path": "notes/figure.png"
+  },
+  {
+   "body": "files/notes/intro.md.html",
+   "bytes": 381,
+   "kind": "markdown",
+   "path": "notes/intro.md"
+  },
+  {
+   "bytes": 314,
+   "kind": "html",
+   "path": "notes/page.html"
+  },
+  {
+   "body": "files/notes/run.ipynb.html",
+   "bytes": 849,
+   "kind": "notebook",
+   "path": "notes/run.ipynb"
+  },
+  {
+   "body": "files/research-state.md.html",
+   "bytes": 199,
+   "kind": "markdown",
+   "path": "research-state.md"
   }
  ],
  "generated": "2026-09-16T00:00:00Z",
