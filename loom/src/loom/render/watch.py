@@ -160,7 +160,8 @@ class Watcher:
 
     def _loop(self) -> None:
         fast = _fast(self.root)
-        due = time.monotonic() + self.interval
+        # the first poll looks in full: the baseline is what the last publication read, before this loop began, and a record written in between is already in `fast`
+        due = time.monotonic()
         while not self._stop.is_set():
             time.sleep(min(FAST_INTERVAL, self.interval))
             now_fast = _fast(self.root)

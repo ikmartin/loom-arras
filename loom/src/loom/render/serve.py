@@ -670,7 +670,7 @@ class ServeSession:
             self.rebuild()
 
     def listen(self) -> None:
-        """Bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it."""
+        """Bind the port and start serving. The build has not run yet, so until `start` finishes it `/build/` serves what an earlier build left, or 404."""
         handler = type(
             "Handler",
             (LoomHandler,),
