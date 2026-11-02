@@ -185,7 +185,7 @@
 					{#if store.manifest?.files}
 						<!-- Files is the quilt's directory as it is, where Library is what loom keeps of the cited works: two shelves, folding alike, so the two read as different kinds of thing -->
 						<p class="shelf-head">
-							<button class="shelf" aria-expanded={filesOpen} data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
+							<button class="shelf" aria-expanded={filesOpen} title="View of files in {store.manifest.corpus.directory ?? store.manifest.corpus.name}/" data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
 								<span class="caret">{filesOpen ? '▾' : '▸'}</span>Files
 							</button>
 						</p>

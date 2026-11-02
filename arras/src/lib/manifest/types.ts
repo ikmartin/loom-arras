@@ -38,6 +38,8 @@ export interface Corpus {
   root_label: string;
   /** The file the viewer opens on when it remembers no place: `[quilt] home`, else the root README.md; null when there is neither. */
   home?: string | null;
+  /** The project root's own directory name, which `files` is a view of; absent from an older publisher. */
+  directory?: string;
 }
 
 /** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no kind or severity. */

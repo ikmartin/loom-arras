@@ -315,6 +315,8 @@ main.page > h2,
 .rail-scroll {
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	/* the bar's width is kept before there is anything to scroll, so a list growing long enough to need one (Library opened) narrows nothing above it */
+	scrollbar-gutter: stable;
 }
 
 /* Scrollbars, everywhere in arras: thin and invisible until the element is being scrolled (`is-scrolling`, which `$lib/shell/scrollbars` puts on it while it moves and takes off a moment after), so a panel, a pane or a box does not carry a grey stripe down its side at rest. The space is reserved either way, so nothing shifts when a bar appears. */

@@ -281,7 +281,8 @@ def build_manifest(
         "publisher": {"name": "loom", "version": __version__},
         "publishes": PUBLISHES,
         "generated": _stamp(),
-        "corpus": {"name": root_name, "root_label": corpus_label},
+        # `directory`: the quilt root's own name, which the viewer's Files names as what it is a view of
+        "corpus": {"name": root_name, "root_label": corpus_label, "directory": result.quilt.root.name},
         "masters": [],
         "canon": list(canon_entries or []),
         "nodes": {},

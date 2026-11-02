@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "b6352de9ceec63788ee3cdd62d7f94c53d72abf95c9be95487bfdb903a1009b1",
+   "hash": "2d425a9d80c593e4dd8e31a76cc2371c69f89fd7b8e093c0c13e65af1fc87941",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "e046817cb7b7ba1eab4a48df081ad58e7c085f803b5f72eb9a344283f65f989e",
+   "hash": "02c6a271cbccfc1bf41c436a2ff95dfe9c6c0ae5013cc7776b3be98e7cfb1771",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "b4a4144d6931eccb2bef2ea1a26224c6baa7f437f25018918c74f82b0502c080",
+   "hash": "8c1c14a67a231b42a52019286f6532e76d45b5f069196353136b65da5714eac8",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -777,6 +777,7 @@
   }
  ],
  "corpus": {
+  "directory": "synthetic",
   "home": "README.md",
   "name": "The synthetic quilt",
   "root_label": "Widgets, gadgets, and their fixed loci"

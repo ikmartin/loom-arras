@@ -14,7 +14,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "publisher": {"name": "loom", "version": "0.1.0"},
   "publishes": {"documents": true, "review": true, "bibliography": true, "discussions": true},
   "generated": "2026-09-16T14:40:02Z",
-  "corpus": {"name": "Relative localization", "root_label": "Relative virtual localization", "home": "README.md"},
+  "corpus": {"name": "Relative localization", "root_label": "Relative virtual localization", "home": "README.md", "directory": "relloc"},
   "masters": [ ... ],
   "canon": [ ... ],
   "history": { "steps": [ ... ] },
@@ -42,7 +42,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 }
 ```
 
-`corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`.
+`corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`. `corpus.directory` is the name of the directory the project is, its root's own name (`relloc` for a quilt at `~/quilts/relloc`), whatever `name` says; a viewer names what `files` lists a view of by it. Optional and additive.
 
 **[decided]** **Files** (plan 0.22.7) are the project's files the viewer shows, one entry each, sorted by path: `{"path", "kind", "bytes", "body"?}`. `path` is quilt-relative. `kind` says what a viewer does with it: `document` (a LaTeX document of `masters`), `tex` (any other `.tex` file, which a viewer opens as the document that reads it), `markdown`, `html`, `pdf`, `image`, `notebook`, `text` (UTF-8 up to 1 MB), or `other`. A publisher hides what the person would call noise, and loom hides a path with any segment starting with `.` (its own `.loom/` among them), tools' directories, the history and sync directories, and what the quilt's `.gitignore` files ignore. `body`, on a `markdown` or `notebook` entry, is the build-relative path of its rendered HTML (`files/<path>.html`): a Markdown file rendered as a page is, with an `id` on each heading and its relative links resolved (a link to a shown file becomes `quilt:PATH`, an image `/_files/PATH`), raw HTML escaped; a notebook drawn from its saved cells, an HTML or script output by its plain form. A body is beside the manifest for the reason `source/` is. A viewer reads a file's bytes from the publisher at `/_files/PATH` (`write-api.md` §3). Optional and additive: a viewer that finds no `files` shows the documents alone.
 

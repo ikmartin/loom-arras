@@ -111,6 +111,8 @@ test('the project tree stands under Files, a shelf open by default that folds as
 	await page.goto('/master/drafting/main');
 	const files = page.getByTestId('files-toggle');
 	await expect(files).toHaveAttribute('aria-expanded', 'true');
+	// hovering it says what it is a view of: the project's own directory
+	await expect(files).toHaveAttribute('title', 'View of files in synthetic/');
 	await expect(page.getByTestId('docs-tree')).toBeVisible();
 	// the same kind of control as Library's, above it
 	expect(await files.getAttribute('class')).toBe(await page.getByTestId('library-toggle').getAttribute('class'));
@@ -152,4 +154,10 @@ trailer<</Root 1 0 R>>
 	await expect(page.getByTestId('quote-offer')).toBeVisible();
 	await page.evaluate(() => getSelection()!.removeAllRanges());
 	await expect(page.getByTestId('quote-offer')).toHaveCount(0);
+});
+
+test('a shelf growing long enough to scroll narrows nothing in the column', async ({ page }) => {
+	// headless Chromium draws no scrollbars, so the shift itself cannot show here: what is held is that the column keeps the bar's width before there is anything to scroll
+	await page.goto('/master/drafting/main');
+	expect(await page.getByTestId('docs-part').evaluate((el) => getComputedStyle(el).scrollbarGutter)).toBe('stable');
 });
