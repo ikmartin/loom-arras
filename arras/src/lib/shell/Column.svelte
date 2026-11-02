@@ -184,9 +184,9 @@
 					{/snippet}
 					{#if store.manifest?.files}
 						<!-- Files is the quilt's directory as it is, where Library is what loom keeps of the cited works: two shelves, folding alike, so the two read as different kinds of thing -->
-						<p class="rail-label">
+						<p class="shelf-head">
 							<button class="shelf" aria-expanded={filesOpen} data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
-								{filesOpen ? '▾' : '▸'} Files
+								<span class="caret">{filesOpen ? '▾' : '▸'}</span>Files
 							</button>
 						</p>
 						{#if filesOpen}<FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} />{/if}
@@ -231,9 +231,9 @@
 						{/if}
 					{/if}
 					{#if works.length}
-						<p class="rail-label">
+						<p class="shelf-head">
 							<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
-								{libraryOpen ? '▾' : '▸'} Library <span class="aside">({works.length})</span>
+								<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="aside">({works.length})</span>
 							</button>
 						</p>
 						{#if libraryOpen}
@@ -483,15 +483,45 @@
 		top: 0;
 		max-height: 100vh;
 	}
+	/* A shelf's head is a titled rule, `▾ Files ────`, in the size of the rows beneath it: Files and Library are the column's two kinds of thing, and read as headings rather than as labels. */
+	.shelf-head {
+		margin: var(--gap-tight) 0 var(--gap-hair);
+	}
+	.shelf-head:first-child {
+		margin-top: 0;
+	}
 	.shelf {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		width: 100%;
 		font: inherit;
-		color: inherit;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.4;
+		color: var(--ink-soft);
 		background: none;
 		border: 0;
 		padding: 0;
 		cursor: pointer;
-		text-transform: inherit;
-		letter-spacing: inherit;
+		text-align: left;
+	}
+	.shelf:hover {
+		color: var(--ink);
+	}
+	.shelf::after {
+		content: '';
+		flex: 1;
+		margin-left: 3px;
+		border-top: 1px solid var(--rule);
+	}
+	.shelf .caret {
+		width: 0.8em;
+		color: var(--ink-faint);
+	}
+	.shelf .aside {
+		font-weight: 400;
+		color: var(--ink-faint);
 	}
 	.closed summary {
 		font-size: 10.5px;
