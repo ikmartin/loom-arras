@@ -16,7 +16,7 @@ The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pa
 
 ## Blast radius
 
-`loom/src/loom/tex/bundle.py` (a second document shape), `loom/src/loom/ai/` (the report's numbering), a menu entry in arras's run pane.
+`loom/src/loom/tex/bundle.py` (a second document shape), `loom/src/loom/ai/` (the report's numbering), a control in the viewer where a review's annotations are read (a document's `view ▾`, or Review).
 
 ## Related
 

@@ -4,11 +4,11 @@
 
 ## Trigger
 
-`scripts/bench` on a copy of the author's quilt shows a cold build over three minutes after a change that makes cold builds common (a loom release that changes the SVG cache key, or a workflow that deletes `build/`), or the author reports a cited paper's figure shown as source with an error.
+`scripts/bench` on a copy of the author's quilt shows a cold build over three minutes after a change that makes cold builds common (a loom release that changes the SVG cache key, or a workflow that deletes `.loom/build/`), or the author reports a cited paper's figure shown as source with an error.
 
 ## Why deferred
 
-Plan 0.18.2 took the author's cold build from 688 s to 314 s by compiling figures on one shared pool, each once, with the review previews sharing the fragments' preamble, and by loading `xy` for `\xymatrix`. What remains is per compile, and a cold build is rare: the SVG cache is keyed by content and survives every rebuild and every loom upgrade, and a failure is remembered, so only deleting `build/` pays again.
+Plan 0.18.2 took the author's cold build from 688 s to 314 s by compiling figures on one shared pool, each once, with the review previews sharing the fragments' preamble, and by loading `xy` for `\xymatrix`. What remains is per compile, and a cold build is rare: the SVG cache is keyed by content and survives every rebuild and every loom upgrade, and a failure is remembered, so only deleting `.loom/build/` pays again.
 
 ## What is left
 
@@ -19,5 +19,5 @@ Measured on 2026-10-03, a cold build of the relloc copy ran 1,020 compiles at ab
 
 ## Rough design
 
-- A format per distinct prepared master preamble, under `build/cache/fmt/`, keyed by its text; `compile_svg` takes it when it exists and builds it once, under the per-key lock, when it does not.
+- A format per distinct prepared master preamble, under `.loom/build/cache/fmt/`, keyed by its text; `compile_svg` takes it when it exists and builds it once, under the per-key lock, when it does not.
 - For the failures, the extraction (`loom digest extract`) records which of the paper's macros a block uses, so the macro block carries them, and a clash with the quilt's preamble is resolved by `\providecommand` rather than `\newcommand`; `\rm` and its kin are provided in the fallback preamble as LaTeX 2.09 compatibility.

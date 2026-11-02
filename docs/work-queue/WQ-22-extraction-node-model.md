@@ -28,4 +28,4 @@ A `scan_paper(dir, master)` returning an `Assembly` without requiring a `config.
 
 ## Related
 
-Plan 0.5 (which established the `refs/` layout). The second half of this item, caching the `.aux` so that digesting many works is not one LaTeX run per work, went to weft with the crawl (DR-144) and comes back here, since weft is abandoned. It bites once a Learner's library is extracted in bulk, which is why the trigger names that case.
+Plan 0.5 (which established the library's layout, now under `.loom/digests/`). The second half of this item, caching the `.aux` so that digesting many works is not one LaTeX run per work, went to weft with the crawl (DR-144) and comes back here, since weft is abandoned. It bites once a Learner's library is extracted in bulk, which is why the trigger names that case.

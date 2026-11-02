@@ -8,7 +8,7 @@ A person wants two agent versions of the same section, or of overlapping parts o
 
 ## Why deferred
 
-Agent documents of disjoint sections, each with its own never-reused suffix, its own adoption and close and reopen, are built ([section drafts and responsive adoption](../plans/section-drafts-and-responsive-adoption.md)). The workflow asked for uses disjoint sections; no one has asked for alternatives of one scope.
+Agent documents of disjoint sections, each with its own never-reused suffix, its own adoption and close and reopen, are built ([section drafts and responsive adoption](../plans/section-drafts-and-responsive-adoption.md)). The workflow asked for uses disjoint sections; no one has asked for alternatives of one scope. Since plan 0.22.6 an agent edits an open file in place and writes its alternatives as files of their own, so copies, and with them this trigger, are only for documents the person protects with `[agents] deny`.
 
 ## Rough design
 

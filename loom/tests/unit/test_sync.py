@@ -584,6 +584,20 @@ def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated
     assert "drafting/main.tex -> drafting/paper.tex (renamed in a pull)" in ok("history", cwd=root).stdout
 
 
+def test_a_publish_after_loom_mv_keeps_overleaf_s_file_name(tmp_path: Path, compiled: list[str]) -> None:
+    """The person moves the paired main with `loom mv`: a publish pushes the moved document's bytes under Overleaf's own name and no second file, the sync record keeps the path it was written with, and an accepted key stays fresh (WQ-50)."""
+    root, _ = renamed_pair(tmp_path)
+    ok("mv", "drafting/main.tex", "drafting/paper.tex", cwd=root)
+    quilt = load_quilt(root)
+    publication = publish(quilt, SyncState.read(root))
+    push_publication(quilt, SyncState.read(root), publication.commit)
+    pushed = tree_files(workspace(root), publication.commit)
+    assert pushed["main.tex"] == (root / "drafting/paper.tex").read_bytes()
+    assert "paper.tex" not in pushed
+    assert SyncState.read(root).master == "drafting/main.tex"  # resolved through the move when read, never rewritten
+    assert json_of("status", "--json", cwd=root)["keys"]["zk-0001"]["acceptance"]["fresh"] is True
+
+
 def test_a_rename_with_an_edit_is_not_recorded_and_the_document_is_gone(tmp_path: Path, compiled: list[str]) -> None:
     root, other = renamed_pair(tmp_path)
     text = (other / "main.tex").read_text(encoding="utf-8")

@@ -4,11 +4,13 @@
 
 ## Trigger
 
-On a real quilt, after the two cheaper steps below are built, `loom lint` or `loom status` still takes above about 1 s with most of it spent on digest nodes no document reaches, or a cached `loom build` takes above a few seconds for the same reason. Measured as [the study](../reports/lazy-digests-study.md) does: a copy with the unreached results cut out of `digests/*.tex`, three runs each, the median.
+On a real quilt, after the two cheaper steps below are built, `loom lint` or `loom status` still takes above about 1 s with most of it spent on digest nodes no document reaches, or a cached `loom build` takes above a few seconds for the same reason. Measured as [the study](../reports/lazy-digests-study.md) does: a copy with the unreached results cut out of `.loom/digests/*.tex`, three runs each, the median.
 
 ## Why deferred
 
 On the author's quilt 80 of 3,140 extracted results are reached and digests are 96% of the text every command scans, so the share is met today (82% of `status`, 80% of `lint`) — but the cost is about 1.7 s a command over a 0.36 s floor, and most of it is tokenizing, which a cache removes without the staleness that promoting results on demand brings ([lazy-digests-study.md](../reports/lazy-digests-study.md), 2026-10-04).
+
+The viewer pays too. Relloc's manifest measured 5.7 MB on 2026-11-02, most of it digest results (`nodes` 1.5 MB, `keys` 1.1 MB, `search` 0.6 MB) and annotation prose about 0.1 MB, and the viewer loads it whole after every publication. Results only as nodes when used would shrink it in the same step.
 
 ## The first response
 
