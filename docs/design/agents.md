@@ -25,7 +25,7 @@ Anywhere the quilt does not protect. What is protected is one table in `loom/src
 - **What the person adds:** `[agents] deny` in `config.toml`, gitignore-style patterns from the quilt root, empty in a fresh quilt. `["paper/"]` keeps an agent out of a paper; it then works on a copy. A negated pattern is refused, since no client can let an allow undo a deny.
 - **The agent's own places,** whatever the list says: its session's directory, `.loom/build/` and `.loom/copies/`.
 
-The table is enforced two ways, and the orientation says which holds where (P15). Loom's own commands refuse an agent a protected path in any client, by the same predicate (`denied_by`). Of the agents' apps, only Claude Code's permission file can refuse an edit by path, so loom renders the table into `.claude/settings.json`; Codex, Gemini CLI and Cursor are told the list and asked to keep it. The person's edit to the list reaches Claude Code's file at `loom upgrade`, and `loom lint` warns until it has (`loom:agent-permissions-stale`). Outside the protected paths, whether Claude Code asks before an edit is the person's setting in it, not loom's.
+The table is enforced two ways, and the orientation says which holds where (P15). Loom's own commands refuse an agent a protected path in any client, by the same predicate (`denied_by`). Of the agents' apps, only Claude Code's permission file can refuse an edit by path, so loom renders the table into `.claude/settings.json`; Codex, Gemini CLI and Cursor are told the list and asked to keep it. The person's edit to the list, by hand or in the viewer's Settings, reaches Claude Code's file at `loom upgrade` or Settings' Update Claude Code, and `loom lint` warns until it has (`loom:agent-permissions-stale`). Outside the protected paths, whether Claude Code asks before an edit is the person's setting in it, not loom's.
 
 An edit to an open file is not a loom write: it acts on the person's permission to the agent (P7). An agent's edit to an accepted result shows it stale, with its cause, as anyone's does (P3, P15).
 
@@ -40,6 +40,7 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom adopt` and `loom sync incorporate`, which write the author's files (P7);
 - `loom changes --keep` and `--undo`, keeping or undoing a change to an open file since the author's look, the undo writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
 - `loom history restore`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`;
+- saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - removing a relation someone else asserted.
 
 Refusal is enforced, not requested. A declared name that calls itself an agent is refused. Under an agent's shell, recognised by the markers agent tools set (`AI_AGENT`, `CLAUDECODE`, `CODEX_SANDBOX`, `GEMINI_CLI`, `CURSOR_AGENT` and others), these acts are refused whatever name is declared, because a name cannot be checked and an agent typing the author's name is exactly the case to stop. The author runs them in a terminal of their own.

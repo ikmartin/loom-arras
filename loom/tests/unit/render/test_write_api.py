@@ -863,6 +863,9 @@ def _reviewer_settings(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> N
     assert manifest["reviewer"]["name"] == "Bob"
     refuses(s, "review-finish", {"reviewer": "The synthetic quilt"}, 409, "reviewer-changed", "Reviewer changed")
     refuses(s, "reviewer-settings", {"name": " "}, 409, "settings-refused", "nonempty")
+    refuses(
+        s, "reviewer-settings", {"name": "Bot", "author": "Referee (Agent)"}, 403, "author-only", "names the reviewer"
+    )
 
 
 @case("compare")
@@ -977,6 +980,64 @@ def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         s, "changes-undo", {"path": "README.md", "author": "Referee (Agent)"}, 403, "author-only", "only the author"
     )
     refuses(s, "changes-undo", {"path": "brand-new.md"}, 409, "nothing-to-undo", "delete it yourself")
+
+
+@case("settings-save")
+def _settings_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    before = (q / "config.toml").read_text(encoding="utf-8")
+    succeeds(s, "settings-save", {"changes": {"quilt.name": "Renamed in Settings", "agents.deny": ["notes/"]}})
+    after = (q / "config.toml").read_text(encoding="utf-8")
+    assert 'name = "Renamed in Settings"' in after and 'deny = ["notes/"]' in after
+    # the person's comments are all still there
+    assert [line for line in before.splitlines() if line.lstrip().startswith("#")] == [
+        line for line in after.splitlines() if line.lstrip().startswith("#")
+    ]
+    # the rebuild read the new config: the corpus is renamed and the list is published
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["corpus"]["name"] == "Renamed in Settings"
+    assert manifest["config"]["agents"]["deny"] == ["notes/"]
+    # a refusal names each setting it refused, and writes none of them
+    status, said = post(s.url + "_api/settings-save", {"changes": {"quilt.name": "Again", "quilt.prefix": "r-1"}})
+    assert status == 409 and said["error"]["code"] == "bad-value", said
+    assert said["error"]["fields"] == {"quilt.prefix": "must be letters and digits, without hyphens"}
+    assert (q / "config.toml").read_text(encoding="utf-8") == after
+    refuses(
+        s,
+        "settings-save",
+        {"changes": {"quilt.history": "records"}},
+        409,
+        "bad-value",
+        "read-only",
+    )
+    refuses(
+        s,
+        "settings-save",
+        {"changes": {"agents.deny": []}, "author": "Referee (Agent)"},
+        403,
+        "author-only",
+        "only the author changes",
+    )
+
+
+@case("agents-update")
+def _agents_update(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.cli.ai import install_layer
+
+    s, q, _ = on_demo(serve, tmp_path)
+    shutil.rmtree(q / ".loom" / "ai")
+    refuses(s, "agents-update", {}, 409, "no-agent-layer", "loom ai init")
+    install_layer(q)
+    succeeds(s, "settings-save", {"changes": {"agents.deny": ["notes/"]}})
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["config"]["agents"]["stale"] is True
+    refuses(s, "agents-update", {"author": "Referee (Agent)"}, 403, "author-only", "only the author changes")
+    assert succeeds(s, "agents-update", {})["result"].startswith("rewrote .claude/settings.json")
+    denied = json.loads((q / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["deny"]
+    assert "Edit(/**/notes/**)" in denied, denied
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["config"]["agents"]["stale"] is False
+    assert "loom:agent-permissions-stale" not in {d["code"] for d in manifest["diagnostics"]}
 
 
 @pytest.mark.parametrize(

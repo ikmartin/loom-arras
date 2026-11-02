@@ -353,18 +353,40 @@ def upgrade_layer(root: Path, write: bool = True, *, shell: bool | None = None) 
             rep.written.append(f"{AI}/{name}")
         else:
             rep.unchanged.append(f"{AI}/{name}")
-    # a quilt with .loom/ai/ has both permission files, so a missing one is written like a stale one
-    for rel, text in vendor_files(quilt_config(root), shell=shell).items():
+    written, unchanged = write_permissions(root, quilt_config(root), shell=shell, write=write)
+    rep.written += written
+    rep.unchanged += unchanged
+    rep.written.extend(ensure_root_line(root, write, shell=shell))
+    return rep
+
+
+def write_permissions(
+    root: Path, config: QuiltConfig, *, shell: bool, write: bool = True
+) -> tuple[list[str], list[str]]:
+    """(written, unchanged): the permission files rewritten to what `config` and this loom make them, in one variant.
+
+    A quilt with `.loom/ai/` has both, so a missing one is written like a stale one; `upgrade_layer` and the viewer's Update Claude Code both come here.
+    """
+    written: list[str] = []
+    unchanged: list[str] = []
+    for rel, text in vendor_files(config, shell=shell).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
-            rep.unchanged.append(rel)
+            unchanged.append(rel)
             continue
         if write:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(text, encoding="utf-8")
-        rep.written.append(rel)
-    rep.written.extend(ensure_root_line(root, write, shell=shell))
-    return rep
+        written.append(rel)
+    return written, unchanged
+
+
+def permissions_stale(root: Path, config: QuiltConfig) -> bool:
+    """Whether Claude Code's permission file is there and not what `config` and this loom make it, in the variant it is in."""
+    path = root / CLAUDE_SETTINGS
+    if not path.is_file():
+        return False
+    return path.read_text(encoding="utf-8") != vendor_files(config, shell=variant(root) == SHELL)[CLAUDE_SETTINGS]
 
 
 def settings_deny_paths(config: QuiltConfig, *, shell: bool = False) -> list[str]:

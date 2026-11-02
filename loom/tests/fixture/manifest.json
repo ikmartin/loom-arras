@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "2e833015b3c5280fa39fb1f95a9241f920cb80240914a5c48fdc7f375e23fc77",
+   "hash": "9c7dc561314d0579c3dc1b99f9055fc12ec504dd0eb85c03326c2f870d5a66a0",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "17de3acefdf0a94c8630b810878e77bb02825fd2f439b113093199ef61d6bef0",
+   "hash": "3e7cf9b05d16af439ee9f513b2317a2df47d0a9c23cff9ef1264af53f34e9f76",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "791c0e1485539df4f1c7a318e43e4ead0d1813275d32e018b44278a867eac0b0",
+   "hash": "f703855cf9c381c95fa5f7870f146bf3b345f99ace4895e1c74d465269b1d65f",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -426,6 +426,151 @@
  "changes_since": {
   "when": "2026-09-16T11:30:00Z",
   "who": "The synthetic quilt"
+ },
+ "config": {
+  "agents": {
+   "clients": [
+    {
+     "command": "loom ai init",
+     "file": ".mcp.json",
+     "key": "claude-code",
+     "label": "Claude Code",
+     "set_up": false
+    },
+    {
+     "command": "loom ai init",
+     "file": ".codex/config.toml",
+     "key": "codex",
+     "label": "Codex",
+     "set_up": false
+    },
+    {
+     "command": "loom ai init",
+     "file": ".gemini/settings.json",
+     "key": "gemini-cli",
+     "label": "Gemini CLI",
+     "set_up": false
+    },
+    {
+     "command": "loom ai init",
+     "file": ".cursor/mcp.json",
+     "key": "cursor",
+     "label": "Cursor",
+     "set_up": false
+    }
+   ],
+   "command": "",
+   "deny": [],
+   "layer": true,
+   "protected": [
+    ".loom/ (but .loom/sessions/, .loom/build/, .loom/copies/)",
+    "config.toml",
+    "research-state.md"
+   ],
+   "stale": false,
+   "variant": null
+  },
+  "editable": [
+   "quilt.name",
+   "quilt.prefix",
+   "quilt.engine",
+   "quilt.main",
+   "quilt.home",
+   "library.online",
+   "library.contact",
+   "lint.disable",
+   "agents.deny"
+  ],
+  "library": {
+   "contact": "",
+   "online": false
+  },
+  "lint": {
+   "codes": [
+    "loom:agent-document-unrecorded",
+    "loom:agent-permissions-stale",
+    "loom:citekey-slug-collision",
+    "loom:cites-proposed-node",
+    "loom:closure-failed",
+    "loom:converter-fallback",
+    "loom:dangling-ancestry",
+    "loom:dependency-cycle",
+    "loom:derived-id-in-person-document",
+    "loom:detached-annotation",
+    "loom:digest-without-bib",
+    "loom:document-gone",
+    "loom:duplicate-label",
+    "loom:environment-spans-files",
+    "loom:equation-in-proof-referenced",
+    "loom:foreign-annotations",
+    "loom:history-corrupt",
+    "loom:history-edited",
+    "loom:history-interrupted",
+    "loom:history-missing",
+    "loom:home-missing",
+    "loom:id-reused",
+    "loom:import-outside-tree",
+    "loom:invalid-name",
+    "loom:macro-shadowed",
+    "loom:macros-missing",
+    "loom:macros-unloaded",
+    "loom:main-not-found",
+    "loom:main-unset",
+    "loom:misplaced-basis",
+    "loom:missing-package",
+    "loom:missing-proof",
+    "loom:multi-target-proof",
+    "loom:needs-classification",
+    "loom:no-live-document",
+    "loom:no-readable-copy",
+    "loom:node-recovered",
+    "loom:non-utf8-source",
+    "loom:plain-id-in-agent-document",
+    "loom:positional-proof-key",
+    "loom:postnote-from-another-version",
+    "loom:prefix-is-citekey",
+    "loom:previous-key-match",
+    "loom:reference-to-loose",
+    "loom:retired-ledger-key",
+    "loom:see-redundant",
+    "loom:superseded-file",
+    "loom:taxon-conflict",
+    "loom:taxon-name-macro",
+    "loom:unattached-proof",
+    "loom:undigested-citekey",
+    "loom:unexpected-proof",
+    "loom:unknown-config-key",
+    "loom:unknown-directive",
+    "loom:unknown-environment",
+    "loom:unknown-theoremstyle",
+    "loom:unlabelled-node",
+    "loom:unmatched-postnote",
+    "loom:unresolved-work",
+    "loom:unverified-locators",
+    "loom:uses-missing",
+    "loom:uses-unused",
+    "loom:version-mismatch"
+   ],
+   "disable": []
+  },
+  "quilt": {
+   "engine": "pdflatex",
+   "history": ".loom/history",
+   "home": "",
+   "main": "drafting/main.tex",
+   "name": "The synthetic quilt",
+   "prefix": "sy",
+   "research_state": "research-state.md"
+  },
+  "read_only": [
+   "quilt.history",
+   "quilt.research_state"
+  ],
+  "sync": {
+   "command": "loom sync init DIR",
+   "paired": false
+  },
+  "warnings": []
  },
  "contributions": [
   {

@@ -141,14 +141,9 @@ def _agent_documents(result: ScanResult) -> list[Diagnostic]:
 
 def _agent_permissions(result: ScanResult) -> list[Diagnostic]:
     """`loom:agent-permissions-stale`: Claude Code's permission file is not what `[agents] deny` and this loom make it, so the boundary it enforces is an older one."""
-    from loom.ai.layout import CLAUDE_SETTINGS, SHELL, variant, vendor_files
+    from loom.ai.layout import CLAUDE_SETTINGS, permissions_stale
 
-    root = result.quilt.root
-    path = root / CLAUDE_SETTINGS
-    if not path.is_file():
-        return []
-    wanted = vendor_files(result.quilt.config, shell=variant(root) == SHELL)[CLAUDE_SETTINGS]
-    if path.read_text(encoding="utf-8") == wanted:
+    if not permissions_stale(result.quilt.root, result.quilt.config):
         return []
     return [
         Diagnostic(

@@ -19,6 +19,13 @@ export async function scrollPane(page: Page, index: number, to: 'top' | 'bottom'
 		.evaluate((el, where) => el.scrollTo(0, where === 'top' ? 0 : el.scrollHeight), to);
 }
 
+/** Open Settings at one section's page, as a reader clicks to it. */
+export async function settings(page: Page, section: string): Promise<void> {
+	if (!(await page.getByTestId('settings-window').count())) await page.getByTestId('settings-toggle').click();
+	await page.getByTestId(`settings-section-${section}`).click();
+	await page.locator(`[data-testid="settings-page"][data-section="${section}"]`).waitFor();
+}
+
 /** Start the page under these display preferences, stored before any script of the app runs; what is not named takes its default. */
 export async function prefs(page: Page, p: Record<string, unknown>): Promise<void> {
 	await page.addInitScript((v) => localStorage.setItem('arras.prefs', JSON.stringify(v)), p);

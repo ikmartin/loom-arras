@@ -573,6 +573,40 @@ export interface AssertedLink {
   when?: string;
 }
 
+/** An agent app with a file in the quilt that starts loom's server, and whether it does. */
+export interface AgentClient {
+  key: string;
+  label: string;
+  file: string;
+  set_up: boolean;
+  /** What a person runs to set it up, from the publisher; empty when it is set up. */
+  command: string;
+}
+
+/** What the quilt's configuration holds and what follows from it, for Settings (plan 0.23). */
+export interface QuiltSettings {
+  /** The `table.key` names Settings may change, and the ones it only shows. */
+  editable: string[];
+  read_only: string[];
+  quilt: { name: string; main: string; home: string; prefix: string; engine: string; history: string; research_state: string };
+  library: { online: boolean; contact: string };
+  /** `codes`: every diagnostic code that can be silenced. */
+  lint: { disable: string[]; codes: string[] };
+  agents: {
+    deny: string[];
+    protected: string[];
+    /** Whether the quilt has an agent layer, and how its agents reach loom. */
+    layer: boolean;
+    variant: 'mcp' | 'shell' | null;
+    /** Whether Claude Code's permission file lags the deny list. */
+    stale: boolean;
+    command: string;
+    clients: AgentClient[];
+  };
+  sync: { paired: true; directory: string; workspace: string; branch: string; documents: string[] } | { paired: false; command: string };
+  warnings: string[];
+}
+
 export interface Manifest {
   reviewer?: { name: string; source: string };
   interface_version: number;
@@ -613,6 +647,8 @@ export interface Manifest {
   /** The open files changed since the reviewer's look, and that look; absent before a first look. */
   changes?: FileChange[];
   changes_since?: { who: string; when: string };
+  /** The quilt's configuration, for Settings; absent from an older publisher. */
+  config?: QuiltSettings;
   /** Asserted relations between two results, each with a reason. Nobody verifies these and every surface that shows one says so: they are navigation, not mathematics, and are never citable and never in a closure. */
   links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };

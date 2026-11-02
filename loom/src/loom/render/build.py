@@ -526,6 +526,9 @@ def build(
     from loom.notes import published as published_notes
 
     manifest["notes"] = published_notes(result)
+    from loom.config_edit import published as published_config
+
+    manifest["config"] = published_config(result)
     attach_look_changes(result.quilt, reviewer_identity(result.quilt.root)[0], manifest, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]

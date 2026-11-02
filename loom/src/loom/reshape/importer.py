@@ -162,30 +162,20 @@ def _mirror_quilt(quilt: Quilt, stage: Path) -> None:
 
 def set_main(quilt: Quilt, master_rel: str) -> bool:
     """Set [quilt] main to master_rel when main is unset or names no existing file; returns whether config.toml changed."""
-    cfg = quilt.root / "config.toml"
-    text = cfg.read_text(encoding="utf-8")
     current = quilt.config.main
     if current and (quilt.root / current).is_file() and current != master_rel:
         return False
-    if re.search(r'^main\s*=\s*"[^"]*"', text, re.M):
-        new = re.sub(r'^main\s*=\s*"[^"]*"', f'main = "{master_rel}"', text, count=1, flags=re.M)
-    else:
-        new = text.replace("[quilt]", f'[quilt]\nmain = "{master_rel}"', 1)
-    if new != text:
-        cfg.write_text(new, encoding="utf-8")
-        return True
-    return False
+    return set_main_forced(quilt, master_rel)
 
 
 def set_main_forced(quilt: Quilt, master_rel: str) -> bool:
     """Point `[quilt] main` at `master_rel` whatever it says now; used when a conversion supersedes the default master, which would otherwise leave the quilt without one."""
+    from loom.config_edit import ConfigRefused, set_values
+
     cfg = quilt.root / "config.toml"
     text = cfg.read_text(encoding="utf-8")
-    if re.search(r'^main\s*=\s*"[^"]*"', text, re.M):
-        new = re.sub(r'^main\s*=\s*"[^"]*"', f'main = "{master_rel}"', text, count=1, flags=re.M)
-    else:
-        new = text.replace("[quilt]", f'[quilt]\nmain = "{master_rel}"', 1)
-    if new != text:
-        cfg.write_text(new, encoding="utf-8")
-        return True
-    return False
+    try:
+        set_values(quilt, {"quilt.main": master_rel})
+    except ConfigRefused:
+        return False  # a layout loom cannot edit keeps its main, and the scan says which document it uses instead
+    return cfg.read_text(encoding="utf-8") != text

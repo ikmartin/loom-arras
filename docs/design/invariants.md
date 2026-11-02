@@ -99,6 +99,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Record.** Plan 0.22.6
 
+**2026-11-02.** The viewer's Settings edits `[agents] deny` and rewrites Claude Code's permission file to it, each only on the author's act: `settings-save` and `agents-update` refuse a declared agent like every other author act over the API (plan 0.23).
+
 ### Agent instructions name only commands the agent may run
 
 **Rule.** The orientation, the rules and the mode files tell an agent to run only commands in `AGENT_COMMANDS`; an author's command appears in them only where the text says it refuses the agent.

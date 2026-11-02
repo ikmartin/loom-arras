@@ -48,6 +48,8 @@ CAPABILITIES = [
     "review-decision",
     "review-finish",
     "reviewer-settings",
+    "settings-save",
+    "agents-update",
     "here",
     "changes-keep",
     "changes-undo",
@@ -104,13 +106,21 @@ RECORD_WRITES = (
 
 
 class ApiError(Exception):
-    """A request loom refused, with the code a viewer shows and the status it gets."""
+    """A request loom refused, with the code a viewer shows, the status it gets, and for a form the reason for each field it refused."""
 
-    def __init__(self, code: str, message: str, status: int = 400) -> None:
+    def __init__(self, code: str, message: str, status: int = 400, fields: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status = status
+        self.fields = fields or {}
+
+    def answer(self) -> dict[str, Any]:
+        """The JSON body a refusal is served as."""
+        error: dict[str, Any] = {"code": self.code, "message": self.message}
+        if self.fields:
+            error["fields"] = self.fields
+        return {"error": error}
 
 
 def discovery() -> dict[str, Any]:
@@ -193,6 +203,47 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     except LookRefused as exc:
         raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-change" else 409) from exc
     return {"ok": True, "result": f"kept {path}" if path else "kept everything"}
+
+
+def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`settings-save` writes the viewer's Settings into `config.toml`, all of them or none; `agents-update` rewrites the permission files to match it, as `loom upgrade` does. The author's acts, refused to a declared agent: the config is the person's, and an agent never moves its own boundary."""
+    from loom.cli._common import is_agent
+    from loom.scan.quilt import load_quilt, reviewer_identity
+
+    if is_agent(_str(body, "author") or reviewer_identity(root)[0]):
+        raise ApiError(
+            "author-only", "An agent reads and annotates; only the author changes the quilt's settings", status=403
+        )
+    quilt = load_quilt(root)
+    if endpoint == "agents-update":
+        from loom.ai.layout import SHELL, variant, write_permissions
+        from loom.paths import AI
+
+        if not (root / AI).is_dir():
+            raise ApiError(
+                "no-agent-layer", "this quilt has no agent layer; run `loom ai init` to write one", status=409
+            )
+        written, _ = write_permissions(root, quilt.config, shell=variant(root) == SHELL)
+        return {
+            "ok": True,
+            "result": f"rewrote {', '.join(written)}" if written else "the permission files were current",
+        }
+    from loom.config_edit import ConfigRefused, save
+    from loom.files import Shown
+
+    changes = body.get("changes")
+    if not isinstance(changes, dict) or not changes:
+        raise ApiError("missing-field", "changes must name at least one setting")
+    result = _scan(root)
+    shown = Shown.of(quilt)
+    own = {m for m in result.masters if result.document_role(m) == "person"}
+    try:
+        save(quilt, changes, masters=own, shown=lambda rel: (root / rel).is_file() and shown.is_shown(rel))
+    except ConfigRefused as exc:
+        raise ApiError("bad-value", str(exc), status=409, fields=exc.refused) from exc
+    except OSError as exc:
+        raise ApiError("settings-refused", str(exc), status=409) from exc
+    return {"ok": True, "result": f"saved {', '.join(changes)} to config.toml"}
 
 
 def _open(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -451,9 +502,16 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             return {"ok": True, "result": answer}
         except (SyncError, ValueError, OSError) as exc:
             raise ApiError("adoption-refused", str(exc), status=409) from exc
+    if endpoint in ("settings-save", "agents-update"):
+        return _settings(root, endpoint, body)
     if endpoint == "reviewer-settings":
+        from loom.cli._common import is_agent
         from loom.scan.quilt import reviewer_identity, save_author
 
+        if is_agent(_str(body, "author") or reviewer_identity(root)[0]):
+            raise ApiError(
+                "author-only", "An agent reads and annotates; only the author names the reviewer", status=403
+            )
         if "name" in body:
             try:
                 save_author(_str(body, "name", required=True) or "")

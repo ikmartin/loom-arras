@@ -70,7 +70,8 @@ export function known(endpoint: string): boolean | undefined {
 export interface WriteResult {
 	ok: boolean;
 	result?: string;
-	error?: { code: string; message: string };
+	/** `fields`, on a form's refusal, says why each field it refused was refused. */
+	error?: { code: string; message: string; fields?: Record<string, string> };
 }
 
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused annotation is an answer a reader needs to see. */

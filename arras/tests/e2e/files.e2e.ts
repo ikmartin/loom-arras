@@ -1,6 +1,6 @@
 // The project's files (plan 0.22.7): Docs is the project's tree, a directory folding as an explorer's does and remembered so; a Markdown file and a notebook are drawn as the publisher drew them, at the heading a link names; a `.tex` part opens the document that reads it, at its place; an `app:` link asks a publisher, and with none it says so and goes nowhere.
 import { expect, test } from '@playwright/test';
-import { pane } from '../workspace';
+import { pane, settings } from '../workspace';
 
 test('Docs is the tree of the project: a directory folds, and stays as it was left', async ({ page }) => {
 	await page.goto('/master/drafting/main');
@@ -73,7 +73,7 @@ test("LaTeX's auxiliary files are left out of the tree until the reader asks for
 	await expect(tree.getByRole('link', { name: 'main.synctex.gz' })).toHaveCount(0);
 	// the compiled PDF is the document's output, not auxiliary
 	await expect(tree.getByRole('link', { name: 'main.pdf' })).toBeVisible();
-	await page.getByTestId('settings-toggle').click();
+	await settings(page, 'files');
 	const hide = page.getByTestId('hide-aux');
 	await expect(hide).toBeChecked();
 	await hide.uncheck();

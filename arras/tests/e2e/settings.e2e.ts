@@ -1,55 +1,104 @@
-// The display settings: the panel that holds them, the preferences it stores, and the four formats a document is read in. The comment placement is with the annotations it places. Each test is named for the rule it holds.
+// Settings: the window, its sections in two groups, the preferences it stores, and the quilt's settings as a viewer with no publisher shows them; the four formats a document is read in. The comment placement is with the annotations it places. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
-import { prefs } from '../workspace';
+import { prefs, settings } from '../workspace';
 
-test('the settings panel puts every row on one line, label included, with nothing cut off, and closes on a press outside it or Escape', async ({ page }) => {
+test('Settings opens as a window over the page, Loom first with Profile at its head and Quilt after, and closes on Escape, a press outside or its ×', async ({ page }) => {
 	await page.goto('/');
 	await page.getByTestId('settings-toggle').click();
-	await expect(page.getByTestId('settings-panel')).toBeVisible();
-	const rows = await page.getByTestId('settings-panel').evaluate((el) => {
-		const panel = el.getBoundingClientRect();
-		return [...el.querySelectorAll('.row')].map((f) => {
-			const label = f.querySelector('.lbl') as HTMLElement;
-			const buttons = [...f.querySelectorAll('button, input')].map((b) => b.getBoundingClientRect());
-			const mid = (r: DOMRect) => r.top + r.height / 2;
-			return {
-				label: label.textContent ?? '',
-				lines: new Set(buttons.map((r) => Math.round(r.top))).size,
-				// the label shares the row's line: its middle falls inside every button's box
-				inline: buttons.every((r) => mid(label.getBoundingClientRect()) > r.top && mid(label.getBoundingClientRect()) < r.bottom),
-				spill: buttons.filter((r) => r.right > panel.right || r.left < panel.left).length
-			};
-		});
-	});
-	expect(rows.map((r) => r.label)).toHaveLength(8); // type, size, width, theme, format, annotations, show ids, files
-	// the placement row names the record by its one noun, whatever key it is stored under
-	expect(rows.map((r) => r.label)).toContain('Annotations');
-	expect(rows.map((r) => r.label)).not.toContain('Comments');
-	for (const r of rows) {
-		expect(r.lines, `the ${r.label} row wraps`).toBe(1);
-		expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(true);
-		expect(r.spill, `the ${r.label} row is clipped by the panel`).toBe(0);
-	}
-	// a press outside closes it, and so does Escape
-	await page.mouse.click(900, 500);
-	await expect(page.getByTestId('settings-panel')).toHaveCount(0);
-	await page.getByTestId('settings-toggle').click();
-	await expect(page.getByTestId('settings-panel')).toBeVisible();
+	const win = page.getByTestId('settings-window');
+	await expect(win).toBeVisible();
+	await expect(win).toHaveAttribute('role', 'dialog');
+	const nav = page.getByTestId('settings-nav');
+	await expect(nav.locator('.group')).toHaveText(['Loom', 'Quilt', 'Development']);
+	await expect(nav.locator('[data-testid^="settings-section-"]')).toHaveText(['Profile', 'Appearance', 'Files', 'General', 'Documents', 'Agents', 'Library', 'Problems', 'Overleaf']);
+	// larger than the box it replaced: a window, not a menu
+	const box = await win.boundingBox();
+	expect(box!.width).toBeGreaterThan(700);
+
 	await page.keyboard.press('Escape');
-	await expect(page.getByTestId('settings-panel')).toHaveCount(0);
+	await expect(win).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await page.mouse.click(5, 5);
+	await expect(win).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await win.getByRole('button', { name: 'Close settings' }).click();
+	await expect(win).toHaveCount(0);
+});
+
+test('each section opens its own page, saying where it is saved, and the window opens again where it was left', async ({ page }) => {
+	await page.goto('/');
+	for (const [section, title, where] of [
+		['appearance', 'Appearance', 'this browser'],
+		['profile', 'Profile', 'for every quilt'],
+		['agents', 'Agents', "this quilt's config.toml"],
+		['overleaf', 'Overleaf', '.loom/']
+	]) {
+		await settings(page, section);
+		await expect(page.getByTestId('settings-title')).toHaveText(title);
+		await expect(page.getByTestId('settings-window').locator('.where')).toContainText(where);
+	}
+	await page.reload();
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByTestId('settings-title')).toHaveText('Overleaf');
 });
 
 test('the display preferences survive a reload and change the document', async ({ page }) => {
 	await page.goto('/');
-	await page.getByTestId('settings-toggle').click();
+	await settings(page, 'appearance');
 	await page.getByTestId('theme-dark').click();
 	await page.getByTestId('size-l').click();
+	await expect(page.getByTestId('theme-dark')).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 	await expect(page.locator('html')).toHaveAttribute('data-size', 'l');
+	await settings(page, 'appearance');
+	await page.getByTestId('ids').check();
+	await expect(page.locator('html')).toHaveAttribute('data-ids', 'yes');
 
 	await page.reload();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 	await expect(page.locator('html')).toHaveAttribute('data-size', 'l');
+	await expect(page.locator('html')).toHaveAttribute('data-ids', 'yes');
+});
+
+test("without a publisher, the quilt's settings are shown as published and change nothing", async ({ page }) => {
+	await page.goto('/');
+	await settings(page, 'general');
+	await expect(page.getByTestId('settings-read-only')).toContainText('config.toml');
+	await expect(page.getByTestId('config-quilt.name')).toHaveValue('The synthetic quilt');
+	await expect(page.getByTestId('config-quilt.name')).toBeDisabled();
+	await expect(page.getByTestId('setting-quilt.name')).toContainText('[quilt] name');
+	await settings(page, 'documents');
+	await expect(page.getByTestId('config-quilt.main')).toHaveValue('drafting/main.tex');
+	await expect(page.getByTestId('config-quilt.main')).toBeDisabled();
+	await settings(page, 'agents');
+	await expect(page.getByTestId('agents-protected')).toContainText('config.toml');
+	await expect(page.getByTestId('deny-pattern')).toHaveCount(0);
+	await expect(page.getByTestId('agents-update')).toHaveCount(0);
+	// the apps say what sets them up, in the publisher's words
+	await expect(page.getByTestId('agents-apps')).toContainText('Claude Code');
+	await settings(page, 'overleaf');
+	await expect(page.getByTestId('sync-unpaired')).toBeVisible();
+	await expect(page.getByTestId('settings-read-only')).toHaveCount(0);
+	await expect(page.getByTestId('settings-savebar')).toHaveCount(0);
+	// a name is saved only through a publisher
+	await settings(page, 'profile');
+	await expect(page.locator('#reviewer-name')).toHaveCount(0);
+});
+
+test('on a phone the sections are a row above the page, and nothing runs off the screen', async ({ page }) => {
+	await page.setViewportSize({ width: 375, height: 760 });
+	await page.goto('/');
+	await page.getByTestId('panel-fold').click();
+	await settings(page, 'agents');
+	const win = (await page.getByTestId('settings-window').boundingBox())!;
+	expect(win.x).toBeGreaterThanOrEqual(0);
+	expect(win.x + win.width).toBeLessThanOrEqual(375);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+	// the open section is scrolled into the row
+	await expect(page.getByTestId('settings-section-agents')).toBeInViewport();
+	const nav = (await page.getByTestId('settings-nav').boundingBox())!;
+	const body = (await page.getByTestId('settings-page').boundingBox())!;
+	expect(body.y).toBeGreaterThanOrEqual(nav.y + nav.height - 1);
 });
 
 test.describe('the four formats a document is read in', () => {
@@ -58,7 +107,7 @@ test.describe('the four formats a document is read in', () => {
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'p1'); // the compiled page, by default
 		await expect(page.locator('.fragment .env-label .number').first()).toBeVisible();
 
-		await page.getByTestId('settings-toggle').click();
+		await settings(page, 'appearance');
 		await page.getByTestId('format-b2').click();
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
 		// b2 points at a result by name, not by number
@@ -102,7 +151,7 @@ test.describe('the four formats a document is read in', () => {
 		expect(pages).toEqual([...pages].sort((a, b) => a - b));
 		expect(new Set(pages).size).toBe(pages.length);
 
-		await page.getByTestId('settings-toggle').click();
+		await settings(page, 'appearance');
 		await page.getByTestId('format-p1').click();
 		await expect(page.locator('.page-break')).toHaveCount(0);
 	});

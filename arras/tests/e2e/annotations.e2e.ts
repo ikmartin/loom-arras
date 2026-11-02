@@ -1,6 +1,6 @@
 // Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, what a suggestion proposes, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane, prefs, viewMenu } from '../workspace';
+import { beside, pane, prefs, settings, viewMenu } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { manifest, QUICK, REFEREE, serve } from '../manifest';
 
@@ -810,7 +810,7 @@ test.describe('the box', () => {
 test.describe('the placement', () => {
 	test('the placement is a display setting', async ({ page }) => {
 		await page.goto('/master/drafting/main');
-		await page.getByTestId('settings-toggle').click();
+		await settings(page, 'appearance');
 		await page.getByTestId('comments-inline').click();
 		await expect(page.locator('html')).toHaveAttribute('data-comments', 'inline');
 		await expect(page.locator('aside.comment-slot.gutter')).toHaveCount(0);
@@ -831,7 +831,7 @@ test.describe('the placement', () => {
 				return real(els);
 			};
 		});
-		await page.getByTestId('settings-toggle').click();
+		await settings(page, 'appearance');
 		await page.getByTestId('comments-inline').click();
 		await page.waitForSelector('.fragment[data-comments-wired="inline"]');
 		await page.getByTestId('comments-floating').click();

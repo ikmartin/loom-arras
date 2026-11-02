@@ -308,7 +308,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 self.rebuild(records=endpoint in RECORD_WRITES)
             self._json(HTTPStatus.OK, answer)
         except ApiError as exc:
-            self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
+            self._json(exc.status, exc.answer())
         except Exception as exc:  # noqa: BLE001
             # A write that failed for a reason nobody anticipated is still the publisher's answer, not a dead socket.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"code": "failed", "message": str(exc)}})
@@ -584,6 +584,8 @@ class ServeSession:
         """
         root = self.quilt.root
         with self.lock:
+            if not records:
+                self._reload()
             seen = snapshot(root, self.shown)
             if changed is not None:
                 changed = [p for p, m in seen.items() if self.published.get(p) != m] + [
@@ -620,6 +622,21 @@ class ServeSession:
             and any(p.suffix in (".tex", ".sty", ".cls", ".bib") for p in changed)
         ):
             threading.Thread(target=self._compile_default, name="loom-compile", daemon=True).start()
+
+    def _reload(self) -> None:
+        """Read `config.toml` again, so a setting saved in the viewer or by hand is what the next build uses; a file that no longer parses keeps the last config, and says so."""
+        import tomllib
+
+        from loom.scan.quilt import load_quilt
+
+        try:
+            quilt = load_quilt(self.quilt.root)
+        except (tomllib.TOMLDecodeError, OSError) as exc:
+            print(f"loom serve: config.toml does not parse, so the last config stays: {exc}", file=sys.stderr)
+            return
+        # what the viewer shows stays as serving began: it follows `[quilt] history`, which Settings never changes
+        if quilt.config != self.quilt.config:
+            self.quilt = quilt
 
     def _current_scan(self) -> ScanResult | None:
         """The last publication's scan while nothing the scan reads has changed since, for the write API to annotate against rather than scanning again; None otherwise."""
