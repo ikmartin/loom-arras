@@ -15,14 +15,14 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it("defaults to serif, medium, mid, system, the compiled page, a floating comment box, no ids, LaTeX's aux files hidden and the agent's documents shown", () => {
+	it("defaults to serif, medium, mid, system, the compiled page, a floating comment box, no ids, LaTeX's aux files hidden and the agents' config documents shown", () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
 			outline: 0.55,
 			panel: true,
 			ids: false,
 			hideAux: true,
-			hideAgentDocs: false,
+			hideAgentConfig: false,
 			zoom: { pdf: 1.4 },
 			face: 'serif',
 			size: 'm',
@@ -40,9 +40,9 @@ describe('the display preferences', () => {
 		expect(coerce({ divider: 0.01 }).divider).toBe(0.2);
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
 		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
-		// hiding the agent's documents is asked for, never assumed from a stray value
-		expect(coerce({ hideAgentDocs: true }).hideAgentDocs).toBe(true);
-		expect(coerce({ hideAgentDocs: 'yes' }).hideAgentDocs).toBe(false);
+		// hiding the agents' config documents is asked for, never assumed from a stray value
+		expect(coerce({ hideAgentConfig: true }).hideAgentConfig).toBe(true);
+		expect(coerce({ hideAgentConfig: 'yes' }).hideAgentConfig).toBe(false);
 		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
 		expect(coerce({ zoom: { pdf: 9 } }).zoom).toEqual({ pdf: 3 });
 		expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });

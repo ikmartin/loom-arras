@@ -52,7 +52,7 @@ export const SETTINGS: Setting[] = [
 	{ id: 'comments', section: 'appearance', name: 'Annotations open', what: 'Floating opens a box over the text at its mark; inline opens it in place.' },
 	{ id: 'ids', section: 'appearance', name: 'Show ids', what: "Each result's id and state in the left margin, for working on the quilt rather than reading it." },
 	{ id: 'hide-aux', section: 'files', name: 'Hide aux LaTeX files', what: 'Leave out what a compile writes for its next run: `.aux`, `.log`, `.synctex.gz`, `.bbl` and the rest. The compiled PDF stays.' },
-	{ id: 'hide-agent-docs', section: 'files', name: 'Hide agent documents', what: "Leave the agent's documents out of Docs: its copies beneath each document, Agent documents and the closed ones. Review's Incoming still lists the ones to take in." },
+	{ id: 'hide-agent-config', section: 'files', name: 'Hide agent config documents', what: "Leave out the documents an agent's app reads its instructions from: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and the like, wherever they stand. The rest of an agent's config, such as `.mcp.json` and `.claude/`, is never shown." },
 	{ id: 'author', section: 'profile', name: 'Your name', what: 'Who your acceptances and annotations are recorded as. A different name selects a different review history.', key: '[author] name' },
 	{ id: 'quilt.name', section: 'general', name: 'Name', what: 'What the quilt is called, at the top of the column.', key: '[quilt] name' },
 	{ id: 'quilt.prefix', section: 'general', name: 'Id prefix', what: "Starts every new result's id.", key: '[quilt] prefix' },

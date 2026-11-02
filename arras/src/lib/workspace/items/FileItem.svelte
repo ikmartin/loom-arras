@@ -139,7 +139,11 @@
 			page={pdfPage}
 			seq={item.seq ?? 0}
 			view={paper}
-			onselect={(e) => (offered = { page: e.page, text: e.text, at: e.client })}
+			onselect={(e) => {
+				// the selection's range goes with the offer, so letting go of the words takes the chip with them
+				const sel = window.getSelection();
+				offered = { page: e.page, text: e.text, at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+			}}
 			onbox={(e) => (offered = { page: e.page, rects: e.rects, at: e.client })}
 		/>
 	</div>

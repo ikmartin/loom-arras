@@ -83,28 +83,73 @@ test("LaTeX's auxiliary files are left out of the tree until the reader asks for
 	await expect(tree.getByRole('link', { name: 'main.aux' })).toBeVisible();
 });
 
-test("the agent's documents leave Docs when the reader hides them in Settings, and come back when shown", async ({ page }) => {
+test("the agents' config documents leave the tree when the reader hides them in Settings, and come back when shown", async ({ page }) => {
 	const { serve } = await import('../manifest');
 	await serve(page, (m) => {
-		const copy = m.masters.find((d: { copy_of?: string }) => d.copy_of)!;
-		m.masters = [...m.masters, { ...copy, path: '.loom/copies/old.tex', closed: true }];
+		m.files = [...(m.files ?? []), ...['AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'notes/CLAUDE.md'].map((path) => ({ path, kind: 'markdown', bytes: 10 }))];
 	});
 	await page.goto('/master/drafting/main');
-	const docs = page.getByTestId('docs-part');
-	await expect(docs.getByTestId('docs-copies')).toContainText('aidoc');
-	await expect(docs.getByTestId('docs-closed')).toBeVisible();
+	const tree = page.getByTestId('docs-tree');
+	await expect(tree.getByRole('link', { name: 'AGENTS.md', exact: true })).toBeVisible();
 	await settings(page, 'files');
-	const hide = page.getByTestId('hide-agent-docs');
+	const hide = page.getByTestId('hide-agent-config');
 	await expect(hide).not.toBeChecked();
 	await hide.check();
-	await expect(docs.getByTestId('docs-copies')).toHaveCount(0);
-	await expect(docs.getByTestId('docs-closed')).toHaveCount(0);
-	// the person's own document stays
-	await expect(page.getByTestId('docs-tree').getByRole('link', { name: 'main.tex', exact: true })).toBeVisible();
+	for (const name of ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md']) await expect(tree.getByRole('link', { name, exact: true })).toHaveCount(0);
+	// the project's other files stay, and so do the agent's copies of a document
+	await expect(tree.getByRole('link', { name: 'README.md', exact: true })).toBeVisible();
+	await expect(page.getByTestId('docs-copies')).toContainText('aidoc');
 	// remembered in this browser
 	await page.reload();
-	await expect(docs.getByTestId('docs-copies')).toHaveCount(0);
+	await expect(tree.getByRole('link', { name: 'AGENTS.md', exact: true })).toHaveCount(0);
 	await settings(page, 'files');
-	await page.getByTestId('hide-agent-docs').uncheck();
-	await expect(docs.getByTestId('docs-copies')).toContainText('aidoc');
+	await page.getByTestId('hide-agent-config').uncheck();
+	await expect(tree.getByRole('link', { name: 'AGENTS.md', exact: true })).toBeVisible();
+});
+
+test('the project tree stands under Files, a shelf open by default that folds as Library does', async ({ page }) => {
+	await page.goto('/master/drafting/main');
+	const files = page.getByTestId('files-toggle');
+	await expect(files).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.getByTestId('docs-tree')).toBeVisible();
+	// the same kind of control as Library's, above it
+	expect(await files.getAttribute('class')).toBe(await page.getByTestId('library-toggle').getAttribute('class'));
+	const at = async (id: string) => (await page.getByTestId(id).boundingBox())!.y;
+	expect(await at('files-toggle')).toBeLessThan(await at('library-toggle'));
+	await files.click();
+	await expect(files).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.getByTestId('docs-tree')).toHaveCount(0);
+	await files.click();
+	await expect(page.getByTestId('docs-tree')).toBeVisible();
+});
+
+test("words let go of on a project PDF take the quote chip with them", async ({ page }) => {
+	const stream = 'BT /F1 24 Tf 72 700 Td (A gadget is a widget) Tj ET';
+	const pdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj
+4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+5 0 obj<</Length ${stream.length}>>stream
+${stream}
+endstream endobj
+trailer<</Root 1 0 R>>
+%%EOF`;
+	const { serve } = await import('../manifest');
+	await serve(page, (m) => {
+		m.files = [...(m.files ?? []), { path: 'notes/gadgets.pdf', kind: 'pdf', bytes: pdf.length }];
+	});
+	await page.route('**/_files/notes/gadgets.pdf', (route) => route.fulfill({ body: pdf, contentType: 'application/pdf' }));
+	await page.goto('/file/notes/gadgets.pdf');
+	const words = page.locator('.page .text span').filter({ hasText: 'gadget' }).first();
+	await expect(words).toBeVisible();
+	// selected as a reader does, with the mouse, which is what offers the chip
+	const box = (await words.boundingBox())!;
+	await page.mouse.move(box.x + 2, box.y + box.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 5 });
+	await page.mouse.up();
+	await expect(page.getByTestId('quote-offer')).toBeVisible();
+	await page.evaluate(() => getSelection()!.removeAllRanges());
+	await expect(page.getByTestId('quote-offer')).toHaveCount(0);
 });

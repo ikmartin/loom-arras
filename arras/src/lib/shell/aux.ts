@@ -7,3 +7,11 @@ const AUX =
 export function isAux(path: string): boolean {
 	return AUX.test(path.slice(path.lastIndexOf('/') + 1));
 }
+
+/** The agents' config documents, which an agent's app reads its instructions from, by name wherever they stand: loom writes the root ones with a quilt's agent layer, and a person may add more. The rest of what agents use, such as `.mcp.json` and `.claude/`, starts with a dot and is never shown. */
+const AGENT_CONFIG = new Set(['AGENTS.md', 'AGENT.md', 'CLAUDE.md', 'CLAUDE.local.md', 'GEMINI.md']);
+
+/** Whether the file at `path` is an agent's config document. */
+export function isAgentConfig(path: string): boolean {
+	return AGENT_CONFIG.has(path.slice(path.lastIndexOf('/') + 1));
+}

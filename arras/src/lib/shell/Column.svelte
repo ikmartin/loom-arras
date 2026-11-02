@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
 	//
-	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
+	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree under Files (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a shelf open by default and folding as Library's does, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
 	import Contents from './Contents.svelte';
 	import FileTree from './FileTree.svelte';
 	import { store } from '$lib/manifest/client.svelte';
@@ -55,9 +55,8 @@
 
 	// Documents: the drafts being worked on, as a list rather than a dropdown, because a dropdown shows one name at a time and cannot say which draft is conflicted. A landmark is reached from its draft's history and from Review › History, not listed here.
 	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && !isAgentDocument(m)));
-	// the agent's documents, open and closed, unless the reader hid them (Settings)
-	const withAgent = $derived(prefs.hideAgentDocs ? [] : masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
-	const closed = $derived(prefs.hideAgentDocs ? [] : masters.filter((m) => m.closed));
+	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
+	const closed = $derived(masters.filter((m) => m.closed));
 	// an agent's copy is read beside the document it copies, so it sits beneath that document's row; one whose document is not listed (closed, context-only, gone) stands on its own after them
 	const copiesOf = (path: string) => withAgent.filter((m) => m.copy_of === path);
 	const unplaced = $derived(withAgent.filter((m) => !own.some((o) => o.path === m.copy_of)));
@@ -72,6 +71,8 @@
 
 	// folded until the reader opens it: the works are many, and the documents are what the column is for
 	let libraryOpen = $state(false);
+	// the project's files, open until the reader folds them
+	let filesOpen = $state(true);
 
 	// The line between the documents and the outline: where it stands is a preference, drawn at most once a frame while it is dragged and stored at the drop, as the pane divider is.
 	const STEP = 0.03;
@@ -182,7 +183,13 @@
 						<a href={masterUrl(m.path)} class:here aria-current={here ? 'page' : undefined}>{filename(m.path)}{#if section(m)}<span class="aside">{section(m)}</span>{/if}</a>
 					{/snippet}
 					{#if store.manifest?.files}
-						<FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} />
+						<!-- Files is the quilt's directory as it is, where Library is what loom keeps of the cited works: two shelves, folding alike, so the two read as different kinds of thing -->
+						<p class="rail-label">
+							<button class="shelf" aria-expanded={filesOpen} data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
+								{filesOpen ? '▾' : '▸'} Files
+							</button>
+						</p>
+						{#if filesOpen}<FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} />{/if}
 					{:else if store.manifest?.research_state}
 						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
 						{@const onState = page.route.id === '/page/[id]'}
