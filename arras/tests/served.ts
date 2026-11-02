@@ -74,11 +74,6 @@ interface Running {
 	stop(): Promise<void>;
 }
 
-/**
- * Copy the pristine quilt to `name` and serve it on a free port until it has published its first build.
- *
- * The server is started in its own process group, so stopping it also stops an agent turn it launched. A port lost to a race with another worker shows as an early exit, and is retried on a new one. The pristine copy carries a build, so the server's first one only checks its cache.
- */
 export function reviewerEnv(suite: Suite, directory: string): NodeJS.ProcessEnv {
 	const config = join(directory, 'loom');
 	mkdirSync(config, { recursive: true });
@@ -92,6 +87,11 @@ export function reviewerEnv(suite: Suite, directory: string): NodeJS.ProcessEnv 
 
 type PrepareQuilt = (quilt: Pick<Served, 'root' | 'loom'>) => void | Promise<void>;
 
+/**
+ * Copy the pristine quilt to `name` and serve it on a free port until its manifest answers.
+ *
+ * The server is started in its own process group, so stopping it also stops an agent turn it launched. A port lost to a race with another worker shows as an early exit, and is retried on a new one. The pristine copy carries a build, so its manifest answers as soon as the server listens, and the server's own first build, which only checks its cache, runs beside the test's first steps; the watcher starts after it.
+ */
 async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promise<Running> {
 	const dir = scratchDir(suite);
 	const root = join(dir, 'quilts', name);
@@ -130,7 +130,7 @@ async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promis
 			}
 			out.end();
 		};
-		// the build directory answers 503 until the first build is done, so a manifest is the sign it is ready
+		// the build directory serves what is on disk, and the copy carries the template's build, so a manifest says the server listens, not that its first build is done
 		const deadline = Date.now() + 60000;
 		let token = '';
 		while (!exited && Date.now() < deadline) {

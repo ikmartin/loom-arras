@@ -337,6 +337,27 @@ def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) 
         w.stop()
 
 
+def test_a_record_written_before_the_watcher_starts_is_seen_on_its_first_poll(tmp_path: Path) -> None:
+    """An annotation filed while the first build ran, after it read the files and before the watcher began, is seen within a fraction of a second rather than at the first full scan."""
+    from loom.render.watch import Watcher
+
+    (tmp_path / ".loom/annotations").mkdir(parents=True)
+    entries = tmp_path / ".loom/annotations" / "log.jsonl"
+    entries.write_text("")
+    seen: list[list[Path]] = []
+    w = Watcher(tmp_path, seen.append, interval=10.0)
+    time.sleep(0.05)  # a later mtime than the baseline's on a filesystem with coarse timestamps
+    entries.write_text('{"event": "created"}\n')
+    w.start()
+    try:
+        deadline = time.time() + 2
+        while not seen and time.time() < deadline:
+            time.sleep(0.05)
+        assert seen and any(p.name == "log.jsonl" for p in seen[0])
+    finally:
+        w.stop()
+
+
 def test_the_watcher_still_scans_the_tree_on_its_interval(tmp_path: Path) -> None:
     """A source file outside the records is seen by the full scan, at the interval it was given."""
     from loom.render.watch import Watcher
