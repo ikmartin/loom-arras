@@ -126,6 +126,8 @@
 			dropped = true;
 		};
 	});
+	/** The page the paper opens at: the one loom lit, which a quote with no page learns only from the answer, else the one asked for. Opened at page 1 while lighting page 2, the place the renderer keeps across a redraw is page 1's, and putting it back cancels the landing's scroll. */
+	const opening = $derived(lit?.page ?? page);
 
 	// a work's pages in a pane hide every annotation while the pane does
 	const holder = paneOf();
@@ -230,7 +232,7 @@
 		<div class="paper" class:show-settled={ui.showSettled} bind:this={pane}>
 			<PdfDoc
 				{url}
-				{page}
+				page={opening}
 				{seq}
 				{view}
 				spans={drawn}
