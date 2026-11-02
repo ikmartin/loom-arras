@@ -10,7 +10,7 @@ test('the settings panel puts every row on one line, label included, with nothin
 		const panel = el.getBoundingClientRect();
 		return [...el.querySelectorAll('.row')].map((f) => {
 			const label = f.querySelector('.lbl') as HTMLElement;
-			const buttons = [...f.querySelectorAll('button')].map((b) => b.getBoundingClientRect());
+			const buttons = [...f.querySelectorAll('button, input')].map((b) => b.getBoundingClientRect());
 			const mid = (r: DOMRect) => r.top + r.height / 2;
 			return {
 				label: label.textContent ?? '',
@@ -21,7 +21,7 @@ test('the settings panel puts every row on one line, label included, with nothin
 			};
 		});
 	});
-	expect(rows.map((r) => r.label)).toHaveLength(7); // type, size, width, theme, format, annotations, show ids
+	expect(rows.map((r) => r.label)).toHaveLength(8); // type, size, width, theme, format, annotations, show ids, files
 	// the placement row names the record by its one noun, whatever key it is stored under
 	expect(rows.map((r) => r.label)).toContain('Annotations');
 	expect(rows.map((r) => r.label)).not.toContain('Comments');

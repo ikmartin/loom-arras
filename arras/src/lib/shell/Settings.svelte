@@ -107,6 +107,11 @@
 			(v) => (prefs.ids = v === 'yes'),
 			'ids'
 		)}
+		<!-- What LaTeX writes beside a document for its own next run, left out of the project's tree unless the reader wants it. -->
+		<label class="row check">
+			<span class="lbl">Files</span>
+			<span class="checkbox"><input type="checkbox" bind:checked={prefs.hideAux} data-testid="hide-aux" /> Hide aux LaTeX files</span>
+		</label>
 		{#if indexes.length}
 			<div class="dev" data-testid="settings-development">
 				<span class="lbl">Development</span>
@@ -200,6 +205,19 @@
 	/* A selected option's neighbour keeps a divider it can be told apart by: the wash is lighter than the rule. */
 	.opts button.on + button {
 		border-left-color: var(--link);
+	}
+	/* a setting that is on or off, as a checkbox and its words */
+	.checkbox {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-soft);
+		cursor: pointer;
+	}
+	.checkbox input {
+		margin: 0;
 	}
 	.dev {
 		margin-top: 8px;

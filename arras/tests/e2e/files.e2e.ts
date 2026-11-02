@@ -60,3 +60,25 @@ test('an app: link with no publisher to ask goes nowhere and says why', async ({
 	await expect(page).toHaveURL(/\/file\/notes\/intro\.md$/);
 	await expect(anki).toHaveAttribute('title', /.+/);
 });
+
+test("LaTeX's auxiliary files are left out of the tree until the reader asks for them in Settings", async ({ page }) => {
+	const { serve } = await import('../manifest');
+	await serve(page, (m) => {
+		m.files = [...(m.files ?? []), { path: 'drafting/main.aux', kind: 'text', bytes: 10 }, { path: 'drafting/main.synctex.gz', kind: 'other', bytes: 10 }, { path: 'drafting/main.pdf', kind: 'pdf', bytes: 10 }];
+	});
+	await page.goto('/master/drafting/main');
+	const tree = page.getByTestId('docs-tree');
+	await expect(tree.getByRole('link', { name: 'main.tex', exact: true })).toBeVisible();
+	await expect(tree.getByRole('link', { name: 'main.aux' })).toHaveCount(0);
+	await expect(tree.getByRole('link', { name: 'main.synctex.gz' })).toHaveCount(0);
+	// the compiled PDF is the document's output, not auxiliary
+	await expect(tree.getByRole('link', { name: 'main.pdf' })).toBeVisible();
+	await page.getByTestId('settings-toggle').click();
+	const hide = page.getByTestId('hide-aux');
+	await expect(hide).toBeChecked();
+	await hide.uncheck();
+	await expect(tree.getByRole('link', { name: 'main.aux' })).toBeVisible();
+	// remembered in this browser
+	await page.reload();
+	await expect(tree.getByRole('link', { name: 'main.aux' })).toBeVisible();
+});

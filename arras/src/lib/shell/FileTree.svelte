@@ -7,6 +7,8 @@
 	import { itemForFile, pathFor } from '$lib/workspace/item';
 	import { documentLabel } from '$lib/workspace/names';
 	import { workspace } from '$lib/workspace/store.svelte';
+	import { prefs } from '$lib/prefs.svelte';
+	import { isAux } from './aux';
 
 	let { files, masters, own, copiesOf, section }: { files: ProjectFile[]; masters: Master[]; own: Master[]; copiesOf: (path: string) => Master[]; section: (m: Master) => string } = $props();
 
@@ -35,7 +37,8 @@
 			at.set(path, d);
 			return d;
 		};
-		for (const f of files) {
+		// LaTeX's auxiliary files are left out unless the reader asked for them (Settings)
+		for (const f of prefs.hideAux ? files.filter((x) => !isAux(x.path)) : files) {
 			const cut = f.path.lastIndexOf('/');
 			dirOf(cut < 0 ? '' : f.path.slice(0, cut)).files.push(f);
 		}

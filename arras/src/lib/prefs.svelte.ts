@@ -33,6 +33,8 @@ export interface Prefs {
 	zoom: Record<string, number>;
 	/** Whether each result's id and state stand in the left gutter. Off by default: a reader reading the paper does not need every key beside it, and the reader who does is working on the corpus rather than reading it. */
 	ids: boolean;
+	/** Whether the project's tree leaves out LaTeX's auxiliary files (`shell/aux.ts`). On by default: a compile writes them for its own next run, and they crowd the documents they sit beside. */
+	hideAux: boolean;
 	face: Face;
 	size: Size;
 	width: Width;
@@ -41,7 +43,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, hideAux: true, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -66,6 +68,7 @@ export function coerce(raw: unknown): Prefs {
 		outline: typeof o.outline === 'number' && Number.isFinite(o.outline) ? Math.min(0.85, Math.max(0.15, o.outline)) : DEFAULTS.outline,
 		panel: o.panel !== false,
 		ids: o.ids === true,
+		hideAux: o.hideAux !== false,
 		zoom,
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
@@ -111,6 +114,7 @@ class PrefsState {
 	outline = $state<number>(DEFAULTS.outline);
 	panel = $state<boolean>(DEFAULTS.panel);
 	ids = $state<boolean>(DEFAULTS.ids);
+	hideAux = $state<boolean>(DEFAULTS.hideAux);
 	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
 	face = $state<Face>(DEFAULTS.face);
 	size = $state<Size>(DEFAULTS.size);
@@ -120,7 +124,7 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, hideAux: this.hideAux, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -129,6 +133,7 @@ class PrefsState {
 		this.outline = p.outline;
 		this.panel = p.panel;
 		this.ids = p.ids;
+		this.hideAux = p.hideAux;
 		this.zoom = { ...p.zoom };
 		this.face = p.face;
 		this.size = p.size;

@@ -15,12 +15,13 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box and no ids', () => {
+	it("defaults to serif, medium, mid, system, the compiled page, a floating comment box, no ids and LaTeX's aux files hidden", () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
 			outline: 0.55,
 			panel: true,
 			ids: false,
+			hideAux: true,
 			zoom: { pdf: 1.4 },
 			face: 'serif',
 			size: 'm',
