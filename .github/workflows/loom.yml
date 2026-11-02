@@ -82,10 +82,18 @@ jobs:
         run: apt-get update && apt-get install -y git python3 poppler-utils curl
       - name: what the TeX tier loads that the medium scheme lacks
         # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex); a "File `x.sty' not found" here names the package to add
-        # one mirror rather than mirror.ctan.org's redirect, which can pick a mirror that does not serve texlive.tlpdb and fails the job before any test runs
+        # named mirrors rather than mirror.ctan.org's redirect, which can pick a mirror that does not serve texlive.tlpdb; tlmgr refuses a mirror older than the image's own TeX Live, and any one mirror can lag it for a day, so the first that is not behind is used
         run: |
-          tlmgr option repository https://ctan.math.illinois.edu/systems/texlive/tlnet
-          tlmgr update --self
+          ok=""
+          for m in \
+            https://ctan.math.illinois.edu/systems/texlive/tlnet \
+            https://mirror.math.princeton.edu/pub/CTAN/systems/texlive/tlnet \
+            https://mirrors.rit.edu/CTAN/systems/texlive/tlnet \
+            https://ctan.math.utah.edu/ctan/tex-archive/systems/texlive/tlnet \
+            https://ctan.math.washington.edu/tex-archive/systems/texlive/tlnet; do
+            if tlmgr option repository "$m" && tlmgr update --self; then ok=1; break; fi
+          done
+          test -n "$ok"
           tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
       - uses: actions/checkout@v4
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
