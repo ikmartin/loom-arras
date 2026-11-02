@@ -43,6 +43,8 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 
 Refusal is enforced, not requested. A declared name that calls itself an agent is refused. Under an agent's shell, recognised by the markers agent tools set (`AI_AGENT`, `CLAUDECODE`, `CODEX_SANDBOX`, `GEMINI_CLI`, `CURSOR_AGENT` and others), these acts are refused whatever name is declared, because a name cannot be checked and an agent typing the author's name is exactly the case to stop. The author runs them in a terminal of their own.
 
+In the viewer the author acts by their own click, and a write over the API that names no author is taken for one. So nothing an agent writes runs as the viewer: every file `loom serve` serves from the quilt is sandboxed, so a page an agent leaves in `.loom/build/SESSION/` runs no script and has no origin of the viewer's, and the write token is given only to the viewer's own origin ([invariant](invariants.md#a-page-the-quilt-holds-never-runs-as-the-viewer)).
+
 An agent that wants one of these acts writes a suggestion on the thing concerned, with its reasoning. There is no request object: a request becomes a queue that nags, and an agent that "requested verification" is one summary away from reporting that it verified (P15).
 
 ## How an agent attaches

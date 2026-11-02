@@ -367,6 +367,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         name, source = reviewer_identity(root)
         return {"ok": True, "result": "reviewer settings", "reviewer": {"name": name, "source": source}}
     if endpoint in ("review-decision", "review-finish"):
+        from loom.cli._common import is_agent
         from loom.cli.review import _acceptance_master, _master_compiles, write_acceptance
         from loom.review_queue import clear_accepted, decide, pending, rows_for
         from loom.scan.quilt import reviewer_identity
@@ -376,6 +377,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             raise ApiError("no-reviewer", "Choose your reviewer name in Settings", status=409)
         if _str(body, "reviewer") != reviewer:
             raise ApiError("reviewer-changed", "Reviewer changed; reload Review before continuing", status=409)
+        if is_agent(_str(body, "author") or reviewer):
+            raise ApiError("author-only", "An agent reads and annotates; only the author reviews", status=403)
         result = _scan(root)
         if endpoint == "review-decision":
             key = _str(body, "key", required=True) or ""

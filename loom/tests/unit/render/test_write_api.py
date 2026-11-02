@@ -183,6 +183,56 @@ def test_the_write_api_refuses_a_post_from_another_page() -> None:
     # a cross-site form post can set neither a custom header nor a JSON content type
     assert "application/json" in checks(Fake({**good, "Content-Type": "application/x-www-form-urlencoded"}))  # type: ignore[arg-type]
     assert "X-Loom-Token" in checks(Fake({"Content-Type": "application/json"}))  # type: ignore[arg-type]
+    # a sandboxed page has an opaque origin, which a browser sends as `null`
+    assert "not this server" in checks(Fake({**good, "Origin": "null"}))  # type: ignore[arg-type]
+    assert "cross-site" in checks(Fake({**good, "Sec-Fetch-Site": "cross-site"}))  # type: ignore[arg-type]
+
+
+def test_a_page_the_quilt_holds_is_served_with_no_origin_of_the_viewers(session) -> None:  # type: ignore[no-untyped-def]
+    """`/build/` and `/digests/storage/` are served in the viewer's origin, and an agent writes the build output. An HTML or SVG page there that ran as the viewer could read the token from `/_api` and post the author's acts naming no author, which is the author's own click (K5). Each is served sandboxed: it runs no script and has an opaque origin. The viewer's own bundle is not."""
+    from loom.paths import BUILD, STORAGE, STORE_ADDRESS
+
+    s, d = session
+    planted = {  # address: (file, text)
+        "build/agent/x.html": (f"{BUILD}/agent/x.html", "<!doctype html><script>fetch('/_api')</script>"),
+        f"{STORE_ADDRESS}/arxiv/0805.2065v2/src/f.svg": (
+            f"{STORAGE}/arxiv/0805.2065v2/src/f.svg",
+            '<svg xmlns="http://www.w3.org/2000/svg"><script>fetch("/_api")</script></svg>',
+        ),
+        "build/agent/x.txt": (f"{BUILD}/agent/x.txt", "<!doctype html><script>fetch('/_api')</script>"),
+    }
+    for rel, (file, text) in planted.items():
+        (d / file).parent.mkdir(parents=True, exist_ok=True)
+        (d / file).write_text(text, encoding="utf-8")
+        status, headers, _ = get(s.url + rel)
+        assert status == 200, rel
+        assert headers.get("Content-Security-Policy") == "sandbox", (rel, headers)
+        assert headers.get("X-Content-Type-Options") == "nosniff", (rel, headers)
+        # a copy a browser cached before it was sandboxed is revalidated, and the answer that it is unchanged sandboxes it too
+        status, headers, _ = get(s.url + rel, {"If-None-Match": headers["ETag"]})
+        assert status == 304 and headers.get("Content-Security-Policy") == "sandbox", (rel, headers)
+    for path in ("", "_app/x.js", "node/dm-0003"):
+        status, headers, _ = get(s.url + path)
+        assert status == 200 and "Content-Security-Policy" not in headers, (path, headers)
+
+
+def test_the_token_is_served_only_to_the_viewers_own_origin(session) -> None:  # type: ignore[no-untyped-def]
+    """`GET /_api` hands out the token, so a request a browser says came from another origin, a sandboxed page's `null` included, is refused; a request with no browser's headers, and the person typing the address, are answered."""
+    from loom.render.serve import read_serve_json
+
+    s, d = session
+    here = s.url.rstrip("/")
+    for headers in (
+        {"Origin": "null"},
+        {"Origin": "https://example.org"},
+        {"Sec-Fetch-Site": "cross-site"},
+        {"Sec-Fetch-Site": "same-site"},
+    ):
+        status, _, _ = get(s.url + "_api", headers)
+        assert status == 403, headers
+    for headers in ({}, {"Origin": here}, {"Sec-Fetch-Site": "same-origin"}, {"Sec-Fetch-Site": "none"}):
+        status, _, raw = get(s.url + "_api", headers)
+        assert status == 200 and json.loads(raw)["token"] == read_serve_json(d)["token"], headers
 
 
 def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
@@ -775,6 +825,8 @@ def _review_decision(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
         "not-unresolved",
         "sy-9999",
     )
+    agent = {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok", "author": "Referee (Agent)"}
+    refuses(s, "review-decision", agent, 403, "author-only", "only the author reviews")
 
 
 @case("review-finish")
@@ -787,6 +839,9 @@ def _review_finish(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0001", "status": "ok"})
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
     monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
+    # accepting is the author's, whatever reviewer an agent names beside itself
+    agent = {"reviewer": "The synthetic quilt", "author": "Referee (Agent)"}
+    refuses(s, "review-finish", agent, 403, "author-only", "only the author reviews")
     # the fixture's acceptance of sy-0001 is stale; finishing records a fresh one beside it
     builds = s.builds
     stale = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
