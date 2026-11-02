@@ -431,7 +431,50 @@ def build_synthetic(dest: Path) -> None:
         f"\\begin{{definition}}[Orbit pair]\\label{{{fresh}-ai}}\nAn \\emph{{orbit pair}} is an orbit with two points.\n\\end{{definition}}\n\n\\section{{Results}}",
     )
 
+    # Notes, quotes among them (plan 0.22.8): one old enough to have faded, the author's quotes of a theorem and of a Markdown file, one of them kept, and an agent's note on its session; then the author's look at the open files, and an edit after it, which Review's Changes shows.
+    g.at("2026-08-20T09:00:00Z")
+    g.run("note", "--on", "notes/intro.md", "--quote", "Notes on the widgets", "--session", referee, "--as", AUTHOR)
+    g.at("2026-09-16T11:30:00Z")
+    g.run(
+        "note",
+        "--on",
+        "sy-0003",
+        "--quote",
+        "Let $(X,\\sigma)$ be a finite widget.",
+        "--session",
+        referee,
+        "--as",
+        AUTHOR,
+    )
+    kept = g.run(
+        "note",
+        "--on",
+        "notes/intro.md",
+        "--quote",
+        "A widget is fixed by its locus",
+        "--session",
+        referee,
+        "--as",
+        AUTHOR,
+    ).split()[1]
+    g.run("note", "--keep", kept, "--as", AUTHOR)
+    g.run(
+        "note",
+        "the parity count, to check against the paper",
+        "--on",
+        referee,
+        "--session",
+        referee,
+        "--as",
+        "Referee Agent",
+        agent=True,
+    )
+
     _write_expected_lint(g)
+    # the look last, after every file the story writes, so the one change it shows is the edit after it
+    g.run("changes", "--keep-all")
+    g.at("2026-09-16T11:45:00Z")
+    g.edit("notes/intro.md", "A widget is fixed by its locus.", "A widget is fixed by its locus, and by nothing else.")
 
 
 def _say_report(g: Gen, session: str, who: str, line: str, report: str) -> None:

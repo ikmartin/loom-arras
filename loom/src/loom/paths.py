@@ -29,6 +29,8 @@ SESSIONS = f"{LOOM}/sessions"
 COPIES = f"{LOOM}/copies"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
+#: Each person's last look at the open files, which Review's Changes reads.
+LOOKED = f"{LOOM}/looked"
 #: The default of `[quilt] history`; code reads the setting, never this.
 HISTORY = f"{LOOM}/history"
 
@@ -38,6 +40,8 @@ NODES = "nodes"
 #: The acceptance ledger, written only by `loom accept`.
 LEDGER = f"{LOOM}/state.toml"
 ANNOTATION_LOG = f"{ANNOTATIONS}/log.jsonl"
+#: Notes, a quote among them: their own log beside the annotations'.
+NOTE_LOG = f"{ANNOTATIONS}/notes.jsonl"
 #: Works an agent proposed citing and the author accepted.
 REFERENCE_NOTES = f"{LOOM}/reference-notes.jsonl"
 #: The running server's address and token.

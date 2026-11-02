@@ -38,6 +38,7 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom accept`, the author's claim that a key's mathematics is right;
 - `loom library verify`, `discard`, `ignore`, `add`, `import` and `drop`;
 - `loom adopt` and `loom sync incorporate`, which write the author's files (P7);
+- `loom changes --keep` and `--undo`, keeping or undoing a change to an open file since the author's look, the undo writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
 - `loom history restore`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`;
 - removing a relation someone else asserted.
 
@@ -93,6 +94,8 @@ An agent writes the transcript so that the person, coming back to it later, sees
 It writes at natural pauses and before it stops, and it links rather than restates (`loom link` prints a correct link). The viewer shows the transcript beside the documents it refers to.
 
 The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
+
+The person points with a **quote**: one press on words of a document, a file or a message, or a region of a PDF or an image, writes a note there with no kind or severity, in the session annotations land in (`model.md`, Notes). The transcript shows it among the messages, and `loom since` lists it with its words and its link. An agent may write a note too, with `loom note`; a note asks nothing, and a finding is still an annotation.
 
 ## What an agent is told
 

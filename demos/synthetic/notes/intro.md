@@ -4,7 +4,7 @@ These notes sit beside [the paper](../drafting/main.tex) and read its first lemm
 
 ## Setup
 
-A widget is fixed by its locus. The [page on gadgets](page.html#second) has more, and [the run](run.ipynb#counting) counts them.
+A widget is fixed by its locus, and by nothing else. The [page on gadgets](page.html#second) has more, and [the run](run.ipynb#counting) counts them.
 
 ![A small figure](figure.png)
 

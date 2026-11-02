@@ -25,9 +25,20 @@ def stale(q: Path) -> None:
     edit(q / "drafting" / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
 
 
+def looked(q: Path) -> None:
+    """A look by the author, then an edit to an open file, so `changes` has one to show."""
+    from tests.helpers import ok
+
+    author(q)
+    ok("changes", "--keep-all", cwd=q)
+    (q / "README.md").write_text("an edit since the look\n", encoding="utf-8")
+
+
 KIND: dict[str, str] = {
     "accept": "report",
     "annotate": "report",
+    "note": "report",
+    "changes": "report",
     "build": "report",
     "check": "report",
     "compile": "report",
@@ -86,6 +97,26 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "x", "--session", "nope", "--as", "Tester"), exit=2, unchanged=True, why="no such session"),
         Case(("dm-0002", "Which orbits?", "--as", "Tester", "--dry-run"), unchanged=True),
         Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
+    ],
+    "note": [
+        Case(("Which orbits?", "--on", "dm-0002", "--quote", "orbit", "--as", "Tester")),
+        Case(("--on", "README.md", "--quote", "demo", "--as", "Tester")),
+        Case(("x", "--on", "dm-9999", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
+        Case(
+            ("--keep", "n-2000-01-01-0001", "--as", "Tester"), exit=2, unchanged=True, why="a note that does not exist"
+        ),
+        Case(("--on", "dm-0002", "--as", "Tester"), exit=2, unchanged=True, why="a note that quotes and says nothing"),
+    ],
+    "changes": [
+        Case((), setup=author, unchanged=True, why="no look yet"),
+        Case((), setup=looked, unchanged=True),
+        Case(("--keep", "README.md"), setup=looked),
+        Case(("--undo", "README.md"), setup=looked),
+        Case(("--keep-all",), setup=author),
+        Case(("--undo", "nope.md"), setup=looked, exit=2, unchanged=True, why="nothing there at the look"),
+        Case(
+            ("--keep-all",), env=(("AI_AGENT", "1"),), exit=2, unchanged=True, why="the author's, refused to an agent"
+        ),
     ],
     "build": [
         Case(),

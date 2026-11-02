@@ -22,6 +22,7 @@
 	import type { PdfView } from './view.svelte';
 	import NoteAt from './NoteAt.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
+	import { quote } from '$lib/notes';
 	import { clearPending, showPending } from '$lib/fragments/pending';
 	import { onDestroy } from 'svelte';
 	import { here } from '$lib/here.svelte';
@@ -261,6 +262,11 @@
 				showPending(offered.range ?? null);
 				noting = { page: offered.page, text: offered.text, at: offered.at };
 				offered = null;
+			}}
+			onquote={() => (offered ? quote({ target: citekey, page: offered.page, quote: offered.text }) : Promise.resolve(''))}
+			ondone={() => {
+				offered = null;
+				window.getSelection()?.removeAllRanges();
 			}}
 		/>
 	{/if}

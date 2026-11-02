@@ -692,9 +692,19 @@ class ServeSession:
         """Listen, then run the first build and begin watching. A cold first build can take a while, so callers that want the URL early call `listen` first."""
         if self.httpd is None:
             self.listen()
+        self.first_look()
         self.first_build()
         assert self.watcher is not None
         self.watcher.start()
+
+    def first_look(self) -> None:
+        """Take the reviewer's first look at the open files when they have none, so an agent's first edits show in Review's Changes; nothing without a reviewer name."""
+        from loom.looks import read_look, take
+        from loom.scan.quilt import reviewer_identity
+
+        who = reviewer_identity(self.quilt.root)[0]
+        if who and read_look(self.quilt.root, who) is None:
+            take(self.quilt, who)
 
     def first_build(self) -> None:
         """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""

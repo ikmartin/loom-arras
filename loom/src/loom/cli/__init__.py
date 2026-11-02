@@ -8,6 +8,7 @@ from loom.cli.adopt import adopt
 from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
 from loom.cli.build_cmds import check, compile, source
+from loom.cli.changes_cmd import changes_command
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, downstream
 from loom.cli.help import LoomGroup
@@ -27,6 +28,7 @@ from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
 from loom.cli.mcp_cmd import mcp_command
 from loom.cli.nodes import new, search
+from loom.cli.note_cmd import note_command
 from loom.cli.page import write
 from loom.cli.paper import atomize, deloom_command, id_command, import_command
 from loom.cli.quilt import init
@@ -88,6 +90,8 @@ main.add_command(history)
 main.add_command(write)
 main.add_command(here_command)
 main.add_command(since_command)
+main.add_command(changes_command)
+main.add_command(note_command)
 main.add_command(mcp_command)
 main.add_command(sync)
 

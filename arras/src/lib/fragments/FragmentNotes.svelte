@@ -6,6 +6,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import NoteAt from '$lib/pdf/NoteAt.svelte';
 	import AnnotateChip from './AnnotateChip.svelte';
+	import { quote } from '$lib/notes';
 	import type { Tool } from '$lib/pdf/view.svelte';
 	import { can } from '$lib/write';
 	import { nameOf } from '$lib/workspace/registry';
@@ -197,6 +198,11 @@
 			showPending(range ?? null);
 			noting = place;
 			offered = null;
+		}}
+		onquote={() => (offered ? quote({ target: offered.target, quote: offered.text }) : Promise.resolve(''))}
+		ondone={() => {
+			offered = null;
+			window.getSelection()?.removeAllRanges();
 		}}
 	/>
 {/if}

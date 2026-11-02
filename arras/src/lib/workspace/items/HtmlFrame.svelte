@@ -7,6 +7,7 @@
 	import { filesUrl } from '$lib/paths';
 	import { capabilities } from '$lib/write';
 	import { followFromFrame, paneOfElement } from '../links';
+	import { quote } from '$lib/notes';
 	import { workspace } from '../store.svelte';
 
 	let { path, anchor = '', seq = 0, key }: { path: string; anchor?: string; seq?: number; key: string } = $props();
@@ -29,6 +30,15 @@
 	const hash = $derived(target ? '#' + encodeURIComponent(target) : '');
 	const src = $derived(frames ? `${frames}/${encoded}?loom-viewer=${encodeURIComponent(location.origin)}${hash}` : filesUrl(path) + hash);
 
+	/** The words the page reported selected, while they are this frame's; the quote control offers them. */
+	const words = $derived(here.selection?.item === key ? (here.selection.text ?? '') : '');
+	let said = $state('');
+	async function quoting(): Promise<void> {
+		const why = await quote({ target: path, quote: words });
+		said = why || 'quoted';
+		setTimeout(() => (said = ''), why ? 2400 : 1200);
+	}
+
 	$effect(() => {
 		const origin = frames;
 		if (!origin) return;
@@ -48,6 +58,12 @@
 </script>
 
 <div class="html-file" data-testid="file-item" data-kind="html">
+	{#if said}
+		<span class="quote-bar said" role="status" data-testid="quote-said">{said}</span>
+	{:else if words}
+		<!-- the page's own selection, reported by its bridge: the one gesture that quotes it -->
+		<button type="button" class="quote-bar" data-testid="frame-quote" onclick={quoting}>quote “{words.length > 40 ? words.slice(0, 39) + '…' : words}”</button>
+	{/if}
 	{#if frames !== undefined}
 		{#if frames}
 			<iframe
@@ -69,6 +85,21 @@
 		height: 100%;
 		min-height: 0;
 		display: flex;
+		position: relative;
+	}
+	.quote-bar {
+		position: absolute;
+		top: var(--gap-tight);
+		right: var(--gap-tight);
+		z-index: 2;
+		font-family: var(--sans);
+		padding: 0.35em 0.8em;
+		border-radius: var(--rad-pill);
+		border: 1px solid var(--rule);
+		background: var(--sheet);
+		color: var(--ann-neutral);
+		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
+		cursor: pointer;
 	}
 	iframe {
 		flex: 1;

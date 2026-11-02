@@ -900,17 +900,6 @@ def _here(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "endpoint",
-    [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],
-)
-def test_each_endpoint_writes_and_refuses_over_the_wire(
-    endpoint: str, serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """One success, with what the server wrote read back from the quilt, and one refusal with its status, code and message; `locate` needs the real pdftotext for its page's word boxes."""
-    CASES[endpoint](serve, tmp_path, monkeypatch)
-
-
 @case("open")
 def _open(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from loom import files
@@ -925,6 +914,80 @@ def _open(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     succeeds(s, "open", {"file": "deck.apkg"})
     assert len(launched) == 2
     refuses(s, "open", {"file": "README.md"}, 400, "not-openable", "never opens a file that may run code")
+
+
+@case("note")
+def _note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, sid = on_demo(serve, tmp_path)
+    said = succeeds(s, "note", {"target": "dm-0003", "quote": "finite", "session": sid, "author": WHO})
+    from loom.notes import load
+
+    assert load(q)[said["note"]].target == {"key": "dm-0003"}
+    refuses(s, "note", {"target": "dm-0003", "quote": "x"}, 400, "no-session", "name the session")
+    refuses(
+        s,
+        "note",
+        {"target": "dm-9999", "quote": "x", "session": sid, "author": WHO},
+        404,
+        "no-such-thing",
+        "names nothing",
+    )
+
+
+@case("note-keep")
+def _note_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, sid = on_demo(serve, tmp_path)
+    nid = succeeds(s, "note", {"target": "dm-0003", "quote": "finite", "session": sid, "author": WHO})["note"]
+    succeeds(s, "note-keep", {"note": nid, "session": sid, "author": WHO})
+    from loom.notes import load
+
+    assert load(q)[nid].kept
+    refuses(
+        s, "note-keep", {"note": "n-2000-01-01-0001", "session": sid, "author": WHO}, 404, "no-such-note", "no note"
+    )
+
+
+@case("changes-keep")
+def _changes_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.looks import read_look
+    from loom.scan.quilt import save_author
+
+    save_author("Tester")
+    s, q, _ = on_demo(serve, tmp_path)
+    succeeds(s, "changes-keep", {})
+    look = read_look(q, "Tester")
+    assert look is not None and "README.md" in look.files
+    (q / "README.md").write_text("changed\n", encoding="utf-8")
+    succeeds(s, "changes-keep", {"path": "README.md"})
+    refuses(s, "changes-keep", {"author": "Referee (Agent)"}, 403, "author-only", "only the author keeps")
+
+
+@case("changes-undo")
+def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.scan.quilt import save_author
+
+    save_author("Tester")
+    s, q, _ = on_demo(serve, tmp_path)
+    succeeds(s, "changes-keep", {})
+    before = (q / "README.md").read_text()
+    (q / "README.md").write_text("an agent's edit\n", encoding="utf-8")
+    succeeds(s, "changes-undo", {"path": "README.md"})
+    assert (q / "README.md").read_text() == before
+    refuses(
+        s, "changes-undo", {"path": "README.md", "author": "Referee (Agent)"}, 403, "author-only", "only the author"
+    )
+    refuses(s, "changes-undo", {"path": "brand-new.md"}, 409, "nothing-to-undo", "delete it yourself")
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],
+)
+def test_each_endpoint_writes_and_refuses_over_the_wire(
+    endpoint: str, serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One success, with what the server wrote read back from the quilt, and one refusal with its status, code and message; `locate` needs the real pdftotext for its page's word boxes."""
+    CASES[endpoint](serve, tmp_path, monkeypatch)
 
 
 def test_every_capability_has_a_case_and_a_row_in_the_spec() -> None:

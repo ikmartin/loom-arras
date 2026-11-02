@@ -87,6 +87,7 @@ interface Linked extends Named {
 	sessions?: { id: string; title: string }[];
 	canon?: { path: string }[];
 	files?: { path: string; kind: string }[];
+	notes?: Record<string, { quote?: string; body: string }>;
 	research_state?: unknown;
 }
 
@@ -112,6 +113,11 @@ export function linkName(m: Linked, href: string): string {
 	const session = (m.sessions ?? []).find((s) => s.id === key);
 	if (session) return session.title;
 	if (key === 'state' && m.research_state) return 'the research state';
+	const noted = m.notes?.[key];
+	if (noted) {
+		const words = (noted.quote || noted.body).trim();
+		return words ? `“${words.length > 48 ? words.slice(0, 47) + '…' : words}”` : 'a note';
+	}
 	if (m.files?.some((f) => f.path === key && f.kind !== 'document' && f.kind !== 'tex')) {
 		const name = key.split('/').pop() ?? key;
 		const page = /^page=(\d+)$/.exec(place)?.[1];

@@ -226,7 +226,7 @@ THING is a node or any key in it, a document's path, an annotation id, a session
 
 ## Review
 
-Annotate, accept, and see what rests on what.
+Annotate, note, accept, keep or undo what changed, and see what rests on what.
 
 ### `loom annotate`
 
@@ -259,6 +259,26 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom note`
+
+`loom note [OPTIONS] [TEXT]`
+
+Write a note on THING, quoting words there or naming a region, or keep one.
+
+A note has no kind, severity or resolution: it says what someone wants kept beside a thing, and a quote is a note with the words it quotes. It fades from view after 14 days unless it is kept or something durable links to it -- an annotation, a message, the research state, a kept note -- and is never deleted. An agent reads a person's notes with `loom since`.
+
+| option | description |
+|---|---|
+| `--on` `THING` | What it is on: a key, a document, a cited work's citekey (with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session. |
+| `--quote` | The words it quotes there. |
+| `--page` | The page, on a cited work or a PDF file, from 1. |
+| `--box` `X,Y,W,H` | A region of the page or image, in points from its top left. |
+| `--keep` `ID` | Keep note ID, so it never fades. |
+| `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
+| `--as` | Who is writing. An agent names itself, including Agent or AI. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom suggestion`
 
 `loom suggestion [OPTIONS] ANNOTATION`
@@ -288,6 +308,22 @@ Record that you accept KEYS as mathematically correct, each against the document
 | `--force` | Accept even when the document the acceptance is recorded against does not compile. |
 | `--yes`, `-y` | Accept --stale, --all-live or --master without asking. |
 | `--dry-run` | Say what would be accepted, and write nothing. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom changes`
+
+`loom changes [OPTIONS]`
+
+List what changed in the open files since your last look, or keep or undo a change.
+
+The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's; undoing keeps the text it replaces. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+
+| option | description |
+|---|---|
+| `--keep` `PATH` | Keep the change to PATH: your look takes its text now. |
+| `--keep-all` | Keep every change: a new look at every open file. |
+| `--undo` `PATH` | Put PATH back as it was at your look, keeping its text now in the history first. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

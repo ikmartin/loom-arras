@@ -518,13 +518,20 @@ def build(
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)
     from loom.files import BODIES, attach_files
+    from loom.looks import DIFFS
+    from loom.looks import attach_changes as attach_look_changes
+    from loom.scan.quilt import reviewer_identity
 
     attach_files(result, manifest, files)
+    from loom.notes import published as published_notes
+
+    manifest["notes"] = published_notes(result)
+    attach_look_changes(result.quilt, reviewer_identity(result.quilt.root)[0], manifest, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/", "spans/", "transcripts/", f"{BODIES}/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/", "transcripts/", f"{BODIES}/", f"{DIFFS}/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

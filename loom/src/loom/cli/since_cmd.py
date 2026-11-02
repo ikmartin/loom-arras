@@ -52,6 +52,7 @@ def _verdict(got: Any) -> str:
         counted(len(got.stale), "key gone stale", "keys gone stale") if got.stale else "",
         "the research state changed" if got.state else "",
         counted(len(got.said), "message") if got.said else "",
+        counted(len(got.notes), "note") if got.notes else "",
     ]
     return f"{window}: " + ", ".join(s for s in said if s)
 
@@ -92,4 +93,22 @@ def _lines(got: Any) -> list[str]:
         if m["body"]:
             said.append(f'      "{m["body"]}"')
     block("said", len(got.said), said)
+    noted = []
+    for n in got.notes:
+        t = n["target"]
+        on = (
+            t.get("key")
+            or t.get("file")
+            or t.get("citekey")
+            or (f"{t['message']['session']} #{t['message']['seq']}" if "message" in t else t.get("session", ""))
+        )
+        at = f", page {n['page']}" if n.get("page") else ""
+        noted.append(f"  {n['id']} on {on}{at}  {n['author']['id']} at {_at(n['when'])}  {n['link']}")
+        if n.get("quote"):
+            noted.append(f'      quoting "{n["quote"]}"')
+        if n.get("rects"):
+            noted.append(f"      a region: {n['rects']}")
+        if n.get("body"):
+            noted.append(f"      {n['body']}")
+    block("noted", len(got.notes), noted)
     return out

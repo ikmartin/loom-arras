@@ -27,7 +27,7 @@ class LinkError(ValueError):
 class Target:
     """What a link names: its kind, the key it is addressed by, and the place in it, if any."""
 
-    kind: str  # node | document | annotation | session | work | page | file
+    kind: str  # node | document | annotation | session | work | page | file | note
     key: str
     place: str = ""
     href: str = ""
@@ -79,6 +79,13 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
         if find_annotation(records, key) is None:
             raise LinkError(f"{href}: no annotation {key}")
         return Target("annotation", key, href=href)
+    if key.startswith("n-"):
+        from loom.notes import ID as NOTE
+        from loom.notes import load as load_notes
+
+        if NOTE.match(key) and key in load_notes(root):
+            return Target("note", key, href=href)
+        raise LinkError(f"{href}: no note {key}")
     if SESSION.match(key):
         from loom.sessions import sessions
 

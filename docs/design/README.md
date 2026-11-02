@@ -55,7 +55,7 @@ Two markers keep the text honest:
 
 ## Decided, not yet built
 
-- **Notes.** Fleeting and durable notes attached to any key, a work's page or a session, with fading computed from age and links. See `model.md`.
+- **Notes beyond their core.** Quoting, a note on anything shown, and fading are built; claims carrying their evidence, promotion to durable notes, and marks drawn in the text at a note's words are not. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.
 - **The viewer's Library.** A Library view of the works; the frame it stands in, and Review as the quilt's management, are built. See `model.md` and plan 0.20.

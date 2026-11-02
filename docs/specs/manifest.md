@@ -34,13 +34,20 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "references": { "Man12": { ... } },
   "macros": { "default": [ ... ], "sets": { "Man12": [ ... ] } },
   "search": [ ... ],
-  "files": [ ... ]
+  "files": [ ... ],
+  "notes": { "n-2026-11-02-0001": { ... } },
+  "changes": [ ... ],
+  "changes_since": { "who": "…", "when": "…" }
 }
 ```
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`.
 
 **[decided]** **Files** (plan 0.22.7) are the project's files the viewer shows, one entry each, sorted by path: `{"path", "kind", "bytes", "body"?}`. `path` is quilt-relative. `kind` says what a viewer does with it: `document` (a LaTeX document of `masters`), `tex` (any other `.tex` file, which a viewer opens as the document that reads it), `markdown`, `html`, `pdf`, `image`, `notebook`, `text` (UTF-8 up to 1 MB), or `other`. A publisher hides what the person would call noise, and loom hides a path with any segment starting with `.` (its own `.loom/` among them), tools' directories, the history and sync directories, and what the quilt's `.gitignore` files ignore. `body`, on a `markdown` or `notebook` entry, is the build-relative path of its rendered HTML (`files/<path>.html`): a Markdown file rendered as a page is, with an `id` on each heading and its relative links resolved (a link to a shown file becomes `quilt:PATH`, an image `/_files/PATH`), raw HTML escaped; a notebook drawn from its saved cells, an HTML or script output by its plain form. A body is beside the manifest for the reason `source/` is. A viewer reads a file's bytes from the publisher at `/_files/PATH` (`write-api.md` §3). Optional and additive: a viewer that finds no `files` shows the documents alone.
+
+**[decided]** **Notes** (plan 0.22.8), by id, are what someone wants kept beside a thing the viewer shows, a quote among them: `{"id", "when", "author": {"kind", "id"}, "session", "target", "body", "quote"?, "page"?, "rects"?, "kept"?, "faded", "detached"}`. `target` is one of `{"key"}` (a node, a region or a document), `{"work", "citekey"}` with `page` (a cited work's page), `{"file"}` (a shown file, with `page` on a PDF), `{"message": {"session", "seq"}}` or `{"session"}`. `quote` is the words it quotes and `rects` a region, in points from a page's top left or in an image's pixels. A note has no kind, severity or resolution. `faded` is computed when the manifest is published: not `kept`, older than 14 days, and linked from no annotation, message, page or kept note. `detached` says its words are no longer in what it is on. A viewer hides a faded note until asked, and draws a session's notes in its transcript by time.
+
+**[decided]** **Changes** (plan 0.22.8) are the open files changed since the reviewer's look, `[{"path", "kind": "changed"|"new"|"gone", "diff"?}]`, with `diff` the build-relative path of a unified diff (`changes/<path>.diff`); `changes_since` is that look, `{"who", "when"}`. Both are absent before the reviewer's first look. A viewer offers keep and undo through the write API (`changes-keep`, `changes-undo`).
 
 **[decided]** **Pages** (plan 0.21.3) are a reading loom keeps for one thing, which a person edits and an agent writes through the publisher, never a source. Each is `{"path", "hash", "body_html", "by": {"kind": "agent"|"person", "id"}, "when", "edited_since", "links": {"broken": [{"href", "why"}], "moved": [{"href", "key"}]}}`: `hash` the exact text's, `body_html` its Markdown rendered as a transcript message's (§10.1), `by` and `when` the last write through the publisher (absent when there was none), `edited_since` true when the text has changed since that write, `broken` the links that name nothing now and `moved` the linked results whose text has changed since the write. `research_state`, at the top level, is the quilt's; a work's is `references[CK].overview` (§13). Both are optional, and absent until one is written.
 

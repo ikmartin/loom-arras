@@ -5,7 +5,7 @@
 // One capture-phase listener for the whole viewer, so no renderer decides for itself and a link the router would otherwise follow is answered before it does.
 
 import { goto } from '$app/navigation';
-import type { Manifest } from '$lib/manifest/types';
+import type { Manifest, Note } from '$lib/manifest/types';
 import { pdf } from '$lib/pdf.svelte';
 import { sessionView } from '$lib/sessions/sessions.svelte';
 import { isWorkLink, locate, parseWorkLink, resultPlace } from '$lib/worklink';
@@ -64,6 +64,8 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 	if (!key) return null;
 	const note = m.annotations[key];
 	if (note) return noteItem(m, threadOf(m, note.id), note.target);
+	const noted = m.notes?.[key];
+	if (noted) return notedItem(m, noted);
 	if ((m.sessions ?? []).some((s) => s.id === key) || m.threads[key]) return { kind: 'session', id: key };
 	if (key === 'state' && m.research_state) return { kind: 'page', id: 'state' };
 	if (isDocument(m, key)) return { kind: 'document', id: key, ...(place ? { anchor: anchorId(place) } : {}) };
@@ -108,6 +110,16 @@ export function followFromFrame(m: Manifest, href: string, from: number): void {
 export function paperAt(m: Manifest, key: string): Item | null {
 	const at = resultPlace(m, key);
 	return at ? { kind: 'work', id: at.citekey, place: { page: at.page, result: at.result } } : null;
+}
+
+/** Where a note is read (plan 0.22.8): what it is on, at its page or its key; a message's or a session's opens the transcript. */
+function notedItem(m: Manifest, n: Note): Item | null {
+	const t = n.target;
+	if (t.file) return { kind: 'file', id: t.file, ...(n.page ? { anchor: `page=${n.page}` } : {}) };
+	if (t.citekey) return { kind: 'work', id: t.citekey, place: { page: n.page ?? 1 } };
+	if (t.message) return { kind: 'session', id: t.message.session };
+	if (t.session) return { kind: 'session', id: t.session };
+	return t.key ? itemForQuilt(m, t.key) : null;
 }
 
 /** The note a reply answers, and so on up: a box opens on a thread, by the note that began it. */

@@ -49,6 +49,10 @@ CAPABILITIES = [
     "review-finish",
     "reviewer-settings",
     "here",
+    "changes-keep",
+    "changes-undo",
+    "note",
+    "note-keep",
 ]
 
 WRITE_API_VERSION = 1
@@ -79,6 +83,9 @@ def _scan(root: Path) -> ScanResult:
 #: Writes that change records alone, which the scan never reads; their publication builds from the last scan (`ServeSession.rebuild`).
 RECORD_WRITES = (
     "annotate",
+    "note",
+    "note-keep",
+    "changes-keep",
     "reply",
     "resolve",
     "edit",
@@ -122,6 +129,70 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
     if not isinstance(value, str):
         raise ApiError("bad-field", f"{name} must be a string")
     return value
+
+
+def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`note` writes a note, a quote among them, on `target` in the session the write names; `note-keep` keeps one so it never fades."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError
+    from loom.cli.review import _writer
+    from loom.notes import NoteRefused, keep, write
+
+    which = _str(body, "session")
+    if not which:
+        raise ApiError("no-session", "a write must name the session it belongs to")
+    try:
+        sid, kind, name = _writer(root, which, _str(body, "author"), sniff=False)
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
+    except (EnvError, ContentError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    try:
+        if endpoint == "note-keep":
+            note = keep(root, _str(body, "note", required=True) or "", name)
+            return {"ok": True, "result": f"kept {note.id}", "note": note.id}
+        page = body.get("page")
+        if page is not None and (not isinstance(page, int) or page < 1):
+            raise ApiError("bad-field", "page must be a positive integer")
+        rects = [[float(v) for v in r] for r in body.get("rects") or []] or None
+        note = write(
+            _scan(root),
+            _str(body, "target", required=True) or "",
+            author=name,
+            author_kind="agent" if kind == "agent" else "person",
+            session=sid,
+            body=_str(body, "body") or "",
+            quote=_str(body, "quote"),
+            page=page,
+            rects=rects,
+        )
+    except NoteRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+    return {"ok": True, "result": f"noted {note.id}", "note": note.id}
+
+
+def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, or every change (no `path`), or puts one back as it was at their look; the author's acts, refused to a declared agent."""
+    from loom.cli._common import is_agent
+    from loom.looks import LookRefused, keep, undo
+    from loom.scan.quilt import load_quilt, reviewer_identity
+
+    who = reviewer_identity(root)[0]
+    if not who:
+        raise ApiError("no-reviewer", "Choose your reviewer name in Settings", status=409)
+    if is_agent(_str(body, "author") or who):
+        raise ApiError(
+            "author-only", "An agent reads and annotates; only the author keeps or undoes a change", status=403
+        )
+    quilt = load_quilt(root)
+    path = _str(body, "path", required=endpoint == "changes-undo")
+    try:
+        if endpoint == "changes-undo":
+            undo(quilt, who, path or "")
+            return {"ok": True, "result": f"{path} is back as it was at your look"}
+        keep(quilt, who, path)
+    except LookRefused as exc:
+        raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-change" else 409) from exc
+    return {"ok": True, "result": f"kept {path}" if path else "kept everything"}
 
 
 def _open(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +271,10 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _here(root, body)
     if endpoint == "open":
         return _open(root, body)
+    if endpoint in ("changes-keep", "changes-undo"):
+        return _changes(root, endpoint, body)
+    if endpoint in ("note", "note-keep"):
+        return _note(root, endpoint, body)
     if endpoint == "library-cite":
         return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):

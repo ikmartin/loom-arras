@@ -5,7 +5,7 @@ import { manifest, serve } from '../manifest';
 test('Review\'s column lists its sections, each counting what waits there, the current one marked', async ({ page }) => {
 	await page.goto('/review');
 	const list = page.getByTestId('review-sections');
-	await expect(list.getByRole('link')).toHaveText([/^Needs review/, /^Incoming/, /^Library/, /^Sessions/, /^History/, /^Problems/]);
+	await expect(list.getByRole('link')).toHaveText([/^Changes/, /^Needs review/, /^Incoming/, /^Suggestions/, /^Library/, /^Sessions/, /^History/, /^Problems/]);
 	await expect(page.getByTestId('section-needs-review')).toHaveAttribute('aria-current', 'page');
 	const unresolved = (manifest.unresolved ?? []).filter((r: { status: string }) => r.status === 'needs-review').length;
 	await expect(page.getByTestId('section-count-needs-review')).toHaveText(String(unresolved));
@@ -17,7 +17,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	await expect(page.getByTestId('section-count-history')).toHaveCount(0);
 	await expect(page.getByTestId('section-library')).toHaveAttribute('title', /citation suggestion/);
 	// each section is its own page, and the column marks it
-	for (const id of ['incoming', 'library', 'sessions', 'history', 'problems']) {
+	for (const id of ['changes', 'incoming', 'suggestions', 'library', 'sessions', 'history', 'problems']) {
 		await page.getByTestId(`section-${id}`).click();
 		await expect(page).toHaveURL(new RegExp(`/review/${id}$`));
 		await expect(page.getByTestId(`section-${id}`)).toHaveAttribute('aria-current', 'page');

@@ -362,3 +362,24 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **Guard.** `loom/tests/unit/test_files.py::test_loom_opens_an_application_or_a_document_and_never_a_file_that_runs_code`, `loom/tests/unit/render/test_files_served.py::test_open_is_the_persons_click_and_never_runs_code`
 
 **Record.** Plan 0.22.7
+
+### Undo writes a person's file only on their act, with what it replaces kept first
+
+**Rule.** `loom changes --undo` and the API's `changes-undo` write an open file back as it was at the person's look only when the person asks, never an agent (K5), and store the file's text now in the history's texts before writing, with a ledger line naming both hashes. A file new since the look has no undo.
+
+**Why.** Since plan 0.22.6 agents edit open files in place, and Review's Changes is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
+
+**Guard.** `loom/tests/unit/test_looks.py::test_undo_puts_the_text_back_and_keeps_what_it_replaced`, `loom/tests/unit/test_looks.py::test_keeping_and_undoing_are_the_authors`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`changes-undo`), `arras/tests/e2e-write/meta.e2e.ts`
+
+**Record.** Plan 0.22.8
+
+### A note's fading is computed, never stored
+
+**Rule.** Whether a note has faded is computed each time the manifest is published, from its age (more than 14 days), whether it is kept, and whether an annotation, a message, the research state or a kept note links to it. Nothing records that a note faded, and nothing deletes one.
+
+**Why.** P3: a state stored is a state that goes stale. A note linked tomorrow must come back without anyone writing that it did.
+
+**Guard.** `loom/tests/unit/test_notes.py::test_a_note_fades_after_two_weeks_unless_kept_or_linked`
+
+**Record.** Plan 0.22.8
+

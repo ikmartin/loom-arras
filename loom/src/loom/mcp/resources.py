@@ -142,6 +142,8 @@ def reading(uri: str, quilt: Quilt) -> Reading:
         raise NotAResource(f"{uri}: an annotation, which loom_ai_annotations reads with its thread")
     if SESSION.match(key):
         raise NotAResource(f"{uri}: a session, which loom_session_list lists and loom_ai_orient reads")
+    if key.startswith("n-"):
+        raise NotAResource(f"{uri}: a note, which loom_since reports with what it quotes")
     if key == STATE:
         if closure or place:
             raise NotAResource(f"{uri}: the research state is read whole")

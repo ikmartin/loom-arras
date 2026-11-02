@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c409f65d629ae8e88b46e885cd93f45bcc2a069f52c7355850fe39eea6516533",
+   "hash": "2e833015b3c5280fa39fb1f95a9241f920cb80240914a5c48fdc7f375e23fc77",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "79c7dd0b59dc1e246ebfcfb6da51420821c9ade3cf5acb2615d7535b486edf68",
+   "hash": "17de3acefdf0a94c8630b810878e77bb02825fd2f439b113093199ef61d6bef0",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "a8cc188c9c7ddf3d25abf889c28bc5ffcca31253137bdb95d0d0c805a9e2a263",
+   "hash": "791c0e1485539df4f1c7a318e43e4ead0d1813275d32e018b44278a867eac0b0",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -416,6 +416,17 @@
    "when": "2026-09-15T16:00:00Z"
   }
  ],
+ "changes": [
+  {
+   "diff": "changes/notes/intro.md.diff",
+   "kind": "changed",
+   "path": "notes/intro.md"
+  }
+ ],
+ "changes_since": {
+  "when": "2026-09-16T11:30:00Z",
+  "who": "The synthetic quilt"
+ },
  "contributions": [
   {
    "changes": [
@@ -2049,7 +2060,7 @@
   },
   {
    "body": "files/notes/intro.md.html",
-   "bytes": 381,
+   "bytes": 402,
    "kind": "markdown",
    "path": "notes/intro.md"
   },
@@ -7191,6 +7202,72 @@
    "tags": [],
    "taxon": "Definition",
    "title": "Orbit pair"
+  }
+ },
+ "notes": {
+  "n-2026-08-20-0001": {
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "",
+   "detached": false,
+   "faded": true,
+   "id": "n-2026-08-20-0001",
+   "quote": "Notes on the widgets",
+   "session": "s-2026-09-16-0001",
+   "target": {
+    "file": "notes/intro.md"
+   },
+   "when": "2026-08-20T09:00:00Z"
+  },
+  "n-2026-09-16-0001": {
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-0001",
+   "quote": "Let $(X,\\sigma)$ be a finite widget.",
+   "session": "s-2026-09-16-0001",
+   "target": {
+    "key": "sy-0003"
+   },
+   "when": "2026-09-16T11:30:00Z"
+  },
+  "n-2026-09-16-0002": {
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-0002",
+   "kept": "2026-09-16T11:30:00Z",
+   "quote": "A widget is fixed by its locus",
+   "session": "s-2026-09-16-0001",
+   "target": {
+    "file": "notes/intro.md"
+   },
+   "when": "2026-09-16T11:30:00Z"
+  },
+  "n-2026-09-16-0003": {
+   "author": {
+    "id": "Referee Agent",
+    "kind": "agent"
+   },
+   "body": "the parity count, to check against the paper",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-0003",
+   "session": "s-2026-09-16-0001",
+   "target": {
+    "session": "s-2026-09-16-0001"
+   },
+   "when": "2026-09-16T11:30:00Z"
   }
  },
  "publisher": {

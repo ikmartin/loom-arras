@@ -12,6 +12,7 @@
       "Edit(/.loom/ai/**)",
       "Edit(/.loom/retired/**)",
       "Edit(/.loom/since/**)",
+      "Edit(/.loom/looked/**)",
       "Edit(/.loom/history/**)",
       "Edit(/.loom/state.toml)",
       "Edit(/.loom/reference-notes.jsonl)",

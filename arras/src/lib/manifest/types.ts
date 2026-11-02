@@ -40,6 +40,34 @@ export interface Corpus {
   home?: string | null;
 }
 
+/** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no kind or severity. */
+export interface Note {
+  id: string;
+  when: string;
+  author: { kind: "person" | "agent" | (string & {}); id: string };
+  session: string;
+  /** What it is on: one of a key, a cited work's page, a shown file, a transcript message, or the session alone. */
+  target: { key?: string; work?: string; citekey?: string; file?: string; message?: { session: string; seq: number }; session?: string };
+  body: string;
+  quote?: string;
+  page?: number;
+  rects?: number[][];
+  /** When it was kept, so it never fades. */
+  kept?: string;
+  /** Older than two weeks, not kept, and linked from nothing durable: hidden until asked for. */
+  faded: boolean;
+  /** Its quote is no longer in what it is on. */
+  detached: boolean;
+}
+
+/** An open file changed since the reviewer's look (plan 0.22.8). */
+export interface FileChange {
+  path: string;
+  kind: "changed" | "new" | "gone" | (string & {});
+  /** The unified diff, by its path under the build directory. */
+  diff?: string;
+}
+
 /** A file of the project the viewer shows, by its quilt-relative path (plan 0.22.7). */
 export interface ProjectFile {
   path: string;
@@ -580,6 +608,11 @@ export interface Manifest {
   research_state?: Page;
   /** Every file of the project the viewer shows, hidden ones left out (plan 0.22.7); absent from an older publisher. */
   files?: ProjectFile[];
+  /** Every note, by id (plan 0.22.8). */
+  notes?: Record<string, Note>;
+  /** The open files changed since the reviewer's look, and that look; absent before a first look. */
+  changes?: FileChange[];
+  changes_since?: { who: string; when: string };
   /** Asserted relations between two results, each with a reason. Nobody verifies these and every surface that shows one says so: they are navigation, not mathematics, and are never citable and never in a closure. */
   links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };

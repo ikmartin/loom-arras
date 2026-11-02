@@ -11,6 +11,7 @@
 	import { writable } from '$lib/sessions/sessions.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
 	import { GRADED, KINDS, SEVERITIES, VERBS, type Kind } from '$lib/review/kinds';
+	import { quote } from '$lib/notes';
 
 	let {
 		citekey = '',
@@ -119,6 +120,23 @@
 		onwritten?.({ id });
 	}
 
+	/** A note in place of an annotation: the place quoted, what was typed as its words, no kind or severity (plan 0.22.8). */
+	async function quoting(): Promise<void> {
+		if (why || busy) return;
+		busy = true;
+		said = '';
+		const place = target
+			? { target, ...(text ? { quote: text } : {}) }
+			: { target: citekey, page, ...(rects ? { rects } : { quote: text }) };
+		const refused = await quote({ ...place, body: message.trim() || undefined });
+		busy = false;
+		if (refused) {
+			said = refused;
+			return;
+		}
+		onwritten?.({ id: '' });
+	}
+
 	function keys(e: KeyboardEvent): void {
 		if (e.key === 'Escape') {
 			e.preventDefault();
@@ -159,6 +177,7 @@
 				<button type="button" class="s" class:on={severity === s} aria-pressed={severity === s} disabled={!graded} data-severity={s} onclick={() => (severity = severity === s ? '' : s)}>{s}</button>
 			{/each}
 		</div>
+		<button type="button" class="as-link quote" disabled={!!why || busy} title="A note quoting this place, with no kind: an agent reads it with loom since" data-testid="note-quote-it" onclick={quoting}>quote it</button>
 		<button type="submit" class="go" disabled={!!why || busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : VERBS[kind]}</button>
 	</div>
 	{#if said}
