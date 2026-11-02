@@ -488,12 +488,15 @@ def _library_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
 @case("locate")
 def _locate(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s = serve(showcase(tmp_path))
+    builds = s.builds
     text = "The median orders of a weighted digraph are in bijection with the vertices"
     said = succeeds(s, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})
     assert said["anchor"]["basis"] == "text" and said["anchor"]["page"] == 2 and said["text"] == text, said
     # a quote with no page: the page that holds it
     found = succeeds(s, "locate", {"citekey": "Bellamy19", "text": text})
     assert found["page"] == 2 and found["anchor"]["page"] == 2, found
+    # a read publishes nothing: the viewer asks again on each new manifest, so a rebuild after it would have it ask for ever
+    assert s.builds == builds
     refuses(s, "locate", {"citekey": "Nope", "page": 1, "text": "x"}, 404, "no-such-work", "Nope")
     refuses(
         s,

@@ -60,7 +60,7 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper", "here", "open")
+READS = ("locate", "compare", "adopt-preview", "sync-preview", "adopt-paper", "here", "open")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "review-decision", "adopt-decision")
