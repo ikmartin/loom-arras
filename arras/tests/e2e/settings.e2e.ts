@@ -31,7 +31,7 @@ test('each section opens its own page, saying where it is saved, and the window 
 		['appearance', 'Appearance', 'this browser'],
 		['profile', 'Profile', 'for every quilt'],
 		['agents', 'Agents', "this quilt's config.toml"],
-		['overleaf', 'Overleaf', '.loom/']
+		['overleaf', 'Overleaf', '.loom/source-sync.json, committed with the quilt']
 	]) {
 		await settings(page, section);
 		await expect(page.getByTestId('settings-title')).toHaveText(title);
@@ -74,8 +74,8 @@ test("without a publisher, the quilt's settings are shown as published and chang
 	await expect(page.getByTestId('agents-protected')).toContainText('config.toml');
 	await expect(page.getByTestId('deny-pattern')).toHaveCount(0);
 	await expect(page.getByTestId('agents-update')).toHaveCount(0);
-	// the apps say what sets them up, in the publisher's words
-	await expect(page.getByTestId('agents-apps')).toContainText('Claude Code');
+	// a quilt with no agent layer says what writes one, in the publisher's words
+	await expect(page.getByTestId('agents-no-layer')).toContainText('loom ai init');
 	await settings(page, 'overleaf');
 	await expect(page.getByTestId('sync-unpaired')).toBeVisible();
 	await expect(page.getByTestId('settings-read-only')).toHaveCount(0);

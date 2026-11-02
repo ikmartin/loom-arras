@@ -40,7 +40,7 @@ export const SECTIONS: Section[] = [
 	{ id: 'agents', label: 'Agents', group: 'quilt', where: QUILT, icon: 'M7 7h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3M12 3v4M9 13h.01M15 13h.01' },
 	{ id: 'library', label: 'Library', group: 'quilt', where: QUILT, icon: 'M5 4v16M9 4v16M13 5l4 15M19 4l-2 16' },
 	{ id: 'problems', label: 'Problems', group: 'quilt', where: QUILT, icon: 'M12 3l9 16H3zM12 10v4M12 17h.01' },
-	{ id: 'overleaf', label: 'Overleaf', group: 'quilt', where: 'The pairing is kept in .loom/, on this computer.', icon: 'M4 12a8 8 0 0 1 14-5M20 12a8 8 0 0 1-14 5M18 3v4h-4M6 21v-4h4' }
+	{ id: 'overleaf', label: 'Overleaf', group: 'quilt', where: 'Recorded in .loom/source-sync.json, committed with the quilt; the folder it names is a clone on this computer.', icon: 'M4 12a8 8 0 0 1 14-5M20 12a8 8 0 0 1-14 5M18 3v4h-4M6 21v-4h4' }
 ];
 
 export const SETTINGS: Setting[] = [

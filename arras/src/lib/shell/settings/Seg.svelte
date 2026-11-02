@@ -10,11 +10,13 @@
 </div>
 
 <style>
+	/* the chosen value is a raised chip inside the control, rounded on its own, so its outline follows its corners */
 	.seg {
 		display: inline-flex;
+		gap: 2px;
+		padding: 2px;
 		border: 1px solid var(--rule);
-		border-radius: 8px;
-		overflow: hidden;
+		border-radius: 9px;
 		background: var(--leaf);
 	}
 	button {
@@ -22,15 +24,12 @@
 		font-family: var(--sans);
 		font-size: 12.5px;
 		white-space: nowrap;
-		padding: 5px 12px;
+		padding: 4px 11px;
 		border: 0;
-		border-left: 1px solid var(--rule);
+		border-radius: 6px;
 		background: none;
 		color: var(--ink-soft);
 		cursor: pointer;
-	}
-	button:first-child {
-		border-left: 0;
 	}
 	button:hover {
 		color: var(--ink);
@@ -39,6 +38,12 @@
 		background: var(--sheet);
 		color: var(--ink);
 		font-weight: 500;
-		box-shadow: inset 0 0 0 1px var(--rule-strong);
+		box-shadow:
+			0 0 0 1px var(--rule-strong),
+			0 1px 2px rgb(0 0 0 / 8%);
+	}
+	button:focus-visible {
+		outline: 2px solid var(--link);
+		outline-offset: 1px;
 	}
 </style>

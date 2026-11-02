@@ -378,7 +378,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "9c7dc561314d0579c3dc1b99f9055fc12ec504dd0eb85c03326c2f870d5a66a0",
+   "hash": "b6352de9ceec63788ee3cdd62d7f94c53d72abf95c9be95487bfdb903a1009b1",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "3e7cf9b05d16af439ee9f513b2317a2df47d0a9c23cff9ef1264af53f34e9f76",
+   "hash": "e046817cb7b7ba1eab4a48df081ad58e7c085f803b5f72eb9a344283f65f989e",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -404,7 +404,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "f703855cf9c381c95fa5f7870f146bf3b345f99ace4895e1c74d465269b1d65f",
+   "hash": "b4a4144d6931eccb2bef2ea1a26224c6baa7f437f25018918c74f82b0502c080",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -459,9 +459,9 @@
      "set_up": false
     }
    ],
-   "command": "",
+   "command": "loom ai init",
    "deny": [],
-   "layer": true,
+   "layer": false,
    "protected": [
     ".loom/ (but .loom/sessions/, .loom/build/, .loom/copies/)",
     "config.toml",

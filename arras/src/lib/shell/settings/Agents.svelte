@@ -40,7 +40,7 @@
 {/if}
 {#if error}<p class="note warn" role="alert">{error}</p>{/if}
 {#if !agents.layer}
-	<div class="note info">This quilt has no agent layer, so no agent is told what loom is. To write one, run <code>{agents.command}</code> in a terminal.</div>
+	<div class="note info" data-testid="agents-no-layer">This quilt has no agent layer, so no agent is told what loom is. To write one, run <code>{agents.command}</code> in a terminal.</div>
 {/if}
 <div class="card">
 	<Row id="agents.deny" stack refused={draft.refused['agents.deny']}>
