@@ -9,6 +9,7 @@
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { isAux } from './aux';
+	import { isAgentDocument } from '$lib/manifest/documents';
 
 	let { files, masters, own, copiesOf, section }: { files: ProjectFile[]; masters: Master[]; own: Master[]; copiesOf: (path: string) => Master[]; section: (m: Master) => string } = $props();
 
@@ -37,8 +38,9 @@
 			at.set(path, d);
 			return d;
 		};
-		// LaTeX's auxiliary files are left out unless the reader asked for them (Settings)
-		for (const f of prefs.hideAux ? files.filter((x) => !isAux(x.path)) : files) {
+		// LaTeX's auxiliary files are left out unless the reader asked for them, and the agent's documents when the reader asked (Settings)
+		const agents = new Set(prefs.hideAgentDocs ? masters.filter(isAgentDocument).map((d) => d.path) : []);
+		for (const f of files.filter((x) => !(prefs.hideAux && isAux(x.path)) && !agents.has(x.path))) {
 			const cut = f.path.lastIndexOf('/');
 			dirOf(cut < 0 ? '' : f.path.slice(0, cut)).files.push(f);
 		}

@@ -35,6 +35,8 @@ export interface Prefs {
 	ids: boolean;
 	/** Whether the project's tree leaves out LaTeX's auxiliary files (`shell/aux.ts`). On by default: a compile writes them for its own next run, and they crowd the documents they sit beside. */
 	hideAux: boolean;
+	/** Whether Docs leaves out the agent's documents: its copies beneath each document, Agent documents and the closed ones. Off by default: an agent's copy is read beside the document it copies, and hiding it is a reader's choice. */
+	hideAgentDocs: boolean;
 	face: Face;
 	size: Size;
 	width: Width;
@@ -43,7 +45,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, hideAux: true, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, hideAux: true, hideAgentDocs: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -69,6 +71,7 @@ export function coerce(raw: unknown): Prefs {
 		panel: o.panel !== false,
 		ids: o.ids === true,
 		hideAux: o.hideAux !== false,
+		hideAgentDocs: o.hideAgentDocs === true,
 		zoom,
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
@@ -115,6 +118,7 @@ class PrefsState {
 	panel = $state<boolean>(DEFAULTS.panel);
 	ids = $state<boolean>(DEFAULTS.ids);
 	hideAux = $state<boolean>(DEFAULTS.hideAux);
+	hideAgentDocs = $state<boolean>(DEFAULTS.hideAgentDocs);
 	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
 	face = $state<Face>(DEFAULTS.face);
 	size = $state<Size>(DEFAULTS.size);
@@ -124,7 +128,7 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, hideAux: this.hideAux, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentDocs: this.hideAgentDocs, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -134,6 +138,7 @@ class PrefsState {
 		this.panel = p.panel;
 		this.ids = p.ids;
 		this.hideAux = p.hideAux;
+		this.hideAgentDocs = p.hideAgentDocs;
 		this.zoom = { ...p.zoom };
 		this.face = p.face;
 		this.size = p.size;

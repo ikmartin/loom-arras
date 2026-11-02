@@ -55,8 +55,9 @@
 
 	// Documents: the drafts being worked on, as a list rather than a dropdown, because a dropdown shows one name at a time and cannot say which draft is conflicted. A landmark is reached from its draft's history and from Review › History, not listed here.
 	const own = $derived(masters.filter((m) => !m.closed && !m.context_only && !isAgentDocument(m)));
-	const withAgent = $derived(masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
-	const closed = $derived(masters.filter((m) => m.closed));
+	// the agent's documents, open and closed, unless the reader hid them (Settings)
+	const withAgent = $derived(prefs.hideAgentDocs ? [] : masters.filter((m) => !m.closed && !m.context_only && isAgentDocument(m)));
+	const closed = $derived(prefs.hideAgentDocs ? [] : masters.filter((m) => m.closed));
 	// an agent's copy is read beside the document it copies, so it sits beneath that document's row; one whose document is not listed (closed, context-only, gone) stands on its own after them
 	const copiesOf = (path: string) => withAgent.filter((m) => m.copy_of === path);
 	const unplaced = $derived(withAgent.filter((m) => !own.some((o) => o.path === m.copy_of)));

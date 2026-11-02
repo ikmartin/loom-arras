@@ -82,3 +82,29 @@ test("LaTeX's auxiliary files are left out of the tree until the reader asks for
 	await page.reload();
 	await expect(tree.getByRole('link', { name: 'main.aux' })).toBeVisible();
 });
+
+test("the agent's documents leave Docs when the reader hides them in Settings, and come back when shown", async ({ page }) => {
+	const { serve } = await import('../manifest');
+	await serve(page, (m) => {
+		const copy = m.masters.find((d: { copy_of?: string }) => d.copy_of)!;
+		m.masters = [...m.masters, { ...copy, path: '.loom/copies/old.tex', closed: true }];
+	});
+	await page.goto('/master/drafting/main');
+	const docs = page.getByTestId('docs-part');
+	await expect(docs.getByTestId('docs-copies')).toContainText('aidoc');
+	await expect(docs.getByTestId('docs-closed')).toBeVisible();
+	await settings(page, 'files');
+	const hide = page.getByTestId('hide-agent-docs');
+	await expect(hide).not.toBeChecked();
+	await hide.check();
+	await expect(docs.getByTestId('docs-copies')).toHaveCount(0);
+	await expect(docs.getByTestId('docs-closed')).toHaveCount(0);
+	// the person's own document stays
+	await expect(page.getByTestId('docs-tree').getByRole('link', { name: 'main.tex', exact: true })).toBeVisible();
+	// remembered in this browser
+	await page.reload();
+	await expect(docs.getByTestId('docs-copies')).toHaveCount(0);
+	await settings(page, 'files');
+	await page.getByTestId('hide-agent-docs').uncheck();
+	await expect(docs.getByTestId('docs-copies')).toContainText('aidoc');
+});
