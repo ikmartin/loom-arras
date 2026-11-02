@@ -189,7 +189,7 @@
 								<span class="caret">{filesOpen ? '▾' : '▸'}</span>Files
 							</button>
 						</p>
-						{#if filesOpen}<FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} />{/if}
+						{#if filesOpen}<div class="shelf-body"><FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} /></div>{/if}
 					{:else if store.manifest?.research_state}
 						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
 						{@const onState = page.route.id === '/page/[id]'}
@@ -233,24 +233,26 @@
 					{#if works.length}
 						<p class="shelf-head">
 							<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
-								<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="aside">({works.length})</span>
+								<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="count">{works.length}</span>
 							</button>
 						</p>
 						{#if libraryOpen}
-							<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />
-							<ul class="plain library" data-testid="library-list">
-								{#each library as r (r.citekey)}
-									<li>
-										<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}"
-											><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span>{r.title}</a
-										>
-										{#if r.unreadable}<span class="aside">unreadable</span>{/if}
-									</li>
-								{:else}
-									<li class="aside">nothing matches</li>
-								{/each}
-								<li><a href={route('/review/library')} data-testid="ledger-link">ledger</a></li>
-							</ul>
+							<div class="shelf-body">
+								<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />
+								<ul class="plain library" data-testid="library-list">
+									{#each library as r (r.citekey)}
+										<li>
+											<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}"
+												><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span>{r.title}</a
+											>
+											{#if r.unreadable}<span class="aside">unreadable</span>{/if}
+										</li>
+									{:else}
+										<li class="aside">nothing matches</li>
+									{/each}
+									<li><a href={route('/review/library')} data-testid="ledger-link">ledger</a></li>
+								</ul>
+							</div>
 						{/if}
 					{/if}
 					</div>
@@ -483,7 +485,7 @@
 		top: 0;
 		max-height: 100vh;
 	}
-	/* A shelf's head is a titled rule, `▾ Files ────`, in the size of the rows beneath it: Files and Library are the column's two kinds of thing, and read as headings rather than as labels. */
+	/* A shelf's head is a band, a shade lighter than the column, in the size of the rows beneath it, and the rows stand indented under its name: Files and Library are the column's two kinds of thing, and read as sections rather than as labels. */
 	.shelf-head {
 		margin: var(--gap-tight) 0 var(--gap-hair);
 	}
@@ -493,35 +495,38 @@
 	.shelf {
 		display: flex;
 		align-items: center;
-		gap: 5px;
+		gap: 3px;
 		width: 100%;
+		box-sizing: border-box;
+		padding: 3px 6px 3px 4px;
 		font: inherit;
 		font-size: 12px;
 		font-weight: 500;
 		line-height: 1.4;
-		color: var(--ink-soft);
-		background: none;
+		color: var(--ink);
+		/* a wash of the ink, so the band shows on the column in either theme */
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
 		border: 0;
-		padding: 0;
+		border-radius: var(--rad-control);
 		cursor: pointer;
 		text-align: left;
 	}
 	.shelf:hover {
-		color: var(--ink);
-	}
-	.shelf::after {
-		content: '';
-		flex: 1;
-		margin-left: 3px;
-		border-top: 1px solid var(--rule);
+		background: color-mix(in srgb, var(--ink) 10%, transparent);
 	}
 	.shelf .caret {
-		width: 0.8em;
+		width: 10px;
 		color: var(--ink-faint);
 	}
-	.shelf .aside {
+	.shelf .count {
+		margin-left: auto;
 		font-weight: 400;
+		font-variant-numeric: tabular-nums;
 		color: var(--ink-faint);
+	}
+	/* the band's left padding, its caret and the gap after it: a row starts under the shelf's name */
+	.shelf-body {
+		padding-left: calc(4px + 10px + 3px);
 	}
 	.closed summary {
 		font-size: 10.5px;
