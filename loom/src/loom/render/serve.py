@@ -196,6 +196,8 @@ class LoomHandler(SimpleHTTPRequestHandler):
     publication_lock: Any = None
     #: The server's publications, set when it owns a build: what `/_api/stream` reports.
     publications: Publications | None = None
+    #: The library runs the viewer started (`loom.jobs`), which `GET /_api/jobs` reports; None where nothing runs them.
+    jobs: Any = None
     #: What the viewer shows of the quilt, which `/_files/` answers; None serves no project file.
     shown: Shown | None = None
     #: The frames origin's address, which `GET /_api` gives the viewer; '' when there is none.
@@ -384,6 +386,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if self.path.split("?", 1)[0] == "/_api/here":
             self._here()
             return
+        if self.path.split("?", 1)[0] == "/_api/jobs":
+            self._jobs()
+            return
         if self.path.split("?", 1)[0] == "/_api":
             from loom.render.api import discovery
 
@@ -452,6 +457,23 @@ class LoomHandler(SimpleHTTPRequestHandler):
             )
             return
         self._json(HTTPStatus.OK, reading_place(self.quilt_root))
+
+    def _jobs(self) -> None:
+        """`GET /_api/jobs`: the library runs the viewer started, newest first, each with its steps and, once done, its report; this server's origin and the token are required, as for `/_api/here`."""
+        if self.quilt_root is None or self.jobs is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        elsewhere = from_elsewhere(self)
+        if elsewhere:
+            self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": elsewhere}})
+            return
+        if not self.token or self.headers.get("X-Loom-Token") != self.token:
+            self._json(
+                HTTPStatus.FORBIDDEN,
+                {"error": {"code": "refused", "message": "this request carries no valid X-Loom-Token"}},
+            )
+            return
+        self._json(HTTPStatus.OK, {"jobs": self.jobs.recent()})
 
     def _stream(self) -> None:
         """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else.
@@ -571,6 +593,9 @@ class ServeSession:
         self.last_report: BuildReport | None = None
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
         self.publications = Publications()
+        from loom.jobs import Jobs
+
+        self.jobs = Jobs(self._run_job)
 
     def rebuild(
         self,
@@ -622,6 +647,22 @@ class ServeSession:
             and any(p.suffix in (".tex", ".sty", ".cls", ".bib") for p in changed)
         ):
             threading.Thread(target=self._compile_default, name="loom-compile", daemon=True).start()
+
+    def _run_job(self, job: Any, progress: Callable[[str, str, int, int], None]) -> dict[str, Any]:
+        """One library run the viewer started: `refs.update.update` on the quilt as it is now, outside the publication lock, then a rebuild, so the manifest shows what it made. Its report is what `loom library update` prints."""
+        from loom.refs.update import update
+        from loom.scan.quilt import load_quilt
+
+        built = update(
+            load_quilt(self.quilt.root),
+            tuple(job.works),
+            steps=tuple(s.name for s in job.steps),
+            redo=job.redo,
+            online=job.online,
+            progress=progress,
+        )
+        self.rebuild()
+        return built.report().to_json()
 
     def _reload(self) -> None:
         """Read `config.toml` again, so a setting saved in the viewer or by hand is what the next build uses; a file that no longer parses keeps the last config, and says so."""
@@ -683,11 +724,13 @@ class ServeSession:
                 "rebuild": self.rebuild,
                 "publication_lock": self.lock,
                 "publications": self.publications,
+                "jobs": self.jobs,
             },
         )
-        from loom.render.api import offer_scan
+        from loom.render.api import offer_jobs, offer_scan
 
         offer_scan(self.quilt.root, self._current_scan)
+        offer_jobs(self.quilt.root, self.jobs)
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
         handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]

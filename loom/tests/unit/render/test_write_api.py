@@ -1043,6 +1043,60 @@ def _agents_update(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     assert "loom:agent-permissions-stale" not in {d["code"] for d in manifest["diagnostics"]}
 
 
+@case("library-update")
+def _library_update(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    import time
+
+    s, q, _ = on_demo(serve, tmp_path)
+    said = succeeds(s, "library-update", {"works": ["Calloway14"]})
+    assert said["job"]["works"] == ["Calloway14"]
+    assert [step["name"] for step in said["job"]["steps"]] == ["resolve", "fetch", "extract", "map"]
+    token = json.loads(get(s.url + "_api")[2])["token"]
+
+    def jobs() -> list[dict[str, Any]]:
+        return json.loads(get(s.url + "_api/jobs", {"X-Loom-Token": token})[2])["jobs"]  # type: ignore[no-any-return]
+
+    deadline = time.monotonic() + 120
+    while jobs()[0]["state"] in ("queued", "running") and time.monotonic() < deadline:
+        time.sleep(0.1)
+    run = jobs()[0]
+    # offline, as the demo is: the run finishes, says what it did as `loom library update` does, and the manifest was rebuilt after it
+    assert run["state"] == "done" and run["online"] is False, run
+    assert {step["state"] for step in run["steps"]} <= {"done", "skipped"}, run
+    assert [step["state"] for step in run["steps"]][:2] == ["skipped", "skipped"], run
+    assert run["report"]["verdict"], run
+    # the jobs are the token holder's to read
+    assert get(s.url + "_api/jobs")[0] == 403
+    refuses(
+        s,
+        "library-update",
+        {"works": ["Calloway14"], "author": "Referee (Agent)"},
+        403,
+        "author-only",
+        "only the author starts a library run",
+    )
+    refuses(s, "library-update", {"works": ["NoSuchWork99"]}, 404, "no-such-work", "NoSuchWork99")
+
+
+def test_a_library_write_on_a_work_a_run_acts_on_is_refused_until_it_finishes(tmp_path: Path) -> None:
+    """A run writes the work's digest, so a verify or a discard on it waits for the run rather than crossing it."""
+    from loom.render.api import _JOBS, ApiError, handle, offer_jobs
+
+    q = demo(tmp_path)
+
+    class Running:
+        def touching(self, citekey: str) -> bool:
+            return citekey == "Calloway14"
+
+    offer_jobs(q, Running())
+    try:
+        with pytest.raises(ApiError) as caught:
+            handle(q, "library-verify", {"node": "Calloway14-def-3.1"})
+        assert caught.value.code == "library-busy" and caught.value.status == 409
+    finally:
+        _JOBS.pop(q.resolve(), None)
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],

@@ -122,3 +122,22 @@ export async function write(endpoint: string, body: Record<string, unknown>): Pr
 export function forgetCapabilities(): void {
 	probe = null;
 }
+
+/** A read from the publisher that only the viewer may make, carrying the token as a write does: `/jobs`. `null` when no publisher serves it or it refuses. A 403 is re-probed and tried once more, as a write is. */
+export async function read<T>(path: string): Promise<T | null> {
+	try {
+		const get = async () => {
+			const caps = await capabilities();
+			if (!caps) return null;
+			return fetch(apiUrl(path), { headers: caps.token ? { 'X-Loom-Token': caps.token } : {} });
+		};
+		let res = await get();
+		if (res?.status === 403) {
+			forgetCapabilities();
+			res = await get();
+		}
+		return res?.ok ? ((await res.json()) as T) : null;
+	} catch {
+		return null;
+	}
+}

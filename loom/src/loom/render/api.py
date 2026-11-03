@@ -27,6 +27,7 @@ CAPABILITIES = [
     "library-cite",
     "library-verify",
     "library-discard",
+    "library-update",
     "locate",
     "compare",
     "session-use",
@@ -63,7 +64,7 @@ WRITE_API_VERSION = 1
 READS = ("locate", "compare", "adopt-preview", "sync-preview", "adopt-paper", "here", "open")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
-NO_REBUILD = (*READS, "review-decision", "adopt-decision")
+NO_REBUILD = (*READS, "review-decision", "adopt-decision", "library-update")
 #: A publisher's own scan, offered to its handlers by `offer_scan`: `loom serve` answers with the scan its last publication made while no scan input has changed since, and None otherwise.
 _SCANS: dict[Path, Callable[[], ScanResult | None]] = {}
 
@@ -71,6 +72,57 @@ _SCANS: dict[Path, Callable[[], ScanResult | None]] = {}
 def offer_scan(root: Path, provider: Callable[[], ScanResult | None]) -> None:
     """Let the handlers for `root` read `provider`'s scan instead of scanning again; `loom serve` offers its own."""
     _SCANS[root.resolve()] = provider
+
+
+#: The publisher's library runs (`loom.jobs.Jobs`), offered by `offer_jobs`: `loom serve` offers its own, and nothing else runs them.
+_JOBS: dict[Path, Any] = {}
+
+
+def offer_jobs(root: Path, jobs: Any) -> None:
+    """Let `library-update` for `root` queue its runs on `jobs`; `loom serve` offers its own."""
+    _JOBS[root.resolve()] = jobs
+
+
+def _busy(root: Path, citekey: str) -> None:
+    """Refuse a write to the work `citekey` while a library run acts on it: the run writes its digest too, and the two would cross."""
+    jobs = _JOBS.get(root.resolve())
+    if citekey and jobs is not None and jobs.touching(citekey):
+        raise ApiError(
+            "library-busy", f"a library run is acting on {citekey}; write this when it has finished", status=409
+        )
+
+
+def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`library-update`: queue a library run on the publisher's runner and answer with its job at once; the author's, refused to a declared agent, so an agent never grants itself the network this way. No works is every work, its bibliography gathered first."""
+    from loom.cli._common import NotFoundError, is_agent
+    from loom.refs.build import STEPS, WORK_STEPS
+    from loom.refs.update import named
+    from loom.scan.quilt import load_quilt, reviewer_identity
+
+    who = reviewer_identity(root)[0]
+    if is_agent(_str(body, "author") or who):
+        raise ApiError("author-only", "An agent reads and annotates; only the author starts a library run", status=403)
+    jobs = _JOBS.get(root.resolve())
+    if jobs is None:
+        raise ApiError("no-runner", "a library run needs loom serve, which runs it beside the viewer", status=409)
+    asked = body.get("works") or []
+    if not isinstance(asked, list) or not all(isinstance(w, str) and w for w in asked):
+        raise ApiError("bad-field", "works must be a list of works")
+    works: list[str] = []
+    if asked:
+        try:
+            works = named(load_quilt(root), _scan(root), tuple(asked))
+        except NotFoundError as exc:
+            raise ApiError("no-such-work", str(exc), status=404) from exc
+    job = jobs.submit(
+        works,
+        WORK_STEPS if works else STEPS,
+        who=who,
+        online=body.get("online") is True,
+        redo=body.get("redo") is True,
+    )
+    what = ", ".join(works) if works else "every work"
+    return {"ok": True, "result": f"started a library run on {what}", "job": job.to_json()}
 
 
 def _scan(root: Path) -> ScanResult:
@@ -330,6 +382,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):
         return {"ok": True, "result": _library(root, endpoint, body)}
+    if endpoint == "library-update":
+        return _library_update(root, body)
     if endpoint == "locate":
         return _locate(root, body)
     if endpoint == "compare":
@@ -750,6 +804,8 @@ def _library(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             status=403,
         )
     result = _scan(root)
+    found = result.nodes.get(node)
+    _busy(root, getattr(found, "digest", None) or "")
     who = resolve_author(named, root)[0]
     try:
         if endpoint == "library-discard":

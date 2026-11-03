@@ -4,31 +4,10 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import EnvError, NotFoundError, agent_marker
+from loom.cli._common import EnvError, agent_marker
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
-from loom.cli.library._works import works as resolve_works
 from loom.cli.report import Progress
 from loom.refs.build import STEPS, WORK_STEPS
-from loom.scan.quilt import Quilt
-from loom.scan.scan import ScanResult
-
-
-def _named(quilt: Quilt, result: ScanResult, needles: tuple[str, ...]) -> list[str]:
-    """The citekeys the WORK arguments name, each through `_works.works`; one that names nothing is refused, and one gathering would add says so."""
-    out: set[str] = set()
-    for needle in needles:
-        try:
-            out |= resolve_works(result, (needle,))
-        except NotFoundError:
-            from loom.refs.scan import scan_bibliography
-
-            if needle in {c.key for c in scan_bibliography(quilt, write=False).added}:
-                raise NotFoundError(
-                    "work",
-                    f"{needle} is in a landmark's bibliography and not gathered yet: loom library update --only gather",
-                ) from None
-            raise
-    return sorted(out, key=str.lower)
 
 
 @click.command(name="update")
@@ -79,8 +58,9 @@ def update_command(
 
     Each step is a no-op where its work is done, so a second run does only what is new. WORK narrows every step to the works it names (a citekey, its identifier, a fragment of one or of an author or title, or a result id); naming works leaves gathering out, since it reads the whole bibliography. Looking up and fetching use the network only under `[library] online = true` or `--online`, and an agent only under the config's: it may not grant itself the network. Offline, every local step still runs. Progress shows on stderr.
     """
-    from loom.refs.build import BuildReport, build_refs, plan_report, planned, survey
+    from loom.refs.build import plan_report, planned, survey
     from loom.refs.scan import scan_bibliography
+    from loom.refs.update import named, update
 
     quilt = open_quilt(quilt_path)
     marker = agent_marker()
@@ -90,47 +70,33 @@ def update_command(
             "the author sets online = true under [library] in config.toml, or runs this in a terminal of their own"
         )
     steps = (only,) if only else STEPS
-    result = open_scan(quilt_path) if work_args else None
-    named = _named(quilt, result, work_args) if result is not None else []
-    gather = "gather" in steps and not work_args
-    work_steps = tuple(s for s in WORK_STEPS if s in steps)
-    allowed = quilt.config.online or online
     if dry_run:
-        scanned = scan_bibliography(quilt, write=False) if gather else None
-        result = result or open_scan(quilt_path)
-        ws = [w for w in survey(result) if not named or w.citekey in set(named)]
-        plan = planned(result, ws, steps=work_steps, redo=redo, candidates=not no_candidates, named=frozenset(named))
-        plan_report(ws, plan, online=allowed, scan=scanned).emit(as_json)
-        return
-    scanned = scan_bibliography(quilt) if gather else None
-    if result is None or (scanned is not None and scanned.added):
         result = open_scan(quilt_path)
-    # this run's consent, written nowhere: the config is the standing answer (DR-193)
-    result.quilt.config.online = allowed
-    if work_steps:
-        with Progress(work_steps[0]) as progress:
+        chosen = named(quilt, result, work_args) if work_args else []
+        gather = "gather" in steps and not work_args
+        work_steps = tuple(s for s in WORK_STEPS if s in steps)
+        scanned = scan_bibliography(quilt, write=False) if gather else None
+        ws = [w for w in survey(result) if not chosen or w.citekey in set(chosen)]
+        plan = planned(result, ws, steps=work_steps, redo=redo, candidates=not no_candidates, named=frozenset(chosen))
+        plan_report(ws, plan, online=quilt.config.online or online, scan=scanned).emit(as_json)
+        return
+    with Progress("reading the quilt") as progress:
 
-            def tell(stage: str, item: str, n: int, total: int) -> None:
-                if n == 1:
-                    progress.next_stage(stage, total)
-                progress.item(item)
+        def tell(stage: str, item: str, n: int, total: int) -> None:
+            if n == 1:
+                progress.next_stage(stage, total)
+            progress.item(item)
 
-            built = build_refs(
-                result,
-                only=tuple(named),
-                refresh=redo,
-                candidates=not no_candidates,
-                force=redo,
-                compile=not no_compile,
-                steps=work_steps,
-                progress=tell,
-            )
-    else:
-        built = BuildReport(works=[w for w in survey(result) if not named or w.citekey in set(named)], steps=())
-    from loom.cli.library.state import left
-
-    built.scan = scanned
-    built.left = left(result, built.works)
+        built = update(
+            quilt,
+            work_args,
+            steps=steps,
+            redo=redo,
+            online=online,
+            candidates=not no_candidates,
+            compile=not no_compile,
+            progress=tell,
+        )
     built.report().emit(as_json)
 
 

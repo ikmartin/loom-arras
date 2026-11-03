@@ -390,3 +390,18 @@ test.describe('links into cited works', () => {
 		await expect(pane(page, 1).getByTestId('pdf-doc')).toBeVisible();
 	});
 });
+
+test.describe('the status line on Info', () => {
+	test("says what a work holds, and offers no run where no publisher runs them", async ({ page }) => {
+		await page.goto('/library/Kre99');
+		const status = page.getByTestId('work-status');
+		await expect(status).toBeVisible();
+		await expect(page.getByTestId('status-paper')).not.toContainText('filed');
+		await expect(page.getByTestId('status-digest')).toContainText('2 results · 0 verified');
+		await expect(page.getByTestId('status-overview')).toContainText('Overview');
+		// a static viewer starts nothing
+		await expect(status.getByRole('button')).toHaveCount(0);
+		await page.goto('/library/Man12');
+		await expect(page.getByTestId('status-digest')).not.toContainText('results');
+	});
+});

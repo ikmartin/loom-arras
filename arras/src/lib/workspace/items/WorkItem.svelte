@@ -8,6 +8,7 @@
 	import { reachedExternal } from '$lib/reached';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
+	import WorkStatus from '$lib/components/WorkStatus.svelte';
 	import { bibText } from '$lib/works';
 	import { readFrom, resultCounts } from '$lib/library';
 	import Locator from '$lib/components/Locator.svelte';
@@ -111,6 +112,7 @@
 			<div class="prose info" data-testid="work-info">
 				<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 				<p class="links"><code>{citekey}</code> <WorkLinks {ref} /></p>
+				<WorkStatus {citekey} {ref} />
 				{#if ref.overview}
 					<!-- the work's overview (plan 0.21.3): a reading an agent or the person wrote, never the paper; first, since it is what a reader comes to Info for -->
 					<section class="overview" data-testid="work-overview">

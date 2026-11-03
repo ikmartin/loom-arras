@@ -16,6 +16,11 @@
 	import { displayNode } from '$lib/nodes/display';
 	import { route } from '$lib/paths';
 	import ProposalQueue from '$lib/review/ProposalQueue.svelte';
+	import { onMount } from 'svelte';
+	import { can } from '$lib/write';
+	import { jobs, running } from '$lib/jobs.svelte';
+	import JobProgress from '$lib/components/JobProgress.svelte';
+	import LibraryRun from '$lib/components/LibraryRun.svelte';
 
 	const m = $derived(store.manifest!);
 	const SHOWS = [
@@ -41,6 +46,20 @@
 	const count = (v: string) => rows.filter(keep(v)).length;
 	const show = (v: string) => void setQuery(page.url, 'show', v, 'all');
 	const n = (x: number) => x || '—';
+	// a run over every work, where the publisher runs them: started here, its progress stays beneath the header until dismissed
+	let runs = $state(false);
+	onMount(() => {
+		void can('library-update').then((yes) => {
+			runs = yes;
+			if (yes) jobs.ask();
+		});
+	});
+	let seen = $state<Record<string, boolean>>({});
+	const run = $derived(jobs.forAll());
+	$effect(() => {
+		if (run && running(run) && !seen[run.id]) seen = { ...seen, [run.id]: true };
+	});
+	const shownRun = $derived(run && seen[run.id] ? run : undefined);
 	// a citation suggestion is an agent's annotation proposing a work for a place in the text; it is decided where it stands, which its link opens
 	const citations = $derived(Object.values(m.annotations ?? {}).filter((a) => a.kind === 'citation' && !a.in_reply_to && !a.discarded && a.status === 'open'));
 </script>
@@ -54,7 +73,17 @@
 				<button class="count" class:on={filter === s.v} aria-pressed={filter === s.v} onclick={() => show(s.v)} data-testid="show-{s.v}">{s.label} <span class="n">{count(s.v)}</span></button>
 			{/each}
 		</p>
+		{#if runs}<div class="everything"><LibraryRun works={[]} label="Fetch and digest everything" look="button" test="run-everything" /></div>{/if}
 	</header>
+	{#if shownRun}
+		<JobProgress
+			job={shownRun}
+			ondismiss={() => {
+				const { [shownRun.id]: _, ...rest } = seen;
+				seen = rest;
+			}}
+		/>
+	{/if}
 	<table class="list" data-testid="library-works">
 		<thead>
 			<tr>
@@ -118,6 +147,14 @@
 	}
 	.head h1 {
 		margin: 0;
+	}
+	.everything {
+		margin-left: auto;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		justify-content: flex-end;
+		max-width: 28rem;
 	}
 	.filters {
 		display: flex;

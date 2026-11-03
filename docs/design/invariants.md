@@ -14,6 +14,16 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Record.** DR-185, DR-203, DR-325-ikmartin
 
+### The network is the person's to allow
+
+**Rule.** Loom looks works up and fetches them only under `[library] online = true` or a run the person allows: `--online` in a terminal of their own, or "Allow and run" in the viewer, which sends `online` with `library-update`. Neither is written anywhere. Under an agent marker `--online` is refused without the standing consent, and `library-update` refuses a declared agent, so an agent never grants itself the network.
+
+**Why.** Looking a work up tells a service what the person is reading, and a fetch brings files into their quilt; that is consent only they can give, and an agent asking for it on their behalf is exactly the case to stop.
+
+**Guard.** `loom/tests/unit/refs/test_library_store.py::test_online_is_refused_under_an_agent_without_standing_consent`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire[library-update]`
+
+**Record.** DR-193; plan 0.24.1
+
 ### Identity is never stored in the quilt
 
 **Rule.** The person acting is named by `--as`, then their own user config, then git, and never by anything the quilt tracks. An `[author]` table in `config.toml` identifies nobody.
