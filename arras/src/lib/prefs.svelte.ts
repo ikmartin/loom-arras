@@ -27,6 +27,8 @@ export interface Prefs {
 	divider: number;
 	/** How much of the Docs column the documents take, 0.15 to 0.85, the rest the outline beneath its divider; stored at the drop, as the pane divider is. */
 	outline: number;
+	/** How wide the left column is, in pixels, from `COLUMN_MIN` to `COLUMN_MAX`; set by dragging its edge and stored at the drop, as the outline's divider is. */
+	column: number;
 	/** Whether the left column is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
 	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
@@ -45,7 +47,11 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, column: 252, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+
+/** The left column's narrowest and widest: below the first a document's name no longer fits beside its marks, past the second the column takes the room a pane reads in. */
+export const COLUMN_MIN = 200;
+export const COLUMN_MAX = 480;
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -68,6 +74,7 @@ export function coerce(raw: unknown): Prefs {
 	return {
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
 		outline: typeof o.outline === 'number' && Number.isFinite(o.outline) ? Math.min(0.85, Math.max(0.15, o.outline)) : DEFAULTS.outline,
+		column: typeof o.column === 'number' && Number.isFinite(o.column) ? Math.round(Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, o.column))) : DEFAULTS.column,
 		panel: o.panel !== false,
 		ids: o.ids === true,
 		hideAux: o.hideAux !== false,
@@ -115,6 +122,7 @@ export function attributes(p: Prefs): Record<string, string | null> {
 class PrefsState {
 	divider = $state<number>(DEFAULTS.divider);
 	outline = $state<number>(DEFAULTS.outline);
+	column = $state<number>(DEFAULTS.column);
 	panel = $state<boolean>(DEFAULTS.panel);
 	ids = $state<boolean>(DEFAULTS.ids);
 	hideAux = $state<boolean>(DEFAULTS.hideAux);
@@ -128,13 +136,14 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { divider: this.divider, outline: this.outline, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, outline: this.outline, column: this.column, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
 		const p = coerce({ ...read(), ...(override ?? {}) });
 		this.divider = p.divider;
 		this.outline = p.outline;
+		this.column = p.column;
 		this.panel = p.panel;
 		this.ids = p.ids;
 		this.hideAux = p.hideAux;

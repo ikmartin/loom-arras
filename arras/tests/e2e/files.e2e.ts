@@ -123,6 +123,36 @@ test('the project tree stands under Files, a shelf open by default that folds as
 	await expect(page.getByTestId('docs-tree')).toHaveCount(0);
 	await files.click();
 	await expect(page.getByTestId('docs-tree')).toBeVisible();
+	// open, the shelf is one box holding its head and the tree, whose top rows start where the head's caret does
+	const shelf = page.getByTestId('files-shelf');
+	await expect(shelf.getByTestId('files-toggle')).toBeVisible();
+	await expect(shelf.getByTestId('docs-tree')).toBeVisible();
+	const caret = (await files.locator('.caret').boundingBox())!.x;
+	const top = (await page.getByTestId('docs-tree').getByRole('link', { name: 'README.md', exact: true }).boundingBox())!.x;
+	expect(Math.abs(top - caret)).toBeLessThanOrEqual(2);
+});
+
+test('each row says whether agents edit it too, and the mark says why under the pointer', async ({ page }) => {
+	await page.goto('/master/drafting/main');
+	// the fixture's deny list is empty, so only what loom always protects is the person's alone
+	await expect(page.getByTestId('access-config.toml')).toHaveAttribute('data-agents', 'no');
+	await expect(page.getByTestId('access-research-state.md')).toHaveAttribute('data-agents', 'no');
+	await expect(page.getByTestId('access-README.md')).toHaveAttribute('data-agents', 'yes');
+	await expect(page.getByTestId('access-drafting')).toHaveAttribute('data-agents', 'yes');
+	// an agent's copy is one agents edit, whatever the folder of the document it copies
+	await expect(page.getByTestId('access-.loom/copies/aidoc.tex')).toHaveAttribute('data-agents', 'yes');
+	await page.getByTestId('access-config.toml').hover();
+	await expect(page.getByTestId('access-config.toml-says')).toContainText("Only you edit this");
+	await expect(page.getByTestId('access-config.toml-says')).toContainText("No agent writes the quilt's configuration.");
+	await page.mouse.move(800, 400);
+	await expect(page.getByTestId('access-config.toml-says')).toHaveCount(0);
+	// a copy's mark names the document its changes go back to
+	await page.getByTestId('access-.loom/copies/aidoc.tex').hover();
+	await expect(page.getByTestId('access-.loom/copies/aidoc.tex-says')).toContainText('back to main.tex through Review › Incoming');
+	// and the copy hangs from that document by a hooked line pointing up into it
+	const hook = await page.getByTestId('docs-copies').locator('li').first().evaluate((li) => [getComputedStyle(li, '::before').borderLeftStyle, getComputedStyle(li, '::after').clipPath]);
+	expect(hook[0]).toBe('solid');
+	expect(hook[1]).toContain('polygon');
 });
 
 test("words let go of on a project PDF take the quote chip with them", async ({ page }) => {

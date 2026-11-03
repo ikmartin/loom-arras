@@ -2085,145 +2085,179 @@
  "files": [
   {
    "bytes": 1241,
+   "denied": null,
    "kind": "text",
    "path": "EXPECTED-LINT.txt"
   },
   {
    "body": "files/README.md.html",
    "bytes": 750,
+   "denied": null,
    "kind": "markdown",
    "path": "README.md"
   },
   {
    "bytes": 145,
+   "denied": {
+    "always": true,
+    "by": "config.toml"
+   },
    "kind": "text",
    "path": "config.toml"
   },
   {
    "bytes": 948,
+   "denied": null,
    "kind": "pdf",
    "path": "drafting/figures/fig.pdf"
   },
   {
    "bytes": 804,
+   "denied": null,
    "kind": "text",
    "path": "drafting/loom.sty"
   },
   {
    "bytes": 170,
+   "denied": null,
    "kind": "text",
    "path": "drafting/macros.sty"
   },
   {
    "bytes": 2128,
+   "denied": null,
    "kind": "document",
    "path": "drafting/main.tex"
   },
   {
    "bytes": 402,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0002.tex"
   },
   {
    "bytes": 596,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0003.tex"
   },
   {
    "bytes": 232,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0006.tex"
   },
   {
    "bytes": 125,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0007.tex"
   },
   {
    "bytes": 198,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0008.tex"
   },
   {
    "bytes": 319,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-0009.tex"
   },
   {
    "bytes": 127,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-000A.tex"
   },
   {
    "bytes": 243,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-000B.tex"
   },
   {
    "bytes": 162,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-999A.tex"
   },
   {
    "bytes": 143,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/nodes/sy-999B.tex"
   },
   {
    "bytes": 320,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/old.tex"
   },
   {
    "bytes": 388,
+   "denied": null,
    "kind": "text",
    "path": "drafting/refs.bib"
   },
   {
    "bytes": 870,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/sections/appendix.tex"
   },
   {
    "bytes": 673,
+   "denied": null,
    "kind": "tex",
    "path": "drafting/sections/results.tex"
   },
   {
    "bytes": 1017,
+   "denied": null,
    "kind": "document",
    "path": "drafting/talk.tex"
   },
   {
    "bytes": 130,
+   "denied": null,
    "kind": "other",
    "path": "notes/deck.apkg"
   },
   {
    "bytes": 73,
+   "denied": null,
    "kind": "image",
    "path": "notes/figure.png"
   },
   {
    "body": "files/notes/intro.md.html",
    "bytes": 402,
+   "denied": null,
    "kind": "markdown",
    "path": "notes/intro.md"
   },
   {
    "bytes": 314,
+   "denied": null,
    "kind": "html",
    "path": "notes/page.html"
   },
   {
    "body": "files/notes/run.ipynb.html",
    "bytes": 849,
+   "denied": null,
    "kind": "notebook",
    "path": "notes/run.ipynb"
   },
   {
    "body": "files/research-state.md.html",
    "bytes": 199,
+   "denied": {
+    "always": true,
+    "by": "research-state.md"
+   },
    "kind": "markdown",
    "path": "research-state.md"
   }

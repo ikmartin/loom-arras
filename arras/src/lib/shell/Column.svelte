@@ -4,6 +4,8 @@
 	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree under Files (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a shelf open by default and folding as Library's does, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
 	import Contents from './Contents.svelte';
 	import FileTree from './FileTree.svelte';
+	import AgentMark from './AgentMark.svelte';
+	import { explain, says } from './access';
 	import AddWork from '$lib/components/AddWork.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { isAgentDocument } from '$lib/manifest/documents';
@@ -15,7 +17,7 @@
 	import { onMount } from 'svelte';
 	import { can } from '$lib/write';
 	import Settings from './Settings.svelte';
-	import { prefs } from '$lib/prefs.svelte';
+	import { COLUMN_MAX, COLUMN_MIN, prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 	import type { Master } from '$lib/manifest/types';
@@ -60,6 +62,8 @@
 	const closed = $derived(masters.filter((m) => m.closed));
 	// an agent's copy is read beside the document it copies, so it sits beneath that document's row; one whose document is not listed (closed, context-only, gone) stands on its own after them
 	const copiesOf = (path: string) => withAgent.filter((m) => m.copy_of === path);
+	// a copy is one agents edit, said where the publisher says who edits its files at all
+	const marks = $derived(says(store.manifest?.files));
 	const unplaced = $derived(withAgent.filter((m) => !own.some((o) => o.path === m.copy_of)));
 	// a copy of one section says which, since several sections of one document may each have a copy
 	const section = (m: Master) => (m.scope?.kind === 'section' ? m.scope.title ?? m.scope.key ?? '' : '');
@@ -120,6 +124,45 @@
 		else return;
 		e.preventDefault();
 	}
+
+	// The line between the column and the panes moves as the outline's does, sideways: the column's width is a preference, drawn at most once a frame while it is dragged and stored at the drop.
+	const WIDEN = 16;
+	let panelBox = $state<HTMLElement | null>(null);
+	let liveWidth = $state<number | null>(null);
+	let left: number | null = null;
+	let nextWidth: number | null = null;
+	let sizing = 0;
+	const fit = (v: number) => Math.round(Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, v)));
+	const width = $derived(liveWidth ?? prefs.column);
+	function grabEdge(e: PointerEvent): void {
+		if (!panelBox) return;
+		e.preventDefault();
+		left = panelBox.getBoundingClientRect().left;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		dragEdge(e);
+	}
+	function dragEdge(e: PointerEvent): void {
+		if (left === null) return;
+		nextWidth = fit(e.clientX - left);
+		sizing ||= requestAnimationFrame(() => {
+			sizing = 0;
+			liveWidth = nextWidth;
+		});
+	}
+	function dropEdge(e: PointerEvent): void {
+		if (left === null) return;
+		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		cancelAnimationFrame(sizing);
+		sizing = 0;
+		if (nextWidth !== null) prefs.column = nextWidth;
+		liveWidth = nextWidth = left = null;
+	}
+	function nudgeEdge(e: KeyboardEvent): void {
+		if (e.key === 'ArrowLeft') prefs.column = fit(prefs.column - WIDEN);
+		else if (e.key === 'ArrowRight') prefs.column = fit(prefs.column + WIDEN);
+		else return;
+		e.preventDefault();
+	}
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
@@ -137,8 +180,8 @@
 	>
 {/snippet}
 
-<div class="shell-c">
-	<div class="panel" class:away={!shown} data-testid="column">
+<div class="shell-c" style:--column-width="{width}px">
+	<div class="panel" class:away={!shown} data-testid="column" bind:this={panelBox}>
 		{#if !shown}
 			<!-- folded: what must stay in reach, one above the other -->
 			<button class="fold" title="Show the column" aria-label="Show the column" aria-expanded="false" data-testid="panel-fold" onclick={fold}>»</button>
@@ -191,12 +234,14 @@
 					{/snippet}
 					{#if store.manifest?.files}
 						<!-- Files is the quilt's directory as it is, where Library is what loom keeps of the cited works: two shelves, folding alike, so the two read as different kinds of thing -->
-						<p class="shelf-head">
-							<button class="shelf" aria-expanded={filesOpen} title="View of files in {store.manifest.corpus.directory ?? store.manifest.corpus.name}/" data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
-								<span class="caret">{filesOpen ? '▾' : '▸'}</span>Files
-							</button>
-						</p>
-						{#if filesOpen}<div class="shelf-body"><FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} /></div>{/if}
+						<div class="shelf-box" data-testid="files-shelf">
+							<p class="shelf-head">
+								<button class="shelf" aria-expanded={filesOpen} title="View of files in {store.manifest.corpus.directory ?? store.manifest.corpus.name}/" data-testid="files-toggle" onclick={() => (filesOpen = !filesOpen)}>
+									<span class="caret">{filesOpen ? '▾' : '▸'}</span>Files
+								</button>
+							</p>
+							{#if filesOpen}<div class="shelf-body"><FileTree files={store.manifest.files} {masters} {own} {copiesOf} {section} /></div>{/if}
+						</div>
 					{:else if store.manifest?.research_state}
 						<!-- the quilt's research state (plan 0.21.3): a page about the whole quilt, so above every document, and no heading of its own -->
 						{@const onState = page.route.id === '/page/[id]'}
@@ -214,7 +259,7 @@
 									{#if copies.length}
 										<!-- the agent's copies of this document, which the person and an agent both edit -->
 										<ul class="plain docs copies" data-testid="docs-copies">
-											{#each copies as c (c.path)}<li>{@render link(c)}</li>{/each}
+											{#each copies as c (c.path)}<li>{@render link(c)}{#if marks}<AgentMark agents={true} said={explain({ agents: true }, { copyOf: m.path })} testid="access-{c.path}" />{/if}</li>{/each}
 										</ul>
 									{/if}
 								</li>
@@ -225,7 +270,7 @@
 						<p class="rail-label">Agent documents</p>
 						{#if unplaced.length}
 							<ul class="plain docs" data-testid="docs-agent">
-								{#each unplaced as m (m.path)}<li>{@render link(m)}</li>{/each}
+								{#each unplaced as m (m.path)}<li>{@render link(m)}{#if marks && m.copy_of}<AgentMark agents={true} said={explain({ agents: true }, { copyOf: m.copy_of })} testid="access-{m.path}" />{/if}</li>{/each}
 							</ul>
 						{/if}
 						{#if closed.length}
@@ -238,28 +283,30 @@
 						{/if}
 					{/if}
 					{#if works.length || canAdd}
-						<p class="shelf-head">
-							<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
-								<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="count">{works.length}</span>
-							</button>
-							{#if canAdd}<button class="shelf-add" aria-label="Add a work" title="Add a work" onclick={() => (adding = true)} data-testid="library-add">+</button>{/if}
-						</p>
-						{#if libraryOpen}
-							<div class="shelf-body">
-								<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />
-								<ul class="plain library" data-testid="library-list">
-									{#each library as r (r.citekey)}
-										<li>
-											<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}">{r.title}</a>
-											{#if r.unreadable}<span class="aside">unreadable</span>{/if}
-										</li>
-									{:else}
-										<li class="aside">nothing matches</li>
-									{/each}
-									<li><a href={route('/review/library')} data-testid="manage-link">Manage in Review</a></li>
-								</ul>
-							</div>
-						{/if}
+						<div class="shelf-box" data-testid="library-shelf">
+							<p class="shelf-head">
+								<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
+									<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="count">{works.length}</span>
+								</button>
+								{#if canAdd}<button class="shelf-add" aria-label="Add a work" title="Add a work" onclick={() => (adding = true)} data-testid="library-add">+</button>{/if}
+							</p>
+							{#if libraryOpen}
+								<div class="shelf-body">
+									<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />
+									<ul class="plain library" data-testid="library-list">
+										{#each library as r (r.citekey)}
+											<li>
+												<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}">{r.title}</a>
+												{#if r.unreadable}<span class="aside">unreadable</span>{/if}
+											</li>
+										{:else}
+											<li class="aside">nothing matches</li>
+										{/each}
+										<li><a href={route('/review/library')} data-testid="manage-link">Manage in Review</a></li>
+									</ul>
+								</div>
+							{/if}
+						</div>
 					{/if}
 					</div>
 					{#if outline}
@@ -296,6 +343,26 @@
 				<div class="chip-row">{@render chip(false)}</div>
 				<SessionFooter />
 			</div>
+			<!-- the column's edge, which the reader drags sideways as they drag the outline's line up and down -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<div
+				class="column-divider"
+				class:moving={liveWidth !== null}
+				role="separator"
+				tabindex="0"
+				aria-label="Resize the column"
+				aria-orientation="vertical"
+				aria-valuenow={width}
+				aria-valuemin={COLUMN_MIN}
+				aria-valuemax={COLUMN_MAX}
+				data-testid="column-divider"
+				onpointerdown={grabEdge}
+				onpointermove={dragEdge}
+				onpointerup={dropEdge}
+				onpointercancel={dropEdge}
+				onkeydown={nudgeEdge}
+			></div>
 		{/if}
 	</div>
 
@@ -310,8 +377,38 @@
 	.review-perspective { margin: 0 0 var(--gap-tight); font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
 	.shell-c {
 		display: grid;
-		grid-template-columns: var(--rail-left) minmax(0, 1fr) auto;
+		grid-template-columns: var(--column-width, var(--rail-left)) minmax(0, 1fr) auto;
 		min-height: 100vh;
+	}
+	/* The column's edge is its border, drawn by the line the reader drags, with room inside it to take hold of. It stands in the column's own stacking, so the boxes the column opens float over it. */
+	.panel:not(.away) {
+		border-right: 0;
+	}
+	.column-divider {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		width: 8px;
+		z-index: 1;
+		cursor: col-resize;
+		touch-action: none;
+	}
+	.column-divider::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		border-right: 1px solid var(--rule);
+	}
+	.column-divider:hover::before,
+	.column-divider.moving::before,
+	.column-divider:focus-visible::before {
+		border-right-color: var(--link);
+	}
+	.column-divider:focus-visible {
+		outline: none;
 	}
 	/* folded, the column is a narrow rail, not a 252px empty gutter */
 	.shell-c:has(.panel.away) {
@@ -348,7 +445,10 @@
 		display: flex;
 		padding: 0 0 var(--gap-hair);
 	}
+	/* placed, so the edge that shares its cell does not push it on to the next one */
 	.panel {
+		grid-column: 1;
+		grid-row: 1;
 		background: var(--leaf);
 		border-right: 1px solid var(--rule);
 		padding: var(--gap) 14px;
@@ -493,20 +593,24 @@
 		top: 0;
 		max-height: 100vh;
 	}
-	/* A shelf's head is a band, a shade lighter than the column, in the size of the rows beneath it, and the rows stand indented under its name: Files and Library are the column's two kinds of thing, and read as sections rather than as labels. */
+	/* A shelf is a box with rounded corners, a shade lighter than the column, holding its head and, open, its rows: Files and Library are the column's two kinds of thing, and read as sections rather than as labels. The rows start at the box's own edge, so the column's width goes to the names. */
+	.shelf-box {
+		margin: var(--gap-tight) 0 var(--gap-hair);
+		border-radius: var(--rad-control);
+		/* a wash of the ink, so the box shows on the column in either theme */
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+	.shelf-box:first-child {
+		margin-top: 0;
+	}
 	.shelf-head {
 		display: flex;
 		align-items: center;
-		margin: var(--gap-tight) 0 var(--gap-hair);
+		margin: 0;
 		border-radius: var(--rad-control);
-		/* a wash of the ink, so the band shows on the column in either theme */
-		background: color-mix(in srgb, var(--ink) 6%, transparent);
-	}
-	.shelf-head:first-child {
-		margin-top: 0;
 	}
 	.shelf-head:has(.shelf:hover) {
-		background: color-mix(in srgb, var(--ink) 10%, transparent);
+		background: color-mix(in srgb, var(--ink) 4%, transparent);
 	}
 	.shelf {
 		flex: 1;
@@ -553,9 +657,9 @@
 		font-variant-numeric: tabular-nums;
 		color: var(--ink-faint);
 	}
-	/* the band's left padding, its caret and the gap after it: a row starts under the shelf's name */
+	/* a top-level row starts where the head's caret does */
 	.shelf-body {
-		padding-left: calc(4px + 10px + 3px);
+		padding: 0 6px 6px 4px;
 	}
 	.closed summary {
 		font-size: 10.5px;
@@ -627,12 +731,6 @@
 	.docs a.here {
 		color: var(--ink);
 		font-weight: 600;
-	}
-	/* An agent's copies hang from their document's row, indented under it with a rule, as a tree's children are. */
-	.docs.copies {
-		margin: 0 0 0 0.55rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid var(--rule);
 	}
 	.docs .aside {
 		margin-left: 0.4em;

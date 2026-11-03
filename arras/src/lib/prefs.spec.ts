@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { attributes, coerce, DEFAULTS, read, write } from './prefs.svelte';
+import { attributes, coerce, COLUMN_MAX, COLUMN_MIN, DEFAULTS, read, write } from './prefs.svelte';
 
 function stub(initial: Record<string, string> = {}) {
 	const map = new Map(Object.entries(initial));
@@ -19,6 +19,7 @@ describe('the display preferences', () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
 			outline: 0.55,
+			column: 252,
 			panel: true,
 			ids: false,
 			hideAux: true,
@@ -53,6 +54,13 @@ describe('the display preferences', () => {
 		expect(coerce({ outline: 0.05 }).outline).toBe(0.15);
 		expect(coerce({ outline: 0.99 }).outline).toBe(0.85);
 		expect(coerce({ outline: 'x' }).outline).toBe(DEFAULTS.outline);
+	});
+
+	it("keeps the column's width between its narrowest and widest, in whole pixels", () => {
+		expect(coerce({ column: 320.4 }).column).toBe(320);
+		expect(coerce({ column: 90 }).column).toBe(COLUMN_MIN);
+		expect(coerce({ column: 2000 }).column).toBe(COLUMN_MAX);
+		expect(coerce({ column: 'wide' }).column).toBe(DEFAULTS.column);
 	});
 
 	it('round-trips through storage', () => {

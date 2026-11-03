@@ -360,9 +360,12 @@ def render_notebook(text: str, rel: str, kinds: dict[str, str]) -> str:
 def attach_files(result: ScanResult, manifest: dict[str, Any], files: dict[str, str | bytes]) -> None:
     """Publish the shown files into `manifest["files"]` and `corpus.home`, and each Markdown file's and notebook's body into `files` under `BODIES`.
 
-    Called once per build; the research state is listed like any Markdown file, and the viewer opens its page from the row.
+    Called once per build; the research state is listed like any Markdown file, and the viewer opens its page from the row. Every file carries `denied`, from `agents.denied_by`: what keeps agents out, or None where they may write it, so the viewer never matches the deny list itself and never guesses where a publisher said nothing.
     """
+    from loom.agents import always_denied, denied_by
+
     root = result.quilt.root
+    config = result.quilt.config
     shown = Shown.of(result.quilt)
     masters = set(result.masters)
     paths = shown.walk()
@@ -375,6 +378,8 @@ def attach_files(result: ScanResult, manifest: dict[str, Any], files: dict[str, 
         except OSError:
             continue
         entry: dict[str, Any] = {"path": rel, "kind": kind, "bytes": size}
+        why = denied_by(config, rel)
+        entry["denied"] = None if why is None else {"by": why, "always": always_denied(config, why)}
         if kind in DRAWN:
             try:
                 text = (root / rel).read_text(encoding="utf-8", errors="replace")

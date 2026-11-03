@@ -9,6 +9,8 @@
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { isAgentConfig, isAux } from './aux';
+	import { accessOf, accessOfAll, explain, says } from './access';
+	import AgentMark from './AgentMark.svelte';
 
 	let { files, masters, own, copiesOf, section }: { files: ProjectFile[]; masters: Master[]; own: Master[]; copiesOf: (path: string) => Master[]; section: (m: Master) => string } = $props();
 
@@ -51,6 +53,20 @@
 		};
 		sort(top);
 		return top;
+	});
+
+	// a row is marked only where the publisher says who edits it
+	const marks = $derived(says(files));
+	/** Every file the tree shows beneath each directory, which together say whether the directory's mark is theirs. */
+	const under = $derived.by(() => {
+		const out = new Map<string, ProjectFile[]>();
+		const gather = (d: Dir): ProjectFile[] => {
+			const all = [...d.files, ...d.dirs.flatMap(gather)];
+			out.set(d.path, all);
+			return all;
+		};
+		gather(root);
+		return out;
 	});
 
 	function name(path: string): string {
@@ -115,10 +131,15 @@
 	<a href={masterUrl(d.path)} class:here aria-current={here ? 'page' : undefined}>{documentLabel(masters, d.path)}{#if section(d)}<span class="aside">{section(d)}</span>{/if}</a>
 {/snippet}
 
+{#snippet mark(f: ProjectFile)}
+	{@const a = accessOf(f)}
+	{#if a}<AgentMark agents={a.agents} said={explain(a, { kind: f.kind, statePath })} testid="access-{f.path}" />{/if}
+{/snippet}
+
 {#snippet level(d: Dir)}
 	{#each d.dirs as sub (sub.path)}
 		<li class="dir" data-testid="docs-dir" data-path={sub.path}>
-			<button class="fold" aria-expanded={open(sub.path)} onclick={() => toggle(sub.path)}>{open(sub.path) ? '▾' : '▸'} {sub.name}</button>
+			<button class="fold" aria-expanded={open(sub.path)} onclick={() => toggle(sub.path)}>{open(sub.path) ? '▾' : '▸'} {sub.name}</button>{#if marks}{@const a = accessOfAll(under.get(sub.path) ?? [])}{#if a}<AgentMark agents={a.agents} said={explain(a, { dir: true, statePath })} testid="access-{sub.path}" />{/if}{/if}
 			{#if open(sub.path)}
 				<ul class="plain docs level">{@render level(sub)}</ul>
 			{/if}
@@ -129,15 +150,15 @@
 		{@const copies = f.kind === 'document' ? copiesOf(f.path) : []}
 		{#if f.path === statePath}
 			<li data-testid="docs-state" class="file state">
-				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>Research state</a>
+				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>Research state</a>{@render mark(f)}
 			</li>
 		{:else}
 			<li class="file" class:document={f.kind === 'document'} class:live={ownPaths.has(f.path)} data-kind={f.kind} data-testid="docs-file">
-				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>{name(f.path)}</a>
+				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>{name(f.path)}</a>{@render mark(f)}
 				{#if copies.length}
 					<!-- the agent's copies of this document, which the person and an agent both edit -->
 					<ul class="plain docs copies" data-testid="docs-copies">
-						{#each copies as c (c.path)}<li>{@render link(c)}</li>{/each}
+						{#each copies as c (c.path)}<li>{@render link(c)}{#if marks}<AgentMark agents={true} said={explain({ agents: true }, { copyOf: f.path })} testid="access-{c.path}" />{/if}</li>{/each}
 					</ul>
 				{/if}
 			</li>
@@ -175,11 +196,6 @@
 	.docs a.here {
 		color: var(--ink);
 		font-weight: 600;
-	}
-	.docs.copies {
-		margin: 0 0 0 0.55rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid var(--rule);
 	}
 	.aside {
 		margin-left: 0.4em;

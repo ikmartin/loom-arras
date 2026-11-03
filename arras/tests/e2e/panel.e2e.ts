@@ -234,6 +234,47 @@ test.describe('the contents', () => {
 		await page.keyboard.press('ArrowDown');
 		await expect(line).toHaveAttribute('aria-valuenow', String(now + 3));
 	});
+
+	test("the column's edge turns blue under the pointer, moves sideways, and is remembered", async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 700 });
+		await page.goto('/master/drafting/main');
+		const edge = page.getByTestId('column-divider');
+		const column = page.getByTestId('column');
+		await expect(edge).toBeVisible();
+		const before = (await column.boundingBox())!.width;
+		const at = (await edge.boundingBox())!;
+		// the line is the column's own edge, with room inside it to take hold of
+		expect(Math.abs(at.x + at.width - before)).toBeLessThanOrEqual(1);
+		const line = () => edge.evaluate((e) => getComputedStyle(e, '::before').borderRightColor);
+		const resting = await line();
+		await page.mouse.move(at.x + at.width / 2, at.y + 200);
+		await expect(edge).toHaveCSS('cursor', 'col-resize');
+		// under the pointer the line takes the link's blue, as the outline's does
+		await expect.poll(line).not.toBe(resting);
+		expect(await line()).toBe(await page.getByTestId('outline-divider').evaluate((e) => {
+			e.classList.add('moving');
+			const c = getComputedStyle(e, '::before').borderTopColor;
+			e.classList.remove('moving');
+			return c;
+		}));
+		await page.mouse.down();
+		await page.mouse.move(at.x + at.width / 2 + 120, at.y + 200, { steps: 5 });
+		await expect.poll(async () => Number(await edge.getAttribute('aria-valuenow'))).toBeGreaterThan(before + 80);
+		await page.mouse.up();
+		await expect.poll(async () => (await column.boundingBox())!.width).toBeGreaterThan(before + 80);
+		const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').column);
+		expect(stored).toBeGreaterThan(before + 80);
+		await page.reload();
+		await expect.poll(async () => (await page.getByTestId('column').boundingBox())!.width).toBeGreaterThan(before + 80);
+		// the keys move it too
+		await edge.focus();
+		const now = Number(await edge.getAttribute('aria-valuenow'));
+		await page.keyboard.press('ArrowLeft');
+		await expect(edge).toHaveAttribute('aria-valuenow', String(now - 16));
+		// folded, the column has no edge to drag
+		await page.getByTestId('panel-fold').click();
+		await expect(edge).toHaveCount(0);
+	});
 });
 
 test('a session rename shows at once', async ({ page }) => {

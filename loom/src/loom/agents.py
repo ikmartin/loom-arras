@@ -161,6 +161,11 @@ def denied_by(config: QuiltConfig, rel: str) -> str | None:
     return next((p.text for p in deny_list(config.agents_deny)[0] if p.matches(rel)), None)
 
 
+def always_denied(config: QuiltConfig, why: str) -> bool:
+    """Whether `denied_by`'s answer is a protection that holds whatever the list says, rather than one of the list's entries."""
+    return why in (f"{LOOM}/", SESSION_INDEX, f"{config.history}/", CONFIG, config.research_state)
+
+
 def refusal(config: QuiltConfig, rel: str) -> str | None:
     """Why an agent may not write the quilt-relative file `rel`, as a refusal says it; None when it may."""
     why = denied_by(config, rel)

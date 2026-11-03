@@ -78,6 +78,8 @@ export interface ProjectFile {
   bytes: number;
   /** A Markdown file's or notebook's body as the publisher drew it, by its path under the build directory. */
   body?: string;
+  /** What keeps agents from editing it: the deny list's entry as written, or a path loom always protects (`always`); null where agents edit it too, and absent from a publisher that does not say. */
+  denied?: { by: string; always: boolean } | null;
 }
 
 /** A landmark: a flat, self-contained copy of a document as it stood when loom recorded a step. It is a document, not a corpus of nodes: nothing in it has an identity. */
