@@ -20,8 +20,6 @@ export interface ShellProps {
 	onDocument: boolean;
 	contents: ContentsEntry[];
 	currentSection: string;
-	/** The publisher's diagnostics, which the problems chip carries. */
-	counts: { errors: number; warnings: number };
 	children: Snippet;
 	rail?: Snippet;
 	/** The page's own column contents, when it has any: a table page's filters stand where the documents would. */

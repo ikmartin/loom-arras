@@ -557,9 +557,8 @@ test.describe('a narrow window', () => {
 		await page.goto('/library/Kre99');
 		await expect(page.locator('.panel.away')).toHaveCount(1);
 		expect((await page.getByTestId('column').boundingBox())!.width).toBeLessThanOrEqual(45);
-		// what must stay in reach stays: unfold, search, the problems chip and the session's dot
+		// what must stay in reach stays: unfold and the session's dot
 		await expect(page.getByTestId('panel-fold')).toBeVisible();
-		await expect(page.getByTestId('problems-chip')).toBeVisible();
 		await expect(page.getByTestId('session-footer')).toBeVisible();
 		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').panel)).not.toBe(false);
 	});

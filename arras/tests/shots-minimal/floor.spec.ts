@@ -27,7 +27,6 @@ test('a corpus that has none of it', async ({ page }) => {
 	await page.getByTestId('settings-toggle').click();
 	await expect(page.getByTestId('settings-development').getByRole('link', { name: 'threads', exact: true })).toHaveCount(0);
 	await expect(page.getByTestId('settings-development').getByRole('link', { name: 'tags', exact: true })).toBeVisible();
-	// while Docs and the problems chip stand
+	// while Docs stands
 	await expect(page.getByTestId('primary-docs')).toBeVisible();
-	await expect(page.getByTestId('problems-chip')).toBeVisible();
 });

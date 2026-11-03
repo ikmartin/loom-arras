@@ -20,11 +20,10 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 	await expect(primary.getByRole('link')).toHaveText(['Docs', 'Review']);
 	await expect(page.getByTestId('primary-docs')).toHaveAttribute('aria-current', 'page');
 	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review');
-	// the icon strip and its views are gone; search is ⌘K alone, and the problems chip is in the column's footer
+	// the icon strip and its views are gone; search is ⌘K alone, and what is wrong is counted in Review, not at the column's foot
 	await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCount(0);
 	await expect(page.getByTestId('column-search')).toHaveCount(0);
-	await expect(page.getByTestId('problems-chip')).toHaveAttribute('title', /^problems: /);
-	await expect(page.getByTestId('problems-chip')).toContainText(String(manifest.diagnostics.filter((d: { severity: string }) => d.severity === 'error' || d.severity === 'warning').length));
+	await expect(page.getByTestId('problems-chip')).toHaveCount(0);
 });
 
 test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
@@ -90,7 +89,6 @@ test('the shell fits the window: nothing in a rail falls below the fold', async 
 	expect(fit.scroll).toBeLessThanOrEqual(fit.inner); // a rail is `height: 100vh`, and its padding must count inside that
 	// the things at the foot of the shell are reachable without scrolling
 	await expect(page.getByTestId('settings-toggle')).toBeInViewport();
-	await expect(page.getByTestId('problems-chip')).toBeInViewport();
 	await expect(page.getByTestId('session-footer')).toBeInViewport();
 });
 

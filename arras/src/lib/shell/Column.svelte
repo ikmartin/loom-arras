@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the problems chip and the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold, the chip and the session's dot. Search is ⌘K alone.
+	// The left column: the quilt's name, the fold and Settings at its head; two tabs choosing the primary view, **Docs** (reading and writing) and **Review** (the quilt's management); beneath them that view's column; and a footer, in both views, holding the session footer. Folded, it is a narrow rail keeping what must stay in reach: unfold and the session's dot. Search is ⌘K alone; what is wrong is Review › Problems, which counts it.
 	//
 	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree under Files (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a shelf open by default and folding as Library's does, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
 	import Contents from './Contents.svelte';
@@ -13,7 +13,6 @@
 	import { masterUrl, workUrl } from '$lib/nav';
 	import { shelf } from '$lib/library';
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
-	import Icon from '$lib/components/Icon.svelte';
 	import { onMount } from 'svelte';
 	import { can } from '$lib/write';
 	import Settings from './Settings.svelte';
@@ -24,11 +23,8 @@
 	import { page } from '$app/state';
 	import { sectionOf, sectionsOf } from '$lib/review/sections';
 
-	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, counts, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, children, rail, panel, panelLabel }: ShellProps = $props();
 
-	// The problems chip answers whether anything is wrong, so it takes the colour of the worst thing it counts and says the count.
-	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
-	const problemCount = $derived(counts.errors + counts.warnings);
 	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and in Review › Library, not beside every row. A choice opens in the focused pane, as every choice in the column does.
 	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
@@ -167,26 +163,12 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-{#snippet chip(iconOnly: boolean)}
-	<a
-		href={route('/review/problems')}
-		class="problems"
-		class:errors={counts.errors > 0}
-		class:warnings={!counts.errors && counts.warnings > 0}
-		class:icon-only={iconOnly}
-		aria-label="problems: {tally}"
-		title="problems: {tally}"
-		data-testid="problems-chip"><Icon name="problems" size={14} />{#if !iconOnly}<span>{problemCount ? problemCount : 'no problems'}</span>{/if}</a
-	>
-{/snippet}
-
 <div class="shell-c" style:--column-width="{width}px">
 	<div class="panel" class:away={!shown} data-testid="column" bind:this={panelBox}>
 		{#if !shown}
 			<!-- folded: what must stay in reach, one above the other -->
 			<button class="fold" title="Show the column" aria-label="Show the column" aria-expanded="false" data-testid="panel-fold" onclick={fold}>»</button>
 			<div class="rail-foot">
-				{@render chip(true)}
 				<SessionFooter compact />
 			</div>
 		{:else}
@@ -338,9 +320,8 @@
 					{/if}
 				{/if}
 			</div>
-			<!-- Pinned outside the scroll (S5), in both views: writes land in the selected session whatever is shown, so a reader must never go looking for where their work will go; and whether anything is wrong is answered beside it. -->
+			<!-- Pinned outside the scroll (S5), in both views: writes land in the selected session whatever is shown, so a reader must never go looking for where their work will go. -->
 			<div class="write-target">
-				<div class="chip-row">{@render chip(false)}</div>
 				<SessionFooter />
 			</div>
 			<!-- the column's edge, which the reader drags sideways as they drag the outline's line up and down -->
@@ -414,41 +395,7 @@
 	.shell-c:has(.panel.away) {
 		grid-template-columns: var(--rail-folded) minmax(0, 1fr) auto;
 	}
-	/* The chip takes the colour of the worst thing it counts, so whether anything is wrong is legible at a glance. */
-	.problems {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		font-size: 11.5px;
-		color: var(--ink-faint);
-		padding: 2px 6px;
-		border-radius: var(--rad-control);
-	}
-	.problems:hover {
-		color: var(--ink);
-		background: var(--sheet);
-		text-decoration: none;
-	}
-	.problems.errors {
-		color: var(--state-incomplete);
-	}
-	.problems.warnings {
-		color: var(--state-stale);
-	}
-	.problems.icon-only {
-		justify-content: center;
-		width: 32px;
-		height: 26px;
-		padding: 0;
-	}
-	.chip-row {
-		display: flex;
-		padding: 0 0 var(--gap-hair);
-	}
-	/* placed, so the edge that shares its cell does not push it on to the next one */
 	.panel {
-		grid-column: 1;
-		grid-row: 1;
 		background: var(--leaf);
 		border-right: 1px solid var(--rule);
 		padding: var(--gap) 14px;
@@ -473,7 +420,7 @@
 	.sections > *:not(.page-panel):not(.part) {
 		flex: 0 0 auto;
 	}
-	/* folded: unfold, and at the foot the chip and the session's dot, one above the other */
+	/* folded: unfold, and at the foot the session's dot */
 	.panel.away {
 		align-items: center;
 		padding-left: 4px;
