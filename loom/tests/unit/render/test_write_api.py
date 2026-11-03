@@ -971,6 +971,14 @@ def _changes_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     (q / "README.md").write_text("changed\n", encoding="utf-8")
     succeeds(s, "changes-keep", {"path": "README.md"})
     refuses(s, "changes-keep", {"author": "Referee (Agent)"}, 403, "author-only", "only the author keeps")
+    # one change of a file, against the hash the page drew; a page drawn before the file moved is stale
+    from loom.scan.hashing import sha256
+
+    (q / "README.md").write_text("changed again\n", encoding="utf-8")
+    refuses(s, "changes-keep", {"path": "README.md", "hunk": 0, "seen": "0" * 64}, 409, "stale", "changed since")
+    refuses(s, "changes-keep", {"path": "README.md", "hunk": -1}, 400, "bad-field", "whole number")
+    refuses(s, "changes-keep", {"path": "README.md", "hunk": 3}, 404, "no-such-hunk", "no change number 3")
+    succeeds(s, "changes-keep", {"path": "README.md", "hunk": 0, "seen": sha256((q / "README.md").read_text())})
 
 
 @case("changes-undo")
@@ -987,7 +995,11 @@ def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     refuses(
         s, "changes-undo", {"path": "README.md", "author": "Referee (Agent)"}, 403, "author-only", "only the author"
     )
-    refuses(s, "changes-undo", {"path": "brand-new.md"}, 409, "nothing-to-undo", "delete it yourself")
+    refuses(s, "changes-undo", {"path": "never-there.md"}, 409, "nothing-to-undo", "has not changed")
+    # a file new since the look is removed, its text kept
+    (q / "brand-new.md").write_text("new\n", encoding="utf-8")
+    succeeds(s, "changes-undo", {"path": "brand-new.md"})
+    assert not (q / "brand-new.md").exists()
 
 
 @case("settings-save")

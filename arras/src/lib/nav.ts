@@ -1,6 +1,7 @@
 // Routes. Keys may contain / and #; they travel in the rest segment of /node/, with # percent-encoded.
 // Every route is composed from the configured base path, never written origin-absolute (plan 0.9.5 R1).
 import type { Manifest } from '$lib/manifest/types';
+import { isAgentDocument } from '$lib/manifest/documents';
 import { route } from '$lib/paths';
 import { placeParams, resultPlace } from '$lib/worklink';
 export function nodeUrl(key: string): string {
@@ -78,6 +79,25 @@ export function keyUrl(m: KeyIndex | null, key: string): string {
 }
 
 type KeyIndex = Pick<Manifest, 'nodes'> & Partial<Pick<Manifest, 'keys' | 'references'>>;
+
+/**
+ * Where Review opens `key`: in the document that reads it, at its place (V7), with the annotation `note` open there when one is named; a key that is a document opens the document; a cited result, or one no live document reads, goes where `keyUrl` sends it.
+ *
+ * The document is the first live document that reaches the key: the person's own first, the default one leading, then an agent's copy, for a result of the copy's own. A proof with no node of its own is read through the statement that owns it.
+ */
+export function placeUrl(m: (KeyIndex & Partial<Pick<Manifest, 'masters'>>) | null, key: string, note?: string): string {
+	const asked = note ? '?note=' + encodeURIComponent(note) : '';
+	// a note on a whole document is read at the document's head
+	if (m?.masters?.some((d) => d.path === key)) return masterUrl(key) + asked;
+	const owner = m?.nodes[key] ? key : m?.keys?.[key]?.node;
+	const node = owner ? m?.nodes[owner] : undefined;
+	// the person's own documents first, the default leading, then an agent's copy, which is where a result of the copy's own lives
+	const live = (m?.masters ?? []).filter((d) => !d.closed && !d.context_only);
+	const rank = (d: (typeof live)[number]) => (isAgentDocument(d) ? 2 : d.default ? 0 : 1);
+	const doc = node && [...live].sort((a, b) => rank(a) - rank(b)).find((d) => node.reached_by?.includes(d.path));
+	if (!doc) return keyUrl(m, key) + (note ? (keyUrl(m, key).includes('?') ? '&' : '?') + 'note=' + encodeURIComponent(note) : '');
+	return masterUrl(doc.path) + asked + '#' + anchorId(key);
+}
 
 /**
  * The page for `key`, or `null` when nothing in the manifest has one.

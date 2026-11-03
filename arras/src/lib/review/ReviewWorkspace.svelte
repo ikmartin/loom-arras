@@ -5,7 +5,7 @@
  import { store } from '$lib/manifest/client.svelte';
  import { write } from '$lib/write';
  import { displayNode } from '$lib/nodes/display';
- import { keyUrl } from '$lib/nav';
+ import { placeUrl } from '$lib/nav';
  import Fragment from '$lib/fragments/Fragment.svelte';
  import DiffView from '$lib/components/DiffView.svelte';
  import { causeIdentity, causeLabel } from './evidence';
@@ -74,7 +74,7 @@
  {#if error}<p role="alert">{error}</p>{/if}
  {#if m.review_covered?.length}<details class="covered"><summary>{m.review_covered.length} dependent blocks set aside until you finish review</summary>{#each m.review_covered as row}<p>{name(row.key)} · covered by {row.via.map(name).join(', ')}</p>{/each}<p>They return if the upstream decision changes.</p></details>{/if}
  {#if key}
-  <header class="itemhead"><div><h2>{name(selected)}</h2>{#if entry?.contribution}<p class="muted">{key.kind==='proof' && cause?.kind==='dependency-changed' && cause.id===key.node?'Existing proof · statement changed in the AI revision':entry.source_label}</p>{/if}</div><a class="open-document" href={keyUrl(m,selected)}>Open in document ↗</a></header>
+  <header class="itemhead"><div><h2>{name(selected)}</h2>{#if entry?.contribution}<p class="muted">{key.kind==='proof' && cause?.kind==='dependency-changed' && cause.id===key.node?'Existing proof · statement changed in the AI revision':entry.source_label}</p>{/if}</div><a class="open-document" href={placeUrl(m,selected)}>Open in document ↗</a></header>
   <div class="pair" data-testid="guided-review">
    <section class="current"><h3 class="version-label">Current {key.kind==='proof'?'proof':'statement'}</h3>{#if key.review_fragment || m.nodes[key.node]?.fragment}<Fragment path={cause?.kind==='own-text-changed' && comparison ? comparison.current : key.review_fragment ?? m.nodes[key.node].fragment} macroSet={key.review_macros} isolatedMacros={!!key.review_macros} onmounted={mount}/>{/if}</section>
    <section class="evidence"><h3>Why this needs review</h3>

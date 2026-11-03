@@ -1,9 +1,10 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { dataUrl } from '$lib/paths';
-	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right.
-	let { path }: { path: string } = $props();
+	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right. `hunk`, when given, draws the controls for one change in its `@@` row, numbered from 0 as the publisher numbers them.
+	let { path, hunk }: { path: string; hunk?: Snippet<[number]> } = $props();
 
-	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk' };
+	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk'; n?: number };
 
 	let rows = $state<Row[]>([]);
 	let error = $state('');
@@ -13,6 +14,7 @@
 		const out: Row[] = [];
 		const lines = text.split('\n');
 		let i = 0;
+		let n = 0;
 		while (i < lines.length) {
 			const ln = lines[i];
 			if (ln.startsWith('--- ') || ln.startsWith('+++ ')) {
@@ -20,7 +22,7 @@
 				continue;
 			}
 			if (ln.startsWith('@@')) {
-				out.push({ left: ln, right: '', kind: 'hunk' });
+				out.push({ left: ln, right: '', kind: 'hunk', n: n++ });
 				i++;
 				continue;
 			}
@@ -64,7 +66,7 @@
 			{#each rows as r, i (i)}
 				<tr class={r.kind}>
 					{#if r.kind === 'hunk'}
-						<td class="hunk" colspan="2">{r.left}</td>
+						<td class="hunk" colspan="2"><span>{r.left}</span>{#if hunk && r.n !== undefined}<span class="hunk-acts" data-testid="hunk-acts" data-hunk={r.n}>{@render hunk(r.n)}</span>{/if}</td>
 					{:else}
 						<td class="l">{r.left}</td>
 						<td class="r">{r.right}</td>
@@ -102,5 +104,19 @@
 	td.hunk {
 		color: var(--ink-faint);
 		background: var(--leaf);
+	}
+	/* a change's controls stand at the end of its `@@` row, in the viewer's own face rather than the diff's */
+	td.hunk:has(.hunk-acts) {
+		padding: 3px 6px;
+	}
+	.hunk-acts {
+		float: right;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--gap-tight);
+		font-family: var(--sans);
+		font-size: 12px;
+		color: var(--ink-soft);
+		white-space: normal;
 	}
 </style>

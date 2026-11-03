@@ -1,28 +1,22 @@
 <script lang="ts">
-	// The head of each of Review's sections: the section's name, and the corpus it is about.
-	import { store } from '$lib/manifest/client.svelte';
+	// The head of each of Review's sections: its name alone, since a section is about the whole quilt and the column already names the quilt; a page about one document says which inside itself.
+	import type { Snippet } from 'svelte';
 
-	let { title }: { title: string } = $props();
-	const m = $derived(store.manifest);
+	let { title, aside }: { title: string; aside?: Snippet } = $props();
 </script>
 
-<header class="heading"><h1>{title}</h1><span>{m?.corpus.root_label || m?.corpus.name}</span></header>
+<header class="heading"><h1>{title}</h1>{#if aside}{@render aside()}{/if}</header>
 
 <style>
 	.heading {
 		display: flex;
 		align-items: baseline;
-		justify-content: space-between;
-		gap: 20px;
+		gap: var(--gap-tight);
 		padding: 0 2px 16px;
 		flex-wrap: wrap;
 	}
 	.heading h1 {
 		font: 400 24px/1.2 Georgia, serif;
 		margin: 0;
-	}
-	.heading span {
-		font-size: 12px;
-		color: var(--ink-soft);
 	}
 </style>

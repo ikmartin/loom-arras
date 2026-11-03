@@ -21,7 +21,7 @@
 	import type { ShellProps } from './props';
 	import type { Master } from '$lib/manifest/types';
 	import { page } from '$app/state';
-	import { sectionOf, sectionsOf } from '$lib/review/sections';
+	import { reviewLanding, sectionOf, sectionsOf } from '$lib/review/sections';
 
 	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, children, rail, panel, panelLabel }: ShellProps = $props();
 
@@ -188,7 +188,7 @@
 					data-testid="primary-docs">Docs</a
 				>
 				<!-- a corpus that declares no review has no Review; one that says nothing either way keeps it -->
-				{#if store.manifest?.publishes?.review !== false}<a href={route('/review')} class:on={primary === 'review'} aria-current={primary === 'review' ? 'page' : undefined} data-testid="primary-review">Review</a>{/if}
+				{#if store.manifest?.publishes?.review !== false}<a href={reviewLanding(sections)} class:on={primary === 'review'} aria-current={primary === 'review' ? 'page' : undefined} data-testid="primary-review">Review</a>{/if}
 			</nav>
 			<!-- Whose review a read-only view shows is said once, under the quilt it belongs to, and never above the document. -->
 			{#if readOnly && reviewPerspective}<p class="review-perspective">{reviewPerspective}</p>{/if}

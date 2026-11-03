@@ -292,6 +292,49 @@ h3, h4 { font-size: 13px; }
 	clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
+/* One button for every act the viewer offers: a quiet sheet with a rule, ink-filled when it is the one act a place is for, bare when it only cancels. Review's own pages share it until each moves onto `.btn`. */
+.btn,
+.review-page button:not(.as-link) {
+	font: inherit;
+	font-size: 13px;
+	line-height: 1.3;
+	padding: 6px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--rule);
+	background: var(--sheet);
+	color: var(--ink);
+	cursor: pointer;
+}
+.btn:hover:not(:disabled),
+.review-page button:not(.as-link):hover:not(:disabled) {
+	background: var(--link-wash);
+}
+.btn:disabled,
+.review-page button:not(.as-link):disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+.btn.primary,
+.review-page button.primary {
+	background: var(--ink);
+	color: var(--sheet);
+	border-color: var(--ink);
+}
+.btn.primary:hover:not(:disabled),
+.review-page button.primary:hover:not(:disabled) {
+	background: var(--ink-soft);
+}
+.btn.quiet,
+.review-page button.quiet {
+	background: transparent;
+	border-color: transparent;
+	color: var(--ink-soft);
+}
+.btn.small {
+	font-size: 12px;
+	padding: 3px 10px;
+}
+
 button.as-link {
 	background: none;
 	border: none;

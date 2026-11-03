@@ -419,6 +419,8 @@
  "changes": [
   {
    "diff": "changes/notes/intro.md.diff",
+   "hash": "sha256:ea66146d86f2a78f99820893204ac72f7fb4a86ca48fc2f1b6cbb9189e26ebb0",
+   "hunks": 1,
    "kind": "changed",
    "path": "notes/intro.md"
   }

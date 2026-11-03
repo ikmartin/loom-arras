@@ -3,13 +3,12 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Master, ProjectFile } from '$lib/manifest/types';
 	import { masterUrl } from '$lib/nav';
-	import { route } from '$lib/paths';
-	import { itemForFile, pathFor } from '$lib/workspace/item';
 	import { documentLabel } from '$lib/workspace/names';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { isAgentConfig, isAux } from './aux';
 	import { accessOf, accessOfAll, explain, says } from './access';
+	import { fileHref } from './files';
 	import AgentMark from './AgentMark.svelte';
 
 	let { files, masters, own, copiesOf, section }: { files: ProjectFile[]; masters: Master[]; own: Master[]; copiesOf: (path: string) => Master[]; section: (m: Master) => string } = $props();
@@ -119,11 +118,7 @@
 	}
 
 	const ownPaths = $derived(new Set(own.map((o) => o.path)));
-	function href(f: ProjectFile): string {
-		if (f.path === statePath) return route('/page/state');
-		if (f.kind === 'document') return masterUrl(f.path);
-		return pathFor(m, itemForFile(m, f.path));
-	}
+	const href = (f: ProjectFile) => fileHref(m, f);
 </script>
 
 {#snippet link(d: Master)}

@@ -21,14 +21,26 @@ from loom.cli.report import Report, counted
     metavar="PATH",
     help="Put PATH back as it was at your look, keeping its text now in the history first.",
 )
+@click.option(
+    "--hunk",
+    type=click.IntRange(min=0),
+    default=None,
+    metavar="N",
+    help="With --keep or --undo, act on PATH's change number N alone, as the list numbers them.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def changes_command(
-    keep_path: str | None, keep_all: bool, undo_path: str | None, as_json: bool, quilt_path: str | None
+    keep_path: str | None,
+    keep_all: bool,
+    undo_path: str | None,
+    hunk: int | None,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
     """List what changed in the open files since your last look, or keep or undo a change.
 
-    The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's; undoing keeps the text it replaces. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+    The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's, for a whole file or one of its changes (`--hunk`); undoing keeps the text it replaces, and undoing a new file removes it. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
     """
     from loom.looks import LookRefused, changes, keep, read_look, undo
     from loom.scan.quilt import reviewer_identity
@@ -40,16 +52,27 @@ def changes_command(
     acting = sum(1 for x in (keep_path, keep_all, undo_path) if x)
     if acting > 1:
         raise click.UsageError("one of --keep, --keep-all and --undo at a time")
+    if hunk is not None and not (keep_path or undo_path):
+        raise click.UsageError("--hunk names a change within the PATH of --keep or --undo")
     try:
         if acting:
             how = "Keep and undo in a terminal of your own, or in Review."
             refuse_under_agent("Keeping and undoing a change", how)
             if undo_path:
-                undo(quilt, who, undo_path)
-                said = f"{undo_path} is back as it was at your look; its text before is kept in the history"
+                back = undo(quilt, who, undo_path, hunk=hunk)
+                if back is None:
+                    said = f"removed {undo_path}, new since your look; its text is kept in the history"
+                elif hunk is not None:
+                    said = f"put back change {hunk} of {undo_path}; the text it replaced is kept in the history"
+                else:
+                    said = f"{undo_path} is back as it was at your look; its text before is kept in the history"
             else:
-                keep(quilt, who, keep_path)
-                said = f"kept {keep_path}" if keep_path else "kept everything: a new look at the open files"
+                keep(quilt, who, keep_path, hunk=hunk)
+                said = (
+                    (f"kept change {hunk} of {keep_path}" if hunk is not None else f"kept {keep_path}")
+                    if keep_path
+                    else "kept everything: a new look at the open files"
+                )
             Report(said, data={"result": said}).emit(as_json)
             return
     except LookRefused as exc:
@@ -65,9 +88,12 @@ def changes_command(
     verdict = f"since your look ({at}): " + (
         counted(len(got), "file changed", "files changed") if got else "nothing changed"
     )
-    lines = [f"  {c.kind:<8} {c.path}" for c in got]
+    lines = [
+        f"  {c.kind:<8} {c.path}" + (f"  ({counted(c.hunks, 'change')}, 0-{c.hunks - 1})" if c.hunks > 1 else "")
+        for c in got
+    ]
     data = {
         "look": look.to_json() | {"files": len(look.files)},
-        "changes": [{"path": c.path, "kind": c.kind, "diff": c.diff} for c in got],
+        "changes": [{"path": c.path, "kind": c.kind, "hunks": c.hunks, "diff": c.diff} for c in got],
     }
     Report(verdict, lines=lines, data=data).emit(as_json)

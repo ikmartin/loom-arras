@@ -19,7 +19,8 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 	const primary = page.getByRole('navigation', { name: 'Primary views' });
 	await expect(primary.getByRole('link')).toHaveText(['Docs', 'Review']);
 	await expect(page.getByTestId('primary-docs')).toHaveAttribute('aria-current', 'page');
-	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review');
+	// Review opens where something waits: here the change since the look
+	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review/changes');
 	// the icon strip and its views are gone; search is ⌘K alone, and what is wrong is counted in Review, not at the column's foot
 	await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCount(0);
 	await expect(page.getByTestId('column-search')).toHaveCount(0);

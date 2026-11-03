@@ -6,7 +6,9 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { countBySeverity, groupBySubject, groupDiagnostics, subjectOf } from '$lib/diagnostics';
 	import { copyText } from '$lib/clipboard';
-	import { keyTarget } from '$lib/nav';
+	import { keyTarget, placeUrl } from '$lib/nav';
+	import Empty from '$lib/review/Empty.svelte';
+	import ReviewHeading from '$lib/review/ReviewHeading.svelte';
 	import { setQuery } from '$lib/query';
 
 	const m = $derived(store.manifest!);
@@ -45,7 +47,7 @@
 </script>
 
 <main class="page scrollbar-shown">
-	<h1>Problems <HelpDot label="what the problems page shows" topic="problems" /></h1>
+	<ReviewHeading title="Problems">{#snippet aside()}<HelpDot label="what the problems page shows" topic="problems" />{/snippet}</ReviewHeading>
 	<p class="lead">Everything the publisher found wrong while building this corpus, worst first. An error is something a reader would notice; a warning is probably a mistake; information is a remark.</p>
 	<p class="counts" data-testid="problem-counts">
 		{#each [['error', counts.error ?? 0, 'errors'], ['warning', counts.warning ?? 0, 'warnings'], ['info', counts.info ?? 0, 'infos']] as [name, n, plural], i (name)}
@@ -65,13 +67,13 @@
 						{#if g.affordance === 'both-locations' || g.affordance === 'paths'}
 							<span class="locs">{#each d.locations as l, j (j)}<code>{l.file}:{l.line}</code>{/each}</span>
 						{:else if g.affordance === 'cycle'}
-							<span class="locs">{#each d.keys as k, j (k)}{#if j} → {/if}{@const href = keyTarget(m, k)}{#if href}<a {href}>{k}</a>{:else}<code>{k}</code>{/if}{/each}</span>
+							<span class="locs">{#each d.keys as k, j (k)}{#if j} → {/if}{@const href = keyTarget(m, k) && placeUrl(m, k)}{#if href}<a {href}>{k}</a>{:else}<code>{k}</code>{/if}{/each}</span>
 						{:else if g.affordance === 'filter'}
 							<a href="/loose">loose nodes</a>
 						{:else}
 							<span class="locs">{#each d.locations as l, j (j)}<code>{l.file}:{l.line}</code>{/each}</span>
 						{/if}
-						{#if g.affordance !== 'cycle'}{#each d.keys as k (k)}{@const href = keyTarget(m, k)}{#if href}<a class="key" {href}>{k}</a>{:else}<code class="key">{k}</code>{/if}{/each}{/if}
+						{#if g.affordance !== 'cycle'}{#each d.keys as k (k)}{@const href = keyTarget(m, k) && placeUrl(m, k)}{#if href}<a class="key" {href}>{k}</a>{:else}<code class="key">{k}</code>{/if}{/each}{/if}
 						{#if d.fixes?.length}
 							<ul class="fixes">
 								{#each d.fixes as f (f.command)}
@@ -89,7 +91,7 @@
 		</details>
 	{/each}
 	{:else}
-		<p class="muted">{m.diagnostics.length ? 'Nothing matches.' : 'No diagnostics.'}</p>
+		<Empty text={m.diagnostics.length ? 'Nothing matches these filters.' : 'No problems.'} testid="problems-none" />
 	{/each}
 </main>
 

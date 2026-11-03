@@ -5,6 +5,7 @@
 	import { threadUrl } from '$lib/nav';
 	import { can } from '$lib/write';
 	import ReviewHeading from '$lib/review/ReviewHeading.svelte';
+	import Empty from '$lib/review/Empty.svelte';
 	import DeleteSession from '$lib/sessions/DeleteSession.svelte';
 	import { closeSession, deleteSession, renameSession, reopenSession } from '$lib/sessions/actions';
 	import { grouped, summary, titleOf } from '$lib/sessions/sessions.svelte';
@@ -35,7 +36,7 @@
 <main class="page">
 	<ReviewHeading title="Sessions" />
 	{#if !rows.length}
-		<p class="muted">No sessions yet. A session is opened from the session footer, and an agent opens its own.</p>
+		<Empty text="No sessions yet. A session is opened from the session footer, and an agent opens its own." testid="sessions-none" />
 	{:else}
 		<table class="list" data-testid="sessions-table">
 			<thead><tr><th>Session</th><th>State</th><th>Open</th><th>Who</th><th>Last opened</th>{#if writable}<th></th>{/if}</tr></thead>
@@ -57,13 +58,13 @@
 						<td>{when(s.opened || s.created)}</td>
 						{#if writable}
 							<td class="verbs">
-								<button type="button" disabled={busy === s.id} onclick={() => ((renaming = s.id), (title = titleOf(s)))} data-testid="sessions-rename-{s.id}">rename</button>
+								<button type="button" class="btn small quiet" disabled={busy === s.id} onclick={() => ((renaming = s.id), (title = titleOf(s)))} data-testid="sessions-rename-{s.id}">rename</button>
 								{#if s.state === 'open'}
-									<button type="button" disabled={busy === s.id} onclick={() => act(s.id, () => closeSession(s.id))} data-testid="sessions-close-{s.id}">close</button>
+									<button type="button" class="btn small quiet" disabled={busy === s.id} onclick={() => act(s.id, () => closeSession(s.id))} data-testid="sessions-close-{s.id}">close</button>
 								{:else}
-									<button type="button" disabled={busy === s.id} onclick={() => act(s.id, () => reopenSession(s.id))} data-testid="sessions-reopen-{s.id}">reopen</button>
+									<button type="button" class="btn small quiet" disabled={busy === s.id} onclick={() => act(s.id, () => reopenSession(s.id))} data-testid="sessions-reopen-{s.id}">reopen</button>
 								{/if}
-								<button type="button" disabled={busy === s.id} onclick={() => (doomed = s)} data-testid="sessions-delete-{s.id}">delete</button>
+								<button type="button" class="btn small quiet" disabled={busy === s.id} onclick={() => (doomed = s)} data-testid="sessions-delete-{s.id}">delete</button>
 							</td>
 						{/if}
 					</tr>
@@ -89,17 +90,5 @@
 <style>
 	.verbs {
 		white-space: nowrap;
-	}
-	.verbs button {
-		font: inherit;
-		font-size: 11px;
-		color: var(--link);
-		background: none;
-		border: 0;
-		padding: 0 4px;
-		cursor: pointer;
-	}
-	.verbs button:disabled {
-		color: var(--ink-faint);
 	}
 </style>

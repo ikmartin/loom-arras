@@ -10,7 +10,9 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	const unresolved = (manifest.unresolved ?? []).filter((r: { status: string }) => r.status === 'needs-review').length;
 	await expect(page.getByTestId('section-count-needs-review')).toHaveText(String(unresolved));
 	await expect(page.getByTestId('section-count-incoming')).toHaveText(String((manifest.contributions ?? []).length));
-	await expect(page.getByTestId('section-count-sessions')).toHaveText('1');
+	// an open session waits for no one: it is said on hover, never counted
+	await expect(page.getByTestId('section-count-sessions')).toHaveCount(0);
+	await expect(page.getByTestId('section-sessions')).toHaveAttribute('title', /1 open session/);
 	const problems = manifest.diagnostics.filter((d: { severity: string }) => d.severity === 'error' || d.severity === 'warning').length;
 	await expect(page.getByTestId('section-count-problems')).toHaveText(String(problems));
 	// every landmark leads to a live draft, so History waits for nothing

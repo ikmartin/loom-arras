@@ -68,6 +68,10 @@ export interface FileChange {
   kind: "changed" | "new" | "gone" | (string & {});
   /** The unified diff, by its path under the build directory. */
   diff?: string;
+  /** The file's hash as the publisher saw it, which a keep or an undo sends back as `seen`; null for a gone file. */
+  hash?: string | null;
+  /** How many changes (`@@` hunks) the diff holds, each kept or undone alone by its number from 0. */
+  hunks?: number;
 }
 
 /** A file of the project the viewer shows, by its quilt-relative path (plan 0.22.7). */

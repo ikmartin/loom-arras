@@ -65,12 +65,12 @@ test('live reload follows the manifest only', async ({ page }) => {
 	let version = 0;
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = structuredClone(manifest);
-		if (version > 0) m.corpus.root_label = 'Renamed corpus';
+		if (version > 0) m.corpus.name = 'Renamed corpus';
 		await route.fulfill({ json: m });
 	});
 	await page.goto('/review');
-	const named = page.locator('main .heading span');
-	await expect(named).toHaveText('Widgets, gadgets, and their fixed loci');
+	const named = page.getByTestId('quilt-name');
+	await expect(named).toHaveText(manifest.corpus.name);
 	version = 1;
 	await expect(named).toHaveText('Renamed corpus', { timeout: 5000 });
 });

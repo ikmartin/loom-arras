@@ -8,7 +8,7 @@
  import { isAgentDocument } from '$lib/manifest/documents';
  import { can } from '$lib/write';
  import { displayNode } from '$lib/nodes/display';
- import { keyUrl, anchorId } from '$lib/nav';
+ import { anchorId, placeUrl, readUrl } from '$lib/nav';
  import { route } from '$lib/paths';
  import { documentKeys } from '$lib/review/documents';
  import { causeLabel } from '$lib/review/evidence';
@@ -33,7 +33,7 @@
  {#if !reviewed.length}<NoDrafts what="blocks to review"/>
  {:else if view==='document'}
   {#if document}<label for="review-document">Document</label> <select id="review-document" value={document.path} onchange={e=>goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each reviewed as d}<option value={d.path}>{d.path.split('/').pop()}</option>{/each}</select>{/if}
-  <table class="list"><thead><tr><th>Block</th><th>State</th><th>Reason</th></tr></thead><tbody>{#each rows as k}<tr id={`review-${anchorId(k.key)}`}><td><a href={keyUrl(m,k.key)}>{displayNode(m,k.key,document?.path).name}</a></td><td><Badge parts={reviewRowBadge(m,k)}/></td><td>{#each k.acceptance?.causes??[] as c}<a href={`?show=needs-review&block=${encodeURIComponent(k.key)}&cause=${encodeURIComponent(c.identity??[c.kind,c.id??'',c.via??''].join('|'))}`}>{causeLabel(m,c)}</a><br/>{/each}{#each k.incomplete as text}<p>{text}</p>{/each}{#if m.nodes[k.node]?.basis==='unclassified'}<p>Needs classification</p>{/if}{#if m.diagnostics.some(d=>d.code==='loom:missing-proof'&&d.keys.includes(k.key))}<p>Missing proof</p>{/if}<details><summary>Details</summary><p>{k.file} · {m.nodes[k.node]?.basis}</p>{#if k.acceptance}<p>Last accepted by {k.acceptance.author} · {k.acceptance.date}</p>{/if}<p>{reviewFacts(k)}</p><p>Reached by: {m.nodes[k.node]?.reached_by.join(', ')}</p>{#each k.acceptance?.causes??[] as c}{#if c.diff}<DiffView path={c.diff}/>{/if}{/each}</details></td></tr>{:else}<tr><td colspan="3">No blocks in this document.</td></tr>{/each}</tbody></table>
+  <table class="list"><thead><tr><th>Block</th><th>State</th><th>Reason</th></tr></thead><tbody>{#each rows as k}<tr id={`review-${anchorId(k.key)}`}><td><a href={document ? readUrl(document.path,k.key) : placeUrl(m,k.key)}>{displayNode(m,k.key,document?.path).name}</a></td><td><Badge parts={reviewRowBadge(m,k)}/></td><td>{#each k.acceptance?.causes??[] as c}<a href={`?show=needs-review&block=${encodeURIComponent(k.key)}&cause=${encodeURIComponent(c.identity??[c.kind,c.id??'',c.via??''].join('|'))}`}>{causeLabel(m,c)}</a><br/>{/each}{#each k.incomplete as text}<p>{text}</p>{/each}{#if m.nodes[k.node]?.basis==='unclassified'}<p>Needs classification</p>{/if}{#if m.diagnostics.some(d=>d.code==='loom:missing-proof'&&d.keys.includes(k.key))}<p>Missing proof</p>{/if}<details><summary>Details</summary><p>{k.file} · {m.nodes[k.node]?.basis}</p>{#if k.acceptance}<p>Last accepted by {k.acceptance.author} · {k.acceptance.date}</p>{/if}<p>{reviewFacts(k)}</p><p>Reached by: {m.nodes[k.node]?.reached_by.join(', ')}</p>{#each k.acceptance?.causes??[] as c}{#if c.diff}<DiffView path={c.diff}/>{/if}{/each}</details></td></tr>{:else}<tr><td colspan="3">No blocks in this document.</td></tr>{/each}</tbody></table>
  {:else}<ReviewWorkspace writable={local&&!!m.reviewer?.name}/>{/if}
 </div></main>
 <style>

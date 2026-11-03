@@ -348,31 +348,6 @@
 		font-family: var(--mono);
 		font-size: 0.92em;
 	}
-	.win :global(.btn) {
-		font: inherit;
-		font-size: 13px;
-		padding: 6px 14px;
-		border-radius: 8px;
-		border: 1px solid var(--rule);
-		background: var(--sheet);
-		color: var(--ink);
-		cursor: pointer;
-	}
-	.win :global(.btn:hover:not(:disabled)) {
-		background: var(--link-wash);
-	}
-	.win :global(.btn:disabled) {
-		opacity: 0.5;
-		cursor: default;
-	}
-	.win :global(.btn.primary) {
-		background: var(--ink);
-		color: var(--sheet);
-		border-color: var(--ink);
-	}
-	.win :global(.btn.primary:hover:not(:disabled)) {
-		background: var(--ink-soft);
-	}
 	.body :global(input.text),
 	.body :global(select) {
 		font: inherit;

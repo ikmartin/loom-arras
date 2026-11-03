@@ -2,6 +2,7 @@
 
 import { isAgentDocument } from '$lib/manifest/documents';
 import type { Manifest, Reference } from '$lib/manifest/types';
+import { reachedExternal } from '$lib/reached';
 import { bibText, surnames } from '$lib/works';
 
 export interface LedgerRow {
@@ -239,6 +240,14 @@ export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[]
 	if (run?.extract_error) out.push({ code: 'extract-failed', text: `Reading its results off the source failed: ${run.extract_error}`, fixes: ['redo'] });
 	if (run?.map_error) out.push({ code: 'map-failed', text: `Mapping its pages failed: ${run.map_error}`, fixes: ['redo'] });
 	return out;
+}
+
+/** How many works want something of the author, as Review › Library's "needs you" counts them, from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
+export function needsYou(m: Manifest): number {
+	return ledgerRows(m, reachedExternal(m)).filter((r) => {
+		const ref = m.references?.[r.citekey];
+		return keepRow(r, ref ? problemsOf(m, ref) : [], 'needs-you');
+	}).length;
 }
 
 /** Which works the ledger shows: all, those wanting something of the person, those with no paper, no overview, or not cited, and those with results proposed or verified. */

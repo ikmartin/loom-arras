@@ -80,7 +80,7 @@ def test_keep_takes_one_file_or_all_into_the_look(q: Path) -> None:
 
 
 def test_undo_puts_the_text_back_and_keeps_what_it_replaced(q: Path) -> None:
-    """P7: the text undone is kept in the history first, and the ledger names both; a file gone since the look comes back, and one new since has nothing to go back to."""
+    """P7: the text undone is kept in the history first, and the ledger names both; a file gone since the look comes back, and one new since is removed."""
     from loom.history.ledger import load_history
     from loom.records.snapshots import read_raw
     from loom.scan.quilt import load_quilt
@@ -93,12 +93,16 @@ def test_undo_puts_the_text_back_and_keeps_what_it_replaced(q: Path) -> None:
     assert (q / "notes/a.md").read_text() == "# A\n\nfirst\n"
     ok("changes", "--undo", "README.md", cwd=q)
     assert (q / "README.md").is_file()
-    refused("changes", "--undo", "notes/b.md", cwd=q, code=2, match="delete it yourself, or keep it")
-    assert changes(q) == {"notes/b.md": "new"}
+    # a file new since the look is removed, its text kept first
+    ok("changes", "--undo", "notes/b.md", cwd=q)
+    assert not (q / "notes/b.md").exists()
+    assert changes(q) == {}
+    refused("changes", "--undo", "notes/zzz.md", cwd=q, code=2, match="has not changed since your look")
     quilt = load_quilt(q)
     undone = [e for e in load_history(quilt.history_dir).entries if e.action == "undo"]
-    assert [e.data["path"] for e in undone] == ["notes/a.md", "README.md"]
+    assert [e.data["path"] for e in undone] == ["notes/a.md", "README.md", "notes/b.md"]
     assert read_raw(q, undone[0].data["from"], quilt.history_dir) == "# A\n\nan agent's edit\n"
+    assert undone[2].data["to"] is None and read_raw(q, undone[2].data["from"], quilt.history_dir) == "new\n"
 
 
 def test_keeping_and_undoing_are_the_authors(q: Path) -> None:
@@ -107,3 +111,74 @@ def test_keeping_and_undoing_are_the_authors(q: Path) -> None:
     for args in (("--keep-all",), ("--undo", "notes/a.md")):
         refused("changes", *args, cwd=q, code=2, match="author's", env={"AI_AGENT": "1"})
     assert (q / "notes/a.md").read_text() == "changed\n"
+
+
+def test_keeping_one_file_leaves_the_time_of_the_look(q: Path) -> None:
+    """The look's time is the person's last look at everything, so the changes still listed are still since it."""
+    from loom.looks import read_look
+
+    ok("changes", "--keep-all", cwd=q)
+    when = read_look(q, "Tester").when  # type: ignore[union-attr]
+    (q / "notes/a.md").write_text("# A\n\nsecond\n", encoding="utf-8")
+    (q / "notes/b.md").write_text("new\n", encoding="utf-8")
+    ok("changes", "--keep", "notes/a.md", cwd=q)
+    assert read_look(q, "Tester").when == when  # type: ignore[union-attr]
+    assert changes(q) == {"notes/b.md": "new"}
+
+
+TWO = "".join(f"line {i}\n" for i in range(1, 21))
+
+
+def two_edits(q: Path) -> None:
+    """Two changes to one file, far enough apart to be two hunks: line 2 and line 18."""
+    (q / "notes/a.md").write_text(TWO, encoding="utf-8")
+    ok("changes", "--keep-all", cwd=q)
+    (q / "notes/a.md").write_text(
+        TWO.replace("line 2\n", "line two\n").replace("line 18\n", "line eighteen\n"), encoding="utf-8"
+    )
+
+
+def test_one_change_of_a_file_is_kept_or_undone_alone(q: Path) -> None:
+    """A hunk is one of the diff's `@@` groups, numbered as the list shows them; keeping one leaves the other a change, undoing one puts only it back."""
+    from loom.looks import changes as changed
+    from loom.scan.quilt import load_quilt
+
+    two_edits(q)
+    got = json_of("changes", "--json", cwd=q)["changes"]
+    assert [(c["path"], c["hunks"]) for c in got] == [("notes/a.md", 2)]
+    ok("changes", "--keep", "notes/a.md", "--hunk", "0", cwd=q)
+    left = changed(load_quilt(q), "Tester")
+    assert len(left) == 1 and left[0].hunks == 1 and "+line eighteen" in left[0].diff and "line two" not in left[0].diff
+    ok("changes", "--undo", "notes/a.md", "--hunk", "0", cwd=q)
+    assert (q / "notes/a.md").read_text() == TWO.replace("line 2\n", "line two\n")
+    assert changes(q) == {}
+    two_edits(q)
+    refused("changes", "--keep", "notes/a.md", "--hunk", "5", cwd=q, code=2, match="no change number 5")
+    refused("changes", "--hunk", "0", cwd=q, code=2, match="--hunk names a change")
+
+
+def test_an_act_on_a_page_drawn_before_the_file_moved_is_refused(q: Path) -> None:
+    """`seen` is the file's hash as the page showed it, so a hunk's number never names a change the person did not see."""
+    from loom.looks import LookRefused, keep, undo
+    from loom.looks import changes as changed
+    from loom.scan.quilt import load_quilt
+
+    two_edits(q)
+    quilt = load_quilt(q)
+    seen = changed(quilt, "Tester")[0].after
+    (q / "notes/a.md").write_text("moved on\n", encoding="utf-8")
+    for act in (keep, undo):
+        with pytest.raises(LookRefused) as exc:
+            act(quilt, "Tester", "notes/a.md", hunk=0, seen=seen)
+        assert exc.value.code == "stale"
+    assert (q / "notes/a.md").read_text() == "moved on\n"
+
+
+def test_the_build_publishes_each_changes_hash_and_hunks(q: Path) -> None:
+    two_edits(q)
+    run("build", cwd=q)
+    m = json.loads((q / ".loom/build/manifest.json").read_text())
+    entry = next(c for c in m["changes"] if c["path"] == "notes/a.md")
+    from loom.scan.hashing import sha256
+
+    assert entry["hunks"] == 2 and entry["hash"] == sha256((q / "notes/a.md").read_text())

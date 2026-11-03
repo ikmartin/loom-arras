@@ -317,13 +317,14 @@ Record that you accept KEYS as mathematically correct, each against the document
 
 List what changed in the open files since your last look, or keep or undo a change.
 
-The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's; undoing keeps the text it replaces. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's, for a whole file or one of its changes (`--hunk`); undoing keeps the text it replaces, and undoing a new file removes it. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
 
 | option | description |
 |---|---|
 | `--keep` `PATH` | Keep the change to PATH: your look takes its text now. |
 | `--keep-all` | Keep every change: a new look at every open file. |
 | `--undo` `PATH` | Put PATH back as it was at your look, keeping its text now in the history first. |
+| `--hunk` `N` | With --keep or --undo, act on PATH's change number N alone, as the list numbers them. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

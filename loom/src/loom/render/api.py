@@ -413,7 +413,10 @@ def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, or every change (no `path`), or puts one back as it was at their look; the author's acts, refused to a declared agent."""
+    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, one hunk of it, or every change (no `path`), or puts one back as it was at their look, a new file removed; the author's acts, refused to a declared agent.
+
+    `seen` is the file's hash as the page drew it (`changes[].hash`); an act on a file that has moved on since is `stale`, so a hunk's number never names another change.
+    """
     from loom.cli._common import is_agent
     from loom.looks import LookRefused, keep, undo
     from loom.scan.quilt import load_quilt, reviewer_identity
@@ -426,15 +429,24 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             "author-only", "An agent reads and annotates; only the author keeps or undoes a change", status=403
         )
     quilt = load_quilt(root)
-    path = _str(body, "path", required=endpoint == "changes-undo")
+    hunk = body.get("hunk")
+    if hunk is not None and (isinstance(hunk, bool) or not isinstance(hunk, int) or hunk < 0):
+        raise ApiError("bad-field", "hunk must be a whole number from 0")
+    path = _str(body, "path", required=endpoint == "changes-undo" or hunk is not None)
+    seen = _str(body, "seen")
+    what = f"a change to {path}" if hunk is not None else path
     try:
         if endpoint == "changes-undo":
-            undo(quilt, who, path or "")
-            return {"ok": True, "result": f"{path} is back as it was at your look"}
-        keep(quilt, who, path)
+            back = undo(quilt, who, path or "", hunk=hunk, seen=seen)
+            if back is None:
+                return {"ok": True, "result": f"removed {path}; its text is kept"}
+            return {"ok": True, "result": f"put back {what}; the text it replaced is kept"}
+        keep(quilt, who, path, hunk=hunk, seen=seen)
     except LookRefused as exc:
-        raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-change" else 409) from exc
-    return {"ok": True, "result": f"kept {path}" if path else "kept everything"}
+        raise ApiError(
+            exc.code, exc.message, status=404 if exc.code in ("no-such-change", "no-such-hunk") else 409
+        ) from exc
+    return {"ok": True, "result": f"kept {what}" if path else "kept everything"}
 
 
 def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:

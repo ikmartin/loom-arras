@@ -3,6 +3,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, masterUrl } from '$lib/nav';
 	import ReviewHeading from '$lib/review/ReviewHeading.svelte';
+	import Empty from '$lib/review/Empty.svelte';
 
 	const m = $derived(store.manifest!);
 	const steps = $derived([...(m.history?.steps ?? [])].reverse());
@@ -14,7 +15,7 @@
 <main class="page">
 	<ReviewHeading title="History" />
 	{#if !steps.length}
-		<p class="muted">Nothing has been recorded yet.</p>
+		<Empty text="Nothing has been recorded yet." testid="history-none" />
 	{:else}
 		<table class="list" data-testid="history-table">
 			<thead><tr><th>Step</th><th>What</th><th>Document</th><th>Landmark</th><th>When</th><th>Who</th></tr></thead>
