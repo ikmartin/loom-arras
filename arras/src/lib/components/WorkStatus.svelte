@@ -1,10 +1,11 @@
 <script lang="ts">
-	// A work's status line on Info (plan 0.24.1): whether its paper and its LaTeX source are filed, how much of its digest exists and how much you have verified, and whether it has an overview. What is missing carries the action that makes it, where the publisher runs library runs: one run per work, which looks it up, fetches it, extracts its results and maps them, doing nothing that is done. The run's progress shows beneath while it goes, and stays until dismissed once this page has seen it run.
+	// A work's status line on Info (plan 0.24.1): whether its paper and its LaTeX source are filed, how much of its digest exists and how much you have verified, and whether it has an overview. What is missing carries the action that makes it, where the publisher serves it: an overview is asked of an agent, and the rest is made by a library run, one run per work, which looks it up, fetches it, extracts its results and maps them, doing nothing that is done. The run's progress shows beneath while it goes, and stays until dismissed once this page has seen it run.
 	import { onMount } from 'svelte';
 	import type { Reference } from '$lib/manifest/types';
 	import { resultCounts } from '$lib/library';
 	import { jobs, running } from '$lib/jobs.svelte';
 	import { can } from '$lib/write';
+	import AskAgent from './AskAgent.svelte';
 	import JobProgress from './JobProgress.svelte';
 	import LibraryRun from './LibraryRun.svelte';
 	import NetworkAsk from './NetworkAsk.svelte';
@@ -56,6 +57,7 @@
 	</span>
 	<span class="st" class:ok={!!ref.overview} data-testid="status-overview">
 		<span class="ic" aria-hidden="true">{ref.overview ? '✓' : '–'}</span>Overview
+		<AskAgent {citekey} {ref} quiet test="status-ask" />
 	</span>
 </div>
 {#if answer}<NetworkAsk onallow={() => reply(true)} onoffline={() => reply(false)} oncancel={() => reply(null)} />{/if}

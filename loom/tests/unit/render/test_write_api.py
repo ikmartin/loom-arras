@@ -929,6 +929,11 @@ def _note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.notes import load
 
     assert load(q)[said["note"]].target == {"key": "dm-0003"}
+    # a cited work with no page is the whole work, which "Ask an agent" writes on
+    whole = succeeds(
+        s, "note", {"target": "Calloway14", "body": "Read this paper through.", "session": sid, "author": WHO}
+    )
+    assert load(q)[whole["note"]].target["citekey"] == "Calloway14" and load(q)[whole["note"]].page is None
     refuses(s, "note", {"target": "dm-0003", "quote": "x"}, 400, "no-session", "name the session")
     refuses(
         s,

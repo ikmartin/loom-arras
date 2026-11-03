@@ -1,17 +1,19 @@
 <script lang="ts">
 	// A cited work (plan 0.13.3 K1–K5): the paper, the digest read off it, and what the corpus knows about it.
 	//
-	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on Info. A work in the Library is a document a reader came to read, and the digest is a derived index of it — what locates a result on its page, and never the thing you meant when you clicked the title. The two views, Paper · Info, stand in the pane's toolbar, and everything that is *about* the work rather than *of* it stands behind **Info**: its entry, the results the corpus uses, and, for a work with no readable copy, the digest's own text, the one place it is read. So the reading surface is the paper and nothing else, full bleed in its pane.
+	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on Info. A work in the Library is a document a reader came to read, and the digest is a derived index of it — what locates a result on its page, and never the thing you meant when you clicked the title. The two views, Paper · Info, stand in the pane's toolbar, and everything that is *about* the work rather than *of* it stands behind **Info** (plan 0.24.3), in the order a reader asks: what it holds (the status line), what it says (the overview, or who will write one), its results as cards by section, where the person cites it, and then, folded, its entry and where its digest came from. So the reading surface is the paper and nothing else, full bleed in its pane.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import { keyUrl, workUrl } from '$lib/nav';
+	import { keyUrl, masterUrl, workUrl } from '$lib/nav';
 	import { reachedExternal } from '$lib/reached';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import WorkStatus from '$lib/components/WorkStatus.svelte';
 	import { bibText } from '$lib/works';
-	import { readFrom, resultCounts } from '$lib/library';
-	import Locator from '$lib/components/Locator.svelte';
+	import { bySection, citedIn, filterResults, readFrom, resultCounts, resultFilters, workResults, type ResultFilter } from '$lib/library';
+	import AskAgent from '$lib/components/AskAgent.svelte';
+	import ResultCard from '$lib/components/ResultCard.svelte';
+	import { documentLabel, keyName } from '$lib/workspace/names';
 	import { route } from '$lib/paths';
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
@@ -29,12 +31,19 @@
 	const slots = slotsFor(() => m);
 	const citekey = $derived(item.id);
 	const ref = $derived(m.references[citekey]);
-	const citers = $derived((id: string) => [...new Set(m.edges.filter((e) => e.to === id).map((e) => e.from))]); // one entry per citing key, however many edges
-	// A full extraction holds every theorem-like result of the cited paper, of which this corpus usually leans on a handful. The rest is context worth having and not worth reading, so it folds.
+	// A full extraction holds every theorem-like result of the cited paper, often a hundred or more, of which this corpus usually leans on a handful: a dozen show, in the paper's order, and the rest fold; a filter narrows to the ones used here, verified or proposed.
 	const reached = $derived(reachedExternal(m));
-	const used = $derived((ref?.digest?.nodes ?? []).filter((id) => reached.has(id)));
-	const rest = $derived((ref?.digest?.nodes ?? []).filter((id) => !reached.has(id)));
-	let showAll = $state(false);
+	const results = $derived(ref ? workResults(m, ref, reached) : []);
+	const filters = $derived(resultFilters(results));
+	const FOLD = 12;
+	// a choice holds for the work it was made on, so the next work opens on all of its results, folded
+	let chosen = $state<{ on: string; filter: ResultFilter; all: boolean }>({ on: '', filter: 'all', all: false });
+	const filter = $derived(chosen.on === citekey && filters.some((f) => f.filter === chosen.filter) ? chosen.filter : 'all');
+	const shown = $derived(filterResults(results, filter));
+	const unfolded = $derived(chosen.on === citekey && chosen.all);
+	const groups = $derived(bySection(unfolded ? shown : shown.slice(0, FOLD)));
+	const cites = $derived(ref ? citedIn(m, ref) : []);
+	let digestOpen = $state(false);
 	// A work's proposals are judged in Review's one queue, at full width, a result at a time; the work says how many wait there and links to its first.
 	const proposals = $derived(
 		(ref?.proposed?.nodes ?? [])
@@ -111,100 +120,139 @@
 		{:else}
 			<div class="prose info" data-testid="work-info">
 				<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
-				<p class="links"><code>{citekey}</code> <WorkLinks {ref} />{#if ref.added}<span class="added" data-testid="work-added" title="Added {ref.added.when}{ref.added.who ? ` by ${ref.added.who}` : ''}">added by hand</span>{/if}</p>
+				<p class="links"><code>{citekey}</code> <WorkLinks {ref} />{#if ref.added}<span class="added" data-testid="work-added" title="Added {ref.added.when}{ref.added.who ? ` by ${ref.added.who}` : ''}">added by hand{cites.length ? '' : ', not cited yet'}</span>{/if}</p>
 				<WorkStatus {citekey} {ref} />
-				{#if ref.overview}
-					<!-- the work's overview (plan 0.21.3): a reading an agent or the person wrote, never the paper; first, since it is what a reader comes to Info for -->
-					<section class="overview" data-testid="work-overview">
-						<h2>Overview</h2>
-						<PageMeta page={ref.overview} />
-						<Prose html={ref.overview.body_html} macroSet={ref.digest ? citekey : undefined} />
-					</section>
-				{/if}
-				{#if proposals.length}
-					<p class="proposals" data-testid="proposals">
-						{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.
-					</p>
-				{/if}
-
-				<!-- Read as a list, taken as BibTeX. The list is for the eye; the entry is what goes into a `.bib`, and
-				     retyping it from a rendered list is exactly the thing a reader should never have to do. -->
-				<p class="bibtools">
-					<button type="button" class:on={asBibtex} data-testid="bibtex-toggle" onclick={() => (asBibtex = !asBibtex)}>
-						{asBibtex ? 'list' : 'bibtex'}
-					</button>
-					{#if asBibtex}<button type="button" data-testid="bibtex-copy" onclick={copyBibtex}>copy</button>{/if}
-					{#if copied}<span class="said" role="status">{copied}</span>{/if}
-				</p>
-				{#if asBibtex}
-					<pre class="bibtex" data-testid="bibtex">{bibtex}</pre>
-				{:else}
-					<dl class="bib" data-testid="bib-list">
-						{#each bibRows as [field, value] (field)}
-							<dt>{field}</dt>
-							<dd><Tex text={bibText(value)} /></dd>
-						{/each}
-					</dl>
-				{/if}
-
-				{#if ref.versions?.length}
-					<p class="muted" data-testid="work-versions">
-						Other documents of this work:
-						{#each ref.versions as v, i (v.citekey)}{i ? ', ' : ''}<a href={workUrl(v.citekey)}><code>{v.citekey}</code></a>{#if v.work}&nbsp;({v.work}){/if}{/each}.
-					</p>
-				{/if}
-				{#if ref.version_of}
-					<p class="muted" data-testid="work-version-of">Another document of <a href={workUrl(ref.version_of)}><code>{ref.version_of}</code></a>, filed beside it.</p>
-				{/if}
-				{#if ref.digest}
-					<p class="muted">Digest from {ref.digest.source} ({ref.digest.method}).</p>
-				{/if}
-				{#if counts}
-					<p class="muted" data-testid="result-counts">Results: {counts}.</p>
-				{/if}
+				<!-- a problem is never folded away: it stands under the status line, where what the work holds is said -->
 				{#if ref.version_mismatch}
 					<p class="problem">The digest's source and the bibliography name different versions of this work.</p>
 				{/if}
 				{#if readFrom(ref)}
 					<p class="problem" data-testid="read-from">{readFrom(ref)}</p>
 				{/if}
-				{#if ref.unreadable}
-					<p class="muted">Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}.</p>
-				{/if}
 
-				{#if ref.digest}
-					<!-- each result links where every link to it goes: the paper at its page, else loom's record of it -->
-					<h2>Results used here</h2>
-					{#if used.length}
-						<ul data-testid="results-used">
-							{#each used as id (id)}
-								<li><a href={keyUrl(m, id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {id} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
+				<!-- the work's overview (plan 0.21.3): a reading an agent or the person wrote, never the paper; first, since it is what a reader comes to Info for -->
+				<section class="overview">
+					<h2>Overview</h2>
+					{#if ref.overview}
+						<div data-testid="work-overview">
+							<PageMeta page={ref.overview} />
+							<Prose html={ref.overview.body_html} macroSet={ref.digest ? citekey : undefined} />
+						</div>
+					{:else}
+						<div class="empty" data-testid="overview-empty">
+							<p>No overview yet. An agent writes one the next time it reads this paper through: what it proves, what is new, and the hardest part of the argument.</p>
+							<AskAgent {citekey} {ref} />
+						</div>
+					{/if}
+				</section>
+
+				<section class="results" data-testid="work-results">
+					<h2>
+						Results
+						{#if filters.length}
+							<span class="filters" role="group" aria-label="Which results to show">
+								{#each filters as f (f.filter)}
+									<button type="button" class:on={filter === f.filter} aria-pressed={filter === f.filter} data-testid="results-{f.filter}" onclick={() => (chosen = { on: citekey, filter: f.filter, all: false })}>
+										{f.filter === 'used' ? 'used here' : f.filter} {f.count}
+									</button>
+								{/each}
+							</span>
+						{/if}
+					</h2>
+					{#if proposals.length}
+						<p class="proposals" data-testid="proposals">
+							{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/library') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Library</a>.
+						</p>
+					{/if}
+					{#if results.length}
+						{#each groups as g, i (i)}
+							{#if g.section}<h3 class="sect" data-testid="results-section">{g.section}</h3>{/if}
+							{#each g.results as r (r.id)}
+								<ResultCard {citekey} result={r} />
+							{/each}
+						{/each}
+						{#if shown.length > FOLD}
+							<button class="fold more" onclick={() => (chosen = { on: citekey, filter, all: !unfolded })} aria-expanded={unfolded} data-testid="results-more">
+								{unfolded ? 'show the first ' + FOLD : `${shown.length - FOLD} further result${shown.length - FOLD === 1 ? '' : 's'} · show all ${shown.length}`}
+							</button>
+						{/if}
+					{:else}
+						<div class="empty" data-testid="results-empty">
+							<p>
+								{#if ref.artifacts?.pdf}The paper is filed and nothing has been read off it yet. Digesting reads its results off its LaTeX source where there is one; from the PDF alone, an agent proposes them from the pages and you verify each.{:else}There is no paper to read results off yet.{/if}
+							</p>
+						</div>
+					{/if}
+					{#if ref.digest && paperless}
+						<!-- with no copy to read, the digest is the paper's text here: its opening and prose between the results, which the cards leave out -->
+						<details class="fold-block" bind:open={digestOpen} data-testid="digest-text">
+							<summary>The digest as one text</summary>
+							{#if digestOpen}<div data-testid="work-digest"><Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" /></div>{/if}
+						</details>
+					{/if}
+				</section>
+
+				<section class="cited" data-testid="cited-in">
+					<h2>Cited in your documents</h2>
+					{#if cites.length}
+						<ul>
+							{#each cites as c (c.doc)}
+								<li><a href={masterUrl(c.doc)}>{documentLabel(m.masters, c.doc)}</a>{#if c.keys.length}: {#each c.keys as k, i (k)}{i ? ', ' : ''}<a href={keyUrl(m, k)}>{keyName(m, k)}</a>{/each}{/if}</li>
 							{/each}
 						</ul>
 					{:else}
-						<p class="muted">Nothing here depends on this reference yet.</p>
+						<p class="muted" data-testid="not-cited">Not cited yet. Cite it as <code>\cite&#123;{citekey}&#125;</code>.</p>
 					{/if}
-					{#if rest.length}
-						<h2>
-							<button class="fold" onclick={() => (showAll = !showAll)} aria-expanded={showAll} data-testid="digest-rest">
-								{showAll ? '▾' : '▸'} {rest.length} further result{rest.length === 1 ? '' : 's'} nothing here uses
-							</button>
-						</h2>
-						{#if showAll}
-							<ul>
-								{#each rest as id (id)}
-									<li><a href={keyUrl(m, id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {id} locator={m.nodes[id].locator} />){/if}</li>
-								{/each}
-							</ul>
-						{/if}
-					{/if}
-					{#if paperless}
-						<h2>Digest</h2>
-						<div data-testid="work-digest"><Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" /></div>
-					{/if}
-				{/if}
+				</section>
 
 				<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />
+
+				<!-- Read as a list, taken as BibTeX. The list is for the eye; the entry is what goes into a `.bib`, and
+				     retyping it from a rendered list is exactly the thing a reader should never have to do. -->
+				<details class="fold-block" data-testid="work-entry">
+					<summary>Bibliography entry</summary>
+					<p class="bibtools">
+						<button type="button" class:on={asBibtex} data-testid="bibtex-toggle" onclick={() => (asBibtex = !asBibtex)}>
+							{asBibtex ? 'list' : 'bibtex'}
+						</button>
+						<button type="button" data-testid="bibtex-copy" onclick={copyBibtex}>copy BibTeX</button>
+						{#if copied}<span class="said" role="status">{copied}</span>{/if}
+					</p>
+					{#if asBibtex}
+						<pre class="bibtex" data-testid="bibtex">{bibtex}</pre>
+					{:else}
+						<dl class="bib" data-testid="bib-list">
+							{#each bibRows as [field, value] (field)}
+								<dt>{field}</dt>
+								<dd><Tex text={bibText(value)} /></dd>
+							{/each}
+						</dl>
+					{/if}
+				</details>
+
+				{#if ref.versions?.length || ref.version_of || ref.digest || counts || ref.unreadable}
+				<details class="fold-block" data-testid="work-details">
+					<summary>Details</summary>
+					{#if ref.versions?.length}
+						<p class="muted" data-testid="work-versions">
+							Other documents of this work:
+							{#each ref.versions as v, i (v.citekey)}{i ? ', ' : ''}<a href={workUrl(v.citekey)}><code>{v.citekey}</code></a>{#if v.work}&nbsp;({v.work}){/if}{/each}.
+						</p>
+					{/if}
+					{#if ref.version_of}
+						<p class="muted" data-testid="work-version-of">Another document of <a href={workUrl(ref.version_of)}><code>{ref.version_of}</code></a>, filed beside it.</p>
+					{/if}
+					{#if ref.digest}
+						<p class="muted">Digest from {ref.digest.source} ({ref.digest.method}).</p>
+					{/if}
+					{#if counts}
+						<p class="muted" data-testid="result-counts">Results: {counts}.</p>
+					{/if}
+					{#if ref.unreadable}
+						<p class="muted">Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}.</p>
+					{/if}
+				</details>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -314,5 +362,88 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
+	}
+	/* Info's sections: a quiet small-caps head, as the folds' summaries are, so the cards and the overview carry the weight */
+	.info section {
+		margin: var(--gap-wide) 0;
+	}
+	.info section > h2,
+	.fold-block > summary {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-family: var(--sans);
+		font-size: 12px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--ink-faint);
+		margin: 0 0 8px;
+	}
+	.fold-block {
+		margin: var(--gap) 0;
+	}
+	.fold-block > summary {
+		display: list-item;
+		cursor: pointer;
+	}
+	.filters {
+		display: inline-flex;
+		gap: 4px;
+		margin-left: auto;
+		text-transform: none;
+		letter-spacing: 0;
+		font-weight: 400;
+	}
+	.filters button {
+		font-family: var(--sans);
+		font-size: 11.5px;
+		color: var(--ink-soft);
+		background: var(--sheet);
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-pill);
+		padding: 1px 9px;
+		cursor: pointer;
+	}
+	.filters button.on {
+		background: var(--ink);
+		border-color: var(--ink);
+		color: var(--sheet);
+	}
+	.sect {
+		font-family: var(--sans);
+		font-size: 12px;
+		font-weight: 400;
+		color: var(--ink-faint);
+		margin: 14px 0 6px;
+	}
+	.more {
+		font-family: var(--sans);
+		font-size: 12px;
+		color: var(--link);
+	}
+	.empty {
+		display: flex;
+		gap: 14px;
+		align-items: center;
+		flex-wrap: wrap;
+		border: 1px dashed var(--rule-strong);
+		border-radius: var(--rad-card);
+		padding: 12px 16px;
+		color: var(--ink-soft);
+		font-family: var(--sans);
+		font-size: 13px;
+	}
+	.empty p {
+		margin: 0;
+		flex: 1 1 18em;
+		line-height: 1.45;
+	}
+	.cited ul {
+		margin: 0;
+		padding-left: 18px;
+	}
+	.cited li {
+		margin: 3px 0;
 	}
 </style>

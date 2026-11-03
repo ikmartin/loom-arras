@@ -1587,9 +1587,13 @@ def _drop_clients(root: Path) -> None:
 
 
 def _sync(src: Path, dest: Path) -> None:
+    """Replace `dest` with `src` as git would check it out: no build output, and no empty directory, which git cannot hold but a test copying the working tree would see."""
     if dest.exists():
         shutil.rmtree(dest)
     shutil.copytree(src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git"))
+    for d in sorted((p for p in dest.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
+        if not any(d.iterdir()):
+            d.rmdir()
 
 
 def _differences(a: Path, b: Path) -> list[str]:

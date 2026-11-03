@@ -714,6 +714,8 @@ test.describe('the toolbar', () => {
 		await expect(paper).toBeDisabled();
 		await expect(paper).toHaveAttribute('title', 'No copy of this work is on file');
 		await expect(pane(page, 0).getByTestId('tab-info')).toHaveAttribute('aria-pressed', 'true');
+		// with no copy to read, the digest is read here as one text, folded beneath the results' cards
+		await pane(page, 0).getByTestId('digest-text').locator('summary').click();
 		await expect(pane(page, 0).getByTestId('work-digest').locator('.env').first()).toBeVisible();
 		await expect.poll(() => new URL(page.url()).search).toBe('');
 		await expect(page.getByTestId('tool-select')).toBeDisabled();

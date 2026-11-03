@@ -42,6 +42,10 @@ describe('notes', () => {
 
 	it('say where they are, open there, and are named by their words', () => {
 		expect(noteWhere(m.notes!['n-2026-10-01-0003'])).toBe('Arden24, p. 3');
+		// a note on the whole work names the work, and opens on its Info
+		const whole = { ...m.notes!['n-2026-10-01-0003'], id: 'n-2026-10-01-0009', page: undefined };
+		expect(noteWhere(whole)).toBe('Arden24');
+		expect(itemForQuilt({ ...m, notes: { ...m.notes, [whole.id]: whole } }, whole.id)).toEqual({ kind: 'work', id: 'Arden24', view: 'info' });
 		expect(itemForQuilt(m, 'n-2026-10-01-0001')).toEqual({ kind: 'file', id: 'notes/a.md' });
 		expect(itemForQuilt(m, 'n-2026-10-01-0003')).toEqual({ kind: 'work', id: 'Arden24', place: { page: 3 } });
 		expect(linkName(m, 'quilt:n-2026-10-01-0001')).toBe('“The orbit is finite, as the lemma says.”');

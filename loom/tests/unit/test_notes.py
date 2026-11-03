@@ -32,7 +32,7 @@ def noted(q: Path, *args: str, who: str = "Tester") -> dict:  # type: ignore[typ
 
 
 def test_a_note_is_written_on_each_thing_the_viewer_shows(q: Path) -> None:
-    """A key, a file by its path, a cited work's page, a transcript message as SESSION#SEQ, and a session alone; a hidden file, a page-less work and a note saying nothing are refused."""
+    """A key, a file by its path, a cited work's page, a transcript message as SESSION#SEQ, and a session alone; a hidden file, a quote on a work with no page and a note saying nothing are refused."""
     from loom.mailbox import post
 
     sid = open_session(q)
@@ -58,8 +58,26 @@ def test_a_note_is_written_on_each_thing_the_viewer_shows(q: Path) -> None:
         "note", "--on", ".hidden.md", "--quote", "no", "--as", "Tester", cwd=q, code=2, match="hidden from the viewer"
     )
     refused("note", "--on", "Calloway14", "--quote", "x", "--as", "Tester", cwd=q, code=2, match="names its page")
+    refused("note", "x", "--on", "Calloway14", "--page", "0", "--as", "Tester", cwd=q, code=2, match="counted from 1")
     refused("note", "--on", "dm-0003", "--as", "Tester", cwd=q, code=2, match="quotes something or says something")
     refused("note", "--on", f"{sid}#999", "--quote", "x", "--as", "Tester", cwd=q, code=2, match="no message 999")
+
+
+def test_a_note_on_a_cited_work_with_no_page_is_on_the_whole_work(q: Path) -> None:
+    """By citekey or by an identifier its entry states, a work added by hand with none among them; it has no words to quote."""
+    from loom.refs.added import add_entry
+    from loom.scan.quilt import load_quilt
+
+    whole = noted(q, "Read this paper through and write its overview.", "--on", "Calloway14")
+    assert whole["target"] == {"work": "doi:10.4171/demo/14-1", "citekey": "Calloway14"} and "page" not in whole
+    assert noted(q, "and this one", "--on", "doi:10.4171/demo/14-1")["target"]["citekey"] == "Calloway14"
+    add_entry(
+        load_quilt(q), {"author": "Fulton, William", "title": "Intersection theory", "year": "1998"}, "Ful98", "Tester"
+    )
+    assert noted(q, "worth reading", "--on", "Ful98")["target"]["citekey"] == "Ful98"
+    assert "on Calloway14  Tester" in ok("since", "--as", AGENT, "--dry-run", cwd=q).stdout
+    got = json_of("since", "--as", AGENT, "--json", cwd=q)
+    assert {n["target"].get("citekey") for n in got["noted"]} >= {"Calloway14", "Ful98"}
 
 
 def test_an_agent_reads_a_persons_quotes_with_loom_since_and_never_its_own(q: Path) -> None:

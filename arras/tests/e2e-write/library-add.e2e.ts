@@ -30,7 +30,7 @@ test('a pasted BibTeX entry is read at once, added to loom\'s bibliography, and 
 	await page.getByTestId('add-fetch').uncheck();
 	await page.getByTestId('add-add').click();
 	await expect(page).toHaveURL(/\/library\/Ost18/);
-	await expect(page.getByTestId('work-added')).toHaveText('added by hand');
+	await expect(page.getByTestId('work-added')).toHaveText('added by hand, not cited yet');
 	expect(readFileSync(join(served.root, '.loom/digests/bibliography.bib'), 'utf8')).toContain('loom-added');
 });
 

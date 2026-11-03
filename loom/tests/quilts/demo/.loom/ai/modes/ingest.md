@@ -37,7 +37,7 @@ What a reader needs from a paper before reading it, written as the work's overvi
 - [dependencies]: which results rest on which, and where each hypothesis is used;
 - [reconstruction-plan]: the order in which to rebuild the main proofs, with the identities they turn on.
 
-It is a reading: what you could not follow is said, every claim carries its label, and it quotes the paper only through `loom library read`. Where the digest lacks a result the overview needs, propose the result first.
+It is a reading: what you could not follow is said, every claim carries its label, and it quotes the paper only through `loom library read`. Where the digest lacks a result the overview needs, propose the result first. A work you read through for anything else, with no overview yet, gets one too, without waiting to be asked.
 
 ## Report
 

@@ -51,7 +51,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 
 **Suggestion or agent document.** A suggestion is a change the author can take or refuse on its own: it lands at one place in one key, however long — a drop-in paragraph is a suggestion. A change that only makes sense with others, or that moves, merges, splits or reorders results, is an agent document of the passage it touches (`loom draft DOC --ai NAME --section ID`). The test: could the author take this one and refuse its neighbours?
 
-**A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A `note` annotation stays the home of what concerns one result.
+**A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A work you read through that has no overview yet gets one from you before you move on, whatever brought you to it; `loom library read WORK` says when it has none. A `note` annotation stays the home of what concerns one result.
 
 **Relations between results** go in `loom library relate FROM TO --kind … --why "…"`, where both ends find them, not in prose.
 

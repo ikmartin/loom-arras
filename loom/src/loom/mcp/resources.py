@@ -70,7 +70,7 @@ TEMPLATES = (
         "cited:{+work}",
         "work",
         "A cited work's overview",
-        "A cited work, by identifier (doi:…, arXiv:…): its overview, a reading of the paper, or with none the digest's opening, the paper's own words; `loom library read WORK`.",
+        "A cited work, by identifier (doi:…, arXiv:…): its overview, a reading of the paper, or with none the digest's opening, the paper's own words, and the agent that reads the work through writes the overview; `loom library read WORK`.",
         MARKDOWN,
     ),
     ResourceSpec(
@@ -218,7 +218,7 @@ def listed(result: ScanResult) -> list[ResourceSpec]:
                 f"cited:{wid.scheme}:{wid.value}",
                 ck,
                 f"{ck} · {said}" if said else ck,
-                "Its overview, or the digest's opening; ?page=N reads one page of its text.",
+                "Its overview, or with none the digest's opening, and whoever reads it through writes one; ?page=N reads one page of its text.",
                 MARKDOWN,
             )
         )

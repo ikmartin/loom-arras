@@ -27,7 +27,7 @@
 	// The problems chip answers whether anything is wrong, so it takes the colour of the worst thing it counts and says the count.
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
 	const problemCount = $derived(counts.errors + counts.warnings);
-	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs. A choice opens in the focused pane, as every choice in the column does.
+	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and in Review › Library, not beside every row. A choice opens in the focused pane, as every choice in the column does.
 	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
 	onMount(() => { void can('review-decision').then((yes) => readOnly = !yes); });
@@ -250,15 +250,13 @@
 								<ul class="plain library" data-testid="library-list">
 									{#each library as r (r.citekey)}
 										<li>
-											<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}"
-												><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span>{r.title}</a
-											>
+											<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}">{r.title}</a>
 											{#if r.unreadable}<span class="aside">unreadable</span>{/if}
 										</li>
 									{:else}
 										<li class="aside">nothing matches</li>
 									{/each}
-									<li><a href={route('/review/library')} data-testid="ledger-link">ledger</a></li>
+									<li><a href={route('/review/library')} data-testid="manage-link">Manage in Review</a></li>
 								</ul>
 							</div>
 						{/if}
@@ -642,20 +640,6 @@
 		font-size: 0.9em;
 	}
 	/* Filled where a copy is filed, hollow where none is. */
-	.library .dot {
-		display: inline-block;
-		flex: none;
-		width: 6px;
-		height: 6px;
-		margin-right: 6px;
-		border-radius: 50%;
-		vertical-align: 1px;
-		box-shadow: inset 0 0 0 1.2px var(--ink-faint);
-	}
-	.library .dot.filed {
-		background: var(--state-accepted);
-		box-shadow: none;
-	}
 	.library .aside {
 		margin-left: 0.3em;
 		color: var(--ink-faint);

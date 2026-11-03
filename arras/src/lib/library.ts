@@ -1,5 +1,6 @@
 // What the ledger says about each cited work (plan 0.13.3, View 4): one fact per column, each a question a reader asks of the Library — can I read it here, how much has been read off it, does my text lean on it, what has a person vouched for, what awaits my judgment, what is unanswered on it. Model facts in, display facts out, like `reached.ts`; nothing here renders.
 
+import { isAgentDocument } from '$lib/manifest/documents';
 import type { Manifest, Reference } from '$lib/manifest/types';
 import { bibText } from '$lib/works';
 
@@ -161,4 +162,116 @@ export function readFrom(ref: Reference): string | null {
 /** Whether a work wants something of the author: a statement to judge, or a question to answer. */
 export function needsWork(r: LedgerRow): boolean {
 	return r.proposed > 0 || r.open > 0;
+}
+
+/** One result of a work as its Info lists it: its state, whether the person's text leans on it, and the section of the paper it stands in. */
+export interface WorkResult {
+	id: string;
+	state: 'extracted' | 'verified' | 'proposed';
+	/** The person's own text reaches it. */
+	used: boolean;
+	/** Its innermost numbered section, `1.1 · Algebras associated to pairs`; '' for one in none, such as the standing assumptions. */
+	section: string;
+}
+
+/** Which of a work's results Info shows: all of them, those the person's text uses, those they verified, or those waiting as proposals. */
+export type ResultFilter = 'all' | 'used' | 'verified' | 'proposed';
+
+/**
+ * A work's results in the paper's order, each with its section: the digest's, then any proposal the digest does not hold.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ * ref : Reference
+ * reached : Set<string>
+ *     The external keys the person's own text reaches (`reachedExternal`).
+ *
+ * Returns
+ * -------
+ * WorkResult[]
+ *     A discarded result is left out; a digest result with no record counts as extracted, a proposal with none as proposed.
+ */
+export function workResults(m: Manifest, ref: Reference, reached: Set<string>): WorkResult[] {
+	// a section node lists its results and its subsections, so the section a result is a child of is its innermost; an unnumbered one is the digest's own, such as the opening it copies, and heads nothing
+	const section = new Map<string, string>();
+	for (const [id, n] of Object.entries(m.nodes)) {
+		if (n.kind !== 'section' || n.digest !== ref.citekey) continue;
+		const num = /-sec-([\d.]+)$/.exec(id)?.[1];
+		if (!num) continue;
+		const head = [num, n.title].filter(Boolean).join(' · ');
+		for (const c of n.children ?? []) if (m.nodes[c]?.kind !== 'section') section.set(c, head);
+	}
+	const digest = ref.digest?.nodes ?? [];
+	const ids = [...digest, ...(ref.proposed?.nodes ?? []).filter((id) => !digest.includes(id))];
+	const out: WorkResult[] = [];
+	for (const id of ids) {
+		const state = ref.results?.[id]?.state ?? (digest.includes(id) ? 'extracted' : 'proposed');
+		if (shownState(state)) out.push({ id, state, used: reached.has(id), section: section.get(id) ?? '' });
+	}
+	return out;
+}
+
+/** Whether a result in this state is listed: a discarded one is not. */
+function shownState(s: string): s is WorkResult['state'] {
+	return s === 'extracted' || s === 'verified' || s === 'proposed';
+}
+
+/** The results `f` keeps. */
+export function filterResults(rs: WorkResult[], f: ResultFilter): WorkResult[] {
+	if (f === 'all') return rs;
+	return rs.filter((r) => (f === 'used' ? r.used : r.state === f));
+}
+
+/** The filters worth offering, with their counts: each that keeps some results but not all of them, after `all`; none when no filter would narrow the list. */
+export function resultFilters(rs: WorkResult[]): { filter: ResultFilter; count: number }[] {
+	const narrow = (['used', 'verified', 'proposed'] as const)
+		.map((filter) => ({ filter, count: filterResults(rs, filter).length }))
+		.filter((x) => x.count > 0 && x.count < rs.length);
+	return narrow.length ? [{ filter: 'all', count: rs.length }, ...narrow] : [];
+}
+
+/** Results in runs of one section each, in order, so a heading stands above each run. */
+export function bySection(rs: WorkResult[]): { section: string; results: WorkResult[] }[] {
+	const out: { section: string; results: WorkResult[] }[] = [];
+	for (const r of rs) {
+		const last = out[out.length - 1];
+		if (last && last.section === r.section) last.results.push(r);
+		else out.push({ section: r.section, results: [r] });
+	}
+	return out;
+}
+
+/**
+ * The person's documents that cite a work, each with the keys in it that do: what Info lists under "Cited in your documents".
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ * ref : Reference
+ *
+ * Returns
+ * -------
+ * { doc: string; keys: string[] }[]
+ *     A document by its path, in the manifest's order of documents; an agent's document is not the person's and is left out. A citation from a document's own prose names no key.
+ */
+export function citedIn(m: Manifest, ref: Reference): { doc: string; keys: string[] }[] {
+	const own = m.masters.filter((x) => !isAgentDocument(x)).map((x) => x.path);
+	const docs = new Map<string, string[]>();
+	const add = (doc: string, key?: string) => {
+		if (!own.includes(doc)) return;
+		const keys = docs.get(doc) ?? [];
+		if (key && !keys.includes(key)) keys.push(key);
+		docs.set(doc, keys);
+	};
+	for (const by of ref.cited_by ?? []) {
+		if (own.includes(by)) {
+			add(by);
+			continue;
+		}
+		const node = m.nodes[by] ?? m.nodes[m.keys?.[by]?.node ?? ''];
+		if (!node || node.derived_of) continue;
+		for (const doc of node.reached_by ?? []) add(doc, by);
+	}
+	return own.filter((d) => docs.has(d)).map((doc) => ({ doc, keys: docs.get(doc)! }));
 }

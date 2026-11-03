@@ -34,7 +34,8 @@ test.describe('the ledger', () => {
 		await page.getByTestId('library-toggle').click();
 		await expect(page.getByTestId('library-list')).toBeVisible();
 		await expect(page.getByTestId('library-list').locator('a[href^="/library/"]').first()).toBeVisible();
-		await expect(page.getByTestId('ledger-link')).toHaveAttribute('href', '/review/library');
+		await expect(page.getByTestId('manage-link')).toHaveAttribute('href', '/review/library');
+		await expect(page.getByTestId('manage-link')).toHaveText('Manage in Review');
 	});
 
 	test('the ledger says what needs work', async ({ page }) => {
@@ -109,6 +110,7 @@ test.describe('the ledger', () => {
 		await expect(page.getByTestId('versions-Kre99')).toContainText('Kre99A');
 		await page.goto('/library/Kre99');
 		await page.getByTestId('tab-info').click();
+		await page.getByTestId('work-details').locator('summary').click();
 		const versions = page.getByTestId('work-versions');
 		await expect(versions).toContainText('Kre99A (arXiv:math/9810166v1)');
 		const link = versions.getByRole('link', { name: 'Kre99A' });
@@ -118,6 +120,7 @@ test.describe('the ledger', () => {
 		await expect(page).toHaveURL(/beside=%2Flibrary%2FKre99A/);
 		await page.goto('/library/Kre99A');
 		await page.getByTestId('tab-info').click();
+		await page.getByTestId('work-details').locator('summary').click();
 		await expect(page.getByTestId('work-version-of')).toContainText('Kre99');
 	});
 
@@ -134,21 +137,22 @@ test.describe('the ledger', () => {
 		await expect(list).not.toContainText('more');
 	});
 
-	test("a work's counts are stated once", async ({ page }) => {
-		// the panel says whether a copy is filed, the one thing a click cannot be guessed to give; every count is the ledger's
+	test("the column lists works by title alone", async ({ page }) => {
+		// what each holds and needs is said on its Info and in Review, not beside every row: no dot, no count
 		await page.goto('/master/drafting/main');
 		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
-		await expect(list.locator('.dot').first()).toBeAttached();
+		await expect(list.locator('a[href^="/library/"]').first()).toBeVisible();
+		await expect(list.locator('.dot')).toHaveCount(0);
 		const texts = await list.locator('li').allInnerTexts();
-		for (const t of texts.filter((x) => !/ledger|more|nothing/.test(x))) expect(t, t).not.toMatch(/\b\d+p?\s*$/);
+		for (const t of texts.filter((x) => !/Manage|more|nothing/.test(x))) expect(t, t).not.toMatch(/\b\d+p?\s*$/);
 	});
 
 	test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {
 		await page.goto('/library/Kre99');
 		await infoTab(page);
-		const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
-		await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
+		const card = page.locator('[data-testid="result-card"][data-result="Kre99-thm-2.1"]');
+		await expect(card.getByTestId('result-used').locator('a[href="/node/sy-000A"]')).toHaveCount(1); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
 		await page.goto('/review/library');
 		// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Info
 		await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
@@ -388,6 +392,78 @@ test.describe('links into cited works', () => {
 		// a quote with no page names no page: the publisher looks for it across the work
 		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/library/Kre99?quote=Artin+stacks');
 		await expect(pane(page, 1).getByTestId('pdf-doc')).toBeVisible();
+	});
+});
+
+test.describe("a work's Info", () => {
+	/** Kre99 with a third section of fourteen theorems, one of them verified: more than the dozen Info shows before it folds. */
+	async function longDigest(page: Page): Promise<void> {
+		await serve(page, (m) => {
+			const ref = m.references.Kre99;
+			const base = m.nodes['Kre99-thm-2.1'];
+			const more = Array.from({ length: 14 }, (_, i) => `Kre99-thm-3.${i + 1}`);
+			more.forEach((id, i) => (m.nodes[id] = { ...base, id, locator: `Theorem 3.${i + 1}, p.~${6 + i}` }));
+			m.nodes['Kre99-sec-3'] = { ...base, id: 'Kre99-sec-3', kind: 'section', title: 'Towers', locator: undefined, children: more };
+			ref.digest!.nodes = [...ref.digest!.nodes, ...more];
+			ref.results = { 'Kre99-thm-3.1': { state: 'verified' } as never };
+		});
+	}
+
+	test('reads in order: what it holds, its overview or who writes one, its results, where it is cited, then its entry and details folded', async ({ page }) => {
+		await longDigest(page);
+		await page.goto('/library/Kre99');
+		const parts = ['work-status', 'overview-empty', 'work-results', 'cited-in', 'work-entry', 'work-details'];
+		await expect(page.getByTestId('work-details')).toBeAttached();
+		const order = await page.getByTestId('work-info').locator('[data-testid]').evaluateAll((els, want) => els.map((e) => e.getAttribute('data-testid')!).filter((id) => want.includes(id)), parts);
+		expect(order).toEqual(parts);
+		await expect(page.getByTestId('overview-empty')).toContainText('No overview yet. An agent writes one the next time it reads this paper through');
+		// the entry and where the digest came from are folded until asked for
+		await expect(page.getByTestId('work-entry')).toHaveJSProperty('open', false);
+		await expect(page.getByTestId('bib-list')).toBeHidden();
+		await page.getByTestId('work-entry').locator('summary').click();
+		await expect(page.getByTestId('bib-list')).toBeVisible();
+		await expect(page.getByTestId('bibtex-copy')).toHaveText('copy BibTeX');
+		await expect(page.getByTestId('result-counts')).toBeHidden();
+		await page.getByTestId('work-details').locator('summary').click();
+		await expect(page.getByTestId('result-counts')).toBeVisible();
+	});
+
+	test('lists its results as cards by section, a dozen before the rest fold, narrowed by a filter', async ({ page }) => {
+		await longDigest(page);
+		await page.goto('/library/Kre99');
+		const cards = page.getByTestId('result-card');
+		await expect(cards).toHaveCount(12);
+		await expect(page.getByTestId('results-section').filter({ hasText: 'Towers' })).toHaveText('3 · Towers');
+		const card = page.locator('[data-testid="result-card"][data-result="Kre99-thm-3.1"]');
+		await expect(card.getByTestId('result-name')).toHaveText('Theorem 3.1');
+		await expect(card.getByTestId('result-state')).toHaveText('verified');
+		await expect(page.getByTestId('results-more')).toHaveText('4 further results · show all 16');
+		await page.getByTestId('results-more').click();
+		await expect(cards).toHaveCount(16);
+		// a filter offers only what narrows, with its count
+		await expect(page.getByTestId('results-all')).toHaveText('all 16');
+		await expect(page.getByTestId('results-proposed')).toHaveCount(0);
+		await page.getByTestId('results-verified').click();
+		await expect(cards).toHaveCount(1);
+		await expect(cards.first()).toHaveAttribute('data-result', 'Kre99-thm-3.1');
+		// what the person's text reaches: the theorem it cites, and the standing assumptions every result rests on
+		await page.getByTestId('results-used').click();
+		await expect(page.locator('[data-testid="result-card"][data-result="Kre99-thm-2.1"]')).toHaveCount(1);
+		await expect(page.locator('[data-testid="result-card"][data-result="Kre99-thm-3.1"]')).toHaveCount(0);
+		await expect(page.getByTestId('results-more')).toHaveCount(0);
+	});
+
+	test("says where the person's documents cite it, never an agent's, and what to write where nothing does", async ({ page }) => {
+		await page.goto('/library/Kre99?view=info');
+		const cited = page.getByTestId('cited-in');
+		await expect(cited.locator('a[href="/node/sy-000A"]')).toHaveCount(1);
+		await expect(cited.locator('a[href="/node/sy-000A-ai"]')).toHaveCount(0);
+		await expect(cited).not.toContainText('aidoc');
+		await page.goto('/library/Man12');
+		await expect(page.getByTestId('not-cited')).toHaveText('Not cited yet. Cite it as \\cite{Man12}.');
+		// a static viewer writes nothing, so nobody is asked for an overview
+		await expect(page.getByTestId('ask-agent')).toHaveCount(0);
+		await expect(page.getByTestId('status-ask')).toHaveCount(0);
 	});
 });
 

@@ -116,7 +116,7 @@ export function paperAt(m: Manifest, key: string): Item | null {
 function notedItem(m: Manifest, n: Note): Item | null {
 	const t = n.target;
 	if (t.file) return { kind: 'file', id: t.file, ...(n.page ? { anchor: `page=${n.page}` } : {}) };
-	if (t.citekey) return { kind: 'work', id: t.citekey, place: { page: n.page ?? 1 } };
+	if (t.citekey) return n.page ? { kind: 'work', id: t.citekey, place: { page: n.page } } : { kind: 'work', id: t.citekey, view: 'info' };
 	if (t.message) return { kind: 'session', id: t.message.session };
 	if (t.session) return { kind: 'session', id: t.session };
 	return t.key ? itemForQuilt(m, t.key) : null;

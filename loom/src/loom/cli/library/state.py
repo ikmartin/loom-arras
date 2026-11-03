@@ -374,13 +374,32 @@ def work_report(result: ScanResult, citekey: str) -> Report:
         if w.version_of
         else []
     )
+    overview = _overview_of(result, citekey)
+    said.append(
+        f"overview: written by {overview['by']}" + (f" on {overview['when'][:10]}" if overview["when"] else "")
+        if overview
+        else f"overview: none yet; an agent that reads it through writes one, with loom write {citekey} -"
+    )
     return Report(
         verdict,
         ok=row.done,
         lines=[*said, "", *table(table_rows)],
         groups=present(*groups),
-        data={"work": row.to_json(), "reference_notes": accepted},
+        data={"work": {**row.to_json(), "overview": overview}, "reference_notes": accepted},
     )
+
+
+def _overview_of(result: ScanResult, citekey: str) -> dict[str, str] | None:
+    """Where a work's overview is and who last wrote it through loom, or None while it has none; one edited only by hand was written by hand."""
+    from loom.pages import overview_page, read, writes
+
+    root = result.quilt.root
+    page = overview_page(root, result.bib, citekey)
+    if read(root, page) is None:
+        return None
+    done = writes(root, result.quilt.history_dir, page)
+    last = done[-1] if done else None
+    return {"path": page.path, "by": (last.actor if last else "") or "hand", "when": last.when if last else ""}
 
 
 def show(quilt_path: str | None, work: str | None, as_json: bool) -> None:

@@ -269,9 +269,9 @@ A note has no kind, severity or resolution: it says what someone wants kept besi
 
 | option | description |
 |---|---|
-| `--on` `THING` | What it is on: a key, a document, a cited work's citekey (with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session. |
+| `--on` `THING` | What it is on: a key, a document, a cited work's citekey (the whole work, or one page of it with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session. |
 | `--quote` | The words it quotes there. |
-| `--page` | The page, on a cited work or a PDF file, from 1. |
+| `--page` | The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work. |
 | `--box` `X,Y,W,H` | A region of the page or image, in points from its top left. |
 | `--keep` `ID` | Keep note ID, so it never fades. |
 | `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
@@ -673,7 +673,7 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 
 Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
+The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs, and the agent that reads the work through writes the overview. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
 
 | option | description |
 |---|---|

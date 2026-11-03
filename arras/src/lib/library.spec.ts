@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Manifest } from '$lib/manifest/types';
 import { reachedExternal } from '$lib/reached';
-import { ledgerRow, ledgerRows, needsWork, readFrom, shelf } from './library';
+import { bySection, citedIn, filterResults, ledgerRow, ledgerRows, needsWork, readFrom, resultFilters, shelf, workResults } from './library';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 
@@ -90,5 +90,66 @@ describe('the shelf', () => {
 		expect(kre.text).toContain('a preprint');
 		m.references.Kre99.artifacts!.pdf = true;
 		expect(shelf(m).find((r) => r.citekey === 'Kre99')!.opens).toBe('Kre99');
+	});
+});
+
+describe("a work's results on its Info", () => {
+	/** Kre99 with a second section and a subsection, a verified result, a proposal and a discarded one. */
+	function sectioned(): Manifest {
+		const m = structuredClone(fixture);
+		const ref = m.references.Kre99;
+		const node = (id: string, extra: object) => ({ ...m.nodes['Kre99-thm-2.1'], id, ...extra });
+		m.nodes['Kre99-sec-2'] = node('Kre99-sec-2', { kind: 'section', title: 'Cycles', children: ['Kre99-sec-2.1', 'Kre99-thm-2.1'] }) as never;
+		m.nodes['Kre99-sec-2.1'] = node('Kre99-sec-2.1', { kind: 'section', title: 'Stacks', children: ['Kre99-lem-2.2'] }) as never;
+		m.nodes['Kre99-lem-2.2'] = node('Kre99-lem-2.2', { locator: 'Lemma 2.2, p.~5' }) as never;
+		m.nodes['Kre99-x'] = node('Kre99-x', { locator: 'Lemma 9, p.~20' }) as never;
+		ref.digest!.nodes = ['Kre99-setup', 'Kre99-thm-2.1', 'Kre99-lem-2.2', 'Kre99-gone'];
+		ref.proposed = { file: '', fragment: '', nodes: ['Kre99-x'] };
+		ref.results = {
+			'Kre99-lem-2.2': { state: 'verified' } as never,
+			'Kre99-gone': { state: 'discarded' } as never
+		};
+		return m;
+	}
+
+	it("lists them in the paper's order under their innermost section, leaving a discarded one out", () => {
+		const m = sectioned();
+		const rs = workResults(m, m.references.Kre99, new Set(['Kre99-thm-2.1']));
+		expect(rs.map((r) => [r.id, r.state, r.used, r.section])).toEqual([
+			['Kre99-setup', 'extracted', false, '1 · Setup'],
+			['Kre99-thm-2.1', 'extracted', true, '2 · Cycles'],
+			['Kre99-lem-2.2', 'verified', false, '2.1 · Stacks'],
+			['Kre99-x', 'proposed', false, '']
+		]);
+		expect(bySection(rs).map((g) => [g.section, g.results.length])).toEqual([
+			['1 · Setup', 1],
+			['2 · Cycles', 1],
+			['2.1 · Stacks', 1],
+			['', 1]
+		]);
+	});
+
+	it('offers a filter only where it narrows the list, with its count', () => {
+		const m = sectioned();
+		const rs = workResults(m, m.references.Kre99, new Set(['Kre99-thm-2.1']));
+		expect(resultFilters(rs)).toEqual([
+			{ filter: 'all', count: 4 },
+			{ filter: 'used', count: 1 },
+			{ filter: 'verified', count: 1 },
+			{ filter: 'proposed', count: 1 }
+		]);
+		expect(filterResults(rs, 'verified').map((r) => r.id)).toEqual(['Kre99-lem-2.2']);
+		expect(resultFilters(workResults(fixture, fixture.references.Kre99, new Set()))).toEqual([]);
+	});
+
+	it("names the person's documents that cite a work, with the keys that do, and never an agent's", () => {
+		const cites = citedIn(fixture, fixture.references.Kre99);
+		expect(cites.length).toBeGreaterThan(0);
+		expect(cites.every((c) => !fixture.masters.find((x) => x.path === c.doc)?.copy_of)).toBe(true);
+		expect(cites.flatMap((c) => c.keys)).toContain('sy-000A');
+		expect(cites.flatMap((c) => c.keys)).not.toContain('sy-000A-ai');
+		const m = structuredClone(fixture);
+		m.references.Kre99.cited_by = [];
+		expect(citedIn(m, m.references.Kre99)).toEqual([]);
 	});
 });

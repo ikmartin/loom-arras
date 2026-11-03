@@ -4,7 +4,7 @@ import type { Manifest, Note } from '$lib/manifest/types';
 import { store } from '$lib/manifest/client.svelte';
 import { write } from '$lib/write';
 
-/** What a note is on, as the write API takes it: a key, a cited work's page, a shown file, a message (`SESSION#SEQ`) or a session, with the words or the region it quotes. */
+/** What a note is on, as the write API takes it: a key, a cited work or one of its pages, a shown file, a message (`SESSION#SEQ`) or a session, with the words or the region it quotes. */
 export interface Quoted {
 	target: string;
 	quote?: string;
@@ -41,7 +41,15 @@ export function noteWhere(n: Note): string {
 	const t = n.target;
 	if (t.file) return t.file + (n.page ? `, p. ${n.page}` : '');
 	if (t.key) return t.key;
-	if (t.citekey) return `${t.citekey}, p. ${n.page ?? '?'}`;
+	if (t.citekey) return n.page ? `${t.citekey}, p. ${n.page}` : t.citekey;
 	if (t.message) return `message ${t.message.seq}`;
 	return 'the session';
+}
+
+/** What "Ask an agent" writes on a work with no overview: a person's note on the whole work, which an agent reads as it reads any note a person writes. */
+export const ASK_OVERVIEW = 'Read this paper through and write its overview.';
+
+/** The newest unfaded note a person wrote asking for `citekey`'s overview: the ask still standing. */
+export function askedFor(m: Manifest | null, citekey: string): Note | undefined {
+	return notesWhere(m, (n) => n.target.citekey === citekey && !n.page && n.author.kind === 'person' && n.body === ASK_OVERVIEW)[0];
 }

@@ -16,10 +16,15 @@ from loom.cli.report import Report
     "on",
     default=None,
     metavar="THING",
-    help="What it is on: a key, a document, a cited work's citekey (with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session.",
+    help="What it is on: a key, a document, a cited work's citekey (the whole work, or one page of it with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session.",
 )
 @click.option("--quote", default=None, help="The words it quotes there.")
-@click.option("--page", type=int, default=None, help="The page, on a cited work or a PDF file, from 1.")
+@click.option(
+    "--page",
+    type=int,
+    default=None,
+    help="The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work.",
+)
 @click.option(
     "--box", default=None, metavar="X,Y,W,H", help="A region of the page or image, in points from its top left."
 )

@@ -12,7 +12,7 @@ It writes the quilt's files where the quilt lets it (below), and everything else
 - **Proposed library results**, each quotation checked against the page before it is stored, waiting for the author to verify.
 - **Relations** between results, each with its reason.
 - **Agent documents** in `.loom/copies/`, copies it makes with `loom draft DOC --ai NAME` and edits there; the author adopts what they want. A copy is how an agent works on a document the quilt protects, or gives the author changes to choose among before any lands.
-- **Pages**, through `loom write`: the quilt's research state, its goals, open problems, conventions and decisions, and each cited work's overview, a reading of the paper. The author edits a page directly; an agent writes one only through the command, which refuses a write from a stale read (`--base`) and records who wrote what in the history. A page says who wrote it and is never a source.
+- **Pages**, through `loom write`: the quilt's research state, its goals, open problems, conventions and decisions, and each cited work's overview, a reading of the paper, which the first agent to read the work through writes without waiting to be asked. The author edits a page directly; an agent writes one only through the command, which refuses a write from a stale read (`--base`) and records who wrote what in the history. A page says who wrote it and is never a source.
 - **Notes** about the mathematics (not built yet, see [README](README.md#decided-not-yet-built)).
 - **The session's transcript**, with `loom session say` (below).
 - **Files it hands the author** in its session's directory, which is never deleted from, and intermediates in `.loom/build/SESSION/`, which it may overwrite.
@@ -98,7 +98,7 @@ It writes at natural pauses and before it stops, and it links rather than restat
 
 The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
 
-The person points with a **quote**: one press on words of a document, a file or a message, or a region of a PDF or an image, writes a note there with no kind or severity, in the session annotations land in (`model.md`, Notes). The transcript shows it among the messages, and `loom since` lists it with its words and its link. An agent may write a note too, with `loom note`; a note asks nothing, and a finding is still an annotation.
+The person points with a **quote**: one press on words of a document, a file or a message, or a region of a PDF or an image, writes a note there with no kind or severity, in the session annotations land in (`model.md`, Notes). The transcript shows it among the messages, and `loom since` lists it with its words and its link. Asking for a work's overview from its Info is one such note, on the whole work. An agent may write a note too, with `loom note`; a note asks nothing, and a finding is still an annotation.
 
 ## What an agent is told
 

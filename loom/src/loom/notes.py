@@ -118,9 +118,17 @@ def _next_id(root: Path, day: str) -> str:
 
 
 def target_of(
-    result: Any, on: str, *, page: int | None = None, rects: list[list[float]] | None = None
+    result: Any,
+    on: str,
+    *,
+    page: int | None = None,
+    rects: list[list[float]] | None = None,
+    quote: str | None = None,
 ) -> dict[str, Any]:
-    """What `on` names, as a note's target: a session, a message (`SESSION#SEQ`), a shown file by its path, a cited work's page, or a key, a region or a document; NoteRefused when it names nothing the viewer shows."""
+    """What `on` names, as a note's target: a session, a message (`SESSION#SEQ`), a shown file by its path, a cited work or one of its pages, or a key, a region or a document; NoteRefused when it names nothing the viewer shows.
+
+    A work with no page is the whole work, which has no words to quote.
+    """
     from loom.cli._common import EnvError
     from loom.cli._quilt import resolve_key
     from loom.cli.review import _work_target
@@ -147,8 +155,10 @@ def target_of(
         return {"file": on}
     work = _work_target(result, on)
     if work is not None:
-        if page is None or page < 1:
-            raise NoteRefused("missing-field", f"a note on a cited work names its page: {on} --page N")
+        if page is None and (quote or rects):
+            raise NoteRefused("missing-field", f"a quote on a cited work names its page: {on} --page N")
+        if page is not None and page < 1:
+            raise NoteRefused("bad-field", "a page is counted from 1")
         citekey, wid = work
         return {"work": f"{wid.scheme}:{wid.value}", "citekey": citekey}
     try:
@@ -170,7 +180,7 @@ def write(
     rects: list[list[float]] | None = None,
 ) -> Note:
     """Write one note on `on`, quoting `quote` there when given; a quote with neither words nor a region is the target alone."""
-    target = target_of(result, on, page=page, rects=rects)
+    target = target_of(result, on, page=page, rects=rects, quote=quote)
     if not (body.strip() or (quote or "").strip() or rects or target.get("session")):
         raise NoteRefused("empty", "a note quotes something or says something")
     when = stamp()

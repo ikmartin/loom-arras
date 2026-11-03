@@ -163,18 +163,20 @@ test.describe('a link to a result', () => {
 });
 
 test.describe("a work's Info", () => {
-	test('lists the results the corpus uses, each linking to its paper at its page', async ({ page }) => {
+	test("lists the work's results as cards, each linking to its paper at its page", async ({ page }) => {
 		await filed(page);
 		await page.goto('/library/Kre99?view=info');
-		// the result's own row, which leads with it; the setup's row names it too, as what cites the setup
-		const row = pane(page, 0).getByTestId('results-used').locator(`li:has(> a:first-child[href="${AT}"])`);
-		await expect(row).toHaveCount(1);
-		await expect(row.locator('a').first()).toHaveAttribute('href', AT);
-		await expect(row.getByTestId('page-link')).toHaveAttribute('href', AT);
-		// a result whose locator names no page has no paper to open at one, so it goes to its digest node
-		await expect(pane(page, 0).getByTestId('results-used').locator('a[href="/node/Kre99-setup"]')).toHaveCount(1);
+		// the result's card: its number goes to its own page, where what is said about it is, and its page to the paper there
+		const card = pane(page, 0).locator(`[data-testid="result-card"][data-result="${RESULT}"]`);
+		await expect(card).toHaveCount(1);
+		await expect(card.getByTestId('result-name')).toHaveAttribute('href', `/node/${RESULT}`);
+		await expect(card.getByTestId('page-link')).toHaveAttribute('href', AT);
+		// a result whose locator names no page has no paper to open at one, so its card links only its digest node
+		const setup = pane(page, 0).locator('[data-testid="result-card"][data-result="Kre99-setup"]');
+		await expect(setup.getByTestId('result-name')).toHaveAttribute('href', '/node/Kre99-setup');
+		await expect(setup.getByTestId('page-link')).toHaveCount(0);
 		// the work is open here, so its own link moves it to its paper at the page
-		await row.getByTestId('page-link').click();
+		await card.getByTestId('page-link').click();
 		await onPage(page, 0, 4);
 	});
 });

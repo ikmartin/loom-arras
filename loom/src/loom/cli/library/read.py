@@ -83,7 +83,7 @@ def read_command(
 ) -> None:
     """Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its overview.
 
-    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
+    The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The overview is a reading of the paper written with `loom write`, printed with the hash `--base` needs; with none, the digest's opening is printed instead, the paper's own first paragraphs, and the agent that reads the work through writes the overview. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand; `loom library add FILE` files a paper of the author's.
     """
     if where is not None and pages is not None:
         raise EnvError("--where prints where the work is kept; give PAGES or --where, not both")
@@ -136,10 +136,12 @@ def read_command(
         out.append({"page": n, "section": f"{sec.n} {sec.title}".strip() if sec else "", "text": text.rstrip("\n")})
     if not out:
         raise ContentError(f"{ck} has no page text for {pages}; {no_pages(home, ck)}")
+    # read to its last page, a work with no overview is owed one by whoever read it
+    owed = hi >= m.pages and _no_overview(root, bib, ck)
     if as_json:
         first, last = out[0]["page"], out[-1]["page"]
         Report(
-            f"{ck} p.{first}" + (f"-{last}" if last != first else ""),
+            f"{ck} p.{first}" + (f"-{last}" if last != first else "") + (f"; {unwritten(ck)}" if owed else ""),
             data={"citekey": ck, "sha256": m.sha256, "pages": out},
         ).emit(True)
         return
@@ -149,6 +151,8 @@ def read_command(
             head += f"  [{page['section']}]"
         click.echo(head + " " + "-" * max(0, 60 - len(head)))
         click.echo(page["text"])
+    if owed:
+        note(f"that is the last page, and {unwritten(ck)}")
 
 
 def _fills(result: Any, ck: str, where: str) -> str:
@@ -194,9 +198,7 @@ def _overview(result: Any, ck: str, as_json: bool) -> None:
     if v is not None:
         note(f"{ck}: the digest {v.why}; its numbers and pages are unverified: loom library read {ck} N shows page N")
     if text is None and opening is None:
-        raise ContentError(
-            f"{ck} has no overview, and no digest opening to fall back on; `loom write {ck} -` writes an overview"
-        )
+        raise ContentError(f"{unwritten(ck)}; it has no digest opening to fall back on either")
     data = {
         "citekey": ck,
         "overview": text,
@@ -206,7 +208,9 @@ def _overview(result: Any, ck: str, as_json: bool) -> None:
     }
     if as_json:
         said = (
-            f"{page.name}" if text is not None else f"{ck} has no overview; its digest's opening, the paper's own words"
+            f"{page.name}"
+            if text is not None
+            else f"{unwritten(ck)}; this is its digest's opening, the paper's own words"
         )
         Report(said, data=data).emit(True)
         return
@@ -214,10 +218,20 @@ def _overview(result: Any, ck: str, as_json: bool) -> None:
         note(f"{page.name}, {data['hash']}: a reading, not the paper")
         click.echo(text.rstrip("\n"))
         return
-    note(
-        f"{ck} has no overview yet (`loom write {ck} -` writes one); this is its digest's opening, the paper's own words"
-    )
+    note(f"{unwritten(ck)}; this is its digest's opening, the paper's own words")
     click.echo(opening)
+
+
+def unwritten(ck: str) -> str:
+    """What a work with no overview says, wherever it is read: the agent that reads it through writes one."""
+    return f"{ck} has no overview yet: an agent that reads it through writes one, with `loom write {ck} -`"
+
+
+def _no_overview(root: Path, bib: Any, ck: str) -> bool:
+    """Whether `ck` has no overview written yet, read where `loom write` puts it."""
+    from loom.pages import overview_page, read
+
+    return read(root, overview_page(root, bib, ck)) is None
 
 
 @click.command(name="search")

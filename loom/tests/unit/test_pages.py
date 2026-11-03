@@ -63,9 +63,23 @@ def test_a_works_overview_lives_in_its_store_directory_and_library_read_prints_i
     data = json_of("library", "read", "Bellamy19", "--json", cwd=q)
     assert data["path"].endswith("/overview.md") and data["hash"] == hash_of(q, data["path"])
     assert ok("library", "read", "Bellamy19", "--where", "overview", cwd=q).stdout.strip() == str(q / data["path"])
-    # a work with no overview prints its digest's opening, and says so
+    # a work with no overview prints its digest's opening, and says so, and that the agent reading it through writes one
     opening = ok("library", "read", "Arden24", cwd=q)
-    assert "has no overview yet" in opening.stderr and said("the paper's own words", opening.stderr)
+    assert said("an agent that reads it through writes one", opening.stderr) and said(
+        "the paper's own words", opening.stderr
+    )
+    # read to its last page, it says so again; a work with an overview does not
+    assert said(
+        "that is the last page, and Arden24 has no overview yet",
+        ok("library", "read", "Arden24", "1-999", cwd=q).stderr,
+    )
+    assert "no overview" not in ok("library", "read", "Bellamy19", "1-999", cwd=q).stderr
+    assert "no overview yet" not in ok("library", "read", "Arden24", "1", cwd=q).stderr
+    # the work's report says who wrote its overview, or that it has none yet
+    assert "overview: written by Survey Agent on 2026-09-15" in ok("library", "Bellamy19", cwd=q).stdout
+    assert json_of("library", "Bellamy19", "--json", cwd=q)["work"]["overview"]["by"] == "Survey Agent"
+    assert json_of("library", "Arden24", "--json", cwd=q)["work"]["overview"] is None
+    assert said("overview: none yet; an agent that reads it through writes one", ok("library", "Arden24", cwd=q).stdout)
 
 
 def test_the_manifest_publishes_each_page_with_who_wrote_it_and_its_links_that_moved_or_broke(tmp_path: Path) -> None:
