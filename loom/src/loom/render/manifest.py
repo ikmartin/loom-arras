@@ -537,11 +537,16 @@ def build_manifest(
             manifest["references"][ck]["unreadable"] = {"why": said.why, "who": said.who, "when": said.when}
         # a work the person added by hand, which no document need cite (plan 0.24.2)
         if bib is not None:
+            from loom.refs.added import ORDER, entry_text
             from loom.refs.added import added as by_hand
 
             when_who = by_hand(bib)
             if when_who is not None:
                 manifest["references"][ck]["added"] = when_who
+            # the entry as a person pastes it into a .bib (plan 0.24.4): its type and the bibliographic fields, never loom's own nor a local one such as `file`
+            manifest["references"][ck]["bibtex"] = entry_text(
+                ck, bib.type, {k: v for k, v in bib.fields.items() if k in ORDER}
+            )
         # the work's overview, a reading an agent or the person wrote (plan 0.21.3); additive, the interface version unchanged
         if bib is not None and ck not in tops:
             from loom.pages import overview_page

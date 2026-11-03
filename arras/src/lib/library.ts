@@ -2,7 +2,7 @@
 
 import { isAgentDocument } from '$lib/manifest/documents';
 import type { Manifest, Reference } from '$lib/manifest/types';
-import { bibText } from '$lib/works';
+import { bibText, surnames } from '$lib/works';
 
 export interface LedgerRow {
 	citekey: string;
@@ -25,6 +25,20 @@ export interface LedgerRow {
 	open: number;
 	/** The work's other documents, each a citekey of its own, whose counts are folded into this row. */
 	versions: string[];
+	/** Its authors' surnames, as a byline gives them. */
+	authors: string;
+	/** The person added it by hand, rather than a document citing it. */
+	added: boolean;
+	/** Where its digest's results were read from: its LaTeX `source`, its `pages`, `both`, or '' when nobody says. */
+	from: 'source' | 'pages' | 'both' | '';
+	/** An agent or the person wrote its overview. */
+	overview: boolean;
+	/** The person's keys and documents that cite it (`citedIn`). */
+	cited: number;
+	/** Its entry names a global identifier, so a run can look it up and fetch it. */
+	identified: boolean;
+	/** Lowercased key, title and authors, which the ledger's search matches. */
+	text: string;
 }
 
 /**
@@ -56,7 +70,14 @@ export function ledgerRow(m: Manifest, ref: Reference, reached: Set<string>): Le
 		used: digest.filter((id) => reached.has(id)).length,
 		...resultCounts(ref),
 		open: (ref.reading?.open ?? 0) + onResults,
-		versions: []
+		versions: [],
+		authors: surnames(ref.bib.author),
+		added: !!ref.added,
+		from: ({ extract: 'source', pdf: 'pages', mixed: 'both' } as const)[ref.digest?.method as 'extract' | 'pdf' | 'mixed'] ?? '',
+		overview: !!ref.overview,
+		cited: citedIn(m, ref).reduce((n, c) => n + Math.max(1, c.keys.length), 0),
+		identified: !!ref.work && !ref.work.startsWith('work:'),
+		text: `${ref.citekey} ${bibText(ref.bib.title as string)} ${bibText(ref.bib.author ?? '')}`.toLowerCase()
 	};
 }
 
@@ -81,7 +102,10 @@ export function ledgerRows(m: Manifest, reached: Set<string>): LedgerRow[] {
 		const own = rows.get(ref.citekey);
 		if (!top || !own) continue;
 		top.filed ||= own.filed;
-		for (const k of ['digest', 'used', 'extracted', 'verified', 'proposed', 'open'] as const) top[k] += own[k];
+		top.overview ||= own.overview;
+		top.identified ||= own.identified;
+		for (const k of ['digest', 'used', 'extracted', 'verified', 'proposed', 'open', 'cited'] as const) top[k] += own[k];
+		top.text += ' ' + own.text;
 		top.versions.push(ref.citekey);
 		rows.delete(ref.citekey);
 	}
@@ -162,6 +186,82 @@ export function readFrom(ref: Reference): string | null {
 /** Whether a work wants something of the author: a statement to judge, or a question to answer. */
 export function needsWork(r: LedgerRow): boolean {
 	return r.proposed > 0 || r.open > 0;
+}
+
+/** What can be done about a problem, in the ledger's own terms: run on the work, run it again from scratch, upload its PDF, or stop asking for its paper. */
+export type FixAct = 'run' | 'redo' | 'upload' | 'ignore';
+
+/** A problem a work has, said in the viewer's words, with what can be done about it. */
+export interface Problem {
+	code: 'no-copy' | 'unidentified' | 'another-version' | 'lookup-failed' | 'not-this-work' | 'extract-failed' | 'map-failed';
+	text: string;
+	fixes: FixAct[];
+}
+
+/** One work's line of a run's report: what failed for it, where something did. */
+export interface RunRow {
+	citekey: string;
+	lookup_error?: string;
+	discarded?: string;
+	extract_error?: string;
+	map_error?: string;
+}
+
+/**
+ * A work's problems, each with its fixes: from the manifest, what stands on disk (its diagnostics `no-readable-copy` and `unresolved-work`, and `version_mismatch`); from the last run on it, what that run could not do.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ * ref : Reference
+ * run : RunRow, optional
+ *     The work's line in the report of the last run that acted on it, while the publisher still holds it.
+ *
+ * Returns
+ * -------
+ * Problem[]
+ *     A work loom cannot identify is not also told it has no copy, since the one says why the other, and is told nothing once a copy is filed; a work declared unreadable has neither.
+ */
+export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[] {
+	// a code by its name after the publisher's prefix, as NodeItem reads `:missing-proof`: the publisher is never named here
+	const on = (name: string) => (m.diagnostics ?? []).some((d) => d.code.endsWith(`:${name}`) && d.keys.includes(ref.citekey));
+	const out: Problem[] = [];
+	// an entry with no identifier matters only while a copy is wanted: one filed by hand is read all the same, and one declared unreadable is wanted no longer
+	const wanted = !ref.artifacts?.pdf && !ref.artifacts?.source && !ref.unreadable;
+	if (on('unresolved-work') && wanted) out.push({ code: 'unidentified', text: 'Its entry names no DOI or arXiv id, so loom cannot fetch it.', fixes: ['upload', 'ignore'] });
+	else if (on('no-readable-copy') && wanted) {
+		const identified = !!ref.work && !ref.work.startsWith('work:');
+		out.push({ code: 'no-copy', text: 'No copy of the paper can be read here.', fixes: identified ? ['run', 'upload', 'ignore'] : ['upload', 'ignore'] });
+	}
+	if (ref.version_mismatch) out.push({ code: 'another-version', text: 'Its digest was read from another version than the one cited.', fixes: ['redo'] });
+	if (run?.lookup_error) out.push({ code: 'lookup-failed', text: `The last lookup could not be made: ${run.lookup_error}`, fixes: ['run'] });
+	if (run?.discarded) out.push({ code: 'not-this-work', text: `The paper the last run fetched was not this work: ${run.discarded}`, fixes: ['upload'] });
+	if (run?.extract_error) out.push({ code: 'extract-failed', text: `Reading its results off the source failed: ${run.extract_error}`, fixes: ['redo'] });
+	if (run?.map_error) out.push({ code: 'map-failed', text: `Mapping its pages failed: ${run.map_error}`, fixes: ['redo'] });
+	return out;
+}
+
+/** Which works the ledger shows: all, those wanting something of the person, those with no paper, no overview, or not cited, and those with results proposed or verified. */
+export type LedgerFilter = 'all' | 'needs-you' | 'no-paper' | 'no-overview' | 'not-cited' | 'proposed' | 'verified';
+
+/** Whether the ledger's filter `f` keeps `r`, whose problems are `problems`; a work declared unreadable has no paper to want. */
+export function keepRow(r: LedgerRow, problems: Problem[], f: LedgerFilter): boolean {
+	if (f === 'needs-you') return needsWork(r) || problems.length > 0;
+	if (f === 'no-paper') return !r.filed && !r.unreadable;
+	if (f === 'no-overview') return !r.overview;
+	if (f === 'not-cited') return r.cited === 0;
+	if (f === 'proposed') return r.proposed > 0;
+	if (f === 'verified') return r.verified > 0;
+	return true;
+}
+
+/** Whether `r` matches a search: every word of `q` in its key, title or authors. */
+export function matches(r: LedgerRow, q: string): boolean {
+	return q
+		.toLowerCase()
+		.split(/\s+/)
+		.filter(Boolean)
+		.every((w) => r.text.includes(w));
 }
 
 /** One result of a work as its Info lists it: its state, whether the person's text leans on it, and the section of the paper it stands in. */

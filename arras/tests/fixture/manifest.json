@@ -7458,6 +7458,7 @@
     "title": "Algebraic Geometry",
     "year": 1977
    },
+   "bibtex": "@book{Har77,\n  author = {Hartshorne, Robin},\n  title = {Algebraic Geometry},\n  year = {1977},\n}\n",
    "cited_by": [
     "sy-0100",
     "sy-0100-ai"
@@ -7490,6 +7491,7 @@
     "title": "Cycle groups for Artin stacks",
     "year": 1999
    },
+   "bibtex": "@article{Kre99,\n  author = {Kresch, Andrew},\n  title = {Cycle groups for Artin stacks},\n  year = {1999},\n  journal = {Invent. Math.},\n  eprint = {math/9810166v2},\n}\n",
    "cited_by": [
     "sy-000A",
     "sy-000A-ai",
@@ -7534,6 +7536,7 @@
     "title": "Virtual pull-backs",
     "year": 2012
    },
+   "bibtex": "@article{Man12,\n  author = {Manolache, Cristina},\n  title = {Virtual pull-backs},\n  year = {2012},\n  eprint = {0805.2065v2},\n}\n",
    "cited_by": [],
    "citekey": "Man12",
    "digest": null,

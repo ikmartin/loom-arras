@@ -49,6 +49,11 @@ export function noteWhere(n: Note): string {
 /** What "Ask an agent" writes on a work with no overview: a person's note on the whole work, which an agent reads as it reads any note a person writes. */
 export const ASK_OVERVIEW = 'Read this paper through and write its overview.';
 
+/** Ask an agent for `citekey`'s overview, with a person's note on the whole work in the selected session; the refusal, where there is one. */
+export function askOverview(citekey: string): Promise<string> {
+	return quote({ target: citekey, body: ASK_OVERVIEW });
+}
+
 /** The newest unfaded note a person wrote asking for `citekey`'s overview: the ask still standing. */
 export function askedFor(m: Manifest | null, citekey: string): Note | undefined {
 	return notesWhere(m, (n) => n.target.citekey === citekey && !n.page && n.author.kind === 'person' && n.body === ASK_OVERVIEW)[0];

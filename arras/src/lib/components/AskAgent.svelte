@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Reference } from '$lib/manifest/types';
-	import { ASK_OVERVIEW, askedFor, quote } from '$lib/notes';
+	import { askOverview, askedFor } from '$lib/notes';
 	import NoSession from '$lib/sessions/NoSession.svelte';
 	import { titleOf, writable } from '$lib/sessions/sessions.svelte';
 	import { when } from '$lib/sessions/when';
@@ -29,7 +29,7 @@
 
 	async function ask(): Promise<void> {
 		busy = true;
-		refused = await quote({ target: citekey, body: ASK_OVERVIEW });
+		refused = await askOverview(citekey);
 		busy = false;
 	}
 </script>

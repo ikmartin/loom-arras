@@ -587,6 +587,30 @@ def test_a_pdf_on_disk_does_not_stop_loom_looking_for_the_source(
     assert dec.source and dec.pdf, "the PDF on disk is kept, though this fetch did not bring one"
 
 
+def test_a_lookup_the_service_refused_is_said_on_its_works_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refused lookup was only a line among the report's failures, so nothing about the work said its lookup had failed; its row now says why, which the viewer shows beside the work with "Try again" (plan 0.24.4)."""
+    from loom.cli._quilt import open_scan
+    from loom.refs import build
+    from loom.refs.resolve import ResolveRefused
+
+    q, ck = mapped(tmp_path)  # Vir12 states no identifier
+    edit(q / "config.toml", "online = false", "online = true")
+
+    class Resolver:
+        requests = 0
+
+        def __init__(self, **_: object) -> None:
+            pass
+
+        def candidates(self, query: object) -> list[object]:
+            raise ResolveRefused("zbMATH Open: HTTP 503")
+
+    monkeypatch.setattr(build, "Resolver", Resolver)
+    report = build.build_refs(open_scan(str(q)), only=(ck,), steps=("resolve",))
+    row = the(report.report().to_json()["works"], lambda w: w["citekey"] == ck, f"row {ck}")
+    assert row["lookup_error"] == "zbMATH Open: HTTP 503" and row["candidates"] is None
+
+
 def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The first study run: an agent verified its own proposal and loom recorded the author as the verifier, because the author's name comes from git and an agent's shell shares it."""
     q, ck = mapped(tmp_path)

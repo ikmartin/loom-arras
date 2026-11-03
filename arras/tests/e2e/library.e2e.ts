@@ -38,22 +38,26 @@ test.describe('the ledger', () => {
 		await expect(page.getByTestId('manage-link')).toHaveText('Manage in Review');
 	});
 
-	test('the ledger says what needs work', async ({ page }) => {
+	test('the ledger says what needs you', async ({ page }) => {
 		await serve(page, (m) => {
 			m.references.Kre99.results = { 'Kre99-x': { state: 'proposed' } };
 			m.references.Man12.reading = { total: 2, open: 1 };
 		});
 		await page.goto('/review/library');
 		const filters = page.getByRole('group', { name: 'which works' }).getByRole('button');
-		await expect(filters).toHaveText([/^all/, /^needs work/, /^proposed/, /^verified/, /^extracted/]);
-		await page.getByTestId('show-needs-work').click();
-		await expect(page).toHaveURL(/show=needs-work/);
+		await expect(filters).toHaveText([/^all/, /^needs you/, /^no paper/, /^no overview/, /^not cited/, /^proposed/, /^verified/]);
+		await page.getByTestId('show-needs-you').click();
+		await expect(page).toHaveURL(/show=needs-you/);
+		// a proposal to judge (Kre99), a note awaiting an answer (Man12), and a problem with a fix (Har77, which names no identifier)
 		const rows = page.getByTestId('library-works').locator('tbody tr');
-		await expect(rows).toHaveCount(2);
+		await expect(rows).toHaveCount(3);
 		await expect(page.getByTestId('ledger-Kre99')).toBeVisible();
-		await expect(page.getByTestId('open-Man12')).toHaveText('1');
+		await expect(page.getByTestId('open-Man12')).toHaveText('· 1 open');
 		await page.getByTestId('show-proposed').click();
 		await expect(rows).toHaveCount(1);
+		await page.getByTestId('show-not-cited').click();
+		await expect(rows).toHaveCount(1);
+		await expect(page.getByTestId('ledger-Man12')).toBeVisible();
 	});
 
 	test('the backlog is the same view filtered, not another page', async ({ page }) => {
@@ -63,7 +67,7 @@ test.describe('the ledger', () => {
 		await page.goto('/review/library');
 		await page.getByTestId('show-proposed').click();
 		await expect(page).toHaveURL(/show=proposed/);
-		await expect(page.getByTestId('pending-Kre99')).toHaveText('1');
+		await expect(page.getByTestId('pending-Kre99')).toHaveText('1 to verify');
 		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
 	});
 
@@ -78,16 +82,16 @@ test.describe('the ledger', () => {
 		});
 		await page.goto('/review/library');
 		const head = page.getByTestId('library-works').locator('thead th');
-		await expect(head).toContainText(['verified', 'proposed']);
+		await expect(head).toContainText(['work', 'paper', 'digest', 'verified', 'overview', 'cited']);
 		await expect(head.filter({ hasText: 'unvouched' })).toHaveCount(0);
+		// each column says what it counts
+		await expect(head.filter({ hasText: 'digest' })).toHaveAttribute('title', /its LaTeX source, or its pages/);
 		await expect(page.getByTestId('verified-Kre99')).toHaveText('1');
 		await expect(page.getByTestId('verified-Man12')).toHaveText('—');
 		const rows = page.getByTestId('library-works').locator('tbody tr');
 		await page.getByTestId('show-verified').click();
 		await expect(page).toHaveURL(/show=verified/);
 		await expect(rows).toHaveCount(1);
-		await page.getByTestId('show-extracted').click();
-		await expect(rows).toHaveCount(2);
 		// nothing extracted or verified waits on the author
 		await page.getByTestId('show-proposed').click();
 		await expect(rows).toHaveCount(0);
@@ -154,9 +158,10 @@ test.describe('the ledger', () => {
 		const card = page.locator('[data-testid="result-card"][data-result="Kre99-thm-2.1"]');
 		await expect(card.getByTestId('result-used').locator('a[href="/node/sy-000A"]')).toHaveCount(1); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
 		await page.goto('/review/library');
-		// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Info
+		// the ledger counts what was read off it and the places that cite it; which results they lean on is the work's own Info
 		await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
-		await expect(page.getByTestId('used-Kre99')).not.toHaveText('—');
+		await expect(page.getByTestId('cited-Kre99')).toHaveText(/^\d+$/);
+		await expect(page.getByTestId('cited-Man12')).toHaveText('not cited');
 		await page.goto('/review/problems');
 		await page.getByTestId('problems-expand').click();
 		await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
@@ -392,6 +397,32 @@ test.describe('links into cited works', () => {
 		// a quote with no page names no page: the publisher looks for it across the work
 		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/library/Kre99?quote=Artin+stacks');
 		await expect(pane(page, 1).getByTestId('pdf-doc')).toBeVisible();
+	});
+});
+
+test.describe('Review › Library acts', () => {
+	test("says each work's problems in its row, finds works by search, and acts on nothing without a publisher", async ({ page }) => {
+		await page.goto('/review/library');
+		// the fixture holds no copy of Kre99, and Har77's entry names no identifier
+		await expect(page.getByTestId('ledger-Kre99').getByTestId('problem-Kre99')).toHaveAttribute('data-code', 'no-copy');
+		await expect(page.getByTestId('problem-Kre99')).toContainText('No copy of the paper can be read here.');
+		await expect(page.getByTestId('problem-Har77')).toHaveAttribute('data-code', 'unidentified');
+		await expect(page.getByTestId('problem-Man12')).toHaveCount(0);
+		// a static viewer offers no fix, no checkbox, and a menu that only opens a work and copies its entry
+		await expect(page.getByTestId('library-works').locator('[data-testid^="fix-"]')).toHaveCount(0);
+		await expect(page.getByTestId('select-all')).toHaveCount(0);
+		await page.getByTestId('menu-Kre99').click();
+		const items = page.getByTestId('menu-items-Kre99').getByRole('menuitem');
+		await expect(items).toHaveText(['Open its info', 'Copy BibTeX']);
+		await page.keyboard.press('Escape');
+		// the search narrows by key, title or author, and the address keeps it
+		await page.getByTestId('ledger-search').fill('kresch artin');
+		await expect(page).toHaveURL(/q=kresch\+artin|q=kresch%20artin/);
+		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
+		await expect(page.getByTestId('show-all')).toContainText('1');
+		await page.goto('/review/library?q=manolache');
+		await expect(page.getByTestId('ledger-Man12')).toBeVisible();
+		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
 	});
 });
 

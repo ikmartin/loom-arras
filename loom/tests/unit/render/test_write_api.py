@@ -1214,6 +1214,30 @@ def _library_remove(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
     refuses(s, "library-remove", {"citekey": "Nobody99"}, 404, "no-such-work", "no work Nobody99")
 
 
+@case("library-ignore")
+def _library_ignore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    succeeds(s, "library-add", {"text": ENTRY})
+    # a work whose store holds no document is declared unreadable, which the manifest says, and withdrawn again
+    said = succeeds(s, "library-ignore", {"citekey": "Ost18", "why": "a living document"})["result"]
+    assert said == "Ost18 declared unreadable: a living document"
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["references"]["Ost18"]["unreadable"]["why"] == "a living document"
+    refuses(s, "library-ignore", {"citekey": "Ost18", "why": "again"}, 409, "already", "already declared unreadable")
+    succeeds(s, "library-ignore", {"citekey": "Ost18", "why": "it has a version", "undo": True})
+    assert "unreadable" not in json.loads(get(s.url + "build/manifest.json")[2])["references"]["Ost18"]
+    refuses(s, "library-ignore", {"citekey": "Ost18", "why": "x", "undo": True}, 409, "not-ignored", "nothing to undo")
+    refuses(s, "library-ignore", {"citekey": "Nobody99", "why": "x"}, 404, "no-such-work", "no work Nobody99")
+    refuses(
+        s,
+        "library-ignore",
+        {"citekey": "Ost18", "why": "x", "author": "Reading Agent"},
+        403,
+        "author-only",
+        "author's claim",
+    )
+
+
 def test_a_write_larger_than_the_publisher_reads_is_refused_before_it_is_read(session, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     s, _ = session
     monkeypatch.setattr("loom.render.api.MAX_BODY", 64)

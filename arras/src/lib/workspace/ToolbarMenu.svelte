@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A menu on a pane's toolbar, **view ▾** or **history ▾**: a word with a caret that opens a box of lines (ToolbarItem), moved through with the arrow keys, Home and End, and closed by a line chosen, Escape or a press outside, handing focus back to its word.
+	// A menu on a pane's toolbar, **view ▾** or **history ▾**: a word with a caret that opens a box of lines (ToolbarItem), moved through with the arrow keys, Home and End, and closed by a line chosen, Escape or a press outside, handing focus back to its word. With no caret it is a row's own menu, a ⋯ beside what it acts on.
 	import { tick, type Snippet } from 'svelte';
 	import Popover from '$lib/components/Popover.svelte';
 
@@ -12,6 +12,7 @@
 		width = 230,
 		divided = false,
 		dot = false,
+		caret = true,
 		children
 	}: {
 		/** The word on the toolbar. */
@@ -27,6 +28,8 @@
 		divided?: boolean;
 		/** A mode inside is on. */
 		dot?: boolean;
+		/** The caret after the word; a glyph such as ⋯ goes without. */
+		caret?: boolean;
 		/** The lines; `[role^="menuitem"]` are the ones the keys move through. */
 		children: Snippet;
 	} = $props();
@@ -72,9 +75,9 @@
 <Popover bind:open placement="below" align="end" {width} onclose={close}>
 	{#snippet trigger()}
 		<button type="button" class="word" class:divided aria-haspopup="menu" aria-expanded={open} aria-label={name} data-testid={testid} bind:this={button} onclick={toggle}
-			>{label}{#if dot}<span class="dot" aria-hidden="true" data-testid="{testid}-on"></span>{/if}<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"
-				><path d="M4.5 6.5 L8 10 L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg
-			></button
+			>{label}{#if dot}<span class="dot" aria-hidden="true" data-testid="{testid}-on"></span>{/if}{#if caret}<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"
+					><path d="M4.5 6.5 L8 10 L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg
+				>{/if}</button
 		>
 	{/snippet}
 	<!-- svelte-ignore a11y_click_events_have_key_events (a menu item is a button or a link, whose Enter and Space arrive as clicks) -->

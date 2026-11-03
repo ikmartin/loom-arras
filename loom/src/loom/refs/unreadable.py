@@ -141,3 +141,79 @@ def declare(
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps({"events": events}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return declarations(root, kind).get(key)
+
+
+#: What each claim makes a work, in the words a report uses.
+STATE = {"forget": "set aside", "unreadable": "declared unreadable"}
+
+
+class NotIgnorable(Exception):
+    """A claim that cannot be made or withdrawn here, with the code the API answers: `already` (it stands) or `not-ignored` (nothing stands to undo)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def shown(key: str) -> str:
+    """A key as a report shows it: a hash is the store's name for a document, so enough of it to recognise."""
+    return f"the document {key[7:15]}…" if key.startswith("sha256:") else key
+
+
+def ignore(result: Any, key: str, why: str, who: str, *, undo: bool = False, dry_run: bool = False) -> tuple[str, str]:
+    """Stop loom asking for a work's document, or offering a stored one an entry, or withdraw whichever claim stands.
+
+    Parameters
+    ----------
+    result : ScanResult
+        A scan of the quilt.
+    key : str
+        A citekey in the bibliography, or `sha256:<hash>` for a stored document no entry names.
+    why : str
+        The reason, required both ways.
+    who : str
+        The author, as `resolve_author` settled it.
+    undo : bool, default False
+        Withdraw what stands instead.
+    dry_run : bool, default False
+        Say what would be recorded, and record nothing.
+
+    Returns
+    -------
+    (str, str)
+        The kind of claim (`unreadable` for a work whose store holds no document, `forget` for one whose store does) and what was done, in a report's words.
+
+    Raises
+    ------
+    NotIgnorable
+        The claim already stands, or there is nothing to undo.
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import sha256_of
+
+    root = result.quilt.root
+    home = work_dir(root, result.bib[key]) if not key.startswith("sha256:") else None
+    has_document = home is None or (home / "paper.pdf").is_file() or (home / "src").is_dir()
+    standing = {k: declarations(root, k).get(key) for k in ("forget", "unreadable")}
+    if undo:
+        kind = next((k for k, d in standing.items() if d is not None), None)
+        if kind is None:
+            raise NotIgnorable(
+                "not-ignored", f"{shown(key)} is neither set aside nor declared unreadable; nothing to undo"
+            )
+    else:
+        kind = "forget" if has_document else "unreadable"
+        held = standing[kind]
+        if held is not None:
+            raise NotIgnorable("already", f"{shown(key)} is already {STATE[kind]} ({held.why}); --undo withdraws it")
+    pdf = home / "paper.pdf" if home is not None else None
+    sha = sha256_of(pdf) if kind == "forget" and pdf is not None and pdf.is_file() else ""
+    if not dry_run:
+        declare(root, kind, key, why, who, undo=undo, sha256=sha)
+    if undo:
+        return (
+            kind,
+            f"{shown(key)} is offered again" if kind == "forget" else f"{shown(key)} is no longer declared unreadable",
+        )
+    return kind, f"{shown(key)} {STATE[kind]}: {why}"

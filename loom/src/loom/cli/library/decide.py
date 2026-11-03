@@ -272,7 +272,8 @@ def ignore(
 
     A work with no document is declared unreadable -- the Stacks Project is a living work with no fixed version -- so the lint stops asking for a PDF that does not exist. A work whose store holds a document is set aside: once your bibliography no longer names it, the store stops offering it an entry on every scan. WORK may also be a prefix of a stored document's hash, for one no entry names. Both are recorded in loom's own file, never in your .bib, and --undo withdraws whichever stands.
     """
-    from loom.refs.unreadable import declarations, declare
+    from loom.refs.unreadable import NotIgnorable
+    from loom.refs.unreadable import ignore as declare_ignored
 
     refuse_under_agent(
         "loom library ignore",
@@ -282,26 +283,12 @@ def ignore(
     )
     result = open_scan(quilt_path)
     root = result.quilt.root
-    key, has_document = _ignore_key(result, work)
-    standing = {k: declarations(root, k).get(key) for k in ("forget", "unreadable")}
-    if undo:
-        kind = next((k for k, d in standing.items() if d is not None), None)
-        if kind is None:
-            raise ContentError(f"{_shown(key)} is neither set aside nor declared unreadable; nothing to undo")
-    else:
-        kind = "forget" if has_document else "unreadable"
-        held = standing[kind]
-        if held is not None:
-            raise ContentError(f"{_shown(key)} is already {_STATE[kind]} ({held.why}); --undo withdraws it")
+    key = _ignore_key(result, work)
     who = _who(root, as_name)
-    if not dry_run:
-        declare(root, kind, key, why, who, undo=undo, sha256=_document_sha(result, key) if kind == "forget" else "")
-    if undo:
-        said = (
-            f"{_shown(key)} is offered again" if kind == "forget" else f"{_shown(key)} is no longer declared unreadable"
-        )
-    else:
-        said = f"{_shown(key)} {_STATE[kind]}: {why}"
+    try:
+        kind, said = declare_ignored(result, key, why, who, undo=undo, dry_run=dry_run)
+    except NotIgnorable as exc:
+        raise ContentError(exc.message) from None
     from loom.refs.build import cited_counts
 
     cited = cited_counts(result).get(key, 0) if not undo else 0
@@ -314,15 +301,8 @@ def ignore(
     ).emit(as_json)
 
 
-#: What each declaration makes a work, in `ignore`'s words.
-_STATE = {"forget": "set aside", "unreadable": "declared unreadable"}
-
-
-def _ignore_key(result: ScanResult, work: str) -> tuple[str, bool]:
-    """(the key a declaration is filed under, whether the store holds a document for it).
-
-    A WORK through `_works.one_work`; failing that, a prefix of a hash in the copy ledger, for a stored document no entry names.
-    """
+def _ignore_key(result: ScanResult, work: str) -> str:
+    """The key a declaration is filed under: a WORK through `_works.one_work`; failing that, `sha256:<hash>` for a prefix of a hash in the copy ledger, a stored document no entry names."""
     from loom.refs.scan import load_ledger
 
     try:
@@ -338,24 +318,8 @@ def _ignore_key(result: ScanResult, work: str) -> tuple[str, bool]:
             raise EnvError(f"{work} names {len(hits)} documents in the copy ledger; give more of the hash") from None
         if not hits:
             raise NotFoundError("work", f"{work} is neither a work nor a hash in the copy ledger") from None
-        return f"sha256:{hits[0]}", True
-    home = _works.home(result, ck)
-    return ck, (home / "paper.pdf").is_file() or (home / "src").is_dir()
-
-
-def _document_sha(result: ScanResult, key: str) -> str:
-    """The hash of the PDF a work's store holds, which the set-aside claim carries so it still names the document once the entry is deleted; '' for a hash key or a source alone."""
-    from loom.refs.pages import sha256_of
-
-    if key.startswith("sha256:") or key not in result.bib:
-        return ""
-    pdf = _works.home(result, key) / "paper.pdf"
-    return sha256_of(pdf) if pdf.is_file() else ""
-
-
-def _shown(key: str) -> str:
-    """A key as the text shows it: a hash is the store's name for a document, so enough of it to recognise."""
-    return f"the document {key[7:15]}…" if key.startswith("sha256:") else key
+        return f"sha256:{hits[0]}"
+    return ck
 
 
 def _short(text: str | None, width: int = 60) -> str:

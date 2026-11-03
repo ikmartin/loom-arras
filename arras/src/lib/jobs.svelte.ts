@@ -1,5 +1,6 @@
 // The library runs the publisher keeps (plan 0.24.1): a run started here answers at once with its job, and the viewer asks how each is going, once a second while any is queued or running and not at all otherwise. A run that finishes refreshes the manifest, so what it made shows.
 
+import type { RunRow } from '$lib/library';
 import { store } from '$lib/manifest/client.svelte';
 import { read, write, type WriteResult } from '$lib/write';
 
@@ -17,6 +18,8 @@ export interface JobReport {
 	ok: boolean;
 	groups: { heading: string; count: number; items: { text: string; key?: string; fixes?: string[] }[]; next?: string }[];
 	notes: string[];
+	/** Each work the run acted on, with what failed for it. */
+	works?: RunRow[];
 }
 
 export interface Job {
@@ -83,6 +86,22 @@ class Jobs {
 	/** The latest run over every work. */
 	forAll(): Job | undefined {
 		return this.list.find((j) => !j.works.length);
+	}
+
+	/** The latest run over exactly `works`, as a run started on them is followed; none is every work. */
+	forWorks(works: string[]): Job | undefined {
+		const want = [...works].sort().join('\n');
+		return this.list.find((j) => [...j.works].sort().join('\n') === want);
+	}
+
+	/** `citekey`'s line in the report of the latest finished run that acted on it, while the publisher holds that run. */
+	lastRun(citekey: string): RunRow | undefined {
+		for (const j of this.list) {
+			if (live(j) || !(j.works.length === 0 || j.works.includes(citekey))) continue;
+			const row = j.report?.works?.find((w) => w.citekey === citekey);
+			if (row) return row;
+		}
+		return undefined;
 	}
 }
 

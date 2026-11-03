@@ -1,5 +1,7 @@
 <script lang="ts">
 	// Adding a work to the library by hand (plan 0.24.2): paste an identifier or a BibTeX entry, or drop a PDF. What is pasted is recognised as you type; an entry is read at once, and an identifier is looked up on "Look up", asking first for the network where the quilt has it off. The answer says what was found, the key it would take, whether loom can digest it, and which works in the library may already be it. Adding writes it into loom's bibliography and, unless unticked, fetches and digests it; the work's Info then opens on the run.
+	//
+	// Given a `work`, it is the upload of that work's PDF alone (plan 0.24.4): the PDF is filed under it as soon as it is read, where the publisher finds the document is that work, and the dialog closes where it was opened; a refusal says why, and the dialog stays.
 	import { goto } from '$app/navigation';
 	import Popover from '$lib/components/Popover.svelte';
 	import { jobs } from '$lib/jobs.svelte';
@@ -8,7 +10,7 @@
 	import { write } from '$lib/write';
 	import NetworkAsk from './NetworkAsk.svelte';
 
-	let { open = $bindable(false) }: { open?: boolean } = $props();
+	let { open = $bindable(false), work = '' }: { open?: boolean; work?: string } = $props();
 
 	interface Found {
 		state: 'found' | 'missing' | 'unreachable' | 'offline' | 'cannot';
@@ -119,8 +121,8 @@
 		void jobs.refresh();
 		open = false;
 		reset();
-		// Info, where the run shows, though the work may now have a paper to open on
-		await goto(workUrl(citekey) + '?view=info');
+		// Info, where the run shows, though the work may now have a paper to open on; an upload for a work stays where it was asked
+		if (!work) await goto(workUrl(citekey) + '?view=info');
 	}
 
 	function add(): void {
@@ -147,15 +149,21 @@
 		}).catch(() => '');
 		const answer = (await write('library-upload', { name: file.name, data, online: online || allowed })) as Seen & { ok: boolean; error?: { message: string } };
 		busy = '';
-		if (answer.ok) seen = answer;
-		else error = answer.error?.message ?? `Could not read ${file.name}`;
+		if (!answer.ok) return void (error = answer.error?.message ?? `Could not read ${file.name}`);
+		seen = answer;
+		if (work) fileUnder(work);
 	}
 
 	function file(isNew: boolean): void {
+		fileUnder(isNew ? '' : seen!.best);
+	}
+
+	/** File the upload under `citekey`, or as a new work for ''. */
+	function fileUnder(citekey: string): void {
 		const s = seen!;
 		withNetwork(async (allow) => {
 			busy = 'Filing it…';
-			const body = isNew ? { upload: s.upload, new: true, fetch: digestNow, online: allow } : { upload: s.upload, citekey: s.best, fetch: digestNow, online: allow };
+			const body = citekey ? { upload: s.upload, citekey, fetch: digestNow, online: allow } : { upload: s.upload, new: true, fetch: digestNow, online: allow };
 			const answer = (await write('library-file', body)) as { ok: boolean; citekey?: string; error?: { message: string } };
 			busy = '';
 			if (answer.ok) await done(answer.citekey!);
@@ -183,9 +191,12 @@
 <Popover modal bind:open label="Add a work" testid="add-work" onclose={reset}>
 	<div class="dlg">
 		<header>
-			<h2>Add a work to the library</h2>
+			<h2>{work ? `Upload a PDF of ${work}` : 'Add a work to the library'}</h2>
 			<button class="close" aria-label="Close" onclick={() => (open = false)}>×</button>
 		</header>
+		{#if work}
+			<p class="lead">Drop a PDF of <strong>{titleOf(work)}</strong>: loom files it under <code>{work}</code> where its first pages show it is that work.</p>
+		{:else}
 		<p class="lead">Paste a DOI, an arXiv id or link, a zbMATH number, or a whole BibTeX entry; or drop a PDF. It goes into loom's own bibliography, beside what your documents cite.</p>
 		<textarea bind:value={text} placeholder={'10.1007/…   or   arXiv:0805.2065   or   @article{…}'} aria-label="An identifier or a BibTeX entry" data-testid="add-text"></textarea>
 		<div class="det" aria-live="polite">
@@ -208,6 +219,7 @@
 				</div>
 			{/if}
 		{/if}
+		{/if}
 		<label
 			class="drop"
 			class:hover
@@ -224,9 +236,9 @@
 			data-testid="add-drop"
 		>
 			<input type="file" accept="application/pdf,.pdf" onchange={(e) => void upload(e.currentTarget.files?.[0])} data-testid="add-file" />
-			Drop a PDF here, or <u>choose one</u>: loom files it under the work it shows it is, or offers a new entry from its first pages.
+			{#if work}Drop the PDF here, or <u>choose it</u>.{:else}Drop a PDF here, or <u>choose one</u>: loom files it under the work it shows it is, or offers a new entry from its first pages.{/if}
 		</label>
-		{#if seen}
+		{#if seen && !work}
 			{#if seen.best}
 				<div class="found" data-testid="add-matches">
 					<p><strong>{seen.name}</strong> is <a href={workUrl(seen.best)}>{titleOf(seen.best)}</a> (<code>{seen.best}</code>).</p>
@@ -247,7 +259,7 @@
 			<label class="opt"><input type="checkbox" bind:checked={digestNow} data-testid="add-fetch" /> Fetch and digest it now</label>
 			{#if busy}<span class="busy">{busy}</span>{/if}
 			<button class="btn" onclick={() => (open = false)}>Cancel</button>
-			<button class="btn primary" disabled={found?.state !== 'found' || !!busy} onclick={add} data-testid="add-add">Add</button>
+			{#if !work}<button class="btn primary" disabled={found?.state !== 'found' || !!busy} onclick={add} data-testid="add-add">Add</button>{/if}
 		</footer>
 	</div>
 </Popover>

@@ -1,163 +1,271 @@
 <script lang="ts">
-	// Review › Library: the proposed results waiting to be verified, one queue across the library (ProposalQueue); the ledger (DR-206; plan 0.13.3, View 4); and the citation suggestions that wait for the author. The ledger is every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
+	// Review › Library (plan 0.24.4): the proposed results waiting to be verified, one queue across the library (ProposalQueue); the ledger, every work the quilt holds with what the person needs to know and do about it (LibraryRow); and the citation suggestions, each decided where it stands in the list. A row says whether the paper is filed, how much has been read off it and from where, how much the person verified and what waits for them, whether it has an overview and where they cite it, and its problems with their fixes; its ⋯ menu acts on it, and selected rows are acted on together.
 	//
-	// **The list of works has one home, and it is the left column** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
+	// **The list of works has one home, and it is the left column** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its search and filters are its own, in its header and the address.
 	//
-	// The backlog is this page filtered to `proposed` (DR-206). The filters answer "which of these need me", then "which has a person vouched for" and "which hold only loom's own reading": a column already says which are filed or digested, and a filter that restated it would be one fact said twice.
+	// The backlog is this page filtered to `proposed` (DR-206). The filters answer "which of these need me", then what each work still lacks, then what a person has vouched for.
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
-	import Tex from '$lib/math/Tex.svelte';
-	import WorkLinks from '$lib/components/WorkLinks.svelte';
-	import { bibText } from '$lib/works';
-	import { workUrl } from '$lib/nav';
 	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
-	import { ledgerRows, needsWork, type LedgerRow } from '$lib/library';
+	import { keepRow, ledgerRows, matches, needsWork, problemsOf, type LedgerFilter, type Problem } from '$lib/library';
 	import { displayNode } from '$lib/nodes/display';
-	import { route } from '$lib/paths';
 	import ProposalQueue from '$lib/review/ProposalQueue.svelte';
-	import { onMount } from 'svelte';
-	import { can } from '$lib/write';
+	import LibraryRow, { type Caps, type Done, type RowAct } from '$lib/review/LibraryRow.svelte';
+	import { can, write } from '$lib/write';
 	import { jobs, running } from '$lib/jobs.svelte';
+	import { askOverview } from '$lib/notes';
+	import NoSession from '$lib/sessions/NoSession.svelte';
+	import { writable } from '$lib/sessions/sessions.svelte';
 	import JobProgress from '$lib/components/JobProgress.svelte';
 	import LibraryRun from '$lib/components/LibraryRun.svelte';
+	import NetworkAsk from '$lib/components/NetworkAsk.svelte';
 	import AddWork from '$lib/components/AddWork.svelte';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = [
+	const SHOWS: { v: LedgerFilter; label: string }[] = [
 		{ v: 'all', label: 'all' },
-		{ v: 'needs-work', label: 'needs work' },
+		{ v: 'needs-you', label: 'needs you' },
+		{ v: 'no-paper', label: 'no paper' },
+		{ v: 'no-overview', label: 'no overview' },
+		{ v: 'not-cited', label: 'not cited' },
 		{ v: 'proposed', label: 'proposed' },
-		{ v: 'verified', label: 'verified' },
-		{ v: 'extracted', label: 'extracted' }
-	] as const;
+		{ v: 'verified', label: 'verified' }
+	];
 	const asked = $derived(page.url.searchParams.get('show') ?? '');
-	const filter = $derived(SHOWS.some((s) => s.v === asked) ? asked : 'all');
+	const filter = $derived<LedgerFilter>(SHOWS.find((s) => s.v === asked)?.v ?? 'all');
+	const q = $derived(page.url.searchParams.get('q') ?? '');
+	let typed = $state<string | null>(null);
 
+	// a row's problems: what stands on disk, and what the last run on it could not do while the publisher holds that run
+	const problems = $derived.by(() => {
+		const out: Record<string, Problem[]> = {};
+		for (const ref of Object.values(m.references)) out[ref.citekey] = problemsOf(m, ref, jobs.lastRun(ref.citekey));
+		return out;
+	});
+	const wants = (ck: string, r: Parameters<typeof needsWork>[0]) => needsWork(r) || (problems[ck]?.length ?? 0) > 0;
 	const rows = $derived.by(() => {
 		const reached = reachedExternal(m);
-		// one row per work: a version's counts are its work's, and the row names it
-		return ledgerRows(m, reached)
-			// what wants the author first, then by key: a ledger is read for what is owed
-			.sort((a, b) => Number(needsWork(b)) - Number(needsWork(a)) || a.citekey.localeCompare(b.citekey));
+		// one row per work: a version's counts are its work's, and the row names it; what wants the person first, then by key
+		return ledgerRows(m, reached).sort((a, b) => Number(wants(b.citekey, b)) - Number(wants(a.citekey, a)) || a.citekey.localeCompare(b.citekey));
 	});
-	const keep = (v: string) => (r: LedgerRow) =>
-		v === 'needs-work' ? needsWork(r) : v === 'proposed' ? r.proposed > 0 : v === 'verified' ? r.verified > 0 : v === 'extracted' ? r.extracted > 0 : true;
-	const shown = $derived(rows.filter(keep(filter)));
-	const count = (v: string) => rows.filter(keep(v)).length;
+	const found = $derived(rows.filter((r) => matches(r, q)));
+	const shown = $derived(found.filter((r) => keepRow(r, problems[r.citekey] ?? [], filter)));
+	const count = (v: LedgerFilter) => found.filter((r) => keepRow(r, problems[r.citekey] ?? [], v)).length;
 	const show = (v: string) => void setQuery(page.url, 'show', v, 'all');
-	const n = (x: number) => x || '—';
-	// a run over every work, where the publisher runs them: started here, its progress stays beneath the header until dismissed
-	let runs = $state(false);
+	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	function search(value: string): void {
+		typed = value;
+		if (searchTimer) clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => void setQuery(page.url, 'q', value.trim()), 200);
+	}
+
+	// what the publisher serves, asked once
+	let caps = $state<Caps>({ runs: false, upload: false, ask: false, ignore: false, remove: false });
 	let canAdd = $state(false);
-	let adding = $state(false);
+	let cites = $state(false);
 	onMount(() => {
-		void can('library-update').then((yes) => {
-			runs = yes;
-			if (yes) jobs.ask();
+		void Promise.all(['library-update', 'library-file', 'note', 'library-ignore', 'library-remove', 'library-add', 'library-cite'].map((e) => can(e))).then(([runs, upload, ask, ignore, remove, add, cite]) => {
+			caps = { runs, upload, ask, ignore, remove };
+			canAdd = add;
+			cites = cite;
+			if (runs) jobs.ask();
 		});
-		void can('library-add').then((yes) => (canAdd = yes));
 	});
-	let seen = $state<Record<string, boolean>>({});
-	const run = $derived(jobs.forAll());
+	const selecting = $derived(caps.runs || caps.ask);
+
+	// rows picked for the acts on several works at once, by key; a row filtered out stays picked, and the bar says how many
+	let picked = $state<Set<string>>(new Set());
+	const toggle = (ck: string) => {
+		const next = new Set(picked);
+		if (!next.delete(ck)) next.add(ck);
+		picked = next;
+	};
+	const allShown = $derived(shown.length > 0 && shown.every((r) => picked.has(r.citekey)));
+	const toggleAll = () => (picked = allShown ? new Set([...picked].filter((ck) => !shown.some((r) => r.citekey === ck))) : new Set([...picked, ...shown.map((r) => r.citekey)]));
+	let bulkSaid = $state('');
+
+	// runs started here: one network question for the whole page, and each run's progress under the header until dismissed
+	const online = $derived(m.config?.library.online === true);
+	let question = $state<((allow: boolean | null) => void) | null>(null);
+	let seen = $state<string[]>([]);
 	$effect(() => {
-		if (run && running(run) && !seen[run.id]) seen = { ...seen, [run.id]: true };
+		for (const j of jobs.list) if (running(j) && !seen.includes(j.id)) seen = [j.id, ...seen];
 	});
-	const shownRun = $derived(run && seen[run.id] ? run : undefined);
-	// a citation suggestion is an agent's annotation proposing a work for a place in the text; it is decided where it stands, which its link opens
+	const watched = $derived(seen.map((id) => jobs.list.find((j) => j.id === id)).filter((j) => !!j));
+
+	/** Start a run over `works`, asking first for the network where one of them lacks a paper or a source and the quilt has it off. */
+	function runOn(works: string[], redo: boolean): Promise<Done> {
+		const lacking = works.some((ck) => !m.references[ck]?.artifacts?.pdf || !m.references[ck]?.artifacts?.source);
+		const start = async (allow: boolean): Promise<Done> => {
+			const answer = await jobs.start(works, { online: allow, redo });
+			return answer.ok ? { ok: true, said: '' } : { ok: false, said: answer.error?.message ?? 'The run could not start' };
+		};
+		if (online || !lacking) return start(false);
+		return new Promise((resolve) => {
+			question = (allow) => {
+				question = null;
+				resolve(allow === null ? { ok: false, said: '' } : start(allow));
+			};
+		});
+	}
+
+	let uploading = $state<string | null>(null);
+	let uploadOpen = $state(false);
+	let adding = $state(false);
+
+	/** What a row's act does: a run, an upload, a note asking for the overview, a claim about its paper, or taking it out. */
+	async function onact(ck: string, act: RowAct, why?: string): Promise<Done> {
+		if (act === 'run' || act === 'redo') return runOn([ck], act === 'redo');
+		if (act === 'upload') {
+			uploading = ck;
+			uploadOpen = true;
+			return { ok: true, said: '' };
+		}
+		if (act === 'ask') {
+			const refused = await askOverview(ck);
+			return { ok: !refused, said: refused || 'Asked an agent for its overview' };
+		}
+		const answer =
+			act === 'remove' ? await write('library-remove', { citekey: ck }) : await write('library-ignore', { citekey: ck, why: why ?? '', undo: act === 'unignore' });
+		if (!answer.ok) return { ok: false, said: answer.error?.message ?? 'The publisher refused it' };
+		await store.refresh();
+		return { ok: true, said: String(answer.result ?? '') };
+	}
+
+	async function runPicked(): Promise<void> {
+		const done = await runOn([...picked], false);
+		bulkSaid = done.said;
+		if (done.ok) picked = new Set();
+	}
+	async function askPicked(): Promise<void> {
+		const want = [...picked].filter((ck) => !m.references[ck]?.overview);
+		let asked = 0;
+		for (const ck of want) {
+			const refused = await askOverview(ck);
+			if (refused) return void (bulkSaid = refused);
+			asked += 1;
+		}
+		bulkSaid = want.length ? `Asked an agent for ${asked} overview${asked === 1 ? '' : 's'}` : 'Every selected work has an overview';
+	}
+
+	// a citation suggestion is an agent's annotation proposing a work for a place in the text; it is decided here, or where it stands, which its link opens
 	const citations = $derived(Object.values(m.annotations ?? {}).filter((a) => a.kind === 'citation' && !a.in_reply_to && !a.discarded && a.status === 'open'));
+	const why = $derived(writable(m));
+	let citeSaid = $state('');
+	async function decide(id: string, decision: 'accept' | 'reject'): Promise<void> {
+		const answer = await write('library-cite', { annotation: id, decision });
+		citeSaid = answer.ok ? '' : (answer.error?.message ?? 'The publisher refused it');
+		if (answer.ok) await store.refresh();
+	}
 </script>
 
 <main class="page">
 	<ProposalQueue />
 	<header class="head">
 		<h1>Library</h1>
-		<p class="filters" role="group" aria-label="which works">
-			{#each SHOWS as s (s.v)}
-				<button class="count" class:on={filter === s.v} aria-pressed={filter === s.v} onclick={() => show(s.v)} data-testid="show-{s.v}">{s.label} <span class="n">{count(s.v)}</span></button>
-			{/each}
-		</p>
-		{#if runs || canAdd}
+		<input class="search" type="search" placeholder="Search title, author or key" value={typed ?? q} oninput={(e) => search(e.currentTarget.value)} aria-label="Search the library" data-testid="ledger-search" />
+		{#if caps.runs || canAdd}
 			<div class="everything">
 				{#if canAdd}<button class="add" onclick={() => (adding = true)} data-testid="review-add">+ Add a work</button>{/if}
-				{#if runs}<LibraryRun works={[]} label="Fetch and digest everything" look="button" test="run-everything" />{/if}
+				{#if caps.runs}<LibraryRun works={[]} label="Fetch and digest everything" look="button" test="run-everything" />{/if}
 			</div>
 		{/if}
 	</header>
-	{#if shownRun}
-		<JobProgress
-			job={shownRun}
-			ondismiss={() => {
-				const { [shownRun.id]: _, ...rest } = seen;
-				seen = rest;
-			}}
-		/>
+	<p class="filters" role="group" aria-label="which works">
+		{#each SHOWS as s (s.v)}
+			<button class="count" class:on={filter === s.v} aria-pressed={filter === s.v} onclick={() => show(s.v)} data-testid="show-{s.v}">{s.label} <span class="n">{count(s.v)}</span></button>
+		{/each}
+	</p>
+	{#if question}<NetworkAsk onallow={() => question?.(true)} onoffline={() => question?.(false)} oncancel={() => question?.(null)} />{/if}
+	{#each watched as j (j.id)}
+		<JobProgress job={j} ondismiss={() => (seen = seen.filter((id) => id !== j.id))} />
+	{/each}
+	{#if selecting}
+		<!-- always in its place, so a row picked does not move the rows under the pointer -->
+		<div class="bulk" class:idle={!picked.size} role="group" aria-label="the selected works" data-testid="bulk">
+			{#if picked.size}
+				<span>{picked.size} selected</span>
+				{#if caps.runs}<button class="add" onclick={() => void runPicked()} data-testid="bulk-run">Fetch and digest selected</button>{/if}
+				{#if caps.ask}<button class="add" disabled={!!why} title={why || undefined} onclick={() => void askPicked()} data-testid="bulk-ask">Ask an agent for overviews</button>{/if}
+				<button class="as-link" onclick={() => ((picked = new Set()), (bulkSaid = ''))} data-testid="bulk-clear">Clear</button>
+			{:else}
+				<span>Select works to act on several at once.</span>
+			{/if}
+			{#if bulkSaid}<span class="said" role="status" data-testid="bulk-said">{bulkSaid}</span>{/if}
+		</div>
 	{/if}
 	<table class="list" data-testid="library-works">
 		<thead>
 			<tr>
+				{#if selecting}<th class="pick"><input type="checkbox" checked={allShown} onchange={toggleAll} aria-label="Select every work shown" data-testid="select-all" /></th>{/if}
 				<th>work</th>
-				<th title="a copy of the paper is filed here">filed</th>
-				<th class="num" title="results read off it">digest</th>
-				<th class="num" title="of those, what this corpus leans on">used here</th>
-				<th class="num" title="results a person compared with the paper and vouched for">verified</th>
-				<th class="num" title="statements an agent read off the pages, awaiting your judgment">proposed</th>
-				<th class="num" title="annotations still awaiting an answer">open</th>
-				<th>links</th>
+				<th title="A copy of the paper is filed in loom's store">paper</th>
+				<th class="num" title="Results read off the paper, and from where: its LaTeX source, or its pages">digest</th>
+				<th class="num" title="Results you compared with the paper and vouched for, and those an agent proposed that wait for you">verified</th>
+				<th title="The overview an agent or you wrote: what it proves, what is new, the hardest part">overview</th>
+				<th class="num" title="How many places in your documents cite it">cited</th>
+				<th aria-label="what to do with each work"></th>
 			</tr>
 		</thead>
 		<tbody>
 			{#each shown as r (r.citekey)}
-				{@const ref = m.references[r.citekey]}
-				<tr data-testid="ledger-{r.citekey}">
-					<td class="work">
-						<a class="title" href={workUrl(r.citekey)}><Tex text={r.title} /></a>
-						<span class="byline">
-							<code>{r.citekey}</code>{#if ref.bib.author} · <Tex text={bibText(ref.bib.author)} />{/if}
-							{#if r.versions.length}<span class="versions" data-testid="versions-{r.citekey}">· also {#each r.versions as v, i (v)}{i ? ', ' : ''}<a href={workUrl(v)}><code>{v}</code></a>{/each}</span>{/if}
-							{#if r.unreadable}<span class="held" data-testid="unreadable-{r.citekey}">· declared unreadable</span>{/if}
-						</span>
-					</td>
-					<td><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span></td>
-					<td class="num" data-testid="digest-{r.citekey}">{n(r.digest)}</td>
-					<td class="num" data-testid="used-{r.citekey}">{n(r.used)}</td>
-					<td class="num" data-testid="verified-{r.citekey}">{n(r.verified)}</td>
-					<td class="num">
-						{#if r.proposed}<a class="pending" href={route('/review/library') + '?work=' + encodeURIComponent(r.citekey) + '#queue'} data-testid="pending-{r.citekey}">{r.proposed}</a>{:else}—{/if}
-					</td>
-					<td class="num" data-testid="open-{r.citekey}">{n(r.open)}</td>
-					<td><WorkLinks {ref} /></td>
-				</tr>
+				<LibraryRow row={r} ref={m.references[r.citekey]} problems={problems[r.citekey] ?? []} {caps} select={selecting} checked={picked.has(r.citekey)} ontoggle={() => toggle(r.citekey)} onact={(act, why) => onact(r.citekey, act, why)} />
 			{/each}
 		</tbody>
 	</table>
 	{#if !shown.length}
-		<p class="muted">Nothing here. {#if filter !== 'all'}<button class="as-link" onclick={() => show('all')}>Show every work</button>{/if}</p>
+		<p class="muted">Nothing here. {#if filter !== 'all' || q}<button class="as-link" onclick={() => void setQuery(new URL(page.url.pathname, page.url), 'show', '')}>Show every work</button>{/if}</p>
 	{/if}
 	{#if citations.length}
 		<section class="citations" data-testid="citation-suggestions">
 			<h2>Citation suggestions <span class="n">{citations.length}</span></h2>
+			{#if cites && why}<p class="muted"><NoSession /></p>{/if}
 			<ul>
 				{#each citations as a (a.id)}
-					<li><a href={`quilt:${a.id}`}>{displayNode(m, a.target.key).name}</a>{#if a.payload} <span class="muted">· {a.payload.slice(0, 80)}</span>{/if}</li>
+					<li>
+						<a href={`quilt:${a.id}`}>{displayNode(m, a.target.key).name}</a>{#if a.payload} <span class="muted">· {a.payload.slice(0, 80)}</span>{/if}
+						{#if cites}
+							<span class="decide">
+								<button class="as-link" disabled={!!why} title={why || undefined} onclick={() => void decide(a.id, 'accept')} data-testid="cite-accept-{a.id}">accept</button>
+								<button class="as-link" disabled={!!why} title={why || undefined} onclick={() => void decide(a.id, 'reject')} data-testid="cite-reject-{a.id}">reject</button>
+							</span>
+						{/if}
+					</li>
 				{/each}
 			</ul>
+			{#if citeSaid}<p class="said" role="alert">{citeSaid}</p>{/if}
 		</section>
 	{/if}
 </main>
 
 {#if canAdd}<AddWork bind:open={adding} />{/if}
+{#if caps.upload && uploading}<AddWork bind:open={uploadOpen} work={uploading} />{/if}
 
 <style>
 	/* The page's own header, on one line: the table is the first screen (V1). */
 	.head {
 		display: flex;
 		align-items: baseline;
-		gap: var(--gap-wide);
-		margin-bottom: var(--gap);
+		flex-wrap: wrap;
+		gap: var(--gap);
+		margin-bottom: var(--gap-tight);
 	}
 	.head h1 {
 		margin: 0;
+	}
+	.search {
+		font: inherit;
+		font-family: var(--sans);
+		font-size: 12.5px;
+		padding: 4px 10px;
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-control);
+		background: var(--sheet);
+		color: var(--ink);
+		width: 16rem;
+		max-width: 100%;
 	}
 	.add {
 		font: inherit;
@@ -169,8 +277,12 @@
 		color: var(--ink);
 		cursor: pointer;
 	}
-	.add:hover {
+	.add:hover:not(:disabled) {
 		background: var(--link-wash);
+	}
+	.add:disabled {
+		color: var(--ink-faint);
+		cursor: default;
 	}
 	.everything {
 		margin-left: auto;
@@ -182,8 +294,9 @@
 	}
 	.filters {
 		display: flex;
-		gap: var(--gap);
-		margin: 0;
+		flex-wrap: wrap;
+		gap: 4px var(--gap);
+		margin: 0 0 var(--gap);
 		font-family: var(--sans);
 		font-size: 12px;
 	}
@@ -203,60 +316,48 @@
 		color: var(--ink);
 		font-weight: 600;
 	}
-	.work {
-		max-width: 26rem;
-	}
-	a.title {
-		display: block;
-		font-family: var(--body-face);
-		font-size: 13px;
-		line-height: 1.4;
-		font-weight: 500;
-	}
-	.byline {
-		display: block;
+	.bulk {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		/* one height whether its buttons show or not: a row picked must not move the rows under the pointer */
+		min-height: 40px;
+		box-sizing: border-box;
+		padding: 4px 10px;
+		margin-bottom: var(--gap-tight);
+		background: var(--link-wash);
+		border-radius: var(--rad-control);
 		font-family: var(--sans);
-		font-size: 10px;
-		color: var(--ink-faint);
-		line-height: 1.5;
+		font-size: 12.5px;
 	}
-	.byline code {
-		font-size: 9px;
+	.bulk.idle {
 		background: none;
-		padding: 0;
+		color: var(--ink-faint);
 	}
-	.held,
-	.versions {
-		margin-left: 0.2em;
+	.said {
+		font-family: var(--sans);
+		font-size: 12px;
+		color: var(--ink-soft);
 	}
-	.versions a {
-		color: inherit;
-	}
-	th.num,
-	td.num {
+	th.num {
 		text-align: right;
-		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
 	}
-	.pending {
-		font-weight: 600;
-	}
-	/* Filled where a copy is filed, hollow where none is: the one thing a click on the work cannot be guessed to give. */
-	.dot {
-		display: inline-block;
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		box-shadow: inset 0 0 0 1.5px var(--ink-faint);
-	}
-	.dot.filed {
-		background: var(--state-accepted);
-		box-shadow: none;
+	.pick {
+		width: 1.5em;
 	}
 	.citations {
 		margin-top: var(--gap-wide);
 	}
 	.citations h2 {
 		font-size: 1rem;
+	}
+	.decide {
+		margin-left: 8px;
+		font-family: var(--sans);
+		font-size: 12px;
+	}
+	.decide button + button {
+		margin-left: 6px;
 	}
 </style>

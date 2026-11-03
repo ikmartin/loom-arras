@@ -431,6 +431,8 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `added`, present only on a work the person added to the library by hand (plan 0.24.2), is `{"when": …, "who": …}`, read from the entry's `loom-added` field in loom's bibliography. Such a work need not be cited by anything, and its `cited_by` may be empty; it is a work of the library like any other.
 
+**[decided]** `bibtex` is the work's bibliography entry as a person pastes it into a `.bib` (plan 0.24.4): its entry type and its bibliographic fields (author, title, year, journal, booktitle, publisher, volume, number, pages, doi, eprint, archiveprefix, zbl, mrnumber, isbn, url), never the publisher's own `loom-*` fields nor a field such as `file` or `abstract` that names a local file or carries notes. `bib` stays the few fields a viewer reads. Additive; the interface version is unchanged.
+
 **[decided]** `unreadable`, present only where the author has declared one, is `{"why": …, "who": …, "when": …}`: the standing claim that the work has no document to hold at all. Nothing in a bibliography entry says so, which is why it is declared and never inferred, and a viewer says it rather than showing an empty pane (DR-198).
 
 **[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `.loom/digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).

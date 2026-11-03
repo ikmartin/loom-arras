@@ -78,9 +78,10 @@
 	let asBibtex = $state(false);
 	let copied = $state('');
 
-	/** The entry as BibTeX, rebuilt from the fields the manifest carries: what you paste into a `.bib`. */
+	/** The entry as BibTeX, what you paste into a `.bib`: the publisher's own where it gives one, else rebuilt from the fields the manifest carries. */
 	const bibtex = $derived.by(() => {
 		if (!ref) return '';
+		if (ref.bibtex) return ref.bibtex.trimEnd();
 		const type = String(ref.bib.ENTRYTYPE ?? 'article');
 		const body = bibRows.map(([k, v]) => `  ${k} = {${v}}`).join(',\n');
 		return `@${type}{${citekey},\n${body}\n}`;

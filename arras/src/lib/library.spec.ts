@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Manifest } from '$lib/manifest/types';
 import { reachedExternal } from '$lib/reached';
-import { bySection, citedIn, filterResults, ledgerRow, ledgerRows, needsWork, readFrom, resultFilters, shelf, workResults } from './library';
+import { bySection, citedIn, filterResults, keepRow, ledgerRow, ledgerRows, matches, needsWork, problemsOf, readFrom, resultFilters, shelf, workResults } from './library';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 
@@ -151,5 +151,51 @@ describe("a work's results on its Info", () => {
 		const m = structuredClone(fixture);
 		m.references.Kre99.cited_by = [];
 		expect(citedIn(m, m.references.Kre99)).toEqual([]);
+	});
+});
+
+describe('Review › Library', () => {
+	it('says what each row needs: authors, by hand, where its digest came from, its overview and where it is cited', () => {
+		const m = structuredClone(fixture);
+		const kre = ledgerRow(m, m.references.Kre99, reachedExternal(m));
+		expect(kre).toMatchObject({ authors: 'Kresch', added: false, overview: false, identified: true });
+		expect(kre.cited).toBeGreaterThan(0);
+		expect(ledgerRow(m, m.references.Man12, new Set()).cited).toBe(0);
+		m.references.Kre99.digest!.method = 'extract';
+		m.references.Kre99.added = { when: '2026-11-03T00:00:00Z', who: 'A. Author' };
+		expect(ledgerRow(m, m.references.Kre99, new Set())).toMatchObject({ from: 'source', added: true });
+		m.references.Kre99.digest!.method = 'pdf';
+		expect(ledgerRow(m, m.references.Kre99, new Set()).from).toBe('pages');
+	});
+
+	it("names a work's problems, each with its fixes, from the manifest and from the last run on it", () => {
+		const m = structuredClone(fixture);
+		// the fixture holds no copy of Kre99, whose entry names an arXiv id, and Har77 names none
+		expect(problemsOf(m, m.references.Kre99).map((p) => [p.code, p.fixes])).toEqual([['no-copy', ['run', 'upload', 'ignore']]]);
+		expect(problemsOf(m, m.references.Har77).map((p) => [p.code, p.fixes])).toEqual([['unidentified', ['upload', 'ignore']]]);
+		expect(problemsOf(m, m.references.Man12)).toEqual([]);
+		// a work declared unreadable is wanted no longer, so neither is said
+		m.references.Har77.unreadable = { why: 'a living document', who: 'A. Author', when: '2026-11-03T00:00:00Z' };
+		expect(problemsOf(m, m.references.Har77)).toEqual([]);
+		m.references.Man12.version_mismatch = true;
+		const run = { citekey: 'Man12', lookup_error: 'zbMATH Open: HTTP 503', discarded: 'the title did not match', extract_error: 'no main file', map_error: '' };
+		expect(problemsOf(m, m.references.Man12, run).map((p) => p.code)).toEqual(['another-version', 'lookup-failed', 'not-this-work', 'extract-failed']);
+		expect(problemsOf(m, m.references.Man12, run)[1].text).toContain('HTTP 503');
+	});
+
+	it('filters by what a work wants and finds it by key, title or author', () => {
+		const m = structuredClone(fixture);
+		const rows = ledgerRows(m, reachedExternal(m));
+		const kre = rows.find((r) => r.citekey === 'Kre99')!;
+		const man = rows.find((r) => r.citekey === 'Man12')!;
+		expect(keepRow(kre, problemsOf(m, m.references.Kre99), 'needs-you')).toBe(true);
+		expect(keepRow(man, [], 'needs-you')).toBe(false);
+		expect(keepRow(man, [], 'not-cited')).toBe(true);
+		expect(keepRow(kre, [], 'no-paper')).toBe(true);
+		expect(keepRow({ ...kre, unreadable: 'a living document' }, [], 'no-paper')).toBe(false);
+		expect(keepRow(kre, [], 'no-overview')).toBe(true);
+		expect(matches(kre, 'artin kresch')).toBe(true);
+		expect(matches(kre, 'kre99')).toBe(true);
+		expect(matches(kre, 'manolache')).toBe(false);
 	});
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A button that starts a library run over `works` (none is every work). Where the run may want the network and the quilt has it off, it asks first (`NetworkAsk`): under the button, or wherever `onask` puts the question when the button stands in a row of others.
+	// A button that starts a library run over `works` (none is every work), from scratch with `redo`. Where the run may want the network and the quilt has it off, it asks first (`NetworkAsk`): under the button, or wherever `onask` puts the question when the button stands in a row of others.
 	import { store } from '$lib/manifest/client.svelte';
 	import { jobs, running } from '$lib/jobs.svelte';
 	import NetworkAsk from './NetworkAsk.svelte';
@@ -10,13 +10,15 @@
 		network = true,
 		test,
 		look = 'link',
+		redo = false,
 		onask
-	}: { works: string[]; label: string; network?: boolean; test: string; look?: 'link' | 'button'; onask?: (go: (allow: boolean | null) => void) => void } = $props();
+	}: { works: string[]; label: string; network?: boolean; test: string; look?: 'link' | 'button'; redo?: boolean; onask?: (go: (allow: boolean | null) => void) => void } = $props();
 
 	let asking = $state(false);
 	let refused = $state('');
 	const online = $derived(store.manifest?.config?.library.online === true);
-	const job = $derived(works.length === 1 ? jobs.forWork(works[0]) : jobs.forAll());
+	// one work is busy under any run acting on it; a run over several, or every work, is followed by its own set
+	const job = $derived(works.length === 1 ? jobs.forWork(works[0]) : jobs.forWorks(works));
 	const busy = $derived(running(job));
 
 	/** Run, with the network or without; `null` is the question answered with Cancel. */
@@ -24,7 +26,7 @@
 		asking = false;
 		refused = '';
 		if (allow === null) return;
-		const answer = await jobs.start(works, { online: allow });
+		const answer = await jobs.start(works, { online: allow, redo });
 		if (!answer.ok) refused = answer.error?.message ?? 'The run could not start';
 	}
 	function press(): void {

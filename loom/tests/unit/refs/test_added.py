@@ -69,3 +69,20 @@ def test_a_gathered_work_a_cited_one_and_an_unknown_one_are_not_removed(
         remove_entry(scan(load_quilt(q)), "Ost18", "A. Author")
     assert caught.value.code == "cited" and "2 results" in caught.value.message
     assert "Ost18" in parse_bib((q / BIBLIOGRAPHY).read_text(encoding="utf-8"))
+
+
+def test_the_manifest_carries_each_entry_as_bibtex_with_its_bibliographic_fields_alone(tmp_path: Path) -> None:
+    """What "Copy BibTeX" copies (plan 0.24.4): the entry's type and its bibliographic fields, never loom's own nor one naming a local file or the person's notes."""
+    import json
+
+    from tests.helpers import run
+
+    q = demo(tmp_path)
+    add_entry(
+        load_quilt(q), {**FIELDS, "file": "/Users/someone/Zotero/x.pdf", "abstract": "long"}, "Ost18", "A. Author"
+    )
+    run("build", cwd=q)
+    bibtex = json.loads((q / ".loom/build/manifest.json").read_text())["references"]["Ost18"]["bibtex"]
+    assert bibtex.startswith("@article{Ost18,") and "  journal = {J. Widget Theory}," in bibtex
+    assert "doi = {10.5555/widget.2018.031}" in bibtex
+    assert "loom-" not in bibtex and "file" not in bibtex and "abstract" not in bibtex

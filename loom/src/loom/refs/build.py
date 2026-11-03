@@ -60,6 +60,8 @@ class WorkState:
     unreadable: str = ""
     #: The candidates this run's lookup found, best first; None when it asked nothing.
     lookup: list[Candidate] | None = None
+    #: Why this run's lookup could not be made (the service refused or could not be reached); '' when it was made or not asked.
+    lookup_error: str = ""
     #: What extraction said about the digest this run wrote; None when it wrote none.
     extraction: ExtractReport | None = None
     #: The new digest's diagnostics as `tally` counts them; '' when this run wrote no digest.
@@ -479,6 +481,7 @@ def _row(w: WorkState) -> dict[str, object]:
         "pages": w.pages,
         "sections": w.sections,
         "candidates": None if w.lookup is None else [asdict(c) | {"strength": c.strength} for c in w.lookup],
+        "lookup_error": w.lookup_error,
         "fetched": None
         if w.fetched is None
         else {"source": w.fetched.source, "pdf": w.fetched.pdf, "via": w.fetched.via, "identifier": w.fetched.ident},
@@ -623,6 +626,7 @@ def _resolve_step(
             found = resolver.candidates(query_for(entry))
         except ResolveRefused as exc:
             report.lookup_errors.append(f"{w.citekey}: {exc}")
+            w.lookup_error = str(exc)
             continue
         save(root, entry, found)
         w.lookup = found

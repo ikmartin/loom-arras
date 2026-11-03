@@ -35,6 +35,7 @@ CAPABILITIES = [
     "library-upload",
     "library-file",
     "library-remove",
+    "library-ignore",
     "locate",
     "compare",
     "session-use",
@@ -277,6 +278,31 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
         return {"ok": True, "result": remove_entry(scan(quilt), citekey, who)}
     except NotRemovable as exc:
         raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-work" else 409) from exc
+
+
+def _library_ignore(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`library-ignore` (plan 0.24.4): stop loom asking for a work's paper, or offering its stored document an entry, or withdraw that, as `loom library ignore` does; the author's, since whether a work can be had is a claim about the world."""
+    from loom.cli._common import is_agent
+    from loom.refs.unreadable import NotIgnorable, ignore
+    from loom.scan.quilt import reviewer_identity
+
+    who = reviewer_identity(root)[0]
+    if is_agent(_str(body, "author") or who):
+        raise ApiError(
+            "author-only",
+            "Whether a work can be obtained is the author's claim; an agent reports what it could not find",
+            status=403,
+        )
+    citekey = _str(body, "citekey", required=True) or ""
+    why = _str(body, "why", required=True) or ""
+    result = _scan(root)
+    if citekey not in result.bib:
+        raise ApiError("no-such-work", f"the library has no work {citekey}", status=404)
+    _busy(root, citekey)
+    try:
+        return {"ok": True, "result": ignore(result, citekey, why, who, undo=body.get("undo") is True)[1]}
+    except NotIgnorable as exc:
+        raise ApiError(exc.code, exc.message, status=409) from exc
 
 
 def _scan(root: Path) -> ScanResult:
@@ -547,6 +573,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "library-remove",
     ):
         return _library_add(root, endpoint, body)
+    if endpoint == "library-ignore":
+        return _library_ignore(root, body)
     if endpoint == "locate":
         return _locate(root, body)
     if endpoint == "compare":
