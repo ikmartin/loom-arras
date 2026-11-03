@@ -1,13 +1,20 @@
 <script lang="ts">
-	// The question a run asks where the quilt has the network off: allow it for this run, run offline (extraction and mapping still run), or not run at all.
-	let { onallow, onoffline, oncancel }: { onallow: () => void; onoffline: () => void; oncancel: () => void } = $props();
+	// The question asked where the quilt has the network off and an act could use it: allow it for this one act, go on without it where that still does something (a run still extracts and maps), or not act at all.
+	let {
+		onallow,
+		onoffline,
+		oncancel,
+		question = 'This looks works up and fetches them, which needs the network, off in this quilt. Allow it for this run?',
+		allow = 'Allow and run',
+		offline = 'Run offline'
+	}: { onallow: () => void; onoffline?: () => void; oncancel: () => void; question?: string; allow?: string; offline?: string } = $props();
 </script>
 
 <div class="ask" role="group" aria-label="Allow the network" data-testid="network-ask">
-	<span>This looks works up and fetches them, which needs the network, off in this quilt. Allow it for this run?</span>
+	<span>{question}</span>
 	<span class="buttons">
-		<button class="btn" onclick={onallow} data-testid="network-allow">Allow and run</button>
-		<button class="btn" onclick={onoffline} data-testid="network-offline">Run offline</button>
+		<button class="btn" onclick={onallow} data-testid="network-allow">{allow}</button>
+		{#if onoffline}<button class="btn" onclick={onoffline} data-testid="network-offline">{offline}</button>{/if}
 		<button class="btn quiet" onclick={oncancel}>Cancel</button>
 	</span>
 </div>

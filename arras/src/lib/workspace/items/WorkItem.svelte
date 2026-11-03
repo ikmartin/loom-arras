@@ -111,7 +111,7 @@
 		{:else}
 			<div class="prose info" data-testid="work-info">
 				<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
-				<p class="links"><code>{citekey}</code> <WorkLinks {ref} /></p>
+				<p class="links"><code>{citekey}</code> <WorkLinks {ref} />{#if ref.added}<span class="added" data-testid="work-added" title="Added {ref.added.when}{ref.added.who ? ` by ${ref.added.who}` : ''}">added by hand</span>{/if}</p>
 				<WorkStatus {citekey} {ref} />
 				{#if ref.overview}
 					<!-- the work's overview (plan 0.21.3): a reading an agent or the person wrote, never the paper; first, since it is what a reader comes to Info for -->
@@ -211,6 +211,12 @@
 {/if}
 
 <style>
+	.added {
+		margin-left: 8px;
+		font-family: var(--sans);
+		font-size: 12px;
+		color: var(--ink-faint);
+	}
 	/* Reading the paper is a full-height job, and full bleed (K4): the column fills the pane and scrolls inside itself, so the pane never scrolls and the reader never runs out of paper at the bottom of a screen. */
 	.page.reading {
 		display: flex;

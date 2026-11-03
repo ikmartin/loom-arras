@@ -4,6 +4,7 @@
 	// **Docs** holds a page's own panel where it registers one (the graph's filters), else the project's tree under Files (`FileTree`: its directories and the files the viewer shows, each agent copy beneath the document it copies), a shelf open by default and folding as Library's does, a copy whose document is not listed under Agent documents with the closed ones folded beneath, the Library, folded until opened — and beneath them, past a line the reader drags up and down, the Outline of the document in the focused pane. The two scroll apart. A result is read in the document that holds it (V7), so the column lists no nodes. A publisher that lists no files gets the documents alone, as before.
 	import Contents from './Contents.svelte';
 	import FileTree from './FileTree.svelte';
+	import AddWork from '$lib/components/AddWork.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { isAgentDocument } from '$lib/manifest/documents';
 	import { documentLabel } from '$lib/workspace/names';
@@ -73,6 +74,12 @@
 	let libraryOpen = $state(false);
 	// the project's files, open until the reader folds them
 	let filesOpen = $state(true);
+	// adding a work by hand, where the publisher writes the library
+	let canAdd = $state(false);
+	let adding = $state(false);
+	onMount(() => {
+		void can('library-add').then((yes) => (canAdd = yes));
+	});
 
 	// The line between the documents and the outline: where it stands is a preference, drawn at most once a frame while it is dragged and stored at the drop, as the pane divider is.
 	const STEP = 0.03;
@@ -230,11 +237,12 @@
 							</details>
 						{/if}
 					{/if}
-					{#if works.length}
+					{#if works.length || canAdd}
 						<p class="shelf-head">
 							<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
 								<span class="caret">{libraryOpen ? '▾' : '▸'}</span>Library <span class="count">{works.length}</span>
 							</button>
+							{#if canAdd}<button class="shelf-add" aria-label="Add a work" title="Add a work" onclick={() => (adding = true)} data-testid="library-add">+</button>{/if}
 						</p>
 						{#if libraryOpen}
 							<div class="shelf-body">
@@ -297,6 +305,8 @@
 		{@render children()}</div>
 	{#if rail}<aside class="right rail-scroll">{@render rail()}</aside>{/if}
 </div>
+
+{#if canAdd}<AddWork bind:open={adding} />{/if}
 
 <style>
 	.review-perspective { margin: 0 0 var(--gap-tight); font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
@@ -487,16 +497,25 @@
 	}
 	/* A shelf's head is a band, a shade lighter than the column, in the size of the rows beneath it, and the rows stand indented under its name: Files and Library are the column's two kinds of thing, and read as sections rather than as labels. */
 	.shelf-head {
+		display: flex;
+		align-items: center;
 		margin: var(--gap-tight) 0 var(--gap-hair);
+		border-radius: var(--rad-control);
+		/* a wash of the ink, so the band shows on the column in either theme */
+		background: color-mix(in srgb, var(--ink) 6%, transparent);
 	}
 	.shelf-head:first-child {
 		margin-top: 0;
 	}
+	.shelf-head:has(.shelf:hover) {
+		background: color-mix(in srgb, var(--ink) 10%, transparent);
+	}
 	.shelf {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 3px;
-		width: 100%;
 		box-sizing: border-box;
 		padding: 3px 6px 3px 4px;
 		font: inherit;
@@ -504,15 +523,27 @@
 		font-weight: 500;
 		line-height: 1.4;
 		color: var(--ink);
-		/* a wash of the ink, so the band shows on the column in either theme */
-		background: color-mix(in srgb, var(--ink) 6%, transparent);
+		background: none;
 		border: 0;
 		border-radius: var(--rad-control);
 		cursor: pointer;
 		text-align: left;
 	}
-	.shelf:hover {
-		background: color-mix(in srgb, var(--ink) 10%, transparent);
+	.shelf-add {
+		flex: none;
+		border: 0;
+		background: none;
+		color: var(--ink-faint);
+		font-size: 15px;
+		line-height: 1;
+		padding: 2px 7px;
+		margin-right: 2px;
+		border-radius: var(--rad-control);
+		cursor: pointer;
+	}
+	.shelf-add:hover {
+		color: var(--link);
+		background: var(--link-wash);
 	}
 	.shelf .caret {
 		width: 10px;

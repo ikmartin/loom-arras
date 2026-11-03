@@ -21,6 +21,7 @@
 	import { jobs, running } from '$lib/jobs.svelte';
 	import JobProgress from '$lib/components/JobProgress.svelte';
 	import LibraryRun from '$lib/components/LibraryRun.svelte';
+	import AddWork from '$lib/components/AddWork.svelte';
 
 	const m = $derived(store.manifest!);
 	const SHOWS = [
@@ -48,11 +49,14 @@
 	const n = (x: number) => x || '—';
 	// a run over every work, where the publisher runs them: started here, its progress stays beneath the header until dismissed
 	let runs = $state(false);
+	let canAdd = $state(false);
+	let adding = $state(false);
 	onMount(() => {
 		void can('library-update').then((yes) => {
 			runs = yes;
 			if (yes) jobs.ask();
 		});
+		void can('library-add').then((yes) => (canAdd = yes));
 	});
 	let seen = $state<Record<string, boolean>>({});
 	const run = $derived(jobs.forAll());
@@ -73,7 +77,12 @@
 				<button class="count" class:on={filter === s.v} aria-pressed={filter === s.v} onclick={() => show(s.v)} data-testid="show-{s.v}">{s.label} <span class="n">{count(s.v)}</span></button>
 			{/each}
 		</p>
-		{#if runs}<div class="everything"><LibraryRun works={[]} label="Fetch and digest everything" look="button" test="run-everything" /></div>{/if}
+		{#if runs || canAdd}
+			<div class="everything">
+				{#if canAdd}<button class="add" onclick={() => (adding = true)} data-testid="review-add">+ Add a work</button>{/if}
+				{#if runs}<LibraryRun works={[]} label="Fetch and digest everything" look="button" test="run-everything" />{/if}
+			</div>
+		{/if}
 	</header>
 	{#if shownRun}
 		<JobProgress
@@ -137,6 +146,8 @@
 	{/if}
 </main>
 
+{#if canAdd}<AddWork bind:open={adding} />{/if}
+
 <style>
 	/* The page's own header, on one line: the table is the first screen (V1). */
 	.head {
@@ -147,6 +158,19 @@
 	}
 	.head h1 {
 		margin: 0;
+	}
+	.add {
+		font: inherit;
+		font-size: 12.5px;
+		padding: 4px 12px;
+		border: 1px solid var(--rule);
+		border-radius: 8px;
+		background: var(--sheet);
+		color: var(--ink);
+		cursor: pointer;
+	}
+	.add:hover {
+		background: var(--link-wash);
 	}
 	.everything {
 		margin-left: auto;

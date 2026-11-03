@@ -42,6 +42,7 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom history restore`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`;
 - saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - starting a library run in the viewer (`library-update`), which may use the network for that run on the person's word, as `--online` does;
+- adding a work to the library, filing a dropped PDF, and taking a work added by hand out again (`library-add`, `library-upload`, `library-file`, `library-remove`), and any lookup that asks for the network (`library-lookup` with `online`);
 - removing a relation someone else asserted.
 
 Refusal is enforced, not requested. A declared name that calls itself an agent is refused. Under an agent's shell, recognised by the markers agent tools set (`AI_AGENT`, `CLAUDECODE`, `CODEX_SANDBOX`, `GEMINI_CLI`, `CURSOR_AGENT` and others), these acts are refused whatever name is declared, because a name cannot be checked and an agent typing the author's name is exactly the case to stop. The author runs them in a terminal of their own.

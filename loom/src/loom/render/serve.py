@@ -288,6 +288,14 @@ class LoomHandler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = 0
+        from loom.render.api import MAX_BODY
+
+        if length > MAX_BODY:
+            self._json(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                {"error": {"code": "too-large", "message": f"a write is at most {MAX_BODY // (1024 * 1024)} MB"}},
+            )
+            return
         raw = self.rfile.read(length) if length else b"{}"
         try:
             body = json.loads(raw.decode("utf-8") or "{}")

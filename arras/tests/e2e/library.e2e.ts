@@ -405,3 +405,9 @@ test.describe('the status line on Info', () => {
 		await expect(page.getByTestId('status-digest')).not.toContainText('results');
 	});
 });
+
+test('no work is added where no publisher writes the library', async ({ page }) => {
+	await page.goto('/review/library');
+	await expect(page.getByTestId('review-add')).toHaveCount(0);
+	await expect(page.getByTestId('library-add')).toHaveCount(0);
+});

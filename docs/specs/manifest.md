@@ -429,6 +429,8 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `overview`, present only where one has been written, is the work's overview, a page (§1): a reading of the paper, never the paper, kept beside the work's page text in the store. A digest's own `\\section*{Overview}` is the paper's opening paragraphs, copied at extraction, and is a different thing.
 
+**[decided]** `added`, present only on a work the person added to the library by hand (plan 0.24.2), is `{"when": …, "who": …}`, read from the entry's `loom-added` field in loom's bibliography. Such a work need not be cited by anything, and its `cited_by` may be empty; it is a work of the library like any other.
+
 **[decided]** `unreadable`, present only where the author has declared one, is `{"why": …, "who": …, "when": …}`: the standing claim that the work has no document to hold at all. Nothing in a bibliography entry says so, which is why it is declared and never inferred, and a viewer says it rather than showing an empty pane (DR-198).
 
 **[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `.loom/digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).

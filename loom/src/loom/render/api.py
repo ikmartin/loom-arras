@@ -7,6 +7,7 @@ Nothing here wakes an agent. An agent pulls: it reads open annotations with `loo
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -28,6 +29,12 @@ CAPABILITIES = [
     "library-verify",
     "library-discard",
     "library-update",
+    "library-recognise",
+    "library-lookup",
+    "library-add",
+    "library-upload",
+    "library-file",
+    "library-remove",
     "locate",
     "compare",
     "session-use",
@@ -61,7 +68,20 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("locate", "compare", "adopt-preview", "sync-preview", "adopt-paper", "here", "open")
+READS = (
+    "locate",
+    "compare",
+    "adopt-preview",
+    "sync-preview",
+    "adopt-paper",
+    "here",
+    "open",
+    "library-recognise",
+    "library-lookup",
+)
+
+#: The largest request body the publisher reads: a 64 MB PDF in base64, the largest a person drops in the viewer.
+MAX_BODY = 96 * 1024 * 1024
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "review-decision", "adopt-decision", "library-update")
@@ -123,6 +143,140 @@ def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     )
     what = ", ".join(works) if works else "every work"
     return {"ok": True, "result": f"started a library run on {what}", "job": job.to_json()}
+
+
+def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Adding works by hand (plan 0.24.2): what a pasted text is (`library-recognise`), what it names (`library-lookup`), writing it into loom's bibliography (`library-add`), a dropped PDF kept and identified (`library-upload`) then filed (`library-file`), and a work added by hand taken out again (`library-remove`).
+
+    Every act but recognising is the author's, refused to a declared agent; a lookup that asks for the network is too, so an agent never grants itself it. `online` is the person's allowance of the network for that one act, as `--online` is.
+    """
+    import base64
+    import hashlib
+
+    from loom.cli._common import is_agent
+    from loom.refs.add import FilingRefused, file_under, identify
+    from loom.refs.added import NotRemovable, add_entry, remove_entry
+    from loom.refs.build import WORK_STEPS
+    from loom.refs.identity import recognise
+    from loom.refs.lookup import key_for, look_up
+    from loom.scan.quilt import load_quilt, reviewer_identity
+    from loom.scan.scan import scan
+
+    if endpoint == "library-recognise":
+        rec = recognise(_str(body, "text", required=True) or "")
+        said: dict[str, Any] = {
+            "ok": True,
+            "result": rec.label,
+            "kind": rec.kind,
+            "label": rec.label,
+            "value": rec.value,
+        }
+        if rec.entry is not None:
+            said["entry"] = {k: v for k, v in rec.entry.fields.items() if not k.startswith("loom-")}
+        return said
+    who = reviewer_identity(root)[0]
+    asks = body.get("online") is True
+    if (endpoint != "library-lookup" or asks) and is_agent(_str(body, "author") or who):
+        raise ApiError(
+            "author-only", "An agent reads and annotates; only the author adds works to the library", status=403
+        )
+    quilt = load_quilt(root)
+    online = quilt.config.online or asks
+    uploads = root / BUILD / "uploads"
+
+    def run(citekey: str) -> dict[str, Any] | None:
+        """The run a `fetch` asks for, on the work just added or filed, carrying the act's allowance of the network."""
+        jobs = _JOBS.get(root.resolve())
+        if not body.get("fetch") or jobs is None:
+            return None
+        return jobs.submit([citekey], WORK_STEPS, who=who, online=asks).to_json()  # type: ignore[no-any-return]
+
+    def offer(path: Path, result: ScanResult) -> tuple[Any, dict[str, Any]]:
+        """What a kept upload shows, and for one matching no work the entry its own pages offer, looked up when the network is allowed."""
+        seen = identify(result, path)
+        extra: dict[str, Any] = {}
+        if seen.offer:
+            ident = seen.offer.get("eprint") or seen.offer.get("doi") or ""
+            found = look_up(ident, result.bib, online=online) if ident else None
+            if found is not None and found.state == "found":
+                extra = {"offer": found.entry, "key": found.key, "digest": found.digest, "duplicates": found.duplicates}
+            else:
+                extra = {
+                    "offer": seen.offer,
+                    "key": key_for(seen.offer, set(result.bib)),
+                    "digest": "lookup",
+                    "duplicates": [],
+                }
+        return seen, extra
+
+    if endpoint == "library-lookup":
+        found = look_up(_str(body, "text", required=True) or "", _scan(root).bib, online=online)
+        return {"ok": True, "result": found.state, "found": found.to_json()}
+    if endpoint == "library-add":
+        text = _str(body, "text", required=True) or ""
+        result = _scan(root)
+        found = look_up(text, result.bib, online=online)
+        if found.state != "found":
+            raise ApiError(f"lookup-{found.state}", found.message or f"nothing was found for {text}", status=409)
+        wanted = _str(body, "key")
+        key = key_for(found.entry, set(result.bib), wanted or found.key)
+        if wanted and key != wanted:
+            raise ApiError("key-taken", f"the library already has a work filed as {wanted}", status=409)
+        rec = recognise(text)
+        try:
+            add_entry(quilt, found.entry, key, who, rec.entry.type if rec.entry is not None else "")
+        except ValueError as exc:
+            raise ApiError("not-added", str(exc), status=409) from exc
+        return {"ok": True, "result": f"added {key} to the library", "citekey": key, "job": run(key)}
+    if endpoint == "library-upload":
+        name = Path(_str(body, "name", required=True) or "").name
+        raw = _str(body, "data", required=True) or ""
+        try:
+            data = base64.b64decode(raw, validate=True)
+        except ValueError as exc:
+            raise ApiError("bad-field", "data must be the PDF in base64") from exc
+        if not data.startswith(b"%PDF-"):
+            raise ApiError("not-a-pdf", f"{name} is not a PDF")
+        sha = hashlib.sha256(data).hexdigest()
+        # kept under its own name, which is what a reference manager writes a title into
+        stem = re.sub(r"[^\w .,()+-]", "_", Path(name).stem).strip() or "upload"
+        path = uploads / sha / f"{stem}.pdf"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        seen, extra = offer(path, _scan(root))
+        return {"ok": True, "result": f"kept {name}", "upload": sha, "name": name, **seen.to_json(), **extra}
+    if endpoint == "library-file":
+        sha = _str(body, "upload", required=True) or ""
+        kept = sorted((uploads / sha).glob("*.pdf")) if re.fullmatch(r"[0-9a-f]{64}", sha) else []
+        if not kept:
+            raise ApiError("no-such-upload", f"no PDF was dropped as {sha[:12]}", status=404)
+        path = kept[0]
+        name = path.name
+        if body.get("new"):
+            seen, extra = offer(path, _scan(root))
+            if seen.best or not extra:
+                raise ApiError("not-new", f"{name} shows it is {seen.best}; file it there", status=409)
+            if not extra["offer"].get("title"):
+                raise ApiError(
+                    "no-title",
+                    f"{name}'s first pages give no title loom trusts: paste its DOI, arXiv id or BibTeX entry to add the work, then drop the PDF again",
+                    status=409,
+                )
+            citekey = add_entry(quilt, extra["offer"], extra["key"], who)
+        else:
+            citekey = _str(body, "citekey", required=True) or ""
+        _busy(root, citekey)
+        try:
+            filed = file_under(scan(load_quilt(root)), path, citekey, who, came_from=name)
+        except FilingRefused as exc:
+            raise ApiError("filing-refused", str(exc), status=409) from exc
+        return {"ok": True, "result": f"filed {name} under {citekey}", **filed, "job": run(citekey)}
+    citekey = _str(body, "citekey", required=True) or ""
+    _busy(root, citekey)
+    try:
+        return {"ok": True, "result": remove_entry(scan(quilt), citekey, who)}
+    except NotRemovable as exc:
+        raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-work" else 409) from exc
 
 
 def _scan(root: Path) -> ScanResult:
@@ -384,6 +538,15 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _library(root, endpoint, body)}
     if endpoint == "library-update":
         return _library_update(root, body)
+    if endpoint in (
+        "library-recognise",
+        "library-lookup",
+        "library-add",
+        "library-upload",
+        "library-file",
+        "library-remove",
+    ):
+        return _library_add(root, endpoint, body)
     if endpoint == "locate":
         return _locate(root, body)
     if endpoint == "compare":

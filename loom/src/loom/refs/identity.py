@@ -174,3 +174,104 @@ def primary(entry: BibEntry | None) -> WorkId | None:
     """The identifier a work's `refs/` directory is named by: the first of `identify`."""
     ids = identify(entry)
     return ids[0] if ids else None
+
+
+def arxiv_base(value: str) -> str:
+    """An arXiv id without its version: `0805.2065v2` is `0805.2065`, and `solv-int/9901001v1` keeps the "v" its subject holds."""
+    return re.sub(r"v\d+$", "", value.strip())
+
+
+#: The kinds `recognise` tells apart, in the words the viewer shows.
+KINDS = {
+    "bibtex": "BibTeX entry",
+    "doi": "DOI",
+    "arxiv": "arXiv",
+    "zbl": "zbMATH",
+    "mr": "MathSciNet",
+    "isbn": "ISBN",
+    "unknown": "not recognised",
+}
+
+_BIBTEX = re.compile(r"^\s*@\s*[A-Za-z]+\s*[{(]")
+_DOI_ANY = re.compile(r"^(?:doi:\s*|https?://(?:dx\.)?doi\.org/)?(10\.\d{4,9}/\S+?)[.,;)\]]*$", re.I)
+_ARXIV_NEW = r"\d{4}\.\d{4,5}(?:v\d+)?"
+_ARXIV_OLD = r"[a-z][a-z-]*(?:\.[A-Z]{2})?/\d{7}(?:v\d+)?"
+_ARXIV_ANY = re.compile(
+    rf"^(?:arxiv:\s*|https?://(?:www\.|export\.)?arxiv\.org/(?:abs|pdf|e-print)/)?({_ARXIV_NEW}|{_ARXIV_OLD})(?:\.pdf)?/?$",
+    re.I,
+)
+_ZBL = re.compile(r"^(?:zbl\s*:?\s*|zbmath\s*:?\s*|https?://zbmath\.org/(?:\?q=an:)?)(\d{4}\.\d{5}|\d{8})/?$", re.I)
+_MR = re.compile(r"^(?:mr\s*:?\s*|https?://mathscinet\.ams\.org/mathscinet-getitem\?mr=(?:MR)?)(\d{5,8})$", re.I)
+_ISBN = re.compile(r"^(?:isbn(?:-1[03])?\s*:?\s*)?([0-9][0-9 -]{8,16}[0-9Xx])$", re.I)
+
+
+@dataclass(frozen=True)
+class Recognised:
+    """What a pasted text is: its `kind` (a key of `KINDS`), the identifier it carries as loom writes it, and for a BibTeX entry the entry itself."""
+
+    kind: str
+    value: str = ""
+    entry: BibEntry | None = None
+
+    @property
+    def label(self) -> str:
+        return KINDS[self.kind]
+
+    @property
+    def work_id(self) -> WorkId | None:
+        """The identifier a lookup asks after: the one pasted, or the most authoritative one a pasted entry states."""
+        if self.kind in ("doi", "arxiv", "zbl", "mr"):
+            return WorkId(self.kind, self.value, "declared")
+        if self.entry is not None:
+            ids = declared(self.entry)
+            return ids[0] if ids else None
+        return None
+
+
+def _isbn_ok(digits: str) -> bool:
+    """Whether an ISBN-10 or ISBN-13's check digit holds."""
+    if len(digits) == 10:
+        total = sum((10 - i) * (10 if c in "Xx" else int(c)) for i, c in enumerate(digits))
+        return total % 11 == 0 and not any(c in "Xx" for c in digits[:9])
+    if len(digits) == 13 and digits.isdigit():
+        return sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(digits)) % 10 == 0
+    return False
+
+
+def recognise(text: str) -> Recognised:
+    """What `text` is, read without the network: a BibTeX entry, a DOI, an arXiv id, a zbMATH number, an MR number, an ISBN, or none of them.
+
+    Parameters
+    ----------
+    text : str
+        What a person pasted: an entry, a bare identifier, a prefixed one (`doi:`, `arXiv:`, `Zbl`, `MR`, `ISBN`) or a link to it.
+
+    Returns
+    -------
+    Recognised
+        Its kind and identifier; a DOI under arXiv's own prefix (10.48550) is the arXiv id it mints, and an entry carries what it parsed to.
+    """
+    from loom.scan.bib import parse_bib
+
+    raw = text.strip()
+    if not raw:
+        return Recognised("unknown")
+    if _BIBTEX.match(raw):
+        entries = list(parse_bib(raw).values())
+        return Recognised("bibtex", entries[0].key, entries[0]) if entries else Recognised("unknown")
+    if m := _DOI_ANY.match(raw):
+        doi = m.group(1)
+        if a := _ARXIV_DOI.match(doi):
+            return Recognised("arxiv", a.group(1))
+        return Recognised("doi", doi)
+    if m := _ARXIV_ANY.match(raw):
+        return Recognised("arxiv", m.group(1))
+    if m := _ZBL.match(raw):
+        return Recognised("zbl", m.group(1))
+    if m := _MR.match(raw):
+        return Recognised("mr", m.group(1))
+    if m := _ISBN.match(raw):
+        digits = re.sub(r"[ -]", "", m.group(1))
+        if _isbn_ok(digits):
+            return Recognised("isbn", digits.upper())
+    return Recognised("unknown")

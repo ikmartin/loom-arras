@@ -518,6 +518,8 @@ export interface Reference {
   artifacts?: { dir: string; pdf: boolean; source: boolean };
   /** The author's standing claim that no document can be held for this work: the Stacks Project is a living work with no fixed version. Nothing in a bibliography entry says so, so it is declared and never inferred, and the reading view says it rather than showing an empty pane. */
   unreadable?: { why: string; who: string; when: string };
+  /** When and by whom the person added this work to the library by hand (plan 0.24.2); absent for a work a document's bibliography brought. */
+  added?: { when: string; who: string };
   /** The work's overview, a reading an agent or the person wrote (plan 0.21.3); absent until one is. */
   overview?: Page;
   /** Where the work's anchor geometry is published, and its hash. Beside the manifest rather than in it: the manifest is loaded whole on every poll, and rectangles are wanted for the one paper being read. Absent when no copy of the paper is on the publishing machine, which is the honest state — the viewer then has nothing to draw. */

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from loom.refs.fetch import ARRIVAL, title_ratio
-from loom.refs.identity import declared, identify
+from loom.refs.identity import arxiv_base, declared, identify
 from loom.refs.pages import page_texts, sha256_of
 from loom.refs.resolve import _fold, query_for
 from loom.scan.bib import BibEntry
@@ -154,7 +154,7 @@ def look_at(pdf: Path, bib: dict[str, BibEntry]) -> Candidate:
             value = str(wid).split(":", 1)[-1].lower()
             if wid.scheme == "doi" and value in dois:
                 out.signals.append(Signal("doi", ck, 1.0, value))
-            elif wid.scheme == "arxiv" and value.split("v")[0] in {a.split("v")[0] for a in arxivs}:
+            elif wid.scheme == "arxiv" and arxiv_base(value) in {arxiv_base(a) for a in arxivs}:
                 out.signals.append(Signal("arxiv", ck, 1.0, value))
     lines = title_lines(pages[0] if pages else "")
     from_name = filename_title(pdf.stem)
@@ -345,7 +345,7 @@ def _strong(identity: Identity, bib: dict[str, BibEntry]) -> list[Strong]:
             value = wid.value.lower()
             if wid.scheme == "doi" and value in identity.dois:
                 hit = Strong(ck, IDENTIFIER, f"doi:{wid.value} is on its first pages")
-            elif wid.scheme == "arxiv" and value.split("v")[0] in {a.split("v")[0] for a in identity.arxivs}:
+            elif wid.scheme == "arxiv" and arxiv_base(value) in {arxiv_base(a) for a in identity.arxivs}:
                 hit = Strong(ck, IDENTIFIER, f"arXiv:{wid.value} is on its first pages")
             if hit:
                 break

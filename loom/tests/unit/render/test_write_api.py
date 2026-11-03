@@ -1097,6 +1097,125 @@ def test_a_library_write_on_a_work_a_run_acts_on_is_refused_until_it_finishes(tm
         _JOBS.pop(q.resolve(), None)
 
 
+ENTRY = "@article{Ost18,\n  author = {Ostrander, D.},\n  title = {Widget categories and their duals},\n  year = {2018},\n  journal = {J. Widget Theory}\n}"
+
+
+def _fake_pdf(*lines: str) -> str:
+    """A PDF the fake toolchain reads back: `pdftotext` answers with its lines, as page one."""
+    import base64
+
+    return base64.b64encode(("%PDF-1.4\n%FAKE-LOOM\n%%Pages: 1\n" + "\n".join(lines) + "\n").encode()).decode()
+
+
+@case("library-recognise")
+def _library_recognise(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, _, _ = on_demo(serve, tmp_path)
+    said = succeeds(s, "library-recognise", {"text": "https://doi.org/10.4171/demo/14-1"})
+    assert (said["kind"], said["value"], said["label"]) == ("doi", "10.4171/demo/14-1", "DOI")
+    assert succeeds(s, "library-recognise", {"text": ENTRY})["entry"]["title"] == "Widget categories and their duals"
+    refuses(s, "library-recognise", {}, 400, "missing-field", "text is required")
+
+
+@case("library-lookup")
+def _library_lookup(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, _, _ = on_demo(serve, tmp_path)
+    found = succeeds(s, "library-lookup", {"text": ENTRY})["found"]
+    assert found["state"] == "found" and found["key"] == "Ost18" and found["digest"] == "lookup"
+    # the demo is offline: an identifier is not looked up, and says why
+    assert succeeds(s, "library-lookup", {"text": "10.5555/x"})["found"]["state"] == "offline"
+    refuses(
+        s,
+        "library-lookup",
+        {"text": "10.5555/x", "online": True, "author": "Referee (Agent)"},
+        403,
+        "author-only",
+        "only the author adds",
+    )
+
+
+@case("library-add")
+def _library_add(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    said = succeeds(s, "library-add", {"text": ENTRY})
+    assert said["citekey"] == "Ost18" and said["job"] is None
+    assert "loom-added" in (q / ".loom" / "digests" / "bibliography.bib").read_text(encoding="utf-8")
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["references"]["Ost18"]["added"]["when"].endswith("Z")
+    # with fetch, a run is queued on the new work
+    other = ENTRY.replace("Ost18", "Ost18b").replace("Widget categories", "Gadget categories")
+    assert succeeds(s, "library-add", {"text": other, "fetch": True})["job"]["works"] == ["Ost18b"]
+    refuses(s, "library-add", {"text": "10.5555/x"}, 409, "lookup-offline", "needs the network")
+    refuses(s, "library-add", {"text": ENTRY, "author": "Referee (Agent)"}, 403, "author-only", "only the author adds")
+
+
+@case("library-upload")
+def _library_upload(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    said = succeeds(
+        s,
+        "library-upload",
+        {"name": "pullbacks.pdf", "data": _fake_pdf("Virtual pull-backs", "Cristina Manolache", "arXiv:0805.2065v2")},
+    )
+    assert said["best"] == "Man12", said
+    assert (q / ".loom" / "build" / "uploads" / said["upload"] / "pullbacks.pdf").is_file()
+    # one that shows no work in the library is offered an entry from its own pages
+    other = succeeds(
+        s,
+        "library-upload",
+        {"name": "Halberd - 2021 - Gadget towers.pdf", "data": _fake_pdf("Gadget towers", "arXiv:2102.11789")},
+    )
+    assert (
+        other["best"] == "" and other["offer"]["eprint"] == "2102.11789" and other["offer"]["title"] == "Gadget towers"
+    )
+    refuses(s, "library-upload", {"name": "notes.txt", "data": "aGVsbG8="}, 400, "not-a-pdf", "notes.txt is not a PDF")
+
+
+@case("library-file")
+def _library_file(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    up = succeeds(
+        s,
+        "library-upload",
+        {"name": "pullbacks.pdf", "data": _fake_pdf("Virtual pull-backs", "Cristina Manolache", "arXiv:0805.2065v2")},
+    )
+    filed = succeeds(s, "library-file", {"upload": up["upload"], "citekey": "Man12", "name": "pullbacks.pdf"})
+    assert filed["citekey"] == "Man12" and filed["filed"] is True
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["references"]["Man12"]["artifacts"]["pdf"] is True
+    # a new work, its entry from the PDF's own account
+    new = succeeds(
+        s,
+        "library-upload",
+        {"name": "Halberd - 2021 - Gadget towers.pdf", "data": _fake_pdf("Gadget towers", "arXiv:2102.11789")},
+    )
+    made = succeeds(
+        s, "library-file", {"upload": new["upload"], "new": True, "name": "Halberd - 2021 - Gadget towers.pdf"}
+    )
+    assert made["citekey"] == new["key"] and made["filed"] is True
+    # a PDF whose pages give no title loom trusts is not made a work on its own say
+    bare = succeeds(s, "library-upload", {"name": "scan.pdf", "data": _fake_pdf("arXiv:2103.00001")})
+    refuses(s, "library-file", {"upload": bare["upload"], "new": True}, 409, "no-title", "paste its DOI")
+    refuses(s, "library-file", {"upload": "0" * 64, "citekey": "Man12"}, 404, "no-such-upload", "no PDF was dropped")
+
+
+@case("library-remove")
+def _library_remove(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _ = on_demo(serve, tmp_path)
+    succeeds(s, "library-add", {"text": ENTRY})
+    assert succeeds(s, "library-remove", {"citekey": "Ost18"})["result"] == "removed Ost18 from the library"
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert "Ost18" not in manifest["references"]
+    refuses(s, "library-remove", {"citekey": "Calloway14"}, 409, "not-added", "comes from a document")
+    refuses(s, "library-remove", {"citekey": "Nobody99"}, 404, "no-such-work", "no work Nobody99")
+
+
+def test_a_write_larger_than_the_publisher_reads_is_refused_before_it_is_read(session, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    s, _ = session
+    monkeypatch.setattr("loom.render.api.MAX_BODY", 64)
+    status, said = post(s.url + "_api/library-recognise", {"text": "x" * 200})
+    assert status == 413 and said["error"]["code"] == "too-large"
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],
