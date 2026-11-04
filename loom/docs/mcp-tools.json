@@ -1619,11 +1619,12 @@
    "read_only_hint": true
   },
   "command": "loom suggestion",
-  "description": "Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now; the file is the author's to change.\n\n`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it.",
+  "description": "Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it; `loom suggestion apply ANNOTATION` does both, and is the author's.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
     "annotation": {
+     "description": "The suggestion, by its id.",
      "type": "string"
     },
     "json": {

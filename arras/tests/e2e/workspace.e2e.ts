@@ -614,7 +614,8 @@ test.describe('the toolbar', () => {
 			const bar = controls(page, i);
 			await expect(bar).toBeVisible();
 			expect(await bar.evaluate((b) => b.closest('.body'))).toBeNull();
-			expect(await bar.evaluate((b) => getComputedStyle(b).position)).toBe('static');
+			// in the flow; positioned only so the line a control hangs under it is placed against it
+			expect(await bar.evaluate((b) => getComputedStyle(b).position)).toBe('relative');
 			const at = (await bar.boundingBox())!;
 			const head = (await page.getByTestId(`pane-head-${i}`).boundingBox())!;
 			const body = (await pane(page, i).locator('> .body').boundingBox())!;

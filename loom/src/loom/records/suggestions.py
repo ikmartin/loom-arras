@@ -1,6 +1,6 @@
 """Where a suggestion's payload goes, and the text it leaves (plan 0.20.7): the one reading of `placement` the patch, the compile, the viewer's preview and resolving as applied all share.
 
-`replace` covers exactly the quoted words; `after` and `before` go right after and right before them. A suggestion with no quote is about the whole key, and its anchor is the key's body: its own text inside `\\begin{…}`, its label and any leading `\\uses{…}`, and before `\\end{…}`. An empty payload with `replace` deletes the quote. Loom never writes the result into the author's source.
+`replace` covers exactly the quoted words; `after` and `before` go right after and right before them. A suggestion with no quote is about the whole key, and its anchor is the key's body: its own text inside `\\begin{…}`, its label and any leading `\\uses{…}`, and before `\\end{…}`. An empty payload with `replace` deletes the quote. `apply` writes it into the file on the author's act, keeping a version of each document it changes first; nothing else writes the author's source.
 """
 
 from __future__ import annotations
@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from loom.history.acts import Kept
 from loom.records.annotations import PLACEMENTS, Annotation
 from loom.records.selectors import find_quote
 from loom.records.store import Records
@@ -218,3 +219,50 @@ def is_taken(result: ScanResult, ann: Annotation) -> bool:
     if ann.placement != "replace" or not quote:
         return True
     return quote not in own.replace(payload, "\0")
+
+
+class ApplyRefused(Exception):
+    """A suggestion that cannot be written in, and why in the person's words; `code` is the write API's."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def apply(result: ScanResult, ann: Annotation, actor: str | None) -> tuple[list[str], Kept]:
+    """Write suggestion `ann` into its key's file: a version of each of the person's documents made of the file kept first (P7), then the file, then an `apply` act in the ledger.
+
+    The author's act: the caller refuses an agent, and resolves the suggestion as applied against a scan of the file as written. Raises ApplyRefused for an annotation that is no open suggestion carrying text, one whose key already reads as it taken, one its quote no longer places, and one on a key none of the person's documents reads (an agent's copy, whose changes come in with the copy). Returns the person's documents the file is part of, and the versions kept.
+    """
+    from loom.history.acts import APPLY, documents_reaching, keep_versions, write_file
+    from loom.history.ledger import append_entry
+
+    if ann.kind != SUGGESTION or ann.in_reply_to:
+        raise ApplyRefused("not-a-suggestion", f"{ann.id} is no suggestion, so there is nothing of it to put in")
+    if ann.status != "open":
+        raise ApplyRefused("not-open", f"It is {'withdrawn' if ann.status == 'discarded' else 'resolved'} already")
+    if ann.payload is None:
+        raise ApplyRefused(
+            "no-text", "It proposes no text to put in: resolve it once you have acted on it, or dismiss it"
+        )
+    node = _node(result, ann.target_key)
+    if node is not None and not any(result.document_role(d) == "person" for d in node.reached_by):
+        copy = next((d for d in node.reached_by if result.document_role(d) == "agent"), None)
+        raise ApplyRefused(
+            "on-a-copy",
+            f"It is on the agent's copy “{copy.rsplit('/', 1)[-1]}”; it comes in with the copy"
+            if copy
+            else "It is on a block none of your documents reads",
+        )
+    if is_taken(result, ann):
+        raise ApplyRefused("taken", "Its block reads as it taken already: resolve it as applied")
+    try:
+        placed = place(result, ann)
+    except Unplaced as exc:
+        raise ApplyRefused("unplaced", str(exc)) from exc
+    root = result.quilt.root
+    kept = keep_versions(result, [placed.file], APPLY, "Before applying a suggestion", actor)
+    write_file(root / placed.file, taken_file(result, placed))
+    append_entry(result.quilt.history_dir, APPLY, {"annotation": ann.id, "key": placed.key, "path": placed.file}, actor)
+    return documents_reaching(result, [placed.file]), kept

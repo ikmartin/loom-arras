@@ -5,6 +5,7 @@ import { route } from '$lib/paths';
 import { needsYou } from '$lib/library';
 import { yoursCount } from '$lib/diagnostics';
 import { waitingCount } from './queue';
+import { toApply } from './suggestions';
 
 export interface Section {
 	id: 'changes' | 'needs-review' | 'incoming' | 'suggestions' | 'library' | 'sessions' | 'history' | 'problems';
@@ -26,11 +27,6 @@ export function libraryWaits(m: Manifest): { proposed: number; unfiled: number; 
 	};
 }
 
-/** The open suggestions, each waiting for the author to apply its patch: neither replies nor withdrawn. */
-export function openSuggestions(m: Manifest) {
-	return Object.values(m.annotations ?? {}).filter((a) => a.kind === 'suggestion' && !a.in_reply_to && !a.discarded && a.status === 'open');
-}
-
 /** Every section, in the order the column lists them; Changes only after a look, Sessions and History only where the corpus has them. */
 export function sectionsOf(m: Manifest): Section[] {
 	const review = waitingCount(m);
@@ -41,7 +37,7 @@ export function sectionsOf(m: Manifest): Section[] {
 	const orphans = (m.canon ?? []).filter((c) => c.step && !c.in).length;
 	const problems = yoursCount(m);
 	const changed = (m.changes ?? []).length;
-	const suggestions = openSuggestions(m).length;
+	const suggestions = toApply(m).length;
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 	const sections: Section[] = [
 		{ id: 'changes', label: 'Changes', href: route('/review/changes'), waits: changed, says: count(changed, 'file changed since your look', 'files changed since your look') },

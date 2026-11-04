@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The verbs an annotation offers, as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a suggestion whose key already reads as it taken also offers resolve as applied, which records the key's hash; a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
+	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a suggestion whose text places offers apply, which writes it in, a version of the document kept first, and resolves it as applied; one whose key already reads as it taken offers resolve as applied, which records the key's hash; a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
@@ -19,7 +19,7 @@
 	} = $props();
 
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
-	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'library-cite'];
+	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'library-cite', 'suggestion-apply'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
@@ -119,7 +119,9 @@
 	const discard = () => send('discard', { reason: text.trim() || undefined });
 	const resolve = () => send('resolve', {});
 	const applied = () => send('resolve', { applied: true });
+	const apply = () => send('suggestion-apply', {});
 	const taken = $derived(annotation.change?.state === 'taken');
+	const ready = $derived(annotation.kind === 'suggestion' && annotation.change?.state === 'ready');
 	const reopen = () => send(gone ? 'discard' : 'resolve', { undo: true });
 	const decide = async (decision: 'accept' | 'reject') => {
 		if (await send('library-cite', { decision })) decided[annotation.id] = decision === 'accept' ? 'accepted' : 'rejected';
@@ -146,6 +148,9 @@
 			{/if}
 			{#if allowed.reply}
 				<button type="button" class="verb" onclick={() => show('reply')} aria-expanded={open === 'reply'} data-testid="verb-reply">reply</button>
+			{/if}
+			{#if !citation && allowed['suggestion-apply'] && ready}
+				<button type="button" class="verb" onclick={apply} disabled={busy} title="Write its text into the file; a version of the document is kept first" data-testid="verb-apply">apply</button>
 			{/if}
 			{#if !citation && allowed.resolve && taken}
 				<button type="button" class="verb" onclick={applied} disabled={busy} title="The text now reads as this suggestion taken; its hash is recorded" data-testid="verb-applied">resolve as applied</button>

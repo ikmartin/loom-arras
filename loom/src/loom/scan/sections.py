@@ -23,8 +23,18 @@ LEVELS = {
 }
 LEVEL_NAMES = {v: k for k, v in LEVELS.items()}
 _SECT = re.compile(r"\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)(\*?)\s*(?=[\[{])")
+
 _LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
 _OPENER = re.compile(r"^\s*\\(begin\s*\{|part|chapter|section|subsection|subsubsection|paragraph|subparagraph)")
+
+
+def starred_at(clean: str, start: int) -> bool:
+    """Whether the heading at `start` is starred, so that no number is drawn for it.
+
+    LaTeX writes a `\\label` after `\\subsection*` with the enclosing heading's number, since a starred heading steps no counter; the aux holds that number, and a section node's label finds it.
+    """
+    m = _SECT.match(clean, start)
+    return bool(m and m.group(2))
 
 
 @dataclass

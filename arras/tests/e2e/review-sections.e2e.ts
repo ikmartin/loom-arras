@@ -1,6 +1,6 @@
 // Review, the quilt's management: its column lists the sections, each with what waits for the author there, and each section is a page of its own. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
-import { manifest, serve } from '../manifest';
+import { manifest, QUICK, REFEREE, serve } from '../manifest';
 
 test('Review\'s column lists its sections, each counting what waits there, the current one marked', async ({ page }) => {
 	await page.goto('/review');
@@ -27,15 +27,27 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	}
 });
 
-test('Sessions lists every session with what it holds, each opening its transcript', async ({ page }) => {
+test('Sessions lists every session with what awaits an answer and when it was last active, each opening its transcript', async ({ page }) => {
 	await page.goto('/review/sessions');
 	const table = page.getByTestId('sessions-table');
+	await expect(table.locator('thead')).toContainText('Awaiting an answer');
+	await expect(table.locator('thead')).toContainText('Last active');
 	for (const s of manifest.sessions) await expect(table.getByTestId(`session-row-${s.id}`)).toContainText(s.state);
+	// last active is the newest thing done in it, which opening it never moves
+	const referee = manifest.sessions.find((s: { id: string }) => s.id === REFEREE)!;
+	await expect(table.getByTestId(`session-last-${REFEREE}`)).toHaveAttribute('title', referee.last);
 	await table.getByRole('link').first().click();
 	await expect(page).toHaveURL(/\/session\//);
-	// a static host serves no writes, so no verb is offered
+	// a static host serves no writes, so no verb is offered but Write here, which is the viewer's own
 	await page.goto('/review/sessions');
 	await expect(page.locator('[data-testid^="sessions-close-"]')).toHaveCount(0);
+	await expect(page.getByTestId('sessions-new')).toHaveCount(0);
+	await expect(page.getByTestId('sessions-writing')).toHaveText('Not writing in a session');
+	await page.getByTestId(`sessions-write-here-${REFEREE}`).click();
+	await expect(page.getByTestId('sessions-writing-here')).toBeVisible();
+	await expect(page.getByTestId('session-footer-name')).toHaveText('referee');
+	// a closed session is not offered as a place to write
+	await expect(page.locator(`[data-testid="sessions-write-here-${QUICK}"]`)).toHaveCount(0);
 });
 
 test('History shows a document’s versions oldest first and Now, every act recorded, and flags a version no live draft leads to', async ({ page }) => {
@@ -63,4 +75,13 @@ test('History shows a document’s versions oldest first and Now, every act reco
 	await expect(acts.first()).toHaveAttribute('data-action', manifest.history.acts.at(-1).action);
 	// and the column counts it
 	await expect(page.getByTestId('section-count-history')).toHaveText('1');
+});
+
+test('Needs review keeps its help dot small, beside its heading', async ({ page }) => {
+	await page.goto('/review');
+	const dot = page.getByTestId('help-review');
+	await expect(dot).toBeVisible();
+	const box = (await dot.boundingBox())!;
+	expect(box.width).toBeLessThanOrEqual(16);
+	expect(box.height).toBeLessThanOrEqual(16);
 });

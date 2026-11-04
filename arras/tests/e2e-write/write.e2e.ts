@@ -400,7 +400,7 @@ test('deleting a session from the picker tombstones it in the index, and its ann
 	// a tombstone, not a purge: every line the session wrote is still there
 	expect(served.log().filter((e) => e.session === id)).toEqual(written);
 	// and the viewer lets go of it: nothing is selected, and the picker no longer lists it
-	await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await openPicker(page);
 	await expect(page.getByTestId(`session-${id}`)).toHaveCount(0);
 });

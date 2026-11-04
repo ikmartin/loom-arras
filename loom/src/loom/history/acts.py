@@ -1,6 +1,6 @@
 """A version of a document at each of the author's acts, and a version put back.
 
-A version is a landmark (`stamp_document`): Keep and Undo in Changes keep one, taking changes in keeps one first, the author records one by hand, and restoring keeps the text it replaces as one. `restore` writes a version back into its document file by file; `put_back` writes back the text an undo set aside.
+A version is a landmark (`stamp_document`): Keep and Undo in Changes keep one, taking changes in and applying a suggestion keep one first, the author records one by hand, and restoring keeps the text it replaces as one. `restore` writes a version back into its document file by file; `put_back` writes back the text an undo set aside.
 """
 
 from __future__ import annotations
@@ -17,6 +17,8 @@ from loom.scan.scan import ScanResult
 KEEP = "keep"
 #: The ledger's line for a version or a set-aside text put back.
 RESTORE = "restore"
+#: The ledger's line for a suggestion written into its file (`records.suggestions.apply`).
+APPLY = "apply"
 
 
 @dataclass
@@ -30,7 +32,7 @@ class Kept:
         """The answer's tail: which versions were kept, and why one was not, in the person's words."""
         out = []
         if self.kept:
-            out.append(f"a version of {', '.join(Path(d).name for d in self.kept)} is kept")
+            out.append(f"a version of {' and of '.join(Path(d).name for d in self.kept)} is kept")
         for doc, why in self.skipped.items():
             if why:
                 out.append(f"no version of {Path(doc).name} was kept: {why}")
@@ -59,7 +61,7 @@ def versions_of(history: History, doc: str, live: list[str]) -> list[Entry]:
 
 
 def keep_versions(result: ScanResult, paths: list[str] | None, kept_for: str, message: str, actor: str | None) -> Kept:
-    """Keep a version of each of the person's documents made of one of `paths`, as the act `kept_for` (`keep`, `undo`, `restore`), unless its text is its newest version's.
+    """Keep a version of each of the person's documents made of one of `paths`, as the act `kept_for` (`keep`, `undo`, `restore`, `apply`), unless its text is its newest version's.
 
     A document that cannot be stamped (one reaching a conflicted key) is skipped with the reason; the act it accompanies goes ahead, since a version is kept for it, never asked of it.
     """
@@ -110,7 +112,8 @@ def cannot_restore(result: ScanResult, history: History, entry: Entry) -> str:
     return ""
 
 
-def _write(path: Path, text: str) -> None:
+def write_file(path: Path, text: str) -> None:
+    """Write `text` to `path` whole or not at all: through a sibling file moved into place."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".loom-tmp")
     tmp.write_text(text, encoding="utf-8")
@@ -149,7 +152,7 @@ def restore(result: ScanResult, doc: str, version: str, actor: str | None) -> di
         p for p, text in files.items() if not (root / p).is_file() or (root / p).read_text(encoding="utf-8") != text
     ]
     for p in written:
-        _write(root / p, files[p])
+        write_file(root / p, files[p])
     append_entry(
         result.quilt.history_dir,
         RESTORE,
@@ -191,6 +194,6 @@ def put_back(root: Path, history_dir: Path, path: str, digest: str, actor: str |
         raise RestoreRefused("not-text", f"{path} is no longer a text file loom keeps")
     now = texts.get(path)
     before = write_raw(root, now, history_dir) if now is not None else None
-    _write(p, text)
+    write_file(p, text)
     append_entry(history_dir, RESTORE, {"path": path, "from": before, "to": digest}, actor)
     return before or ""

@@ -83,13 +83,13 @@ def read_events(root: Path, sid: str, since: int = 0) -> list[Event]:
     return out
 
 
-def last_seq(root: Path, sid: str) -> int:
-    """The last event's sequence number, read from the end of the file rather than the whole of it."""
+def last_event(root: Path, sid: str) -> Event | None:
+    """The session's last event, read from the end of the file rather than the whole of it; None when nothing was said."""
     p = inbox_path(root, sid)
     try:
         size = p.stat().st_size
     except OSError:
-        return 0
+        return None
     with p.open("rb") as fh:
         pos, tail = size, b""
         while pos > 0:
@@ -103,8 +103,14 @@ def last_seq(root: Path, sid: str) -> int:
             for line in reversed(whole):
                 e = _event(line)
                 if e is not None:
-                    return e.seq
-    return 0
+                    return e
+    return None
+
+
+def last_seq(root: Path, sid: str) -> int:
+    """The last event's sequence number, 0 when nothing was said."""
+    e = last_event(root, sid)
+    return e.seq if e is not None else 0
 
 
 class Transcript:

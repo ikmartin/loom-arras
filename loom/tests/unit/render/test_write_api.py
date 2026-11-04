@@ -992,6 +992,32 @@ def _history_record(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
     refuses(s, "history-record", agent, 403, "author-only", "only the author records")
 
 
+@case("suggestion-apply")
+def _suggestion_apply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, sid = on_demo(serve, tmp_path)
+    lemma = q / "drafting" / "nodes" / "dm-0002.tex"
+    body = {"session": sid, "target": "dm-0002", "message": "Tighten it", "kind": "suggestion", "author": WHO}
+    succeeds(
+        s, "annotate", {**body, "quote": "one or two points", "payload": "at most two points", "placement": "replace"}
+    )
+    ann = the(log(q), lambda e: e.get("payload") == "at most two points", "the suggestion")["id"]
+    refuses(
+        s,
+        "suggestion-apply",
+        {"session": sid, "annotation": ann, "author": "Claude Agent"},
+        403,
+        "author-only",
+        "only the author",
+    )
+    said = succeeds(s, "suggestion-apply", {"session": sid, "annotation": ann, "author": WHO})["result"]
+    assert said.startswith("applied the suggestion in ")
+    assert "at most two points" in lemma.read_text()
+    assert [e["event"] for e in events(q, ann)] == ["created", "resolved"] and events(q, ann)[1]["applied"]["hash"]
+    refuses(
+        s, "suggestion-apply", {"session": sid, "annotation": ann, "author": WHO}, 409, "not-open", "resolved already"
+    )
+
+
 @case("history-restore")
 def _history_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.history.ledger import load_history

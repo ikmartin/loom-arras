@@ -316,3 +316,16 @@ def test_a_heading_a_macro_wraps_is_drawn_as_a_heading() -> None:
     out, _, _ = make("\\hidefromtoc{\\subsection*{History and contributions}}\n\nLet $M$ be a manifold.", macros=macros)
     assert re.search(r"<h2[^>]*>History and contributions</h2>", out), out
     assert "\\subsection" not in out and "Let" in out
+
+
+def test_a_heading_in_a_text_nothing_split_is_numbered_from_its_label_and_a_starred_one_is_not() -> None:
+    """A landmark's headings read the live document's numbers, as its equations do; `\\subsection*` steps no counter, so the number its label holds is the enclosing heading's and is not drawn."""
+    from loom.scan.sections import starred_at
+
+    assert starred_at("\\subsection*{A}", 0) and not starred_at("\\section{A}", 0)
+    numbers = {"rl-0001": AuxNumber("1", None), "rl-0002": AuxNumber("1", None)}
+    out, _, _ = make(
+        "\\section{Introduction}\\label{rl-0001}\n\n\\subsection*{History}\\label{rl-0002}\n\nText.", numbers=numbers
+    )
+    assert re.search(r'<h1[^>]*><span class="number">1</span> Introduction</h1>', out), out
+    assert re.search(r"<h2[^>]*>History</h2>", out), out

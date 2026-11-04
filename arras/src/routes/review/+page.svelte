@@ -26,7 +26,12 @@
 
 	const m = $derived(store.manifest!);
 	const mine = $derived(documentsWithBlocks(m, m.masters.filter((x) => !x.closed && !x.context_only && !isAgentDocument(x))));
-	const doc = $derived(mine.find((x) => x.path === page.url.searchParams.get('document')) ?? mine.find((x) => x.default) ?? mine[0]);
+	// asked for by name, else the first holding what Review counts (changed or taken in), else the default
+	const counted = (path: string) => {
+		const g = groupsOf(m, path);
+		return g.changed.length + g.taken.length > 0;
+	};
+	const doc = $derived(mine.find((x) => x.path === page.url.searchParams.get('document')) ?? mine.find((x) => counted(x.path)) ?? mine.find((x) => x.default) ?? mine[0]);
 	const file = $derived(doc ? doc.path.split('/').pop()! : '');
 	const groups = $derived(doc ? groupsOf(m, doc.path) : null);
 	const blocks = $derived(doc ? documentKeys(m, doc.path).filter((k) => k.kind === 'statement' || k.kind === 'proof').length : 0);

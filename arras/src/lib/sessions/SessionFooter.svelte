@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The column's footer (plan 0.13.3 S5–S8): where annotations will be written, pinned outside the column's scroll so a reader never goes looking for it. It carries only the state — a dot, the session's name, whose annotations the page shows in a word, what is new — and opens the picker, where that scope is chosen; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
+	// The column's footer (plan 0.13.3 S5–S8): where annotations will be written, pinned outside the column's scroll so a reader never goes looking for it, and the only thing that says so, since reading a session's transcript chooses nothing. It carries only the state — a dot, "writing in" and the session's name, whose annotations the page shows in a word, what is new — and opens the picker, where that scope is chosen; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
 	//
 	// Its tone is `writable()`'s answer, which concerns annotations only: review decisions and incorporating a pull name no session, so an amber footer never means nothing can be written.
 	import Popover from '$lib/components/Popover.svelte';
@@ -16,7 +16,7 @@
 	const here = $derived(selected(m));
 	const why = $derived(writable(m));
 	const fresh = $derived(here ? summary(m, here.id).fresh : 0);
-	const name = $derived(here ? titleOf(here) : 'no session selected');
+	const name = $derived(here ? titleOf(here) : 'no session');
 	// seeing one session's annotations only is a state that should not be hidden behind the picker
 	const scope = $derived(sessionView.view === 'current' ? 'this session' : 'all');
 
@@ -52,7 +52,8 @@
 			>
 				<span class="dot" aria-hidden="true"></span>
 				{#if !compact}
-					<span class="name" data-testid="session-footer-name">{name}</span>
+					<span class="lead" class:alone={!here} data-testid="session-footer-lead">{here ? 'writing in' : 'not writing in a session'}</span>
+					{#if here}<span class="name" data-testid="session-footer-name">{name}</span>{/if}
 					<span class="scope" title="showing annotations from {scope === 'all' ? 'every session' : 'this session only'}" data-testid="session-footer-scope">· {scope}</span>
 					{#if fresh}<span class="fresh" title="{fresh} new since you last opened it">{fresh}</span>{/if}
 					<span class="chev" aria-hidden="true"></span>
@@ -114,6 +115,13 @@
 		flex: none;
 		color: var(--ink-faint);
 	}
+	.lead {
+		flex: none;
+		color: var(--ink-soft);
+	}
+	.lead.alone {
+		flex: 1 1 auto;
+	}
 	.compact .state {
 		justify-content: center;
 		padding: 10px 0;
@@ -146,7 +154,8 @@
 		background: none;
 		box-shadow: inset 0 0 0 1.5px var(--state-stale);
 	}
-	.refused .name {
+	.refused .name,
+	.refused .lead.alone {
 		color: var(--state-stale);
 	}
 </style>

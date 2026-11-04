@@ -90,9 +90,9 @@ type KeyIndex = Pick<Manifest, 'nodes'> & Partial<Pick<Manifest, 'keys' | 'refer
 /**
  * Where Review opens `key`: in the document that reads it, at its place (V7), with the annotation `note` open there when one is named; a key that is a document opens the document; a cited result, or one no live document reads, goes where `keyUrl` sends it.
  *
- * The document is the first live document that reaches the key: the person's own first, the default one leading, then an agent's copy, for a result of the copy's own. A proof with no node of its own is read through the statement that owns it.
+ * The document is the first live document that reaches the key: `within` when it does (the document an annotation names, `in`), else the person's own, the default one leading, then an agent's copy, for a result of the copy's own. A proof with no node of its own is read through the statement that owns it.
  */
-export function placeUrl(m: (KeyIndex & Partial<Pick<Manifest, 'masters'>>) | null, key: string, note?: string): string {
+export function placeUrl(m: (KeyIndex & Partial<Pick<Manifest, 'masters'>>) | null, key: string, note?: string, within?: string | null): string {
 	const asked = note ? '?note=' + encodeURIComponent(note) : '';
 	// a note on a whole document is read at the document's head
 	if (m?.masters?.some((d) => d.path === key)) return masterUrl(key) + asked;
@@ -100,7 +100,7 @@ export function placeUrl(m: (KeyIndex & Partial<Pick<Manifest, 'masters'>>) | nu
 	const node = owner ? m?.nodes[owner] : undefined;
 	// the person's own documents first, the default leading, then an agent's copy, which is where a result of the copy's own lives
 	const live = (m?.masters ?? []).filter((d) => !d.closed && !d.context_only);
-	const rank = (d: (typeof live)[number]) => (isAgentDocument(d) ? 2 : d.default ? 0 : 1);
+	const rank = (d: (typeof live)[number]) => (d.path === within ? -1 : isAgentDocument(d) ? 2 : d.default ? 0 : 1);
 	const doc = node && [...live].sort((a, b) => rank(a) - rank(b)).find((d) => node.reached_by?.includes(d.path));
 	if (!doc) return keyUrl(m, key) + (note ? (keyUrl(m, key).includes('?') ? '&' : '?') + 'note=' + encodeURIComponent(note) : '');
 	return masterUrl(doc.path) + asked + '#' + anchorId(key);

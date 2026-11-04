@@ -33,7 +33,7 @@
 
 <Popover placement="below" width={320} role="note" testid="help-panel-{topic}">
 	{#snippet trigger({ open, toggle })}
-		<button aria-label={label} aria-expanded={open} title={label} onclick={toggle} data-testid="help-{topic}">?</button>
+		<button class="help" aria-label={label} aria-expanded={open} title={label} onclick={toggle} data-testid="help-{topic}">?</button>
 	{/snippet}
 	<div class="pop">
 		<p class="title">{t.title}</p>

@@ -461,6 +461,8 @@ export interface SessionRow {
   active: boolean;
   /** The last event in this session's inbox. A client that has fallen behind knows it has by comparing its own. */
   seq?: number;
+  /** When it was last written in: the newest of its logged commands, its annotations and notes, and its transcript's last message; '' when nothing was. */
+  last?: string;
 }
 
 export interface Thread {
@@ -471,7 +473,8 @@ export interface Thread {
   participants: Author[];
   targets: string[];
   attachments: Attachment[];
-  log: { time: string; command: string; annotation?: string }[];
+  /** The session's command log, a line each: what was run, the annotation it made when it made one, and the keys and files it names, a moved document under where it is now. */
+  log: { time: string; command: string; annotation?: string; names?: ({ key: string } | { path: string })[] }[];
   discarded: boolean;
 }
 

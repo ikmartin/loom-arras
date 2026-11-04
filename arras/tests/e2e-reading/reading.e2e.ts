@@ -320,7 +320,7 @@ test('a session is named on the spot and closed from the page', async ({ page, s
 	await expect(row.locator('[data-testid^="session-close-"]')).toBeHidden();
 	await row.hover();
 	await row.locator('[data-testid^="session-close-"]').click();
-	await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected', { timeout: 10000 });
+	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session', { timeout: 10000 });
 });
 
 test('two notes on one place are one mark with no count drawn, and one box holding both', async ({ page, served }) => {

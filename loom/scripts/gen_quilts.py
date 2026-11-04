@@ -470,6 +470,31 @@ def build_synthetic(dest: Path) -> None:
         agent=True,
     )
 
+    # The commands an agent runs again and again while it reads, which What it did gathers into a row each, and an open suggestion carrying text to put in, which Review › Suggestions applies.
+    g.at("2026-09-17T09:00:00Z")
+    for _ in range(3):
+        g.run("source", "sy-0002", "--session", referee, agent=True)
+    g.run("deps", "sy-0003", "--session", referee, agent=True)
+    g.run(
+        "annotate",
+        "sy-0002",
+        "Say what the comparison shows.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "minor",
+        "--quote",
+        "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+        "--payload",
+        "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+        "--placement",
+        "replace",
+        "--session",
+        referee,
+        agent=True,
+    )
+    g.at("2026-09-16T11:30:00Z")
+
     _write_expected_lint(g)
     # the look last, after every file the story writes, so the one change it shows is the edit after it
     g.run("changes", "--keep-all")

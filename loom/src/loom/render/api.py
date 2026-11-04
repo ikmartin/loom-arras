@@ -25,6 +25,7 @@ CAPABILITIES = [
     "resolve",
     "edit",
     "discard",
+    "suggestion-apply",
     "library-cite",
     "library-verify",
     "library-discard",
@@ -1101,6 +1102,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
             )
         result = _scan(root)
+        if endpoint == "suggestion-apply":
+            return _apply(root, result, _str(body, "annotation", required=True) or "", writer)
         if endpoint == "edit":
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
             fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
@@ -1146,6 +1149,30 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("refused", str(exc)) from exc
     except EnvError as exc:
         raise ApiError("bad-request", str(exc)) from exc
+
+
+def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, str, str]) -> str:
+    """`suggestion-apply`: write a suggestion's text into its file, as `loom suggestion apply ID`, then resolve it as applied against the file as written. The author's act, refused to a declared agent."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError
+    from loom.cli.review import _one_comment
+    from loom.records.annotations import find_annotation, load_records
+    from loom.records.suggestions import ApplyRefused, apply
+
+    if writer[1] == "agent":
+        raise ApiError("author-only", "An agent suggests; only the author puts a suggestion into the text", status=403)
+    found = find_annotation(load_records(root)[0], annotation)
+    if found is None:
+        raise NotFoundError("annotation", f"no annotation {annotation}")
+    try:
+        documents, kept = apply(result, found[1], writer[2])
+    except ApplyRefused as exc:
+        raise ApiError(exc.code, exc.message, status=409) from exc
+    said = f"applied the suggestion in {' and '.join(Path(d).name for d in documents) or found[1].target_key}"
+    try:
+        _one_comment(_scan(root), writer, None, None, None, None, None, annotation, applied=True)
+    except (ContentError, EnvError) as exc:  # the text is in; only the record of it failed, and the person is told so
+        return f"{said}, but it could not be resolved as applied: {exc}"
+    return "; ".join(x for x in (said, kept.said()) if x)
 
 
 def _library_cite(root: Path, body: dict[str, Any]) -> str:

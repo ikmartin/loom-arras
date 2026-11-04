@@ -30,6 +30,8 @@ describe('everything recorded', () => {
 			actWords(a('stamp', { landmark: 'l', message: 'Before referee', in: 'drafting/main.tex' })),
 			actWords(a('restore', { in: 'drafting/main.tex', version: 'v.tex' })),
 			actWords(a('restore', { path: 'README.md' })),
+			actWords(a('move', { from: 'notes/a.md', to: 'drafts/b.md' })),
+			actWords(a('move', { from: 'drafting-ai/x.tex', to: '.loom/copies/x.tex' })),
 			actWords(a('something-new'))
 		]).toEqual([
 			'Kept an edit to x.tex',
@@ -39,6 +41,8 @@ describe('everything recorded', () => {
 			'Recorded the version “Before referee” of main.tex',
 			'Put main.tex back as a version',
 			'Put back in README.md the text an undo set aside',
+			'Moved a.md to b.md',
+			'Moved drafting-ai/x.tex to .loom/copies/x.tex',
 			'something new'
 		]);
 	});

@@ -532,6 +532,10 @@ def build(
     from loom.notes import published as published_notes
 
     manifest["notes"] = published_notes(result)
+    from loom.render.threads import last_active
+
+    for s in manifest.get("sessions", []):
+        s["last"] = last_active(result.quilt.root, s["id"], manifest)
     from loom.config_edit import published as published_config
 
     manifest["config"] = published_config(result)

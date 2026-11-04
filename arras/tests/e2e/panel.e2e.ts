@@ -71,7 +71,7 @@ test('a refusal names its condition', async ({ page }) => {
 	// and the footer carries only the state: refused, in its own tone, without the sentence
 	const footer = page.getByTestId('session-footer');
 	await expect(footer).toHaveAttribute('aria-label', /^annotations cannot be written/);
-	await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await expect(page.locator('.footer.refused')).toHaveCount(1);
 	await pickSession(page, REFEREE);
 	await expect(open).toBeEnabled();
@@ -342,7 +342,7 @@ test.describe('sessions', () => {
 	test('a stored session the corpus no longer lists is let go', async ({ page }) => {
 		await page.addInitScript(() => localStorage.setItem('arras.session-view', JSON.stringify({ selected: 's-gone', view: 'all', showClosed: false })));
 		await page.goto('/master/drafting/main');
-		await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+		await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.session-view') ?? '{}').selected)).toBeFalsy();
 	});
 

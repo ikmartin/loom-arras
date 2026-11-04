@@ -5,7 +5,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { typeset } from '$lib/math/mathjax';
 	import { linkName } from '$lib/workspace/names';
-	import { linkIds } from './ids';
+	import { elided, linkIds } from './ids';
 
 	let { html, class: klass = 'body', macroSet }: { html: string; class?: string; macroSet?: string } = $props();
 
@@ -18,8 +18,15 @@
 		void html;
 		if (!node || !m) return;
 		linkIds(node, (key) => !!m.nodes[key]);
+		// the words before a link may already say its kind ("Corollary [](quilt:…)"), and then it reads its number alone
+		let last: { el: Element; kind: string } | null = null;
 		for (const a of node.querySelectorAll<HTMLAnchorElement>('a[href^="quilt:"], a[href^="cited:"]')) {
-			if (!a.textContent?.trim()) a.textContent = linkName(m, a.getAttribute('href') ?? '');
+			if (a.textContent?.trim()) continue;
+			const before = a.previousSibling?.nodeType === Node.TEXT_NODE ? (a.previousSibling.textContent ?? '') : '';
+			const chained = last && a.previousSibling?.previousSibling === last.el ? last.kind : null;
+			const { text, kind } = elided(before, linkName(m, a.getAttribute('href') ?? ''), chained);
+			a.textContent = text;
+			last = kind ? { el: a, kind } : null;
 		}
 	});
 

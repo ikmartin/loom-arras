@@ -1,46 +1,54 @@
-// What it did: a session's `run.log`, in order, opening on the newest action; a row that made or changed an annotation links it, names what it is on by the key it was filed under, says its kind by a dot in the kind's hue and where it stands in a word; and the row and the annotation's mark point at each other across the panes. Each test is named for the rule it holds.
+// What it did: a session's command log read as its record. Recorded groups the annotations it made by the block they are on, named as a reader names it, each with its kind as a dot in the kind's hue and where it stands; Ran lists every other command once, with how many times and what it names; every line stays, in order, folded at the foot; and an annotation's row and its mark point at each other across the panes. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside } from '../workspace';
 import { manifest, QUICK, REFEREE, serve } from '../manifest';
 
-/** The referee's log, padded with `extra` plain commands before it, so the view has something to scroll. */
+/** The referee's log, padded with `extra` plain commands before it, nine distinct ones repeated. */
 async function longLog(page: Page, extra: number) {
 	await serve(page, (m) => {
-		const pad = Array.from({ length: extra }, (_, i) => ({ time: '2026-09-15T09:00:00Z', command: `loom source sy-000${i % 9} --closure` }));
+		const pad = Array.from({ length: extra }, (_, i) => ({ time: '2026-09-15T09:00:00Z', command: `loom source sy-000${i % 9} --closure`, names: [{ key: `sy-000${i % 9}` }] }));
 		m.threads[REFEREE].log = [...pad, ...m.threads[REFEREE].log];
 	});
 }
 
-test('the rows are the log, in order, and the view opens on the newest', async ({ page }) => {
+test('every line of the log stays, in order, folded at the foot', async ({ page }) => {
 	await longLog(page, 60);
 	await page.goto(`/session/${REFEREE}?view=did`);
+	const every = page.getByTestId('did-every');
+	await expect(every).not.toHaveAttribute('open', '');
+	await every.locator('summary').click();
 	const rows = page.getByTestId('did-row');
 	await expect(rows).toHaveCount(60 + manifest.threads[REFEREE].log.length);
-	await expect(rows.last()).toBeInViewport();
-	await expect(rows.first()).not.toBeInViewport();
 	await expect(rows.first()).toContainText('loom source sy-0000 --closure');
 });
 
-test('a row names what its annotation is on by its key, never as a reader numbers it, says its kind by hue and where it stands', async ({ page }) => {
+test('a command run again and again is one row, with how many times, and links what it names', async ({ page }) => {
+	await longLog(page, 60);
+	await page.goto(`/session/${REFEREE}?view=did`);
+	const ran = page.getByTestId('did-ran').getByTestId('did-command').filter({ hasText: 'loom source sy-0000 --closure' });
+	await expect(ran).toHaveCount(1);
+	await expect(ran.getByTestId('did-times')).toContainText('×7 ·');
+	await expect(ran.getByTestId('did-named')).toHaveAttribute('href', 'quilt:sy-0000');
+	// a command that made an annotation is in Recorded, not Ran
+	await expect(page.getByTestId('did-ran')).not.toContainText('loom annotate sy-0003');
+});
+
+test('what it recorded is grouped by the block it is on, named as a reader names it, each with its kind by hue and where it stands', async ({ page }) => {
 	await page.goto(`/session/${REFEREE}?view=did`);
 	const made = page.locator('[id="ann-a-2026-09-16-0001"]');
+	const group = page.getByTestId('did-group').filter({ has: made });
+	await expect(group.getByTestId('did-on')).toHaveAttribute('title', 'sy-0003');
+	await expect(group.getByTestId('did-on')).not.toHaveText('sy-0003');
 	// the kind is a dot in the objection's red, the word kept for a screen reader only (annotation study A2, A4)
-	await expect(made.getByTestId('did-annotation')).toHaveText('sy-0003');
-	await expect(made.locator('.made')).not.toContainText('objection');
-	await expect(made).not.toContainText('Theorem');
 	const dot = made.getByTestId('did-kind');
 	await expect(dot).toHaveClass(/k-objection/);
 	await expect(dot).toHaveAttribute('aria-label', 'objection');
 	await expect(dot).toHaveCSS('background-color', 'rgb(163, 45, 45)');
 	await expect(made.getByTestId('did-state')).toHaveText('open');
-	// a reply's dot is a ring in its thread's hue
-	const reply = page.locator('[id="ann-a-2026-09-16-0008"]').getByTestId('did-kind');
-	await expect(reply).toHaveClass(/reply/);
-	await expect(reply).toHaveAttribute('aria-label', 'reply, question');
-	// a later row about the same annotation links it too, but only the first carries its anchor
-	const resolved = page.getByTestId('did-row').filter({ hasText: '--resolve a-2026-09-16-0002' });
-	await expect(resolved.getByTestId('did-state')).toHaveText('resolved');
-	await expect(resolved).not.toHaveAttribute('id', /.+/);
+	await expect(made.getByTestId('did-first')).toContainText('finite');
+	// an annotation the log names twice, made and then resolved, is one row, where it stands now
+	await expect(page.locator('[id="ann-a-2026-09-16-0002"]')).toHaveCount(1);
+	await expect(page.locator('[id="ann-a-2026-09-16-0002"]').getByTestId('did-state')).toHaveText('resolved');
 });
 
 test('a row links the annotation it made by its quilt: address, which opens where every such link does', async ({ page }) => {

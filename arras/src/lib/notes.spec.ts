@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Manifest } from '$lib/manifest/types';
 import { notesWhere, noteWhere } from './notes';
-import { openSuggestions, reviewLanding, sectionsOf } from './review/sections';
+import { reviewLanding, sectionsOf } from './review/sections';
+import { toApply, toConsider } from './review/suggestions';
 import { itemForQuilt } from './workspace/links';
 import { linkName } from './workspace/names';
 
@@ -17,7 +18,8 @@ const m = {
 	regions: {},
 	references: { Arden24: { citekey: 'Arden24', bib: { title: 'A work' }, artifacts: { pdf: true } } },
 	annotations: {
-		'a-2026-10-01-0001': { id: 'a-2026-10-01-0001', kind: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null },
+		'a-2026-10-01-0001': { id: 'a-2026-10-01-0001', kind: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: 'Each orbit', placement: 'replace' },
+		'a-2026-10-01-0004': { id: 'a-2026-10-01-0004', kind: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: null },
 		'a-2026-10-01-0002': { id: 'a-2026-10-01-0002', kind: 'suggestion', target: { key: 'q-0001' }, status: 'resolved', in_reply_to: null },
 		'a-2026-10-01-0003': { id: 'a-2026-10-01-0003', kind: 'objection', target: { key: 'q-0001' }, status: 'open', in_reply_to: null }
 	},
@@ -53,14 +55,17 @@ describe('notes', () => {
 });
 
 describe('Review as the meta view', () => {
-	it('leads with the changes since the look, and counts the open suggestions', () => {
+	it('leads with the changes since the look, and counts the suggestions with text to put in', () => {
 		const sections = sectionsOf(m);
 		expect(sections.map((s) => s.id)).toEqual(['changes', 'needs-review', 'incoming', 'suggestions', 'library', 'sessions', 'problems']);
 		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(1);
 		// a count is what waits for the author: an open session waits for no one, and a work with its paper and nothing to judge asks nothing
 		expect(sections.find((s) => s.id === 'library')!.waits).toBe(0);
 		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'changes')!.href);
-		expect(openSuggestions(m).map((a) => a.id)).toEqual(['a-2026-10-01-0001']);
+		expect(toApply(m).map((a) => a.id)).toEqual(['a-2026-10-01-0001']);
+		// one in prose alone is weighed, not applied, and not counted
+		expect(toConsider(m).map((a) => a.id)).toEqual(['a-2026-10-01-0004']);
+		expect(sections.find((s) => s.id === 'suggestions')!.waits).toBe(1);
 		// before a first look there is nothing to compare against, and no Changes
 		expect(sectionsOf({ ...m, changes_since: undefined, changes: undefined } as Manifest).map((s) => s.id)).not.toContain('changes');
 	});

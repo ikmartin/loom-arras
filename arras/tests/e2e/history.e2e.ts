@@ -185,11 +185,29 @@ test('Restore on a version asks first, then puts it back and turns to the live t
 	});
 	await page.goto('/canon/widgets-v2');
 	await pane(page, 0).getByTestId('version-restore').click();
-	await expect(pane(page, 0).getByTestId('version-ask')).toHaveText('Put main.tex back as this version? Its text now is kept as a version.');
+	await expect(pane(page, 0).getByTestId('version-ask')).toContainText('Put main.tex back as this version? Its text now is kept as a version.');
 	expect(posted).toBeNull();
 	await pane(page, 0).getByTestId('version-restore-go').click();
 	await expect(page).toHaveURL(/\/master\/drafting\/main/);
 	expect(posted).toMatchObject({ document: 'drafting/main.tex', version: '.loom/history/0003-widgets-v2/widgets-v2.tex' });
+	// the answer stays under the live text's toolbar until closed
+	await expect(pane(page, 0).getByTestId('version-said')).toContainText('Put main.tex back as “widgets-v2” holds it');
+	await pane(page, 0).getByTestId('strip-close').click();
+	await expect(pane(page, 0).getByTestId('version-said')).toHaveCount(0);
+});
+
+test('a version compared with now keeps its toolbar on one line, older and newer alone', async ({ page }) => {
+	await page.setViewportSize({ width: 1100, height: 800 });
+	await page.goto('/canon/widgets-v2');
+	await pane(page, 0).getByTestId('version-compare').click();
+	const bar = pane(page, 0).getByTestId('item-controls');
+	await expect(bar.getByTestId('version-older')).toBeVisible();
+	await expect(bar.getByTestId('version-compare')).toHaveCount(0);
+	await expect(bar.getByTestId('history-live')).toHaveCount(0);
+	const box = (await bar.boundingBox())!;
+	const controls = (await bar.getByTestId('version-controls').boundingBox())!;
+	expect(controls.y).toBeGreaterThanOrEqual(box.y);
+	expect(controls.y + controls.height).toBeLessThanOrEqual(box.y + box.height);
 });
 
 test('the history menu records a version from Review › History', async ({ page }) => {

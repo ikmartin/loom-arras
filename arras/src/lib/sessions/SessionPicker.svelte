@@ -154,6 +154,7 @@
 				{/if}
 				<!-- Over the row's end rather than beside it, on hover or keyboard focus only, so a row does not grow or shift when they appear and at rest it reads as the mockup does (the tab rule, W4). -->
 				<span class="verbs">
+					<button type="button" title="Read its transcript, writing where you write now" aria-label="Read {titleOf(s)}" data-testid="session-read-{s.id}" onclick={() => (openChat(s.id, m, false), onpicked())}>☰</button>
 					<button
 						type="button"
 						title="Rename"

@@ -150,10 +150,34 @@ test.describe('one transcript at a time', () => {
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	});
 
-	test("opening a second session's transcript closes the first, and selects it", async ({ page }) => {
+	test('reading a transcript chooses nothing: the footer keeps where writes go, and Write here chooses it', async ({ page }) => {
 		await page.goto('/node/sy-0003' + beside('/session/' + REFEREE));
 		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
+		await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
+		await expect(pane(page, 1).getByTestId('chat-writing')).toContainText('You are not writing in a session.');
+		await pane(page, 1).getByTestId('chat-write-here').click();
 		await expect(page.getByTestId('session-footer-name')).toHaveText('referee');
+		await expect(pane(page, 1).getByTestId('chat-writing')).toHaveCount(0);
+		// the picker reads another session without choosing it, and that transcript says where writes go
+		await openPicker(page);
+		await page.getByTestId('show-closed').click();
+		await page.getByTestId(`session-${QUICK}`).hover();
+		await page.getByTestId(`session-read-${QUICK}`).click();
+		await expect(pane(page, 1).getByRole('tab')).toHaveText('quick');
+		await expect(page.getByTestId('session-footer-name')).toHaveText('referee');
+		await expect(pane(page, 1).getByTestId('chat-writing')).toContainText('You are writing in “referee”. This one is closed.');
+	});
+
+	test('a transcript with nothing said says so, at the size of its text', async ({ page }) => {
+		await page.goto('/session/' + QUICK);
+		const empty = page.getByTestId('transcript-empty');
+		await expect(empty).toHaveText('Nothing has been said in this session yet.');
+		expect(parseFloat(await empty.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThan(13);
+	});
+
+	test("choosing a second session in the picker closes the first transcript, and writes go there", async ({ page }) => {
+		await page.goto('/node/sy-0003' + beside('/session/' + REFEREE));
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		// the second is the fixture's closed session, which the picker lists under Closed
 		await openPicker(page);
 		await page.getByTestId('show-closed').click();

@@ -22,6 +22,7 @@ from loom.scan.macros import compatibility_macros, declared_alphabets, package_m
 from loom.scan.model import Diagnostic
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
+from loom.scan.sections import starred_at
 from loom.tex.aux import AuxNumber
 from loom.version import INTERFACE_VERSION, __version__
 
@@ -194,8 +195,13 @@ def key_hash(result: ScanResult, key: str) -> str:
     return hash_text(own_text(result, result.nodes[key]))
 
 
-def _numbers(node: NodeRec, numbers: dict[str, dict[str, AuxNumber]]) -> dict[str, dict[str, Any]]:
+def _numbers(
+    node: NodeRec, numbers: dict[str, dict[str, AuxNumber]], starred: bool = False
+) -> dict[str, dict[str, Any]]:
+    """The node's number in each document reaching it, from that document's aux; none for a starred heading, whose label holds the enclosing one's."""
     out: dict[str, dict[str, Any]] = {}
+    if starred:
+        return out
     for master, table in numbers.items():
         if master not in node.reached_by:
             continue
@@ -293,7 +299,7 @@ def build_manifest(
         "inclusion": {},
         "states": STATE_LABELS,
         "annotations": {},
-        "threads": build_threads(result.quilt.root),
+        "threads": build_threads(result.quilt.root, result=result),
         # The selector's data (plan 0.13 §5): which sessions exist, which is active, and how much is open in each.
         "sessions": _sessions(result.quilt.root),
         "reference_notes": _published_notes(result.quilt.root),
@@ -379,7 +385,7 @@ def build_manifest(
             "file": n.file,
             "src": [n.start, n.end],
             "fragment": fragments.get(key, ""),
-            "numbers": _numbers(n, numbers),
+            "numbers": _numbers(n, numbers, n.kind == "section" and starred_at(result.files[n.file].clean, n.start)),
             "reached_by": list(n.reached_by),
             "parent": _parent_of(result, n),
             "children": [c for c in n.claimants if asm.nodes[c].kind in ("environment", "section") or asm.nodes[c].id],

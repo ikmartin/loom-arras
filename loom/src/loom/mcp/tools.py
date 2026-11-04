@@ -24,11 +24,16 @@ GROUP_WORDS = {
         "key",
         "A key, to list its recorded versions and whether its text now is one; with none, the history's steps.",
     ),
+    "suggestion": ("annotation", "The suggestion, by its id."),
     "library": (
         "work",
         "A work, by citekey, its identifier (doi:…, arXiv:…), a fragment of a citekey or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
     ),
 }
+
+
+#: The groups whose word is not optional: `suggestion` alone prints nothing.
+WORD_REQUIRED = frozenset({"suggestion"})
 
 
 class CallRefused(ValueError):
@@ -108,7 +113,7 @@ def _spec(path: str, cmd: click.Command) -> ToolSpec:
     params = [p for p in (_param(x) for x in cmd.params) if p is not None]
     if path in GROUP_WORDS:
         name, said = GROUP_WORDS[path]
-        params.insert(0, Param(name, None, "string", description=said, word=True))
+        params.insert(0, Param(name, None, "string", required=path in WORD_REQUIRED, description=said, word=True))
     return ToolSpec(
         name=tool_name(path),
         path=path,

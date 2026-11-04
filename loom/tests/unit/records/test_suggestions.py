@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from loom.records.annotations import find_annotation, load_records
 from loom.records.suggestions import Unplaced, body_span, is_taken, patch, place
 from loom.scan.quilt import load_quilt
@@ -198,3 +200,88 @@ def test_the_manifest_carries_each_open_suggestions_change(tmp_path: Path) -> No
     ok("build", cwd=q)
     entry = json.loads((q / ".loom/build" / "manifest.json").read_text())["annotations"][ready]
     assert "change" not in entry and entry["applied"]["hash"]
+
+
+def _session(q: Path) -> str:
+    from loom.sessions import active
+
+    s = active(q)
+    assert s
+    return s
+
+
+def test_apply_writes_it_in_keeping_a_version_first_and_resolves_it_as_applied(tmp_path: Path) -> None:
+    from loom.history.acts import APPLY
+    from loom.history.ledger import load_history
+    from loom.render.manifest import key_hash
+
+    q = demo(tmp_path)
+    a = suggest(q, "--quote", "one or two points", "--payload", "at most two points", "--placement", "replace")
+    out = ok("suggestion", "apply", a, "--as", "Tom", cwd=q).stdout
+    assert "applied" in out and "a version of" in out
+    assert "at most two points" in (q / LEMMA).read_text() and "one or two points" not in (q / LEMMA).read_text()
+    result, ann = placed(q, a)
+    assert ann.status == "resolved" and ann.applied == {"hash": key_hash(result, "dm-0002")}
+    history = load_history(result.quilt.history_dir)
+    kept = [e for e in history.landmarks() if e.get("kept_for") == APPLY]
+    assert kept and kept[-1].message == "Before applying a suggestion"
+    assert "one or two points" in history.landmark_path(kept[-1]).read_text()  # the text it replaced
+    line = [e for e in history.entries if e.action == APPLY][-1]
+    assert (line.get("annotation"), line.get("key"), line.get("path")) == (a, "dm-0002", LEMMA)
+
+
+def test_apply_over_the_api_is_the_authors_and_says_why_it_cannot(tmp_path: Path) -> None:
+    from loom.render.api import ApiError, handle
+
+    q = demo(tmp_path)
+    a = suggest(q, "--quote", "one or two points", "--payload", "at most two points", "--placement", "replace")
+    prose = suggest(q, "--quote", "Every orbit")
+    lost = suggest(q, "--quote", "the one-point orbits", "--payload", "the fixed points", "--placement", "replace")
+    session = _session(q)
+    body = {"session": session, "author": "Tom"}
+    with pytest.raises(ApiError) as agent:
+        handle(q, "suggestion-apply", {**body, "annotation": a, "author": "Claude Agent"})
+    assert (agent.value.code, agent.value.status) == ("author-only", 403)
+    with pytest.raises(ApiError) as no_text:
+        handle(q, "suggestion-apply", {**body, "annotation": prose})
+    assert no_text.value.code == "no-text" and "proposes no text" in no_text.value.message
+    edit(q / LEMMA, "the one-point orbits", "the orbits of size one")
+    with pytest.raises(ApiError) as unplaced:
+        handle(q, "suggestion-apply", {**body, "annotation": lost})
+    assert unplaced.value.code == "unplaced"
+    said = handle(q, "suggestion-apply", {**body, "annotation": a})["result"]
+    assert said.startswith("applied the suggestion in main.tex") and "a version of main.tex" in said
+    with pytest.raises(ApiError) as again:
+        handle(q, "suggestion-apply", {**body, "annotation": a})
+    assert again.value.code == "not-open"
+    # nothing was written for the refused ones
+    assert "the orbits of size one" in (q / LEMMA).read_text()
+
+
+def test_a_suggestion_on_an_agents_copy_is_not_applied_since_it_comes_in_with_the_copy(tmp_path: Path) -> None:
+    import shutil
+
+    from loom.render.api import ApiError, handle
+    from tests.unit._quilts import REPO
+
+    q = tmp_path / "q"
+    shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q, ignore=shutil.ignore_patterns("build", ".git"))
+    out = ok(
+        "annotate",
+        "sy-0002-ai",
+        "Shorter",
+        "--kind",
+        "suggestion",
+        "--quote",
+        "at most two points",
+        "--payload",
+        "two points at most",
+        "--placement",
+        "replace",
+        "--as",
+        "Tom",
+        cwd=q,
+    ).stdout
+    with pytest.raises(ApiError) as copy:
+        handle(q, "suggestion-apply", {"annotation": out.split()[0], "session": _session(q), "author": "Tom"})
+    assert copy.value.code == "on-a-copy" and "aidoc.tex" in copy.value.message

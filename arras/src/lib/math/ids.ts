@@ -53,3 +53,30 @@ export function idParts(text: string, known: (key: string) => boolean): (string 
 	if (at < text.length) out.push(text.slice(at));
 	return out;
 }
+
+/**
+ * A link's name once the words before it are read: the number alone when they already say its kind, as `Corollary~\ref{…}` prints in LaTeX, so "Corollary [](quilt:…)" reads "Corollary 7.8" and not "Corollary Corollary 7.8".
+ *
+ * Parameters
+ * ----------
+ * before : string
+ *     The text right before the link.
+ * name : string
+ *     The name the viewer gives it ("Corollary 7.8"); one not ending in a number is kept whole.
+ * chained : string | null
+ *     The kind of the link just before, when it was shortened and only "and", "or", a comma or a dash stands between: "Theorems [](a) and [](b)" reads "Theorems 4.8 and 6.43".
+ *
+ * Returns
+ * -------
+ * { text: string; kind: string | null }
+ *     The text to show, and the kind when it was shortened, to pass on as the next link's `chained`.
+ */
+export function elided(before: string, name: string, chained: string | null): { text: string; kind: string | null } {
+	const m = /^(.*\S)\s+(\S*\d\S*)$/.exec(name);
+	if (!m) return { text: name, kind: null };
+	const [, kind, number] = m;
+	const tail = before.replace(/[\s~ ]+$/, '');
+	const said = new RegExp(`(^|[^\\w])${kind.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(s|es)?$`, 'i').test(tail);
+	const listed = chained !== null && chained.toLowerCase() === kind.toLowerCase() && /(^|\s)(and|or)$|[,–-]$/i.test(tail);
+	return said || listed ? { text: number, kind } : { text: name, kind: null };
+}

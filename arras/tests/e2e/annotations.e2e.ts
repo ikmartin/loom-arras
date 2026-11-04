@@ -1135,7 +1135,7 @@ test.describe('the settled control', () => {
 		// the discarded note on sy-000A belongs to the closed session; here it is the open one's, so only the settled control stands between the reader and it
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0011'].run = REFEREE));
 		await page.goto(`/session/${REFEREE}?view=did`);
-		await page.locator('[data-testid="did-row"] a[href="quilt:a-2026-09-16-0002"]').first().click();
+		await page.locator('[data-testid="did-annotation"][href="quilt:a-2026-09-16-0002"]').click();
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('[data-pane="1"] article.box.settled[data-annotation-id="a-2026-09-16-0002"]')).toBeVisible();
 		// a discarded annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was discarded

@@ -281,14 +281,32 @@ A note has no kind, severity or resolution: it says what someone wants kept besi
 
 ### `loom suggestion`
 
-`loom suggestion [OPTIONS] ANNOTATION`
+`loom suggestion [OPTIONS]`
 
-Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now; the file is the author's to change.
+`loom suggestion [OPTIONS] [ANNOTATION | apply ANNOTATION]`
 
-`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it.
+Run alone, `loom suggestion` is a command; its subcommands follow its options.
+
+Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now.
+
+`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it; `loom suggestion apply ANNOTATION` does both, and is the author's.
 
 | option | description |
 |---|---|
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom suggestion apply`
+
+`loom suggestion apply [OPTIONS] ANNOTATION`
+
+Write suggestion ANNOTATION into its file and resolve it as applied, keeping a version of each document it changes first.
+
+The author's act. Refused for a suggestion with no text to put in, one whose quote no longer stands once, one already resolved or withdrawn, and one on an agent's copy, whose changes come in with the copy.
+
+| option | description |
+|---|---|
+| `--as` `NAME` | Who is applying it; default your [author] name. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

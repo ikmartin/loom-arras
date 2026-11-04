@@ -776,7 +776,14 @@ class Converter:
                     title_html = self.inline_text(title or "", spans[1][0]) if title is not None else ""
                     lm = re.match(r"\s*\\label\s*\{([^}]*)\}", clean[after:])
                     hid = f' id="{slug(norm_label(lm.group(1)))}"' if lm else ""
-                    out.append(f'<h{h}{hid} data-src="{ctx.src(t.start, after)}">{title_html}</h{h}>')
+                    # a heading inside a block (a landmark's, where nothing split it off) is numbered as the live one is; a starred one never is, whatever its label holds
+                    num = (
+                        (ctx.numbers.get(lm.group(1)) or ctx.numbers.get(norm_label(lm.group(1))))
+                        if lm and not name.endswith("*")
+                        else None
+                    )
+                    number_html = f'<span class="number">{esc(num.number)}</span> ' if num else ""
+                    out.append(f'<h{h}{hid} data-src="{ctx.src(t.start, after)}">{number_html}{title_html}</h{h}>')
                     i, tail = self._resume(toks, i, after)
                     if tail:
                         emit_text(ctx.text[tail[0] : tail[1]], tail[0])

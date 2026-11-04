@@ -10,3 +10,8 @@
 2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-0002 → a-2026-09-16-0009
 2026-09-16T00:00:00Z  loom annotate --resolve a-2026-09-16-0002 → a-2026-09-16-0002
 2026-09-16T00:00:00Z  loom annotate sy-0001 --quote --kind question → a-2026-09-16-0010
+2026-09-17T09:00:00Z  loom source sy-0002
+2026-09-17T09:00:00Z  loom source sy-0002
+2026-09-17T09:00:00Z  loom source sy-0002
+2026-09-17T09:00:00Z  loom deps sy-0003
+2026-09-17T09:00:00Z  loom annotate sy-0002 --quote --kind suggestion → a-2026-09-17-0001

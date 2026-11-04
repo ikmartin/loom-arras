@@ -12,7 +12,7 @@ Plan 0.20.7 built each suggestion's in-place view: the box shows the key with th
 
 ## Rough design
 
-- **A view of the document with every open suggestion taken.** A document's `view ▾` gains *with suggestions*: the document as it would read with each placeable open suggestion in place, each change washed and its annotation's mark beside it, read-only like a landmark. Taking one is still the author's edit; the view only shows.
+- **A view of the document with every open suggestion taken.** A document's `view ▾` gains *with suggestions*: the document as it would read with each placeable open suggestion in place, each change washed and its annotation's mark beside it, read-only like a landmark. Taking one is still Apply on that suggestion, or the author's own edit; the view only shows.
 - **Built by the publisher**, as the in-place fragments are (`render/payloads.py`, `attach_changes`), so a static host shows it too. Several suggestions on one key are placed in one pass against its text (`records/suggestions.py`'s `place`, extended to compose); where two overlap, the first placed is shown and the other says it could not be.
 - **Optionally the same per section,** if a whole document is too slow to build on a large quilt.
 

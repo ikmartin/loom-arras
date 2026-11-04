@@ -17,7 +17,7 @@ test('1440: the column open, its two views, its footer, and two panes each with 
 	await expect(page.locator('.panel.away')).toHaveCount(0);
 	await expect(page.getByTestId('primary-docs')).toBeVisible();
 	await expect(page.getByTestId('primary-review')).toBeVisible();
-	await expect(page.getByTestId('session-footer-name')).toBeInViewport();
+	await expect(page.getByTestId('session-footer')).toBeInViewport();
 	for (const i of [0, 1]) await expect(pane(page, i).getByTestId('item-controls')).toBeVisible();
 	expect(await fits(page)).toBe(true);
 });

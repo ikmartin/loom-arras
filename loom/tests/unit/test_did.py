@@ -69,6 +69,28 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
     assert log[1] == {"time": "2026-09-01T00:00:00Z", "command": "loom source dm-0003"}
 
 
+def test_each_line_says_what_it_names_and_the_session_when_it_was_last_active(q: Path) -> None:
+    from loom.render.threads import build_threads
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+    from loom.sessions import files_dir, sessions
+
+    sid = new_session(q)
+    where = files_dir(q, sessions(q)[sid])
+    where.mkdir(parents=True, exist_ok=True)
+    with (where / "run.log").open("a") as fh:
+        fh.write("2099-09-01T00:00:00Z  loom source dm-0003 --closure\n")
+        fh.write("2099-09-02T00:00:00Z  loom compile drafting/main.tex\n")
+        fh.write("2099-09-03T00:00:00Z  loom search orbit\n")
+    log = build_threads(q, result=scan(load_quilt(q)))[sid]["log"]
+    assert [e.get("names") for e in log] == [[{"key": "dm-0003"}], [{"path": "drafting/main.tex"}], None]
+    ok("build", cwd=q)
+    m = json.loads((q / ".loom/build/manifest.json").read_text())
+    row = next(s for s in m["sessions"] if s["id"] == sid)
+    # the newest of what was done in it, which opening it never moves
+    assert row["last"] == "2099-09-03T00:00:00Z" and row["opened"] != row["last"]
+
+
 def test_library_commands_log_their_arguments_as_typed(q: Path) -> None:
     """The log, and so the status line and What it did, shows a library command as typed, not as a Python tuple (0.14 study F10)."""
     sid = new_session(q)

@@ -27,6 +27,7 @@ from loom.scan.labels import plain_key
 from loom.scan.model import Diagnostic, Env, Location, Macro
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
+from loom.scan.sections import starred_at
 from loom.scan.tokenize import read_args
 from loom.tex.aux import AuxNumber
 from loom.tex.bundle import _macro_block
@@ -481,7 +482,7 @@ class FragmentRenderer:
         conv = Converter(ctx)
         title_html = conv.inline_text(title or "", spans[1][0]) if title else ""
         num = None
-        for lab in [node.id, *node.labels]:
+        for lab in [] if starred_at(src.clean, node.start) else [node.id, *node.labels]:
             if lab and lab in ctx.numbers:
                 num = ctx.numbers[lab].number
                 break

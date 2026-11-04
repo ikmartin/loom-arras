@@ -60,8 +60,11 @@ export function actWords(a: HistoryAct): string {
 			return `Brought ${file(a.path ?? '')} back into the quilt`;
 		case 'page-write':
 			return `Wrote the page ${a.page ?? file(a.path ?? '')}`;
-		case 'move':
-			return `Moved ${file(a.from ?? '')} to ${file(a.to ?? '')}`;
+		case 'move': {
+			// a move between folders keeps its file name, so each end is said by its path
+			const [from, to] = [a.from ?? '', a.to ?? ''];
+			return file(from) === file(to) ? `Moved ${from} to ${to}` : `Moved ${file(from)} to ${file(to)}`;
+		}
 		default:
 			return a.action.replaceAll('-', ' ');
 	}

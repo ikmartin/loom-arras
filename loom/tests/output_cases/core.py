@@ -52,6 +52,7 @@ KIND: dict[str, str] = {
     "serve": "running",
     "source": "raw",
     "suggestion": "raw",
+    "suggestion apply": "report",
     "status": "report",
     "upgrade": "report",
 }
@@ -82,6 +83,12 @@ CASES: dict[str, list[Case]] = {
         Case(("a-2026-09-16-0002",), unchanged=True),
         Case(("a-2026-09-16-0001",), exit=1, unchanged=True, why="a suggestion that carries no text"),
         Case(("a-2026-09-16-9999",), exit=2, unchanged=True, why="no such annotation"),
+    ],
+    "suggestion apply": [
+        Case(("a-2026-09-16-0002", "--as", "Tester")),
+        Case(("a-2026-09-16-0001", "--as", "Tester"), exit=1, unchanged=True, why="a suggestion that carries no text"),
+        Case(("a-2026-09-16-9999", "--as", "Tester"), exit=2, unchanged=True, why="no such annotation"),
+        Case(("a-2026-09-16-0002", "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
     ],
     "annotate": [
         Case(("dm-0002", "Which orbits?", "--as", "Tester")),

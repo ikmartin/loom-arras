@@ -1,0 +1,11 @@
+--- a/drafting/nodes/sy-0002.tex
++++ b/drafting/nodes/sy-0002.tex
+@@ -3,7 +3,7 @@
+ % !LOOM tags: orbits, setup
+ 
+ \begin{lemma}[Orbits]\label{sy-0002}
+-Every orbit of a widget has one or two points; compare \eqref{eq:fix} in Definition~\ref{sy-0001}.
++Every orbit of a widget has one or two points; the fixed points are those of \eqref{eq:fix} in Definition~\ref{sy-0001}.
+ \end{lemma}
+ \begin{proof}
+ The orbit of $x$ is $\{x, \sigma x\}$ because

@@ -190,7 +190,7 @@ export function holding(m: Manifest, item: Item, from: number): { item: Item; pa
 }
 
 /**
- * Close every session but `id`, wherever it stands: the transcript on screen is the selected session's, so two sessions are never open at once (plan 0.14).
+ * Close every session but `id`, wherever it stands: one transcript is open at a time, the one read last. Which session writes go to is the footer's, and reading one never changes it.
  */
 export function soleSession(id: string): void {
 	for (let p = workspace.panes.length - 1; p >= 0; p--) {
@@ -199,7 +199,7 @@ export function soleSession(id: string): void {
 }
 
 /**
- * Select a session and open its transcript beside what is being read, or reveal it where it is, without taking focus. `select` is false for a caller that has set the selection itself.
+ * Open a session's transcript beside what is being read, or reveal it where it is, without taking focus; with `select`, the default, also choose it as where writes go, which the picker's rows do. `select` is false to read it alone, or for a caller that has set the selection itself.
  *
  * Choosing a session is not a change of what is being read, so the focused pane, and with it the controls, stays with the item the reader was in.
  */
