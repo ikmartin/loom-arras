@@ -1,7 +1,8 @@
 <script lang="ts">
-	// One review of an agent's copy (plan 0.25.2): every change it makes, named as the person reads it and grouped by section, decided one at a time in a bar that never moves. Take it and Leave it are saved at once and step to the next change to decide; Apply writes what was taken into the paper in one press, keeping the paper as it was first and accepting the blocks the person marked as checked. Whatever loom answers, done or refused, is said in the bar beside the controls that asked.
+	// One review of an agent's copy (plan 0.25.2): every change it makes, named as the person reads it and grouped by section in the list the counter opens (`ChangeList`), decided one at a time in a bar that never moves, the two texts compared across the page's full width. Take it and Leave it are saved at once and step to the next change to decide; Apply writes what was taken into the paper in one press, keeping the paper as it was first and accepting the blocks the person marked as checked. Whatever loom answers, done or refused, is said in the bar beside the controls that asked.
 	import ActionBar from './ActionBar.svelte';
 	import Said from './Said.svelte';
+	import ChangeList from './ChangeList.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { AdoptionReview, IncorporationMathReview, IncorporationOutcome } from '$lib/manifest/types';
@@ -24,7 +25,6 @@
 	const reviewer = $derived(m.reviewer?.name ?? '');
 	let writable = $state(false);
 	let active = $state('');
-	let filter = $state('');
 	let busy = $state('');
 	let checked = $state<string[]>([]);
 	onMount(() => {
@@ -35,19 +35,9 @@
 	const index = $derived(Math.max(0, items.findIndex((i) => i.key === active)));
 	const current = $derived<Item | undefined>(items[index]);
 	const standing = $derived(current ? stateOf(c, current) : 'undecided');
-	const shown = $derived(filter.trim() ? items.filter((i) => `${i.name} ${i.detail} ${i.section}`.toLowerCase().includes(filter.trim().toLowerCase())) : items);
-	// the list's sections in the order they first come, each heading every change under it
-	const groups = $derived.by(() => {
-		const out: { section: string; items: Item[] }[] = [];
-		for (const i of shown) {
-			const at = out.find((g) => g.section === i.section);
-			if (at) at.items.push(i);
-			else out.push({ section: i.section, items: [i] });
-		}
-		return out;
-	});
 	const SAYS: Record<string, string> = { taken: 'taken', left: 'left out', undecided: 'to decide' };
 	const says = (i: Item) => (i.can ? SAYS[stateOf(c, i)] : "can't be taken") + (i.change?.class === 'merged' ? ' · merged' : '');
+	const listed = $derived(items.map((i) => ({ key: i.key, name: i.name, says: says(i), state: i.can ? stateOf(c, i) : 'clash', section: i.section, also: i.detail })));
 
 	function go(to: number): void {
 		const next = items[Math.min(items.length - 1, Math.max(0, to))];
@@ -132,7 +122,7 @@
 		{#snippet below()}
 			<div class="step">
 				<button class="btn small quiet" disabled={index <= 0} onclick={() => go(index - 1)} aria-label="Previous change" data-testid="prev-change">‹</button>
-				<span class="at" data-testid="change-at">{items.length ? index + 1 : 0} of {items.length}</span>
+				<ChangeList changes={listed} active={current?.key ?? ''} onpick={(key) => (active = key)} findable />
 				<button class="btn small quiet" disabled={index >= items.length - 1} onclick={() => go(index + 1)} aria-label="Next change" data-testid="next-change">›</button>
 				<span class="now">{current?.name ?? ''}</span>
 				{#if acts && current}
@@ -153,20 +143,7 @@
 	<p class="lead">An agent's copy of {file(c.source)}. Take or leave each change; Apply writes the ones you took into {file(c.source)}, keeping it as it was first. <a href={masterUrl(c.copy)}>Read the copy</a></p>
 	{#each c.issues as issue, i (i)}<Said text={issue} refused />{/each}
 	{#if writable && !reviewer}<p class="muted">Choose your reviewer name in Settings to take changes.</p>{/if}
-	<div class="workspace">
-		<aside aria-label="The copy's changes">
-			<input class="find" type="search" placeholder="find a change" aria-label="Find a change" bind:value={filter} data-testid="change-filter" />
-			{#each groups as g (g.section + g.items[0].key)}
-				{#if g.section}<p class="group">{g.section}</p>{/if}
-				{#each g.items as it (it.key)}
-					<button class="row" class:active={it.key === current?.key} onclick={() => (active = it.key)} data-testid="change-row" data-key={it.key} data-state={it.can ? stateOf(c, it) : 'clash'}>
-						<span class="name">{it.name}</span><small>{says(it)}</small>
-					</button>
-				{/each}
-			{:else}
-				<p class="muted">No change matches.</p>
-			{/each}
-		</aside>
+	<div>
 		<div class="change" data-testid="change-shown">
 			{#if current}
 				<h2>{current.name}</h2>
@@ -211,10 +188,6 @@
 		gap: var(--gap-tight);
 		font-size: 12.5px;
 	}
-	.at {
-		font-variant-numeric: tabular-nums;
-		color: var(--ink-soft);
-	}
 	.now {
 		flex: 1;
 		min-width: 8em;
@@ -236,61 +209,6 @@
 	.lead {
 		color: var(--ink-soft);
 		font-size: 13px;
-	}
-	.workspace {
-		display: grid;
-		grid-template-columns: 220px minmax(0, 1fr);
-		gap: var(--gap-wide);
-		align-items: start;
-	}
-	aside {
-		border-right: 1px solid var(--rule);
-		padding-right: var(--gap);
-	}
-	.find {
-		width: 100%;
-		box-sizing: border-box;
-		margin-bottom: var(--gap-tight);
-		font: inherit;
-		font-size: 12.5px;
-		padding: 4px 8px;
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-control);
-		background: var(--sheet);
-	}
-	.group {
-		margin: var(--gap-tight) 0 2px;
-		font-size: 11px;
-		color: var(--ink-faint);
-	}
-	.row {
-		all: unset;
-		box-sizing: border-box;
-		display: block;
-		width: 100%;
-		padding: 4px 6px;
-		border-radius: var(--rad-pill);
-		cursor: pointer;
-		font-size: 12.5px;
-	}
-	.row:hover {
-		background: var(--sheet);
-	}
-	.row.active {
-		background: var(--link-wash);
-	}
-	.row .name {
-		display: block;
-		overflow-wrap: anywhere;
-	}
-	.row small {
-		color: var(--ink-faint);
-	}
-	.row[data-state='taken'] small {
-		color: var(--state-accepted);
-	}
-	.row[data-state='clash'] small {
-		color: var(--state-stale);
 	}
 	.change {
 		min-width: 0;
@@ -328,16 +246,6 @@
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		font-size: 12px;
-	}
-	@media (max-width: 1100px) {
-		.workspace {
-			grid-template-columns: 1fr;
-		}
-		aside {
-			border-right: 0;
-			max-height: 30vh;
-			overflow-y: auto;
-		}
 	}
 	@media (max-width: 560px) {
 		.pair {

@@ -1,7 +1,8 @@
 <script lang="ts">
-	// A collaborator's fetched pull in Incoming (plan 0.25.2), laid out as an agent's copy is: its changes named and listed, one at a time beneath a bar that never moves, "accept as checked" for each block of mathematics, and one Apply. A pull is taken whole, since loom applies it as one patch; whatever loom answers is said in the bar.
+	// A collaborator's fetched pull in Incoming (plan 0.25.2), laid out as an agent's copy is: its changes named and listed in the list the counter opens (`ChangeList`), one at a time beneath a bar that never moves, "accept as checked" for each block of mathematics, and one Apply. A pull is taken whole, since loom applies it as one patch; whatever loom answers is said in the bar.
 	import ActionBar from './ActionBar.svelte';
 	import Said from './Said.svelte';
+	import ChangeList from './ChangeList.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { IncorporationMathReview, IncorporationOutcome, IncomingReview } from '$lib/manifest/types';
@@ -30,6 +31,14 @@
 	const clash = $derived(incoming.changes.some((c) => c.conflict));
 	const blocked = $derived(!!incoming.issues?.length || clash);
 	const title = (key: string, name?: string | null) => name ?? displayNode(store.manifest!, key).name;
+	/** Where a passage stands, in the list's words and as its dot. */
+	function standing(c: (typeof passages)[number]): { says: string; state: string } {
+		if (c.category === 'prose') return { says: 'prose', state: 'note' };
+		if (checked.includes(c.key)) return { says: 'accept as checked', state: 'taken' };
+		if (c.conflict) return { says: 'clashes', state: 'clash' };
+		return { says: review && !review.items.some((r) => r.key === c.key) ? 'source only' : 'to review', state: 'undecided' };
+	}
+	const listed = $derived(passages.map((c) => ({ key: c.key, name: title(c.key, c.name), ...standing(c) })));
 	$effect(() => {
 		void identity;
 		if (writable) untrack(() => void prepare());
@@ -74,7 +83,7 @@
 		{#snippet below()}
 			<div class="step">
 				<button class="btn small quiet" disabled={index <= 0} onclick={() => index--} aria-label="Previous change" data-testid="prev-change">‹</button>
-				<span class="at" data-testid="change-at">{passages.length ? index + 1 : 0} of {passages.length}</span>
+				<ChangeList changes={listed} active={passages[index]?.key ?? ''} onpick={(key) => (index = Math.max(0, passages.findIndex((c) => c.key === key)))} />
 				<button class="btn small quiet" disabled={index >= passages.length - 1} onclick={() => index++} aria-label="Next change" data-testid="next-change">›</button>
 				<span class="now">{change ? title(change.key, change.name) : ''}</span>
 				{#if writable && math && !math.unavailable}
@@ -87,14 +96,7 @@
 	<p class="lead">A revision fetched from {incoming.workspace}, {incoming.branch}. Apply writes all of it into your documents, keeping each as it was first. {#if busy === 'prepare'}Preparing its mathematics for review…{/if}</p>
 	{#each incoming.issues ?? [] as issue, i (i)}<Said text={issue} refused />{/each}
 	{#if clash}<Said text="You and the collaborator both changed a passage and the edits clash; reconcile it in the workspace, then fetch again." refused />{/if}
-	<div class="workspace">
-		<aside aria-label="The pull's changes">
-			{#each passages as c, i (c.key)}
-				<button class="row" class:active={i === index} onclick={() => (index = i)} data-testid="change-row" data-key={c.key}>
-					<span class="name">{title(c.key, c.name)}</span><small>{c.category === 'prose' ? 'prose' : checked.includes(c.key) ? 'accept as checked' : c.conflict ? 'clashes' : review && !review.items.some((r) => r.key === c.key) ? 'source only' : 'to review'}</small>
-				</button>
-			{/each}
-		</aside>
+	<div>
 		<div class="change" data-testid="change-shown">
 			{#if change}
 				<h2>{title(change.key, change.name)}</h2>
@@ -127,10 +129,6 @@
 		gap: var(--gap-tight);
 		font-size: 12.5px;
 	}
-	.at {
-		font-variant-numeric: tabular-nums;
-		color: var(--ink-soft);
-	}
 	.now {
 		flex: 1;
 		min-width: 8em;
@@ -150,88 +148,9 @@
 		color: var(--ink-soft);
 		font-size: 13px;
 	}
-	.workspace {
-		display: grid;
-		grid-template-columns: 220px minmax(0, 1fr);
-		gap: var(--gap-wide);
-		align-items: start;
-	}
-	aside {
-		border-right: 1px solid var(--rule);
-		padding-right: var(--gap);
-	}
-	.row {
-		all: unset;
-		box-sizing: border-box;
-		display: block;
-		width: 100%;
-		padding: 4px 6px;
-		border-radius: var(--rad-pill);
-		cursor: pointer;
-		font-size: 12.5px;
-	}
-	.row:hover {
-		background: var(--sheet);
-	}
-	.row.active {
-		background: var(--link-wash);
-	}
-	.row .name {
-		display: block;
-		overflow-wrap: anywhere;
-	}
-	.row small {
-		color: var(--ink-faint);
-	}
-	.change {
-		min-width: 0;
-	}
-	.change h2 {
-		font: 400 21px/1.3 Georgia, serif;
-		margin: 0;
-	}
-	.detail {
-		margin: 4px 0;
-		font-size: 12.5px;
-		color: var(--ink-soft);
-	}
-	.pair {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: var(--gap-wide);
-		margin-top: var(--gap);
-	}
-	.pair > div + div {
-		border-left: 1px solid var(--rule);
-		padding-left: var(--gap-wide);
-	}
-	.pair h4 {
-		margin: 0 0 6px;
-		font-size: 11.5px;
-		font-weight: 500;
-		color: var(--ink-faint);
-	}
-	.pair :global(.review-changed) {
-		background: var(--state-accepted-wash);
-	}
-	pre {
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		font-size: 12px;
-	}
 	details {
 		margin: var(--gap) 0;
 		font-size: 12.5px;
-	}
-	@media (max-width: 1100px) {
-		.workspace {
-			grid-template-columns: 1fr;
-		}
-		aside {
-			border-right: 0;
-			max-height: 30vh;
-			overflow-y: auto;
-		}
 	}
 	@media (max-width: 560px) {
 		.pair {

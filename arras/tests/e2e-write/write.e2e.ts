@@ -563,8 +563,10 @@ test('an agent copy is taken back in one pass: Take it, then one Apply writes it
 	await expect(page.getByTestId('change-shown')).toContainText('Proposed statement');
 	// taking it is saved at once and writes nothing yet
 	await page.getByTestId('take-it').click();
-	await expect(page.locator('[data-testid="change-row"][data-key="sy-0900"]')).toHaveAttribute('data-state', 'taken');
 	await expect(page.getByTestId('apply')).toHaveText('Apply 1 change');
+	await page.getByTestId('change-at').click();
+	await expect(page.locator('[data-testid="change-row"][data-key="sy-0900"]')).toHaveAttribute('data-state', 'taken');
+	await page.keyboard.press('Escape');
 	expect(readFileSync(join(served.root, document), 'utf8')).toBe(text);
 	// one press writes it, keeping the document as it was first
 	await page.getByTestId('apply').click();
@@ -584,11 +586,13 @@ test('a change marked as checked is accepted as it is taken in; one left stays o
 	writeFileSync(copy, readFileSync(copy, 'utf8').replace('First.', 'First, improved.').replace('Second.', 'Second, improved.'));
 	await page.goto('/review/incoming');
 	await page.getByLabel('Contribution').selectOption('.loom/copies/accept-proposal.tex');
+	await page.getByTestId('change-at').click();
 	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
 	await page.getByTestId('take-it').click();
 	// taking it steps on to the next change to decide: leave that one
 	await expect(page.getByTestId('change-at')).toHaveText(/^2 of /);
 	await page.getByTestId('leave-it').click();
+	await page.getByTestId('change-at').click();
 	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
 	await page.getByTestId('accept-checked').check();
 	// Apply asks loom to accept the checked block; whether TeX can record it here is the machine's, so the request is what is held to

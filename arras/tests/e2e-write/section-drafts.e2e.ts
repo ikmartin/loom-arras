@@ -38,32 +38,41 @@ for (const width of [736, 1100, 1440]) {
   await expect(page.getByLabel('Contribution')).toContainText('first-scope');
   await page.getByLabel('Contribution').selectOption('.loom/copies/first-scope.tex');
   const row = page.locator('[data-testid="change-row"][data-key="sy-0A01"]');
+  const preamble = page.locator('[data-testid="change-row"][data-key="preamble"]');
   const shown = page.getByTestId('change-shown');
+  // the changes are listed where the counter opens them
+  const list = async () => { if (!(await page.getByTestId('change-list').isVisible())) await page.getByTestId('change-at').click(); };
+  await list();
+  await expect(preamble).toContainText('to decide');
   await row.click();
   await expect(shown).toContainText('Proposed');
-  await expect(page.locator('[data-testid="change-row"][data-key="preamble"]')).toContainText('to decide');
   await expect(shown.locator('mjx-container').first()).toBeVisible();
   const [decision] = await Promise.all([
    page.waitForResponse(r => r.url().endsWith('/_api/adopt-decision')),
    page.getByTestId('take-it').click()
   ]);
   expect(decision.ok(), await decision.text()).toBe(true);
-  await expect(row).toHaveAttribute('data-state','taken');
   // taking it steps on to the next change to decide, and the next manifest redraws nothing of what is now shown
   await expect(page.getByTestId('change-at')).not.toHaveText(/^1 of /);
   const drawn = await shown.locator('h2').elementHandle();
   await page.waitForResponse(r => r.url().endsWith('/build/manifest.json') && r.status() === 200);
   expect(await drawn!.evaluate(node => node.isConnected)).toBe(true);
+  await list();
+  await expect(row).toHaveAttribute('data-state','taken');
   await row.click();
   await page.getByTestId('leave-it').click();
+  await list();
   await expect(row).toHaveAttribute('data-state','left');
   await row.click();
   await page.getByTestId('take-it').click();
+  await list();
   await expect(row).toHaveAttribute('data-state','taken');
   // the preamble is taken the same way as a result, from its row
-  await page.locator('[data-testid="change-row"][data-key="preamble"]').click();
+  await preamble.click();
   await page.getByTestId('take-it').click();
-  await expect(page.locator('[data-testid="change-row"][data-key="preamble"]')).toHaveAttribute('data-state','taken');
+  await list();
+  await expect(preamble).toHaveAttribute('data-state','taken');
+  await page.keyboard.press('Escape');
   await page.getByTestId('apply').click();
   await expect.poll(() => readFileSync(join(served.root,sourcePath),'utf8')).toContain('Proposed');
   const applied = readFileSync(join(served.root,sourcePath),'utf8');
