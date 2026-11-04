@@ -102,8 +102,39 @@ export interface CanonDoc {
 	macros?: string;
 	/** The live document its step was about, where the history's moves have taken it; absent when no live document leads to it. */
 	in?: string;
-	/** Why loom kept it itself, before writing over its draft: `adopt` or `sync`. Absent for a landmark the author stamped or imported. */
-	kept_for?: 'adopt' | 'sync' | (string & {});
+	/** The act it was kept at, besides recording one by hand: `adopt` or `sync` (before taking changes in), `keep` (an edit kept in Changes), `undo` (the text an undo set aside), `restore` (the text a restore replaced). Absent for a version the author recorded or imported. */
+	kept_for?: 'adopt' | 'sync' | 'keep' | 'undo' | 'restore' | (string & {});
+	/** The step's action: `import` for the paper as received, `stamp` for every other version. */
+	action?: string;
+	/** Why it cannot be put back into its document, in the person's words; '' when it can. */
+	cannot_restore?: string;
+}
+
+/** One line of the history, as Review › History lists it: what was done, when, by whom, and to what. */
+export interface HistoryAct {
+	action: string;
+	when: string;
+	actor?: string;
+	/** A step's number, for the acts that are steps. */
+	step?: number;
+	/** The file it was done to (a keep, an undo, a page written, a text put back). */
+	path?: string;
+	/** The files a whole keep took in. */
+	paths?: string[];
+	/** The document it concerns, as it is now named. */
+	in?: string;
+	/** A step's landmark: a `canon` entry's path. */
+	landmark?: string;
+	message?: string;
+	hunk?: number;
+	kept_for?: string;
+	copy?: string;
+	page?: string;
+	/** A text by its hash: what an undo or a put-back replaced (`from`) and wrote (`to`). */
+	from?: string;
+	to?: string;
+	/** A version a restore put back, by its landmark's file name. */
+	version?: string;
 }
 
 /** One step of the history: an import, a stamp, an agent document's copy or an adoption. */
@@ -641,7 +672,7 @@ export interface Manifest {
   incoming?: IncomingReview;
   contributions?: (AdoptionReview | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
-  history?: { steps: HistoryStep[] };
+  history?: { steps: HistoryStep[]; acts?: HistoryAct[] };
   regions: Record<string, Region>;
   relations?: Relation[];
   edges: Edge[];

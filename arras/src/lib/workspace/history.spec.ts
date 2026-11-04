@@ -15,7 +15,6 @@ describe("a document's history", () => {
 		expect(h.draft).toBe('drafting/main.tex');
 		expect(h.at).toBeUndefined();
 		expect(h.landmarks.map((c) => c.name)).toEqual(['widgets-v3', 'widgets-v2', 'widgets-v1']);
-		expect(h.kept).toEqual([]);
 		expect(h.copies.map((x) => x.path)).toEqual(['.loom/copies/aidoc.tex']);
 	});
 
@@ -24,13 +23,12 @@ describe("a document's history", () => {
 		expect(h).toMatchObject({ of: 'draft', draft: 'drafting/main.tex', at: V2 });
 	});
 
-	it('folds apart the landmarks loom kept itself', () => {
+	it('lists the versions loom kept at an act among the rest, since every one is an act of the author', () => {
 		const m = structuredClone(fixture);
 		m.canon![1].kept_for = 'adopt';
 		const h = historyOf(m, 'drafting/main.tex');
 		if (h?.of !== 'draft') throw new Error('no history');
-		expect(h.landmarks.map((c) => c.name)).toEqual(['widgets-v3', 'widgets-v1']);
-		expect(h.kept.map((c) => c.name)).toEqual(['widgets-v2']);
+		expect(h.landmarks.map((c) => c.name)).toEqual(['widgets-v3', 'widgets-v2', 'widgets-v1']);
 	});
 
 	it('is, for an agent copy, the draft it was copied from', () => {

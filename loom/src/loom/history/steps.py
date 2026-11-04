@@ -102,6 +102,20 @@ def slug(text: str, limit: int = 40) -> str:
     return (s[:limit].rstrip("-") or "step") if s else "step"
 
 
+def free_name(history: History, base: str) -> str:
+    """`base`, or `base-2`, `base-3`… the first no landmark of the history is named; the landmark names a stamp writes are unique."""
+    name, suffix = base, 2
+    while history.landmark(name) is not None:
+        name, suffix = f"{base}-{suffix}", suffix + 1
+    return name
+
+
+def document_files(result: ScanResult, doc: str) -> list[str]:
+    """The files the document's text is made of: the document and every file it inputs, in order; its preamble's local packages are not among them."""
+    reached = result.expansions[doc].reached if doc in result.expansions else {}
+    return [doc, *(f for f in reached if f != doc and f in result.files)]
+
+
 def step_dirname(n: int, stem: str) -> str:
     return f"{n:04d}-{stem}"
 
@@ -200,17 +214,22 @@ def stamp_document(
     actor: str | None,
     kept_for: str | None = None,
 ) -> tuple[Entry, FreezePlan]:
-    """Stamp a live drafting document: the keys it reaches that moved, and its flat text kept as the landmark `name`.
+    """Stamp a live drafting document: the keys it reaches that moved, its flat text kept as the landmark `name`, and each of its files' exact text (`files`).
 
-    Shared by `loom stamp DOCUMENT`, adoption and sync incorporation, which stamp the document they are about to write and say so in `kept_for` (`adopt`, `sync`), so a viewer can tell loom's own landmarks from the author's. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
+    Shared by `loom stamp DOCUMENT`, a version recorded from the viewer, and the acts that keep a version first or after (`kept_for`: `adopt`, `sync`, `keep`, `undo`, `restore`; `history.acts`). Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free (`free_name`).
     """
+    from loom.records.snapshots import write_raw
+
     plan, text = plan_document_stamp(result, history, doc)
+    root, hist = result.quilt.root, result.quilt.history_dir
     extra: dict[str, Any] = {
         "message": message,
         "in": doc,
         "landmark": f"{name}.tex",
         "to": {"path": f"{name}.tex", "hash": text_hash(text)},
         "reaches": plan.reaches,
+        # each file's exact text, so the version can be put back file by file
+        "files": {f: write_raw(root, result.files[f].text, hist) for f in document_files(result, doc)},
     }
     if kept_for:
         extra["kept_for"] = kept_for

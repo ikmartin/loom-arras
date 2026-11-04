@@ -223,7 +223,8 @@
 		const placed = p.wedges[index]
 			.map((w) => {
 				const after = w.after ? drawn(w.after) : null;
-				return { w, y: (after ? after.getBoundingClientRect().bottom - top0 : fragmentTop) - 5 };
+				const before = !after && w.before ? drawn(w.before) : null;
+				return { w, y: (after ? after.getBoundingClientRect().bottom - top0 : before ? before.getBoundingClientRect().top - top0 : fragmentTop) - 5 };
 			})
 			.sort((a, b) => a.y - b.y);
 		let last = -Infinity;

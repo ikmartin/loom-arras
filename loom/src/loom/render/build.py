@@ -238,16 +238,17 @@ def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] 
 
 
 def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
-    """The cache key of a landmark's fragment: loom's version and code, the landmark's text, and its closure's."""
+    """The cache key of a landmark's fragment: loom's version and code, the landmark's text, its closure's, and the `.aux` and `.bbl` it reads, its own or its live document's."""
     h = hashlib.sha256()
     h.update(__version__.encode())
     h.update(code_hash().encode())
     h.update(doc.path.encode())
     h.update(doc.src.text.encode("utf-8", errors="replace"))
     h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
-    out = root / document_build(doc.path)
-    for p in sorted([*out.glob("*.aux"), *out.glob("*.bbl")]):
-        h.update(p.read_bytes())
+    for path in filter(None, (doc.path, doc.live)):
+        out = root / document_build(path)
+        for p in sorted([*out.glob("*.aux"), *out.glob("*.bbl")]):
+            h.update(p.read_bytes())
     return h.hexdigest()
 
 
@@ -343,7 +344,7 @@ def build(
     force : bool, default False
         Render every fragment again, and retry every figure that failed before.
     reuse : ScanResult, optional
-        A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone.
+        A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone or a version kept, whose landmark is read again here.
     progress : callable, optional
         Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
 
@@ -362,6 +363,11 @@ def build(
 
     told("scanning")
     result = reuse if reuse is not None else scan(quilt)
+    if reuse is not None:
+        from loom.scan.scan import landmark_documents
+
+        # a version kept since (a keep's, a recorded one) adds a landmark and nothing else the scan reads
+        result.canon_files = landmark_documents(quilt)
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
     freeze_moved(result, records.records)

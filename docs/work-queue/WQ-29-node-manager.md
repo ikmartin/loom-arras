@@ -31,4 +31,4 @@ Arras shows a node's family (ancestors, forks, the version it was forked at) whe
 
 ## Related
 
-WQ-11 (closed 2026-10-26, merged here), which this absorbs when it fires; [WQ-25](WQ-25-history-view.md).
+WQ-11 (closed 2026-10-26, merged here), which this absorbs when it fires; WQ-25 (closed 2026-11-04, built by plan 0.25.5; see [closed.md](closed.md)).

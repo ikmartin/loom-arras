@@ -11,7 +11,7 @@
 <span class="compare-controls">
 	<span class="steps" data-testid="compare-steps">
 		<button type="button" class="step" disabled={!n} aria-label="Previous difference" title="Previous difference ([)" data-testid="compare-prev" onclick={() => comparison.step(-1)}>‹</button>
-		<span class="count" aria-live="polite" data-testid="compare-count">{n ? counted : 'no differences'}</span>
+		<span class="count" aria-live="polite" data-testid="compare-count">{comparison.plan?.unpaired ? 'no ids to pair its blocks by' : n ? counted : 'no differences'}</span>
 		<button type="button" class="step" disabled={!n} aria-label="Next difference" title="Next difference (])" data-testid="compare-next" onclick={() => comparison.step(1)}>›</button>
 	</span>
 	<button type="button" class="compare" title="Stop comparing, and put back each pane's annotations" data-testid="compare-stop" onclick={() => workspace.release()}

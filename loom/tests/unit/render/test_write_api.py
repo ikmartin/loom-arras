@@ -966,6 +966,69 @@ def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     assert not (q / "brand-new.md").exists()
 
 
+@case("history-record")
+def _history_record(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.history.ledger import load_history
+    from loom.scan.quilt import load_quilt, save_author
+
+    save_author("Tester")
+    s, q, _ = on_demo(serve, tmp_path)
+    assert succeeds(s, "history-record", {"document": "drafting/main.tex", "name": "Before referee"})["result"] == (
+        "kept this version of main.tex as “Before referee”"
+    )
+    newest = load_history(load_quilt(q).history_dir).landmarks()[-1]
+    assert newest.message == "Before referee" and newest.get("in") == "drafting/main.tex" and newest.get("files")
+    refuses(
+        s,
+        "history-record",
+        {"document": "drafting/main.tex", "name": "Before referee"},
+        409,
+        "name-in-use",
+        "kept already",
+    )
+    refuses(s, "history-record", {"document": "drafting/main.tex", "name": " "}, 400, "bad-field", "needs a name")
+    refuses(s, "history-record", {"document": "README.md", "name": "x"}, 400, "bad-field", "not one of your documents")
+    agent = {"document": "drafting/main.tex", "name": "y", "author": "Referee (Agent)"}
+    refuses(s, "history-record", agent, 403, "author-only", "only the author records")
+
+
+@case("history-restore")
+def _history_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.history.ledger import load_history
+    from loom.scan.quilt import load_quilt, save_author
+
+    save_author("Tester")
+    s, q, _ = on_demo(serve, tmp_path)
+    main = q / "drafting" / "main.tex"
+    before = main.read_text()
+    succeeds(s, "history-record", {"document": "drafting/main.tex", "name": "First"})
+    main.write_text(before.replace("\\begin{document}", "\\begin{document}\nAn edit.\n"), encoding="utf-8")
+    history = load_history(load_quilt(q).history_dir)
+    first = history.landmark_path(history.landmark("main-first")).relative_to(q).as_posix()
+    said = succeeds(s, "history-restore", {"document": "drafting/main.tex", "version": first})["result"]
+    assert said.startswith(
+        "put main.tex back as “First” holds it; its text before is the version “Before restoring “First””"
+    )
+    assert main.read_text() == before
+    refuses(
+        s,
+        "history-restore",
+        {"document": "drafting/main.tex", "version": "nowhere"},
+        404,
+        "unknown-version",
+        "not a version",
+    )
+    agent = {"document": "drafting/main.tex", "version": first, "author": "Referee (Agent)"}
+    refuses(s, "history-restore", agent, 403, "author-only", "only the author")
+    # the text an undo set aside goes back into its file, the file's text now kept first
+    succeeds(s, "changes-keep", {})
+    (q / "README.md").write_text("an edit undone\n", encoding="utf-8")
+    succeeds(s, "changes-undo", {"path": "README.md"})
+    undone = [e for e in load_history(load_quilt(q).history_dir).entries if e.action == "undo"][-1]
+    succeeds(s, "history-restore", {"path": "README.md", "text": undone.get("from")})
+    assert (q / "README.md").read_text() == "an edit undone\n"
+
+
 @case("settings-save")
 def _settings_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, _ = on_demo(serve, tmp_path)

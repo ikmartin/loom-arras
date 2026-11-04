@@ -61,6 +61,8 @@ CAPABILITIES = [
     "here",
     "changes-keep",
     "changes-undo",
+    "history-record",
+    "history-restore",
     "note",
     "note-keep",
 ]
@@ -317,12 +319,13 @@ def _scan(root: Path) -> ScanResult:
     return kept if kept is not None else open_scan(str(root))
 
 
-#: Writes that change records alone, which the scan never reads; their publication builds from the last scan (`ServeSession.rebuild`).
+#: Writes that change records alone, which the scan never reads, or keep a version, whose landmark the build reads again (`build(reuse=…)`); their publication builds from the last scan (`ServeSession.rebuild`).
 RECORD_WRITES = (
     "annotate",
     "note",
     "note-keep",
     "changes-keep",
+    "history-record",
     "reply",
     "resolve",
     "edit",
@@ -421,7 +424,7 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     `seen` is the file's hash as the page drew it (`changes[].hash`); an act on a file that has moved on since is `stale`, so a hunk's number never names another change.
     """
     from loom.cli._common import is_agent
-    from loom.looks import LookRefused, keep, undo
+    from loom.looks import LookRefused, changes, keep, undo
     from loom.scan.quilt import load_quilt, reviewer_identity
 
     who = reviewer_identity(root)[0]
@@ -438,18 +441,90 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     path = _str(body, "path", required=endpoint == "changes-undo" or hunk is not None)
     seen = _str(body, "seen")
     what = f"a change to {path}" if hunk is not None else path
+    from loom.history.acts import Kept, keep_versions
+
     try:
         if endpoint == "changes-undo":
-            back = undo(quilt, who, path or "", hunk=hunk, seen=seen)
-            if back is None:
-                return {"ok": True, "result": f"removed {path}; its text is kept"}
-            return {"ok": True, "result": f"put back {what}; the text it replaced is kept"}
+            # the text being set aside is a version of each document it is part of, kept before it goes
+            kept: list[Kept] = []
+            first = lambda: kept.append(keep_versions(_scan(root), [path or ""], "undo", "Before an undo", who))  # noqa: E731
+            back = undo(quilt, who, path or "", hunk=hunk, seen=seen, before=first)
+            said = (
+                f"removed {path}; its text is kept"
+                if back is None
+                else f"put back {what}; the text it replaced is kept"
+            )
+            return {"ok": True, "result": "; ".join(filter(None, [said, *(k.said() for k in kept)]))}
+        # a whole keep keeps a version of the documents whose files moved since the look, and none at a first look
+        moved = [path] if path else [c.path for c in changes(quilt, who)]
         keep(quilt, who, path, hunk=hunk, seen=seen)
     except LookRefused as exc:
         raise ApiError(
             exc.code, exc.message, status=404 if exc.code in ("no-such-change", "no-such-hunk") else 409
         ) from exc
-    return {"ok": True, "result": f"kept {what}" if path else "kept everything"}
+    versions = keep_versions(_scan(root), moved, "keep", "Kept an edit", who)
+    return {
+        "ok": True,
+        "result": "; ".join(filter(None, [f"kept {what}" if path else "kept everything", versions.said()])),
+    }
+
+
+def _history(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`history-record` keeps a version of a document under the author's name for it, as `loom stamp DOC -m NAME`; `history-restore` puts a version back into its document (`document`, `version`), or the text an undo set aside back into its file (`path`, `text`), keeping what it replaces first. The author's acts, refused to a declared agent."""
+    from loom.cli._common import is_agent
+    from loom.history.acts import RestoreRefused, put_back, restore
+    from loom.history.ledger import actor_for, load_history
+    from loom.history.steps import slug, stamp_document
+    from loom.looks import open_texts
+    from loom.scan.quilt import load_quilt, reviewer_identity
+
+    who = reviewer_identity(root)[0] or actor_for(root)
+    if is_agent(_str(body, "author") or who or ""):
+        raise ApiError(
+            "author-only", "An agent reads and annotates; only the author records or restores a version", status=403
+        )
+    quilt = load_quilt(root)
+    if endpoint == "history-restore" and body.get("path") is not None:
+        path = _str(body, "path", required=True) or ""
+        digest = _str(body, "text", required=True) or ""
+        try:
+            put_back(root, quilt.history_dir, path, digest, who, open_texts(quilt))
+        except RestoreRefused as exc:
+            raise ApiError(exc.code, exc.message, status=409) from exc
+        return {"ok": True, "result": f"put {path} back as the undo found it; its text before is kept"}
+    result = _scan(root)
+    doc = _str(body, "document", required=True) or ""
+    if result.document_role(doc) != "person":
+        raise ApiError("bad-field", f"{doc} is not one of your documents")
+    if endpoint == "history-record":
+        name = (_str(body, "name", required=True) or "").strip()
+        if not name:
+            raise ApiError("bad-field", "a version needs a name", fields={"name": "Give the version a name."})
+        history = load_history(quilt.history_dir)
+        landmark = slug(f"{Path(doc).stem} {name}", limit=120)
+        if history.landmark(landmark) is not None:
+            raise ApiError(
+                "name-in-use",
+                f"a version named {name} is kept already",
+                status=409,
+                fields={"name": "That name is in use."},
+            )
+        try:
+            stamp_document(result, history, doc, landmark, name, who)
+        except ValueError as exc:
+            raise ApiError("cannot-record", str(exc).split(";")[0], status=409) from exc
+        return {"ok": True, "result": f"kept this version of {Path(doc).name} as “{name}”"}
+    version = _str(body, "version", required=True) or ""
+    try:
+        done = restore(result, doc, version, who)
+    except RestoreRefused as exc:
+        raise ApiError(exc.code, exc.message, status=404 if exc.code == "unknown-version" else 409) from exc
+    if not done["paths"]:
+        return {"ok": True, "result": f"{Path(doc).name} is already as “{done['label']}” holds it"}
+    return {
+        "ok": True,
+        "result": f"put {Path(doc).name} back as “{done['label']}” holds it; its text before is the version “{done['before']}”",
+    }
 
 
 def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -571,6 +646,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _open(root, body)
     if endpoint in ("changes-keep", "changes-undo"):
         return _changes(root, endpoint, body)
+    if endpoint in ("history-record", "history-restore"):
+        return _history(root, endpoint, body)
     if endpoint in ("note", "note-keep"):
         return _note(root, endpoint, body)
     if endpoint == "library-cite":

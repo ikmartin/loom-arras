@@ -8,6 +8,7 @@ from __future__ import annotations
 import difflib
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,7 +19,7 @@ from loom.paths import LOOKED
 if TYPE_CHECKING:
     from loom.scan.quilt import Quilt
 
-#: The ledger's line for a change undone, a plain line beside the steps; a look is its own record, and writes none, since a preview pinned to the history (an adoption's) must not go stale because the person looked.
+#: The ledger's line for a change undone, a plain line beside the steps; a keep writes `history.acts.KEEP`, and taking a look writes nothing.
 UNDO = "undo"
 #: Where each change's diff is published, under the build output.
 DIFFS = "changes"
@@ -187,13 +188,19 @@ class LookRefused(Exception):
 def keep(quilt: Quilt, who: str, path: str | None = None, *, hunk: int | None = None, seen: str | None = None) -> Look:
     """Keep the change to `path` (its entry in the look moves to its text now), one of its hunks (the look takes that change alone), or with no path keep everything (a new look).
 
-    The look's time stays that of the person's last whole look, so the changes still listed are still since it. `seen` is the file's hash as the page showed it; a file that has moved on since is refused (`stale`).
+    The look's time stays that of the person's last whole look, so the changes still listed are still since it. Each keep writes a `keep` line naming what it kept. `seen` is the file's hash as the page showed it; a file that has moved on since is refused (`stale`).
     """
+    from loom.history.acts import KEEP
+    from loom.history.ledger import append_entry
     from loom.records.snapshots import read_raw, write_raw
 
     look = read_look(quilt.root, who)
     if path is None or look is None:
-        return take(quilt, who)
+        moved = [c.path for c in changes(quilt, who)] if look else []
+        look = take(quilt, who)
+        if moved:
+            append_entry(quilt.history_dir, KEEP, {"who": who, "paths": moved}, who)
+        return look
     now = open_texts(quilt)
     _fresh(path, now.get(path), seen)
     if path not in now and path not in look.files:
@@ -208,13 +215,25 @@ def keep(quilt: Quilt, who: str, path: str | None = None, *, hunk: int | None = 
     else:
         look.files.pop(path, None)
     _write(quilt.root, look)
+    entry: dict[str, Any] = {"who": who, "path": path, "to": look.files.get(path)}
+    if hunk is not None:
+        entry["hunk"] = hunk
+    append_entry(quilt.history_dir, KEEP, entry, who)
     return look
 
 
-def undo(quilt: Quilt, who: str, path: str, *, hunk: int | None = None, seen: str | None = None) -> str | None:
+def undo(
+    quilt: Quilt,
+    who: str,
+    path: str,
+    *,
+    hunk: int | None = None,
+    seen: str | None = None,
+    before: Callable[[], None] | None = None,
+) -> str | None:
     """Put `path` back as it was at `who`'s look, or put one of its hunks back, keeping its text now first; the ledger records both hashes, and the hunk.
 
-    A file new since the look is removed, its text kept first, and the line's `to` is null. `seen` is the file's hash as the page showed it; a file that has moved on since is refused (`stale`). Returns the hash of the text the file now holds, None when it was removed.
+    A file new since the look is removed, its text kept first, and the line's `to` is null. `seen` is the file's hash as the page showed it; a file that has moved on since is refused (`stale`). `before` runs once the undo is sure to act and before anything is written (the write API keeps a version there). Returns the hash of the text the file now holds, None when it was removed.
     """
     from loom.history.ledger import append_entry
     from loom.records.snapshots import read_raw, write_raw
@@ -236,6 +255,8 @@ def undo(quilt: Quilt, who: str, path: str, *, hunk: int | None = None, seen: st
         if hunk is None
         else _reverted(_lines(old), _lines(current or ""), _hunk(_lines(old), _lines(current or ""), hunk, path))
     )
+    if before is not None:
+        before()
     now_hash = write_raw(quilt.root, current, quilt.history_dir) if current is not None else None
     entry: dict[str, Any] = {"who": who, "path": path, "from": now_hash}
     if hunk is not None:

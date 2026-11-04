@@ -118,6 +118,9 @@ def renders_as_math(tex: str) -> bool:
 VERBATIM_ENVS = {"verbatim", "verbatim*", "lstlisting"}
 # the `comment` package's: LaTeX prints nothing for its body, which the tokenizer already reads as verbatim; a quilt that declares `comment` as a theorem environment keeps it as one
 SKIPPED_ENVS = {"comment"}
+#: An argument that opens with a sectioning command, as a macro that hides a heading from the contents wraps one.
+_HEADING_START = re.compile(r"\s*\\(part|chapter|section|subsection|subsubsection|paragraph)\*?\s*[\[{]")
+
 SECTIONING = {
     "part": -1,
     "chapter": 0,
@@ -778,6 +781,16 @@ class Converter:
                     if tail:
                         emit_text(ctx.text[tail[0] : tail[1]], tail[0])
                     continue
+                wrapped = self._wrapped_heading(name, t, b)
+                if wrapped is not None:
+                    # a macro around a heading (`\hidefromtoc{\subsection*{…}}`) draws the heading, where nothing split it off as the scanner does in a live document: a landmark
+                    flush(t.start)
+                    (start, end), after = wrapped
+                    out.append(self._blocks(start, end))
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        emit_text(ctx.text[tail[0] : tail[1]], tail[0])
+                    continue
                 if name in ("input", "include", "nest"):
                     flush(t.start)
                     (arg,), spans, after = read_args(clean, t.end, "m")
@@ -1075,6 +1088,19 @@ class Converter:
                 return f'<span class="math inline">\\({esc(expansion)}\\)</span>', after, None
             return self.inline_text(expansion, t.start, depth + 1), after, None
         return esc("\\" + name), t.end, f"unknown command \\{name}"
+
+    def _wrapped_heading(self, name: str, t: Tok, b: int) -> tuple[tuple[int, int], int] | None:
+        """The span of a one-argument macro's argument when it opens with a sectioning command and ends inside this range, and where the call ends; None otherwise.
+
+        In a live document the scanner splits the heading off into its own block, so the argument runs past the range and the call is left to `inline_command`.
+        """
+        macro = self.ctx.macros.get(name)
+        if macro is None or macro.args != 1 or macro.default is not None:
+            return None
+        (arg,), spans, after = read_args(self.ctx.clean, t.end, "m")
+        if arg is None or after > b or not _HEADING_START.match(arg):
+            return None
+        return spans[0], after
 
     def _skip_definition(self, name: str, t: Tok, text_override: str | None, toks: list[Tok]) -> int:
         """Position after a definition command and its arguments, which the converter never renders."""

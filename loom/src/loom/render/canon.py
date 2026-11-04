@@ -38,6 +38,7 @@ class CanonDoc:
     labels: dict[str, str] = field(default_factory=dict)
     pairs: dict[str, str] = field(default_factory=dict)  # key -> pair hash of the version its stamp kept
     base: str = ""  # the directory its names resolve against: its document's (`History.landmark_base`)
+    live: str = ""  # the live document it is a version of, whose numbers and citation labels it reads when it has none of its own
 
 
 def title_of(src: SourceFile) -> str | None:
@@ -60,6 +61,8 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
 
         entry = steps.get(rel)
         base = history.landmark_base(entry) if entry is not None else ""
+        recorded = (entry.get("in") or (entry.get("drafted") or {}).get("path")) if entry is not None else None
+        live = (history.current_document(recorded, result.masters) or "") if isinstance(recorded, str) else ""
         closure = build_closure(src, quilt.root, {}, parse_directives(src), base=base)
         stem = Path(rel).stem
         labels = {norm_label(m.group(1)): norm_label(m.group(1)) for m in _LABEL.finditer(src.clean)}
@@ -74,6 +77,7 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
                 labels=labels,
                 pairs=landmark_pairs(history, steps.get(rel)),
                 base=base,
+                live=live,
             )
         )
     return out
@@ -154,8 +158,10 @@ class CanonRenderer:
             key=doc.path,
             labels=doc.labels,
             regions={},
-            numbers=read_numbers(self.root, doc.path),
-            cite_labels=read_cite_labels(self.root, doc.path),
+            # a landmark is never compiled: it reads its live document's numbers and citation labels, as the live text shows them
+            numbers=read_numbers(self.root, doc.path) or (read_numbers(self.root, doc.live) if doc.live else {}),
+            cite_labels=read_cite_labels(self.root, doc.path)
+            or (read_cite_labels(self.root, doc.live) if doc.live else {}),
             macros=doc.closure.macros,
             taxa=doc.closure.taxa,
             child_at={},

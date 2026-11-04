@@ -1,5 +1,5 @@
 <script lang="ts">
-	// **history ▾** on a document's toolbar (plan 0.20.6): its live text and the landmarks that kept its text, newest first, each with a `compare` at its right; the landmarks loom kept itself before an adoption or a sync folded under one line; then its live agent copies to compare with. A landmark of the draft carries the same menu, and an agent copy one line, for its source. Choosing a version shows it in this tab's place, at the result the reader was at; choosing `compare` opens the other beside and compares the two, and choosing it again stops. Drawn only where there is a history to list (`historyOf`).
+	// **history ▾** on a document's toolbar (plan 0.20.6, 0.25.5): `record this version…`, its live text, and its versions newest first, each named by the act it was kept at and with a `compare` at its right, the newest twelve and the rest in Review › History; then its live agent copies to compare with. A landmark of the draft carries the same menu, and an agent copy one line, for its source. Choosing a version shows it in this tab's place, at the result the reader was at; choosing `compare` opens the other beside and compares the two, and choosing it again stops. Drawn only where there is a history to list (`historyOf`).
 	import { shortDate } from '$lib/badges';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { CanonDoc } from '$lib/manifest/types';
@@ -11,13 +11,24 @@
 	import ToolbarItem from './ToolbarItem.svelte';
 	import ToolbarMenu from './ToolbarMenu.svelte';
 	import { compareWith, comparingWith, turnTo } from './versions';
+	import { versionLabel } from '$lib/review/timeline';
+	import { route } from '$lib/paths';
+	import { can } from '$lib/write';
+	import { goto } from '$app/navigation';
+
+	/** How many versions the menu lists; the rest are in Review › History. */
+	const SHOWN = 12;
 
 	let { item, name, divided = false }: { item: Item; name: string; divided?: boolean } = $props();
 
 	const m = $derived(store.manifest!);
 	const pane = getPane();
 	const history = $derived(historyOf(m, item.id));
-	let unfolded = $state(false);
+	let records = $state(false);
+	$effect(() => {
+		void can('history-record').then((yes) => (records = yes));
+	});
+	const inReview = (doc: string) => route('/review/history') + '?document=' + encodeURIComponent(doc);
 	// the menu lists only what pairs, so the one reason compare cannot start is the window's width
 	const why = $derived(workspace.narrow ? uncomparable(true) : '');
 	const file = (p: string) => p.split('/').pop() ?? p;
@@ -50,13 +61,11 @@
 {#if history}
 	<ToolbarMenu label="history" name="history menu for {name}" menuName="history of {name}" testid="toolbar-history" menuTestid="history-menu" {divided} width={320}>
 		{#if history.of === 'draft'}
+			{#if records}<ToolbarItem label="record this version…" name="record a version of {name}" testid="history-record" onclick={() => goto(inReview(history.draft) + '&record=1')} /><hr />{/if}
 			{@render row(history.draft, 'live text', 'live')}
-			{#each history.landmarks as c (c.path)}{@render row(c.path, c.name ?? c.stem, c.name ?? c.stem, when(c), c.message)}{/each}
-			{#if history.kept.length}
-				<button type="button" class="fold" role="menuitem" tabindex="-1" aria-expanded={unfolded} data-testid="history-kept" onclick={() => (unfolded = !unfolded)}
-					>{unfolded ? '▾' : '▸'} {history.kept.length} kept by loom before adopting or syncing</button
-				>
-				{#if unfolded}{#each history.kept as c (c.path)}{@render row(c.path, c.name ?? c.stem, c.name ?? c.stem, when(c), c.message)}{/each}{/if}
+			{#each history.landmarks.slice(0, SHOWN) as c (c.path)}{@render row(c.path, versionLabel(c), c.name ?? c.stem, when(c))}{/each}
+			{#if history.landmarks.length > SHOWN}
+				<ToolbarItem label="{history.landmarks.length - SHOWN} older, in Review › History" name="every version of {name}" testid="history-older" onclick={() => goto(inReview(history.draft))} />
 			{/if}
 			{#if history.copies.length}
 				<hr />
@@ -90,8 +99,7 @@
 		align-items: stretch;
 	}
 	.version,
-	.cmp,
-	.fold {
+	.cmp {
 		font: inherit;
 		color: var(--ink);
 		text-align: left;
@@ -139,19 +147,10 @@
 		opacity: 0.6;
 		cursor: default;
 	}
-	.fold {
-		display: block;
-		width: 100%;
-		padding: 5px 12px 5px 24px;
-		font-size: 11.5px;
-		color: var(--ink-soft);
-	}
 	.version:hover,
 	.version:focus-visible,
 	.cmp:hover:not([aria-disabled='true']),
-	.cmp:focus-visible,
-	.fold:hover,
-	.fold:focus-visible {
+	.cmp:focus-visible {
 		background: var(--leaf);
 		outline: none;
 	}

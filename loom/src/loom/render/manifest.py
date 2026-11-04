@@ -678,8 +678,11 @@ def _history(result: ScanResult, manifest: dict[str, Any], history: Any) -> None
             d = e.get("in")
         return str(d) if isinstance(d, str) and d else None
 
+    from loom.history.acts import cannot_restore
+
     steps = []
     leads: dict[str, str] = {}
+    landmarks: dict[str, Any] = {}
     for e in history.steps():
         row: dict[str, Any] = {"step": e.step, "action": e.action, "name": e.name, "when": e.when}
         if e.actor:
@@ -695,13 +698,47 @@ def _history(result: ScanResult, manifest: dict[str, Any], history: Any) -> None
         if e.get("landmark"):
             landmark = history.landmark_path(e).relative_to(result.quilt.root).as_posix()
             row["landmark"] = landmark
+            landmarks[landmark] = e
             if row.get("in"):
                 leads[landmark] = row["in"]
         steps.append(row)
-    manifest["history"] = {"steps": steps}
+    manifest["history"] = {"steps": steps, "acts": _acts(result, history)}
     for entry in manifest["canon"]:
         if entry["path"] in leads:
             entry["in"] = leads[entry["path"]]
+        e = landmarks.get(entry["path"])
+        if e is not None:
+            entry["action"] = e.action
+            entry["cannot_restore"] = cannot_restore(result, history, e)
+
+
+def _acts(result: ScanResult, history: Any) -> list[dict[str, Any]]:
+    """Every line of the history, oldest first, as Review › History lists it: what was done, when, by whom, and to what; a document as it is now named, a step's landmark by its path, a text by its hash."""
+    live = result.masters
+    out: list[dict[str, Any]] = []
+    for e in history.entries:
+        row: dict[str, Any] = {"action": e.action, "when": e.when}
+        if e.actor:
+            row["actor"] = e.actor
+        if e.step is not None:
+            row["step"] = e.step
+        for k in ("path", "paths", "message", "hunk", "kept_for", "copy", "page"):
+            v = e.get(k)
+            if v not in (None, "", []):
+                row[k] = v
+        doc = e.get("in") if e.action != "import" else (e.get("drafted") or {}).get("path")
+        if isinstance(doc, str) and doc:
+            row["in"] = history.current_document(doc, live) or doc
+        if e.get("landmark") and e.step is not None:
+            row["landmark"] = history.landmark_path(e).relative_to(result.quilt.root).as_posix()
+        for k in ("from", "to"):
+            v = e.get(k)
+            if isinstance(v, str) and e.step is None:
+                row[k] = v
+        if isinstance(e.get("from"), dict) and e.action == "restore":
+            row["version"] = e.get("from").get("landmark")
+        out.append(row)
+    return out
 
 
 def _versions(result: ScanResult, manifest: dict[str, Any], history: Any) -> None:

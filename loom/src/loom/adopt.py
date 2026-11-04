@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
-from loom.history.steps import plan_freeze, slug, stamp_document, text_hash, write_step
+from loom.history.steps import free_name, plan_freeze, slug, stamp_document, text_hash, write_step
 from loom.paths import ADOPTION_DECISIONS, BUILD, REVIEW_ORIGINS, documents_named, under
 from loom.render.manifest import own_text
 from loom.reshape.linearize import flatten
@@ -725,10 +725,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     snapshots = {p: p.read_bytes() if p.exists() else None for p in touched_files}
     kept_entries = {p.name for p in history.dir.iterdir()} if history.dir.is_dir() else set()
     source_stem = Path(data["source"]).stem
-    landmark = base = slug(f"{source_stem} before adopt {Path(data['copy']).stem}", limit=120)
-    suffix = 2
-    while history.landmark(landmark) is not None:
-        landmark, suffix = f"{base}-{suffix}", suffix + 1
+    landmark = free_name(history, slug(f"{source_stem} before adopt {Path(data['copy']).stem}", limit=120))
 
     def finish() -> dict[str, Any]:
         history = _history(result)  # re-read: the landmark's stamp step is now the latest
@@ -864,7 +861,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
             history,
             data["source"],
             landmark,
-            f"{data['source']} before adopting {data['copy']}",
+            f"Before taking changes from the copy “{Path(data['copy']).stem}”",
             who,
             kept_for="adopt",
         )

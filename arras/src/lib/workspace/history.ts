@@ -1,7 +1,8 @@
-// A document's history (plan 0.20.6): a draft, the landmarks that kept its text, newest first, and its live agent copies; for an agent copy, the draft it was copied from. What a draft's history menu lists, and what a landmark is named by in its tab and in search. Model facts in, display facts out; nothing here renders.
+// A document's history (plan 0.20.6, 0.25.5): a draft, its versions (the landmarks that kept its text at each act), newest first, and its live agent copies; for an agent copy, the draft it was copied from. What a draft's history menu lists, and what a landmark is named by in its tab and in search. Model facts in, display facts out; nothing here renders.
 
 import { isAgentDocument } from '$lib/manifest/documents';
 import type { CanonDoc, Manifest, Master } from '$lib/manifest/types';
+import { versionLabel } from '$lib/review/timeline';
 
 export type History =
 	| {
@@ -10,10 +11,8 @@ export type History =
 			draft: string;
 			/** The landmark shown, when the document is one of the draft's; absent on the draft itself. */
 			at?: string;
-			/** The landmarks the author stamped or imported, newest first. */
+			/** Its versions, newest first: every landmark kept of it, at whichever act. */
 			landmarks: CanonDoc[];
-			/** The landmarks loom kept itself, before an adoption or a sync wrote over the draft, newest first. */
-			kept: CanonDoc[];
 			/** The draft's live agent copies. */
 			copies: Master[];
 	  }
@@ -53,11 +52,11 @@ export function historyOf(m: Manifest, path: string): History | null {
 	const mine = [...(m.canon ?? [])].filter((c) => c.in === draft).reverse();
 	const copies = m.masters.filter((x) => isAgentDocument(x) && x.copy_of === draft && !x.closed && !x.context_only);
 	if (!mine.length && !copies.length) return null;
-	return { of: 'draft', draft: draft!, ...(landmark ? { at: path } : {}), landmarks: mine.filter((c) => !c.kept_for), kept: mine.filter((c) => c.kept_for), copies };
+	return { of: 'draft', draft: draft!, ...(landmark ? { at: path } : {}), landmarks: mine, copies };
 }
 
 /**
- * A landmark's name, as its tab and search show it: its draft's file and the landmark's name (`main.tex · widgets-v2`) where a live draft leads to it, else its own stem and step (`widgets-v1 @1`).
+ * A landmark's name, as its tab and search show it: its draft's file and the version's label (`main.tex · widgets-v2`, `main.tex · Kept an edit`) where a live draft leads to it, else its own stem and step (`widgets-v1 @1`).
  *
  * Parameters
  * ----------
@@ -70,6 +69,6 @@ export function historyOf(m: Manifest, path: string): History | null {
  */
 export function landmarkName(m: Manifest, c: CanonDoc): string {
 	const file = (p: string) => p.split('/').pop() ?? p;
-	if (ownDraft(m, c.in)) return `${file(c.in!)} · ${c.name ?? c.stem}`;
+	if (ownDraft(m, c.in)) return `${file(c.in!)} · ${versionLabel(c)}`;
 	return c.step ? `${c.stem} @${Number(c.step)}` : file(c.path);
 }

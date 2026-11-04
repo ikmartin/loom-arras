@@ -32,8 +32,8 @@ describe('with a base: a copy against its source', () => {
 	it('marks a node only one side has, with a wedge where the base places it', () => {
 		expect(p.marks[0].get('gone')).toMatchObject({ kind: 'del', tag: 'removed in aidoc.tex' });
 		expect(p.marks[1].get('new')).toMatchObject({ kind: 'add', tag: 'new' });
-		expect(p.wedges[1]).toContainEqual({ after: 's4', kind: 'del', pair: 'gone' });
-		expect(p.wedges[0]).toContainEqual({ after: 's3', kind: 'add', pair: 'new' });
+		expect(p.wedges[1]).toContainEqual({ after: 's4', before: null, kind: 'del', pair: 'gone' });
+		expect(p.wedges[0]).toContainEqual({ after: 's3', before: null, kind: 'add', pair: 'new' });
 	});
 	it('reports a move between a copy and its source, with a grey wedge where it came from', () => {
 		expect(p.marks[0].get('s4')).toMatchObject({ kind: 'moved', tag: 'moved in aidoc.tex' });
@@ -86,5 +86,23 @@ describe('without a base: two of the author’s documents', () => {
 		const ordered = [...p.marks[0]].filter(([, m]) => m.kind === 'order').map(([k]) => k);
 		expect(ordered).toHaveLength(1);
 		expect(p.marks[1].get(ordered[0])?.kind).toBe('order');
+	});
+});
+
+describe('a version against now', () => {
+	const live = doc('drafting/main.tex');
+	const landmark = (step: number) => doc(`.loom/history/000${step}-v/v.tex`, { kind: 'landmark', step });
+
+	it('stands the wedge of a block the version lacks before the next shared block when none precedes it, so both sides move to it', () => {
+		const p = plan([[f('a'), f('b')], [f('new'), f('a'), f('b')]], [landmark(1), live], () => null, null);
+		expect(p.wedges[0]).toContainEqual({ after: null, before: 'a', kind: 'add', pair: 'new' });
+		expect(p.differences.map((d) => d.pair)).toEqual(['new']);
+	});
+
+	it('counts nothing against a version whose blocks have no ids to pair by', () => {
+		const p = plan([[], [f('a'), f('b')]], [landmark(1), live], () => null, null);
+		expect(p.unpaired).toBe(true);
+		expect(p.differences).toEqual([]);
+		expect(p.marks[1].size).toBe(0);
 	});
 });

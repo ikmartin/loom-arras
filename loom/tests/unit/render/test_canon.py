@@ -156,3 +156,18 @@ def test_the_history_publishes_every_step_and_each_landmark_its_live_draft(tmp_p
     (q / "drafting" / "main.tex").unlink()
     build(load_quilt(q))
     assert all("in" not in c for c in manifest(q)["canon"])
+
+
+def test_a_landmark_never_compiled_reads_its_live_documents_numbers(tmp_path: Path) -> None:
+    """A landmark has no `.aux` of its own, so it takes its numbers and citation labels from the live document it is a version of, as the live text shows them."""
+    from loom.paths import document_build
+
+    q = quilt(tmp_path)
+    m = build(load_quilt(q)).manifest
+    draft = next(c for c in m["canon"] if c["path"] == LANDMARK)["in"]
+    out = q / document_build(draft)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{Path(draft).stem}.aux").write_text("\\newlabel{lem:a}{{7}{1}}\n\\newlabel{sec:setup}{{4}{1}}\n")
+    build(load_quilt(q))
+    frag = (q / ".loom/build" / "fragments" / "canon" / "main.html").read_text()
+    assert ">7<" in frag and ">4<" in frag

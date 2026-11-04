@@ -9,7 +9,7 @@ test('the column lists the working drafts and no landmarks, which Review › His
 	await expect(page.getByTestId('column')).not.toContainText('Landmarks');
 	await expect(page.getByTestId('column').locator('a[href^="/canon/"]')).toHaveCount(0);
 	await page.goto('/review/history');
-	await page.locator('main').getByRole('link', { name: /widgets-v3/ }).first().click();
+	await page.getByTestId('history-open').click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 });
 
@@ -86,7 +86,7 @@ test("a landmark whose first formula is an environment keeps its macros out of t
 	// the converter writes an `align` as a bare `\begin{align*}`, with no `\[` for definitions to sit inside; written ahead of it, the macro set read as a paragraph of `\renewcommand`
 	await page.route('**/fragments/canon/widgets-v1.html*', async (route) => {
 		const response = await route.fetch();
-		const body = (await response.text()).replace('\\[\\sigma^2 = \\mathrm{id},\\]', '\\begin{align*}\\sigma^2 &amp;= \\mathrm{id},\\end{align*}');
+		const body = (await response.text()).replace('\\[\\tag{1}\\sigma^2 = \\mathrm{id},\\]', '\\begin{align*}\\sigma^2 &amp;= \\mathrm{id},\\end{align*}');
 		expect(body).toContain('\\begin{align*}');
 		await route.fulfill({ response, body });
 	});

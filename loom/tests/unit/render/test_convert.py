@@ -308,3 +308,11 @@ def test_texorpdfstring_is_its_tex_argument() -> None:
         plain_text("$h$-descent for \\texorpdfstring{$\\mathcal{X}_0$}{X0} and \\texorpdfstring{}{}")
         == "$h$-descent for $\\mathcal{X}_0$ and"
     )
+
+
+def test_a_heading_a_macro_wraps_is_drawn_as_a_heading() -> None:
+    """`\\hidefromtoc{\\subsection*{…}}` in a text nothing split (a landmark): the heading is a heading, not its source."""
+    macros = "\\newcommand{\\hidefromtoc}[1]{\\begingroup#1\\endgroup}\n"
+    out, _, _ = make("\\hidefromtoc{\\subsection*{History and contributions}}\n\nLet $M$ be a manifold.", macros=macros)
+    assert re.search(r"<h2[^>]*>History and contributions</h2>", out), out
+    assert "\\subsection" not in out and "Let" in out

@@ -63,8 +63,10 @@ export interface Mark {
 
 /** A place in a pane where the other pane has a node this one lacks, or had one before a move. */
 export interface Wedge {
-	/** Stands after this pair's node; null at the document's head. */
+	/** Stands after this pair's node; null when no node before it is shared. */
 	after: string | null;
+	/** With no `after`, stands before this pair's node, the nearest shared one after it; null at the document's head. */
+	before?: string | null;
 	kind: 'del' | 'add' | 'moved';
 	/** The pair it stands for. */
 	pair: string;
@@ -81,6 +83,8 @@ export interface Plan {
 	marks: [Map<string, Mark>, Map<string, Mark>];
 	wedges: [Wedge[], Wedge[]];
 	differences: Difference[];
+	/** A version whose blocks carry no ids to pair by (the paper as received): nothing is marked or counted, since nothing can be paired. */
+	unpaired?: boolean;
 }
 
 /** The pairs of `a` that a longest common subsequence with `b` keeps: the rest are the fewest nodes that explain the difference in order. */
@@ -133,6 +137,9 @@ export function plan(found: [Found[], Found[]], sides: [Side, Side], baseOf: (ke
 		return f.filter((x) => (seen.has(x.pair) ? false : (seen.add(x.pair), true)));
 	}) as [Found[], Found[]];
 	const at = lists.map((l) => new Map(l.map((x) => [x.pair, x]))) as [Map<string, Found>, Map<string, Found>];
+	// a version whose blocks have no ids pairs with nothing: every block of the other side would read as new
+	if (sides.some((side, p) => side.kind === 'landmark' && !lists[p].length && lists[1 - p].length))
+		return { based: false, marks: [new Map(), new Map()], wedges: [[], []], differences: [], unpaired: true };
 	const common = lists[0].filter((x) => at[1].has(x.pair)).map((x) => x.pair);
 	const both = new Set(common);
 	const copyRel = sides[0].copyOf === sides[1].id ? 1 : sides[1].copyOf === sides[0].id ? 0 : null; // the pane holding the source
@@ -162,6 +169,12 @@ export function plan(found: [Found[], Found[]], sides: [Side, Side], baseOf: (ke
 	const anchor = (p: 0 | 1, pair: string, kept: Set<string>): string | null => {
 		const l = lists[p];
 		for (let i = l.findIndex((x) => x.pair === pair) - 1; i >= 0; i--) if (kept.has(l[i].pair)) return l[i].pair;
+		return null;
+	};
+	/** The nearest shared node after `pair`, where the wedge stands before when no shared node precedes it, so it is never left at the head while a shared node follows. */
+	const following = (p: 0 | 1, pair: string, kept: Set<string>): string | null => {
+		const l = lists[p];
+		for (let i = l.findIndex((x) => x.pair === pair) + 1; i < l.length; i++) if (kept.has(l[i].pair)) return l[i].pair;
 		return null;
 	};
 
@@ -217,7 +230,8 @@ export function plan(found: [Found[], Found[]], sides: [Side, Side], baseOf: (ke
 			if (based && baseSide !== null) {
 				const old = p === baseSide;
 				marks[p].set(x.pair, { kind: old ? 'del' : 'add', tag: old ? `removed in ${sides[other].name}` : 'new', also: null, whole: true });
-				wedges[other].push({ after: anchor(p, x.pair, both), kind: old ? 'del' : 'add', pair: x.pair });
+				const after = anchor(p, x.pair, both);
+				wedges[other].push({ after, before: after === null ? following(p, x.pair, both) : null, kind: old ? 'del' : 'add', pair: x.pair });
 			} else {
 				marks[p].set(x.pair, { kind: 'only', tag: `not in ${sides[other].name}`, also: null, whole: true });
 			}
@@ -233,7 +247,9 @@ export function plan(found: [Found[], Found[]], sides: [Side, Side], baseOf: (ke
 	lists[1].forEach((x, i) => {
 		if (at[0].has(x.pair) || !marks[1].has(x.pair)) return;
 		const after = anchor(1, x.pair, both);
-		positions.push({ pair: x.pair, pos: (after === null ? -1 : (index.get(after) ?? -1)) + 0.5 + i / 1e6, in: [false, true] });
+		const before = after === null ? following(1, x.pair, both) : null;
+		const pos = after !== null ? (index.get(after) ?? -1) + 0.5 : before !== null ? (index.get(before) ?? 0) - 0.5 : -0.5;
+		positions.push({ pair: x.pair, pos: pos + i / 1e6, in: [false, true] });
 	});
 	positions.sort((a, b) => a.pos - b.pos);
 	return { based, marks, wedges, differences: positions.map(({ pair, in: inside }) => ({ pair, in: inside })) };

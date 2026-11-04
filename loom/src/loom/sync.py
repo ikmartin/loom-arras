@@ -736,7 +736,7 @@ def _stamp(
 ) -> list[str]:
     """Stamp each document as a landmark named `<stem> <name>`, refusing before any is written when one reaches a conflicted key."""
     from loom.history.ledger import load_history
-    from loom.history.steps import conflicted_in, slug, stamp_document
+    from loom.history.steps import conflicted_in, free_name, slug, stamp_document
 
     for document in documents:
         conflicted = conflicted_in(result, document)
@@ -747,10 +747,7 @@ def _stamp(
     landmarks = []
     for document in documents:
         history = load_history(quilt.history_dir)
-        landmark = base = slug(f"{Path(document).stem} {name}", limit=120)
-        suffix = 2
-        while history.landmark(landmark) is not None:
-            landmark, suffix = f"{base}-{suffix}", suffix + 1
+        landmark = free_name(history, slug(f"{Path(document).stem} {name}", limit=120))
         stamp_document(result, history, document, landmark, message.format(document=document), actor, kept_for="sync")
         landmarks.append(landmark)
     return landmarks
@@ -806,7 +803,7 @@ def incorporate(quilt: Quilt, state: SyncState, actor: str | None = None) -> dic
             result,
             documents,
             f"before pull {state.incoming[:12]}",
-            f"{{document}} before incorporating {label} {state.incoming[:12]}",
+            f"Before taking a pull from {label}",
             who,
         )
         for path, data in after.items():
@@ -979,7 +976,7 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: 
         scan(quilt),
         documents,
         f"published {commit[:12]}",
-        f"{{document}} as published to {source_label(state.url)} in {commit[:12]}",
+        f"As published to {source_label(state.url)}",
         who,
     )
     git(clone, "update-ref", PUBLICATION_REF, commit)

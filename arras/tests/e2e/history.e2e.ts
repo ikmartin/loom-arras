@@ -28,18 +28,14 @@ test('the menu lists the live text and the landmarks newest first, each with its
 	await expect(page.getByTestId('history-compare-widgets-v3')).toBeFocused();
 });
 
-test("the landmarks loom kept itself are folded under one line, which opens them in place", async ({ page }) => {
+test('a version kept at an act is listed with the rest, named by the act', async ({ page }) => {
 	await serve(page, (m) => {
-		m.canon.push({ ...structuredClone(m.canon[1]), path: '.loom/history/0007-main-before-adopt-aidoc/main-before-adopt-aidoc.tex', stem: 'main-before-adopt-aidoc', name: 'main-before-adopt-aidoc', step: '0007', kept_for: 'adopt' });
+		m.canon.push({ ...structuredClone(m.canon[1]), path: '.loom/history/0007-main-before-adopt-aidoc/main-before-adopt-aidoc.tex', stem: 'main-before-adopt-aidoc', name: 'main-before-adopt-aidoc', step: '0007', kept_for: 'adopt', message: 'Before taking changes from the copy “aidoc”' });
 	});
 	await page.goto('/master/drafting/main');
 	await history(page);
-	await expect(page.getByTestId('history-version-main-before-adopt-aidoc')).toHaveCount(0);
-	await page.getByTestId('history-kept').click();
-	// the menu stays open, and the line opens the ones it folded
-	await expect(page.getByTestId('history-menu')).toBeVisible();
-	await expect(page.getByTestId('history-version-main-before-adopt-aidoc')).toBeVisible();
-	await expect(page.getByTestId('history-kept')).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.getByTestId('history-version-main-before-adopt-aidoc')).toContainText('Before taking changes from the copy “aidoc”');
+	await expect(page.getByTestId('history-menu').locator('[role="menuitemradio"]').nth(1)).toContainText('Before taking changes');
 });
 
 test('a draft with no landmarks and no copies, and a landmark no live draft leads to, have no menu', async ({ page }) => {
@@ -154,10 +150,82 @@ test('in a window too narrow for two panes, compare is greyed with its reason', 
 
 test('a landmark opened from Review › History carries its draft’s menu', async ({ page }) => {
 	await page.goto('/review/history');
-	await page.locator('main').getByRole('link', { name: 'widgets-v3' }).first().click();
+	await page.getByTestId('history-open').click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 	await expect(tabs(page, 0)).toContainText('main.tex · widgets-v3');
 	await history(page);
 	await expect(page.getByTestId('history-version-widgets-v3')).toHaveAttribute('aria-checked', 'true');
 	await expect(page.getByTestId('history-compare-live')).toBeVisible();
+});
+
+test('a version steps to the older and the newer in place, the newest to the live text, and says why it cannot be put back', async ({ page }) => {
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-restore', 'history-record'], token: 't' } }));
+	await serve(page, (m) => {
+		m.canon[0].cannot_restore = 'This version was kept as one text, and the document is now several files.';
+	});
+	await page.goto('/canon/widgets-v2');
+	await pane(page, 0).getByTestId('version-older').click();
+	await expect(page).toHaveURL(/\/canon\/widgets-v1/);
+	await expect(pane(page, 0).getByTestId('version-older')).toBeDisabled();
+	await expect(pane(page, 0).getByTestId('version-restore')).toBeDisabled();
+	await expect(pane(page, 0).getByTestId('version-restore')).toHaveAttribute('title', /kept as one text/);
+	await pane(page, 0).getByTestId('version-newer').click();
+	await pane(page, 0).getByTestId('version-newer').click();
+	await expect(page).toHaveURL(/\/canon\/widgets-v3/);
+	await pane(page, 0).getByTestId('version-newer').click();
+	await expect(page).toHaveURL(/\/master\/drafting\/main/);
+});
+
+test('Restore on a version asks first, then puts it back and turns to the live text', async ({ page }) => {
+	let posted: Record<string, unknown> | null = null;
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-restore'], token: 't' } }));
+	await page.route('**/_api/history-restore', async (route) => {
+		posted = route.request().postDataJSON();
+		await route.fulfill({ json: { ok: true, result: 'put main.tex back as “widgets-v2” holds it; its text before is the version “Before restoring “widgets-v2””' } });
+	});
+	await page.goto('/canon/widgets-v2');
+	await pane(page, 0).getByTestId('version-restore').click();
+	await expect(pane(page, 0).getByTestId('version-ask')).toHaveText('Put main.tex back as this version? Its text now is kept as a version.');
+	expect(posted).toBeNull();
+	await pane(page, 0).getByTestId('version-restore-go').click();
+	await expect(page).toHaveURL(/\/master\/drafting\/main/);
+	expect(posted).toMatchObject({ document: 'drafting/main.tex', version: '.loom/history/0003-widgets-v2/widgets-v2.tex' });
+});
+
+test('the history menu records a version from Review › History', async ({ page }) => {
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-record', 'history-restore'], token: 't' } }));
+	let posted: Record<string, unknown> | null = null;
+	await page.route('**/_api/history-record', async (route) => {
+		posted = route.request().postDataJSON();
+		await route.fulfill({ json: { ok: true, result: 'kept this version of main.tex as “Before referee”' } });
+	});
+	await page.goto('/master/drafting/main');
+	await history(page);
+	await page.getByTestId('history-record').click();
+	await expect(page).toHaveURL(/\/review\/history\?document=drafting%2Fmain\.tex&record=1/);
+	await page.getByTestId('history-record-name').fill('Before referee');
+	await page.getByTestId('history-record-go').click();
+	await expect(page.getByTestId('history-bar-said')).toHaveText('Kept this version of main.tex as “Before referee”.');
+	expect(posted).toMatchObject({ document: 'drafting/main.tex', name: 'Before referee' });
+});
+
+test('an undo’s set-aside text is put back from everything recorded, after asking', async ({ page }) => {
+	let posted: Record<string, unknown> | null = null;
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-restore'], token: 't' } }));
+	await page.route('**/_api/history-restore', async (route) => {
+		posted = route.request().postDataJSON();
+		await route.fulfill({ json: { ok: true, result: 'put README.md back as the undo found it; its text before is kept' } });
+	});
+	await serve(page, (m) => {
+		m.history.acts.push({ action: 'undo', when: '2026-11-04T00:00:00Z', actor: 'The synthetic quilt', path: 'README.md', from: 'sha256:abc', to: 'sha256:def' });
+	});
+	await page.goto('/review/history');
+	await page.getByTestId('history-acts').locator('summary').click();
+	const undo = page.getByTestId('history-act').first();
+	await expect(undo).toContainText('Undid an edit to README.md');
+	await undo.getByTestId('history-put-back').click();
+	expect(posted).toBeNull();
+	await undo.getByTestId('history-put-back-go').click();
+	await expect(undo.getByTestId('history-act-said')).toHaveText('Put README.md back as the undo found it; its text before is kept.');
+	expect(posted).toMatchObject({ path: 'README.md', text: 'sha256:abc' });
 });

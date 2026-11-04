@@ -38,7 +38,7 @@ test('Sessions lists every session with what it holds, each opening its transcri
 	await expect(page.locator('[data-testid^="sessions-close-"]')).toHaveCount(0);
 });
 
-test('History lists every step newest first, and flags a landmark no live draft leads to', async ({ page }) => {
+test('History shows a document’s versions oldest first and Now, every act recorded, and flags a version no live draft leads to', async ({ page }) => {
 	await serve(page, (m) => {
 		const oldest = m.canon[0];
 		delete oldest.in;
@@ -46,13 +46,21 @@ test('History lists every step newest first, and flags a landmark no live draft 
 		delete step.in;
 	});
 	await page.goto('/review/history');
-	const rows = page.getByTestId('history-table').locator('tbody tr');
-	const steps = manifest.history.steps;
-	await expect(rows).toHaveCount(steps.length);
-	await expect(rows.first()).toHaveAttribute('data-testid', `history-step-${steps[steps.length - 1].step}`);
-	const oldest = steps.find((s: { landmark?: string }) => s.landmark === manifest.canon[0].path);
+	await expect(page.getByTestId('history-tick')).toHaveText([/widgets-v2/, /widgets-v3/]);
+	await expect(page.getByTestId('history-now')).toHaveText('Now');
+	// the newest is chosen, and opens as a document of its own or beside the live text
+	await expect(page.getByTestId('history-selected').locator('h2')).toHaveText('widgets-v3');
+	await expect(page.getByTestId('history-open')).toHaveAttribute('href', '/canon/widgets-v3');
+	await expect(page.getByTestId('history-compare')).toHaveAttribute('href', /\/canon\/widgets-v3\?beside=.*master.*&compare=1/);
+	await page.getByTestId('history-tick').first().click();
+	await expect(page.getByTestId('history-selected').locator('h2')).toHaveText('widgets-v2');
+	const oldest = manifest.history.steps.find((s: { landmark?: string }) => s.landmark === manifest.canon[0].path);
 	await expect(page.getByTestId(`history-orphan-${oldest.step}`)).toHaveText('no draft leads here');
-	await expect(page.getByTestId(`history-step-${oldest.step}`).getByRole('link', { name: oldest.name })).toHaveAttribute('href', /\/canon\//);
+	// every act, in words, newest first
+	await page.getByTestId('history-acts').locator('summary').click();
+	const acts = page.getByTestId('history-act');
+	await expect(acts).toHaveCount(manifest.history.acts.length);
+	await expect(acts.first()).toHaveAttribute('data-action', manifest.history.acts.at(-1).action);
 	// and the column counts it
 	await expect(page.getByTestId('section-count-history')).toHaveText('1');
 });
