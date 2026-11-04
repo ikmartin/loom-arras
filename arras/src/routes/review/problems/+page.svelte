@@ -161,7 +161,7 @@
 	{#if parts.copy.length}
 		<details class="part" open={isOpen('copy', false)} ontoggle={toggled('copy')} data-testid="problems-copy">
 			<summary><h2>In an agent's copy <span class="n">{parts.copy.length}</span></h2></summary>
-			<p class="whose">The agent's to put right, or to leave out when you take the copy back in <a href={route('/review/proposed')}>Proposed to you</a>.</p>
+			<p class="whose">The agent's to put right, or to leave out when you take the copy back in <a href={route('/review/proposed')}>Proposed Changes</a>.</p>
 			{@render groups(parts.copy, 'copy', '')}
 		</details>
 	{/if}

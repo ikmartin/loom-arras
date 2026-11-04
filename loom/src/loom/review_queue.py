@@ -1,4 +1,4 @@
-"""Review › Your text: every block of the person's not freshly accepted, why, and accepting it from the viewer."""
+"""Review › Your Changes: every block of the person's not freshly accepted, why, and accepting it from the viewer."""
 
 from __future__ import annotations
 

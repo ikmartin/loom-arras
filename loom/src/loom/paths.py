@@ -29,7 +29,7 @@ SESSIONS = f"{LOOM}/sessions"
 COPIES = f"{LOOM}/copies"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
-#: Each person's last look at the open files, which Review's Your text reads.
+#: Each person's last look at the open files, which Review's Your Changes reads.
 LOOKED = f"{LOOM}/looked"
 #: The default of `[quilt] history`; code reads the setting, never this.
 HISTORY = f"{LOOM}/history"

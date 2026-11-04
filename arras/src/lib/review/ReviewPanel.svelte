@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Beside a document opened from Your text (`?review=KEY`), inside the document's side panel: the block, why it waits, the change when it changed since it was accepted, and Accept, its answer said here. A block loom cannot accept says why instead.
+	// Beside a document opened from Your Changes (`?review=KEY`), inside the document's side panel: the block, why it waits, the change when it changed since it was accepted, and Accept, its answer said here. A block loom cannot accept says why instead.
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/manifest/client.svelte';
@@ -43,7 +43,7 @@
 		!row
 			? key?.acceptance?.fresh
 				? `Accepted by ${key.acceptance.author}, ${shortDate(key.acceptance.date)}.`
-				: 'Not waiting in Your text.'
+				: 'Not waiting in Your Changes.'
 			: row.cause === 'never-accepted'
 				? 'Never accepted.'
 				: row.cause === 'earlier-change'
@@ -79,7 +79,7 @@
 	{#if row?.refusal}<p class="cannot" data-testid="review-panel-refusal">Can't be accepted yet: {lower(row.refusal)}</p>
 	{:else if row && served && m.reviewer?.name}<button class="btn primary" disabled={busy} onclick={() => void accept()} data-testid="review-panel-accept">{busy ? 'Accepting…' : 'Accept'}</button>{/if}
 	{#if said}<Said text={said.text} refused={said.refused} testid="review-panel-said" />{/if}
-	<p><a href={reviewUrl(master, reviewKey)} data-testid="review-panel-back">Back to Your text</a></p>
+	<p><a href={reviewUrl(master, reviewKey)} data-testid="review-panel-back">Back to Your Changes</a></p>
 </div>
 
 <style>

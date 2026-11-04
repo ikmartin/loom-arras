@@ -2,7 +2,7 @@
 	// One block's or one file's edit since the look: its changes alone out of the file's diff, each with its own controls when it has several. Folded where a page lists many, so a long list costs nothing until one is asked for.
 	import type { Snippet } from 'svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
-	import type { Edit } from './yourText';
+	import type { Edit } from './yourChanges';
 
 	let { edit, folded = false, hunk }: { edit: Edit; folded?: boolean; hunk?: Snippet<[number]> } = $props();
 	let open = $state(false);

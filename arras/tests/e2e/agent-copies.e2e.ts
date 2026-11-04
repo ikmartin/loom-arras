@@ -16,7 +16,7 @@ test("an agent's copy sits beneath the document it copies, and nowhere else in t
 	await expect(page).toHaveURL(/\/file\/README\.md$/);
 });
 
-test("Your text offers an agent's document no place", async ({ page }) => {
+test("Your Changes offers an agent's document no place", async ({ page }) => {
 	await page.goto('/review');
 	const picker = page.getByTestId('review-document');
 	await expect(picker).toHaveValue('drafting/main.tex');

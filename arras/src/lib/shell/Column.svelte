@@ -70,7 +70,7 @@
 	// Review's sections, each with what waits for the author there
 	const sections = $derived(store.manifest ? sectionsOf(store.manifest) : []);
 	const here = $derived(sectionOf(page.route.id));
-	// the works wanting something of the person beyond results to check, which Review's Proposed to you counts
+	// the works wanting something of the person beyond results to check, which Review's Proposed Changes counts
 	const wanted = $derived(store.manifest ? needsYou(store.manifest) : 0);
 
 	// folded until the reader opens it: the works are many, and the documents are what the column is for

@@ -5,21 +5,21 @@ import { manifest, QUICK, REFEREE, serve } from '../manifest';
 test('Review\'s column lists its sections, each counting what waits there, the current one marked', async ({ page }) => {
 	await page.goto('/review');
 	const list = page.getByTestId('review-sections');
-	await expect(list.getByRole('link')).toHaveText([/^Your text/, /^Proposed to you/, /^Problems/, /^Record/]);
-	await expect(page.getByTestId('section-text')).toHaveAttribute('aria-current', 'page');
+	await expect(list.getByRole('link')).toHaveText([/^Your Changes/, /^Proposed Changes/, /^Problems/, /^The Record/]);
+	await expect(page.getByTestId('section-changes')).toHaveAttribute('aria-current', 'page');
 	// what changed since it was accepted, or was taken in, and the one file edited since the look; a block never accepted is listed there, not counted
 	const unresolved = (manifest.unresolved ?? []).filter((r: { cause: string }) => r.cause !== 'never-accepted').length;
-	await expect(page.getByTestId('section-count-text')).toHaveText(String(unresolved + 1));
+	await expect(page.getByTestId('section-count-changes')).toHaveText(String(unresolved + 1));
 	// an agent's copy, a suggestion with text and a citation
 	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
 	// an open session waits for no one: it is said on hover, never counted
 	await expect(page.getByTestId('section-record')).toHaveAttribute('title', /1 open session/);
 	const problems = manifest.diagnostics.filter((d: { severity: string; owner?: string }) => (d.owner ?? 'person') === 'person' && (d.severity === 'error' || d.severity === 'warning')).length;
 	await expect(page.getByTestId('section-count-problems')).toHaveText(String(problems));
-	// every landmark leads to a live draft, so Record waits for nothing
+	// every landmark leads to a live draft, so The Record waits for nothing
 	await expect(page.getByTestId('section-count-record')).toHaveCount(0);
 	// each says what it is for
-	await expect(page.getByTestId('section-text')).toContainText('edits to keep, mathematics to accept');
+	await expect(page.getByTestId('section-changes')).toContainText('edits to keep, mathematics to accept');
 	await expect(page.getByTestId('section-record')).toContainText('versions, sessions, everything done');
 	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /3 proposals to decide/);
 	// each section is its own page, and the column marks it
@@ -30,7 +30,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	}
 });
 
-test('Record\'s Sessions lists every session with what awaits an answer and when it was last active, each opening its transcript', async ({ page }) => {
+test('The Record\'s Sessions lists every session with what awaits an answer and when it was last active, each opening its transcript', async ({ page }) => {
 	await page.goto('/review/record/sessions');
 	const table = page.getByTestId('sessions-table');
 	await expect(table.locator('thead')).toContainText('Awaiting an answer');
@@ -53,7 +53,7 @@ test('Record\'s Sessions lists every session with what awaits an answer and when
 	await expect(page.locator(`[data-testid="sessions-write-here-${QUICK}"]`)).toHaveCount(0);
 });
 
-test('Record shows a document’s versions oldest first and Now, every act recorded on its own tab, and flags a version no live draft leads to', async ({ page }) => {
+test('The Record shows a document’s versions oldest first and Now, every act recorded on its own tab, and flags a version no live draft leads to', async ({ page }) => {
 	await serve(page, (m) => {
 		const oldest = m.canon[0];
 		delete oldest.in;
@@ -82,7 +82,7 @@ test('Record shows a document’s versions oldest first and Now, every act recor
 	await expect(acts.first()).toHaveAttribute('data-action', manifest.history.acts.at(-1).action);
 });
 
-test('Your text keeps its help dot small, beside its heading', async ({ page }) => {
+test('Your Changes keeps its help dot small, beside its heading', async ({ page }) => {
 	await page.goto('/review');
 	const dot = page.getByTestId('help-review');
 	await expect(dot).toBeVisible();
@@ -93,8 +93,8 @@ test('Your text keeps its help dot small, beside its heading', async ({ page }) 
 
 test("a section's count stands beside its name, on the name's line, not under its description", async ({ page }) => {
 	await page.goto('/review');
-	const name = (await page.getByTestId('section-text').locator('.section-name').boundingBox())!;
-	const count = (await page.getByTestId('section-count-text').boundingBox())!;
+	const name = (await page.getByTestId('section-changes').locator('.section-name').boundingBox())!;
+	const count = (await page.getByTestId('section-count-changes').boundingBox())!;
 	expect(count.x).toBeGreaterThanOrEqual(name.x + name.width);
 	expect(count.y).toBeLessThan(name.y + 16);
 });

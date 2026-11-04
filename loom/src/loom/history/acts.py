@@ -1,6 +1,6 @@
 """A version of a document at each of the author's acts, and a version put back.
 
-A version is a landmark (`stamp_document`): Keep and Undo in Your text keep one, taking changes in and applying a suggestion keep one first, the author records one by hand, and restoring keeps the text it replaces as one. `restore` writes a version back into its document file by file; `put_back` writes back the text an undo set aside.
+A version is a landmark (`stamp_document`): Keep and Undo in Your Changes keep one, taking changes in and applying a suggestion keep one first, the author records one by hand, and restoring keeps the text it replaces as one. `restore` writes a version back into its document file by file; `put_back` writes back the text an undo set aside.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 from loom.history.ledger import Entry, History, append_entry, load_history
 from loom.scan.scan import ScanResult
 
-#: The ledger's line for a file kept in Your text, beside `undo`'s.
+#: The ledger's line for a file kept in Your Changes, beside `undo`'s.
 KEEP = "keep"
 #: The ledger's line for a version or a set-aside text put back.
 RESTORE = "restore"

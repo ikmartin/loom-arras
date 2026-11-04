@@ -1,4 +1,4 @@
-// Review › Proposed to you, read from the fixture: one card for each thing to decide, in order and counted, prose suggestions beneath; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggestion and a citation are decided in their cards. The acts are stubbed: e2e-write drives them against a running publisher.
+// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted, prose suggestions beneath; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggestion and a citation are decided in their cards. The acts are stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, REFEREE, serve } from '../manifest';
 
@@ -257,5 +257,5 @@ test('what taking a copy in did is said even when the copy leaves the manifest b
 	await page.getByTestId('apply').click();
 	await expect(page.getByTestId('proposed-summary')).toBeVisible({ timeout: 15000 });
 	answer();
-	await expect(page.getByTestId('proposed-answer')).toContainText('Took 1 change into main: 0 accepted, 1 wait in Your text.');
+	await expect(page.getByTestId('proposed-answer')).toContainText('Took 1 change into main: 0 accepted, 1 wait in Your Changes.');
 });

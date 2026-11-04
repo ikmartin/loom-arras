@@ -1,4 +1,4 @@
-// Review › Proposed to you read from the manifest: one card for each thing someone proposes that the person decides, and what a copy's card says of it. Model facts in, display facts out.
+// Review › Proposed Changes read from the manifest: one card for each thing someone proposes that the person decides, and what a copy's card says of it. Model facts in, display facts out.
 import type { AdoptionReview, Annotation, IncomingReview, Manifest } from '$lib/manifest/types';
 import { documentOf, toApply } from './suggestions';
 

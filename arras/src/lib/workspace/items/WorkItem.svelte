@@ -162,7 +162,7 @@
 					</h2>
 					{#if proposals.length}
 						<p class="proposals" data-testid="proposals">
-							{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/proposed') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Proposed to you</a>.
+							{proposals.length} proposed result{proposals.length === 1 ? '' : 's'} of this work wait{proposals.length === 1 ? 's' : ''} to be verified in <a href={route('/review/proposed') + '?work=' + encodeURIComponent(citekey) + '#queue'} data-testid="proposals-queue-link">Review › Proposed Changes</a>.
 						</p>
 					{/if}
 					{#if results.length}

@@ -72,7 +72,7 @@ export interface FileChange {
   hash?: string | null;
   /** How many changes (`@@` hunks) the diff holds, each kept or undone alone by its number from 0. */
   hunks?: number;
-  /** The statements and proofs each change touches, by its number, in the file's order: what is drawn under a block in Your text; an empty list is text outside any block. */
+  /** The statements and proofs each change touches, by its number, in the file's order: what is drawn under a block in Your Changes; an empty list is text outside any block. */
   blocks?: string[][];
   /** The person's documents whose text this file is part of; empty for a file in none. */
   documents?: string[];
@@ -114,7 +114,7 @@ export interface CanonDoc {
 	cannot_restore?: string;
 }
 
-/** One line of the history, as Review › Record lists it: what was done, when, by whom, and to what. */
+/** One line of the history, as Review › The Record lists it: what was done, when, by whom, and to what. */
 export interface HistoryAct {
 	action: string;
 	when: string;

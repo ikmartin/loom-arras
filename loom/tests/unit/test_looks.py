@@ -1,4 +1,4 @@
-"""A person's look at the open files (plan 0.22.8): what Review's Your text counts from, and keep and undo, the author's verbs on a change."""
+"""A person's look at the open files (plan 0.22.8): what Review's Your Changes counts from, and keep and undo, the author's verbs on a change."""
 
 from __future__ import annotations
 

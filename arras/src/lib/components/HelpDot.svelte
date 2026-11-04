@@ -6,7 +6,7 @@
 
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
-			title: 'What your text shows',
+			title: 'What the Your Changes page shows',
 			body: "What changed in your documents and files since your look, and every statement and proof you have not accepted as it stands. A block is listed once, with every reason it waits. Keep takes an edit into your look, and Undo puts it back, keeping the text it replaces; neither says whether the mathematics is right. Accepting records your reading of the text against what it rests on, and keeps its edit too; it goes stale when either changes. Blocks taken in from an agent's copy or a pull are grouped by where they came from. A block's name opens it in its document with why it waits beside it; what loom cannot accept says why in its row.",
 			states: [
 				['edited since your look', 'its text differs from what you last saw, whoever changed it'],

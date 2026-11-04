@@ -33,9 +33,9 @@ describe('who edits a row', () => {
 		expect(explain({ agents: false, by: 'config.toml', always: true }, {}).body).toBe("No agent writes the quilt's configuration.");
 		expect(explain({ agents: false, by: 'research-state.md', always: true }, { statePath: 'research-state.md' }).title).toBe('Agents change this only through loom');
 		expect(explain({ agents: false }, { dir: true }).title).toBe('Only you edit what is in here');
-		expect(explain({ agents: true }, { copyOf: 'drafting/examples.tex' }).body).toContain('back to examples.tex through Review › Proposed to you');
-		// Review › Your text follows text files only, so a PDF an agent may replace is not promised there
+		expect(explain({ agents: true }, { copyOf: 'drafting/examples.tex' }).body).toContain('back to examples.tex through Review › Proposed Changes');
+		// Review › Your Changes follows text files only, so a PDF an agent may replace is not promised there
 		expect(explain({ agents: true }, { kind: 'pdf' }).body).toBe('An agent may change or replace this file.');
-		expect(explain({ agents: true }, { kind: 'markdown' }).body).toContain('Review › Your text');
+		expect(explain({ agents: true }, { kind: 'markdown' }).body).toContain('Review › Your Changes');
 	});
 });

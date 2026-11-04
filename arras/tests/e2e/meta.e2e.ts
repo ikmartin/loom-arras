@@ -1,4 +1,4 @@
-// Review as the meta view and notes (plan 0.22.8), read from the fixture: Review leads with what changed in the open files since the author's look, each with its diff; Proposed to you lists what waits to be taken; a file's notes stand quietly at its head, a faded one hidden until asked for; and the notes of a session read in its transcript, by time among its messages.
+// Review as the meta view and notes (plan 0.22.8), read from the fixture: Review leads with what changed in the open files since the author's look, each with its diff; Proposed Changes lists what waits to be taken; a file's notes stand quietly at its head, a faded one hidden until asked for; and the notes of a session read in its transcript, by time among its messages.
 import { expect, test } from '@playwright/test';
 import { pane } from '../workspace';
 

@@ -577,7 +577,7 @@ test('an agent copy is taken back in one pass: Take it, then one Apply writes it
 	// one press writes it, keeping the document as it was first
 	await page.getByTestId('apply').click();
 	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
-	await expect(page.locator('main')).toContainText('Took 1 change into adoption-test: 0 accepted, 1 wait in Your text. adoption-test as it was is kept as a version.');
+	await expect(page.locator('main')).toContainText('Took 1 change into adoption-test: 0 accepted, 1 wait in Your Changes. adoption-test as it was is kept as a version.');
 	await page.goto('/review?document=drafting%2Fadoption-test.tex');
 	await expect(page.locator('[data-testid="review-group"][data-group="taken"] [data-key="sy-0900"]')).toHaveCount(1);
 	await expect(page.locator('[data-testid="review-group"][data-group="taken"] summary .title')).toHaveText('Taken in from the copy “adoption-proposal”');

@@ -119,7 +119,7 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 });
 
 test('no route reaches an unknown key from review or the problems page', async ({ page }) => {
-	// Your text opens each block in its document, with Review's panel on a key the manifest has
+	// Your Changes opens each block in its document, with Review's panel on a key the manifest has
 	await page.goto('/review');
 	await expect(page.getByTestId('review-read').first()).toBeAttached();
 	const reads = await page.locator('main [data-testid="review-read"]').evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href')!));

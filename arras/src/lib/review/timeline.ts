@@ -1,4 +1,4 @@
-// A document's versions as Review › Record and a version's toolbar read them: each labelled by the act it was kept at, oldest first; and every act of the history said in words. Model facts in, display facts out.
+// A document's versions as Review › The Record and a version's toolbar read them: each labelled by the act it was kept at, oldest first; and every act of the history said in words. Model facts in, display facts out.
 import type { CanonDoc, HistoryAct, Manifest } from '$lib/manifest/types';
 
 const file = (p: string) => p.split('/').pop() ?? p;
@@ -73,7 +73,7 @@ export function actWords(a: HistoryAct): string {
 	}
 }
 
-/** The acts Review › Record lists, newest first; with `doc`, only those about it or one of the files it is made of (`files`). */
+/** The acts Review › The Record lists, newest first; with `doc`, only those about it or one of the files it is made of (`files`). */
 export function actsOf(m: Pick<Manifest, 'history'>, doc = '', files: Set<string> = new Set()): HistoryAct[] {
 	const acts = (m.history?.acts ?? []).filter((a) => !beside(a));
 	const mine = doc ? acts.filter((a) => a.in === doc || (a.path && files.has(a.path)) || (a.paths ?? []).some((p) => files.has(p))) : acts;

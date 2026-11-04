@@ -1,4 +1,4 @@
-// Versions under a running `loom serve` (plan 0.25.5): keeping an edit to a document keeps a version of it, a version is recorded by name from Review › Record, and Restore puts one back, the text it replaced kept as a version first. None of this compiles anything.
+// Versions under a running `loom serve` (plan 0.25.5): keeping an edit to a document keeps a version of it, a version is recorded by name from Review › The Record, and Restore puts one back, the text it replaced kept as a version first. None of this compiles anything.
 import { expect, test } from '../served';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

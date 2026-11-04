@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Record: what has been done, under one heading, as tabs: each document's versions, the sessions, and every act the history recorded. Nothing here waits on the person but a version no document leads to.
+	// Review › The Record: what has been done, under one heading, as tabs: each document's versions, the sessions, and every act the history recorded. Nothing here waits on the person but a version no document leads to.
 	import '$lib/review/review.css';
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
@@ -19,7 +19,7 @@
 </script>
 
 <main class="page review-page scrollbar-shown" data-testid="record">
-	<ReviewHeading title="Record" />
+	<ReviewHeading title="The Record" />
 	<nav class="tabs" aria-label="The record" data-testid="record-tabs">
 		{#each tabs as t (t.id)}
 			<a href={t.href} aria-current={page.route.id === t.route ? 'page' : undefined} data-testid="record-tab-{t.id}">{t.label}</a>

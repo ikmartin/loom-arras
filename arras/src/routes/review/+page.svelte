@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Your text: what changed in the person's text and what waits for their word on it, one document at a time. A block is listed once, with every reason it waits: edited since their look (Keep takes it into the look, Undo puts it back after asking, the text it replaces kept first), changed since they accepted it or taken in from a copy or a pull (Accept records their reading, for one block or a selection, and keeps its edit too). Keep says nothing about the mathematics, so a kept block still waits. Text edited outside any block, and files in no document, are kept or undone and have nothing to accept. Never accepted and accepted blocks are folded beneath, uncounted. What loom cannot accept says why in its row, before anything is pressed; each answer is said in its row while the row stands, else in the bar.
+	// Review › Your Changes: what changed in the person's text and what waits for their word on it, one document at a time. A block is listed once, with every reason it waits: edited since their look (Keep takes it into the look, Undo puts it back after asking, the text it replaces kept first), changed since they accepted it or taken in from a copy or a pull (Accept records their reading, for one block or a selection, and keeps its edit too). Keep says nothing about the mathematics, so a kept block still waits. Text edited outside any block, and files in no document, are kept or undone and have nothing to accept. Never accepted and accepted blocks are folded beneath, uncounted. What loom cannot accept says why in its row, before anything is pressed; each answer is said in its row while the row stands, else in the bar.
 	import '$lib/review/review.css';
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';
@@ -13,7 +13,7 @@
 	import { documentKeys } from '$lib/review/documents';
 	import { causeLabel } from '$lib/review/evidence';
 	import { documentsWithBlocks, notesOf } from '$lib/review/queue';
-	import { otherFiles, waitingIn, yourTextOf, type BlockRow, type Edit } from '$lib/review/yourText';
+	import { otherFiles, waitingIn, yourChangesOf, type BlockRow, type Edit } from '$lib/review/yourChanges';
 	import { reviewRowBadge, shortDate } from '$lib/badges';
 	import { fileHref } from '$lib/shell/files';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
@@ -41,11 +41,11 @@
 		for (const c of m.changes ?? []) for (const d of c.documents ?? []) withBlocks.add(d);
 		return people.filter((d) => withBlocks.has(d.path));
 	});
-	const waiting = (path: string) => waitingIn(yourTextOf(m, path));
+	const waiting = (path: string) => waitingIn(yourChangesOf(m, path));
 	// asked for by name, else the first with something waiting, else the default
 	const doc = $derived(mine.find((x) => x.path === page.url.searchParams.get('document')) ?? mine.find((x) => waiting(x.path) > 0) ?? mine.find((x) => x.default) ?? mine[0]);
 	const file = $derived(doc ? doc.path.split('/').pop()! : '');
-	const y = $derived(doc ? yourTextOf(m, doc.path) : null);
+	const y = $derived(doc ? yourChangesOf(m, doc.path) : null);
 	const lists = $derived(y ? [...y.changed, ...y.taken.flatMap((t) => t.rows)] : []);
 	const editedCount = $derived(lists.filter((b) => b.edit || b.editedWith).length + (y?.outside.length ?? 0) + others.length);
 	const changedCount = $derived(y ? y.changed.filter((b) => b.row?.cause === 'earlier-change').length : 0);
@@ -102,7 +102,7 @@
 	function stands(at: string): boolean {
 		const now = store.manifest;
 		if (!now || !doc) return false;
-		const list = yourTextOf(now, doc.path);
+		const list = yourChangesOf(now, doc.path);
 		return (
 			[...list.changed, ...list.taken.flatMap((t) => t.rows), ...list.never].some((b) => b.key === at) ||
 			list.outside.some((e) => e.change.path === at) ||
@@ -241,8 +241,8 @@
 	</details>
 {/snippet}
 
-<main class="page review-page scrollbar-shown" data-testid="your-text">
-	<ReviewHeading title="Your text">{#snippet aside()}<HelpDot label="what your text shows" topic="review" />{/snippet}</ReviewHeading>
+<main class="page review-page scrollbar-shown" data-testid="your-changes">
+	<ReviewHeading title="Your Changes">{#snippet aside()}<HelpDot label="what the Your Changes page shows" topic="review" />{/snippet}</ReviewHeading>
 	<ActionBar said={said?.at === '*' ? said.text : ''} refused={said?.refused} testid="review-bar">
 		{#snippet lead()}
 			{#if mine.length > 1 && doc}<select aria-label="Document" data-testid="review-document" value={doc.path} onchange={(e) => goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each mine as d (d.path)}<option value={d.path}>{d.path.split('/').pop()}{waiting(d.path) ? ` · ${waiting(d.path)}` : ''}</option>{/each}</select>{:else if doc}<strong>{file}</strong>{/if}

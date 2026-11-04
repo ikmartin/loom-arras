@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Record › Everything recorded: every act the history holds, in words, newest first, for one document or for all; an undo's set-aside text is put back from its row, after asking. An act's answer stays with it when a newer act arrives above it.
+	// Review › The Record › Everything recorded: every act the history holds, in words, newest first, for one document or for all; an undo's set-aside text is put back from its row, after asking. An act's answer stays with it when a newer act arrives above it.
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';

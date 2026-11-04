@@ -1,4 +1,4 @@
-"""Review › Your text: every block of the person's not freshly accepted is listed with why, and accepted from the viewer only as far as loom can accept it."""
+"""Review › Your Changes: every block of the person's not freshly accepted is listed with why, and accepted from the viewer only as far as loom can accept it."""
 
 from __future__ import annotations
 

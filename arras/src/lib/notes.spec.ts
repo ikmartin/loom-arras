@@ -57,11 +57,11 @@ describe('notes', () => {
 describe('Review as the meta view', () => {
 	it('leads with the person\'s text, and counts the suggestions with text to put in', () => {
 		const sections = sectionsOf(m);
-		expect(sections.map((s) => s.id)).toEqual(['text', 'proposed', 'problems', 'record']);
-		expect(sections.find((s) => s.id === 'text')!.waits).toBe(1);
+		expect(sections.map((s) => s.id)).toEqual(['changes', 'proposed', 'problems', 'record']);
+		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(1);
 		// a count is what waits for the author: an open session waits for no one
 		expect(sections.find((s) => s.id === 'record')!.waits).toBe(0);
-		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'text')!.href);
+		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'changes')!.href);
 		expect(toApply(m).map((a) => a.id)).toEqual(['a-2026-10-01-0001']);
 		// one in prose alone is weighed, not applied, and not counted
 		expect(toConsider(m).map((a) => a.id)).toEqual(['a-2026-10-01-0004']);

@@ -53,7 +53,7 @@ test('one press of quote on a passage, a Markdown passage or a message writes a 
 	await expect(page.getByTestId('transcript').locator('[data-testid^="noted-"]').first()).toBeVisible();
 });
 
-test('in Your text the author keeps a change, or undoes one after saying so, and the file is back as it was', async ({ page, served }) => {
+test('in Your Changes the author keeps a change, or undoes one after saying so, and the file is back as it was', async ({ page, served }) => {
 	const fs = await import('node:fs');
 	await page.goto('/review');
 	const change = page.getByTestId('change').filter({ hasText: 'notes/intro.md' });
@@ -134,7 +134,7 @@ test('an act on a file that moved since the page was drawn is refused, and the p
 	await expect(page.getByTestId('change')).toContainText('Moved on.', { timeout: 10000 });
 });
 
-test("Your text lists an edited block once: Keep leaves it waiting to be accepted, and Accept keeps its edit too", async ({ page, served }) => {
+test("Your Changes lists an edited block once: Keep leaves it waiting to be accepted, and Accept keeps its edit too", async ({ page, served }) => {
 	const fs = await import('node:fs');
 	const node = join(served.root, 'drafting/nodes/sy-0002.tex');
 	const row = page.locator('[data-testid="review-row"][data-key="sy-0002"]');

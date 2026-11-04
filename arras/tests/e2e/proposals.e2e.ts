@@ -1,4 +1,4 @@
-// The proposed results queue in Review › Proposed to you (WQ-55): every waiting proposal in the library, grouped by work, one at a time at full width, the paper's words above and the rendering beneath, the words the page does not have marked, the verbs under it with keys. The states are the design study's. Verifying, editing and discarding against a real publisher are in the write suite.
+// The proposed results queue in Review › Proposed Changes (WQ-55): every waiting proposal in the library, grouped by work, one at a time at full width, the paper's words above and the rendering beneath, the words the page does not have marked, the verbs under it with keys. The states are the design study's. Verifying, editing and discarding against a real publisher are in the write suite.
 import { expect, test, type Page } from '@playwright/test';
 import { serve } from '../manifest';
 import { prefs } from '../workspace';

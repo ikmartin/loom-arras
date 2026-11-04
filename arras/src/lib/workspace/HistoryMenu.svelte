@@ -1,5 +1,5 @@
 <script lang="ts">
-	// **history ▾** on a document's toolbar (plan 0.20.6, 0.25.5): `record this version…`, its live text, and its versions newest first, each named by the act it was kept at and with a `compare` at its right, the newest twelve and the rest in Review › Record; then its live agent copies to compare with. A landmark of the draft carries the same menu, and an agent copy one line, for its source. Choosing a version shows it in this tab's place, at the result the reader was at; choosing `compare` opens the other beside and compares the two, and choosing it again stops. Drawn only where there is a history to list (`historyOf`).
+	// **history ▾** on a document's toolbar (plan 0.20.6, 0.25.5): `record this version…`, its live text, and its versions newest first, each named by the act it was kept at and with a `compare` at its right, the newest twelve and the rest in Review › The Record; then its live agent copies to compare with. A landmark of the draft carries the same menu, and an agent copy one line, for its source. Choosing a version shows it in this tab's place, at the result the reader was at; choosing `compare` opens the other beside and compares the two, and choosing it again stops. Drawn only where there is a history to list (`historyOf`).
 	import { shortDate } from '$lib/badges';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { CanonDoc } from '$lib/manifest/types';
@@ -16,7 +16,7 @@
 	import { can } from '$lib/write';
 	import { goto } from '$app/navigation';
 
-	/** How many versions the menu lists; the rest are in Review › Record. */
+	/** How many versions the menu lists; the rest are in Review › The Record. */
 	const SHOWN = 12;
 
 	let { item, name, divided = false }: { item: Item; name: string; divided?: boolean } = $props();
@@ -65,7 +65,7 @@
 			{@render row(history.draft, 'live text', 'live')}
 			{#each history.landmarks.slice(0, SHOWN) as c (c.path)}{@render row(c.path, versionLabel(c), c.name ?? c.stem, when(c))}{/each}
 			{#if history.landmarks.length > SHOWN}
-				<ToolbarItem label="{history.landmarks.length - SHOWN} older, in Review › Record" name="every version of {name}" testid="history-older" onclick={() => goto(inReview(history.draft))} />
+				<ToolbarItem label="{history.landmarks.length - SHOWN} older, in Review › The Record" name="every version of {name}" testid="history-older" onclick={() => goto(inReview(history.draft))} />
 			{/if}
 			{#if history.copies.length}
 				<hr />

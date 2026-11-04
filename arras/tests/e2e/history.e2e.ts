@@ -148,7 +148,7 @@ test('in a window too narrow for two panes, compare is greyed with its reason', 
 	await expect(page.getByTestId('history-compare-aidoc')).toHaveAttribute('aria-disabled', 'true');
 });
 
-test('a landmark opened from Review › Record carries its draft’s menu', async ({ page }) => {
+test('a landmark opened from Review › The Record carries its draft’s menu', async ({ page }) => {
 	await page.goto('/review/record');
 	await page.getByTestId('history-open').click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
@@ -210,7 +210,7 @@ test('a version compared with now keeps its toolbar on one line, older and newer
 	expect(controls.y + controls.height).toBeLessThanOrEqual(box.y + box.height);
 });
 
-test('the history menu records a version from Review › Record', async ({ page }) => {
+test('the history menu records a version from Review › The Record', async ({ page }) => {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-record', 'history-restore'], token: 't' } }));
 	let posted: Record<string, unknown> | null = null;
 	await page.route('**/_api/history-record', async (route) => {

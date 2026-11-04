@@ -148,7 +148,7 @@ test('each row says whether agents edit it too, and the mark says why under the 
 	await expect(page.getByTestId('access-config.toml-says')).toHaveCount(0);
 	// a copy's mark names the document its changes go back to
 	await page.getByTestId('access-.loom/copies/aidoc.tex').hover();
-	await expect(page.getByTestId('access-.loom/copies/aidoc.tex-says')).toContainText('back to main.tex through Review › Proposed to you');
+	await expect(page.getByTestId('access-.loom/copies/aidoc.tex-says')).toContainText('back to main.tex through Review › Proposed Changes');
 	// and the copy hangs from that document by a hooked line pointing up into it
 	const hook = await page.getByTestId('docs-copies').locator('li').first().evaluate((li) => [getComputedStyle(li, '::before').borderLeftStyle, getComputedStyle(li, '::after').clipPath]);
 	expect(hook[0]).toBe('solid');

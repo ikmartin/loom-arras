@@ -379,7 +379,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Rule.** `loom changes --undo` and the API's `changes-undo` write an open file back as it was at the person's look only when the person asks, never an agent (K5), and store the file's text now in the history's texts before writing, with a ledger line naming both hashes. A file new since the look has no undo.
 
-**Why.** Since plan 0.22.6 agents edit open files in place, and Review's Your text is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
+**Why.** Since plan 0.22.6 agents edit open files in place, and Review's Your Changes is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
 
 **Guard.** `loom/tests/unit/test_looks.py::test_undo_puts_the_text_back_and_keeps_what_it_replaced`, `loom/tests/unit/test_looks.py::test_keeping_and_undoing_are_the_authors`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`changes-undo`), `arras/tests/e2e-write/meta.e2e.ts`
 

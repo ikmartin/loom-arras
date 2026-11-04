@@ -1,4 +1,4 @@
-// Review › Your text: one document's blocks not freshly accepted, grouped by why they wait, each accepted in its row or several at once, what loom cannot accept saying why, and Read opening the block in its document beside the panel that says why it waits. Incoming's mathematics is accepted only where it is marked as checked. Each test is named for the rule it holds.
+// Review › Your Changes: one document's blocks not freshly accepted, grouped by why they wait, each accepted in its row or several at once, what loom cannot accept saying why, and Read opening the block in its document beside the panel that says why it waits. Incoming's mathematics is accepted only where it is marked as checked. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
@@ -173,7 +173,7 @@ test('a pull\'s review accepts only explicitly chosen mathematics while incorpor
 	await expect(checked).not.toBeChecked();
 	await expect(page.getByTestId('contribution-bar')).toContainText('1 marked as checked');
 	await page.getByTestId('apply').click();
-	await expect(page.getByTestId('contribution-bar-said')).toContainText('Took the pull: 1 accepted, 1 wait in Your text.');
+	await expect(page.getByTestId('contribution-bar-said')).toContainText('Took the pull: 1 accepted, 1 wait in Your Changes.');
 	expect(submitted!.accept).toEqual(['sy-0001']);
 	expect(submitted!.incoming).toBe('b'.repeat(40));
 	expect(submitted!.review_token).toBe('preview');

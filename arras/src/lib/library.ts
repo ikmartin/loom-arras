@@ -242,7 +242,7 @@ export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[]
 	return out;
 }
 
-/** How many works want something of the author beyond results to check, which Proposed to you counts, as the library's page counts them under "needs you", from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
+/** How many works want something of the author beyond results to check, which Proposed Changes counts, as the library's page counts them under "needs you", from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
 export function needsYou(m: Manifest): number {
 	return ledgerRows(m, reachedExternal(m)).filter((r) => {
 		const ref = m.references?.[r.citekey];

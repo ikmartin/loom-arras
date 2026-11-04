@@ -65,7 +65,7 @@
 		const done = await write('sync-incorporate', { incoming: incoming.commit, base: incoming.base, ...(review ? { review_token: review.token, accept } : {}) });
 		if (done.ok) {
 			const o = done.result as unknown as IncorporationOutcome;
-			say({ text: o.acceptance_error ?? `Took the pull: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Your text. Each document it changed is kept as it was first.`, refused: false });
+			say({ text: o.acceptance_error ?? `Took the pull: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Your Changes. Each document it changed is kept as it was first.`, refused: false });
 			await store.refresh();
 		} else say({ text: done.error?.message ?? 'Loom did not take the pull.', refused: true });
 		busy = '';
@@ -106,7 +106,7 @@
 						<div><h4>Yours</h4>{#if math.local}<Fragment path={math.local.path} previewMacros={math.local.macros} isolatedMacros />{:else}<p class="muted">New in this pull.</p>{/if}</div>
 						<div><h4>After the pull</h4><Fragment path={math.proposed.path} previewMacros={math.proposed.macros} isolatedMacros /></div>
 					</div>
-					{#if math.unavailable}<p class="detail">{math.unavailable} It stays in Your text.</p>{/if}
+					{#if math.unavailable}<p class="detail">{math.unavailable} It stays in Your Changes.</p>{/if}
 				{:else}
 					{#if change.conflict}<p class="detail">You and the collaborator both changed it, and the edits clash.</p>{/if}
 					<div class="pair">

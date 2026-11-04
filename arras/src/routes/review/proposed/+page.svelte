@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Proposed to you: everything someone proposes that the person decides, one card each. A copy, a pull or a work's proposed results is reviewed in its own pass, which the card opens here at its own address (`?copy=`, `?pull`, `?work=`). A suggestion with text and a citation are decided in their cards with Take it and Leave it, the suggestion's change shown: taking one writes it into its file, a version of the document kept first, and taking a citation keeps a reference note and writes no text. Prose suggestions follow, uncounted, resolved or dismissed. An act's answer is said in its card while the card stands, else in the bar with its undo.
+	// Review › Proposed Changes: everything someone proposes that the person decides, one card each. A copy, a pull or a work's proposed results is reviewed in its own pass, which the card opens here at its own address (`?copy=`, `?pull`, `?work=`). A suggestion with text and a citation are decided in their cards with Take it and Leave it, the suggestion's change shown: taking one writes it into its file, a version of the document kept first, and taking a citation keeps a reference note and writes no text. Prose suggestions follow, uncounted, resolved or dismissed. An act's answer is said in its card while the card stands, else in the bar with its undo.
 	import '$lib/review/review.css';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -146,7 +146,7 @@
 {/snippet}
 
 <main class="page scrollbar-shown" class:review-page={!opened} data-testid="proposed">
-	<ReviewHeading title="Proposed to you" />
+	<ReviewHeading title="Proposed Changes" />
 	{#if opened}<p class="back"><a href={here} data-testid="proposed-back">‹ Everything proposed</a></p>{/if}
 	{#if adoption}
 		{@const copy = adoption.copy}

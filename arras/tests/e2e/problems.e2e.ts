@@ -25,7 +25,7 @@ test("the person's problems come first, open and counted, and the rest folded be
 	await expect(mine.getByTestId('problem')).toHaveCount(yours.length);
 	await expect(mine.getByTestId('problem').first()).toBeVisible();
 	for (const part of ['problems-copy', 'problems-works', 'problems-remarks']) await expect(page.getByTestId(part)).not.toHaveAttribute('open');
-	await expect(page.getByTestId('problems-copy')).toContainText('Proposed to you');
+	await expect(page.getByTestId('problems-copy')).toContainText('Proposed Changes');
 	await expect(page.getByTestId('problems-copy').locator('a[href="/review/proposed"]')).toHaveCount(1);
 	// a cited work's problems stand under the work, which links to its page; with no publisher, digesting again is a command to copy
 	await page.getByTestId('problems-works').locator('summary').first().click();
