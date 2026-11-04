@@ -1,6 +1,6 @@
 // Review › Proposed to you, read from the fixture: one card for each thing to decide, in order and counted, prose suggestions beneath; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggestion and a citation are decided in their cards. The acts are stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
-import { REFEREE, serve } from '../manifest';
+import { manifest, REFEREE, serve } from '../manifest';
 
 const COPY = '.loom/copies/aidoc.tex';
 const TEXT = 'a-2026-09-17-0001';
@@ -232,4 +232,30 @@ test('a change both sides edited whose lines fall apart is offered merged, and s
 	await expect(row).toContainText('merged');
 	await row.click();
 	await expect(page.getByTestId('merged-note')).toContainText('You both changed it');
+});
+
+test('what taking a copy in did is said even when the copy leaves the manifest before the answer arrives', async ({ page }) => {
+	let gone = false;
+	let answer = () => {};
+	const held = new Promise<void>((resolve) => (answer = resolve));
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = structuredClone(manifest);
+		const c = m.contributions.find((x: { kind: string }) => x.kind === 'adopt');
+		c.choices = { ...c.choices, keys: ['sy-0002'] };
+		if (gone) m.contributions = m.contributions.filter((x: { kind: string }) => x.kind !== 'adopt');
+		await route.fulfill({ json: m });
+	});
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['adopt-decision', 'adopt-preview', 'adopt-finish'], token: 't' } }));
+	await page.route('**/_api/adopt-preview', (route) => route.fulfill({ json: { ok: true, result: { token: 'p', review: { token: 'r', items: [] } } } }));
+	await page.route('**/_api/adopt-finish', async (route) => {
+		// the publisher has written the file and republished; its answer is still on its way
+		gone = true;
+		await held;
+		await route.fulfill({ json: { ok: true, result: { accepted: [], pending: ['sy-0002'] } } });
+	});
+	await page.goto('/review/proposed?copy=' + encodeURIComponent(COPY));
+	await page.getByTestId('apply').click();
+	await expect(page.getByTestId('proposed-summary')).toBeVisible({ timeout: 15000 });
+	answer();
+	await expect(page.getByTestId('proposed-answer')).toContainText('Took 1 change into main: 0 accepted, 1 wait in Your text.');
 });

@@ -51,9 +51,10 @@
 	}
 	async function save(d: Decision, from?: string): Promise<void> {
 		busy = 'decide';
-		const done = await write('adopt-decision', { copy: c.copy, fingerprint: c.fingerprint, revision: c.choices?.revision ?? 0, ...d });
+		const { copy, fingerprint } = c;
+		const done = await write('adopt-decision', { copy, fingerprint, revision: c.choices?.revision ?? 0, ...d });
 		if (done.ok) {
-			store.setAdoption(c.copy, c.fingerprint, done.result as unknown as AdoptionReview['choices']);
+			store.setAdoption(copy, fingerprint, done.result as unknown as AdoptionReview['choices']);
 			say(null);
 			if (from) onward(from);
 		} else {
@@ -74,21 +75,23 @@
 	async function apply(): Promise<void> {
 		busy = 'apply';
 		say(null);
-		const prepared = await write('adopt-preview', { copy: c.copy, fingerprint: c.fingerprint });
+		// read now: the publisher may drop the copy from the manifest before its answer arrives, and this contribution with it
+		const { copy, fingerprint, source, choices } = c;
+		const taken = n.taken;
+		const prepared = await write('adopt-preview', { copy, fingerprint });
 		if (!prepared.ok) {
 			say({ text: prepared.error?.message ?? 'Loom could not prepare these changes.', refused: true });
 			busy = '';
 			return;
 		}
 		const p = prepared.result as unknown as { token: string; review: IncorporationMathReview; adoption_base?: { mapping?: Record<string, string> } };
-		const accept = acceptFor(p.review, checked.filter((k) => c.choices.keys.includes(k)), p.adoption_base?.mapping ?? {});
-		const taken = n.taken;
-		const done = await write('adopt-finish', { copy: c.copy, token: p.token, review_token: p.review.token, accept });
+		const accept = acceptFor(p.review, checked.filter((k) => choices.keys.includes(k)), p.adoption_base?.mapping ?? {});
+		const done = await write('adopt-finish', { copy, token: p.token, review_token: p.review.token, accept });
 		if (done.ok) {
 			const o = done.result as unknown as IncorporationOutcome;
-			const into = file(c.source);
+			const into = file(source);
 			// marked as checked yet not accepted: loom says why when recording failed, and otherwise it is because what they rest on was not accepted
-			const dropped = checked.filter((k) => c.choices.keys.includes(k)).length - accept.length;
+			const dropped = checked.filter((k) => choices.keys.includes(k)).length - accept.length;
 			const why = o.acceptance_error ? ` ${o.acceptance_error}` : dropped > 0 ? ` ${dropped} marked as checked wait too, since what they rest on was not accepted.` : '';
 			say({
 				text: `Took ${taken} ${taken === 1 ? 'change' : 'changes'} into ${into}: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Your text. ${into} as it was is kept as a version.${why}`,

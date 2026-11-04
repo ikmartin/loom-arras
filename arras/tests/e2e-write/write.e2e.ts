@@ -548,6 +548,14 @@ test('Accept records an acceptance at once, and the block leaves the queue', asy
 	await expect(page.locator('[data-testid="review-group"][data-group="accepted"] [data-key="sy-0001"]')).toHaveCount(1);
 });
 
+/** Press Take it until `taken` holds. The copy was just written, so the page may still show the publish before it: loom refuses a choice against a comparison that has moved on, and the page draws the new one, where the press is good. */
+async function pressUntil(page: import('@playwright/test').Page, taken: () => Promise<void>): Promise<void> {
+	await expect(async () => {
+		await page.getByTestId('take-it').click();
+		await taken();
+	}).toPass({ timeout: 30000 });
+}
+
 test('an agent copy is taken back in one pass: Take it, then one Apply writes it and leaves its mathematics for review', async ({ page, served }) => {
 	const document = 'drafting/adoption-test.tex';
 	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';
@@ -561,8 +569,7 @@ test('an agent copy is taken back in one pass: Take it, then one Apply writes it
 	await expect(bar).toContainText('From adoption-proposal into adoption-test');
 	await expect(page.getByTestId('change-shown')).toContainText('Proposed statement');
 	// taking it is saved at once and writes nothing yet
-	await page.getByTestId('take-it').click();
-	await expect(page.getByTestId('apply')).toHaveText('Apply 1 change');
+	await pressUntil(page, () => expect(page.getByTestId('apply')).toHaveText('Apply 1 change', { timeout: 3000 }));
 	await page.getByTestId('change-at').click();
 	await expect(page.locator('[data-testid="change-row"][data-key="sy-0900"]')).toHaveAttribute('data-state', 'taken');
 	await page.keyboard.press('Escape');
@@ -586,9 +593,8 @@ test('a change marked as checked is accepted as it is taken in; one left stays o
 	await page.goto('/review/proposed?copy=' + encodeURIComponent('.loom/copies/accept-proposal.tex'));
 	await page.getByTestId('change-at').click();
 	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
-	await page.getByTestId('take-it').click();
 	// taking it steps on to the next change to decide: leave that one
-	await expect(page.getByTestId('change-at')).toHaveText(/^2 of /);
+	await pressUntil(page, () => expect(page.getByTestId('change-at')).toHaveText(/^2 of /, { timeout: 3000 }));
 	await page.getByTestId('leave-it').click();
 	await page.getByTestId('change-at').click();
 	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
