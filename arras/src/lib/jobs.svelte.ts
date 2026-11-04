@@ -68,9 +68,9 @@ class Jobs {
 		this.#timer = this.active ? setTimeout(() => void this.refresh(), 1000) : null;
 	}
 
-	/** Start a run over `works`, every work for none; `online` is the person's allowance of the network for this run. */
-	async start(works: string[], opts: { online?: boolean; redo?: boolean } = {}): Promise<WriteResult> {
-		const answer = (await write('library-update', { works, online: !!opts.online, redo: !!opts.redo })) as WriteResult & { job?: Job };
+	/** Start a run over `works`, every work for none; `online` is the person's allowance of the network for this run, and `steps` runs only those (a digest made again is `extract` with `redo`). */
+	async start(works: string[], opts: { online?: boolean; redo?: boolean; steps?: string[] } = {}): Promise<WriteResult> {
+		const answer = (await write('library-update', { works, online: !!opts.online, redo: !!opts.redo, ...(opts.steps?.length ? { steps: opts.steps } : {}) })) as WriteResult & { job?: Job };
 		if (answer.ok && answer.job) {
 			this.list = [answer.job, ...this.list.filter((j) => j.id !== answer.job!.id)];
 			void this.refresh();

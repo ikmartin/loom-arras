@@ -245,3 +245,77 @@ def test_every_finding_names_what_resolves_it_and_the_command_works(tmp_path: Pa
     (orphan,) = _fixes(q, "unreachable")[:1]
     assert orphan == "loom fork dm-0001 --in drafting/main.tex"
     assert "already forked" in " ".join(ok(*orphan.split()[1:], cwd=q).output.split())
+
+
+def _rows(q: Path, code: str) -> list[dict]:  # type: ignore[type-arg]
+    """`loom lint --json`'s diagnostics of one code."""
+    out: list[dict] = json.loads(run("lint", "--json", cwd=q).stdout)["diagnostics"]  # type: ignore[type-arg]
+    return [d for d in out if d["code"] == code]
+
+
+def test_every_diagnostic_says_whose_it_is_to_fix(tmp_path: Path) -> None:
+    """The person's own, an agent's copy's, or a cited work's: Problems in the viewer listed 174 errors and none was in the author's files."""
+    from loom.scan.owners import CITED, Owners
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    q = demo(tmp_path)
+    edit(q / "drafting" / "nodes" / "dm-0002.tex", "the one-point orbits", f"the one-point orbits {_DANGLING}")
+    _dangle_in(q, "Calloway14-prop-3.2")  # reached from the person's dm-0003, and still the work's
+    ok("draft", "drafting/main.tex", "--ai", "aidoc.tex", cwd=q)
+    copy = q / ".loom" / "copies" / "aidoc.tex"
+    copy.write_text(
+        copy.read_text(encoding="utf-8").replace("\\end{document}", "See \\ref{nowhere-in-the-copy}.\n\\end{document}"),
+        encoding="utf-8",
+    )
+    rows = _rows(q, "dangling-link")
+    whose = {d["locations"][0]["file"]: d["owner"] for d in rows}
+    assert whose == {
+        "drafting/nodes/dm-0002.tex": "person",
+        ".loom/copies/aidoc.tex": "copy",
+        ".loom/digests/Calloway14.tex": "work",
+    }, rows
+    work = next(d for d in rows if d["owner"] == "work")
+    assert work["fixes"][-1]["act"] == {
+        "endpoint": "library-update",
+        "body": {"works": ["Calloway14"], "redo": True, "steps": ["extract"]},
+    }, "a digest's problem is mended by digesting its work again"
+    assert all("act" not in f for d in rows if d["owner"] != "work" for f in d.get("fixes", []))
+    # a copy reaching a digest's result makes it no more the person's in lint's report groups
+    result = scan(load_quilt(q))
+    (dangle,) = [d for d in result.lint if d.code == "dangling-link" and d.locations[0].file.endswith("Calloway14.tex")]
+    assert Owners(result).of(dangle) != CITED, "the person's dm-0003 reaches it"
+
+
+def test_a_fix_a_viewer_can_do_names_its_endpoint(tmp_path: Path) -> None:
+    """An undigested work is digested, and a stale permission file rewritten, through the write API; every other fix stays a command to copy."""
+    q = demo(tmp_path)
+    edit(
+        q / "drafting" / "nodes" / "dm-0003.tex",
+        "\\cite[Proposition 3.2]{Calloway14}",
+        "\\cite[Proposition 3.2]{Calloway14}, \\cite[Theorem 1]{Har77}",
+    )
+    (undigested,) = _rows(q, "loom:undigested-citekey")
+    assert undigested["owner"] == "person"
+    assert undigested["fixes"] == [
+        {
+            "label": "digest it",
+            "command": "loom library update Har77",
+            "act": {"endpoint": "library-update", "body": {"works": ["Har77"]}},
+        }
+    ]
+
+
+def test_the_manifest_and_lint_agree_whose_each_diagnostic_is(tmp_path: Path) -> None:
+    """The viewer's Problems reads the manifest and `loom lint --json` the scan; one stamp serves both."""
+    q = demo(tmp_path)
+    _dangle_in(q, "Calloway14-prop-3.3")
+    run("build", cwd=q)
+    published = json.loads((q / ".loom" / "build" / "manifest.json").read_text(encoding="utf-8"))["diagnostics"]
+    assert published and all(d.get("owner") in ("person", "copy", "work") for d in published), published
+    linted = json.loads(run("lint", "--json", cwd=q).stdout)["diagnostics"]
+    key = lambda d: (d["code"], d["message"])  # noqa: E731
+    assert {key(d): d["owner"] for d in linted} == {
+        key(d): d["owner"] for d in published if key(d) in {key(x) for x in linted}
+    }
+    assert _rows(q, "dangling-link")[0]["owner"] == "work"

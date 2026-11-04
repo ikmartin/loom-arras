@@ -3,6 +3,7 @@
 import type { Manifest } from '$lib/manifest/types';
 import { route } from '$lib/paths';
 import { needsYou } from '$lib/library';
+import { yoursCount } from '$lib/diagnostics';
 
 export interface Section {
 	id: 'changes' | 'needs-review' | 'incoming' | 'suggestions' | 'library' | 'sessions' | 'history' | 'problems';
@@ -37,7 +38,7 @@ export function sectionsOf(m: Manifest): Section[] {
 	const wanting = needsYou(m);
 	const open = (m.sessions ?? []).filter((s) => s.state === 'open').length;
 	const orphans = (m.canon ?? []).filter((c) => c.step && !c.in).length;
-	const problems = m.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'warning').length;
+	const problems = yoursCount(m);
 	const changed = (m.changes ?? []).length;
 	const suggestions = openSuggestions(m).length;
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -56,7 +57,7 @@ export function sectionsOf(m: Manifest): Section[] {
 		// an open session waits for no one, so it is said on hover and never counted
 		{ id: 'sessions', label: 'Sessions', href: route('/review/sessions'), waits: 0, says: count(open, 'open session', 'open sessions') },
 		{ id: 'history', label: 'History', href: route('/review/history'), waits: orphans, says: count(orphans, 'landmark no draft leads to', 'landmarks no draft leads to') },
-		{ id: 'problems', label: 'Problems', href: route('/review/problems'), waits: problems, says: count(problems, 'error or warning', 'errors and warnings') }
+		{ id: 'problems', label: 'Problems', href: route('/review/problems'), waits: problems, says: count(problems, 'error or warning in your files', 'errors and warnings in your files') }
 	];
 	return sections.filter(
 		(x) =>

@@ -40,7 +40,7 @@
 		body = text = null;
 		failed = '';
 		if (!f) return;
-		const at = f.body ? dataUrl(f.body) : f.kind === 'text' || f.kind === 'tex' ? filesUrl(f.path) : '';
+		const at = f.body ? dataUrl(f.body) : f.kind === 'text' || f.kind === 'tex' || f.kind === 'document' ? filesUrl(f.path) : '';
 		if (!at) return;
 		void fetch(at + (at.includes('?') ? '&' : '?') + 'h=' + encodeURIComponent(hash), { cache: 'no-cache' })
 			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${f.path}: ${r.status}`))))
@@ -51,13 +51,17 @@
 			.catch((e: Error) => (failed = e.message));
 	});
 
-	// the place a link named: a heading of a drawn body, once it is on the page
+	// a line a problem names (`L12`), whose text is then drawn a line at a time so the line can be shown
+	const line = $derived(Number(/^L(\d+)$/.exec(item.anchor ?? '')?.[1] ?? 0));
+	const lines = $derived(line && text !== null ? text.split('\n') : null);
+
+	// the place a link named: a heading of a drawn body, or a line of a text, once it is on the page
 	$effect(() => {
 		const node = el;
 		const anchor = item.anchor;
 		void item.seq;
-		if (!node || !anchor || body === null) return;
-		requestAnimationFrame(() => node.querySelector(`[id="${CSS.escape(anchor)}"]`)?.scrollIntoView({ block: 'start' }));
+		if (!node || !anchor || (body === null && text === null)) return;
+		requestAnimationFrame(() => node.querySelector(`[id="${CSS.escape(anchor)}"]`)?.scrollIntoView({ block: line ? 'center' : 'start' }));
 	});
 
 	$effect(() => {
@@ -158,6 +162,8 @@
 			</div>
 		{:else if body !== null}
 			<Prose html={body} class="body file-body" />
+		{:else if lines}
+			<pre class="file-text" data-testid="file-lines">{#each lines as l, i (i)}<span id="L{i + 1}" class:at={i + 1 === line}>{l}{'\n'}</span>{/each}</pre>
 		{:else if text !== null}
 			<pre class="file-text">{text}</pre>
 		{:else if failed}
@@ -216,6 +222,9 @@
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		margin: 0;
+	}
+	.file-text .at {
+		background: var(--link-wash);
 	}
 	.file :global(.nb-code) {
 		margin: var(--gap-tight) 0;

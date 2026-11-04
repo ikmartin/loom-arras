@@ -43,8 +43,10 @@ ABBREV = {
     "conjecture": "conj",
 }
 _CMD = re.compile(r"\\([A-Za-z@]+)")
-_REF = re.compile(r"\\(ref|eqref|cref|Cref|autoref|vref)\s*\{([^}]*)\}")
-_LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
+# a label may hold one level of braces (`Def: Q_{tau}^vee`), which a `[^}]*` reader would cut short
+_REF = re.compile(r"\\(ref|eqref|cref|Cref|autoref|vref)\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
+_LABEL = re.compile(r"\\label\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
+_SETCOUNTER = re.compile(r"\\setcounter\s*\{(section|subsection)\}\s*\{\s*(-?\d+)\s*\}")
 TEXT_EXTS = (".tex", ".sty", ".cls", ".ltx", ".def", ".clo")
 # packages about the page, the fonts, or the bibliography, which a statement never needs; the rest of the reference's \usepackage lines become `requires:`
 PRESENTATION = {
@@ -463,6 +465,9 @@ def extract_digest(
         events.append((float(u.exp_start), 0, "heading", u))
     for m in re.finditer(r"\\appendix\b", exp.text):
         events.append((float(m.start()), 0, "appendix", None))
+    for m in _SETCOUNTER.finditer(exp.text):
+        if not _commented(exp.text, m.start()):
+            events.append((float(m.start()), 0, "setcounter", (m.group(1), int(m.group(2)))))
     for rel, fe in envs_by_file.items():
         for env in fe.theorem_envs:
             e = exp.exp_offset(rel, env.start)
@@ -479,6 +484,9 @@ def extract_digest(
     for off, _p, kind, payload in events:
         if kind == "appendix":
             num.mark_appendix()
+        elif kind == "setcounter":
+            assert isinstance(payload, tuple)
+            num.set_counter(*payload)
         elif kind == "heading":
             unit = payload
             assert isinstance(unit, SectionUnit)
@@ -540,7 +548,7 @@ def extract_digest(
     def rewrite(text: str) -> str:
         text, names = expand_macros(text, closure.macros)
         report.expanded.update(names)
-        text = _LABEL.sub(lambda m: f"\\label{{{slug}-{norm_label(m.group(1))}}}", text)
+        text = _LABEL.sub(lambda m: f"\\label{{{slug}-{_plain(norm_label(m.group(1)))}}}", text)
 
         def ref_repl(m: re.Match[str]) -> str:
             cmd = m.group(1)
@@ -552,7 +560,7 @@ def extract_digest(
                 if lab in label_to_id:
                     outs.append(f"\\ref{{{label_to_id[lab]}}}")
                 elif lab in body_labels:
-                    outs.append(f"\\{'eqref' if cmd == 'eqref' else 'ref'}{{{slug}-{lab}}}")
+                    outs.append(f"\\{'eqref' if cmd == 'eqref' else 'ref'}{{{slug}-{_plain(lab)}}}")
                 else:
                     an = aux_numbers.get(lab)
                     number = an.number if an is not None and an.number else "??"
@@ -630,6 +638,8 @@ def extract_digest(
             r.page = _page_of(home, citekey, r.taxon.name, r.number, _body_text(r.env, files[r.file].clean), r.page)
 
     written_units: set[int] = set()
+    # two headings the paper numbers alike (an .aux number beside an emulated one) share no label
+    written_labels: set[str] = set()
     for r in sorted(results, key=lambda x: x.order):
         chain: list[SectionUnit] = []
         cur: SectionUnit | None = r.unit
@@ -643,7 +653,9 @@ def extract_digest(
             written_units.add(id(su))
             cmd = "section" if su.level == 1 else "subsection"
             title = rewrite(su.title.strip())
-            body_lines.append(f"\\{cmd}{{{title}}}\\label{{{slug}-sec-{unit_numbers[id(su)]}}}")
+            label = f"{slug}-sec-{unit_numbers[id(su)]}"
+            body_lines.append(f"\\{cmd}{{{title}}}" + ("" if label in written_labels else f"\\label{{{label}}}"))
+            written_labels.add(label)
             body_lines.append("")
         env_name = quilt_env_by_name.get(r.taxon.name.lower())
         if env_name is None:
@@ -698,12 +710,33 @@ def extract_digest(
     return text, report
 
 
+def _plain(label: str) -> str:
+    """A label as the digest writes it: the paper's braces dropped, so every reader of the digest reads it whole."""
+    return label.replace("{", "").replace("}", "")
+
+
+def _commented(text: str, at: int) -> bool:
+    """Whether an unescaped % earlier on `at`'s line comments it out."""
+    line = text[text.rfind("\n", 0, at) + 1 : at]
+    return re.search(r"(?<!\\)%", line) is not None
+
+
+def _balanced_braces(text: str) -> bool:
+    """Whether every unescaped brace in `text` is matched."""
+    depth = 0
+    for m in re.finditer(r"(?<!\\)[{}]", text):
+        depth += 1 if m.group() == "{" else -1
+        if depth < 0:
+            return False
+    return depth == 0
+
+
 _CONVENTIONS_HEADING = re.compile(
     r"\\(?:(?:sub)*section|(?:sub)?paragraph)\*?\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}"
 )
 _CONVENTIONS_TITLE = re.compile(r"convention|notation|standing assumption|terminology", re.I)
 _NEXT_HEADING = re.compile(
-    r"\\(?:(?:sub)*section|(?:sub)?paragraph|chapter)\*?\s*[\[{]|\\begin\{proof\}|\\end\{document\}"
+    r"\\(?:(?:sub)*section|(?:sub)?paragraph|chapter|part)\*?\s*[\[{]|\\begin\{proof\}|\\end\{document\}"
 )
 # A standing assumption stated as one sentence inside an ordinary paragraph, which is how Edidin and Graham state that
 # every Chow group in their paper has rational coefficients. A sentence scoped to a section or a proof is not standing.
@@ -735,7 +768,8 @@ def _conventions(exp: Expansion, rewrite: object) -> str:
             rest = body[m.end() :]
             stop = _NEXT_HEADING.search(rest)
             paras = [p.strip() for p in re.split(r"\n\s*\n", rest[: stop.start() if stop else len(rest)]) if p.strip()]
-            chosen = "\n\n".join(paras[:3])
+            # a heading set inside a group (`{\\Large \\part{…}}`) leaves its opening brace behind, which would unbalance the node
+            chosen = "\n\n".join(p for p in paras[:3] if _balanced_braces(p))
             if chosen:
                 break
     if not chosen:

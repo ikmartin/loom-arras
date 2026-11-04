@@ -9,84 +9,10 @@ import re
 
 from loom.cli.report import Group, Item, counted
 from loom.scan.model import Diagnostic
+from loom.scan.owners import AUTHOR, CITED, UNCITED, Owners
 from loom.scan.scan import ScanResult
 
 SEVERITY = {"error": 0, "warning": 1, "info": 2}
-
-
-#: Whose a diagnostic is: the author's, a cited work's, or a work's nothing cites.
-AUTHOR, CITED, UNCITED = "author", "cited", "uncited"
-
-
-def cited_works(result: ScanResult) -> set[str]:
-    """The citekeys the author's text cites (`refs.build.cited_counts`), with each version of one, since a version is cited when its primary is."""
-    from loom.refs.build import cited_counts
-    from loom.refs.scan import versions_of
-
-    cited = set(cited_counts(result))
-    return cited | {v for top, vs in versions_of(result.bib).items() if top in cited for v in vs}
-
-
-class Owners:
-    """Whose each diagnostic of one scan is, by what the author's text cites and reaches.
-
-    A digest's diagnostic is the author's when it is on a result an edge from the author's text reaches (by key, or by a location inside the result's own text), a cited work's when its work is cited, and otherwise a work's nothing cites. A diagnostic naming only bibliography entries is the author's unless none of them is cited. Without a scan, every diagnostic is the author's.
-    """
-
-    def __init__(self, result: ScanResult | None) -> None:
-        self.result = result
-        self.cited: set[str] = set()
-        self.reached: set[str] = set()
-        self.spans: dict[str, list[tuple[int, int]]] = {}
-        if result is None:
-            return
-        self.cited = cited_works(result)
-        asm = result.assembly
-        for e in result.edges.edges:
-            src, to = asm.nodes.get(e.src), asm.nodes.get(e.to)
-            if src is not None and to is not None and src.file not in asm.digest_files and to.file in asm.digest_files:
-                self.reached.add(e.to)
-        for k in self.reached:
-            n = asm.nodes[k]
-            f = result.files[n.file]
-            self.spans.setdefault(n.file, []).extend(
-                (f.line_of(a), f.line_of(max(a, b - 1))) for a, b in (n.own or [(n.start, n.end)]) if b > a
-            )
-
-    def works(self, d: Diagnostic) -> set[str]:
-        """The works whose digests `d` is about; empty when it is the author's."""
-        if self.result is None:
-            return set()
-        digests = self.result.assembly.digest_files
-        nodes = self.result.nodes
-        if any(k in self.reached for k in d.keys):
-            return set()
-        if d.locations:
-            if not all(loc.file in digests for loc in d.locations):
-                return set()
-            if any(a <= loc.line <= b for loc in d.locations for a, b in self.spans.get(loc.file, ())):
-                return set()
-            return {digests[loc.file] for loc in d.locations}
-        if d.keys and all(k in nodes and nodes[k].digest for k in d.keys):
-            return {nodes[k].digest for k in d.keys}
-        # a bibliography entry's own diagnostic is the author's while it is cited, and the work's while nothing cites it
-        if d.keys and all(k in self.result.bib and k not in nodes for k in d.keys) and not set(d.keys) & self.cited:
-            return set(d.keys)
-        return set()
-
-    def of(self, d: Diagnostic) -> str:
-        """`AUTHOR`, `CITED` or `UNCITED`."""
-        works = self.works(d)
-        if not works:
-            return AUTHOR
-        return CITED if works & self.cited else UNCITED
-
-    def split(self, diags: list[Diagnostic]) -> dict[str, list[Diagnostic]]:
-        """`diags` by owner, in their order; every owner present."""
-        out: dict[str, list[Diagnostic]] = {AUTHOR: [], CITED: [], UNCITED: []}
-        for d in diags:
-            out[self.of(d)].append(d)
-        return out
 
 
 def item(d: Diagnostic, said: str | None = None) -> Item:

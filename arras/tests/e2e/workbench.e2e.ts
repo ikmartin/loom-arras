@@ -1,6 +1,6 @@
 // The workbench in the viewer: landmarks as documents of their own, reached from Review › History rather than the column, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
-import { serve } from '../manifest';
+import { manifest, serve } from '../manifest';
 
 test('the column lists the working drafts and no landmarks, which Review › History links', async ({ page }) => {
 	// a list rather than a dropdown: a dropdown shows one name at a time and cannot say which draft is conflicted; a landmark is reached through its draft's history
@@ -40,12 +40,12 @@ test('the corpus is named by the project, not by its directory', async ({ page }
 
 test('a doubly defined id has no text, and says where both definitions are', async ({ page }) => {
 	await page.goto('/review/problems?code=duplicate-id');
-	const item = page.getByTestId('problem-group').locator('li').first();
+	const item = page.getByTestId('problem-group').getByTestId('problem').first();
 	await expect(item).toContainText('is defined by');
-	const key = await item.locator('a.key').first().innerText();
+	const key = (manifest.diagnostics as { code: string; keys: string[] }[]).find((d) => d.code === 'duplicate-id')!.keys[0];
 	await page.goto('/node/' + key);
 	const conflicted = page.getByTestId('conflicted');
-	await expect(conflicted).toContainText('Defined in two files');
+	await expect(conflicted).toContainText('Defined twice, in');
 	await expect(conflicted.locator('code')).toHaveCount(2);
 	await expect(conflicted.getByRole('link', { name: 'problems' })).toBeVisible();
 	await expect(page.locator('.fragment')).toHaveCount(0);

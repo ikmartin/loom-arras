@@ -163,8 +163,7 @@ test.describe('the ledger', () => {
 		await expect(page.getByTestId('cited-Kre99')).toHaveText(/^\d+$/);
 		await expect(page.getByTestId('cited-Man12')).toHaveText('not cited');
 		await page.goto('/review/problems');
-		await page.getByTestId('problems-expand').click();
-		await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
+		await expect(page.getByTestId('problems-yours').getByText('names no result in the digest of Kre99').first()).toBeVisible();
 	});
 
 	test('the ledger links each work out by its identifier', async ({ page }) => {

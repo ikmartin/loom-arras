@@ -801,6 +801,7 @@
     }
    ],
    "message": "\\ref{sy-9999} refers to no node or label",
+   "owner": "person",
    "severity": "error"
   },
   {
@@ -816,6 +817,7 @@
     }
    ],
    "message": "% !LOOM see: sy-7777 refers to no node or label",
+   "owner": "person",
    "severity": "error"
   },
   {
@@ -830,6 +832,7 @@
     }
    ],
    "message": "drafting/nodes/sy-0002.tex is included twice in drafting/talk.tex",
+   "owner": "person",
    "severity": "error"
   },
   {
@@ -862,6 +865,7 @@
     }
    ],
    "message": "sy-999B is defined by drafting/nodes/sy-999B.tex and drafting/talk.tex; it has no text until one definition remains",
+   "owner": "person",
    "severity": "error"
   },
   {
@@ -874,6 +878,7 @@
     }
    ],
    "message": "\\input{nodes/missing} names no file",
+   "owner": "person",
    "severity": "error"
   },
   {
@@ -889,6 +894,7 @@
     }
    ],
    "message": "sy-0005-ai references eq:step-ai, which lies inside the proof sy-0002-ai/proof",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -904,6 +910,7 @@
     }
    ],
    "message": "sy-0005 references eq:step, which lies inside the proof sy-0002/proof",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -916,6 +923,7 @@
     }
    ],
    "message": "proof names several results (sy-000D-ai, sy-0007-ai); attached to the first",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -928,6 +936,7 @@
     }
    ],
    "message": "proof names several results (sy-000D, sy-0007); attached to the first",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -942,6 +951,7 @@
     }
    ],
    "message": "sy-000E-ai needs classification: this block has a proof but its environment suggests no local proof; classify it explicitly",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -956,6 +966,7 @@
     }
    ],
    "message": "sy-000B-ai needs classification: environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -970,6 +981,7 @@
     }
    ],
    "message": "sy-000B needs classification: environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -984,6 +996,7 @@
     }
    ],
    "message": "sy-000E needs classification: this block has a proof but its environment suggests no local proof; classify it explicitly",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -993,6 +1006,7 @@
    ],
    "locations": [],
    "message": "Kre99 has a digest but no copy of the paper is on this machine, so nothing it says can be checked against the paper; loom library update Kre99 --online, or loom library add FILE --for Kre99, or loom library ignore Kre99 --why '...' when there is no document to hold",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -1000,6 +1014,7 @@
    "keys": [],
    "locations": [],
    "message": "environment proposition declared differently: drafting/main.tex: Proposition/plain; .loom/copies/aidoc.tex: Proposition/plain; drafting/talk.tex: Proposition/definition",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -1012,6 +1027,7 @@
     }
    ],
    "message": "unknown directive priority",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -1024,6 +1040,7 @@
     }
    ],
    "message": "unknown directive priority",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -1044,6 +1061,7 @@
     }
    ],
    "message": "\\cite[Lemma 9]{Kre99} names no result in the digest of Kre99",
+   "owner": "copy",
    "severity": "warning"
   },
   {
@@ -1064,6 +1082,7 @@
     }
    ],
    "message": "\\cite[Lemma 9]{Kre99} names no result in the digest of Kre99",
+   "owner": "person",
    "severity": "warning"
   },
   {
@@ -1073,6 +1092,7 @@
    ],
    "locations": [],
    "message": "sy-0006-ai has 2 unlabelled proofs; consider labelling them",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1082,6 +1102,7 @@
    ],
    "locations": [],
    "message": "sy-0006 has 2 unlabelled proofs; consider labelling them",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1097,12 +1118,21 @@
     }
    ],
    "message": "% !LOOM see: def:gadget names the node it is written in",
+   "owner": "person",
    "severity": "info"
   },
   {
    "code": "loom:undigested-citekey",
    "fixes": [
     {
+     "act": {
+      "body": {
+       "works": [
+        "Har77"
+       ]
+      },
+      "endpoint": "library-update"
+     },
      "command": "loom library update Har77",
      "label": "digest it"
     }
@@ -1113,6 +1143,7 @@
    ],
    "locations": [],
    "message": "Har77 is cited with a locator but has no digest",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1127,6 +1158,7 @@
     }
    ],
    "message": "remark without an id",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1141,6 +1173,7 @@
     }
    ],
    "message": "remark without an id",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1150,6 +1183,7 @@
    ],
    "locations": [],
    "message": "Har77 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom library update --online",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1170,6 +1204,7 @@
     }
    ],
    "message": "sy-0002-ai/proof references sy-0100-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1190,6 +1225,7 @@
     }
    ],
    "message": "sy-0006-ai/proof/2 references sy-0003-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1210,6 +1246,7 @@
     }
    ],
    "message": "sy-0007-ai/proof references sy-0008-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1230,6 +1267,7 @@
     }
    ],
    "message": "sy-000D-ai/proof references sy-0007-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1250,6 +1288,7 @@
     }
    ],
    "message": "sy-000B-ai/proof references sy-0003-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1270,6 +1309,7 @@
     }
    ],
    "message": "sy-000B-ai/proof references sy-0006-ai but its \\uses does not list it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1290,6 +1330,7 @@
     }
    ],
    "message": "sy-0002/proof references sy-0100 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1310,6 +1351,7 @@
     }
    ],
    "message": "sy-0006/proof/2 references sy-0003 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1330,6 +1372,7 @@
     }
    ],
    "message": "sy-000B/proof references sy-0003 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1350,6 +1393,7 @@
     }
    ],
    "message": "sy-000B/proof references sy-0006 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1370,6 +1414,7 @@
     }
    ],
    "message": "sy-000D/proof references sy-0007 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1390,6 +1435,7 @@
     }
    ],
    "message": "sy-0007/proof references sy-0008 but its \\uses does not list it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1404,6 +1450,7 @@
     }
    ],
    "message": "sy-0007-ai/proof lists sy-0001-ai in \\uses but never references it",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1418,6 +1465,7 @@
     }
    ],
    "message": "sy-0009/proof lists sy-0002 in \\uses but never references it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1432,6 +1480,7 @@
     }
    ],
    "message": "sy-0007/proof lists sy-0001 in \\uses but never references it",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1452,6 +1501,7 @@
     }
    ],
    "message": "no master reaches drafting/nodes/sy-0009.tex",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1466,6 +1516,7 @@
     }
    ],
    "message": "unknown command \\parbox in sy-0100; rendered as SVG",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1480,6 +1531,7 @@
     }
    ],
    "message": "unknown command \\parbox in sy-0100-ai; rendered as SVG",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1494,6 +1546,7 @@
     }
    ],
    "message": "unknown command \\parbox in sy-0100-ai; rendered as SVG",
+   "owner": "copy",
    "severity": "info"
   },
   {
@@ -1508,6 +1561,7 @@
     }
    ],
    "message": "unknown command \\parbox in sy-0100; rendered as SVG",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1522,6 +1576,7 @@
     }
    ],
    "message": "unknown command \\parbox in .loom/history/0001-widgets-v1/widgets-v1.tex; rendered as SVG",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1536,6 +1591,7 @@
     }
    ],
    "message": "unknown command \\parbox in .loom/history/0003-widgets-v2/widgets-v2.tex; rendered as SVG",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1550,6 +1606,7 @@
     }
    ],
    "message": "unknown command \\parbox in .loom/history/0005-widgets-v3/widgets-v3.tex; rendered as SVG",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1565,6 +1622,7 @@
    ],
    "locations": [],
    "message": "1 annotation(s) on sy-0001 no longer match its text",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1574,6 +1632,7 @@
    ],
    "locations": [],
    "message": "the ledger has rows for sy-000F, which no longer exists",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1583,6 +1642,7 @@
    ],
    "locations": [],
    "message": "the ledger has rows for sy-000F/proof, which no longer exists",
+   "owner": "person",
    "severity": "info"
   },
   {
@@ -1592,6 +1652,7 @@
    ],
    "locations": [],
    "message": "acceptance recorded under sy-000F/proof matches the text of sy-0202/proof; re-accept to confirm",
+   "owner": "person",
    "severity": "info"
   }
  ],

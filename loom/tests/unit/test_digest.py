@@ -725,3 +725,84 @@ def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(t
     )
     refused("library", "read", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")
     refused("library", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")
+
+
+GROUPED_PART = r"""\documentclass{amsart}
+\newtheorem{theorem}{Theorem}[section]
+\begin{document}
+\section{Notation and conventions}
+We work over a field $k$.
+
+{\Large \part{Main results}}
+\section{Results}
+\begin{theorem}\label{t}
+Every widget is a gadget.
+\end{theorem}
+\end{document}
+"""
+
+
+def test_the_conventions_stop_at_a_part_and_leave_no_brace_open(tmp_path: Path) -> None:
+    """Ranganathan's conventions ran on into `{\\Large \\part{…}}`, so the -setup theorem held a part heading, which the scanner read as a section opened inside it."""
+    text = _extract(tmp_path, GROUPED_PART, "Ra22")
+    setup = text.split("\\label{Ra22-setup}", 1)[1].split("\\end{", 1)[0]
+    assert "We work over a field $k$." in setup
+    assert "\\part" not in setup and "\\Large" not in setup, setup
+
+
+COUNTER_SET = r"""\documentclass{article}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}
+\begin{document}
+\setcounter{section}{-1}
+\section{Introduction}
+We study cones.
+\section{Cones}
+\begin{theorem}\label{t}
+A cone is a cone.
+\end{theorem}
+% \setcounter{section}{7}
+\setcounter{section}{0}
+\section{Cones again}
+\begin{lemma}\label{l}
+A cone stack is a stack.
+\end{lemma}
+\end{document}
+"""
+
+
+def test_a_set_section_counter_is_followed_and_a_section_label_is_written_once(tmp_path: Path) -> None:
+    """Behrend-Fantechi set the section counter to -1, so their Introduction is section 0; emulation numbered from 1, and their section 2 was labelled twice."""
+    text = _extract(tmp_path, COUNTER_SET, "Bf97")
+    assert "Bf97-thm-1.1" in text, "the first section after the Introduction is section 1"
+    assert "\\section{Cones}\\label{Bf97-sec-1}" in text
+    assert "\\section{Cones again}" in text, "the second heading the paper numbers 1 is still written"
+    assert text.count("\\label{Bf97-sec-1}") == 1, "but its label only once"
+    assert "Bf97-sec-8" not in text, "a commented counter is not followed"
+
+
+BRACED_LABEL = r"""\documentclass{amsart}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{definition}[theorem]{Definition}
+\begin{document}
+\section{Results}
+\begin{definition}\label{Def: Q_{tau}^vee}
+Let $Q$ be the cone, with
+\begin{equation}\label{eq:{a}}
+x = y.
+\end{equation}
+\end{definition}
+\begin{theorem}\label{t}
+By Definition~\ref{Def: Q_{tau}^vee} and \eqref{eq:{a}}, $Q$ is flat.
+\end{theorem}
+\end{document}
+"""
+
+
+def test_a_label_holding_braces_is_read_whole_and_written_plain(tmp_path: Path) -> None:
+    """The Punctured paper labels a definition `Def: Q_{tau tau'}^vee`; a reader that stopped at the first closing brace left a reference dangling."""
+    text = _extract(tmp_path, BRACED_LABEL, "Pu25")
+    theorem = text.split("\\label{Pu25-thm-1.2}", 1)[1].split("\\end{theorem}", 1)[0]
+    assert "\\ref{Pu25-def-1.1}" in theorem, theorem
+    assert "\\eqref{Pu25-eq:a}" in theorem and "\\label{Pu25-eq:a}" in text
+    assert "{tau}" not in text and "{a}}" not in text

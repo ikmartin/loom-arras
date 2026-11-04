@@ -491,7 +491,7 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
         f"{counted(len(hits), 'hit')} in {len(per_work)} of {counted(works_with_pages, 'work')} with page text"
         + (f", showing {len(shown)}" if cut else "")
     )
-    from loom.cli.diagnostics import cited_works
+    from loom.scan.owners import cited_works
 
     with_pages = {tops.get(w.citekey, w.citekey) for w in pool if w.pages}
     unsearched = {tops.get(w.citekey, w.citekey) for w in pool} & {tops.get(c, c) for c in cited_works(result)}

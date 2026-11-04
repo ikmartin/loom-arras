@@ -13,7 +13,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	// an open session waits for no one: it is said on hover, never counted
 	await expect(page.getByTestId('section-count-sessions')).toHaveCount(0);
 	await expect(page.getByTestId('section-sessions')).toHaveAttribute('title', /1 open session/);
-	const problems = manifest.diagnostics.filter((d: { severity: string }) => d.severity === 'error' || d.severity === 'warning').length;
+	const problems = manifest.diagnostics.filter((d: { severity: string; owner?: string }) => (d.owner ?? 'person') === 'person' && (d.severity === 'error' || d.severity === 'warning')).length;
 	await expect(page.getByTestId('section-count-problems')).toHaveText(String(problems));
 	// every landmark leads to a live draft, so History waits for nothing
 	await expect(page.getByTestId('section-count-history')).toHaveCount(0);

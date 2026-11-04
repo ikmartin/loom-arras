@@ -39,7 +39,7 @@
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else if node.conflict?.length}
 		<p class="conflicted" data-testid="conflicted">
-			Defined in two files: {#each node.conflict as f, i (f)}{#if i}{' and '}{/if}<code>{f}</code>{/each}. It has no text until one definition moves or is forked — see <a href={route('/review/problems?code=duplicate-id')}>problems</a>.
+			Defined twice{#if node.conflict.length > 1}, in {#each node.conflict as f, i (f)}{#if i}{' and '}{/if}<code>{f}</code>{/each}{:else}, both times in <code>{node.conflict[0]}</code>{/if}. It has no text until one definition remains — see <a href={route('/review/problems?code=duplicate-id')}>problems</a>.
 		</p>
 	{:else if held.verbatim && held.source}
 		<pre class="verbatim" data-testid="verbatim" aria-label="the LaTeX behind this block">{held.source}</pre>

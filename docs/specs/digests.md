@@ -51,10 +51,10 @@ An id is `<prefix>-<local>`, where `local` is letters, digits and dots in hyphen
 
 - `<prefix>-<abbrev>-<number>` for a numbered result: `Man12-thm-4.1`, `Man12-cor-2.3.1`, `Man12-thm-A`. `abbrev` is `thm`, `lem`, `prop`, `cor`, `def`, `rem`, `ex`, `constr`, `conj`, or `eq` for a numbered display; other environments use their own name.
 - `<prefix>-<abbrev>-star-<n>` for the n-th unnumbered result of that kind.
-- `<prefix>-sec-<n>` for a section or subsection holding results.
-- `<prefix>-setup` for the standing assumptions.
+- `<prefix>-sec-<n>` for a section or subsection holding results, `n` its number as the paper prints it, a `\setcounter{section}` or `{subsection}` followed (a paper whose introduction is section 0 sets it to -1). Two headings the paper numbers alike are both written, and only the first is labelled.
+- `<prefix>-setup` for the standing assumptions: the first three paragraphs under a heading that names conventions, notation, terminology or standing assumptions, up to the next heading of any level, `\part` included; a paragraph whose braces do not balance is left out, since a heading set inside a group leaves its opening brace behind.
 
-A node's first label is its id when it has this shape; further labels are aliases. Every `\label` in an extracted statement gets the prefix, as does every `\eqref` to one, so the work's `\label{main}` becomes the alias `Man12-main` and two works' `eq:main` coexist. The slug is the citekey with everything but ASCII letters and digits removed; two citekeys with one slug are `loom:citekey-slug-collision` (error).
+A node's first label is its id when it has this shape; further labels are aliases. Every `\label` in an extracted statement gets the prefix, as does every `\eqref` to one, so the work's `\label{main}` becomes the alias `Man12-main` and two works' `eq:main` coexist. A label may hold one level of braces, as TeX reads it (`Def: Q_{tau}^vee`); it is read whole, and written with its braces dropped (`Man12-Def: Q_tau^vee`), so every reader of the digest reads it whole too. The slug is the citekey with everything but ASCII letters and digits removed; two citekeys with one slug are `loom:citekey-slug-collision` (error).
 
 ## 4. Macros
 

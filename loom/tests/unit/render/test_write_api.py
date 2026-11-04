@@ -1051,6 +1051,8 @@ def _agents_update(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     succeeds(s, "settings-save", {"changes": {"agents.deny": ["notes/"]}})
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert manifest["config"]["agents"]["stale"] is True
+    (stale,) = [d for d in manifest["diagnostics"] if d["code"] == "loom:agent-permissions-stale"]
+    assert stale["owner"] == "person" and stale["fixes"][0]["act"] == {"endpoint": "agents-update", "body": {}}, stale
     refuses(s, "agents-update", {"author": "Referee (Agent)"}, 403, "author-only", "only the author changes")
     assert succeeds(s, "agents-update", {})["result"].startswith("rewrote .claude/settings.json")
     denied = json.loads((q / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["deny"]
@@ -1082,6 +1084,15 @@ def _library_update(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
     assert {step["state"] for step in run["steps"]} <= {"done", "skipped"}, run
     assert [step["state"] for step in run["steps"]][:2] == ["skipped", "skipped"], run
     assert run["report"]["verdict"], run
+    # a digest made again is its extraction alone, which a cited work's problem offers
+    said = succeeds(s, "library-update", {"works": ["Calloway14"], "redo": True, "steps": ["extract"]})
+    assert [step["name"] for step in said["job"]["steps"]] == ["extract"], said
+    while any(j["state"] in ("queued", "running") for j in jobs()) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert jobs()[0]["state"] == "done", jobs()[0]
+    refuses(
+        s, "library-update", {"works": ["Calloway14"], "steps": ["paint"]}, 400, "bad-field", "steps must be some of"
+    )
     # the jobs are the token holder's to read
     assert get(s.url + "_api/jobs")[0] == 403
     refuses(

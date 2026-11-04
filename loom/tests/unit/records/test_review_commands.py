@@ -1446,6 +1446,7 @@ def test_a_document_deleted_by_hand_is_gone_not_changed(tmp_path: Path) -> None:
                 {"label": "record where it went, NEW being its path now", "command": "loom mv drafting/main.tex NEW"}
             ],
             "subject": "record",
+            "owner": "person",
         }
     ]
     ok("accept", "--stale", "--yes", "--force", *AS, cwd=d)

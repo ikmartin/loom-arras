@@ -114,7 +114,7 @@ def _busy(root: Path, citekey: str) -> None:
 
 
 def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
-    """`library-update`: queue a library run on the publisher's runner and answer with its job at once; the author's, refused to a declared agent, so an agent never grants itself the network this way. No works is every work, its bibliography gathered first."""
+    """`library-update`: queue a library run on the publisher's runner and answer with its job at once; the author's, refused to a declared agent, so an agent never grants itself the network this way. No works is every work, its bibliography gathered first; `steps` runs only those (a digest made again is `extract` alone, with `redo`)."""
     from loom.cli._common import NotFoundError, is_agent
     from loom.refs.build import STEPS, WORK_STEPS
     from loom.refs.update import named
@@ -135,9 +135,13 @@ def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
             works = named(load_quilt(root), _scan(root), tuple(asked))
         except NotFoundError as exc:
             raise ApiError("no-such-work", str(exc), status=404) from exc
+    allowed = WORK_STEPS if works else STEPS
+    steps = body.get("steps")
+    if steps is not None and (not isinstance(steps, list) or not steps or not all(x in allowed for x in steps)):
+        raise ApiError("bad-field", f"steps must be some of {', '.join(allowed)}")
     job = jobs.submit(
         works,
-        WORK_STEPS if works else STEPS,
+        tuple(x for x in allowed if x in steps) if steps else allowed,
         who=who,
         online=body.get("online") is True,
         redo=body.get("redo") is True,

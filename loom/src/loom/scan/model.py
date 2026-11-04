@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True, order=True)
@@ -61,10 +62,11 @@ class Location:
 
 @dataclass(frozen=True)
 class Fix:
-    """A command that would resolve a diagnostic, offered to be copied; nothing runs it (docs/specs/diagnostics.md §1)."""
+    """A command that would resolve a diagnostic, offered to be copied; and, where the publisher serves the same act, `act`: the endpoint and body a viewer may offer as a button instead (docs/specs/diagnostics.md §1)."""
 
     label: str
     command: str
+    act: dict[str, Any] | None = None
 
 
 @dataclass
@@ -76,6 +78,22 @@ class Diagnostic:
     keys: list[str] = field(default_factory=list)
     fixes: list[Fix] = field(default_factory=list)
     subject: str | None = None  # "source" (the default when absent) or "record": what the diagnostic is about
+    # "person", "copy" (an agent's copy) or "work" (a cited work's digest): whose it is to fix (`scan.owners`)
+    owner: str | None = None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Diagnostic:
+        """A diagnostic as `to_dict` wrote it, whole."""
+        return cls(
+            str(d["severity"]),
+            str(d["code"]),
+            str(d["message"]),
+            [Location(str(x["file"]), int(x["line"]), x.get("column")) for x in d.get("locations") or []],
+            [str(k) for k in d.get("keys") or []],
+            [Fix(str(f["label"]), str(f["command"]), f.get("act")) for f in d.get("fixes") or []],
+            d.get("subject"),
+            d.get("owner"),
+        )
 
     def to_dict(self) -> dict[str, object]:
         out: dict[str, object] = {
@@ -89,9 +107,13 @@ class Diagnostic:
             "keys": list(self.keys),
         }
         if self.fixes:
-            out["fixes"] = [{"label": f.label, "command": f.command} for f in self.fixes]
+            out["fixes"] = [
+                {"label": f.label, "command": f.command, **({"act": f.act} if f.act else {})} for f in self.fixes
+            ]
         if self.subject:
             out["subject"] = self.subject
+        if self.owner:
+            out["owner"] = self.owner
         return out
 
 

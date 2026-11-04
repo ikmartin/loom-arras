@@ -39,8 +39,11 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ ids: true })));
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('.fragment .node-margin', { hasText: 'mysterious' }).first()).toBeVisible();
-	await page.goto('/review/problems');
-	await expect(page.locator('main h2 code', { hasText: 'other:code' })).toBeVisible();
+	// a code no table names is titled by its message, under its own code
+	await page.goto('/review/problems?code=other%3Acode');
+	const group = page.locator('[data-testid="problem-group"][data-codes="other:code"]');
+	await expect(group.locator('.title')).toHaveText('from another publisher');
+	await expect(group.locator('.code')).toBeVisible();
 });
 
 test('interface version mismatch shows one diagnostic and nothing else', async ({ page }) => {

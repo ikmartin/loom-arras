@@ -45,6 +45,12 @@ class Numbering:
                 self.counters[c] = 0
         return self.section_number(level)
 
+    def set_counter(self, name: str, value: int) -> None:
+        """Follow `\\setcounter{section}{-1}` and its kin: the next heading of that level steps from `value`."""
+        level = LEVELS.get(name)
+        if level is not None and name != "part":
+            self.sec[level] = value
+
     def mark_appendix(self) -> None:
         self.appendix = True
         self.sec[1] = 0

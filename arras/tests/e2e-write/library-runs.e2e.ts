@@ -25,3 +25,24 @@ test('a run over every work starts from Review › Library and gathers the bibli
 	await expect(run).toHaveAttribute('data-state', 'done', { timeout: 120000 });
 	await expect(run.locator('[data-step="gather"]')).toHaveAttribute('data-state', 'done');
 });
+
+test("a cited work's problem offers digesting the work again, which starts a run and answers with its verdict", async ({ page, served }) => {
+	const fs = await import('node:fs');
+	const { join } = await import('node:path');
+	const digest = join(served.root, '.loom/digests/Kre99.tex');
+	// a reference to nothing inside one of Kre99's results, as a fault in the digest writer leaves one
+	fs.writeFileSync(digest, fs.readFileSync(digest, 'utf8').replace('\\end{theorem}', 'See \\ref{nowhere-at-all}.\n\\end{theorem}'));
+	await page.goto('/review/problems');
+	const works = page.getByTestId('problems-works');
+	await expect(works).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('problems-yours')).not.toContainText('nowhere-at-all');
+	await works.locator('summary').first().click();
+	const work = page.locator('[data-testid="problem-work"][data-work="Kre99"]');
+	await expect(work).toContainText('A reference points nowhere');
+	await work.getByTestId('digest-again').click();
+	const said = work.getByTestId('digest-said');
+	await expect(said).toContainText('Digesting Kre99 again');
+	// the fixture's digest of Kre99 was made by hand and has no paper to read again, so the run ends with nothing new, and says so
+	await expect(said).toContainText('Done.', { timeout: 60000 });
+	await expect(said).toContainText('digested');
+});

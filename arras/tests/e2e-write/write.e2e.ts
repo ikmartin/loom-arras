@@ -654,8 +654,11 @@ test('a change marked as checked is accepted as it is taken in; one left stays o
 	await page.getByTestId('leave-it').click();
 	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
 	await page.getByTestId('accept-checked').check();
-	await page.getByTestId('apply').click();
-	await expect(page.locator('main')).toContainText('Took 1 change into accept-test: 1 accepted', { timeout: 30000 });
+	// Apply asks loom to accept the checked block; whether TeX can record it here is the machine's, so the request is what is held to
+	const [finish] = await Promise.all([page.waitForRequest((r) => r.url().endsWith('/_api/adopt-finish')), page.getByTestId('apply').click()]);
+	expect(finish.postDataJSON().accept).toEqual(['sy-0910']);
+	await expect(page.locator('main')).toContainText('Took 1 change into accept-test', { timeout: 30000 });
+	await expect(page.locator('main')).not.toContainText('since what they rest on was not accepted');
 	const now = readFileSync(join(served.root, document), 'utf8');
 	expect(now).toContain('First, improved.');
 	expect(now).toContain('Second.\n');

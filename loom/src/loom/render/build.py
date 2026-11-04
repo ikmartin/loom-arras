@@ -530,9 +530,11 @@ def build(
 
     manifest["config"] = published_config(result)
     attach_look_changes(result.quilt, reviewer_identity(result.quilt.root)[0], manifest, files)
-    report.diagnostics = [d for d in report.diagnostics] + [
-        Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
-    ]
+    # every diagnostic, lint's, the renderer's and the records', whole and with whose it is to fix
+    from loom.scan.owners import stamped
+
+    report.diagnostics = stamped(result, [Diagnostic.from_dict(d) for d in manifest["diagnostics"]])
+    manifest["diagnostics"] = [d.to_dict() for d in report.diagnostics]
     report.manifest = manifest
     prune = ("fragments/", "source/", "spans/", "transcripts/", f"{BODIES}/", f"{DIFFS}/") if wanted is None else ()
     if wanted is None:

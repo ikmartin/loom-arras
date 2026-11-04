@@ -1,69 +1,102 @@
-// The problems page: every diagnostic the publisher reports, grouped by what it is about, filtered from the URL, with the fix it offers ready to copy. Each test is named for the rule it holds.
+// Review › Problems: the person's own problems first, open and counted; an agent's copy's, the cited works' and every remark folded beneath, each said to be whose it is; problems titled by what is wrong, opened at their place, and filtered in the page. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
-test('the problems page lists every diagnostic code', async ({ page }) => {
+type D = { severity: string; code: string; owner?: string; locations: { file: string; line: number }[]; keys: string[] };
+const all = manifest.diagnostics as D[];
+const yours = all.filter((d) => (d.owner ?? 'person') === 'person' && d.severity !== 'info');
+
+/** A cited work's problem, which the fixture's quilt has none of: a dangling reference in Kre99's digest, mended by digesting it again. */
+const inDigest = {
+	severity: 'error',
+	code: 'dangling-link',
+	message: '\\ref{nowhere} names no node or region',
+	locations: [{ file: '.loom/digests/Kre99.tex', line: 12 }],
+	keys: [],
+	owner: 'work',
+	fixes: [{ label: 'digest Kre99 again', command: 'loom library update Kre99 --only extract --redo', act: { endpoint: 'library-update', body: { works: ['Kre99'], redo: true, steps: ['extract'] } } }]
+};
+
+test("the person's problems come first, open and counted, and the rest folded beneath, each said to be whose it is", async ({ page }) => {
+	await serve(page, (m) => void m.diagnostics.push(inDigest as never));
 	await page.goto('/review/problems');
-	const codes = new Set<string>(manifest.diagnostics.map((d: { code: string }) => d.code));
-	for (const code of codes) await expect(page.locator(`main h2 code`, { hasText: code }).first()).toBeVisible();
+	const mine = page.getByTestId('problems-yours');
+	await expect(mine.getByTestId('problems-yours-count')).toHaveText(String(yours.length));
+	await expect(mine.getByTestId('problem')).toHaveCount(yours.length);
+	await expect(mine.getByTestId('problem').first()).toBeVisible();
+	for (const part of ['problems-copy', 'problems-works', 'problems-remarks']) await expect(page.getByTestId(part)).not.toHaveAttribute('open');
+	await expect(page.getByTestId('problems-copy')).toContainText('Incoming');
+	await expect(page.getByTestId('problems-copy').locator('a[href="/review/incoming"]')).toHaveCount(1);
+	// a cited work's problems stand under the work, which links to its page; with no publisher, digesting again is a command to copy
+	await page.getByTestId('problems-works').locator('summary').first().click();
+	const work = page.locator('[data-testid="problem-work"][data-work="Kre99"]');
+	await expect(work.locator('a[href="/library/Kre99"]')).toBeVisible();
+	await expect(work.getByTestId('digest-again')).toHaveCount(0);
+	await expect(work.getByTestId('fix').first()).toBeVisible();
+	await expect(work.locator('.command').first()).toHaveText('loom library update Kre99 --only extract --redo');
+	// Review's column counts what is the person's alone
+	await expect(page.getByTestId('section-count-problems')).toHaveText(String(yours.length));
 });
 
-test('the problems page filters by severity from the URL, with its filters in the panel', async ({ page }) => {
+test('a problem is titled by what is wrong, with its code beside it', async ({ page }) => {
+	await page.goto('/review/problems');
+	const mine = page.getByTestId('problems-yours');
+	await expect(mine.locator('[data-testid="problem-group"][data-codes="dangling-link"] .title')).toHaveText('A reference points nowhere');
+	await expect(mine.locator('[data-testid="problem-group"][data-codes="duplicate-id"] .title')).toHaveText('Defined twice');
+	await expect(mine.locator('[data-testid="problem-group"][data-codes="duplicate-id"] .code')).toHaveText('duplicate-id');
+	// errors first
+	await expect(mine.getByTestId('problem-group').first()).toHaveClass(/sev-error/);
+});
+
+test('a location is a link to its file at its line, and a key opens at its place', async ({ page }) => {
+	await page.goto('/review/problems');
+	const group = page.locator('[data-testid="problems-yours"] [data-testid="problem-group"][data-codes="missing-include"]');
+	const at = group.getByTestId('problem-location').first();
+	await expect(at).toHaveText('drafting/main.tex:72');
+	await at.click();
+	const lines = page.getByTestId('file-lines');
+	await expect(lines).toBeVisible();
+	await expect(lines.locator('#L72')).toHaveClass(/at/);
+	await expect(lines.locator('#L72')).toBeInViewport();
+	await page.goto('/review/problems');
+	const open = page.locator('[data-testid="problems-yours"] [data-testid="problem-group"][data-codes="duplicate-id"]').getByTestId('problem-open').first();
+	await expect(open).toHaveAttribute('href', /^\/(node|master|file)\//);
+});
+
+test('the filters stand in the page: severity from the URL, and a search over titles and messages', async ({ page }) => {
 	await page.goto('/review/problems?severity=error');
-	await expect(page.getByTestId('filter-severity')).toHaveValue('error');
-	const errorCodes = new Set((manifest.diagnostics as { severity: string; code: string }[]).filter((d) => d.severity === 'error').map((d) => d.code));
-	await expect(page.getByTestId('problem-group')).toHaveCount(errorCodes.size);
+	await expect(page.getByTestId('filter-error')).toHaveAttribute('aria-pressed', 'true');
+	const errors = yours.filter((d) => d.severity === 'error');
+	await expect(page.getByTestId('problems-yours').getByTestId('problem')).toHaveCount(errors.length);
+	await page.getByTestId('filter-error').click();
+	await expect(page).toHaveURL(/\/review\/problems$/);
+	await page.getByTestId('problem-search').fill('points nowhere');
+	await expect(page.getByTestId('problems-yours').getByTestId('problem-group')).toHaveCount(1);
+	await page.getByTestId('problem-search').fill('no problem says this');
+	await expect(page.getByTestId('problems-none')).toHaveText('None of yours matches these filters.');
+	// the column is the column's: the page puts no panel in it
+	await expect(page.locator('.page-panel')).toHaveCount(0);
 });
 
-test('the problems page groups by subject and copies a fix', async ({ page, context, browserName }) => {
-	// the fixture's record is sound, so one fault in it is added: a document the records name that is gone, with the command that finds it
-	await serve(page, (m) => {
-		m.diagnostics.push({
-			severity: 'warning',
-			code: 'loom:document-gone',
-			message: 'drafting/draft0.tex is gone, and 1 acceptance row names it; loom mv records where it went',
-			locations: [],
-			keys: [],
-			subject: 'record',
-			fixes: [{ label: 'record where it went', command: 'loom mv drafting/draft0.tex NEW' }]
-		});
-	});
+test('a code the URL names opens where it is, and the help names no command', async ({ page }) => {
+	await page.goto('/review/problems?code=loom%3Auses-missing');
+	await expect(page.getByTestId('problems-remarks')).toHaveAttribute('open');
+	await expect(page.getByTestId('filter-code')).toBeVisible();
+	await expect(page.getByTestId('problems-remarks').getByTestId('problem-group').first()).toHaveAttribute('open');
+	await page.getByTestId('help-problems').click();
+	await expect(page.getByTestId('help-panel-problems')).toContainText('Your files come first');
+	await expect(page.getByTestId('help-panel-problems')).not.toContainText('command line');
+});
+
+test('a fix is copied, and the page is read at rest with its bar drawn', async ({ page, context, browserName }) => {
 	await page.goto('/review/problems');
-	const headings = page.getByTestId('subject-heading');
-	await expect(headings.first()).toHaveText('The source');
-	await expect(headings.nth(1)).toHaveText('The record');
-	await page.getByTestId('filter-subject').selectOption('record');
-	await expect(page.getByTestId('problem-group')).toContainText('loom:document-gone');
-	await page.getByTestId('problem-group').first().locator('summary').click();
-	const fix = page.getByTestId('fix').first();
+	const fix = page.getByTestId('problems-yours').getByTestId('fix').first();
 	await expect(fix).toHaveText('copy');
 	if (browserName === 'chromium') {
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 		await fix.click();
 		await expect(fix).toHaveText('copied');
-		const copied = await page.evaluate(() => navigator.clipboard.readText());
-		expect(copied.length).toBeGreaterThan(0); // the command as the publisher wrote it, whatever it is
+		expect((await page.evaluate(() => navigator.clipboard.readText())).length).toBeGreaterThan(0);
 	}
-});
-
-test('each code is folded to its count until opened, one at a time or all at once, and the bar shows at rest', async ({ page }) => {
-	await page.setViewportSize({ width: 1440, height: 500 });
-	await page.goto('/review/problems');
-	const groups = page.getByTestId('problem-group');
-	await expect(groups.first()).toBeVisible();
-	const n = await groups.count();
-	expect(n).toBeGreaterThan(1);
-	for (let i = 0; i < n; i++) await expect(groups.nth(i)).not.toHaveAttribute('open');
-	await expect(groups.first().locator('li').first()).toBeHidden();
-	await groups.first().locator('summary').click();
-	await expect(groups.first().locator('li').first()).toBeVisible();
-	await page.getByTestId('problems-expand').click();
-	for (let i = 0; i < n; i++) await expect(groups.nth(i)).toHaveAttribute('open');
-	await expect(page.getByTestId('problems-expand')).toHaveText('fold all');
-	// a code the URL names stands open
-	const code = manifest.diagnostics[0].code;
-	await page.goto('/review/problems?code=' + encodeURIComponent(code));
-	await expect(page.getByTestId('problem-group').first()).toHaveAttribute('open');
-	// the page is read by moving through it, so its bar is drawn at rest
 	expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarColor)).not.toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
 });

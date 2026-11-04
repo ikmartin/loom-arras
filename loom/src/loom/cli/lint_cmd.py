@@ -46,13 +46,15 @@ def _sorted(diags: list[Diagnostic]) -> list[Diagnostic]:
 
 
 def all_diagnostics(result: ScanResult) -> list[Diagnostic]:
-    """Scanner diagnostics plus those derived from the ledger, the review records, and the full walk of the history, in the scanner's order."""
+    """Scanner diagnostics plus those derived from the ledger, the review records, and the full walk of the history, in the scanner's order, each with whose it is to fix (`scan.owners`), as the manifest has them."""
     records = Records(result.quilt.root, result.quilt.history_dir)
     extra = records.diagnostics(result, records.key_states(result))
     seen = {(d.code, d.message) for d in result.lint}
     history = load_history(result.quilt.history_dir)
     walk = [d for d in verify(result, history) if (d.code, d.message) not in seen]
-    return _sorted([_safe(result, history, d) for d in result.lint] + extra + walk)
+    from loom.scan.owners import stamped
+
+    return _sorted(stamped(result, [_safe(result, history, d) for d in result.lint] + extra + walk))
 
 
 def _safe(result: ScanResult, history: History, d: Diagnostic) -> Diagnostic:
@@ -66,8 +68,8 @@ def _safe(result: ScanResult, history: History, d: Diagnostic) -> Diagnostic:
             return replace(d, fixes=[Fix("apply the fork's patch", again), *d.fixes])
         return d
     n = result.nodes.get(d.keys[0]) if d.code == "duplicate-id" and len(d.keys) == 1 else None
-    if n is None or n.kind != "conflict":
-        return d
+    if n is None or n.kind != "conflict" or all(f in result.assembly.digest_files for f in n.conflict):
+        return d  # a digest's id defined twice is mended by digesting its work again, never by the person's hand
     commands = conflict_fixes(result, history, d.keys[0], list(n.conflict))
     return replace(d, fixes=[Fix("the way out that keeps what was there", c) for c in commands])
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The question-mark circle beside a page title: what the page means, what each state means, and which command records it.
+	// The question-mark circle beside a page title: what the page means, what each state means, and, where one records it, which command.
 	import Popover from '$lib/components/Popover.svelte';
 
 	let { label, topic }: { label: string; topic: 'review' | 'problems' | (string & {}) } = $props();
@@ -19,8 +19,13 @@
 		},
 		problems: {
 			title: 'What the problems page shows',
-			body: 'Every diagnostic the publisher raised, by severity and code. An error means the published corpus is wrong in a way a reader would notice; a warning means something is probably a mistake; information is a remark.',
-			command: 'lint'
+			body: "What the publisher found wrong, by whose it is to put right. Your files come first, and are what Review counts; an agent's copy is the agent's, or yours to leave out when you take it back; a cited work's digest is loom's reading of the paper, mended by digesting the work again.",
+			states: [
+				['error', 'a reader would notice it: a reference to nothing, an id defined twice'],
+				['warning', 'probably a mistake, though the document still reads'],
+				['remark', 'worth knowing, and not wrong']
+			],
+			command: ''
 		}
 	};
 

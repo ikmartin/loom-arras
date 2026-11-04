@@ -382,7 +382,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
  "keys": ["rl-0011", "rl-0020", "rl-0031"]}
 ```
 
-**[decided]** Two optional fields. `subject` says what the diagnostic is about: `"source"` (the default when absent) or `"record"`, the publisher's own account of the source. `fixes` is a list of commands that would resolve it, each `{"label": "...", "command": "..."}`; they are data, and a viewer offers them to be copied and runs nothing.
+**[decided]** Three optional fields. `subject` says what the diagnostic is about: `"source"` (the default when absent) or `"record"`, the publisher's own account of the source. `owner` says whose it is to put right: `"person"` (the default when absent), `"copy"` for an agent's copy, or `"work"` for a cited work's digest (plan 0.25.3; `diagnostics.md` §1 says how each is decided, and governs). `fixes` is a list of commands that would resolve it, each `{"label": "...", "command": "..."}`, with `"act": {"endpoint", "body"}` on one a viewer may do itself through the write API; a viewer copies any other, and runs no command. Loom stamps `owner` once over the whole list, lint's, the renderer's and the records' alike, so `loom lint --json` says the same.
 
 ```json
 {"severity": "error", "code": "duplicate-id",

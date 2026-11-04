@@ -325,7 +325,8 @@ def _placeholders(asm: Assembly, files: dict[str, SourceFile], conflicted: dict[
         fixes = [
             Fix(f"fork the copy in {path}", f"loom fork {node_id} --in {path}") for path in paths if len(paths) > 1
         ]
-        fixes.append(Fix("give one copy a fresh id by hand", "loom id --next"))
+        if not any(path in asm.digest_files for path in paths):  # a digest is loom's to rewrite, not the author's
+            fixes.append(Fix("give one copy a fresh id by hand", "loom id --next"))
         asm.diagnostics.append(
             Diagnostic(
                 "error",
@@ -570,7 +571,10 @@ def _proof_nodes(
 
 
 def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
-    """Own ranges: each claimant's range minus its direct children's ranges, per file."""
+    """Own ranges: each claimant's range minus its direct children's ranges, per file.
+
+    A section reaching past its parent's end is cut back to it, and a parent's own text skips each child's whole subtree, so no text is claimed twice.
+    """
     by_file: dict[str, list[NodeRec]] = {}
     for n in asm.nodes.values():
         if n.kind == "conflict":
@@ -584,8 +588,15 @@ def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
             while stack and stack[-1].end <= r.start:
                 stack.pop()
             if stack:
+                if r.kind == "section":
+                    # a heading set inside an environment (`{\Large \part{…}}` in a theorem) ends with it
+                    r.end = min(r.end, stack[-1].end)
                 children[stack[-1].key].append(r)
             stack.append(r)
+        # how far each subtree reaches: an environment may run past the section it opened in, when a heading inside it ended that section
+        reach: dict[str, int] = {}
+        for r in reversed(recs):
+            reach[r.key] = max([r.end, *(reach[c.key] for c in children[r.key])])
         for r in recs:
             pieces: list[tuple[int, int]] = []
             pos = r.start
@@ -594,7 +605,7 @@ def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
             for c in kids:
                 if c.start > pos:
                     pieces.append((pos, c.start))
-                pos = max(pos, min(c.end, r.end))
+                pos = max(pos, min(reach[c.key], r.end))
             if r.end > pos:
                 pieces.append((pos, r.end))
             r.own = pieces

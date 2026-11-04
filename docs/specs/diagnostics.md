@@ -14,13 +14,18 @@ A diagnostic is a structured report of something wrong or notable in a corpus. P
 | `locations` | list of `{file, line, column?}` | where, zero or more |
 | `keys` | list of keys or node ids | what it concerns, zero or more |
 | `subject` | `source`, `record` | optional; what the diagnostic is about. Absent means `source`. |
-| `fixes` | list of `{label, command}` | optional; commands that would resolve it |
+| `owner` | `person`, `copy`, `work` | optional; whose it is to put right. Absent means `person`. |
+| `fixes` | list of `{label, command, act?}` | optional; commands that would resolve it, `act` the ones a viewer may do itself |
 
-Viewers group by code, filter by severity, code and subject, and link locations and keys. A viewer renders unknown codes generically and never fails on one.
+Viewers group by what is wrong, filter by severity and code, and link locations and keys. A viewer renders unknown codes generically and never fails on one.
 
 **[decided]** `subject` separates what is wrong with the corpus's text from what is wrong with the publisher's own record of it. They are different kinds of work, and a viewer may group them apart; a viewer that ignores the field loses nothing.
 
-**[decided]** `fixes` are data, never actions. A viewer shows each command and may offer to copy it; nothing in a viewer runs one. The label says what the command would achieve, so that a reader choosing between two fixes is choosing between outcomes.
+**[decided]** `owner` says whose a diagnostic is to put right (plan 0.25.3). `person` is the author's: their documents, their bibliography, their configuration, the records of their review. `copy` is an agent's: every location in an agent's copy, or every key a result of one; the agent puts it right, or the author leaves it out when taking the copy back. `work` is a cited work's: every location in a digest, or every key one of its results. A digest is the publisher's reading of a paper, so a digest's diagnostic is the work's even where the author's text cites the result it is on, and only digesting the work again can mend it. A diagnostic naming both the author's and a copy's is the author's. A viewer puts the author's first and counts only theirs; a viewer that ignores the field shows every diagnostic as the author's, as before the field.
+
+**[decided]** `fixes` are data. A viewer shows each command and may offer to copy it; it never runs one. A fix may also carry `act`, `{endpoint, body}`: the write-API endpoint (`write-api.md`) that does what the command does, and the body to send it. A viewer that serves writes may offer such a fix as a button, through that endpoint and nothing else, and says the endpoint's answer beside it; without a publisher, it is a command to copy like any other. The label says what the fix would achieve, so that a reader choosing between two fixes is choosing between outcomes.
+
+**[decided]** Loom sets `act` on three fixes. `loom:undigested-citekey`'s digests the work (`library-update`, `{works: [CK]}`); `loom:agent-permissions-stale`'s rewrites the permission files (`agents-update`); and every diagnostic owned by a work carries "digest CK again" (`library-update`, `{works: [CK], redo: true, steps: ["extract"]}`), except those digesting again does not mend: the renderer's fallback, a dependency cycle (which is the paper's own), and those about the work rather than the digest's text (`loom:missing-package`, `loom:unverified-locators`, `loom:version-mismatch`, `loom:digest-without-bib`, `loom:no-readable-copy`). A digest's id defined twice carries no hand fix, since the person never edits a digest.
 
 ## 2. Reserved codes
 

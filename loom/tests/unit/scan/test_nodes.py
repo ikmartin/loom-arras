@@ -252,3 +252,34 @@ def test_two_masters_share_one_set_of_nodes(tmp_path: Path) -> None:
     codes = [d.code for d in result.lint]
     assert "duplicate-id" not in codes and "loom:duplicate-label" not in codes
     assert set(result.nodes["sh-0001"].reached_by) == {"drafting/main.tex", "drafting/talk.tex"}
+
+
+def test_a_section_opened_inside_an_environment_ends_with_it(tmp_path: Path) -> None:
+    """Ranganathan's digest sets `{\\Large \\part{…}}` inside its -setup theorem, and the part ran on to the end of the file, so every later label was claimed twice: 99 errors in a file loom wrote."""
+    r = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\section{Intro}
+\begin{remark}\label{setup}
+We work over a field. {\Large \part{Main results}}
+\end{remark}
+\begin{lemma}\label{lem:later}
+A later lemma.
+\end{lemma}
+\begin{theorem}\label{thm:last}
+The last theorem.
+\end{theorem}
+\end{document}
+"""
+        },
+    )
+    src = r.files["drafting/main.tex"]
+    claimed = [k for k, n in r.nodes.items() if any("A later lemma" in src.clean[a:b] for a, b in n.own)]
+    assert len(claimed) == 1, claimed
+    part = next(n for n in r.nodes.values() if n.kind == "section" and n.title == "Main results")
+    setup = r.nodes[r.assembly.labels["setup"]]
+    assert part.end <= setup.end, "the part ends with the remark it was opened in"
+    assert src.clean[setup.start : setup.end].rstrip().endswith("\\end{remark}"), "and the remark keeps its whole text"
+    assert not [d for d in r.diagnostics if d.severity == "error"], [d.message for d in r.diagnostics]

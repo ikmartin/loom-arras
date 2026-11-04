@@ -151,7 +151,9 @@ def _agent_permissions(result: ScanResult) -> list[Diagnostic]:
             "loom:agent-permissions-stale",
             f"{CLAUDE_SETTINGS} is not what [agents] deny and this loom make it, so Claude Code holds agents to an older boundary; loom's own commands already hold them to this one",
             [Location(CLAUDE_SETTINGS, 1)],
-            fixes=[Fix("rewrite it, in a terminal of your own", "loom upgrade")],
+            fixes=[
+                Fix("rewrite it, in a terminal of your own", "loom upgrade", {"endpoint": "agents-update", "body": {}})
+            ],
         )
     ]
 
@@ -477,7 +479,13 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 f"{ck} is cited with a locator but has no digest",
                 [],
                 sorted(set(srcs)),
-                fixes=[Fix("digest it", f"loom library update {ck}")],
+                fixes=[
+                    Fix(
+                        "digest it",
+                        f"loom library update {ck}",
+                        {"endpoint": "library-update", "body": {"works": [ck]}},
+                    )
+                ],
             )
         )
     # a cited work with no global identifier can never be deduplicated, fetched, or matched against another quilt's

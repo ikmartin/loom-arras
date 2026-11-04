@@ -219,8 +219,8 @@ def uncited_lint(result: ScanResult, diags: Iterable[Diagnostic], works: Iterabl
 
     `diags` is what `loom lint` reports, so the counts are the ones its single line for these works sums; no exit code counts them, so this is the one place they are listed by work.
     """
-    from loom.cli.diagnostics import UNCITED, Owners
     from loom.cli.report import counted
+    from loom.scan.owners import UNCITED, Owners
 
     owners = Owners(result)
     wanted = set(works)

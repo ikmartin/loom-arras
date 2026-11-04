@@ -452,6 +452,8 @@ export interface Location {
 export interface Fix {
   label: string;
   command: string;
+  /** A fix a viewer may do itself: the write-API endpoint and the body to send it. Without one, the fix is a command to copy. */
+  act?: { endpoint: string; body: Record<string, unknown> };
 }
 
 export interface Diagnostic {
@@ -463,6 +465,8 @@ export interface Diagnostic {
   fixes?: Fix[];
   /** What the diagnostic is about: the source, or loom's own record of it. Absent means `source`. */
   subject?: "source" | "record" | (string & {});
+  /** Whose it is to fix: the person's, an agent's copy's, or a cited work's, whose digest loom wrote. Absent means the person's. */
+  owner?: "person" | "copy" | "work" | (string & {});
 }
 
 export interface Taxon {

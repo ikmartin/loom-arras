@@ -11,8 +11,9 @@ from dataclasses import dataclass, field
 from loom.scan.model import Env, SourceFile
 from loom.scan.tokenize import EnvNode, env_tree
 
-REF_IN_OPT = re.compile(r"\\(?:ref|cref|Cref|autoref|eqref)\s*\{([^}]*)\}")
-_LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
+# a label may hold one level of braces, as TeX reads it whole
+REF_IN_OPT = re.compile(r"\\(?:ref|cref|Cref|autoref|eqref)\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
+_LABEL = re.compile(r"\\label\s*\{((?:[^{}]|\{[^{}]*\})*)\}")
 
 
 @dataclass
