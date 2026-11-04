@@ -7,7 +7,8 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	const list = page.getByTestId('review-sections');
 	await expect(list.getByRole('link')).toHaveText([/^Changes/, /^Needs review/, /^Incoming/, /^Suggestions/, /^Library/, /^Sessions/, /^History/, /^Problems/]);
 	await expect(page.getByTestId('section-needs-review')).toHaveAttribute('aria-current', 'page');
-	const unresolved = (manifest.unresolved ?? []).filter((r: { status: string }) => r.status === 'needs-review').length;
+	// what changed since it was accepted, or was taken in; a block never accepted is listed there, not counted
+	const unresolved = (manifest.unresolved ?? []).filter((r: { cause: string }) => r.cause !== 'never-accepted').length;
 	await expect(page.getByTestId('section-count-needs-review')).toHaveText(String(unresolved));
 	await expect(page.getByTestId('section-count-incoming')).toHaveText(String((manifest.contributions ?? []).length));
 	// an open session waits for no one: it is said on hover, never counted

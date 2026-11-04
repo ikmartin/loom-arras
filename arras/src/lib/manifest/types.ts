@@ -262,17 +262,19 @@ export interface AdoptionReview {
   issues: string[];
 }
 
+/** A block of the person's not freshly accepted: why it waits, and why loom cannot accept it, if it cannot. */
 export interface UnresolvedReview {
   key: string;
-  status: 'needs-review' | 'ok' | 'requires-attention';
-  cause: 'incoming-pull' | 'adopted' | 'earlier-change';
+  /** `earlier-change`: its acceptance went stale; `adopted` or `incoming-pull`: taken in; `never-accepted`: no acceptance yet. */
+  cause: 'incoming-pull' | 'adopted' | 'earlier-change' | 'never-accepted';
   source_label?: string;
   contribution?: string;
   pull: string;
   changed_text: boolean;
   /** Null means an older sync record has no post-pull baseline. */
   local_changed?: boolean | null;
-  invalidated: boolean;
+  /** Why loom cannot accept it, in the person's words; '' when it can. */
+  refusal: string;
 }
 
 export interface Acceptance {
@@ -640,7 +642,6 @@ export interface Manifest {
   contributions?: (AdoptionReview | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
   history?: { steps: HistoryStep[] };
-  review_covered?: {key: string; via: string[]}[];
   regions: Record<string, Region>;
   relations?: Relation[];
   edges: Edge[];

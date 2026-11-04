@@ -506,7 +506,7 @@ def test_incoming_explicit_acceptance_keeps_unvisited_dependents_pending(quilt, 
     assert "zk-0001" in Records(quilt.root, quilt.history_dir).latest
     rows = build(quilt).manifest["unresolved"]
     assert "zk-0001" not in {r["key"] for r in rows}
-    assert next(r for r in rows if r["key"] == "zk-0002")["status"] == "needs-review"
+    assert next(r for r in rows if r["key"] == "zk-0002")["cause"] == "adopted"
 
 
 @pytest.mark.parametrize("accepted", [[], ["zk-9999"], ["zk-0001", "zk-0001"]])

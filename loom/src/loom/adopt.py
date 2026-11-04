@@ -839,7 +839,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
                 origins[key] = {
                     "source": f"adopt:{entry.step}",
                     "copy": data["copy"],
-                    "label": f"Incoming from agent document “{Path(data['copy']).stem}”",
+                    "label": f"Taken in from the copy “{Path(data['copy']).stem}”",
                     "changed": key in changed,
                     "baseline": fingerprint(after, key),
                     "local_before": previous.get("local_before", False)

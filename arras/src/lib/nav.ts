@@ -67,6 +67,13 @@ export function readUrl(masterPath: string, key?: string): string {
 	return masterUrl(masterPath) + (key ? '#' + anchorId(key) : '');
 }
 
+/** A block in its document with Review's panel beside it: why it waits, and Accept. `cause`, an index into its acceptance's causes, opens on that change. */
+export function reviewReadUrl(masterPath: string, key: string, cause?: number): string {
+	const q = new URLSearchParams({ review: key });
+	if (cause !== undefined) q.set('cause', String(cause));
+	return masterUrl(masterPath) + '?' + q + '#' + anchorId(key);
+}
+
 /**
  * Where a link to `key` goes: a cited result to its paper at its page, anything else to its page, resolved through its owner when the key has no page of its own.
  *

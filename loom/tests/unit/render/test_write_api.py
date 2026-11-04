@@ -789,68 +789,25 @@ def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
     return serve(root), root
 
 
-@case("review-decision")
-def _review_decision(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, root = synthetic(serve, tmp_path)
-    from loom.render.watch import snapshot
-
-    builds = s.builds
-    watched = snapshot(root)
-    before = json.loads(get(s.url + "build/manifest.json")[2])
-    assert (
-        succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok"})["result"]
-        == "sy-0002: ok"
-    )
-    raw = get(s.url + "build/manifest.json")[2]
-    row = the(json.loads(raw)["unresolved"], lambda r: r["key"] == "sy-0002", "sy-0002's review row")
-    assert row["status"] == "ok"
-    assert s.builds == builds
-    assert snapshot(root) == watched
-    after = json.loads(raw)
-    assert {k: v for k, v in after.items() if k not in ("unresolved", "review_covered")} == {
-        k: v for k, v in before.items() if k not in ("unresolved", "review_covered")
-    }
-    succeeds(
-        s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "requires-attention"}
-    )
-    assert s.builds == builds
-    assert (
-        the(
-            json.loads(get(s.url + "build/manifest.json")[2])["unresolved"],
-            lambda r: r["key"] == "sy-0002",
-            "review row",
-        )["status"]
-        == "requires-attention"
-    )
-    refuses(
-        s,
-        "review-decision",
-        {"reviewer": "The synthetic quilt", "key": "sy-9999", "status": "ok"},
-        409,
-        "not-unresolved",
-        "sy-9999",
-    )
-    agent = {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok", "author": "Referee (Agent)"}
-    refuses(s, "review-decision", agent, 403, "author-only", "only the author reviews")
-
-
-@case("review-finish")
-def _review_finish(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@case("review-accept")
+def _review_accept(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from loom.records.store import Records
     from loom.scan.quilt import load_quilt
 
     s, root = synthetic(serve, tmp_path)
-    refuses(s, "review-finish", {"reviewer": "The synthetic quilt"}, 409, "nothing-pending", "no pending OK decisions")
-    succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0001", "status": "ok"})
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
-    monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
     # accepting is the author's, whatever reviewer an agent names beside itself
-    agent = {"reviewer": "The synthetic quilt", "author": "Referee (Agent)"}
-    refuses(s, "review-finish", agent, 403, "author-only", "only the author reviews")
-    # the fixture's acceptance of sy-0001 is stale; finishing records a fresh one beside it
+    agent = {"reviewer": "The synthetic quilt", "keys": ["sy-0001"], "author": "Referee (Agent)"}
+    refuses(s, "review-accept", agent, 403, "author-only", "only the author accepts")
+    refuses(
+        s, "review-accept", {"reviewer": "The synthetic quilt", "keys": ["sy-9999"]}, 409, "not-unresolved", "sy-9999"
+    )
+    # the fixture's acceptance of sy-0001 is stale; accepting records a fresh one beside it, and the queue loses it
     builds = s.builds
     stale = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
-    assert succeeds(s, "review-finish", {"reviewer": "The synthetic quilt"})["result"] == "accepted 1 keys"
+    answer = succeeds(s, "review-accept", {"reviewer": "The synthetic quilt", "keys": ["sy-0001", "sy-000B"]})
+    assert answer["result"] == "accepted 1 of 2" and answer["accepted"] == ["sy-0001"]
+    assert answer["refused"][0]["key"] == "sy-000B" and "basis" in answer["refused"][0]["why"]
     fresh = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
     assert fresh != stale and fresh.author == "The synthetic quilt", fresh
     assert s.builds == builds + 1
@@ -864,7 +821,14 @@ def _reviewer_settings(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> N
     assert succeeds(s, "reviewer-settings", {"name": "Bob"})["reviewer"]["name"] == "Bob"
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert manifest["reviewer"]["name"] == "Bob"
-    refuses(s, "review-finish", {"reviewer": "The synthetic quilt"}, 409, "reviewer-changed", "Reviewer changed")
+    refuses(
+        s,
+        "review-accept",
+        {"reviewer": "The synthetic quilt", "keys": ["sy-0001"]},
+        409,
+        "reviewer-changed",
+        "Reviewer changed",
+    )
     refuses(s, "reviewer-settings", {"name": " "}, 409, "settings-refused", "nonempty")
     refuses(
         s, "reviewer-settings", {"name": "Bot", "author": "Referee (Agent)"}, 403, "author-only", "names the reviewer"

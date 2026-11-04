@@ -6,16 +6,15 @@
 
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
-			title: 'What the review panel shows',
-			body: 'One row per statement and per proof. The state is what was last recorded for that exact text. When a text that was accepted has since changed, the row says so and can show the change; when a text marks a gap in itself, the row says what rests on it. Acceptance is recorded from the command line; this page only reads it back.',
+			title: 'What needs review shows',
+			body: "Every statement and proof of one of your documents that you have not accepted as it stands. Accepting records your reading of the text against what it rests on; it goes stale when either changes, and the block comes back here under Changed since you accepted. Blocks taken in from an agent's copy or a pull are grouped by where they came from. Read opens a block in its document with why it waits beside it. Accepting is yours alone, and nothing is accepted that you did not press Accept for.",
 			states: [
-				['accepted', 'someone recorded that this text, as it stands, is correct'],
-				['stale', 'the text was accepted and has changed since, or something it depends on has'],
-				['draft', 'nothing has been recorded about this text'],
-				['incomplete', 'the text marks a gap in itself, so it is not a finished argument'],
-				['not in a document', 'no document includes this node, so nothing depends on it yet']
+				['changed since you accepted', 'the text, or something it rests on, changed after you accepted it'],
+				['taken in', "it came in from an agent's copy or a pull, and you have not accepted it since"],
+				['never accepted', 'nothing has been recorded about this text'],
+				["can't be accepted yet", 'it is marked incomplete, it is a conjecture or question, its basis is not said, or something it rests on cannot be identified; the row says which']
 			],
-			command: 'accept'
+			command: ''
 		},
 		problems: {
 			title: 'What the problems page shows',

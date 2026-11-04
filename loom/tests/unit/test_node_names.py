@@ -4,12 +4,12 @@ from loom.cli._quilt import open_scan
 from loom.records.snapshots import read_snapshot
 from loom.records.store import Records
 from loom.render.manifest import key_hash
-from loom.review_queue import decide, pending
+from loom.review_queue import fingerprint
 from tests.helpers import ok
 from tests.unit._quilts import demo
 
 
-def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_path: Path) -> None:
+def test_renaming_preserves_own_and_downstream_acceptance_and_review_fingerprint(tmp_path: Path) -> None:
     from loom.scan.quilt import save_author
 
     save_author("A. Author")
@@ -17,7 +17,7 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
     ok("accept", "dm-0001", "dm-0002", "--proofs", "--as", "A. Author", cwd=q)
     before = open_scan(str(q))
     original = key_hash(before, "dm-0001")
-    decide(before, "dm-0002/proof", "ok")
+    proof = fingerprint(before, "dm-0002/proof")
     source = q / "drafting/nodes/dm-0001.tex"
     text = source.read_text()
     source.write_text(text.replace("\\end{definition}", "% !LOOM name: Fixed points\n\\end{definition}"))
@@ -27,7 +27,7 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
     assert "Fixed points" not in read_snapshot(q, original, q / ".loom" / "history")
     states = Records(q).key_states(after)
     assert all(states[k].fresh for k in ("dm-0001", "dm-0002", "dm-0002/proof"))
-    assert pending(after) == ["dm-0002/proof"]
+    assert fingerprint(after, "dm-0002/proof") == proof
     ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     saved = Records(q).latest["dm-0001"].text
     assert "Fixed points" in read_snapshot(q, saved, q / ".loom" / "history")

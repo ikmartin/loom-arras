@@ -33,7 +33,7 @@ class Here {
 	selection = $state<Selection | null>(null);
 	/** A region drawn with the box tool, kept until another replaces it. */
 	region = $state<Selection | null>(null);
-	/** The block under review and why, while Review shows one. */
+	/** The block under review and why, while a document shows Review's panel beside it. */
 	review = $state<{ key: string; cause: string | null } | null>(null);
 
 	setBlock(item: string, block: Block | null): void {
@@ -86,6 +86,7 @@ export function placeOf(i: PlaceInput): Record<string, unknown> {
 	}
 	const key = i.current ? itemKey(i.current) : '';
 	out.item = bare(i.current);
+	if (i.review) out.review = i.review;
 	if (i.block) out.block = i.block;
 	const mark = i.selection?.item === key ? i.selection : i.region?.item === key ? i.region : null;
 	if (mark) {

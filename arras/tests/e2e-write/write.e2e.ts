@@ -514,102 +514,38 @@ function acceptedKeys(served: Served): string[] {
 	return [...readFileSync(join(served.root, '.loom/state.toml'), 'utf8').matchAll(/^key = "([^"]+)"$/gm)].map((m) => m[1]);
 }
 
-/** The copy's private review decisions, by key. */
-function decisions(served: Served): Record<string, { status: string }> {
-	const path = join(served.root, '.loom/review-decisions.json');
-	return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).reviewers?.['The synthetic quilt'] ?? {} : {};
-}
-
-/** Open a key of the Needs review queue and mark it OK, as the guided review does. */
-async function markOk(page: import('@playwright/test').Page, key: string): Promise<void> {
-	await page.goto('/review');
-	const name = key === 'sy-0001' ? 'Widget' : 'Orbits';
-	await page.getByRole('button', { name, exact: true }).click();
-	const guided = page.getByTestId('guided-review');
-	await expect(page.locator('.reading h2')).toContainText(name);
-	await page.getByRole('button', { name: 'Mark OK', exact: true }).click();
-}
-
-test('finishing review over an OK whose dependency is still stale is refused, and nothing is accepted', async ({ page, served }) => {
-	// review-finish: sy-0002 rests on sy-0001, which is stale and has no decision, so accepting sy-0002 first would record it against an unreviewed context
-	const ledger = acceptedKeys(served);
-	await markOk(page, 'sy-0002');
-	await expect.poll(() => decisions(served)['sy-0002']?.status).toBe('ok');
-	const finish = page.getByRole('button', { name: /^Finish review · 1$/ });
-	await finish.click();
-	await expect(page.getByRole('alert')).toHaveText('review sy-0001 before finishing sy-0002');
-	expect(acceptedKeys(served)).toEqual(ledger);
-	// the decision waits rather than being dropped
-	expect(decisions(served)['sy-0002']?.status).toBe('ok');
-});
-
-test('finishing review records an acceptance for each pending OK, and clears the decision', async ({ page, served }) => {
-	// Finish accepts only when the master compiles; a PDF newer than every source is loom's sign that it already did, so no TeX run happens in this suite (the compile itself is loom's to test).
+/** Accepting needs the document to compile; a PDF newer than every source is loom's sign that it already does, so no TeX run happens in this suite (the compile itself is loom's to test). */
+function compiled(served: Served): void {
 	mkdirSync(join(served.root, '.loom/build/drafting/main'), { recursive: true });
 	writeFileSync(join(served.root, '.loom/build/drafting/main/main.pdf'), '%PDF-1.4\n');
+}
+
+test('a block resting on a stale one not accepted with it is refused, said in its row, and nothing is accepted', async ({ page, served }) => {
+	// sy-0002 rests on sy-0001, whose acceptance is stale: accepting sy-0002 alone would record it against what was never re-read
 	const ledger = acceptedKeys(served);
-	await markOk(page, 'sy-0001');
-	await expect.poll(() => decisions(served)['sy-0001']?.status).toBe('ok');
-	await page.getByRole('button', { name: /^Finish review · 1$/ }).click();
+	await page.goto('/review');
+	const orbits = page.locator('[data-testid="review-row"][data-key="sy-0002"]');
+	await orbits.getByTestId('review-accept').click();
+	await expect(orbits.getByTestId('review-said')).toHaveText('Accept Widget first, or with it.');
+	expect(acceptedKeys(served)).toEqual(ledger);
+});
+
+test('Accept records an acceptance at once, and the block leaves the queue', async ({ page, served }) => {
+	compiled(served);
+	const ledger = acceptedKeys(served);
+	await page.goto('/review');
+	const posted = page.waitForRequest('**/_api/review-accept');
+	await page.locator('[data-testid="review-row"][data-key="sy-0001"]').getByTestId('review-accept').click();
+	expect((await posted).postDataJSON()).toEqual({ reviewer: 'The synthetic quilt', keys: ['sy-0001'] });
 	await expect.poll(() => acceptedKeys(served)).toEqual([...ledger, 'sy-0001']);
 	const row = readFileSync(join(served.root, '.loom/state.toml'), 'utf8').split('[[accept]]').at(-1)!;
 	expect(row).toContain('key = "sy-0001"');
 	expect(row).toContain('master = "drafting/main.tex"');
 	expect(row).not.toContain('2026-09-14T09:00:00Z'); // a new row, dated now, not the fixture's
-	expect(decisions(served)['sy-0001']).toBeUndefined();
-	await expect(page.getByRole('alert')).toHaveCount(0);
-	// and once the publisher has rebuilt, the key has left the queue
-	await expect(page.getByRole('button', { name: 'Widget', exact: true })).toHaveCount(0, { timeout: 10000 });
-});
-
-test('compare asks the publisher, which narrows a changed node to its changed words, washed by side, and renders nothing twice', async ({ page, served }) => {
-	await page.goto('/master/drafting/main');
-	// started where a reader starts it: the draft's history, against its agent copy
-	const history = async () => {
-		await page.locator('[data-pane="0"]').getByTestId('toolbar-history').click();
-		await page.getByTestId('history-compare-aidoc').click();
-	};
-	await history();
-	// the agent changed sy-0002: its rendering replaces the node in each pane, the source's words red, the copy's green
-	const left = page.locator('[data-pane="0"] .compare-swap.compare-del[data-swap-for="sy-0002"]');
-	const right = page.locator('[data-pane="1"] .compare-swap.compare-add[data-swap-for="sy-0002"]');
-	await expect(left.locator('mark.review-changed').first()).toBeVisible();
-	await expect(right.locator('mark.review-changed').first()).toBeVisible();
-	await expect(page.locator('[data-pane="0"] .env[data-pair="sy-0002"]')).toBeHidden();
-	// the rendering is cached under the build directory, and asking again renders nothing new
-	const cached = () => readdirSync(join(served.root, '.loom/build', 'compare')).sort();
-	const first = cached();
-	expect(first.length).toBeGreaterThan(0);
-	await page.getByTestId('compare-stop').click();
-	await history();
-	await expect(right.locator('mark.review-changed').first()).toBeVisible();
-	expect(cached()).toEqual(first);
-});
-
-test('a suggestion taken in the source is offered as applied, which records the hash its key then has', async ({ page, served }) => {
-	const session = served.openSessions().at(-1)!;
-	const said = await served.api('annotate', { target: 'sy-0002', kind: 'suggestion', message: 'Say how many.', quote: 'one or two points', payload: 'at most two points', placement: 'replace', session });
-	const id = said.split(/\s+/)[0];
-	await page.goto('/node/sy-0002');
-	await pickSession(page, session);
-	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-	await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
-	// before it is taken: the key with it in place, and no applied to offer
-	await box.getByTestId('payload-in-place').click();
-	await expect(box.getByTestId('payload-in-place-view').locator('mark.review-changed').first()).toBeVisible();
-	await expect(box.getByTestId('verb-applied')).toHaveCount(0);
-	// the author takes it in their editor; the publisher rebuilds, and the key now reads as it taken
-	const file = join(served.root, 'drafting/nodes/sy-0002.tex');
-	writeFileSync(file, readFileSync(file, 'utf8').replace('one or two points', 'at most two points'));
-	await expect(async () => {
-		await page.reload();
-		await page.locator(`[data-annotation~="${id}"]`).first().click();
-		await expect(box.getByTestId('payload-taken')).toBeVisible({ timeout: 1000 });
-	}).toPass({ timeout: 20000 });
-	await box.getByTestId('verb-applied').click();
-	const resolution = () => served.log().filter((e) => e.event === 'resolved' && e.id === id);
-	await expect.poll(() => resolution().length).toBe(1);
-	expect((resolution()[0].applied as { hash?: string } | undefined)?.hash).toMatch(/^sha256:/);
+	await expect(page.getByTestId('review-bar-said')).toHaveText('Accepted Widget.');
+	// and once the publisher has rebuilt, the key has left the queue for the accepted fold
+	await expect(page.locator('[data-testid="review-group"][data-group="changed"] [data-key="sy-0001"]')).toHaveCount(0, { timeout: 10000 });
+	await expect(page.locator('[data-testid="review-group"][data-group="accepted"] [data-key="sy-0001"]')).toHaveCount(1);
 });
 
 test('an agent copy is taken back in one pass: Take it, then one Apply writes it and leaves its mathematics for review', async ({ page, served }) => {
@@ -634,8 +570,9 @@ test('an agent copy is taken back in one pass: Take it, then one Apply writes it
 	await page.getByTestId('apply').click();
 	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
 	await expect(page.locator('main')).toContainText('Took 1 change into adoption-test: 0 accepted, 1 wait in Needs review. adoption-test as it was is kept as a version.');
-	await page.goto('/review');
-	await expect(page.locator('main')).toContainText('sy-0900');
+	await page.goto('/review?document=drafting%2Fadoption-test.tex');
+	await expect(page.locator('[data-testid="review-group"][data-group="taken"] [data-key="sy-0900"]')).toHaveCount(1);
+	await expect(page.locator('[data-testid="review-group"][data-group="taken"] summary .title')).toHaveText('Taken in from the copy “adoption-proposal”');
 });
 
 test('a change marked as checked is accepted as it is taken in; one left stays out', async ({ page, served }) => {

@@ -45,16 +45,6 @@ export function reviewRowBadge(manifest: Manifest, key: Key | undefined): BadgeP
 	return parts;
 }
 
-export function reviewFacts(key: Key | undefined): string {
-	if (!key) return '';
-	const open = Object.entries(key.reviews.open).filter(([, n]) => n > 0);
-	const bits: string[] = [];
-	if (open.length) bits.push(open.map(([k, n]) => `${n} open ${k}${n === 1 ? '' : 's'}`).join(', '));
-	else if (key.reviews.latest_current) bits.push(`reviewed clean ${shortDate(key.reviews.latest_current.date)}`);
-	if (key.reviews.detached) bits.push(`${key.reviews.detached} detached`);
-	return bits.join(' · ');
-}
-
 export function nodeBadge(manifest: Manifest, node: Node): BadgePart[] {
 	if (node.conflict?.length) {
 		const c = manifest.states.labels['conflicted'];

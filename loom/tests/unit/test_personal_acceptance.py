@@ -13,7 +13,6 @@ from loom.records.ledger import read_ledger
 from loom.records.store import Records
 from loom.render.api import ApiError, handle
 from loom.render.build import build
-from loom.review_queue import decide, pending
 from loom.scan.quilt import load_quilt, resolve_author, save_author, user_config_path
 from loom.scan.scan import scan
 from tests.helpers import ok
@@ -39,13 +38,11 @@ def test_other_acceptance_never_replaces_personal_snapshot_or_clears_queue(quilt
     before = Records(quilt.root).latest["sy-0001"]
     edit(quilt)
     stale = build(quilt).manifest
-    decide(scan(quilt), "sy-0001", "ok")
     observations = (quilt.root / ".loom/review-observations.json").read_bytes()
     write_acceptance(scan(quilt), ["sy-0001", "sy-0002"], "Alice")
     after = build(quilt).manifest
     assert after["keys"]["sy-0001"]["acceptance"] == stale["keys"]["sy-0001"]["acceptance"]
     assert Records(quilt.root).latest["sy-0001"] == before
-    assert pending(scan(quilt)) == ["sy-0001"]
     assert (quilt.root / ".loom/review-observations.json").read_bytes() == observations
     assert {a["author"]: a["fresh"] for a in after["keys"]["sy-0001"]["acceptances"]} == {"Alice": True, "Bob": False}
     assert any(c.get("via") == "sy-0002" for c in after["keys"]["sy-0002/proof"]["acceptance"]["causes"])
@@ -53,31 +50,28 @@ def test_other_acceptance_never_replaces_personal_snapshot_or_clears_queue(quilt
     save_author("Carol")
     never = build(quilt).manifest
     assert never["keys"]["sy-0001"]["state"] == "draft"
-    assert never["unresolved"] == []
+    assert next(r for r in never["unresolved"] if r["key"] == "sy-0001")["cause"] == "never-accepted"
     assert not never["nodes"]["sy-0002"]["derived"]["proved"]
 
 
-def test_finish_is_personal_and_switch_refuses_old_tab(quilt, monkeypatch):
+def test_accept_is_personal_and_a_switch_refuses_the_old_tab(quilt, monkeypatch):
     save_author("Bob")
     write_acceptance(scan(quilt), ["sy-0001"], "Bob")
-    edit(quilt)
-    build(quilt)
-    handle(quilt.root, "review-decision", {"key": "sy-0001", "status": "ok", "reviewer": "Bob"})
     write_acceptance(scan(quilt), ["sy-0001"], "Alice")
-    decide(scan(quilt), "sy-0001", "ok", "Alice")
+    edit(quilt)
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda *_: (True, ""))
     save_author("Alice")
+    build(quilt)
     before = read_ledger(quilt.root)
     with pytest.raises(ApiError, match="Reviewer changed"):
-        handle(quilt.root, "review-finish", {"reviewer": "Bob"})
+        handle(quilt.root, "review-accept", {"reviewer": "Bob", "keys": ["sy-0001"]})
     assert read_ledger(quilt.root) == before
-    assert "already accepted" in handle(quilt.root, "review-finish", {"reviewer": "Alice"})["result"]
-    assert pending(scan(quilt), "Bob") == ["sy-0001"]
-    save_author("Bob")
-    assert handle(quilt.root, "review-finish", {"reviewer": "Bob"})["result"] == "accepted 1 keys"
-    assert pending(scan(quilt), "Bob") == []
-    assert Records(quilt.root).latest["sy-0001"].author == "Bob"
+    assert handle(quilt.root, "review-accept", {"reviewer": "Alice", "keys": ["sy-0001"]})["accepted"] == ["sy-0001"]
     assert Records(quilt.root, reviewer="Alice").latest["sy-0001"].author == "Alice"
+    save_author("Bob")
+    # Alice's acceptance is not Bob's: his stays stale, and his queue keeps the block
+    assert next(r for r in build(quilt).manifest["unresolved"] if r["key"] == "sy-0001")["cause"] == "earlier-change"
+    assert Records(quilt.root).latest["sy-0001"].author == "Bob"
 
 
 def test_local_identity_settings_and_missing_identity(quilt):
@@ -85,7 +79,7 @@ def test_local_identity_settings_and_missing_identity(quilt):
         out.write('\n[author]\nname = "Alice"\n')
     assert build(quilt).manifest["reviewer"]["name"] == ""
     with pytest.raises(ApiError, match="Choose your reviewer"):
-        handle(quilt.root, "review-finish", {"reviewer": "Alice"})
+        handle(quilt.root, "review-accept", {"reviewer": "Alice", "keys": ["sy-0001"]})
     config = user_config_path()
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text('# keep me\n[author]\nname = "Old"\nextra = "kept"\n[quilt]\nengine = "xelatex"\n')

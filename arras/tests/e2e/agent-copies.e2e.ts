@@ -16,16 +16,14 @@ test("an agent's copy sits beneath the document it copies, and nowhere else in t
 	await expect(page).toHaveURL(/\/file\/README\.md$/);
 });
 
-test("Review gives an agent's document no tab", async ({ page }) => {
+test("Needs review offers an agent's document no place", async ({ page }) => {
 	await page.goto('/review');
-	const tabs = page.getByRole('navigation', { name: 'Review views' });
-	await tabs.getByRole('link', { name: 'Documents' }).click();
-	await expect(page.getByLabel('Document', {exact:true})).toHaveValue('drafting/main.tex');
-	await expect(tabs.getByRole('link', { name: 'aidoc.tex' })).toHaveCount(0);
+	const picker = page.getByTestId('review-document');
+	await expect(picker).toHaveValue('drafting/main.tex');
+	await expect(picker.locator('option[value=".loom/copies/aidoc.tex"]')).toHaveCount(0);
 	// an address naming it falls back to the default document
 	await page.goto('/review?document=.loom%2Fcopies%2Faidoc.tex');
-	await expect(page.getByLabel('Document', {exact:true})).toHaveValue('drafting/main.tex');
-	await expect(page.getByLabel('Document', {exact:true}).locator('option[value=".loom/copies/aidoc.tex"]')).toHaveCount(0);
+	await expect(picker).toHaveValue('drafting/main.tex');
 });
 
 test("the whole quilt counts each of the person's nodes once, and a scope on the copy shows its own", async ({ page }) => {

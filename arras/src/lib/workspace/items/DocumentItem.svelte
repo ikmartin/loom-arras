@@ -4,6 +4,7 @@
 	import { mount, unmount, untrack, type Component } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import DraftActions from '$lib/components/DraftActions.svelte';
+	import ReviewPanel from '$lib/review/ReviewPanel.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
@@ -31,13 +32,11 @@
 	const master = $derived(landmark ? undefined : m.masters.find((x) => x.path === item.id));
 	const doc = $derived(landmark ? m.canon?.find((c) => c.path === item.id) : undefined);
 	const reviewKey = $derived(item.params?.review ?? '');
-	const causeIndex = $derived(Number(item.params?.cause ?? '-1'));
+	const causeIndex = $derived(Number(item.params?.cause ?? '0'));
 	const reviewCause = $derived(m.keys[reviewKey]?.acceptance?.causes?.[causeIndex]);
-	const comparison = $derived(reviewCause?.comparison);
-	const acceptedSide = $derived(reviewCause?.kind === 'own-text-changed');
 	const incomingKey = $derived(item.params?.incoming ?? '');
 	const incomingChange = $derived(m.incoming?.changes.find((change) => change.key === incomingKey));
-	const hasComparison = $derived(!!comparison || !!incomingChange?.incoming);
+	const hasComparison = $derived(!!(reviewKey && m.keys[reviewKey]) || !!incomingChange?.incoming);
 	/** Closing a comparison is the document without it, at the same place. */
 	const plain = $derived(pathFor(m, { kind: 'document', id: item.id, ...(item.anchor ? { anchor: item.anchor } : {}) }));
 
@@ -177,10 +176,9 @@
 					<header><strong>Incoming · {incomingKey}</strong><a href={plain}>close</a></header>
 					<Fragment path={incomingChange.incoming} macroSet={incomingChange.incoming_macros} isolatedMacros />
 				</aside>
-			{:else if comparison}
-				<aside class="review-comparison" data-testid="review-comparison" aria-label="Review comparison">
-					<header><strong>{acceptedSide ? 'Last accepted' : 'Current'} · {reviewCause?.id ?? reviewKey}</strong><a href={plain}>close</a></header>
-					<Fragment path={acceptedSide ? comparison.accepted : comparison.current} macroSet={acceptedSide ? comparison.accepted_macros : ''} isolatedMacros={acceptedSide} />
+			{:else if reviewKey && m.keys[reviewKey] && master}
+				<aside class="review-comparison" data-testid="review-panel" aria-label="Why this block waits for review">
+					<ReviewPanel {reviewKey} {causeIndex} master={master.path} {plain} causeHref={(i) => pathFor(m, { ...item, params: { ...item.params, cause: String(i) } })} />
 				</aside>
 			{/if}
 		</div>
@@ -216,7 +214,7 @@
 	}
 	.review-layout.with-comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 390px); gap: var(--gap-wide); align-items: start; padding-right: var(--gap-wide); }
 	.review-layout > .gutters-host { min-width: 0; }
-	.review-comparison header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: var(--gap-tight); }
+	.review-comparison :global(header) { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: var(--gap-tight); }
 	.review-comparison :global(mark.review-changed) { background: var(--state-stale-wash); color: inherit; }
 	.review-comparison :global(.math.review-changed) { background-color: var(--state-stale-wash); outline: 2px solid var(--state-stale); }
 	.review-comparison :global(.review-change-point) { border-left: 2px solid var(--state-stale); }

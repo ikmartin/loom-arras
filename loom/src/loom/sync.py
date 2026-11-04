@@ -108,7 +108,7 @@ class SyncState:
                 "changed": self.review_changed.get(key, False),
                 "baseline": self.review_baselines.get(key),
                 "local_before": self.review_local_changed.get(key, False),
-                "label": f"Incoming from {source_label(self.url)}",
+                "label": f"Taken in from {source_label(self.url)}",
             }
         if origins or self.last_pull:
             write(root, origins)

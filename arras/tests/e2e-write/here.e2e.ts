@@ -29,12 +29,12 @@ readOnly('the words selected in a result are what loom here reports, by the key 
 	expect(looking(served).selection.link).toBe('quilt:sy-0003');
 });
 
-readOnly('in Review it is the block under review, and with two tabs open the one touched last', async ({ page, served }) => {
+readOnly('beside Review\'s panel it is the block under review, and with two tabs open the one touched last', async ({ page, served }) => {
 	await page.goto('/node/sy-0003');
 	await expect.poll(() => looking(served).item?.link).toBe('quilt:sy-0003');
 	const other = await page.context().newPage();
-	await other.goto('/review');
-	await expect.poll(() => looking(served).review?.key ?? '').toMatch(/^sy-/);
+	await other.goto('/master/drafting/main?review=sy-0001&cause=0#sy-0001');
+	await expect.poll(() => looking(served).review?.key ?? '').toBe('sy-0001');
 	expect(looking(served).review.cause).toBeTruthy();
 	// the first tab is touched again, and says where it is though nothing there changed; headless Chromium keeps both tabs visible and fires no focus on switching, so the test sends it
 	await page.evaluate(() => window.dispatchEvent(new Event('focus')));

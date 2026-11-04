@@ -313,23 +313,20 @@ test('⟳ reopens and selects', async ({ page }) => {
 	await expect(page.getByTestId('session-picker')).toHaveCount(0);
 });
 
-test('a review decision needs no session', async ({ page }) => {
-	// review decisions and incorporating a pull name no session, so an amber footer must not mean nothing can be written
-	await serve(page, (m) => {
-		m.unresolved = [{ key: 'sy-0001', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: true, local_changed: false, invalidated: false }];
-	});
-	await writes(page, ['review-decision']);
-	let decided = '';
-	await page.route('**/_api/review-decision', async (route) => {
-		decided = route.request().postDataJSON().key;
-		await route.fulfill({ json: { ok: true, result: '' } });
+test('accepting needs no session', async ({ page }) => {
+	// accepting and incorporating a pull name no session, so an amber footer must not mean nothing can be written
+	await writes(page, ['review-accept']);
+	let accepted: string[] = [];
+	await page.route('**/_api/review-accept', async (route) => {
+		accepted = route.request().postDataJSON().keys;
+		await route.fulfill({ json: { ok: true, result: 'accepted 1 of 1', accepted, refused: [] } });
 	});
 	await page.goto('/review');
 	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations cannot be written/);
-	const ok = page.getByRole('button', { name: 'Mark OK', exact: true });
-	await expect(ok).toBeEnabled();
-	await ok.click();
-	await expect.poll(() => decided).toBe('sy-0001');
+	const accept = page.locator('[data-testid="review-row"][data-key="sy-0001"]').getByTestId('review-accept');
+	await expect(accept).toBeEnabled();
+	await accept.click();
+	await expect.poll(() => accepted).toEqual(['sy-0001']);
 });
 
 test.describe('sessions', () => {

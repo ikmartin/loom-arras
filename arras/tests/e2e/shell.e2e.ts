@@ -119,7 +119,15 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 });
 
 test('no route reaches an unknown key from review or the problems page', async ({ page }) => {
-	for (const start of ['/review', '/review/problems']) {
+	// Needs review opens each block in its document, with Review's panel on a key the manifest has
+	await page.goto('/review');
+	await expect(page.getByTestId('review-read').first()).toBeAttached();
+	const reads = await page.locator('main [data-testid="review-read"]').evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href')!));
+	expect(reads.length).toBeGreaterThan(0);
+	for (const href of reads) expect(Object.keys(manifest.keys), href).toContain(new URL(href, 'http://x').searchParams.get('review'));
+	await page.goto(reads[0]);
+	await expect(page.getByTestId('review-panel')).toBeVisible();
+	for (const start of ['/review/problems']) {
 		await page.goto(start);
 		await expect(page.locator('main a[href^="/node/"]').first()).toBeAttached();
 		const hrefs = await page.locator('main a[href^="/node/"]').evaluateAll((els) => [...new Set(els.map((e) => (e as HTMLAnchorElement).getAttribute('href')!))]);

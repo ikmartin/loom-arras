@@ -28,7 +28,7 @@
 	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and in Review › Library, not beside every row. A choice opens in the focused pane, as every choice in the column does.
 	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
-	onMount(() => { void can('review-decision').then((yes) => readOnly = !yes); });
+	onMount(() => { void can('review-accept').then((yes) => readOnly = !yes); });
 	const reviewPerspective = $derived(store.manifest?.reviewer?.name
 		? `Review status for ${store.manifest.reviewer.name}`
 		: Object.values(store.manifest?.keys ?? {}).some((key) => key.acceptance) ? 'Review perspective unspecified' : '');

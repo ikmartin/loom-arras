@@ -54,8 +54,7 @@ CAPABILITIES = [
     "adopt-decision",
     "adopt-preview",
     "adopt-finish",
-    "review-decision",
-    "review-finish",
+    "review-accept",
     "reviewer-settings",
     "settings-save",
     "agents-update",
@@ -85,7 +84,7 @@ READS = (
 MAX_BODY = 96 * 1024 * 1024
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
-NO_REBUILD = (*READS, "review-decision", "adopt-decision", "library-update")
+NO_REBUILD = (*READS, "adopt-decision", "library-update")
 #: A publisher's own scan, offered to its handlers by `offer_scan`: `loom serve` answers with the scan its last publication made while no scan input has changed since, and None otherwise.
 _SCANS: dict[Path, Callable[[], ScanResult | None]] = {}
 
@@ -780,10 +779,11 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 raise ApiError("settings-refused", str(exc), status=409) from exc
         name, source = reviewer_identity(root)
         return {"ok": True, "result": "reviewer settings", "reviewer": {"name": name, "source": source}}
-    if endpoint in ("review-decision", "review-finish"):
+    if endpoint == "review-accept":
+        import json
+
         from loom.cli._common import is_agent
-        from loom.cli.review import _acceptance_master, _master_compiles, write_acceptance
-        from loom.review_queue import clear_accepted, decide, pending, rows_for
+        from loom.review_queue import accept
         from loom.scan.quilt import reviewer_identity
 
         reviewer, _ = reviewer_identity(root)
@@ -792,65 +792,29 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         if _str(body, "reviewer") != reviewer:
             raise ApiError("reviewer-changed", "Reviewer changed; reload Review before continuing", status=409)
         if is_agent(_str(body, "author") or reviewer):
-            raise ApiError("author-only", "An agent reads and annotates; only the author reviews", status=403)
-        result = _scan(root)
-        if endpoint == "review-decision":
-            key = _str(body, "key", required=True) or ""
-            status = _str(body, "status", required=True) or ""
-            import json
-
-            manifest_path = root / MANIFEST
-            if not manifest_path.is_file():
-                raise ApiError("review-unavailable", "build the quilt before reviewing", status=409)
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            if manifest.get("reviewer", {}).get("name") != reviewer:
-                raise ApiError("reviewer-changed", "Rebuild and reload Review before continuing", status=409)
-            if key not in {row["key"] for row in rows_for(result, manifest)}:
-                raise ApiError("not-unresolved", f"{key} is not awaiting review", status=409)
-            try:
-                decide(result, key, status, reviewer)
-            except ValueError as exc:
-                raise ApiError("review-refused", str(exc), status=409) from exc
-            from loom.render.publish import publish
-
-            manifest["unresolved"] = rows_for(result, manifest)
-            publish(root / BUILD, {}, manifest)
-            return {"ok": True, "result": f"{key}: {status}"}
+            raise ApiError("author-only", "An agent reads and annotates; only the author accepts", status=403)
+        keys = body.get("keys")
+        if not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys):
+            raise ApiError("bad-field", "keys must be a nonempty list of block keys")
+        manifest_path = root / MANIFEST
+        if not manifest_path.is_file():
+            raise ApiError("review-unavailable", "build the quilt before reviewing", status=409)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("reviewer", {}).get("name") != reviewer:
+            raise ApiError("reviewer-changed", "Rebuild and reload Review before continuing", status=409)
         try:
-            keys = pending(result, reviewer)
+            answer = accept(_scan(root), manifest, keys, reviewer)
+        except KeyError as exc:
+            raise ApiError(
+                "not-unresolved", f"{exc.args[0]} is not awaiting review; reload Review", status=409
+            ) from exc
         except ValueError as exc:
-            raise ApiError("review-changed", str(exc), status=409) from exc
-        if not keys:
-            raise ApiError("nothing-pending", "there are no pending OK decisions", status=409)
-        for key in keys:
-            node = result.nodes[key]
-            if (
-                node.external
-                or node.derived_of
-                or node.incomplete
-                or (node.kind == "environment" and node.basis in ("open-claim", "unclassified"))
-            ):
-                raise ApiError("not-acceptable", f"{key} is not eligible for acceptance", status=409)
-        from loom.records.store import Records
-
-        states = Records(root, result.quilt.history_dir, reviewer=reviewer).key_states(result)
-        for key in keys:
-            for dep in result.dependencies.review_targets(key):
-                dependency = states.get(dep)
-                if dependency and dependency.row and not dependency.fresh and dep not in keys:
-                    raise ApiError("dependency-pending", f"review {dep} before finishing {key}", status=409)
-        remaining = [key for key in keys if not (states[key].row and states[key].fresh)]
-        if not remaining:
-            clear_accepted(root, keys, reviewer)
-            return {"ok": True, "result": "pending decisions were already accepted"}
-        contexts = {key: _acceptance_master(result, key) for key in remaining}
-        for master in dict.fromkeys(contexts.values()):
-            ok, why = _master_compiles(result, master)
-            if not ok:
-                raise ApiError("compile-failed", f"{master} does not compile: {why}", status=409)
-        rows, _, _ = write_acceptance(result, remaining, reviewer, contexts)
-        clear_accepted(root, keys, reviewer)
-        return {"ok": True, "result": f"accepted {len(rows)} keys"}
+            raise ApiError("compile-failed", str(exc), status=409) from exc
+        return {
+            "ok": True,
+            "result": f"accepted {len(answer['accepted'])} of {len(answer['accepted']) + len(answer['refused'])}",
+            **answer,
+        }
     if endpoint.startswith("session-"):
         return {"ok": True, "result": _session(root, endpoint, body)}
     return {"ok": True, "result": _review(root, endpoint, body)}

@@ -7763,7 +7763,6 @@
   "path": "research-state.md",
   "when": "2026-09-16T00:00:00Z"
  },
- "review_covered": [],
  "reviewer": {
   "name": "The synthetic quilt",
   "source": "local user configuration"
@@ -8374,59 +8373,274 @@
  },
  "unresolved": [
   {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "drafting/nodes/sy-999B.tex#lemma:1",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "drafting/sections/appendix.tex#remark:1",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "drafting/talk.tex#lemma:1",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
    "cause": "earlier-change",
    "changed_text": false,
    "contribution": null,
-   "invalidated": false,
    "key": "sy-0001",
    "local_changed": true,
    "pull": "",
-   "source_label": "Local change",
-   "status": "needs-review"
+   "refusal": "",
+   "source_label": ""
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
    "contribution": null,
-   "invalidated": false,
    "key": "sy-0002",
    "local_changed": true,
    "pull": "",
-   "source_label": "Local change",
-   "status": "needs-review"
+   "refusal": "",
+   "source_label": ""
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
    "contribution": null,
-   "invalidated": false,
    "key": "sy-0002/proof",
    "local_changed": true,
    "pull": "",
-   "source_label": "Local change",
-   "status": "needs-review"
+   "refusal": "",
+   "source_label": ""
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
    "contribution": null,
-   "invalidated": false,
    "key": "sy-0004",
    "local_changed": true,
    "pull": "",
-   "source_label": "Local change",
-   "status": "needs-review"
+   "refusal": "",
+   "source_label": ""
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
    "contribution": null,
-   "invalidated": false,
    "key": "sy-0005",
    "local_changed": true,
    "pull": "",
-   "source_label": "Local change",
-   "status": "needs-review"
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0006",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0006/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0006/proof/2",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0007",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0008",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0007/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000A",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000B",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "Its basis is not said; a % !LOOM basis: line inside it says it.",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000B/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000C",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000C/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "It is marked incomplete: Show that there are no fixed points using Definition \\ref{sy-0008}.",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000D",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000D/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000E",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "Its basis is not said; a % !LOOM basis: line inside it says it.",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-000E/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0202",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-0202/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-999A",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
+  },
+  {
+   "cause": "never-accepted",
+   "changed_text": false,
+   "contribution": null,
+   "key": "sy-999A/proof",
+   "local_changed": true,
+   "pull": "",
+   "refusal": "",
+   "source_label": ""
   }
  ]
 }

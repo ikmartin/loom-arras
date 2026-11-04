@@ -94,8 +94,7 @@ def snapshot(root: Path, shown: Shown | None = None) -> dict[Path, float]:
         if p.suffix not in SUFFIXES or p.name in (Path(CACHE).name, Path(REVIEW_OBSERVATIONS).name, INBOX):
             continue
         rel = p.relative_to(root)
-        # Review decisions publish only queue metadata through the API; Finish review rebuilds the view.
-        # and `serve.json` is the server's own note of where it listens, which no build reads
+        # Review decisions are written only by a write that rebuilds after it (`review-accept`, taking changes in), and `serve.json` is the server's own note of where it listens, which no build reads
         if rel.as_posix() in (REVIEW_DECISIONS, ADOPTION_DECISIONS, SERVE_JSON):
             continue
         # where each agent last looked (`loom since`), which no build reads either

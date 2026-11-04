@@ -136,13 +136,13 @@ def _item(result: ScanResult, item: Any, page: Any = None) -> dict[str, Any] | N
 def _resolve(result: ScanResult, place: dict[str, Any]) -> dict[str, Any]:
     """The reported place against the quilt as it stands: each thing named and linked, a key it no longer has marked `gone`."""
     out: dict[str, Any] = {"route": place.get("route")}
-    if place.get("route") == "review":
-        review = place.get("review")
-        if isinstance(review, dict) and review.get("key"):
-            out["review"] = {**_key(result, str(review["key"])), "cause": review.get("cause") or None}
-    elif place.get("route") == "elsewhere":
+    # the block under review: in Review, or in a document beside Review's panel
+    review = place.get("review")
+    if place.get("route") != "elsewhere" and isinstance(review, dict) and review.get("key"):
+        out["review"] = {**_key(result, str(review["key"])), "cause": review.get("cause") or None}
+    if place.get("route") == "elsewhere":
         out["path"] = str(place.get("path") or "")
-    else:
+    elif place.get("route") != "review":
         out["item"] = _item(result, place.get("item"), place.get("page"))
         block = place.get("block")
         if isinstance(block, dict) and block.get("key"):
@@ -204,7 +204,7 @@ def _lines(looking: dict[str, Any]) -> list[str]:
     if "review" in looking:
         cause = looking["review"].get("cause")
         out += line("reviewing", looking["review"], f", which needs review: {cause}" if cause else "")
-    else:
+    if looking.get("route") != "review":
         out += line("open", looking.get("item"))
         out += line("at", looking.get("block"))
         sel = looking.get("selection")

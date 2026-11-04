@@ -59,12 +59,12 @@ it('carries the displayed reviewer through a request even when the view changes 
 	vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
 		if (!init) {
 			store.manifest = { reviewer: { name: 'Alice', source: 'local' } } as Manifest;
-			return Response.json({ write_api: 1, capabilities: ['review-finish'], token: 'token' });
+			return Response.json({ write_api: 1, capabilities: ['review-accept'], token: 'token' });
 		}
 		sent = JSON.parse(String(init.body));
 		return Response.json({ ok: false, error: { code: 'reviewer-changed', message: 'Reload Review' } }, { status: 409 });
 	});
-	expect((await write('review-finish', {})).error?.code).toBe('reviewer-changed');
+	expect((await write('review-accept', { keys: ['k'] })).error?.code).toBe('reviewer-changed');
 	expect(sent.reviewer).toBe('Bob');
 	store.manifest = null;
 });

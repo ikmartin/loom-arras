@@ -13,6 +13,7 @@ from loom.records.store import Records
 from loom.render.manifest import own_text
 from loom.render.publish import write_atomic
 from loom.review_queue import fingerprint
+from loom.review_queue import refusal as _refusal
 from loom.scan.scan import ScanResult, scan
 from loom.sync import SyncError
 
@@ -28,17 +29,6 @@ def _source(result: ScanResult) -> str:
             "config": (result.quilt.root / "config.toml").read_text(),
         }
     )
-
-
-def _refusal(result: ScanResult, key: str) -> str:
-    n = result.nodes[key]
-    if n.external or n.derived_of or not _owned(result, key):
-        return "This is not a live author-owned block."
-    if n.incomplete or (n.kind == "environment" and n.basis in ("open-claim", "unclassified")):
-        return "Resolve this block's incomplete or unclassified status before acceptance."
-    if any(result.dependencies.texts.get(d) is None for d in result.dependencies.closure(key)):
-        return "A complete mathematical dependency could not be identified."
-    return ""
 
 
 def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str], reviewer: str) -> dict[str, Any]:

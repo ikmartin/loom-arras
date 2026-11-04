@@ -4,6 +4,7 @@ import type { Manifest } from '$lib/manifest/types';
 import { route } from '$lib/paths';
 import { needsYou } from '$lib/library';
 import { yoursCount } from '$lib/diagnostics';
+import { waitingCount } from './queue';
 
 export interface Section {
 	id: 'changes' | 'needs-review' | 'incoming' | 'suggestions' | 'library' | 'sessions' | 'history' | 'problems';
@@ -32,7 +33,7 @@ export function openSuggestions(m: Manifest) {
 
 /** Every section, in the order the column lists them; Changes only after a look, Sessions and History only where the corpus has them. */
 export function sectionsOf(m: Manifest): Section[] {
-	const review = (m.unresolved ?? []).filter((r) => r.status === 'needs-review').length;
+	const review = waitingCount(m);
 	const incoming = (m.contributions ?? []).length;
 	const lib = libraryWaits(m);
 	const wanting = needsYou(m);
@@ -44,7 +45,7 @@ export function sectionsOf(m: Manifest): Section[] {
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 	const sections: Section[] = [
 		{ id: 'changes', label: 'Changes', href: route('/review/changes'), waits: changed, says: count(changed, 'file changed since your look', 'files changed since your look') },
-		{ id: 'needs-review', label: 'Needs review', href: route('/review'), waits: review, says: count(review, 'block needs review', 'blocks need review') },
+		{ id: 'needs-review', label: 'Needs review', href: route('/review'), waits: review, says: count(review, 'block changed or taken in', 'blocks changed or taken in') },
 		{ id: 'incoming', label: 'Incoming', href: route('/review/incoming'), waits: incoming, says: count(incoming, 'contribution waits', 'contributions wait') },
 		{ id: 'suggestions', label: 'Suggestions', href: route('/review/suggestions'), waits: suggestions, says: count(suggestions, 'suggestion to apply', 'suggestions to apply') },
 		{

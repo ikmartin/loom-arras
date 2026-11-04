@@ -11,7 +11,6 @@ import pytest
 from loom.history.ledger import load_history
 from loom.render.api import ApiError, handle
 from loom.render.build import build
-from loom.review_queue import decide
 from loom.scan.quilt import load_quilt, save_author
 from loom.scan.scan import scan
 from loom.sync import (
@@ -208,15 +207,11 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
         pull_files(quilt, state)
 
     unresolved = build(quilt).manifest["unresolved"]
-    assert [(row["key"], row["cause"], row["status"]) for row in unresolved] == [
-        ("zk-0001", "incoming-pull", "needs-review")
-    ]
+    assert [(row["key"], row["cause"]) for row in unresolved] == [("zk-0001", "incoming-pull")]
     assert unresolved[0]["local_changed"] is False
-    decide(scan(quilt), "zk-0001", "ok")
-    assert build(quilt).manifest["unresolved"][0]["status"] == "ok"
     (root / "drafting/main.tex").write_text(text.replace("zk-0001}B", "zk-0001}C"), encoding="utf-8")
     changed = build(quilt).manifest["unresolved"][0]
-    assert changed["status"] == "needs-review" and changed["invalidated"] and changed["local_changed"] is True
+    assert changed["local_changed"] is True
     (root / "drafting/main.tex").write_text(text, encoding="utf-8")
     assert build(quilt).manifest["unresolved"][0]["local_changed"] is False
 

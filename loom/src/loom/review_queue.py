@@ -1,4 +1,4 @@
-"""Private, resumable decisions for the Arras unresolved review queue."""
+"""Review › Needs review: every block of the person's not freshly accepted, why, and accepting it from the viewer."""
 
 from __future__ import annotations
 
@@ -64,10 +64,39 @@ def fingerprint(result: ScanResult, key: str) -> str:
     return hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()
 
 
+def refusal(result: ScanResult, key: str) -> str:
+    """Why the author cannot accept `key` from the viewer, in the person's words; '' when they can.
+
+    The one rule behind the queue's rows, `review-accept` and Incoming's accept-as-checked. A statement with no proof yet is accepted as stated (it stays unproved), and a cited result is a settled leaf, so neither is refused.
+    """
+    from loom.cli.review import _owned
+
+    n = result.nodes[key]
+    if n.external or n.derived_of or not _owned(result, key):
+        return "It is not in your documents."
+    if n.incomplete:
+        said = "; ".join(t.replace("~", " ").strip().rstrip(".") for t in n.incomplete if t.strip())
+        return f"It is marked incomplete: {said}." if said else "It is marked incomplete."
+    if n.kind == "environment" and n.basis == "open-claim":
+        return "It is a conjecture or a question, which is not accepted."
+    if n.kind == "environment" and n.basis == "unclassified":
+        return "Its basis is not said; a % !LOOM basis: line inside it says it."
+    if any(result.dependencies.texts.get(d) is None for d in result.dependencies.closure(key)):
+        return "Something it rests on cannot be identified."
+    return ""
+
+
 def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every statement and proof of the person's not freshly accepted, in dependency order: changed since accepted, taken in, or never accepted.
+
+    A block taken in and left unchecked stays (`keep_pending`) even when an upstream acceptance makes its own fresh again. Read by the build (`manifest["unresolved"]`) and by `review-accept`, which accepts only what this lists.
+    """
+    from loom.cli.review import _owned
+
     root = result.quilt.root
-    manifest["review_covered"] = []
-    decisions = _read(root, manifest.get("reviewer", {}).get("name"))
+    kept = {
+        key for key, row in _read(root, manifest.get("reviewer", {}).get("name")).items() if row.get("explicit_pending")
+    }
     from loom.review_origins import read
 
     shared = read(root)
@@ -78,14 +107,9 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     pull_keys = set(origins)
     candidates = (
         pull_keys
-        | set(decisions)
-        | {key for key, entry in manifest["keys"].items() if entry.get("acceptance", {}).get("fresh") is False}
+        | kept
+        | {key for key, entry in manifest["keys"].items() if entry.get("acceptance", {}).get("fresh") is not True}
     )
-    pending_ok = {
-        key
-        for key, choice in decisions.items()
-        if choice["status"] == "ok" and key in result.nodes and choice["fingerprint"] == fingerprint(result, key)
-    }
     out = []
     # Walk actual immediate dependencies, not the closure size: proofs may have
     # short closures but still rely on a changed statement earlier in the pull.
@@ -109,77 +133,99 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     for key in ordered:
         entry = manifest["keys"].get(key)
         node = result.nodes.get(key)
-        if not entry or not node or node.external or node.kind not in ("environment", "proof") or not node.reached_by:
-            continue
-        choice = decisions.get(key)
-        current = fingerprint(result, key)
-        fresh = entry.get("acceptance", {}).get("fresh") is True
-        # Once upstream acceptance restores this block's recorded dependency
-        # context, an old attention choice is no longer an unresolved review.
-        # Keep an explicit OK visible until Finish review clears it.
-        if fresh and (not choice or (choice["status"] != "ok" and not choice.get("explicit_pending"))):
-            continue
-        status = "needs-review"
-        if choice:
-            status = choice["status"] if choice["fingerprint"] == current else "needs-review"
-        causes = entry.get("acceptance", {}).get("causes", [])
-        # A current pending OK provisionally covers indirect causes through
-        # that block. Keep a dependent with any direct or independent cause,
-        # and keep its own explicit OK visible until Finish review.
         if (
-            status != "ok"
-            and not (choice and choice.get("explicit_pending"))
-            and causes
-            and all(cause.get("kind") == "dependency-changed" and cause.get("via") in pending_ok for cause in causes)
+            not entry
+            or not node
+            or node.external
+            or node.kind not in ("environment", "proof")
+            or not _owned(result, key)
         ):
-            manifest.setdefault("review_covered", []).append({"key": key, "via": sorted({c["via"] for c in causes})})
             continue
-        cause = (
-            ("adopted" if origins.get(key, "").startswith("adopt:") else "incoming-pull")
-            if key in pull_keys
-            else "earlier-change"
+        acceptance = entry.get("acceptance")
+        if acceptance and acceptance.get("fresh") is True and key not in kept:
+            continue
+        if key in pull_keys:
+            cause = "adopted" if origins[key].startswith("adopt:") else "incoming-pull"
+        else:
+            cause = "earlier-change" if acceptance else "never-accepted"
+        copy = shared.get(key, {}).get("copy")
+        # a copy's rows are named from the copy itself; a pull's by the workspace its record names
+        label = (
+            f"Taken in from the copy “{Path(copy).stem}”"
+            if cause == "adopted" and copy
+            else shared.get(key, {}).get("label", "")
         )
         baseline = baselines.get(key)
-        local_changed = (local_before.get(key, False) or current != baseline) if baseline else None
+        local_changed = (local_before.get(key, False) or fingerprint(result, key) != baseline) if baseline else None
         if key not in pull_keys:
             local_changed = True
         out.append(
             {
                 "key": key,
-                "status": status,
                 "cause": cause,
                 "pull": origins.get(key, "").removeprefix("pull:"),
-                "source_label": shared.get(key, {}).get("label", "Local change"),
-                "contribution": shared.get(key, {}).get("copy"),
+                "source_label": label,
+                "contribution": copy,
                 "changed_text": changed_by_pull.get(key, False),
                 "local_changed": local_changed,
-                "invalidated": bool(choice and choice["fingerprint"] != current),
+                "refusal": refusal(result, key),
             }
         )
     return out
 
 
-def decide(result: ScanResult, key: str, status: str, reviewer: str | None = None) -> None:
-    if status not in ("ok", "requires-attention"):
-        raise ValueError("decision must be ok or requires-attention")
-    if key not in result.nodes or result.nodes[key].kind not in ("environment", "proof"):
-        raise ValueError(f"{key} is not a reviewable statement or proof")
-    rows = _read(result.quilt.root, reviewer)
-    rows[key] = {
-        "status": status,
-        "fingerprint": fingerprint(result, key),
-        **({"explicit_pending": "true"} if rows.get(key, {}).get("explicit_pending") else {}),
-    }
-    _write(result.quilt.root, rows, reviewer)
+def accept(result: ScanResult, manifest: dict[str, Any], keys: list[str], reviewer: str) -> dict[str, Any]:
+    """Accept what of `keys` loom can, at once; each other key is refused with its reason.
+
+    A key the queue does not list raises KeyError (the page is stale). A block resting on one whose acceptance is stale is refused unless that one is accepted with it. Each document is compiled once; a failure raises ValueError and accepts nothing.
+    """
+    from loom.cli.review import _acceptance_master, _master_compiles, write_acceptance
+
+    listed = {row["key"] for row in rows_for(result, manifest)}
+    unknown = [key for key in keys if key not in listed]
+    if unknown:
+        raise KeyError(", ".join(unknown))
+    keys = list(dict.fromkeys(keys))
+    refused = {key: why for key in keys if (why := refusal(result, key))}
+    states = Records(result.quilt.root, result.quilt.history_dir, reviewer=reviewer).key_states(result)
+    moved = True
+    while moved:  # a block refused for what it rests on may be what another rests on
+        moved = False
+        for key in keys:
+            if key in refused:
+                continue
+            for dep in result.dependencies.review_targets(key):
+                state = states.get(dep)
+                if state and state.row and not state.fresh and (dep not in keys or dep in refused):
+                    refused[key] = f"Accept {_block_name(manifest, dep)} first, or with it."
+                    moved = True
+                    break
+    accepted = [key for key in keys if key not in refused]
+    if accepted:
+        contexts = {key: _acceptance_master(result, key) for key in accepted}
+        for master in dict.fromkeys(contexts.values()):
+            ok, why = _master_compiles(result, master)
+            if not ok:
+                raise ValueError(f"{master} does not compile: {why}")
+        write_acceptance(result, accepted, reviewer, contexts)
+        clear_accepted(result.quilt.root, accepted, reviewer)
+    return {"accepted": accepted, "refused": [{"key": key, "why": refused[key]} for key in keys if key in refused]}
 
 
-def pending(result: ScanResult, reviewer: str | None = None) -> list[str]:
-    rows = _read(result.quilt.root, reviewer)
-    keys = sorted(key for key, row in rows.items() if row["status"] == "ok")
-    for key in keys:
-        if key not in result.nodes or rows[key]["fingerprint"] != fingerprint(result, key):
-            raise ValueError(f"{key} changed since OK; review it again")
-    return keys
+def _block_name(manifest: dict[str, Any], key: str) -> str:
+    """A block as the person reads it: its title, else its taxon and number in the default document, else its key; a proof as the proof of its statement."""
+    owner = manifest["keys"].get(key, {}).get("node", key)
+    node = manifest["nodes"].get(key) or manifest["nodes"].get(owner)
+    if not node:
+        return key
+    default = next((m["path"] for m in manifest.get("masters", []) if m.get("default")), "")
+    numbers: dict[str, dict[str, Any]] = node.get("numbers") or {}
+    at: dict[str, Any] = numbers.get(default) or next(iter(numbers.values()), {})
+    number = str(at.get("number") or "")
+    name = (node.get("name") or node.get("title") or "").strip() or (
+        f"{node.get('taxon') or ''} {number}".strip() if number else owner
+    )
+    return f"the proof of {name}" if key != owner and key not in manifest["nodes"] else name
 
 
 def clear_accepted(root: Path, keys: list[str], reviewer: str | None = None) -> None:
@@ -193,5 +239,5 @@ def keep_pending(result: ScanResult, keys: list[str], reviewer: str) -> None:
     """Keep unaccepted Incoming items visible even when upstream acceptance restores an older context."""
     rows = _read(result.quilt.root, reviewer)
     for key in keys:
-        rows[key] = {"status": "needs-review", "fingerprint": fingerprint(result, key), "explicit_pending": "true"}
+        rows[key] = {"explicit_pending": "true"}
     _write(result.quilt.root, rows, reviewer)
