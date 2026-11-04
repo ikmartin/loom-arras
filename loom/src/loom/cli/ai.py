@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from loom.ai.clients import Client, ClientReport
     from loom.ai.layout import LayerReport
 
+#: What a verdict adds when the client files start a server this loom cannot run yet (`sdk_groups`).
+NO_SERVER = "the loom server cannot start until loom is reinstalled"
+
 
 @click.group(cls=CommandGroup)
 def ai() -> None:
@@ -210,6 +213,34 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
     return rep, clients
 
 
+def sdk_groups(shell: bool) -> list[Group]:
+    """The warning for client files that start a server this loom cannot run yet.
+
+    Parameters
+    ----------
+    shell : bool
+        True for the shell variant, whose agents need no server.
+
+    Returns
+    -------
+    list of Group
+        One group of problems carrying the reinstall command; empty in the shell variant or with the SDK present.
+    """
+    from loom.mcp.sdk import has_sdk, reinstall_hint
+
+    if shell or has_sdk():
+        return []
+    return [
+        Group(
+            "this loom has no MCP SDK",
+            [Item("agents here get no loom tools without it", fixes=[reinstall_hint()])],
+            limit=None,
+            problem=True,
+            counted=False,
+        )
+    ]
+
+
 @ai.command(name="init")
 @click.option(
     "--mcp/--shell",
@@ -266,7 +297,8 @@ def ai_init(mcp: bool | None, client: str | None, dry_run: bool, as_json: bool, 
                 limit=None,
             )
         )
-    groups += _client_groups(clients, dry_run)
+    sdk = sdk_groups(shell)
+    groups += _client_groups(clients, dry_run) + sdk
     data = {
         "written": written,
         "kept": sorted(rep.kept),
@@ -284,14 +316,17 @@ def ai_init(mcp: bool | None, client: str | None, dry_run: bool, as_json: bool, 
             if shell
             else "approve the loom server it asks to start, and it calls loom_ai_orient"
         )
-        verdict = f"wrote the agent layer, {counted(n, 'file')}; start your agent here: {start}"
+        first = "reinstall loom as below, then " if sdk else ""
+        verdict = f"wrote the agent layer, {counted(n, 'file')}; {first}start your agent here: {start}"
     elif n or rep.kept or clients.removed:
         verdict = f"refreshed the agent layer: {counted(n, 'file')} written" + (
             f", {counted(len(rep.kept), 'edited file')} kept" if rep.kept else ""
         )
     else:
         verdict = "the agent layer is current; nothing written"
-    Report(verdict, ok=not clients.tracked, dry_run=dry_run, groups=groups, data=data).emit(as_json)
+    if sdk and (existed or dry_run):
+        verdict += f"; {NO_SERVER}"
+    Report(verdict, ok=not clients.tracked and not sdk, dry_run=dry_run, groups=groups, data=data).emit(as_json)
 
 
 def _client_groups(clients: ClientReport, dry_run: bool) -> list[Group]:
@@ -349,10 +384,11 @@ def _print_entry(client: Client, root: Path, as_json: bool) -> None:
     said = f"the loom server for {client.label}, serving {client.agent}: add it to {where}"
     if client.file is None:
         said += "; loom writes nothing outside the quilt"
+    sdk = sdk_groups(False)
     if as_json:
-        Report(said, data={"client": client.key, "file": where, "entry": entry}).emit(True)
+        Report(said, ok=not sdk, groups=sdk, data={"client": client.key, "file": where, "entry": entry}).emit(True)
         return
-    Report(said).emit(False)
+    Report(said, ok=not sdk, groups=sdk).emit(False)
     click.echo("")
     click.echo(entry, nl=False)
 

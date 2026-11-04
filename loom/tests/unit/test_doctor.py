@@ -501,11 +501,13 @@ def test_a_client_file_git_tracks_fails(box: Box) -> None:
 def test_a_missing_mcp_sdk_warns(box: Box, monkeypatch: pytest.MonkeyPatch) -> None:
     import importlib.util
 
+    from loom.mcp.sdk import reinstall_hint
+
     q = quilt(box)
     real = importlib.util.find_spec
     monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: None if name == "mcp" else real(name, *a))
     got = mcp_items(doctor(box, cwd=q))[-1]
-    assert got["status"] == "warn" and "loom mcp cannot start" in got["detail"] and "loomtex[mcp]" in got["remedy"]
+    assert got["status"] == "warn" and "loom mcp cannot start" in got["detail"] and got["remedy"] == reinstall_hint()
 
 
 def tree(q: Path) -> dict[str, bytes]:

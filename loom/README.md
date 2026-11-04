@@ -31,7 +31,7 @@ uv sync
 uv run loom doctor
 ```
 
-`loom doctor` names anything missing and how to get it. The arras viewer ships inside this repository as a built bundle, so `loom serve` needs no Node. An agent attaches to a quilt through `loom mcp`, which needs the `mcp` extra: `pipx install "loomtex[mcp] @ git+https://github.com/ikmartin/loom"` (with `uv sync`, the development group already has it).
+`loom doctor` names anything missing and how to get it. The arras viewer ships inside this repository as a built bundle, so `loom serve` needs no Node. An agent attaches to a quilt through `loom mcp`, and the MCP SDK it needs installs with loom.
 
 ## Quickstart
 

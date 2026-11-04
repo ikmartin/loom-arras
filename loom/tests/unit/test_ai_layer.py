@@ -47,7 +47,7 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert {p.stem for p in (q / ".loom/ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
     assert root_text == (q / "AGENTS.md").read_text() == (q / "GEMINI.md").read_text()
-    assert "`loom_ai_orient`" in root_text and "names as protected" in root_text and "loom ai init" in root_text
+    assert "`loom_ai_orient`" in root_text and "names as protected" in root_text and "loom doctor" in root_text
     assert "# Orientation: working in a quilt" in (q / ".loom/ai" / "orientation.md").read_text()
     # what agents may run is written for every tool, whichever the person uses (DR-283)
     assert (q / ".claude" / "settings.json").is_file() and (q / ".codex" / "rules" / "loom.rules").is_file()
@@ -702,3 +702,6 @@ def test_an_old_instruction_line_is_replaced_where_it_stands(tmp_path: Path) -> 
     assert "CLAUDE.md" in ensure_root_line(tmp_path)
     assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"# Mine\n\n{MCP_LINE}\n\nMore of mine.\n"
     assert "CLAUDE.md" not in ensure_root_line(tmp_path)
+    (tmp_path / "CLAUDE.md").write_text(f"{OLD_LINES[2]}\n", encoding="utf-8")
+    ensure_root_line(tmp_path)
+    assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"{MCP_LINE}\n"

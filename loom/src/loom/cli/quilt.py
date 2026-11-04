@@ -105,21 +105,27 @@ def ask_ai(yes: bool) -> str:
 def setup_ai(target: Path, choice: str, *, write: bool = True) -> tuple[list[str], list[str]]:
     """Install the agent layer as `loom ai init` does for any AI, and nothing for `none`; and say what was done.
 
-    Returns the paths written (or, with `write` False, that would be) and the line `loom init` prints about the AI.
+    Returns the paths written (or, with `write` False, that would be) and the lines `loom init` prints about the AI, the reinstall command among them when the loom server could not start.
     """
     written: list[str] = []
+    needs: list[str] = []
     if choice != "none":
         from loom.cli.ai import install_layer
+        from loom.mcp.sdk import has_sdk, reinstall_hint
 
         layer, clients = install_layer(target, write=write)
         written = [*layer.written, *clients.written]
+        if not has_sdk():
+            needs.append(
+                f"First reinstall loom, whose environment lacks the MCP SDK the loom server needs: {reinstall_hint()}"
+            )
     said = {
         "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt and approve the loom server it asks to start; CLAUDE.md and {AI}/ tell it how loom works.",
         "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session, which starts the loom server; AGENTS.md and {AI}/ tell it how loom works.",
         "other": f"AI: another agent. Run it in this quilt: an app that reads .mcp.json starts the loom server, and loom ai init --client prints the entry for one configured elsewhere; AGENTS.md and {AI}/ tell it how loom works.",
         "none": "AI: none. loom ai init writes the agent layer should that change.",
     }[choice]
-    return written, [said]
+    return written, [said, *needs]
 
 
 def _user_history() -> str:

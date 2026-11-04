@@ -62,12 +62,13 @@ NOT_TOOLS = frozenset({"mcp", "serve"})
 #: The one agent command that may reach the network, when the quilt's config allows it.
 NETWORK = frozenset({"library update"})
 #: The line loom puts in each agent's root file, one per variant: an agent attached over MCP starts from the server's tool, and one working through a shell from the command.
-MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write anywhere but the paths `loom_ai_orient` names as protected."
+MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom doctor`, fix what it reports, approve the loom server and restart this session. Write anywhere but the paths `loom_ai_orient` names as protected."
 SHELL_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write anywhere but the paths `loom ai orient` names as protected."
 #: Lines an older loom wrote, each replaced where it stands so an upgraded quilt holds one line, not two.
 OLD_LINES = (
     "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit.",
     "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit.",
+    "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write anywhere but the paths `loom_ai_orient` names as protected.",
 )
 #: The two ways an agent reaches loom: through the MCP server's tools, the default, or by typing `loom` in a shell, for an agent with no MCP.
 MCP, SHELL = "mcp", "shell"

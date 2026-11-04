@@ -183,14 +183,5 @@ def test_the_server_serves_only_an_agent_and_says_what_it_needs(
 ) -> None:
     q = demo(tmp_path)
     refused("mcp", "--as", "Isaac", cwd=q, code=2, match="Isaac does not say it is an agent")
-    import builtins
-
-    real = builtins.__import__
-
-    def no_sdk(name: str, *args: Any, **kwargs: Any) -> Any:
-        if name == "mcp":
-            raise ImportError(name)
-        return real(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", no_sdk)
-    refused("mcp", "--as", AGENT, cwd=q, code=2, match="pip install 'loomtex[mcp]'")
+    monkeypatch.setattr("loom.mcp.sdk.has_sdk", lambda: False)
+    refused("mcp", "--as", AGENT, cwd=q, code=2, match="loom mcp needs the MCP SDK")

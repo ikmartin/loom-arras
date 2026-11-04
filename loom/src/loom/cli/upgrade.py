@@ -17,6 +17,7 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Refresh .loom/.gitignore and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones."""
     from loom.ai.clients import write_clients
     from loom.ai.layout import SHELL, upgrade_layer, variant
+    from loom.cli.ai import NO_SERVER, sdk_groups
     from loom.gitignore import ensure, missing, write_loom_ignore
 
     quilt = open_quilt(quilt_path)
@@ -27,6 +28,7 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     if write_loom_ignore(root, write=not dry_run):
         written.append(LOOM_GITIGNORE)
     added: list[str] = []
+    sdk: list[Group] = []
     has_ai = (root / AI).is_dir()
     if has_ai:
         shell = variant(root) == SHELL
@@ -34,6 +36,7 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
         written += [str(rel) for rel in rep.written]
         # the client files follow the variant: what starts the server over MCP, nothing in a shell
         written += write_clients(root, write=not dry_run, shell=shell).written
+        sdk = sdk_groups(shell)
         added = missing(root) if dry_run else ensure(root)
         if added:
             written.append(".gitignore")
@@ -89,11 +92,13 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
         verdict = ("" if dry_run else "upgraded: ") + "; ".join(parts) + merge
     else:
         verdict = "already current" + (f": {AI}/ and the ignore files" if has_ai else f": {LOOM_GITIGNORE}")
+    if sdk:
+        verdict += f"; {NO_SERVER}"
     Report(
         verdict,
         dry_run=dry_run,
-        ok=not beside,
-        groups=[g for g in groups if g.items],
+        ok=not beside and not sdk,
+        groups=[*(g for g in groups if g.items), *sdk],
         lines=[] if has_ai else [f"no {AI}/ to upgrade; loom ai init creates it"],
         data={
             "written": written,

@@ -513,16 +513,11 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "markdown-it-py" },
-]
-
-[package.optional-dependencies]
-mcp = [
     { name = "mcp" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "mcp" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-xdist" },
@@ -533,13 +528,11 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "markdown-it-py", specifier = ">=3.0" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.3,<3" },
+    { name = "mcp", specifier = ">=2.3,<3" },
 ]
-provides-extras = ["mcp"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mcp", specifier = ">=2.3,<3" },
     { name = "mypy", specifier = ">=1.10" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },

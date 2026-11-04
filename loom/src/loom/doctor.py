@@ -506,10 +506,9 @@ def check_mcp(root: Path) -> list[Item]:
 
     A client file git tracks fails: it names this machine's loom and quilt, and a clone would start them on another's.
     """
-    import importlib.util
-
     from loom.ai.clients import PROJECT, write_clients
     from loom.ai.layout import SHELL, variant
+    from loom.mcp.sdk import has_sdk, reinstall_hint
 
     if not (root / AI).is_dir():
         return [Item("mcp", OK, QUILT, f"no {AI}/ (loom ai init writes the client files)")]
@@ -546,15 +545,9 @@ def check_mcp(root: Path) -> list[Item]:
                 "; ".join(f"add what loom ai init --client {key[rel]} prints" for rel in rep.foreign),
             )
         )
-    if importlib.util.find_spec("mcp") is None:
+    if not has_sdk():
         items.append(
-            Item(
-                "mcp",
-                WARN,
-                QUILT,
-                "the MCP SDK is not installed, so loom mcp cannot start",
-                "pip install 'loomtex[mcp]', or uv tool install 'loomtex[mcp]'",
-            )
+            Item("mcp", WARN, QUILT, "the MCP SDK is not installed, so loom mcp cannot start", reinstall_hint())
         )
     return items or [Item("mcp", OK, QUILT, ", ".join(rep.current))]
 

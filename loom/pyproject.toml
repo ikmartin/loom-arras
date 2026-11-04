@@ -17,6 +17,7 @@ classifiers = [
 dependencies = [
   "click>=8.1",
   "markdown-it-py>=3.0",
+  "mcp>=2.3,<3",
 ]
 
 [project.scripts]
@@ -24,10 +25,6 @@ loom = "loom.cli:main"
 
 [project.urls]
 Repository = "https://github.com/ikmartin/loom"
-
-[project.optional-dependencies]
-# `loom mcp`, the server an agent's app starts; nothing else needs it
-mcp = ["mcp>=2.3,<3"]
 
 [build-system]
 requires = ["hatchling>=1.26"]
@@ -42,7 +39,6 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.10",
   "pytest-xdist>=3.8.0",
-  "mcp>=2.3,<3",
 ]
 
 [tool.pytest.ini_options]

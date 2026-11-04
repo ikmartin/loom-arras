@@ -26,13 +26,12 @@ def mcp_command(as_name: str, quilt_path: str | None) -> None:
         raise EnvError(
             f"{as_name} does not say it is an agent; give a name with Agent or AI in it, such as --as 'Claude Agent'"
         )
-    try:
-        import mcp  # noqa: F401
-    except ImportError:
+    from loom.mcp.sdk import has_sdk, reinstall_hint
+
+    if not has_sdk():
         raise EnvError(
-            "loom mcp needs the MCP SDK, which loom installs only when asked: pip install 'loomtex[mcp]', "
-            "or uv tool install 'loomtex[mcp]'"
-        ) from None
+            f"loom mcp needs the MCP SDK, which this loom's environment does not have; reinstalling loom brings it: {reinstall_hint()}"
+        )
     from loom.mcp.server import serve
 
     serve(open_quilt(quilt_path).root, as_name)
