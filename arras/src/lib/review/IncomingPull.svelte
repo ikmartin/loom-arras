@@ -1,35 +1,245 @@
 <script lang="ts">
- import { incomingNotice } from './notice.svelte';
- import { untrack } from 'svelte';
- import IncomingMath from './IncomingMath.svelte';
- import type { IncorporationMathReview, IncorporationOutcome, IncomingReview } from '$lib/manifest/types';
- import Fragment from '$lib/fragments/Fragment.svelte';
- import { store } from '$lib/manifest/client.svelte';
- import { displayNode } from '$lib/nodes/display';
- import { write } from '$lib/write';
- let { incoming, label, writable, onincorporated }: {incoming:IncomingReview;label:string;writable:boolean;onincorporated:()=>void}=$props();
- let index=$state(0),busy=$state(false),error=$state('');
- let review=$state<IncorporationMathReview|null>(null), accepted=$state<string[]>([]),kept=$state<string[]>([]), preparing=$state(false);
- const identity=$derived(JSON.stringify([incoming.commit,incoming.base,store.manifest?.reviewer?.name]));
- const passages=$derived([...incoming.changes, ...(review?.items.filter(r=>!incoming.changes.some(c=>c.key===r.key)).map(r=>({key:r.key,name:r.name,kind:'edited' as const,category:undefined,conflict:false,local:null,incoming:null,current:'',proposed:'',incoming_macros:'',affected:[],local_changed:false,already_local:false}))??[])]);
- const math=$derived(review?.items.find(r=>r.key===change?.key));
- $effect(()=>{void identity;if(writable)untrack(()=>{void prepare();});});
- async function prepare(){const started=identity;preparing=true;review=null;accepted=[];kept=[];error='';const r=await write('sync-preview',{incoming:incoming.commit,base:incoming.base});if(started!==identity)return;if(r.ok)review=r.result as unknown as IncorporationMathReview;else error=r.error?.message??'Could not prepare mathematical review';preparing=false;}
+	// A collaborator's fetched pull in Incoming (plan 0.25.2), laid out as an agent's copy is: its changes named and listed, one at a time beneath a bar that never moves, "accept as checked" for each block of mathematics, and one Apply. A pull is taken whole, since loom applies it as one patch; whatever loom answers is said in the bar.
+	import ActionBar from './ActionBar.svelte';
+	import Said from './Said.svelte';
+	import Fragment from '$lib/fragments/Fragment.svelte';
+	import { store } from '$lib/manifest/client.svelte';
+	import type { IncorporationMathReview, IncorporationOutcome, IncomingReview } from '$lib/manifest/types';
+	import { displayNode } from '$lib/nodes/display';
+	import { write } from '$lib/write';
+	import { untrack } from 'svelte';
+	import { acceptFor } from './contribution';
 
- const change=$derived(passages[Math.min(index,passages.length-1)]);
- const title=(key:string,name?:string)=>name??displayNode(store.manifest!,key).name;
- async function incorporate(){busy=true;error='';const r=await write('sync-incorporate',{incoming:incoming.commit,base:incoming.base,...(review?{review_token:review.token,accept:accepted}:{})});if(r.ok){const outcome=r.result as unknown as IncorporationOutcome;incomingNotice.text=outcome.acceptance_error??`Pull incorporated. ${outcome.accepted?.length??0} ${outcome.accepted?.length===1?"block":"blocks"} accepted; ${outcome.pending?.length??0} remain in Needs review.`;await store.refresh();onincorporated();}else error=r.error?.message??'Could not incorporate the pull';busy=false;}
+	let { incoming, label, writable, onanswer }: { incoming: IncomingReview; label: string; writable: boolean; onanswer?: (a: { text: string; refused: boolean } | null) => void } = $props();
+	// the last answer, said in the bar and handed to the page, which keeps saying it once the pull is gone
+	let answer = $state<{ text: string; refused: boolean } | null>(null);
+	function say(a: { text: string; refused: boolean } | null): void {
+		answer = a;
+		onanswer?.(a);
+	}
+
+	let index = $state(0);
+	let busy = $state('');
+	let review = $state<IncorporationMathReview | null>(null);
+	let checked = $state<string[]>([]);
+	const identity = $derived(JSON.stringify([incoming.commit, incoming.base, store.manifest?.reviewer?.name]));
+	// the pull's changed passages, and any block its mathematics review adds because something it rests on changed
+	const passages = $derived([...incoming.changes, ...(review?.items.filter((r) => !incoming.changes.some((c) => c.key === r.key)).map((r) => ({ key: r.key, name: r.name, kind: 'edited' as const, category: undefined, conflict: false, local: null, incoming: null, current: '', proposed: '', incoming_macros: '', affected: [], local_changed: false, already_local: false })) ?? [])]);
+	const change = $derived(passages[Math.min(index, passages.length - 1)]);
+	const math = $derived(review?.items.find((r) => r.key === change?.key));
+	const clash = $derived(incoming.changes.some((c) => c.conflict));
+	const blocked = $derived(!!incoming.issues?.length || clash);
+	const title = (key: string, name?: string | null) => name ?? displayNode(store.manifest!, key).name;
+	$effect(() => {
+		void identity;
+		if (writable) untrack(() => void prepare());
+	});
+
+	async function prepare(): Promise<void> {
+		const started = identity;
+		busy = 'prepare';
+		review = null;
+		checked = [];
+		const done = await write('sync-preview', { incoming: incoming.commit, base: incoming.base });
+		if (started !== identity) return;
+		if (done.ok) review = done.result as unknown as IncorporationMathReview;
+		else say({ text: done.error?.message ?? 'Loom could not prepare the pull for review.', refused: true });
+		busy = '';
+	}
+	function toggle(key: string, on: boolean): void {
+		checked = on ? [...new Set([...checked, key])] : checked.filter((k) => k !== key);
+	}
+	async function apply(): Promise<void> {
+		busy = 'apply';
+		say(null);
+		const accept = review ? acceptFor(review, checked, {}) : [];
+		const done = await write('sync-incorporate', { incoming: incoming.commit, base: incoming.base, ...(review ? { review_token: review.token, accept } : {}) });
+		if (done.ok) {
+			const o = done.result as unknown as IncorporationOutcome;
+			say({ text: o.acceptance_error ?? `Took the pull: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Needs review. Each document it changed is kept as it was first.`, refused: false });
+			await store.refresh();
+		} else say({ text: done.error?.message ?? 'Loom did not take the pull.', refused: true });
+		busy = '';
+	}
 </script>
-<header><h2>{label}</h2><p class="muted">Fetched revision · not incorporated</p><details><summary>Contribution details</summary><p>{incoming.workspace} · {incoming.branch} · {incoming.commit.slice(0,12)} · base {incoming.base.slice(0,12)}</p></details></header>
-{#each incoming.issues??[] as issue}<p role="alert">{issue}</p>{/each}
-{#if error}<p role="alert">{error}</p>{#if writable}<button disabled={busy||preparing} onclick={prepare}>Refresh mathematical preview</button>{/if}{/if}
-<div class="layout"><aside aria-label="Incoming changes">{#each passages as c,i}<button class:active={change?.key===c.key} onclick={()=>index=i}>{title(c.key,c.name)}<small>{c.category==='prose'?'Prose':accepted.includes(c.key)?'Accept on incorporation':kept.includes(c.key)?'Keep for review':review&&!review.items.some(r=>r.key===c.key)?'Source change':'Pending'}</small></button>{/each}</aside><section class="content">
-{#if change}<label class="compact">Changed passage <select value={index} onchange={e=>index=Number(e.currentTarget.value)}>{#each passages as c,i}<option value={i}>{title(c.key,c.name)}</option>{/each}</select></label>{#if math}{#key math.key}<IncomingMath item={math} bind:accepted bind:kept {busy}/>{/key}{:else}<h2>{title(change.key,change.name)}</h2>{#if change.conflict}<p role="alert">Both versions changed. Reconcile the source before incorporation.</p>{/if}<div class="pair"><section><h3>Current working document</h3>{#if change.local}<Fragment path={change.local}/>{:else}<pre>{change.current??'No current passage'}</pre>{/if}</section><section><h3>Fetched version</h3>{#if change.incoming}<Fragment path={change.incoming} macroSet={change.incoming_macros} isolatedMacros/>{:else}<pre>{change.proposed??'No incoming passage'}</pre>{/if}</section></div>{#if change.category==='prose'}<p class="muted">Prose outside mathematical blocks has no acceptance task. Formula and document-context changes retain their dependency checks.</p>{/if}{/if}<nav aria-label="Change navigation"><span>{index+1} of {passages.length}</span><button disabled={index===0} onclick={()=>index--}>Previous change</button><button disabled={index>=passages.length-1} onclick={()=>index++}>Next change</button></nav>{:else}<p>Inspect the changed source files below.</p>{/if}
-</section></div>
-<details><summary>Changed source files and diffs ({incoming.files.length})</summary>{#each incoming.files as file}<details><summary>{file.path} · {file.status}</summary>{#if file.diff}<pre>{file.diff}</pre>{:else}<p>No text diff is available for this file. Inspect the fetched file before incorporating this pull.</p>{/if}</details>{/each}</details>
-<footer data-testid="incoming-incorporation"><p>Applies the whole pull. {#if review}{review.items.length-accepted.length} mathematical blocks remain pending.{:else}Mathematics remains pending unless explicitly accepted.{/if} Unvisited items are not accepted.</p>{#if preparing}<p>Preparing mathematical preview…</p>{/if}{#if writable}<button disabled={busy||preparing||!!incoming.issues?.length||incoming.changes.some(c=>c.conflict)} onclick={incorporate}>{busy?'Incorporating…':accepted.length?`Incorporate pull & accept ${accepted.length} ${accepted.length===1?"block":"blocks"}`:'Incorporate pull'}</button>{/if}</footer>
+
+<section class="contribution" data-testid="pull">
+	<ActionBar testid="contribution-bar" said={answer?.text ?? ''} refused={answer?.refused}>
+		{#snippet lead()}
+			<b>{label}</b> · {passages.length} {passages.length === 1 ? 'change' : 'changes'} · {checked.length} marked as checked
+		{/snippet}
+		{#snippet actions()}
+			{#if writable}<button class="btn primary" disabled={!!busy || blocked} onclick={apply} data-testid="apply">{busy === 'apply' ? 'Applying…' : 'Apply the pull'}</button>{/if}
+		{/snippet}
+		{#snippet below()}
+			<div class="step">
+				<button class="btn small quiet" disabled={index <= 0} onclick={() => index--} aria-label="Previous change" data-testid="prev-change">‹</button>
+				<span class="at" data-testid="change-at">{passages.length ? index + 1 : 0} of {passages.length}</span>
+				<button class="btn small quiet" disabled={index >= passages.length - 1} onclick={() => index++} aria-label="Next change" data-testid="next-change">›</button>
+				<span class="now">{change ? title(change.key, change.name) : ''}</span>
+				{#if writable && math && !math.unavailable}
+					<label class="accept" title="Records your acceptance of this block's mathematics as it is written in, when you apply"><input type="checkbox" checked={checked.includes(math.key)} disabled={!!busy} onchange={(e) => toggle(math.key, e.currentTarget.checked)} data-testid="accept-checked" /> accept as checked</label>
+				{/if}
+				<span class="whole">A pull is taken whole.</span>
+			</div>
+		{/snippet}
+	</ActionBar>
+	<p class="lead">A revision fetched from {incoming.workspace}, {incoming.branch}. Apply writes all of it into your documents, keeping each as it was first. {#if busy === 'prepare'}Preparing its mathematics for review…{/if}</p>
+	{#each incoming.issues ?? [] as issue, i (i)}<Said text={issue} refused />{/each}
+	{#if clash}<Said text="You and the collaborator both changed a passage and the edits clash; reconcile it in the workspace, then fetch again." refused />{/if}
+	<div class="workspace">
+		<aside aria-label="The pull's changes">
+			{#each passages as c, i (c.key)}
+				<button class="row" class:active={i === index} onclick={() => (index = i)} data-testid="change-row" data-key={c.key}>
+					<span class="name">{title(c.key, c.name)}</span><small>{c.category === 'prose' ? 'prose' : checked.includes(c.key) ? 'accept as checked' : c.conflict ? 'clashes' : review && !review.items.some((r) => r.key === c.key) ? 'source only' : 'to review'}</small>
+				</button>
+			{/each}
+		</aside>
+		<div class="change" data-testid="change-shown">
+			{#if change}
+				<h2>{title(change.key, change.name)}</h2>
+				{#if math}
+					<p class="detail">{math.reason}</p>
+					<div class="pair">
+						<div><h4>Yours</h4>{#if math.local}<Fragment path={math.local.path} previewMacros={math.local.macros} isolatedMacros />{:else}<p class="muted">New in this pull.</p>{/if}</div>
+						<div><h4>After the pull</h4><Fragment path={math.proposed.path} previewMacros={math.proposed.macros} isolatedMacros /></div>
+					</div>
+					{#if math.unavailable}<p class="detail">{math.unavailable} It stays in Needs review.</p>{/if}
+				{:else}
+					{#if change.conflict}<p class="detail">You and the collaborator both changed it, and the edits clash.</p>{/if}
+					<div class="pair">
+						<div><h4>Yours</h4>{#if change.local}<Fragment path={change.local} />{:else}<pre>{change.current || 'Not in your document.'}</pre>{/if}</div>
+						<div><h4>The pull's</h4>{#if change.incoming}<Fragment path={change.incoming} macroSet={change.incoming_macros} isolatedMacros />{:else}<pre>{change.proposed || 'Removed.'}</pre>{/if}</div>
+					</div>
+					{#if change.category === 'prose'}<p class="detail">Prose between results needs no acceptance.</p>{/if}
+				{/if}
+			{/if}
+			<details><summary>The files the pull changes ({incoming.files.length})</summary>{#each incoming.files as f (f.path)}<details><summary>{f.path} · {f.status}</summary>{#if f.diff}<pre>{f.diff}</pre>{:else}<p class="muted">No text diff for this file.</p>{/if}</details>{/each}</details>
+		</div>
+	</div>
+</section>
+
 <style>
- .layout{display:grid;grid-template-columns:190px minmax(0,1fr)}aside{border-right:1px solid var(--rule);padding:15px}aside button{display:block;width:100%;text-align:left;border:0;padding:10px;background:none}aside button.active{background:var(--link-wash)}small{display:block;color:var(--ink-soft)}.content{padding:20px;min-width:0}.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.pair>section{min-width:0}.pair>section+section{border-left:1px solid var(--rule);padding-left:24px}h3,.muted,summary{font-size:12px;color:var(--ink-soft)}pre{white-space:pre-wrap;overflow-wrap:anywhere}.compact{display:none}nav,footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:24px;padding-top:16px;border-top:1px solid var(--rule)}nav span,footer p{flex:1}details{margin:12px 0}.pair :global(.review-changed){background:var(--state-stale-wash)}
- @media(max-width:1100px){.layout{grid-template-columns:1fr}aside{display:none}.compact{display:block}.content{padding:18px 0}}
- @media(max-width:560px){.pair{grid-template-columns:1fr}.pair>section+section{border-left:0;border-top:1px solid var(--rule);padding:18px 0}select{max-width:100%}}
+	.step {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--gap-tight);
+		font-size: 12.5px;
+	}
+	.at {
+		font-variant-numeric: tabular-nums;
+		color: var(--ink-soft);
+	}
+	.now {
+		flex: 1;
+		min-width: 8em;
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.accept,
+	.whole {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		color: var(--ink-soft);
+	}
+	.lead {
+		color: var(--ink-soft);
+		font-size: 13px;
+	}
+	.workspace {
+		display: grid;
+		grid-template-columns: 220px minmax(0, 1fr);
+		gap: var(--gap-wide);
+		align-items: start;
+	}
+	aside {
+		border-right: 1px solid var(--rule);
+		padding-right: var(--gap);
+	}
+	.row {
+		all: unset;
+		box-sizing: border-box;
+		display: block;
+		width: 100%;
+		padding: 4px 6px;
+		border-radius: var(--rad-pill);
+		cursor: pointer;
+		font-size: 12.5px;
+	}
+	.row:hover {
+		background: var(--sheet);
+	}
+	.row.active {
+		background: var(--link-wash);
+	}
+	.row .name {
+		display: block;
+		overflow-wrap: anywhere;
+	}
+	.row small {
+		color: var(--ink-faint);
+	}
+	.change {
+		min-width: 0;
+	}
+	.change h2 {
+		font: 400 21px/1.3 Georgia, serif;
+		margin: 0;
+	}
+	.detail {
+		margin: 4px 0;
+		font-size: 12.5px;
+		color: var(--ink-soft);
+	}
+	.pair {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: var(--gap-wide);
+		margin-top: var(--gap);
+	}
+	.pair > div + div {
+		border-left: 1px solid var(--rule);
+		padding-left: var(--gap-wide);
+	}
+	.pair h4 {
+		margin: 0 0 6px;
+		font-size: 11.5px;
+		font-weight: 500;
+		color: var(--ink-faint);
+	}
+	.pair :global(.review-changed) {
+		background: var(--state-accepted-wash);
+	}
+	pre {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		font-size: 12px;
+	}
+	details {
+		margin: var(--gap) 0;
+		font-size: 12.5px;
+	}
+	@media (max-width: 1100px) {
+		.workspace {
+			grid-template-columns: 1fr;
+		}
+		aside {
+			border-right: 0;
+			max-height: 30vh;
+			overflow-y: auto;
+		}
+	}
+	@media (max-width: 560px) {
+		.pair {
+			grid-template-columns: 1fr;
+		}
+		.pair > div + div {
+			border-left: 0;
+			padding-left: 0;
+		}
+	}
 </style>

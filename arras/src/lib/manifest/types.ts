@@ -247,7 +247,8 @@ export interface AdoptionReview {
   source: string;
   label: string;
   fingerprint: string;
-  changes: {key: string; name: string | null; class: string; current: string; proposed: string; math_changed: boolean; incoming_macros: string; local: string | null; incoming: string | null; documents: string[]; affected: {key: string; citation: string | null}[]}[];
+  /** Each result the copy changes: `class` is new, proposal-only, removed, separate-result, merged (both sides changed it and their edits fall apart line by line, `merged` the text), or conflict (their edits clash: shown, never offered). `proposed_key` is the copy's own key for it, which names it. */
+  changes: {key: string; name: string | null; class: string; current: string; proposed: string; merged?: string; offered?: boolean; proposed_key?: string | null; math_changed: boolean; incoming_macros: string; local: string | null; incoming: string | null; documents: string[]; affected: {key: string; citation: string | null}[]}[];
   document_changed: boolean;
   document_conflict: boolean;
   document_diff: string;

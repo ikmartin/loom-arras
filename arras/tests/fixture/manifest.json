@@ -614,14 +614,16 @@
      "documents": [
       "drafting/main.tex"
      ],
-     "incoming": "fragments/incoming/24dbd8fc1b6d277c80ae-proposal.html",
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming": "fragments/incoming/dfbcf30c7d01fc171c05-proposal.html",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-0001",
-     "local": "fragments/incoming/24dbd8fc1b6d277c80ae-local.html",
+     "local": "fragments/incoming/dfbcf30c7d01fc171c05-local.html",
      "math_changed": true,
+     "merged": "",
      "name": "Widget",
-     "offered": true,
-     "proposed": "\\begin{definition}[Widget]\\label{sy-0001}\nA \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its \\emph{fixed locus} is\n\\begin{equation}\\label{eq:fix}\n\\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.\n\\end{equation}\n\\end{definition}"
+     "offered": false,
+     "proposed": "\\begin{definition}[Widget]\\label{sy-0001}\nA \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its \\emph{fixed locus} is\n\\begin{equation}\\label{eq:fix}\n\\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.\n\\end{equation}\n\\end{definition}",
+     "proposed_key": "sy-0001-ai"
     },
     {
      "affected": [
@@ -653,26 +655,19 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/f0c1b0a9d909f0e852da-proposal.html",
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming": "fragments/incoming/13874fa74892a00e75a6-proposal.html",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-0002",
-     "local": "fragments/incoming/f0c1b0a9d909f0e852da-local.html",
+     "local": "fragments/incoming/13874fa74892a00e75a6-local.html",
      "math_changed": true,
+     "merged": "",
      "name": "Orbits",
      "offered": true,
-     "proposed": "\\begin{lemma}[Orbits]\\label{sy-0002}\nEvery orbit of a widget has at most two points, and one exactly when its point is fixed; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.\n\\end{lemma}"
+     "proposed": "\\begin{lemma}[Orbits]\\label{sy-0002}\nEvery orbit of a widget has at most two points, and one exactly when its point is fixed; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.\n\\end{lemma}",
+     "proposed_key": "sy-0002-ai"
     },
     {
-     "affected": [
-      {
-       "citation": "cite-drafting-sections-results-tex-444-sy-0008",
-       "key": "sy-0007/proof"
-      },
-      {
-       "citation": "cite-drafting-sections-appendix-tex-318-sy-0008",
-       "key": "sy-000C/proof"
-      }
-     ],
+     "affected": [],
      "base": "% !LOOM see: sy-7777, def:gadget\n\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}",
      "class": "proposal-only",
      "current": "% !LOOM see: sy-7777, def:gadget\n\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}",
@@ -680,14 +675,16 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/cee490dfec7006edf7b6-proposal.html",
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming": "fragments/incoming/016c710bdb307535629c-proposal.html",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-0008",
-     "local": "fragments/incoming/cee490dfec7006edf7b6-local.html",
-     "math_changed": true,
+     "local": "fragments/incoming/016c710bdb307535629c-local.html",
+     "math_changed": false,
+     "merged": "",
      "name": "Gadget",
      "offered": true,
-     "proposed": "\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}"
+     "proposed": "\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}",
+     "proposed_key": "sy-0008-ai"
     },
     {
      "affected": [
@@ -703,13 +700,15 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-0202",
-     "local": "fragments/incoming/22602ac48216672fc639-local.html",
+     "local": "fragments/incoming/e5fd3538701f7dd5e254-local.html",
      "math_changed": true,
+     "merged": "",
      "name": null,
      "offered": true,
-     "proposed": ""
+     "proposed": "",
+     "proposed_key": null
     },
     {
      "affected": [],
@@ -720,13 +719,15 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-0202/proof",
-     "local": "fragments/incoming/e02247a232aaad920037-local.html",
+     "local": "fragments/incoming/1bdb78ca74b99b026866-local.html",
      "math_changed": true,
+     "merged": "",
      "name": null,
      "offered": true,
-     "proposed": ""
+     "proposed": "",
+     "proposed_key": null
     },
     {
      "affected": [],
@@ -734,19 +735,21 @@
      "class": "new",
      "current": "",
      "documents": [],
-     "incoming": "fragments/incoming/d34159a3236e8b6e5c28-proposal.html",
-     "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+     "incoming": "fragments/incoming/23afdc96ebb599535f9f-proposal.html",
+     "incoming_macros": "adopt:58e436a4cff47fd80f57",
      "key": "sy-999C",
      "local": null,
      "math_changed": true,
+     "merged": "",
      "name": "sy-999C",
      "offered": true,
-     "proposed": "\\begin{definition}[Orbit pair]\\label{sy-999C}\nAn \\emph{orbit pair} is an orbit with two points.\n\\end{definition}"
+     "proposed": "\\begin{definition}[Orbit pair]\\label{sy-999C}\nAn \\emph{orbit pair} is an orbit with two points.\n\\end{definition}",
+     "proposed_key": "sy-999C-ai"
     }
    ],
    "choices": {
     "document": false,
-    "fingerprint": "5d502ff30b653ab44ff0b6df046990c59fce0b213c6fafda41551e2e708b9df9",
+    "fingerprint": "58e436a4cff47fd80f57813ad47f4d05d49528325cf7b5280dffe0aa32874c17",
     "invalidated": [],
     "kept": [],
     "keys": [],
@@ -758,13 +761,13 @@
    "document_comparison": {
     "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
     "incoming": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-incoming.html",
-    "incoming_macros": "adopt:5d502ff30b653ab44ff0",
+    "incoming_macros": "adopt:58e436a4cff47fd80f57",
     "local": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-local.html",
     "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
    },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -144,10 +146,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -157,10 +156,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
-   "fingerprint": "5d502ff30b653ab44ff0b6df046990c59fce0b213c6fafda41551e2e708b9df9",
+   "fingerprint": "58e436a4cff47fd80f57813ad47f4d05d49528325cf7b5280dffe0aa32874c17",
    "issues": [],
    "kind": "adopt",
    "label": "Incoming from agent document “aidoc”",
@@ -4906,7 +4909,7 @@
      "name": "Hom"
     }
    ],
-   "adopt:5d502ff30b653ab44ff0": [
+   "adopt:58e436a4cff47fd80f57": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",

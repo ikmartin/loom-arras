@@ -57,13 +57,14 @@ test('narrow layouts collapse the queue before stacking the comparison', async (
  })).toBe(true);
 });
 
-test('prose is inspected in Incoming without mathematical acceptance controls', async ({page}) => {
+test('prose is inspected in Incoming without mathematical acceptance controls, and a pull says it is taken whole', async ({page}) => {
  await serve(page,m=>{m.contributions=[];m.incoming={workspace:'https://git.overleaf.com/0123',branch:'master',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[{status:'M',path:'drafting/main.tex',diff:'-Old prose\n+New prose'}],changes:[{key:'prose:setup',name:'Introduction',category:'prose',kind:'edited',local_changed:false,conflict:false,already_local:false,current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',kind:'edited',current:'Old definition',proposed:'New definition',local_changed:false,conflict:false,already_local:false,affected:[]}]};});
  await page.goto('/review/incoming');
  await expect(page.getByText('Old prose',{exact:true})).toBeVisible();
  await expect(page.getByText('New prose',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Mark OK'})).toHaveCount(0);
- await expect(page.getByTestId('incoming-incorporation')).toContainText('Applies the whole pull.');
+ await expect(page.getByTestId('contribution-bar')).toContainText('A pull is taken whole.');
+ await expect(page.getByTestId('accept-checked')).toHaveCount(0);
  await page.getByRole('button',{name:'Next change'}).click();
  await expect(page.getByText('New definition',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Previous change'}).click();
@@ -113,17 +114,20 @@ test('Incoming accepts only explicitly chosen mathematics while incorporating th
  await page.route('**/_api/sync-incorporate',async route=>{submitted=route.request().postDataJSON();await route.fulfill({json:{ok:true,result:{accepted:['sy-0001'],pending:['sy-0001:proof']}}});});
  await page.goto('/review/incoming');
  await expect(page.getByRole('heading',{name:'Introduction',exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveCount(0);
+ // prose asks for no acceptance; a block of mathematics is accepted only where it is marked as checked
+ const checked = page.getByTestId('accept-checked');
+ await expect(checked).toHaveCount(0);
  await page.getByRole('button',{name:'Next change',exact:true}).click();
- await expect(page.getByRole('button',{name:'Accept',exact:true})).toBeEnabled();
- await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveAttribute('aria-pressed','false');
- await page.getByRole('button',{name:'Accept',exact:true}).click();
+ await expect(checked).toBeEnabled();
+ await expect(checked).not.toBeChecked();
+ await checked.check();
  expect(submitted).toBeNull();
  await page.getByRole('button',{name:'Next change',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Existing proof',exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveAttribute('aria-pressed','false');
- await page.getByRole('button',{name:'Keep for review',exact:true}).click();
- await page.getByRole('button',{name:'Incorporate pull & accept 1 block',exact:true}).click();
+ await expect(checked).not.toBeChecked();
+ await expect(page.getByTestId('contribution-bar')).toContainText('1 marked as checked');
+ await page.getByTestId('apply').click();
+ await expect(page.getByTestId('contribution-bar-said')).toContainText('Took the pull: 1 accepted, 1 wait in Needs review.');
  expect(submitted.accept).toEqual(['sy-0001']);
  expect(submitted.incoming).toBe('b'.repeat(40));
  expect(submitted.review_token).toBe('preview');

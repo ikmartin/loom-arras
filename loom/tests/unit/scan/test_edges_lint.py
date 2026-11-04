@@ -100,3 +100,22 @@ def test_labels_with_spaces_commas_and_wrapped_refs(tmp_path: Path) -> None:
     assert "#1" not in " ".join(r.assembly.labels)
     targets = {e.to for e in r.edges.edges if e.src == "drafting/main.tex#lemma:1"}
     assert targets == {"ab-0002", "ab-0003"}
+
+
+def test_a_reference_into_a_document_named_by_externaldocument_is_not_loose(tmp_path):
+    """A master that reads another's `.aux` by `\\externaldocument` reaches what that document defines, so its references there are not loose; one that names no such document still is (plan 0.25.2)."""
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    (tmp_path / "config.toml").write_text('[quilt]\nname="t"\nprefix="zz"\nmain="paper.tex"\n')
+    body = "\\newtheorem{lemma}{Lemma}\n\\begin{document}\n"
+    (tmp_path / "paper.tex").write_text(
+        "\\documentclass{article}\n" + body + "\\begin{lemma}\\label{zz-0001}\nA.\n\\end{lemma}\n\\end{document}\n"
+    )
+    cites = "\\begin{lemma}\\label{zz-0002}\nBy \\ref{zz-0001}.\n\\end{lemma}\n\\end{document}\n"
+    (tmp_path / "examples.tex").write_text(
+        "\\documentclass{article}\n\\usepackage{xr-hyper}\n\\externaldocument{.loom/build/paper/paper}\n" + body + cites
+    )
+    (tmp_path / "other.tex").write_text("\\documentclass{article}\n" + body + cites.replace("zz-0002", "zz-0003"))
+    loose = [d for d in scan(load_quilt(tmp_path)).lint if d.code == "loom:reference-to-loose"]
+    assert [d.keys[0] for d in loose] == ["zz-0003"]

@@ -219,7 +219,8 @@ def attach_adoptions(
             choices = decisions(result, copy, manifest.get("reviewer", {}).get("name"), data=data)
             rows = []
             for row in data["changes"]:
-                if not row["offered"]:
+                # a clash is shown, never offered, so the person sees why it can't be taken
+                if not row["offered"] and row["class"] != "conflict":
                     continue
                 key = row["key"]
                 original = next(
@@ -235,7 +236,8 @@ def attach_adoptions(
                 manifest["macros"]["sets"][macro_name] = to_mathjax(
                     parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
                 )
-                before, after = row["current"], row["proposed"]
+                # a merged result is shown as it would be written: both edits, line by line
+                before, after = row["current"], row["merged"] or row["proposed"]
                 left, right = _changed(before, after)
                 digest = hashlib.sha256((data["fingerprint"] + key).encode()).hexdigest()[:20]
                 local_path = f"fragments/incoming/{digest}-local.html"
@@ -276,6 +278,7 @@ def attach_adoptions(
                         "incoming_macros": macro_name,
                         "local": local_path if local_node else None,
                         "incoming": proposed_path if proposed_node else None,
+                        "proposed_key": derived if proposed_node else None,
                         "affected": affected,
                     }
                 )

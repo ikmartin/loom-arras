@@ -48,7 +48,7 @@ Source and structure:
 - `loom:unknown-environment` (error): a theorem-like environment the preamble closure does not declare; fix with `% !LOOM environment:`.
 - `loom:unattached-proof` (error): a `proof` neither adjacent to a node nor referencing one.
 - `loom:multi-target-proof` (warning): a proof's optional argument references several nodes; attached to the first.
-- `loom:reference-to-loose` (error in masters, info in loose files): a reference to a node the master does not reach; never for a target in a digest file, which is loose by construction (DR-76).
+- `loom:reference-to-loose` (error in masters, info in loose files): a reference to a node the master does not reach; never for a target in a digest file, which is loose by construction (DR-76). A master reaches what it includes and what the documents it names in `\externaldocument{…}` (`xr`, `xr-hyper`) define, the argument matched by its file name's stem among the masters.
 - `loom:duplicate-label` (error): a non-id label defined twice anywhere in the quilt.
 - `loom:macros-unloaded` (error): `\uses`, `\incomplete`, or `\nest` used in a master that carries neither loom's macro block nor `\usepackage{loom}` with a `loom.sty` beside it.
 - `loom:macro-shadowed` (warning): the preamble defines one of the three names outside loom's macro block and `loom.sty`.

@@ -1,1 +1,0 @@
-import{N as e,c as t}from"./Bd7uw-1F.js";import{a as n,n as r}from"./CYwhkYYN.js";function i(i,a){return a.path===i.research_state?.path?e(`/page/state`):a.kind===`document`?t(a.path):n(i,r(i,a.path))}export{i as t};

@@ -30,13 +30,18 @@ Second statement uses \ref{zk-0001}.
 
 @pytest.fixture
 def quilt(tmp_path: Path):
+    return made(tmp_path, TEXT)
+
+
+def made(tmp_path: Path, text: str):
+    """A quilt whose one document is `text`, with an agent's copy of it recorded."""
     from loom.scan.quilt import save_author
 
     save_author("Tester")
     (tmp_path / "drafting").mkdir()
     (tmp_path / ".loom" / "copies").mkdir(parents=True)
     (tmp_path / "config.toml").write_text('[quilt]\nname="test"\nprefix="zk"\nmain="drafting/main.tex"\n')
-    (tmp_path / DOC).write_text(TEXT)
+    (tmp_path / DOC).write_text(text)
     q = load_quilt(tmp_path)
     result = scan(q)
     history = load_history(q.history_dir)
@@ -81,7 +86,7 @@ def test_stale_preview_and_conflict(quilt):
         incorporate(scan(quilt), COPY, preview["token"])
     assert (quilt.root / DOC).read_text() == TEXT
     edit(quilt, "First statement.", "Author change.", DOC)
-    with pytest.raises(SyncError, match="both versions"):
+    with pytest.raises(SyncError, match="both changed it and the edits clash"):
         prepare(scan(quilt), COPY)
 
 
@@ -718,3 +723,41 @@ def test_a_preview_of_results_says_the_prose_that_waits_and_only_true_caveats(qu
     edit(quilt, "Second statement", "Second proposal")
     out = " ".join(ok("adopt", COPY, "zk-0001", cwd=quilt.root).stdout.split())
     assert "1 proposal not selected stay in the agent document" in out, out
+
+
+LONG = TEXT.replace("First statement.", "Line one.\nLine two.\nLine three.")
+
+
+def test_both_sides_editing_one_result_merge_when_their_lines_fall_apart(tmp_path):
+    """A result you and the agent both changed is merged line by line; a clean merge is offered as `merged`, writes both edits, and is not offered again (plan 0.25.2)."""
+    q = made(tmp_path, LONG)
+    edit(q, "Line one.", "Line one, by the agent.")
+    edit(q, "Line three.", "Line three, by the author.", DOC)
+    row = next(r for r in comparison(scan(q), COPY)["changes"] if r["key"] == "zk-0001")
+    assert row["class"] == "merged" and row["offered"]
+    assert "by the agent" in row["merged"] and "by the author" in row["merged"]
+    preview = prepare(scan(q), COPY, ["zk-0001"])
+    incorporate(scan(q), COPY, preview["token"])
+    text = (q.root / DOC).read_text()
+    assert "Line one, by the agent." in text and "Line three, by the author." in text
+    after = next(r for r in comparison(scan(q), COPY)["changes"] if r["key"] == "zk-0001")
+    assert not after["offered"]
+
+
+def test_edits_that_clash_are_shown_but_cannot_be_chosen(tmp_path):
+    from loom.adopt import decide
+
+    q = made(tmp_path, LONG)
+    edit(q, "Line two.", "Line two, the agent's.")
+    edit(q, "Line two.", "Line two, the author's.", DOC)
+    data = comparison(scan(q), COPY)
+    row = next(r for r in data["changes"] if r["key"] == "zk-0001")
+    assert row["class"] == "conflict" and not row["offered"]
+    with pytest.raises(SyncError, match="edits clash"):
+        decide(scan(q), COPY, ["zk-0001"], False, data["fingerprint"], "Tester")
+
+
+def test_a_change_only_in_a_leading_directive_is_not_a_change_to_the_mathematics(quilt):
+    edit(quilt, "\\begin{lemma}\\label{zk-0001-ai}", "% !LOOM see: zk-0002\n\\begin{lemma}\\label{zk-0001-ai}")
+    row = next(r for r in comparison(scan(quilt), COPY)["changes"] if r["key"] == "zk-0001")
+    assert row["offered"] and not row["math_changed"]

@@ -111,9 +111,20 @@ def test_a_landmark_stamp_requires_a_message_and_refuses_a_conflicted_key(tmp_pa
     node.write_text("\\begin{lemma}\\label{pp-0002}\nA second definition.\n\\end{lemma}\n", encoding="utf-8")
     main = q / "main" / "main.tex"
     main.write_text(main.read_text().replace("\\end{document}", "\\input{nodes/pp-0002}\n\\end{document}"))
-    r = refused("stamp", "main/main.tex", "-m", "x", cwd=q, code=1, match="defined by two files")
+    r = refused("stamp", "main/main.tex", "-m", "x", cwd=q, code=1, match="reaches two definitions of")
     assert "pp-0002" in r.output
     assert len(ledger(q)) == 1 and not (q / ".loom" / "history" / "0002-x").exists()
+
+
+def test_a_duplicate_the_document_reaches_once_does_not_refuse_its_landmark(tmp_path: Path) -> None:
+    """The second definition lives in a file no part of the document reads, so the document has one text for the key; the stamp keeps it and leaves the key unversioned, as the freeze leaves every conflicted key (plan 0.25.2)."""
+    q = quilt(tmp_path)
+    (q / "elsewhere.tex").write_text(
+        "\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n\\begin{lemma}\\label{pp-0002}\nA second definition.\n\\end{lemma}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    ok("stamp", "main/main.tex", "-m", "x", cwd=q)
+    assert ledger(q)[-1]["landmark"]
 
 
 def test_stamp_records_only_what_moved(tmp_path: Path) -> None:

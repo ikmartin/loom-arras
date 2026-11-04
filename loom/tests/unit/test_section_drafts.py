@@ -225,6 +225,16 @@ def test_missing_preamble_definition_requires_explicit_choice(quilt):
     assert "newcommand" in p["patch"]
 
 
+def test_a_macro_the_paper_already_has_is_not_asked_for(quilt):
+    """Redefining a macro, or using one a loaded `.sty` defines, adds nothing the paper lacks, so the preamble isn't asked for (plan 0.25.2)."""
+    (quilt.root / "drafting/defs.sty").write_text("\\newcommand{\\fromsty}{y}\n")
+    edit(quilt, DOC, "\\begin{document}", "\\usepackage{defs}\n\\newcommand{\\term}{t}\n\\begin{document}")
+    a = copy(quilt)
+    edit(quilt, a, "\\begin{document}", "\\renewcommand{\\term}{T}\n\\begin{document}")
+    edit(quilt, a, "First statement.", r"Now $\term$ and $\fromsty$.")
+    assert prepare(scan(quilt), a, ["zk-0001"])["patch"]
+
+
 def test_source_move_keeps_scope_and_current_destination(quilt):
     from tests.helpers import ok
 

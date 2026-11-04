@@ -37,32 +37,34 @@ for (const width of [736, 1100, 1440]) {
   await page.goto('/review/incoming');
   await expect(page.getByLabel('Contribution')).toContainText('first-scope');
   await page.getByLabel('Contribution').selectOption('.loom/copies/first-scope.tex');
-  const row = page.getByTestId('adoption-sy-0A01');
-  const use = row.getByRole('button',{name:'Use proposed version',exact:true});
-  await expect(row).toContainText('Proposed');
-  await expect(page.getByRole('button',{name:'Preamble changes Not selected',exact:true})).toBeVisible();
-  await expect(row.locator('mjx-container').first()).toBeVisible();
-  const math = await row.locator('mjx-container').first().elementHandle();
-  const poll = page.waitForResponse(r => r.url().endsWith('/build/manifest.json') && r.status() === 200);
+  const row = page.locator('[data-testid="change-row"][data-key="sy-0A01"]');
+  const shown = page.getByTestId('change-shown');
+  await row.click();
+  await expect(shown).toContainText('Proposed');
+  await expect(page.locator('[data-testid="change-row"][data-key="preamble"]')).toContainText('to decide');
+  await expect(shown.locator('mjx-container').first()).toBeVisible();
   const [decision] = await Promise.all([
    page.waitForResponse(r => r.url().endsWith('/_api/adopt-decision')),
-   use.click()
+   page.getByTestId('take-it').click()
   ]);
   expect(decision.ok(), await decision.text()).toBe(true);
-  await expect(use).toHaveAttribute('aria-pressed','true');
-  await poll;
-  expect(await math!.evaluate(node => node.isConnected)).toBe(true);
-  await row.getByRole('button',{name:'Leave out for now',exact:true}).click();
-  await expect(use).toHaveAttribute('aria-pressed','false');
-  await use.click();
-  await expect(use).toHaveAttribute('aria-pressed','true');
-  await page.getByRole('button',{name:'Preamble changes Not selected',exact:true}).click();
-  await expect(page.getByLabel('Include preamble changes')).not.toBeChecked();
-  await page.getByLabel('Include preamble changes').check();
-  await page.getByRole('button',{name:'Preview selected changes',exact:true}).click();
-  await expect(page.getByTestId('adoption-preview')).toContainText('Mathematics affected');
-  await expect(page.getByTestId('adoption-preview')).toContainText('Preamble changes included');
-  await page.getByRole('button',{name:'Incorporate selected changes',exact:true}).click();
+  await expect(row).toHaveAttribute('data-state','taken');
+  // taking it steps on to the next change to decide, and the next manifest redraws nothing of what is now shown
+  await expect(page.getByTestId('change-at')).not.toHaveText(/^1 of /);
+  const drawn = await shown.locator('h2').elementHandle();
+  await page.waitForResponse(r => r.url().endsWith('/build/manifest.json') && r.status() === 200);
+  expect(await drawn!.evaluate(node => node.isConnected)).toBe(true);
+  await row.click();
+  await page.getByTestId('leave-it').click();
+  await expect(row).toHaveAttribute('data-state','left');
+  await row.click();
+  await page.getByTestId('take-it').click();
+  await expect(row).toHaveAttribute('data-state','taken');
+  // the preamble is taken the same way as a result, from its row
+  await page.locator('[data-testid="change-row"][data-key="preamble"]').click();
+  await page.getByTestId('take-it').click();
+  await expect(page.locator('[data-testid="change-row"][data-key="preamble"]')).toHaveAttribute('data-state','taken');
+  await page.getByTestId('apply').click();
   await expect.poll(() => readFileSync(join(served.root,sourcePath),'utf8')).toContain('Proposed');
   const applied = readFileSync(join(served.root,sourcePath),'utf8');
   expect(applied).toContain('First prose.');

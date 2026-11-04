@@ -164,17 +164,29 @@ def write_step(
     return append_entry(history.dir, action, data, actor)
 
 
+def conflicted_in(result: ScanResult, doc: str) -> list[str]:
+    """The keys `doc` itself reaches two definitions of, which a landmark of it can't keep one text for.
+
+    A conflicted key's placeholder is reached by every master that reaches any of its files, but each definition is a record of its own with its own reach, so a document reaching only one of them has one text and is not refused.
+    """
+    count: dict[str, int] = {}
+    for n in result.nodes.values():
+        if n.conflict_of and doc in n.reached_by:
+            count[n.conflict_of] = count.get(n.conflict_of, 0) + 1
+    return sorted(k for k, c in count.items() if c > 1)
+
+
 def plan_document_stamp(result: ScanResult, history: History, doc: str) -> tuple[FreezePlan, str]:
     """What stamping the live drafting document `doc` would record: the freeze of the keys it reaches, and its flat text.
 
-    Shared by `stamp_document` and `loom stamp DOCUMENT --dry-run`. Raises ValueError when the document reaches a conflicted key, which has no one text to keep.
+    Shared by `stamp_document` and `loom stamp DOCUMENT --dry-run`. Raises ValueError when the document reaches two definitions of a key, which has no one text to keep; a duplicate it reaches once is skipped by the freeze, as every conflicted key is.
     """
     from loom.reshape.linearize import flatten
 
-    conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and doc in n.reached_by)
+    conflicted = conflicted_in(result, doc)
     if conflicted:
         raise ValueError(
-            f"{doc} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
+            f"{doc} reaches two definitions of {', '.join(conflicted)}; a landmark needs one text per key. loom lint --nodes shows them."
         )
     return plan_freeze(result, history, document=doc, narrow_to=doc), flatten(result.quilt.root, doc).text
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from functools import cached_property
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from loom.history.ledger import History, load_history
 from loom.paths import COPIES, document_dir
@@ -24,6 +24,10 @@ from loom.scan.relations import RelationRec, find_relations
 from loom.scan.source import SKIP_DIRS, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
+
+
+#: `\externaldocument[prefix]{path}`, the argument a path to another document's `.aux` without its extension.
+EXTERNAL_DOCUMENT = re.compile(r"\\externaldocument\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
 
 
 @dataclass
@@ -59,6 +63,25 @@ class ScanResult:
     @property
     def nodes(self):  # type: ignore[no-untyped-def]
         return self.assembly.nodes
+
+    @cached_property
+    def external_reach(self) -> dict[str, frozenset[str]]:
+        """Each master's documents it reads results from by `\\externaldocument` (`xr`, `xr-hyper`): its `\\ref`s to their results resolve through their `.aux`, so they reach what they cite.
+
+        Read from the master's preamble closure, comments blanked, so a line in a loaded `.sty` counts; an argument is matched by its file name's stem among the masters, and counts only when it names one. Masters naming none are absent.
+        """
+        from loom.paths import documents_named
+
+        out: dict[str, frozenset[str]] = {}
+        for m, closure in self.closures.items():
+            named = set()
+            for arg in EXTERNAL_DOCUMENT.findall(closure.clean_text()):
+                found = documents_named(PurePosixPath(arg.strip()).name, self.masters)
+                if len(found) == 1 and found[0] != m:
+                    named.add(found[0])
+            if named:
+                out[m] = frozenset(named)
+        return out
 
     def document_trail(self, path: str) -> list[str]:
         """Every path the document a record names by `path` has had, against this scan's masters; memoised per scan, since every record naming a document asks.

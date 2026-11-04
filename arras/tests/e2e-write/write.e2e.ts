@@ -612,7 +612,7 @@ test('a suggestion taken in the source is offered as applied, which records the 
 	expect((resolution()[0].applied as { hash?: string } | undefined)?.hash).toMatch(/^sha256:/);
 });
 
-test('AI contributions preview selected changes before incorporation and leave mathematics for review', async ({ page, served }) => {
+test('an agent copy is taken back in one pass: Take it, then one Apply writes it and leaves its mathematics for review', async ({ page, served }) => {
 	const document = 'drafting/adoption-test.tex';
 	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';
 	writeFileSync(join(served.root, document), text);
@@ -622,17 +622,41 @@ test('AI contributions preview selected changes before incorporation and leave m
 	await page.goto('/review/incoming');
 	await expect(page.getByLabel('Contribution')).toContainText('adoption-proposal');
 	await page.getByLabel('Contribution').selectOption('.loom/copies/adoption-proposal.tex');
-	const row = page.getByTestId('adoption-sy-0900');
-	await expect(row).toContainText('Proposed statement');
-	await row.getByRole('button', {name: 'Use proposed version', exact: true}).click();
-	await expect(row.getByRole('button', {name: 'Use proposed version', exact: true})).toHaveAttribute('aria-pressed', 'true');
-	await page.getByRole('button', {name: 'Preview selected changes', exact: true}).click();
-	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
+	const bar = page.getByTestId('contribution-bar');
+	await expect(bar).toContainText('From adoption-proposal into adoption-test');
+	await expect(page.getByTestId('change-shown')).toContainText('Proposed statement');
+	// taking it is saved at once and writes nothing yet
+	await page.getByTestId('take-it').click();
+	await expect(page.locator('[data-testid="change-row"][data-key="sy-0900"]')).toHaveAttribute('data-state', 'taken');
+	await expect(page.getByTestId('apply')).toHaveText('Apply 1 change');
 	expect(readFileSync(join(served.root, document), 'utf8')).toBe(text);
-	await page.getByRole('button', {name: 'Incorporate selected changes', exact: true}).click();
+	// one press writes it, keeping the document as it was first
+	await page.getByTestId('apply').click();
 	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
-	// no git: the quilt is not a repository, and what the document was is kept as a landmark instead
-	await expect(page.locator('main')).toContainText('The document as it was is kept as adoption-test-before-adopt-adoption-proposal.');
+	await expect(page.locator('main')).toContainText('Took 1 change into adoption-test: 0 accepted, 1 wait in Needs review. adoption-test as it was is kept as a version.');
 	await page.goto('/review');
 	await expect(page.locator('main')).toContainText('sy-0900');
+});
+
+test('a change marked as checked is accepted as it is taken in; one left stays out', async ({ page, served }) => {
+	const document = 'drafting/accept-test.tex';
+	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n\\begin{lemma}\\label{sy-0910}\nFirst.\n\\end{lemma}\n\\begin{lemma}\\label{sy-0911}\nSecond.\n\\end{lemma}\n\\end{document}\n';
+	writeFileSync(join(served.root, document), text);
+	served.loom(['draft', document, '--ai', 'accept-proposal']);
+	const copy = join(served.root, '.loom/copies/accept-proposal.tex');
+	writeFileSync(copy, readFileSync(copy, 'utf8').replace('First.', 'First, improved.').replace('Second.', 'Second, improved.'));
+	await page.goto('/review/incoming');
+	await page.getByLabel('Contribution').selectOption('.loom/copies/accept-proposal.tex');
+	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
+	await page.getByTestId('take-it').click();
+	// taking it steps on to the next change to decide: leave that one
+	await expect(page.getByTestId('change-at')).toHaveText(/^2 of /);
+	await page.getByTestId('leave-it').click();
+	await page.locator('[data-testid="change-row"][data-key="sy-0910"]').click();
+	await page.getByTestId('accept-checked').check();
+	await page.getByTestId('apply').click();
+	await expect(page.locator('main')).toContainText('Took 1 change into accept-test: 1 accepted', { timeout: 30000 });
+	const now = readFileSync(join(served.root, document), 'utf8');
+	expect(now).toContain('First, improved.');
+	expect(now).toContain('Second.\n');
 });

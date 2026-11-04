@@ -75,6 +75,18 @@ def expand_definition_aliases(text: str) -> str:
     return text
 
 
+def redefined(text: str) -> set[str]:
+    """The names comment-blanked `text` redefines (`\\renewcommand`, `\\RenewDocumentCommand`): each assumes a definition from elsewhere, so it adds none of its own."""
+    out: set[str] = set()
+    text = expand_definition_aliases(text)
+    for m in _HEAD.finditer(text):
+        if m.group(1) in ("renewcommand", "RenewDocumentCommand"):
+            name, _ = _read_name(text, m.end())
+            if name:
+                out.add(name)
+    return out
+
+
 def parse_macros(text: str) -> dict[str, Macro]:
     """Parse every recognised definition in comment-blanked text; the returned dict maps macro name (no backslash) to its last definition."""
     text = expand_definition_aliases(text)

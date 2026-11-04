@@ -259,7 +259,8 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             diags.append(
                 Diagnostic("info", "loom:unexpected-proof", f"{key} ({n.taxon}) has a proof", [_loc(result, n)], [key])
             )
-    # references to loose nodes; equations in proofs referenced from elsewhere
+    # references to loose nodes; equations in proofs referenced from elsewhere. A master reaches what it reads by `\externaldocument` as well as what it includes.
+    external = result.external_reach
     for e in edges.edges:
         if e.via == "nested":
             continue
@@ -271,7 +272,8 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         if target.file in asm.digest_files:  # digests are loose by construction
             continue
         loose_to_loose = not src_masters and not target.reached_by and target.file != source.file
-        if (src_masters and not (src_masters & set(target.reached_by))) or loose_to_loose:
+        reach = src_masters.union(*(external.get(m, ()) for m in src_masters))
+        if (src_masters and not (reach & set(target.reached_by))) or loose_to_loose:
             sev = "error" if any(m in result.masters for m in src_masters) else "info"
             diags.append(
                 Diagnostic(

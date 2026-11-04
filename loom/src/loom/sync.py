@@ -736,13 +736,13 @@ def _stamp(
 ) -> list[str]:
     """Stamp each document as a landmark named `<stem> <name>`, refusing before any is written when one reaches a conflicted key."""
     from loom.history.ledger import load_history
-    from loom.history.steps import slug, stamp_document
+    from loom.history.steps import conflicted_in, slug, stamp_document
 
     for document in documents:
-        conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and document in n.reached_by)
+        conflicted = conflicted_in(result, document)
         if conflicted:
             raise SourceError(
-                f"{document} reaches {', '.join(conflicted)}, defined by two files each, so it has no one text to stamp; `loom lint --nodes` shows them"
+                f"{document} reaches two definitions of {', '.join(conflicted)}, so it has no one text to stamp; `loom lint --nodes` shows them"
             )
     landmarks = []
     for document in documents:

@@ -133,6 +133,16 @@ def _baseline(result: ScanResult, copy: str) -> dict[str, Any]:
     raise SyncError(f"{copy} has no recorded baseline; an agent document starts as `loom draft DOC --ai NAME`")
 
 
+#: The `% !LOOM` lines a result's text may open with, which say things about it and are not its mathematics.
+_LEADING_DIRECTIVES = re.compile(r"(?:[ \t]*%[ \t]*!LOOM[^\n]*\n)*")
+
+
+def _mathematics(text: str) -> str:
+    """A result's text without its leading `% !LOOM` lines, as the published `own_text` starts at the environment."""
+    lead = _LEADING_DIRECTIVES.match(text)
+    return text[lead.end() :] if lead else text
+
+
 def _merge(base: str, ours: str, theirs: str) -> tuple[str, bool]:
     if ours == base or ours == theirs:
         return theirs, False
@@ -221,6 +231,12 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
             kind = "removed" if theirs is None else "new" if base is None else "proposal-only"
         else:
             kind = "conflict"
+        # both sides changed it: merged line by line, as the prose and the preamble are, and offered only when the edits fall apart
+        merged = ""
+        if kind == "conflict" and ours is not None and theirs is not None:
+            text, clash = _merge(base or "", ours, theirs)
+            if not clash:
+                kind, merged = "merged", text
         outside = base is None and key in result.nodes and source not in result.nodes[key].reached_by
         if outside and theirs is not None:
             kind = "separate-result"
@@ -234,8 +250,9 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
                 "base": base or "",
                 "name": (node.directives.get("name") or node.title) if node else key,
                 "documents": node.reached_by if node else [],
-                "offered": kind not in ("unchanged", "identical", "author-only"),
-                "math_changed": pair_hash(ours or "") != pair_hash(theirs or ""),
+                "merged": merged,
+                "offered": kind not in ("unchanged", "identical", "author-only", "conflict"),
+                "math_changed": pair_hash(_mathematics(ours or "")) != pair_hash(_mathematics(merged or theirs or "")),
             }
         )
     from loom.section_drafts import split_preamble
@@ -454,15 +471,17 @@ def prepare(
     if preamble is None:
         preamble = document and data["scope"].get("kind") != "section"
     offered = {row["key"]: row for row in data["changes"] if row["offered"]}
-    selected = sorted(offered if keys is None else set(keys))
-    unknown = sorted(set(selected) - offered.keys())
+    clashing = {row["key"] for row in data["changes"] if row["class"] == "conflict"}
+    # taking everything takes the clashes too, so they are refused by name rather than quietly left
+    selected = sorted(set(offered) | clashing if keys is None else set(keys))
+    issues = [
+        f"{key}: you and the agent both changed it and the edits clash; reconcile it in your editor, then refresh the copy"
+        for key in selected
+        if key in clashing
+    ]
+    unknown = sorted(set(selected) - offered.keys() - clashing)
     if unknown:
         raise SyncError(_not_offered(unknown, data, offered))
-    issues = [
-        f"{key}: both versions changed; reconcile the two copies in your editor, run loom ai refresh, and refresh Incoming"
-        for key in selected
-        if offered[key]["class"] == "conflict"
-    ]
     if document and data["document_conflict"]:
         issues.append("Document prose or ordering conflicts; reconcile in your editor and refresh Incoming")
     if preamble and data["preamble_conflict"]:
@@ -500,7 +519,7 @@ def prepare(
         row = offered[key]
         target = _mapped(key, new_mapping)
         if row["proposed"]:
-            text = fork_bodies.get(target, row["proposed"])
+            text = fork_bodies.get(target, row.get("merged") or row["proposed"])
             bodies[target] = _rename(text, new_mapping)
         else:
             bodies.pop(key, None)
@@ -520,11 +539,18 @@ def prepare(
             bodies = {key: text.replace(_marker(row["key"]), "") for key, text in bodies.items()}
     final_text = _expand(spine, bodies)
     if not preamble and data["preamble_changed"]:
-        from loom.scan.macros import parse_macros
+        from loom.scan.macros import LOOM_MACROS, parse_macros, redefined
         from loom.scan.source import blank_comments
 
-        added = set(parse_macros(blank_comments(data["proposed_preamble"]))) - set(
-            parse_macros(blank_comments(data["current_preamble"]))
+        # what the proposal defines that the paper has nowhere: not in its preamble, not in a `.sty` it loads, not loom's own, and not merely redefined
+        proposed = blank_comments(data["proposed_preamble"])
+        closure = result.closures.get(data["source"])
+        added = (
+            set(parse_macros(proposed))
+            - set(parse_macros(blank_comments(data["current_preamble"])))
+            - set(closure.macros if closure else ())
+            - set(LOOM_MACROS)
+            - redefined(proposed)
         )
         used = set(re.findall(r"\\([A-Za-z@]+)", split_preamble(final_text)[1]))
         missing = sorted(added & used)
@@ -585,7 +611,8 @@ def prepare(
             key = _mapped(row["key"], new_mapping)
             moved["nodes"].pop(row["key"], None)
             if row["proposed"]:
-                moved["nodes"][key] = bodies[key]
+                # a merged result's next base is the copy's own text, so the person's side of the merge reads as theirs and is never offered back
+                moved["nodes"][key] = _rename(row["proposed"], new_mapping) if row.get("merged") else bodies[key]
     base_pre, base_body = split_preamble(moved["document"])
     proposed_pre, proposed_body = split_preamble(data["proposed_document"])
     moved["document"] = _rename(
@@ -1080,6 +1107,11 @@ def decide(
     if expected != data["fingerprint"]:
         raise SyncError("Contribution changed; refresh Incoming before selecting changes")
     offered = {r["key"] for r in data["changes"] if r["offered"]}
+    clash = sorted(set(keys) & {r["key"] for r in data["changes"] if r["class"] == "conflict"})
+    if clash:
+        raise SyncError(
+            f"{', '.join(clash)}: you and the agent both changed it and the edits clash, so it can't be taken until it is reconciled"
+        )
     if set(keys) - offered or set(kept or []) - {r["key"] for r in data["changes"]}:
         raise SyncError("Selection contains an unavailable proposal")
     previous = decisions(result, copy, reviewer, data=data)

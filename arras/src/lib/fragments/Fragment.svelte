@@ -86,7 +86,6 @@
 
 	async function load(p: string, hash: string) {
 		const version = ++loadVersion;
-		if (isolatedMacros) mathReady = false;
 		try {
 			const fragment = await fetchFragment(p, hash);
 			if (version !== loadVersion) return;
@@ -244,6 +243,8 @@
 
 	/** Draw the markup whole: parsed, wired and typeset from nothing. */
 	function draw(root: HTMLElement, h: string): void {
+		// a drawing waits for its own typesetting; markup already in place keeps the typesetting it has, so a new manifest alone never leaves it waiting
+		if (isolatedMacros) mathReady = false;
 		root.innerHTML = h;
 		placed = h;
 		tree = null;
