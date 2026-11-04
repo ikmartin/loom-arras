@@ -55,18 +55,16 @@ describe('notes', () => {
 });
 
 describe('Review as the meta view', () => {
-	it('leads with the changes since the look, and counts the suggestions with text to put in', () => {
+	it('leads with the person\'s text, and counts the suggestions with text to put in', () => {
 		const sections = sectionsOf(m);
-		expect(sections.map((s) => s.id)).toEqual(['changes', 'needs-review', 'incoming', 'suggestions', 'library', 'sessions', 'problems']);
-		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(1);
-		// a count is what waits for the author: an open session waits for no one, and a work with its paper and nothing to judge asks nothing
-		expect(sections.find((s) => s.id === 'library')!.waits).toBe(0);
-		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'changes')!.href);
+		expect(sections.map((s) => s.id)).toEqual(['text', 'proposed', 'problems', 'record']);
+		expect(sections.find((s) => s.id === 'text')!.waits).toBe(1);
+		// a count is what waits for the author: an open session waits for no one
+		expect(sections.find((s) => s.id === 'record')!.waits).toBe(0);
+		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'text')!.href);
 		expect(toApply(m).map((a) => a.id)).toEqual(['a-2026-10-01-0001']);
 		// one in prose alone is weighed, not applied, and not counted
 		expect(toConsider(m).map((a) => a.id)).toEqual(['a-2026-10-01-0004']);
-		expect(sections.find((s) => s.id === 'suggestions')!.waits).toBe(1);
-		// before a first look there is nothing to compare against, and no Changes
-		expect(sectionsOf({ ...m, changes_since: undefined, changes: undefined } as Manifest).map((s) => s.id)).not.toContain('changes');
+		expect(sections.find((s) => s.id === 'proposed')!.waits).toBe(1);
 	});
 });

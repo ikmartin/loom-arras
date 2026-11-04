@@ -19,8 +19,8 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 	const primary = page.getByRole('navigation', { name: 'Primary views' });
 	await expect(primary.getByRole('link')).toHaveText(['Docs', 'Review']);
 	await expect(page.getByTestId('primary-docs')).toHaveAttribute('aria-current', 'page');
-	// Review opens where something waits: here the change since the look
-	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review/changes');
+	// Review opens where something waits: here the person's text
+	await expect(page.getByTestId('primary-review')).toHaveAttribute('href', '/review');
 	// the icon strip and its views are gone; search is ⌘K alone, and what is wrong is counted in Review, not at the column's foot
 	await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCount(0);
 	await expect(page.getByTestId('column-search')).toHaveCount(0);
@@ -28,7 +28,7 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 });
 
 test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
-	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/review/library', 'review'], ['/review/sessions', 'review'], ['/review/history', 'review'], ['/master/drafting/main', 'docs']] as const) {
+	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/library', 'docs'], ['/review/record/sessions', 'review'], ['/review/record', 'review'], ['/master/drafting/main', 'docs']] as const) {
 		await page.goto(path);
 		await expect(page.getByTestId(`primary-${on}`), path).toHaveAttribute('aria-current', 'page');
 	}
@@ -119,7 +119,7 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 });
 
 test('no route reaches an unknown key from review or the problems page', async ({ page }) => {
-	// Needs review opens each block in its document, with Review's panel on a key the manifest has
+	// Your text opens each block in its document, with Review's panel on a key the manifest has
 	await page.goto('/review');
 	await expect(page.getByTestId('review-read').first()).toBeAttached();
 	const reads = await page.locator('main [data-testid="review-read"]').evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href')!));

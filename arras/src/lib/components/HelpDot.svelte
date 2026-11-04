@@ -6,12 +6,13 @@
 
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
-			title: 'What needs review shows',
-			body: "Every statement and proof of one of your documents that you have not accepted as it stands. Accepting records your reading of the text against what it rests on; it goes stale when either changes, and the block comes back here under Changed since you accepted. Blocks taken in from an agent's copy or a pull are grouped by where they came from. Read opens a block in its document with why it waits beside it. Accepting is yours alone, and nothing is accepted that you did not press Accept for.",
+			title: 'What your text shows',
+			body: "What changed in your documents and files since your look, and every statement and proof you have not accepted as it stands. A block is listed once, with every reason it waits. Keep takes an edit into your look, and Undo puts it back, keeping the text it replaces; neither says whether the mathematics is right. Accepting records your reading of the text against what it rests on, and keeps its edit too; it goes stale when either changes. Blocks taken in from an agent's copy or a pull are grouped by where they came from. A block's name opens it in its document with why it waits beside it; what loom cannot accept says why in its row.",
 			states: [
+				['edited since your look', 'its text differs from what you last saw, whoever changed it'],
 				['changed since you accepted', 'the text, or something it rests on, changed after you accepted it'],
 				['taken in', "it came in from an agent's copy or a pull, and you have not accepted it since"],
-				['never accepted', 'nothing has been recorded about this text'],
+				['never accepted', 'nothing has been recorded about this text; these are listed and not counted'],
 				["can't be accepted yet", 'it is marked incomplete, it is a conjecture or question, its basis is not said, or something it rests on cannot be identified; the row says which']
 			],
 			command: ''

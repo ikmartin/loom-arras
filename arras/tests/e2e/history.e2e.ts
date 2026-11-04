@@ -148,8 +148,8 @@ test('in a window too narrow for two panes, compare is greyed with its reason', 
 	await expect(page.getByTestId('history-compare-aidoc')).toHaveAttribute('aria-disabled', 'true');
 });
 
-test('a landmark opened from Review › History carries its draft’s menu', async ({ page }) => {
-	await page.goto('/review/history');
+test('a landmark opened from Review › Record carries its draft’s menu', async ({ page }) => {
+	await page.goto('/review/record');
 	await page.getByTestId('history-open').click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 	await expect(tabs(page, 0)).toContainText('main.tex · widgets-v3');
@@ -210,7 +210,7 @@ test('a version compared with now keeps its toolbar on one line, older and newer
 	expect(controls.y + controls.height).toBeLessThanOrEqual(box.y + box.height);
 });
 
-test('the history menu records a version from Review › History', async ({ page }) => {
+test('the history menu records a version from Review › Record', async ({ page }) => {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['history-record', 'history-restore'], token: 't' } }));
 	let posted: Record<string, unknown> | null = null;
 	await page.route('**/_api/history-record', async (route) => {
@@ -220,7 +220,7 @@ test('the history menu records a version from Review › History', async ({ page
 	await page.goto('/master/drafting/main');
 	await history(page);
 	await page.getByTestId('history-record').click();
-	await expect(page).toHaveURL(/\/review\/history\?document=drafting%2Fmain\.tex&record=1/);
+	await expect(page).toHaveURL(/\/review\/record\?document=drafting%2Fmain\.tex&record=1/);
 	await page.getByTestId('history-record-name').fill('Before referee');
 	await page.getByTestId('history-record-go').click();
 	await expect(page.getByTestId('history-bar-said')).toHaveText('Kept this version of main.tex as “Before referee”.');
@@ -237,8 +237,7 @@ test('an undo’s set-aside text is put back from everything recorded, after ask
 	await serve(page, (m) => {
 		m.history.acts.push({ action: 'undo', when: '2026-11-04T00:00:00Z', actor: 'The synthetic quilt', path: 'README.md', from: 'sha256:abc', to: 'sha256:def' });
 	});
-	await page.goto('/review/history');
-	await page.getByTestId('history-acts').locator('summary').click();
+	await page.goto('/review/record/acts');
 	const undo = page.getByTestId('history-act').first();
 	await expect(undo).toContainText('Undid an edit to README.md');
 	await undo.getByTestId('history-put-back').click();

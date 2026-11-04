@@ -1,4 +1,4 @@
-// Review › Suggestions read from the manifest: the open ones split by what they are (text to put in, or prose to weigh), the document each is on in the person's words, and who wrote it. Model facts in, display facts out.
+// Suggestions read from the manifest: the open ones split by what they are (text to put in, or prose to weigh), the document each is on in the person's words, and who wrote it. Model facts in, display facts out.
 import { isAgentDocument } from '$lib/manifest/documents';
 import type { Annotation, Manifest } from '$lib/manifest/types';
 

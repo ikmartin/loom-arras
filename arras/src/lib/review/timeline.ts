@@ -1,4 +1,4 @@
-// A document's versions as Review › History and a version's toolbar read them: each labelled by the act it was kept at, oldest first; and every act of the history said in words. Model facts in, display facts out.
+// A document's versions as Review › Record and a version's toolbar read them: each labelled by the act it was kept at, oldest first; and every act of the history said in words. Model facts in, display facts out.
 import type { CanonDoc, HistoryAct, Manifest } from '$lib/manifest/types';
 
 const file = (p: string) => p.split('/').pop() ?? p;
@@ -33,14 +33,17 @@ function beside(a: HistoryAct): boolean {
 	return a.action === 'stamp' && !!a.kept_for && ['keep', 'undo', 'restore'].includes(a.kept_for);
 }
 
+/** How much of a file an act took: one change, several, or the edit as a whole. */
+const changesWord = (a: HistoryAct) => (!a.hunks ? 'an edit' : a.hunks.length === 1 ? 'one change' : `${a.hunks.length} changes`);
+
 /** What an act was, in words: "Kept an edit to intro.tex", "Undid an edit to README.md", "Recorded the version “Before referee” of main.tex"… An act loom does not know is said by its name. */
 export function actWords(a: HistoryAct): string {
 	const of = a.in ? ` of ${file(a.in)}` : '';
 	switch (a.action) {
 		case 'keep':
-			return a.path ? `Kept ${a.hunk !== undefined ? 'one change' : 'an edit'} to ${file(a.path)}` : `Kept every change (${a.paths?.length ?? 0} files)`;
+			return a.path ? `Kept ${changesWord(a)} to ${file(a.path)}` : `Kept every change (${a.paths?.length ?? 0} files)`;
 		case 'undo':
-			return a.to === undefined || a.to === null ? `Removed the new file ${file(a.path ?? '')}, keeping its text` : `Undid ${a.hunk !== undefined ? 'one change' : 'an edit'} to ${file(a.path ?? '')}`;
+			return a.to === undefined || a.to === null ? `Removed the new file ${file(a.path ?? '')}, keeping its text` : `Undid ${changesWord(a)} to ${file(a.path ?? '')}`;
 		case 'restore':
 			return a.path ? `Put back in ${file(a.path)} the text an undo set aside` : `Put ${file(a.in ?? '')} back as a version`;
 		case 'import':
@@ -70,7 +73,7 @@ export function actWords(a: HistoryAct): string {
 	}
 }
 
-/** The acts Review › History lists, newest first; with `doc`, only those about it or one of the files it is made of (`files`). */
+/** The acts Review › Record lists, newest first; with `doc`, only those about it or one of the files it is made of (`files`). */
 export function actsOf(m: Pick<Manifest, 'history'>, doc = '', files: Set<string> = new Set()): HistoryAct[] {
 	const acts = (m.history?.acts ?? []).filter((a) => !beside(a));
 	const mine = doc ? acts.filter((a) => a.in === doc || (a.path && files.has(a.path)) || (a.paths ?? []).some((p) => files.has(p))) : acts;

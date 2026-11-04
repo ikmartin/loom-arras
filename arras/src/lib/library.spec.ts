@@ -154,7 +154,7 @@ describe("a work's results on its Info", () => {
 	});
 });
 
-describe('Review › Library', () => {
+describe("the library's page", () => {
 	it('says what each row needs: authors, by hand, where its digest came from, its overview and where it is cited', () => {
 		const m = structuredClone(fixture);
 		const kre = ledgerRow(m, m.references.Kre99, reachedExternal(m));

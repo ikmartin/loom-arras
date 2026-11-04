@@ -207,7 +207,7 @@ def attach_incoming(
 def attach_adoptions(
     result: ScanResult, renderer: Any, manifest: dict[str, Any], files: dict[str, str | bytes]
 ) -> None:
-    """Publish agent documents' changes beside the optional workspace pull in Incoming."""
+    """Publish agent documents' changes beside the optional workspace pull."""
     from loom.adopt import comparison, decisions
     from loom.history.ledger import load_history
     from loom.reshape.copy import derived_key

@@ -25,8 +25,8 @@ test("the person's problems come first, open and counted, and the rest folded be
 	await expect(mine.getByTestId('problem')).toHaveCount(yours.length);
 	await expect(mine.getByTestId('problem').first()).toBeVisible();
 	for (const part of ['problems-copy', 'problems-works', 'problems-remarks']) await expect(page.getByTestId(part)).not.toHaveAttribute('open');
-	await expect(page.getByTestId('problems-copy')).toContainText('Incoming');
-	await expect(page.getByTestId('problems-copy').locator('a[href="/review/incoming"]')).toHaveCount(1);
+	await expect(page.getByTestId('problems-copy')).toContainText('Proposed to you');
+	await expect(page.getByTestId('problems-copy').locator('a[href="/review/proposed"]')).toHaveCount(1);
 	// a cited work's problems stand under the work, which links to its page; with no publisher, digesting again is a command to copy
 	await page.getByTestId('problems-works').locator('summary').first().click();
 	const work = page.locator('[data-testid="problem-work"][data-work="Kre99"]');
@@ -99,4 +99,14 @@ test('a fix is copied, and the page is read at rest with its bar drawn', async (
 		expect((await page.evaluate(() => navigator.clipboard.readText())).length).toBeGreaterThan(0);
 	}
 	expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarColor)).not.toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
+});
+
+test('a work with no paper to read links to its row in the library, where one is filed or stopped being asked for', async ({ page }) => {
+	await page.goto('/review/problems');
+	const link = page.getByTestId('problems-yours').getByTestId('problem-library').first();
+	await expect(link).toHaveText('In the library');
+	await expect(link).toHaveAttribute('href', /^\/library\?q=/);
+	await link.click();
+	await expect(page.getByTestId('library-works')).toBeVisible();
+	await expect(page.getByTestId('library-works').locator('tbody tr').first()).toBeVisible();
 });

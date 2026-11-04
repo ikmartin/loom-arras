@@ -1,4 +1,4 @@
-"""Review › Needs review: every block of the person's not freshly accepted is listed with why, and accepted from the viewer only as far as loom can accept it."""
+"""Review › Your text: every block of the person's not freshly accepted is listed with why, and accepted from the viewer only as far as loom can accept it."""
 
 from __future__ import annotations
 
@@ -99,6 +99,31 @@ def test_accept_records_at_once_and_the_block_leaves_the_queue(root: Path, compi
     assert answer["result"] == "accepted 1 of 1"
     assert Records(root, load_quilt(root).history_dir).latest["sy-0001"].author == REVIEWER
     assert "sy-0001" not in _rows(root)
+
+
+def test_accepting_a_block_keeps_its_edit_and_keeping_one_accepts_nothing(root: Path, compiles: None) -> None:
+    """The viewer's Accept has shown the edit it keeps; a version of the document is kept with it. Keep says nothing about the mathematics, so the block still waits."""
+    from loom.history.ledger import load_history
+    from loom.looks import changes, keep, take
+
+    quilt = load_quilt(root)
+    take(quilt, REVIEWER)
+    _edit(root)
+    assert [c.path for c in changes(quilt, REVIEWER)] == ["drafting/main.tex"]
+    assert build(load_quilt(root)).manifest["changes"][0]["blocks"] == [["sy-0001"]]
+    answer = _accept(root, "sy-0001")
+    assert answer["accepted"] == ["sy-0001"]
+    assert changes(quilt, REVIEWER) == []
+    last = load_history(quilt.history_dir).entries[-2:]
+    assert {e.action for e in last} >= {"keep"}
+    # kept alone, the block still waits
+    path = root / "drafting" / "main.tex"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("a pair consisting of a set", "a pair made of a set"), encoding="utf-8"
+    )
+    keep(quilt, REVIEWER, "drafting/main.tex")
+    assert changes(quilt, REVIEWER) == []
+    assert "sy-0001" in _rows(root)
 
 
 def test_a_selection_accepts_what_it_can_and_says_why_for_the_rest(root: Path, compiles: None) -> None:

@@ -6,7 +6,7 @@ import { acceptFor, decision, itemsOf, stateOf, takeAll, tally } from './contrib
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 const aidoc = () => structuredClone(fixture.contributions!.find((c) => c.kind === 'adopt')) as AdoptionReview;
 
-describe('an agent copy as Incoming reviews it (plan 0.25.2)', () => {
+describe('an agent copy as it is reviewed in one pass (plan 0.25.2)', () => {
 	it('names each change by its result in the copy, under its section, and lists the prose after them', () => {
 		const items = itemsOf(fixture, aidoc());
 		const orbits = items.find((i) => i.key === 'sy-0002')!;

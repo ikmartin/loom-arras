@@ -1,14 +1,14 @@
-// The workbench in the viewer: landmarks as documents of their own, reached from Review › History rather than the column, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
+// The workbench in the viewer: landmarks as documents of their own, reached from Review › Record rather than the column, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
-test('the column lists the working drafts and no landmarks, which Review › History links', async ({ page }) => {
+test('the column lists the working drafts and no landmarks, which Review › Record links', async ({ page }) => {
 	// a list rather than a dropdown: a dropdown shows one name at a time and cannot say which draft is conflicted; a landmark is reached through its draft's history
 	await page.goto('/');
 	await expect(page.getByTestId('docs-tree')).toBeVisible();
 	await expect(page.getByTestId('column')).not.toContainText('Landmarks');
 	await expect(page.getByTestId('column').locator('a[href^="/canon/"]')).toHaveCount(0);
-	await page.goto('/review/history');
+	await page.goto('/review/record');
 	await page.getByTestId('history-open').click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 });

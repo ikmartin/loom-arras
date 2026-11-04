@@ -1,4 +1,4 @@
-// Library runs from the viewer under a running `loom serve` (plan 0.24.1): a run on one work from its Info, and on every work from Review › Library, each asking first for the network the synthetic quilt has off, each followed step by step to its verdict.
+// Library runs from the viewer under a running `loom serve` (plan 0.24.1): a run on one work from its Info, and on every work from the library's page, each asking first for the network the synthetic quilt has off, each followed step by step to its verdict.
 import { expect, test } from '../served';
 
 test("a work's run starts from its Info, asks for the network the quilt has off, and runs offline to its verdict", async ({ page }) => {
@@ -16,8 +16,8 @@ test("a work's run starts from its Info, asks for the network the quilt has off,
 	await expect(run).toHaveCount(0);
 });
 
-test('a run over every work starts from Review › Library and gathers the bibliography first', async ({ page }) => {
-	await page.goto('/review/library');
+test("a run over every work starts from the library's page and gathers the bibliography first", async ({ page }) => {
+	await page.goto('/library');
 	await page.getByTestId('run-everything').click();
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');

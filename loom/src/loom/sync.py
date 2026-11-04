@@ -236,7 +236,7 @@ def source_label(url: str) -> str:
     Returns
     -------
     str
-        The name Incoming and the review queue show.
+        The name Review shows.
     """
     if "git.overleaf.com/" in url:
         return "Overleaf"
@@ -682,7 +682,7 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
 
 
 def _review(quilt: Quilt, state: SyncState, result: ScanResult) -> dict[str, Any]:
-    """What the pull asks to be reviewed, read from the Incoming review a build publishes: changed and affected keys, collaborator renames, and which keys the author had edited since the last pull."""
+    """What the pull asks to be reviewed, read from the incoming review a build publishes: changed and affected keys, collaborator renames, and which keys the author had edited since the last pull."""
     from loom.render.build import build
     from loom.review_queue import fingerprint
 
@@ -899,7 +899,7 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: 
     clone = workspace(root)
     if state.incoming and state.incoming != state.integrated:
         raise SyncError(
-            "an incoming revision is still awaiting incorporation; incorporate it in Incoming or with `loom sync incorporate` first"
+            "an incoming revision is still awaiting incorporation; incorporate it in Review or with `loom sync incorporate` first"
         )
     remote_tip = revision(clone, f"refs/remotes/{state.remote}/{state.branch}")
     if remote_tip != state.integrated:

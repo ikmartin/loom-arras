@@ -684,10 +684,10 @@ test.describe('the box', () => {
 		await page.getByTestId('toggle-settled').click();
 		await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
 		const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-		await expect(box.getByTestId('outcome')).toHaveText(' · applied');
+		await expect(box.getByTestId('outcome')).toHaveText(' · taken');
 	});
 
-	test("a citation's work stands at a rule in the citation's hue; accept and reject are its verbs, and once decided the box says so once and they go", async ({ page }) => {
+	test("a citation's work stands at a rule in the citation's hue; take it and leave it are its verbs, and once decided the box says so once and they go", async ({ page }) => {
 		// the publisher resolves the annotation and leaves a reference note naming it; the manifest served after the write says so
 		const id = 'a-2026-09-16-0005';
 		let accepted = false;
@@ -715,7 +715,7 @@ test.describe('the box', () => {
 		await expect(box.getByTestId('verb-edit')).toHaveCount(0);
 		await box.getByTestId('verb-accept').click();
 		const after = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-		await expect(after.getByTestId('outcome')).toHaveText('· accepted');
+		await expect(after.getByTestId('outcome')).toHaveText('· taken');
 		await expect(after.getByTestId('verb-accept')).toHaveCount(0);
 		await expect(after.getByTestId('verb-reject')).toHaveCount(0);
 		await expect(after).toHaveClass(/settled/);
@@ -776,8 +776,9 @@ test.describe('the box', () => {
 		expect(stripe).toMatchObject(SUGGESTION);
 		expect(stripe.a).toBeCloseTo(0.5, 1);
 		await expect(box.locator('.body').first()).toHaveCSS('color', 'rgb(95, 94, 90)'); // --ink-soft
-		await expect(box.locator(':scope > .meta .who')).toContainText('· resolved');
-		await expect(box.locator(':scope > .meta .who')).not.toContainText('resolved · resolved');
+		// a suggestion with text, resolved without being taken
+		await expect(box.locator(':scope > .meta .who')).toContainText('· left');
+		await expect(box.locator(':scope > .meta .who')).not.toContainText('resolved');
 		const row = box.locator(':scope > .meta').getByTestId('verb-row');
 		await expect(row.getByTestId('verb-reopen')).toBeVisible();
 		await expect(row.locator('button')).toHaveCount(1);

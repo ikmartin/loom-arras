@@ -710,7 +710,7 @@ def test_sync_says_only_what_happened(tmp_path: Path, compiled: list[str]) -> No
     assert first.startswith("fetched the revision of ") and "1 file changed" in first, first
     again = verdict(("sync", "fetch"))
     assert again.startswith("nothing new from ") and "fetched" not in again, again
-    assert "the viewer's Incoming panel" in again
+    assert "the viewer's Review" in again
     status = ok("sync", "status", cwd=root).stdout
     assert not re.search(r"\b[0-9a-f]{7}\b", status), status  # hashes are in the JSON only
     added = verdict(("sync", "documents", "add", "drafting/main.tex"))

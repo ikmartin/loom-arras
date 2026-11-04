@@ -719,7 +719,7 @@ def _history(result: ScanResult, manifest: dict[str, Any], history: Any) -> None
 
 
 def _acts(result: ScanResult, history: Any) -> list[dict[str, Any]]:
-    """Every line of the history, oldest first, as Review › History lists it: what was done, when, by whom, and to what; a document as it is now named, a step's landmark by its path, a text by its hash."""
+    """Every line of the history, oldest first, as Review › Record lists it: what was done, when, by whom, and to what; a document as it is now named, a step's landmark by its path, a text by its hash."""
     live = result.masters
     out: list[dict[str, Any]] = []
     for e in history.entries:
@@ -728,7 +728,7 @@ def _acts(result: ScanResult, history: Any) -> list[dict[str, Any]]:
             row["actor"] = e.actor
         if e.step is not None:
             row["step"] = e.step
-        for k in ("path", "paths", "message", "hunk", "kept_for", "copy", "page"):
+        for k in ("path", "paths", "message", "hunks", "kept_for", "copy", "page"):
             v = e.get(k)
             if v not in (None, "", []):
                 row[k] = v

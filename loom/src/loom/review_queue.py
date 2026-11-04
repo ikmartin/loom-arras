@@ -1,4 +1,4 @@
-"""Review › Needs review: every block of the person's not freshly accepted, why, and accepting it from the viewer."""
+"""Review › Your text: every block of the person's not freshly accepted, why, and accepting it from the viewer."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def fingerprint(result: ScanResult, key: str) -> str:
 def refusal(result: ScanResult, key: str) -> str:
     """Why the author cannot accept `key` from the viewer, in the person's words; '' when they can.
 
-    The one rule behind the queue's rows, `review-accept` and Incoming's accept-as-checked. A statement with no proof yet is accepted as stated (it stays unproved), and a cited result is a settled leaf, so neither is refused.
+    The one rule behind the queue's rows, `review-accept` and a copy's or a pull's accept-as-checked. A statement with no proof yet is accepted as stated (it stays unproved), and a cited result is a settled leaf, so neither is refused.
     """
     from loom.cli.review import _owned
 
@@ -236,7 +236,7 @@ def clear_accepted(root: Path, keys: list[str], reviewer: str | None = None) -> 
 
 
 def keep_pending(result: ScanResult, keys: list[str], reviewer: str) -> None:
-    """Keep unaccepted Incoming items visible even when upstream acceptance restores an older context."""
+    """Keep unaccepted incoming items visible even when upstream acceptance restores an older context."""
     rows = _read(result.quilt.root, reviewer)
     for key in keys:
         rows[key] = {"explicit_pending": "true"}

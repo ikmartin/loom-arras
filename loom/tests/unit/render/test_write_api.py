@@ -664,7 +664,7 @@ def _sync_incorporate(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPa
         {"incoming": "0" * 40, "base": state.integrated},
         400,
         "revision-changed",
-        "reload Incoming",
+        "reload Review",
     )
     assert (root / "drafting" / "main.tex").read_bytes() == before
     said = succeeds(s, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
@@ -687,7 +687,7 @@ def _sync_preview(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     state = SyncState.read(root)
     body = {"incoming": state.incoming, "base": state.integrated, "reviewer": WHO}
     before = (root / "drafting/main.tex").read_bytes()
-    refuses(s, "sync-preview", {**body, "reviewer": "Other"}, 409, "reviewer-changed", "reload Incoming")
+    refuses(s, "sync-preview", {**body, "reviewer": "Other"}, 409, "reviewer-changed", "reload Review")
     view = succeeds(s, "sync-preview", body)["result"]
     assert (root / "drafting/main.tex").read_bytes() == before
     assert [r["key"] for r in view["items"]] == ["zk-0001"]
@@ -718,7 +718,7 @@ def _adoption(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     s = serve(root)
     payload = {"copy": data["copy"], "reviewer": WHO, "fingerprint": data["fingerprint"]}
     for endpoint in ("adopt-decision", "adopt-preview", "adopt-finish"):
-        refuses(s, endpoint, {**payload, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
+        refuses(s, endpoint, {**payload, "reviewer": "different"}, 409, "reviewer-changed", "reload Review")
     succeeds(s, "adopt-decision", {**payload, "keys": ["dm-0004"], "document": False})
     preview = succeeds(s, "adopt-preview", payload)["result"]
     assert preview["patch"]
@@ -748,7 +748,7 @@ def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyP
     s = serve(root)
     body = {"copy": ".loom/copies/first.tex", "reviewer": WHO}
     for endpoint in ("adopt-close", "adopt-reopen", "adopt-refresh", "adopt-paper"):
-        refuses(s, endpoint, {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
+        refuses(s, endpoint, {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Review")
     builds = s.builds
     data = json.loads(get(s.url + "build/manifest.json")[2])["contributions"][0]
     from loom.render.watch import snapshot
@@ -939,10 +939,11 @@ def _changes_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.scan.hashing import sha256
 
     (q / "README.md").write_text("changed again\n", encoding="utf-8")
-    refuses(s, "changes-keep", {"path": "README.md", "hunk": 0, "seen": "0" * 64}, 409, "stale", "changed since")
-    refuses(s, "changes-keep", {"path": "README.md", "hunk": -1}, 400, "bad-field", "whole number")
-    refuses(s, "changes-keep", {"path": "README.md", "hunk": 3}, 404, "no-such-hunk", "no change number 3")
-    succeeds(s, "changes-keep", {"path": "README.md", "hunk": 0, "seen": sha256((q / "README.md").read_text())})
+    refuses(s, "changes-keep", {"path": "README.md", "hunks": [0], "seen": "0" * 64}, 409, "stale", "changed since")
+    refuses(s, "changes-keep", {"path": "README.md", "hunks": [-1]}, 400, "bad-field", "whole numbers")
+    refuses(s, "changes-keep", {"path": "README.md", "hunks": []}, 400, "bad-field", "whole numbers")
+    refuses(s, "changes-keep", {"path": "README.md", "hunks": [3]}, 404, "no-such-hunk", "no change number 3")
+    succeeds(s, "changes-keep", {"path": "README.md", "hunks": [0], "seen": sha256((q / "README.md").read_text())})
 
 
 @case("changes-undo")

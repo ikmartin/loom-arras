@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { dataUrl } from '$lib/paths';
-	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right. `hunk`, when given, draws the controls for one change in its `@@` row, numbered from 0 as the publisher numbers them.
-	let { path, hunk }: { path: string; hunk?: Snippet<[number]> } = $props();
+	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right. `hunk`, when given, draws the controls for one change in its `@@` row, numbered from 0 as the publisher numbers them; `only` draws just those changes, by the same numbers, so a block shows its own edit out of its file's. A diff keeps its path as it changes, so `version` says when to read it again.
+	let { path, hunk, only, version }: { path: string; hunk?: Snippet<[number]>; only?: number[]; version?: string } = $props();
 
-	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk'; n?: number };
+	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk'; n?: number; of: number };
 
-	let rows = $state<Row[]>([]);
+	let all = $state<Row[]>([]);
+	const rows = $derived(only ? all.filter((r) => only.includes(r.of)) : all);
 	let error = $state('');
 
 	/** Pairs a run of removed lines with the run of added lines that follows it, so a rewritten line sits opposite its replacement. */
@@ -22,7 +23,8 @@
 				continue;
 			}
 			if (ln.startsWith('@@')) {
-				out.push({ left: ln, right: '', kind: 'hunk', n: n++ });
+				out.push({ left: ln, right: '', kind: 'hunk', n: n, of: n });
+				n++;
 				i++;
 				continue;
 			}
@@ -32,11 +34,11 @@
 				while (i < lines.length && lines[i].startsWith('-')) removed.push(lines[i++].slice(1));
 				while (i < lines.length && lines[i].startsWith('+')) added.push(lines[i++].slice(1));
 				for (let j = 0; j < Math.max(removed.length, added.length); j++) {
-					out.push({ left: removed[j] ?? '', right: added[j] ?? '', kind: 'change' });
+					out.push({ left: removed[j] ?? '', right: added[j] ?? '', kind: 'change', of: n - 1 });
 				}
 				continue;
 			}
-			out.push({ left: ln.slice(1), right: ln.slice(1), kind: 'same' });
+			out.push({ left: ln.slice(1), right: ln.slice(1), kind: 'same', of: n - 1 });
 			i++;
 		}
 		while (out.length && out[out.length - 1].kind === 'same' && !out[out.length - 1].left.trim()) out.pop();
@@ -44,16 +46,17 @@
 	}
 
 	$effect(() => {
+		void version;
 		const url = dataUrl(path);
 		void fetch(url)
 			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
 			.then((t) => {
-				rows = pair(t);
+				all = pair(t);
 				error = '';
 			})
 			.catch((e: Error) => {
 				error = e.message;
-				rows = [];
+				all = [];
 			});
 	});
 </script>

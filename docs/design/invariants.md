@@ -46,9 +46,9 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Overlooking is never accepting
 
-**Rule.** In Incoming every mathematical item starts pending, and only an explicit Accept records an acceptance. Incorporating the source accepts nothing; an item never visited, an item held, and an unchanged proof under a revised statement all stay pending.
+**Rule.** In a copy's or a pull's review every mathematical item starts pending, and only an explicit Accept records an acceptance. Incorporating the source accepts nothing; an item never visited, an item held, and an unchanged proof under a revised statement all stay pending.
 
-**Why.** No incident is recorded. Incoming applies a coauthor's pull whole, so the short path is to accept what was applied, which would record as read every item the author scrolled past.
+**Why.** No incident is recorded. A pull's review applies a coauthor's pull whole, so the short path is to accept what was applied, which would record as read every item the author scrolled past.
 
 **Guard.** `loom/tests/unit/test_adopt.py::test_incoming_explicit_acceptance_keeps_unvisited_dependents_pending`
 
@@ -379,7 +379,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Rule.** `loom changes --undo` and the API's `changes-undo` write an open file back as it was at the person's look only when the person asks, never an agent (K5), and store the file's text now in the history's texts before writing, with a ledger line naming both hashes. A file new since the look has no undo.
 
-**Why.** Since plan 0.22.6 agents edit open files in place, and Review's Changes is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
+**Why.** Since plan 0.22.6 agents edit open files in place, and Review's Your text is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
 
 **Guard.** `loom/tests/unit/test_looks.py::test_undo_puts_the_text_back_and_keeps_what_it_replaced`, `loom/tests/unit/test_looks.py::test_keeping_and_undoing_are_the_authors`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`changes-undo`), `arras/tests/e2e-write/meta.e2e.ts`
 

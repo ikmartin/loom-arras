@@ -34,9 +34,7 @@ for (const width of [736, 1100, 1440]) {
   // preview, incorporate, a close that builds the quilt first and a reopen: past the default 30 s on a CI runner
   test.setTimeout(90000);
   await page.setViewportSize({width, height:1000});
-  await page.goto('/review/incoming');
-  await expect(page.getByLabel('Contribution')).toContainText('first-scope');
-  await page.getByLabel('Contribution').selectOption('.loom/copies/first-scope.tex');
+  await page.goto('/review/proposed?copy=' + encodeURIComponent('.loom/copies/first-scope.tex'));
   const row = page.locator('[data-testid="change-row"][data-key="sy-0A01"]');
   const preamble = page.locator('[data-testid="change-row"][data-key="preamble"]');
   const shown = page.getByTestId('change-shown');

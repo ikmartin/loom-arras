@@ -188,6 +188,6 @@ def finish(result: ScanResult, saved: dict[str, Any], accept: list[str], reviewe
         return {
             "accepted": [],
             "pending": keys,
-            "acceptance_error": f"Changes incorporated, but acceptance could not be recorded: {exc}. The blocks remain in Needs review.",
+            "acceptance_error": f"Changes incorporated, but acceptance could not be recorded: {exc}. The blocks remain in Your text.",
         }
     return {"accepted": accept, "pending": [k for k in keys if k not in accept]}

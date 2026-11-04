@@ -91,7 +91,7 @@
 			const dropped = checked.filter((k) => c.choices.keys.includes(k)).length - accept.length;
 			const why = o.acceptance_error ? ` ${o.acceptance_error}` : dropped > 0 ? ` ${dropped} marked as checked wait too, since what they rest on was not accepted.` : '';
 			say({
-				text: `Took ${taken} ${taken === 1 ? 'change' : 'changes'} into ${into}: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Needs review. ${into} as it was is kept as a version.${why}`,
+				text: `Took ${taken} ${taken === 1 ? 'change' : 'changes'} into ${into}: ${o.accepted?.length ?? 0} accepted, ${o.pending?.length ?? 0} wait in Your text. ${into} as it was is kept as a version.${why}`,
 				refused: false
 			});
 			checked = [];

@@ -539,7 +539,7 @@ def build(
     from loom.config_edit import published as published_config
 
     manifest["config"] = published_config(result)
-    attach_look_changes(result.quilt, reviewer_identity(result.quilt.root)[0], manifest, files)
+    attach_look_changes(result, reviewer_identity(result.quilt.root)[0], manifest, files)
     # every diagnostic, lint's, the renderer's and the records', whole and with whose it is to fix
     from loom.scan.owners import stamped
 

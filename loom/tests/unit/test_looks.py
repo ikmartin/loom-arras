@@ -1,4 +1,4 @@
-"""A person's look at the open files (plan 0.22.8): what Review's Changes counts from, and keep and undo, the author's verbs on a change."""
+"""A person's look at the open files (plan 0.22.8): what Review's Your text counts from, and keep and undo, the author's verbs on a change."""
 
 from __future__ import annotations
 
@@ -157,6 +157,23 @@ def test_one_change_of_a_file_is_kept_or_undone_alone(q: Path) -> None:
     refused("changes", "--hunk", "0", cwd=q, code=2, match="--hunk names a change")
 
 
+def test_several_changes_of_a_file_are_one_act(q: Path) -> None:
+    """`--hunk` may repeat, and the ledger names them all."""
+    from loom.history.ledger import load_history
+    from loom.scan.quilt import load_quilt
+
+    (q / "notes/a.md").write_text(TWO, encoding="utf-8")
+    ok("changes", "--keep-all", cwd=q)
+    (q / "notes/a.md").write_text(
+        TWO.replace("line 2\n", "line two\n").replace("line 18\n", "line eighteen\n"), encoding="utf-8"
+    )
+    said = ok("changes", "--keep", "notes/a.md", "--hunk", "1", "--hunk", "0", cwd=q).stdout
+    assert "kept changes 1, 0 of notes/a.md" in said
+    assert changes(q) == {}
+    line = load_history(load_quilt(q).history_dir).entries[-1]
+    assert line.action == "keep" and line.get("hunks") == [1, 0]
+
+
 def test_an_act_on_a_page_drawn_before_the_file_moved_is_refused(q: Path) -> None:
     """`seen` is the file's hash as the page showed it, so a hunk's number never names a change the person did not see."""
     from loom.looks import LookRefused, keep, undo
@@ -169,7 +186,7 @@ def test_an_act_on_a_page_drawn_before_the_file_moved_is_refused(q: Path) -> Non
     (q / "notes/a.md").write_text("moved on\n", encoding="utf-8")
     for act in (keep, undo):
         with pytest.raises(LookRefused) as exc:
-            act(quilt, "Tester", "notes/a.md", hunk=0, seen=seen)
+            act(quilt, "Tester", "notes/a.md", hunks=[0], seen=seen)
         assert exc.value.code == "stale"
     assert (q / "notes/a.md").read_text() == "moved on\n"
 
@@ -182,3 +199,67 @@ def test_the_build_publishes_each_changes_hash_and_hunks(q: Path) -> None:
     from loom.scan.hashing import sha256
 
     assert entry["hunks"] == 2 and entry["hash"] == sha256((q / "notes/a.md").read_text())
+
+
+NODE = "drafting/nodes/dm-0001.tex"
+
+
+def _block_key(q: Path) -> str:
+    """The first statement in the demo's first node file, by its manifest key."""
+    run("build", cwd=q)
+    m = json.loads((q / ".loom/build/manifest.json").read_text())
+    return next(k for k, v in m["keys"].items() if v["file"] == NODE and v["kind"] == "statement")
+
+
+def _entry(q: Path, path: str) -> dict[str, object]:
+    run("build", cwd=q)
+    m = json.loads((q / ".loom/build/manifest.json").read_text())
+    return next(c for c in m["changes"] if c["path"] == path)
+
+
+def test_the_build_says_which_blocks_each_change_touches_and_which_documents_read_the_file(q: Path) -> None:
+    key = _block_key(q)
+    ok("changes", "--keep-all", cwd=q)
+    node = q / NODE
+    text = node.read_text()
+    # the last line inside the statement
+    inside = text[: text.index("\\end{")].rstrip().rsplit("\n", 1)[-1]
+    assert inside.strip(), "the statement has a last line to change"
+    node.write_text(text.replace(inside, inside + " Indeed.", 1), encoding="utf-8")
+    entry = _entry(q, NODE)
+    assert entry["blocks"] == [[key]]
+    assert entry["documents"] == ["drafting/main.tex", "drafting/outline.tex"]
+
+
+def test_text_outside_any_block_touches_none_and_a_file_in_no_document_is_in_none(q: Path) -> None:
+    ok("changes", "--keep-all", cwd=q)
+    main = q / "drafting/main.tex"
+    main.write_text(
+        main.read_text().replace(r"\begin{document}", r"\begin{document}" + "\nA new sentence of prose.\n", 1)
+    )
+    assert _entry(q, "drafting/main.tex")["blocks"] == [[]]
+    (q / "notes/a.md").write_text("# A\n\nsecond\n", encoding="utf-8")
+    note = _entry(q, "notes/a.md")
+    assert note["blocks"] == [[]] and note["documents"] == []
+
+
+def test_accepting_keeps_only_the_changes_that_touch_nothing_else(q: Path) -> None:
+    """What the viewer's Accept keeps: a change wholly inside the blocks accepted; one touching another block too stays."""
+    from loom.looks import blocks_of, keep_accepted
+    from loom.looks import changes as changed
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    key = _block_key(q)
+    ok("changes", "--keep-all", cwd=q)
+    node = q / NODE
+    text = node.read_text()
+    inside = text[: text.index("\\end{")].rstrip().rsplit("\n", 1)[-1]
+    node.write_text(text.replace(inside, inside + " Indeed.", 1), encoding="utf-8")
+    (q / "notes/a.md").write_text("# A\n\nsecond\n", encoding="utf-8")
+    result = scan(load_quilt(q))
+    assert keep_accepted(result, "Tester", ["some-other-key"]) == []
+    assert changes(q) == {NODE: "changed", "notes/a.md": "changed"}
+    assert keep_accepted(result, "Tester", [key]) == [NODE]
+    assert changes(q) == {"notes/a.md": "changed"}
+    assert [blocks_of(result, c) for c in changed(load_quilt(q), "Tester")] == [[[]]]

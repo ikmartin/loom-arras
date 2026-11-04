@@ -14,7 +14,7 @@ export interface Explained {
 	body: string;
 }
 
-/** The kinds Review › Changes follows, being text a person looks at; a PDF or an image an agent replaces is not shown there. */
+/** The kinds Review › Your text follows, being text a person looks at; a PDF or an image an agent replaces is not shown there. */
 const TEXT = new Set(['document', 'tex', 'markdown', 'text', 'html', 'notebook']);
 
 /** A file's answer, or null where its publisher does not say. */
@@ -51,13 +51,13 @@ export function accessOfAll(files: ProjectFile[]): Access | null {
 export function explain(a: Access, at: { dir?: boolean; kind?: string; copyOf?: string; statePath?: string }): Explained {
 	if (at.copyOf) {
 		const of = at.copyOf.slice(at.copyOf.lastIndexOf('/') + 1);
-		return { title: 'You and agents edit this copy', body: `An agent's copy of ${of}. What you take from it comes back to ${of} through Review › Incoming.` };
+		return { title: 'You and agents edit this copy', body: `An agent's copy of ${of}. What you take from it comes back to ${of} through Review › Proposed to you.` };
 	}
 	if (a.agents) {
-		if (at.dir) return { title: 'You and agents edit what is in here', body: 'An agent may change any file in this folder. Review › Changes shows what changed in a text file since you last looked, to keep or undo.' };
+		if (at.dir) return { title: 'You and agents edit what is in here', body: 'An agent may change any file in this folder. Review › Your text shows what changed in a text file since you last looked, to keep or undo.' };
 		return {
 			title: 'You and agents edit this',
-			body: TEXT.has(at.kind ?? '') ? 'An agent may change this file. Review › Changes shows what changed since you last looked, to keep or undo.' : 'An agent may change or replace this file.'
+			body: TEXT.has(at.kind ?? '') ? 'An agent may change this file. Review › Your text shows what changed since you last looked, to keep or undo.' : 'An agent may change or replace this file.'
 		};
 	}
 	const title = at.dir ? 'Only you edit what is in here' : 'Only you edit this';

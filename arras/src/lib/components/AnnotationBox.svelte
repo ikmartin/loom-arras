@@ -21,14 +21,15 @@
 	/** One word for where the proposed text would go; `proposed` when the suggestion carries no placement. */
 	const word = $derived(annotation.placement === 'replace' || annotation.placement === 'after' || annotation.placement === 'before' ? annotation.placement : 'proposed');
 
-	/** What settled it, said once on the meta line: a citation's `accepted` (a reference note names it) or `rejected` (decided from this box), else `resolved` or `withdrawn`; '' while open. */
+	/** What settled it, said once on the meta line, in the words of the verbs that settle it: `taken` (a citation a reference note names, a suggestion resolved as applied) or `left` (a citation decided from this box, a suggestion with text resolved without it), else `resolved` or `withdrawn`; '' while open. */
 	function outcomeOf(a: Annotation): string {
 		if (a.discarded || a.status === 'discarded') return 'withdrawn';
 		if (a.kind === 'citation') {
-			if (store.manifest?.reference_notes?.some((n) => n.from?.annotation === a.id)) return 'accepted';
+			if (store.manifest?.reference_notes?.some((n) => n.from?.annotation === a.id)) return 'taken';
 			if (decided[a.id]) return decided[a.id];
 		}
-		if (a.applied) return 'applied';
+		if (a.applied) return 'taken';
+		if (a.kind === 'suggestion' && a.status === 'resolved' && a.payload !== null && a.payload !== undefined) return 'left';
 		return a.status === 'open' ? '' : a.status;
 	}
 	const outcome = $derived(outcomeOf(annotation));

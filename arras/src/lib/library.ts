@@ -242,7 +242,7 @@ export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[]
 	return out;
 }
 
-/** How many works want something of the author, as Review › Library's "needs you" counts them, from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
+/** How many works want something of the author beyond results to check, which Proposed to you counts, as the library's page counts them under "needs you", from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
 export function needsYou(m: Manifest): number {
 	return ledgerRows(m, reachedExternal(m)).filter((r) => {
 		const ref = m.references?.[r.citekey];
@@ -250,12 +250,12 @@ export function needsYou(m: Manifest): number {
 	}).length;
 }
 
-/** Which works the ledger shows: all, those wanting something of the person, those with no paper, no overview, or not cited, and those with results proposed or verified. */
+/** Which works the ledger shows: all, those wanting something of the person beyond results to check, those with no paper, no overview, or not cited, and those with results proposed or verified. */
 export type LedgerFilter = 'all' | 'needs-you' | 'no-paper' | 'no-overview' | 'not-cited' | 'proposed' | 'verified';
 
 /** Whether the ledger's filter `f` keeps `r`, whose problems are `problems`; a work declared unreadable has no paper to want. */
 export function keepRow(r: LedgerRow, problems: Problem[], f: LedgerFilter): boolean {
-	if (f === 'needs-you') return needsWork(r) || problems.length > 0;
+	if (f === 'needs-you') return r.open > 0 || problems.length > 0;
 	if (f === 'no-paper') return !r.filed && !r.unreadable;
 	if (f === 'no-overview') return !r.overview;
 	if (f === 'not-cited') return r.cited === 0;

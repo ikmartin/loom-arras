@@ -21,7 +21,7 @@ trailer<</Root 1 0 R>>
 }
 
 test('a pasted BibTeX entry is read at once, added to loom\'s bibliography, and opens on its Info', async ({ page, served }) => {
-	await page.goto('/review/library');
+	await page.goto('/library');
 	await page.getByTestId('review-add').click();
 	await page.getByTestId('add-text').fill(ENTRY);
 	await expect(page.getByTestId('add-kind')).toHaveText('BibTeX entry');
@@ -35,7 +35,7 @@ test('a pasted BibTeX entry is read at once, added to loom\'s bibliography, and 
 });
 
 test('a dropped PDF that matches no work is offered an entry from its own pages, and filed under it', async ({ page }) => {
-	await page.goto('/review/library');
+	await page.goto('/library');
 	await page.getByTestId('review-add').click();
 	await page.getByTestId('add-file').setInputFiles({ name: 'Halberd - 2021 - Gadget towers.pdf', mimeType: 'application/pdf', buffer: pdf(['Gadget towers', 'arXiv:2102.11789']) });
 	await expect(page.getByTestId('add-found')).toContainText('Gadget towers');
@@ -46,7 +46,7 @@ test('a dropped PDF that matches no work is offered an entry from its own pages,
 });
 
 test('a DOI asks for the network before it is looked up, where the quilt has it off', async ({ page }) => {
-	await page.goto('/review/library');
+	await page.goto('/library');
 	await page.getByTestId('review-add').click();
 	await page.getByTestId('add-text').fill('https://doi.org/10.5555/widget.2018.031');
 	await expect(page.getByTestId('add-kind')).toHaveText('DOI');

@@ -11,7 +11,7 @@
 </script>
 
 <script lang="ts">
-	// Where Incoming is among a contribution's changes, and the way to any of them: the counter ("2 of 7") opens the whole list beside it, grouped by section, each change with a dot for where it stands, and with a field to find one by name. ‹ and › beside it step one at a time; the list stays out of the way of the two texts being compared until it is asked for.
+	// Where a review is among a copy's or a pull's changes, and the way to any of them: the counter ("2 of 7") opens the whole list beside it, grouped by section, each change with a dot for where it stands, and with a field to find one by name. ‹ and › beside it step one at a time; the list stays out of the way of the two texts being compared until it is asked for.
 	import Popover from '$lib/components/Popover.svelte';
 
 	let { changes, active, onpick, findable = false }: { changes: ListedChange[]; active: string; onpick: (key: string) => void; findable?: boolean } = $props();

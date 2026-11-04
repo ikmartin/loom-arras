@@ -6,10 +6,11 @@ const routes: [string, string][] = [
 	['/node/sy-0003', 'Parity'],
 	['/node/sy-0200', 'Results'],
 	['/master/drafting/main', 'Widgets, gadgets'],
-	['/review', 'Needs review'],
-	['/review/incoming', 'Incoming'],
-	['/review/sessions', 'Sessions'],
-	['/review/history', 'History'],
+	['/review', 'Your text'],
+	['/review/proposed', 'Proposed to you'],
+	['/review/record', 'Record'],
+	['/review/record/sessions', 'Record'],
+	['/review/record/acts', 'Record'],
 	['/review/problems', 'Problems'],
 	['/graph', 'Graph'],
 	['/threads', 'Threads'],
@@ -17,7 +18,7 @@ const routes: [string, string][] = [
 	['/tag/orbits', '#orbits'],
 	['/taxa', 'Taxa'],
 	['/taxon/lemma', 'Lemma'],
-	['/review/library', 'Library'],
+	['/library', 'Library'],
 	['/loose', 'Not in any document']
 ];
 

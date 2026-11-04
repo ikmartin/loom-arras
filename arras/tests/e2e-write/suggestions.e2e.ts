@@ -1,4 +1,4 @@
-// Suggestions and sessions under a running `loom serve`: Apply writes a suggestion's text into its file, a version of the document kept first, and resolves it as applied; and reading another session's transcript leaves the person's writes where they were. None of this compiles anything.
+// Suggestions and sessions under a running `loom serve`: Take it writes a suggestion's text into its file, a version of the document kept first, and resolves it as applied; and reading another session's transcript leaves the person's writes where they were. None of this compiles anything.
 import { expect, test } from '../served';
 import { pickSession } from '../picker';
 import { readFileSync } from 'node:fs';
@@ -6,18 +6,18 @@ import { join } from 'node:path';
 
 const TEXT = 'a-2026-09-17-0001';
 
-test('Apply writes the suggestion into its file, keeps a version first, and resolves it as applied', async ({ page, served }) => {
+test('Take it writes the suggestion into its file, keeps a version first, and resolves it as applied', async ({ page, served }) => {
 	const [referee] = served.openSessions();
-	await page.goto('/review/suggestions');
+	await page.goto('/review/proposed');
 	await pickSession(page, referee);
 	const row = page.locator(`[data-testid="suggestion"][data-id="${TEXT}"]`);
-	await row.getByTestId('suggestion-apply').click();
-	await expect(page.getByTestId('suggestions-bar-said')).toContainText('Applied the suggestion in main.tex', { timeout: 15000 });
+	await row.getByTestId('proposed-take').click();
+	await expect(page.getByTestId('proposed-bar-said')).toContainText('Applied the suggestion in main.tex', { timeout: 15000 });
 	expect(readFileSync(join(served.root, 'drafting/nodes/sy-0002.tex'), 'utf8')).toContain('the fixed points are those of');
 	const resolved = served.log().find((e) => e.event === 'resolved' && e.id === TEXT);
 	expect(resolved?.applied).toBeTruthy();
 	// the version kept first is in the document's history, named for the act
-	await page.goto('/review/history?document=drafting%2Fmain.tex');
+	await page.goto('/review/record?document=drafting%2Fmain.tex');
 	await expect(page.getByTestId('history-tick').last()).toContainText('Before applying a suggestion', { timeout: 10000 });
 });
 

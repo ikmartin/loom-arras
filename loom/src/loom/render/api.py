@@ -420,7 +420,7 @@ def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, one hunk of it, or every change (no `path`), or puts one back as it was at their look, a new file removed; the author's acts, refused to a declared agent.
+    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, some hunks of it, or every change (no `path`), or puts one back as it was at their look, a new file removed; the author's acts, refused to a declared agent.
 
     `seen` is the file's hash as the page drew it (`changes[].hash`); an act on a file that has moved on since is `stale`, so a hunk's number never names another change.
     """
@@ -436,12 +436,16 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             "author-only", "An agent reads and annotates; only the author keeps or undoes a change", status=403
         )
     quilt = load_quilt(root)
-    hunk = body.get("hunk")
-    if hunk is not None and (isinstance(hunk, bool) or not isinstance(hunk, int) or hunk < 0):
-        raise ApiError("bad-field", "hunk must be a whole number from 0")
-    path = _str(body, "path", required=endpoint == "changes-undo" or hunk is not None)
+    hunks = body.get("hunks")
+    if hunks is not None and (
+        not isinstance(hunks, list)
+        or not hunks
+        or any(isinstance(n, bool) or not isinstance(n, int) or n < 0 for n in hunks)
+    ):
+        raise ApiError("bad-field", "hunks must be a list of whole numbers from 0")
+    path = _str(body, "path", required=endpoint == "changes-undo" or hunks is not None)
     seen = _str(body, "seen")
-    what = f"a change to {path}" if hunk is not None else path
+    what = (f"a change to {path}" if len(hunks) == 1 else f"{len(hunks)} changes to {path}") if hunks else path
     from loom.history.acts import Kept, keep_versions
 
     try:
@@ -449,7 +453,7 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             # the text being set aside is a version of each document it is part of, kept before it goes
             kept: list[Kept] = []
             first = lambda: kept.append(keep_versions(_scan(root), [path or ""], "undo", "Before an undo", who))  # noqa: E731
-            back = undo(quilt, who, path or "", hunk=hunk, seen=seen, before=first)
+            back = undo(quilt, who, path or "", hunks=hunks, seen=seen, before=first)
             said = (
                 f"removed {path}; its text is kept"
                 if back is None
@@ -458,7 +462,7 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             return {"ok": True, "result": "; ".join(filter(None, [said, *(k.said() for k in kept)]))}
         # a whole keep keeps a version of the documents whose files moved since the look, and none at a first look
         moved = [path] if path else [c.path for c in changes(quilt, who)]
-        keep(quilt, who, path, hunk=hunk, seen=seen)
+        keep(quilt, who, path, hunks=hunks, seen=seen)
     except LookRefused as exc:
         raise ApiError(
             exc.code, exc.message, status=404 if exc.code in ("no-such-change", "no-such-hunk") else 409
@@ -689,14 +693,14 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             incoming = _str(body, "incoming", required=True)
             base = _str(body, "base", required=True)
             if incoming != state.incoming:
-                raise ApiError("revision-changed", "the fetched revision changed; reload Incoming")
+                raise ApiError("revision-changed", "the fetched revision changed; reload Review")
             if base != state.integrated and state.integrated != state.incoming:
-                raise ApiError("revision-changed", "the incorporated base changed; reload Incoming")
+                raise ApiError("revision-changed", "the incorporated base changed; reload Review")
             binding = {"kind": "sync", "incoming": incoming or "", "base": base or ""}
             reviewer, _ = reviewer_identity(root)
             if endpoint == "sync-preview" or body.get("review_token") or body.get("accept"):
                 if not reviewer or _str(body, "reviewer") != reviewer:
-                    raise ApiError("reviewer-changed", "Choose your reviewer name and reload Incoming", status=409)
+                    raise ApiError("reviewer-changed", "Choose your reviewer name and reload Review", status=409)
                 before = scan(quilt)
                 if endpoint == "sync-preview":
                     overlay = {
@@ -733,7 +737,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
         reviewer, _ = reviewer_identity(root)
         if not reviewer or _str(body, "reviewer") != reviewer:
-            raise ApiError("reviewer-changed", "Choose your reviewer name and reload Incoming", status=409)
+            raise ApiError("reviewer-changed", "Choose your reviewer name and reload Review", status=409)
         if is_agent(_str(body, "author") or reviewer):
             raise ApiError("author-only", "An agent proposes; only the author incorporates", status=403)
         copy = _str(body, "copy", required=True) or ""
@@ -822,7 +826,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 data = comparison(result, copy)
                 chosen = decisions(result, copy, reviewer, data=data)
                 if _str(body, "fingerprint", required=True) != chosen["fingerprint"]:
-                    raise SyncError("Contribution changed; reload Incoming")
+                    raise SyncError("Contribution changed; reload Review")
                 answer = prepare(
                     result,
                     copy,
@@ -888,6 +892,15 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             ) from exc
         except ValueError as exc:
             raise ApiError("compile-failed", str(exc), status=409) from exc
+        if answer["accepted"]:
+            # what the page showed with its Accept: an edit touching only blocks just accepted has been seen
+            from loom.history.acts import keep_versions
+            from loom.looks import keep_accepted
+
+            after = _scan(root)
+            moved = keep_accepted(after, reviewer, answer["accepted"])
+            if moved:
+                keep_versions(after, moved, "keep", "Kept an edit", reviewer)
         return {
             "ok": True,
             "result": f"accepted {len(answer['accepted'])} of {len(answer['accepted']) + len(answer['refused'])}",

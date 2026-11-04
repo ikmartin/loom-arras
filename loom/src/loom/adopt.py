@@ -379,7 +379,7 @@ def _project(result: ScanResult, source: str, bodies: dict[str, str], document: 
             file, at = covered[0]
             if covered != [(file, at + i) for i in range(len(covered))]:
                 raise SyncError(
-                    "Prose changes cross an inclusion boundary; reconcile the working files and refresh Incoming"
+                    "Prose changes cross an inclusion boundary; reconcile the working files and reload Review"
                 )
             stop = covered[-1][1] + 1
         elif lo < len(locations):
@@ -483,7 +483,7 @@ def prepare(
     if unknown:
         raise SyncError(_not_offered(unknown, data, offered))
     if document and data["document_conflict"]:
-        issues.append("Document prose or ordering conflicts; reconcile in your editor and refresh Incoming")
+        issues.append("Document prose or ordering conflicts; reconcile in your editor and reload Review")
     if preamble and data["preamble_conflict"]:
         issues.append("Preamble changes conflict; reconcile them before including this group")
     if issues:
@@ -697,7 +697,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     who = resolve_author(reviewer, root)[0]
     if data["copy"] != saved["copy"] or data["fingerprint"] != saved["fingerprint"] or who != saved["reviewer"]:
         if who != saved["reviewer"]:
-            raise SyncError("Reviewer changed; refresh Incoming and preview again")
+            raise SyncError("Reviewer changed; reload Review and preview again")
         if saved.get("proposal_hash") != _digest((root / data["copy"]).read_text()):
             raise SyncError("The AI draft changed; preview again")
         raise SyncError("The paper or its context changed since this preview; preview again")
@@ -1102,7 +1102,7 @@ def decide(
     """
     data = data if data is not None else comparison(result, copy)
     if expected != data["fingerprint"]:
-        raise SyncError("Contribution changed; refresh Incoming before selecting changes")
+        raise SyncError("Contribution changed; reload Review before selecting changes")
     offered = {r["key"] for r in data["changes"] if r["offered"]}
     clash = sorted(set(keys) & {r["key"] for r in data["changes"] if r["class"] == "conflict"})
     if clash:
@@ -1113,7 +1113,7 @@ def decide(
         raise SyncError("Selection contains an unavailable proposal")
     previous = decisions(result, copy, reviewer, data=data)
     if revision is not None and revision != previous.get("revision", 0):
-        raise SyncError("Your selected changes changed in another tab; reload Incoming")
+        raise SyncError("Your selected changes changed in another tab; reload Review")
     row = {
         "revision": previous.get("revision", 0) + 1,
         "preamble": preamble,

@@ -1,4 +1,4 @@
-// An agent's copy as Incoming reviews it in one pass (plan 0.25.2): each result it changes, its prose and its preamble, named as the person reads them, with whether each can be taken, where each stands, and what Apply asks loom to accept. Model facts in, display facts out; nothing here renders.
+// An agent's copy as it is reviewed in one pass (plan 0.25.2): each result it changes, its prose and its preamble, named as the person reads them, with whether each can be taken, where each stands, and what Apply asks loom to accept. Model facts in, display facts out; nothing here renders.
 import type { AdoptionReview, IncorporationMathReview, Manifest } from '$lib/manifest/types';
 import { displayNode } from '$lib/nodes/display';
 

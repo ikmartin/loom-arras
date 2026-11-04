@@ -87,6 +87,8 @@
 	// a cited work's digest-again fix is offered once, beside the work, so its problems do not each repeat it
 	const again = (ck: string, f: Fix) => f.act?.endpoint === 'library-update' && (f.act.body as { works?: string[] }).works?.[0] === ck && !!(f.act.body as { redo?: boolean }).redo;
 	const workAct = (ck: string, items: Diagnostic[]) => items.flatMap((d) => d.fixes ?? []).find((f) => again(ck, f));
+	/** Where a work with no paper can be given one, or asked for no longer: its row in the library, by its key. */
+	const inLibrary = (d: Diagnostic) => (d.code.endsWith(':no-readable-copy') && d.keys[0] ? `${route('/library')}?q=${encodeURIComponent(d.keys[0])}` : '');
 </script>
 
 {#snippet problem(d: Diagnostic, id: string, ck: string)}
@@ -96,6 +98,7 @@
 		<span class="message">{d.message}</span>
 		<span class="where">
 			{#if open}<a class="open" href={open} data-testid="problem-open">Open</a>{/if}
+			{#if inLibrary(d)}<a class="open" href={inLibrary(d)} data-testid="problem-library">In the library</a>{/if}
 			{#each d.locations as l, j (j)}{#if m.files?.some((f) => f.path === l.file)}<a class="loc" href={lineUrl(m, l.file, l.line)} data-testid="problem-location">{l.file}:{l.line}</a>{:else}<code class="loc">{l.file}:{l.line}</code>{/if}{/each}
 			{#if d.keys.length > 1}{#each d.keys as k (k)}{#if keyTarget(m, k)}<a class="key" href={placeUrl(m, k)}>{k}</a>{:else}<code class="key">{k}</code>{/if}{/each}{/if}
 		</span>
@@ -158,7 +161,7 @@
 	{#if parts.copy.length}
 		<details class="part" open={isOpen('copy', false)} ontoggle={toggled('copy')} data-testid="problems-copy">
 			<summary><h2>In an agent's copy <span class="n">{parts.copy.length}</span></h2></summary>
-			<p class="whose">The agent's to put right, or to leave out when you take the copy back in <a href={route('/review/incoming')}>Incoming</a>.</p>
+			<p class="whose">The agent's to put right, or to leave out when you take the copy back in <a href={route('/review/proposed')}>Proposed to you</a>.</p>
 			{@render groups(parts.copy, 'copy', '')}
 		</details>
 	{/if}

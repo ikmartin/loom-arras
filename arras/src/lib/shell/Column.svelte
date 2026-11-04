@@ -21,11 +21,12 @@
 	import type { ShellProps } from './props';
 	import type { Master } from '$lib/manifest/types';
 	import { page } from '$app/state';
+	import { needsYou } from '$lib/library';
 	import { reviewLanding, sectionOf, sectionsOf } from '$lib/review/sections';
 
 	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, children, rail, panel, panelLabel }: ShellProps = $props();
 
-	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and in Review › Library, not beside every row. A choice opens in the focused pane, as every choice in the column does.
+	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and on the library's page, not beside every row. A choice opens in the focused pane, as every choice in the column does.
 	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
 	onMount(() => { void can('review-accept').then((yes) => readOnly = !yes); });
@@ -69,6 +70,8 @@
 	// Review's sections, each with what waits for the author there
 	const sections = $derived(store.manifest ? sectionsOf(store.manifest) : []);
 	const here = $derived(sectionOf(page.route.id));
+	// the works wanting something of the person beyond results to check, which Review's Proposed to you counts
+	const wanted = $derived(store.manifest ? needsYou(store.manifest) : 0);
 
 	// folded until the reader opens it: the works are many, and the documents are what the column is for
 	let libraryOpen = $state(false);
@@ -199,7 +202,7 @@
 						{#each sections as x (x.id)}
 							<li>
 								<a href={x.href} class:here={here === x.id} aria-current={here === x.id ? 'page' : undefined} title={x.says} data-testid="section-{x.id}"
-									><span>{x.label}</span>{#if x.waits}<span class="waits" data-testid="section-count-{x.id}">{x.waits}</span>{/if}</a
+									><span class="section-name">{x.label}<span class="blurb">{x.blurb}</span></span>{#if x.waits}<span class="waits" data-testid="section-count-{x.id}">{x.waits}</span>{/if}</a
 								>
 							</li>
 						{/each}
@@ -284,7 +287,7 @@
 										{:else}
 											<li class="aside">nothing matches</li>
 										{/each}
-										<li><a href={route('/review/library')} data-testid="manage-link">Manage in Review</a></li>
+										<li><a href={route('/library')} data-testid="manage-link">Manage the library</a>{#if wanted}<a class="aside wanted" href={route('/library') + '?show=needs-you'} data-testid="manage-wanted">{wanted} {wanted === 1 ? 'needs' : 'need'} you</a>{/if}</li>
 									</ul>
 								</div>
 							{/if}
@@ -625,8 +628,10 @@
 	.outline-part :global(.contents) {
 		margin: 0 0 var(--gap-tight) 6px;
 	}
-	.review-sections a {
+	ul.review-sections a {
 		display: flex;
+		flex-wrap: nowrap;
+		align-items: flex-start;
 		justify-content: space-between;
 		gap: 8px;
 		font-size: 12px;
@@ -634,9 +639,23 @@
 	}
 	.review-sections a.here {
 		color: var(--ink);
+	}
+	.review-sections a.here .section-name {
 		font-weight: 600;
 	}
+	.section-name {
+		flex: 1;
+		min-width: 0;
+	}
+	.blurb {
+		display: block;
+		font-size: 11px;
+		line-height: 1.35;
+		font-weight: 400;
+		color: var(--ink-faint);
+	}
 	.waits {
+		flex: none;
 		font-size: 10.5px;
 		font-variant-numeric: tabular-nums;
 		color: var(--ink-soft);

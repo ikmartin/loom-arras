@@ -766,7 +766,7 @@ class ServeSession:
         self.watcher.start()
 
     def first_look(self) -> None:
-        """Take the reviewer's first look at the open files when they have none, so an agent's first edits show in Review's Changes; nothing without a reviewer name."""
+        """Take the reviewer's first look at the open files when they have none, so an agent's first edits show in Review's Your text; nothing without a reviewer name."""
         from loom.looks import read_look, take
         from loom.scan.quilt import reviewer_identity
 

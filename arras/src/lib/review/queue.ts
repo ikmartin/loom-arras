@@ -1,4 +1,4 @@
-// Needs review as the page reads it: one document's blocks not freshly accepted, grouped by why they wait, and what Review counts.
+// The acceptance half of Your text: one document's blocks not freshly accepted, grouped by why they wait.
 import type { Key, Manifest, UnresolvedReview } from '$lib/manifest/types';
 import { documentKeys } from './documents';
 

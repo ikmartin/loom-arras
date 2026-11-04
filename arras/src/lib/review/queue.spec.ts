@@ -31,7 +31,7 @@ const m = {
 	diagnostics: [{ severity: 'warning', code: 'loom:missing-proof', message: '', locations: [], keys: ['d'] }]
 } as unknown as Manifest;
 
-describe('Needs review', () => {
+describe('blocks not freshly accepted', () => {
 	it("groups one document's blocks by why they wait, and folds those accepted apart", () => {
 		const g = groupsOf(m, 'main.tex');
 		expect(g.changed.map((r) => r.key)).toEqual(['a']);

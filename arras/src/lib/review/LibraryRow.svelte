@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-	// One work in Review › Library (plan 0.24.4): what it is and who wrote it, whether its paper is filed, how much has been read off it and from where, how much the person verified and what waits for them, its overview, where they cite it, and its problems, each with what fixes it. Its ⋯ menu holds what can be done to it, each line only where the publisher serves it and where it applies; the acts themselves are the page's (`onact`), which follows a run and asks for the network once for every row. Stopping asking for a work's paper asks why, and removing a work asks first, in the row.
+	// One work on the library's page (plan 0.24.4): what it is and who wrote it, whether its paper is filed, how much has been read off it and from where, how much the person verified and what waits for them, its overview, where they cite it, and its problems, each with what fixes it. Its ⋯ menu holds what can be done to it, each line only where the publisher serves it and where it applies; the acts themselves are the page's (`onact`), which follows a run and asks for the network once for every row. Stopping asking for a work's paper asks why, and removing a work asks first, in the row.
 	import { goto } from '$app/navigation';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
@@ -140,7 +140,7 @@
 	</td>
 	<td class="num">
 		<span data-testid="verified-{ck}">{row.verified || '—'}</span>
-		{#if row.proposed}<a class="pending" href={route('/review/library') + '?work=' + encodeURIComponent(ck) + '#queue'} data-testid="pending-{ck}">{row.proposed} to verify</a>{/if}
+		{#if row.proposed}<a class="pending" href={route('/review/proposed') + '?work=' + encodeURIComponent(ck) + '#queue'} data-testid="pending-{ck}">{row.proposed} to verify</a>{/if}
 	</td>
 	<td data-testid="overview-{ck}">{#if row.overview}✓{:else}<span class="nope">—</span>{/if}</td>
 	<td class="num" data-testid="cited-{ck}">{#if row.cited}{row.cited}{:else}<span class="nope">not cited</span>{/if}</td>

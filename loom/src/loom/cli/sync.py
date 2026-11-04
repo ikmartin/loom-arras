@@ -115,7 +115,7 @@ def init_sync(directory: str, publish_main: str, dry_run: bool, as_json: bool, q
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
-    """Fetch the document workspace's changes for review in the viewer's Incoming panel, without changing your files."""
+    """Fetch the document workspace's changes for review in the viewer's Review, without changing your files."""
     from loom.render.build import build
 
     quilt = open_quilt(quilt_path)
@@ -156,7 +156,7 @@ def fetch_sync(as_json: bool, quilt_path: str | None) -> None:
                 if new
                 else f"nothing new from {label} since {state.observed}: {_rev(quilt, state.incoming)}, {counted(changed, 'file')} changed"
             )
-            + "; it waits for review in the viewer's Incoming panel",
+            + "; it waits for review in the viewer's Review",
             ok=False,
             groups=[
                 Group(
@@ -311,7 +311,7 @@ def documents_sync(
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def incorporate_sync(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Incoming panel does the same."""
+    """Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Review does the same."""
     from loom.cli._common import refuse_under_agent
 
     refuse_under_agent(

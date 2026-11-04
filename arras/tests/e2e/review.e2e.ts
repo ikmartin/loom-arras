@@ -1,4 +1,4 @@
-// Review › Needs review: one document's blocks not freshly accepted, grouped by why they wait, each accepted in its row or several at once, what loom cannot accept saying why, and Read opening the block in its document beside the panel that says why it waits. Incoming's mathematics is accepted only where it is marked as checked. Each test is named for the rule it holds.
+// Review › Your text: one document's blocks not freshly accepted, grouped by why they wait, each accepted in its row or several at once, what loom cannot accept saying why, and Read opening the block in its document beside the panel that says why it waits. Incoming's mathematics is accepted only where it is marked as checked. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
@@ -28,7 +28,7 @@ test("one document's blocks are grouped by why they wait, and those accepted are
 	await expect(group('changed')).toHaveAttribute('open');
 	await expect(group('accepted')).not.toHaveAttribute('open');
 	await expect(group('accepted').getByTestId('review-row')).toHaveCount(1);
-	await expect(page.getByTestId('review-summary')).toContainText(`${inMain.length} not accepted · reviewing as The synthetic quilt`);
+	await expect(page.getByTestId('review-summary')).toContainText('reviewing as The synthetic quilt');
 	// a changed block says what changed, and opens on the change
 	const widget = group('changed').locator('[data-testid="review-row"][data-key="sy-0001"]');
 	await expect(widget.getByTestId('review-read')).toHaveText('See change');
@@ -104,7 +104,7 @@ test('the picker offers only documents with blocks, and a link to an accepted bl
 		m.masters.push({ ...m.masters[1], path: 'drafting/empty.tex', default: false });
 	});
 	await page.goto('/review?document=drafting%2Fmain.tex#review-sy-0003');
-	await expect(page.getByTestId('review-document').locator('option')).toHaveText(['main.tex', 'talk.tex']);
+	await expect(page.getByTestId('review-document').locator('option')).toHaveText([/^main\.tex/, /^talk\.tex/]);
 	await expect(page.locator('[data-testid="review-group"][data-group="accepted"]')).toHaveAttribute('open');
 	await expect(page.locator('#review-sy-0003')).toBeInViewport();
 });
@@ -127,12 +127,12 @@ test('a document whose every block is accepted says so', async ({ page }) => {
 	await expect(page.getByTestId('review-empty')).toHaveText('Every block of main.tex is accepted.');
 });
 
-test('prose is inspected in Incoming without mathematical acceptance controls, and a pull says it is taken whole', async ({ page }) => {
+test('prose is inspected in a pull\'s review without mathematical acceptance controls, and a pull says it is taken whole', async ({ page }) => {
 	await serve(page, (m) => {
 		m.contributions = [];
 		m.incoming = { workspace: 'https://git.overleaf.com/0123', branch: 'master', base: 'a'.repeat(40), commit: 'b'.repeat(40), observed: '2026-09-28', files: [{ status: 'M', path: 'drafting/main.tex', diff: '-Old prose\n+New prose' }], changes: [{ key: 'prose:setup', name: 'Introduction', category: 'prose', kind: 'edited', local_changed: false, conflict: false, already_local: false, current: 'Old prose', proposed: 'New prose', affected: [] }, { key: 'sy-0001', kind: 'edited', current: 'Old definition', proposed: 'New definition', local_changed: false, conflict: false, already_local: false, affected: [] }] };
 	});
-	await page.goto('/review/incoming');
+	await page.goto('/review/proposed?pull');
 	await expect(page.getByText('Old prose', { exact: true })).toBeVisible();
 	await expect(page.getByText('New prose', { exact: true })).toBeVisible();
 	await expect(page.getByTestId('contribution-bar')).toContainText('A pull is taken whole.');
@@ -143,7 +143,7 @@ test('prose is inspected in Incoming without mathematical acceptance controls, a
 	await expect(page.getByText('New prose', { exact: true })).toBeVisible();
 });
 
-test('Incoming accepts only explicitly chosen mathematics while incorporating the whole pull', async ({ page }) => {
+test('a pull\'s review accepts only explicitly chosen mathematics while incorporating the whole pull', async ({ page }) => {
 	let submitted: Record<string, unknown> | null = null;
 	await serve(page, (m) => {
 		m.reviewer = { name: 'Luisa', source: 'local' };
@@ -158,7 +158,7 @@ test('Incoming accepts only explicitly chosen mathematics while incorporating th
 		submitted = route.request().postDataJSON();
 		await route.fulfill({ json: { ok: true, result: { accepted: ['sy-0001'], pending: ['sy-0001:proof'] } } });
 	});
-	await page.goto('/review/incoming');
+	await page.goto('/review/proposed?pull');
 	await expect(page.getByRole('heading', { name: 'Introduction', exact: true })).toBeVisible();
 	// prose asks for no acceptance; a block of mathematics is accepted only where it is marked as checked
 	const checked = page.getByTestId('accept-checked');
@@ -173,7 +173,7 @@ test('Incoming accepts only explicitly chosen mathematics while incorporating th
 	await expect(checked).not.toBeChecked();
 	await expect(page.getByTestId('contribution-bar')).toContainText('1 marked as checked');
 	await page.getByTestId('apply').click();
-	await expect(page.getByTestId('contribution-bar-said')).toContainText('Took the pull: 1 accepted, 1 wait in Needs review.');
+	await expect(page.getByTestId('contribution-bar-said')).toContainText('Took the pull: 1 accepted, 1 wait in Your text.');
 	expect(submitted!.accept).toEqual(['sy-0001']);
 	expect(submitted!.incoming).toBe('b'.repeat(40));
 	expect(submitted!.review_token).toBe('preview');

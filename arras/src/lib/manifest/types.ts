@@ -72,6 +72,10 @@ export interface FileChange {
   hash?: string | null;
   /** How many changes (`@@` hunks) the diff holds, each kept or undone alone by its number from 0. */
   hunks?: number;
+  /** The statements and proofs each change touches, by its number, in the file's order: what is drawn under a block in Your text; an empty list is text outside any block. */
+  blocks?: string[][];
+  /** The person's documents whose text this file is part of; empty for a file in none. */
+  documents?: string[];
 }
 
 /** A file of the project the viewer shows, by its quilt-relative path (plan 0.22.7). */
@@ -110,7 +114,7 @@ export interface CanonDoc {
 	cannot_restore?: string;
 }
 
-/** One line of the history, as Review › History lists it: what was done, when, by whom, and to what. */
+/** One line of the history, as Review › Record lists it: what was done, when, by whom, and to what. */
 export interface HistoryAct {
 	action: string;
 	when: string;
@@ -126,7 +130,7 @@ export interface HistoryAct {
 	/** A step's landmark: a `canon` entry's path. */
 	landmark?: string;
 	message?: string;
-	hunk?: number;
+	hunks?: number[];
 	kept_for?: string;
 	copy?: string;
 	page?: string;

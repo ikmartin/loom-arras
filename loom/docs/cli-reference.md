@@ -342,7 +342,7 @@ The open files are the ones the viewer shows that are text: Markdown, HTML, note
 | `--keep` `PATH` | Keep the change to PATH: your look takes its text now. |
 | `--keep-all` | Keep every change: a new look at every open file. |
 | `--undo` `PATH` | Put PATH back as it was at your look, keeping its text now in the history first. |
-| `--hunk` `N` | With --keep or --undo, act on PATH's change number N alone, as the list numbers them. |
+| `--hunk` `N` | With --keep or --undo, act on PATH's change number N alone, as the list numbers them; may repeat. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1234,7 +1234,7 @@ Change which documents publish to the workspace, without publishing.
 
 `loom sync fetch [OPTIONS]`
 
-Fetch the document workspace's changes for review in the viewer's Incoming panel, without changing your files.
+Fetch the document workspace's changes for review in the viewer's Review, without changing your files.
 
 | option | description |
 |---|---|
@@ -1245,7 +1245,7 @@ Fetch the document workspace's changes for review in the viewer's Incoming panel
 
 `loom sync incorporate [OPTIONS]`
 
-Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Incoming panel does the same.
+Apply the fetched pull to the quilt's files, stamping first each document it reaches; the viewer's Review does the same.
 
 | option | description |
 |---|---|
