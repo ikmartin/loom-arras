@@ -3,7 +3,6 @@
 	//
 	// Two icons of one size rather than two words of different lengths: they are a pair of modes, and a pair reads as a pair only when the controls match.
 	import Icon from '$lib/components/Icon.svelte';
-	import type { Tool } from './view.svelte';
 
 	let {
 		holder,
@@ -11,7 +10,7 @@
 		disabled = false
 	}: {
 		/** Whatever keeps the mode: a work's page view, a node's or a document's state. */
-		holder: { tool: Tool };
+		holder: { tool: string };
 		/** What the tools act on, for their accessible names. */
 		of?: string;
 		disabled?: boolean;

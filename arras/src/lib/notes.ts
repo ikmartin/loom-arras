@@ -32,7 +32,7 @@ export async function keep(id: string): Promise<string> {
 /** The notes `m` has, newest first, faded ones only when they are asked for. */
 export function notesWhere(m: Manifest | null, on: (n: Note) => boolean, faded = false): Note[] {
 	return Object.values(m?.notes ?? {})
-		.filter((n) => (faded || !n.faded) && on(n))
+		.filter((n) => !n.erased && (faded || !n.faded) && on(n))
 		.sort((a, b) => b.when.localeCompare(a.when));
 }
 

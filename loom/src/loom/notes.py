@@ -561,7 +561,9 @@ def take_in(
                 except MapRefused:
                     boxes[page] = ""
             quote = words_under(boxes[page], here) or None
-        origin = item.get("origin") if isinstance(item.get("origin"), dict) else None
+        origin = dict(item["origin"]) if isinstance(item.get("origin"), dict) else None
+        if origin and origin.get("ref"):
+            origin["sha"] = artifact
         count += 1
         note = Note(
             id=f"n-{day}-{count:04d}",
@@ -683,12 +685,16 @@ def published(result: Any) -> dict[str, dict[str, Any]]:
     now = stamp()
     out: dict[str, dict[str, Any]] = {}
     for nid, n in notes.items():
-        # an erased note is gone from every list; one taken in from a PDF stays, so the viewer goes on hiding the annotation in the file
-        if n.erased and not (n.origin or {}).get("ref"):
+        pdf = pdf_of(result, n.target)
+        ref, sha = (n.origin or {}).get("ref"), (n.origin or {}).get("sha")
+        hides = ref if ref and pdf is not None and pdf.is_file() and sha == artifact_of(pdf) else None
+        # an erased note is gone from every list; one standing for an annotation in its file stays, so the viewer goes on hiding that annotation
+        if n.erased and not hides:
             continue
         row = n.to_dict()
         row["faded"] = n.mark is None and n.kept is None and nid not in links and _days(n.when, now) > FADE_DAYS
-        pdf = pdf_of(result, n.target)
+        if hides:
+            row["hides"] = hides
         if pdf is not None:
             row["detached"], moved = _on_the_pdf_now(result, n, pdf)
             if moved:

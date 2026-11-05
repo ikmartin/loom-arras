@@ -84,7 +84,8 @@ export async function write(endpoint: string, body: Record<string, unknown>): Pr
 		// write from the writer's own context rather than from a pointer the publisher keeps: a call site that forgot
 		// would fall back to that pointer and file work wherever it happened to point. Refusing here rather than at the
 		// publisher makes a mis-wired button fail where it was wired, not somewhere in the log.
-		if (SESSIONED.has(endpoint) && body.session === undefined) {
+		// A mark is the one note that files itself in no session: a person drawing on a page they are reading has not said it belongs to one.
+		if (SESSIONED.has(endpoint) && body.session === undefined && !(endpoint === 'note' && body.mark)) {
 			const why = writable(store.manifest);
 			if (why) return { ok: false, error: { code: 'no-session', message: why } };
 			body = { ...body, session: sessionView.selected };

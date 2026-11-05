@@ -7,6 +7,7 @@
 		range,
 		onaccept,
 		onquote,
+		onhighlight,
 		ondone
 	}: {
 		/** The selection's bounding box, in window coordinates when it was made: where the chip stands when there is no range, and so it does not follow a scroll. */
@@ -17,6 +18,8 @@
 		onaccept?: () => void;
 		/** Write a note quoting the selection; the refusal, or '' once written. */
 		onquote?: () => Promise<string>;
+		/** Mark the selection on a PDF page, in one press; absent anywhere else. */
+		onhighlight?: () => void;
 		/** The quote is written and said: the caller takes the chip down. */
 		ondone?: () => void;
 	} = $props();
@@ -114,6 +117,7 @@
 	{:else}
 		{#if onaccept}<button type="button" class="chip" data-testid="annotate-offer" onmousedown={(e) => e.preventDefault()} onclick={onaccept}>annotate</button>{/if}
 		{#if onquote}<button type="button" class="chip" data-testid="quote-offer" title="Quote it into the session: a note an agent reads with loom since" onmousedown={(e) => e.preventDefault()} onclick={quoting}>quote</button>{/if}
+		{#if onhighlight}<button type="button" class="chip" data-testid="highlight-offer" title="Highlight these words on the page" onmousedown={(e) => e.preventDefault()} onclick={onhighlight}>highlight</button>{/if}
 	{/if}
 </span>
 

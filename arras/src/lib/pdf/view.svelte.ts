@@ -3,6 +3,7 @@
 // It is a separate object because the controls and the renderer need not be in the same place. `PdfDoc` draws its own toolbar when nothing else claims one, and a page with a rail of its own creates a view, hands it to both, and puts the controls on one line with everything else it offers.
 
 import { prefs } from '$lib/prefs.svelte';
+import type { PageTool } from './marks';
 
 export type Tool = 'select' | 'box';
 
@@ -10,7 +11,9 @@ export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
 
 export class PdfView {
-	tool = $state<Tool>('select');
+	tool = $state<PageTool>('select');
+	/** Whether the markup bar is showing above the paper. */
+	marking = $state(false);
 	/** Whether the page is matched to the column, which then survives a resize. */
 	fitWidth = $state(false);
 	/** Whether a page wider than its column is drawn so its text fits instead: a paper opened into half a pane is read, not scrolled sideways. The reader's own zoom takes over as soon as they give one. */

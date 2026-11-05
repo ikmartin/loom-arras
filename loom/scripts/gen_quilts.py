@@ -469,6 +469,21 @@ def build_synthetic(dest: Path) -> None:
         "Referee Agent",
         agent=True,
     )
+    # a mark on a page of a PDF the viewer shows (plan 0.27), which asks for no session
+    g.run(
+        "note",
+        "the figure's corner",
+        "--on",
+        "drafting/figures/fig.pdf",
+        "--page",
+        "1",
+        "--box",
+        "4,4,20,12",
+        "--mark",
+        "box",
+        "--as",
+        AUTHOR,
+    )
 
     # The commands an agent runs again and again while it reads, which What it did gathers into a row each, and an open suggestion carrying text to put in, which Review › Suggestions applies.
     g.at("2026-09-17T09:00:00Z")

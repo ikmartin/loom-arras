@@ -42,6 +42,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-61](WQ-61-read-view-content-visibility.md) | the read view's blocks skipped while off screen, once the reader's place holds | arras | a way to keep the place when a skipped block above the reader changes, shown on relloc within 4 px |
 | [WQ-62](WQ-62-suggestions-folded-in.md) | a document read with its open suggestions folded in | loom, arras | a suggestion of a paragraph or more is too cramped to read in its in-place view, in a review of the author's own text |
 | [WQ-63](WQ-63-take-part-of-a-pull.md) | taking part of a pull | loom, arras | a pull holds a change the author wants and one they don't, and they take it whole and undo the rest by hand |
+| [WQ-64](WQ-64-marks-beside-the-manifest.md) | a PDF's marks in a sidecar rather than the manifest | loom, arras | the notes in a quilt's manifest cross one megabyte |
 
 Twenty-five active, twenty slots of headroom.
 

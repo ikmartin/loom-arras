@@ -39,12 +39,12 @@
 		<ul class="plain">
 			{#each shown as n (n.id)}
 				<li class="note" class:faded={n.faded} data-testid="note-{n.id}">
-					{#if n.quote}<q class="quoted">{n.quote}</q>{/if}
+					{#if n.mark}<span class="faint">{n.mark} </span>{/if}{#if n.quote}<q class="quoted">{n.quote}</q>{/if}
 					{#if n.body}<span class="body">{n.body}</span>{/if}
 					<span class="faint">
-						· <a href="quilt:{n.id}">{noteWhere(n)}</a> · {n.author.id} · {n.when.slice(0, 10)}{#if n.detached} · its words are gone{/if}{#if n.kept} · kept{/if}
+						· <a href="quilt:{n.id}">{noteWhere(n)}</a> · {n.author.id} · {n.when.slice(0, 10)}{#if n.detached} · {n.quote ? 'its words are gone' : 'the file has changed'}{/if}{#if n.kept} · kept{/if}
 					</span>
-					{#if keeps && !n.kept}<button type="button" class="as-link" data-testid="note-keep" onclick={() => keep(n.id)}>keep</button>{/if}
+					{#if keeps && !n.kept && !n.mark}<button type="button" class="as-link" data-testid="note-keep" onclick={() => keep(n.id)}>keep</button>{/if}
 				</li>
 			{/each}
 		</ul>

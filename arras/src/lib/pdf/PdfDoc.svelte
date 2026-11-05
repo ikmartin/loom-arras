@@ -7,12 +7,13 @@
 	//
 	// Page sizes are per page, not per document: a scan's pages differ by a point or two, and a fixed transform would
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
-	import { onMount } from 'svelte';
+	import { onMount, untrack, type ComponentProps } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { PdfView } from './view.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
+	import type { PageMark } from './marks';
 
 	type Rect = readonly number[];
 	type Box = { left: number; top: number; width: number; height: number };
@@ -30,7 +31,14 @@
 		onbox,
 		onmark,
 		onpage,
-		onlink
+		onlink,
+		marks = [],
+		selected = '',
+		hide = [],
+		ondraw,
+		onpick,
+		onmove,
+		onembedded
 	}: {
 		url: string;
 		/** The page to open at; changing it scrolls there. */
@@ -54,6 +62,15 @@
 		onpage?: (e: { page: number }) => void;
 		/** A link inside the paper was followed to another of its pages; the document scrolls there and says so. */
 		onlink?: (e: { page: number }) => void;
+		/** The notes drawn on the pages, by the page each is on. */
+		marks?: PageMark[];
+		selected?: string;
+		/** Annotations in the PDF that a note stands for, by reference, on every page. */
+		hide?: string[];
+		ondraw?: ComponentProps<typeof PdfPage>['ondraw'];
+		onpick?: ComponentProps<typeof PdfPage>['onpick'];
+		onmove?: ComponentProps<typeof PdfPage>['onmove'];
+		onembedded?: ComponentProps<typeof PdfPage>['onembedded'];
 	} = $props();
 
 	// The renderer's own view, used when no caller supplied one; `v` is the one in force either way.
@@ -143,6 +160,12 @@
 		return out;
 	});
 
+	const marksByPage = $derived.by(() => {
+		const out: Record<number, PageMark[]> = {};
+		for (const m of marks) (out[m.page] ??= []).push(m);
+		return out;
+	});
+
 	function sizeOf(n: number): { width: number; height: number } {
 		return sizes[n] ?? sizes[1] ?? { width: 612, height: 792 };
 	}
@@ -223,7 +246,8 @@
 		void seq;
 		// a moving divider changes the width every frame; land once it is put down
 		if (!id || !column || workspace.resizing) return;
-		const at = spans.find((s) => s.id === id);
+		// a mark is landed at once: the marks change with every one written, and writing one is no reason to scroll back to another
+		const at = spans.find((s) => s.id === id) ?? untrack(() => marks.find((m) => m.id === id));
 		if (!at) return;
 		here = at.page;
 		landed = '';
@@ -331,7 +355,14 @@
 					{focus}
 					render={shown.has(n) && ready}
 					quads={byPage[n] ?? []}
-					ondrawn={() => { if (landed !== focus && spans.some((s) => s.id === focus && s.page === n)) focusedRender++; }}
+					marks={marksByPage[n] ?? []}
+					{selected}
+					{hide}
+					{ondraw}
+					{onpick}
+					{onmove}
+					{onembedded}
+					ondrawn={() => { if (landed !== focus && (spans.some((s) => s.id === focus && s.page === n) || marks.some((m) => m.id === focus && m.page === n))) focusedRender++; }}
 					{onselect}
 					{onbox}
 					{onmark}

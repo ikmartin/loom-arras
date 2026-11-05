@@ -115,8 +115,8 @@ export function paperAt(m: Manifest, key: string): Item | null {
 /** Where a note is read (plan 0.22.8): what it is on, at its page or its key; a message's or a session's opens the transcript. */
 function notedItem(m: Manifest, n: Note): Item | null {
 	const t = n.target;
-	if (t.file) return { kind: 'file', id: t.file, ...(n.page ? { anchor: `page=${n.page}` } : {}) };
-	if (t.citekey) return n.page ? { kind: 'work', id: t.citekey, place: { page: n.page } } : { kind: 'work', id: t.citekey, view: 'info' };
+	if (t.file) return { kind: 'file', id: t.file, ...(n.page ? { anchor: `page=${n.page}` } : {}), ...(n.mark ? { note: n.id } : {}) };
+	if (t.citekey) return n.page ? { kind: 'work', id: t.citekey, place: { page: n.page, ...(n.mark ? { annot: n.id } : {}) } } : { kind: 'work', id: t.citekey, view: 'info' };
 	if (t.message) return { kind: 'session', id: t.message.session };
 	if (t.session) return { kind: 'session', id: t.session };
 	return t.key ? itemForQuilt(m, t.key) : null;

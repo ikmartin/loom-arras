@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "2d425a9d80c593e4dd8e31a76cc2371c69f89fd7b8e093c0c13e65af1fc87941",
+   "hash": "7aa5de79b714b029df02884cf23ae5dc6ae402a711f20e39815ec742bdd8ed6c",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "02c6a271cbccfc1bf41c436a2ff95dfe9c6c0ae5013cc7776b3be98e7cfb1771",
+   "hash": "6f57e33eddcd39c2ef64dd0a1d69b4d92ef8401575958aa44298ea4882cbd740",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "8c1c14a67a231b42a52019286f6532e76d45b5f069196353136b65da5714eac8",
+   "hash": "cd6560d44e315e71a1dd53e82ae591cbf394cc5fee9693a7bf1a22539e7a77a7",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -7626,6 +7626,32 @@
    "session": "s-2026-09-16-0001",
    "target": {
     "session": "s-2026-09-16-0001"
+   },
+   "when": "2026-09-16T11:30:00Z"
+  },
+  "n-2026-09-16-0004": {
+   "artifact": "4631633d64d450f0e82b56d66dd9a41efcc5919df13107656a81627aa0d13239",
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "the figure's corner",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-0004",
+   "mark": "box",
+   "page": 1,
+   "rects": [
+    [
+     4.0,
+     4.0,
+     24.0,
+     16.0
+    ]
+   ],
+   "session": "",
+   "target": {
+    "file": "drafting/figures/fig.pdf"
    },
    "when": "2026-09-16T11:30:00Z"
   }

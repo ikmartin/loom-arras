@@ -20,7 +20,7 @@
 	const pdfOff = $derived(!readable ? 'No copy of this work is on file' : !onPaper ? 'Open the Paper view to open its PDF' : undefined);
 </script>
 
-{#snippet tools()}<PdfTools view={workState(item).pdf} of={name} disabled={!readable || !onPaper} />{/snippet}
+{#snippet tools()}<PdfTools view={workState(item).pdf} of={name} disabled={!readable || !onPaper} markup />{/snippet}
 
 {#if ref}
 	<ItemToolbar {name} bar={tools} on={ui.showSettled}>

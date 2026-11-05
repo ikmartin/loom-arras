@@ -66,6 +66,47 @@
 		<path d="M5.5 12h2.5" />
 		<path d="M16 8.5h2.5" />
 		<path d="M16 12h2.5" />
+	{:else if name === 'pen'}
+		<!-- the markup bar: what is drawn on a page -->
+		<path d="M12 20h9" />
+		<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+	{:else if name === 'highlighter'}
+		<path d="m9 11-6 6v3h9l3-3" />
+		<path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+	{:else if name === 'underline'}
+		<path d="M6 4v6a6 6 0 0 0 12 0V4" />
+		<path d="M4 20h16" />
+	{:else if name === 'strike'}
+		<path d="M16 4H9a3 3 0 0 0-2.83 4" />
+		<path d="M14 12a4 4 0 0 1 0 8H6" />
+		<path d="M4 12h16" />
+	{:else if name === 'pin'}
+		<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+	{:else if name === 'ink'}
+		<path d="M3 17c3-6 5-6 7-2s4 4 6-1 3-5 5-3" />
+	{:else if name === 'type'}
+		<path d="M4 7V4h16v3" />
+		<path d="M9 20h6" />
+		<path d="M12 4v16" />
+	{:else if name === 'rect'}
+		<rect x="4" y="5" width="16" height="14" rx="1" />
+	{:else if name === 'oval'}
+		<ellipse cx="12" cy="12" rx="9" ry="7" />
+	{:else if name === 'arrow'}
+		<path d="M5 19 19 5" />
+		<path d="M9 5h10v10" />
+	{:else if name === 'undo'}
+		<path d="M3 7v6h6" />
+		<path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+	{:else if name === 'redo'}
+		<path d="M21 7v6h-6" />
+		<path d="M3 17a9 9 0 0 1 15-6.7L21 13" />
+	{:else if name === 'turn-left'}
+		<path d="M3 4v6h6" />
+		<path d="M3.5 10a9 9 0 1 1 1.2 6" />
+	{:else if name === 'turn-right'}
+		<path d="M21 4v6h-6" />
+		<path d="M20.5 10a9 9 0 1 0-1.2 6" />
 	{/if}
 </svg>
 
