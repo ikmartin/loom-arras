@@ -88,8 +88,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it:
 - `loom/tests/client/test_claude.py::test_a_launched_claude_writes_where_the_quilt_lets_it_and_not_where_it_protects`;
-- `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`, on the shell variant;
-- `::test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_shell`, on the MCP variant.
+- `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`, on both variants;
+- `::test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_authors_command`, on the MCP variant.
 
 `loom/tests/client/test_codex.py` and `test_gemini.py` try the server each app's file names, and skip where the app is not installed. Neither has run yet.
 
@@ -98,6 +98,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 **2026-10-26.** Launch commands are gone with launching (plan 0.20.1); the client tier runs `claude -p` itself, as a person starting an agent in the quilt would.
 
 **2026-11-01.** The boundary test writes an open file, the agent's copies, a directory `[agents] deny` names and one of loom's records, in the mode that accepts edits, since outside the protected paths whether the client asks is the person's setting (plan 0.22.6).
+
+**2026-11-04.** The MCP variant allows the agent's commands in a shell beside the tools, since a server that could not start left an agent with no loom at all. The client tier now tries those commands on both variants, and no longer asserts that an agent attached over MCP ran no `loom` in a shell.
 
 ### Where an agent may write is one table, which loom's own commands enforce in every client
 

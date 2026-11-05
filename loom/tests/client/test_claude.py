@@ -2,7 +2,7 @@
 
 `Write(...)` path rules were never enforced, because Claude Code matches only `Edit` rules against paths (DR-275-ikmartin); and passed with `--settings`, the file reads a leading `/` as `.claude/`, so allows written from the root refused every write a launched agent made (DR-343-ikmartin). Both passed every unit test, which read the generated file and never the client. Each test here makes a quilt with loom's own commands and starts the client from the quilt's root with the generated file passed as `--settings`, the reading DR-343-ikmartin measured. The command is built here rather than taken from loom's launch preset, which plan 0.20.1 retires, so the tier outlives it.
 
-Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote, a write is recorded under the name it gives, and a mode's prompt and a resource reach the server; what the person did since the agent last looked reaches it through `loom_since`; in the shell variant, the agent's own `loom` commands run and the author's are refused. Codex and Gemini CLI have their own files beside this one.
+Both variants are tried: over MCP, the default, the client starts the server from the `.mcp.json` `loom ai init` wrote, a write is recorded under the name it gives, and a mode's prompt and a resource reach the server; what the person did since the agent last looked reaches it through `loom_since`; in both variants, the agent's own `loom` commands run in a shell and the author's are refused. Codex and Gemini CLI have their own files beside this one.
 
 Every test calls a hosted model on the account of whoever runs it, so the tier is run by hand (`scripts/verify client`), never in CI, and skips unless LOOM_CLIENT_TESTS=1 and `claude` is on PATH.
 """
@@ -124,10 +124,13 @@ def test_a_launched_claude_writes_where_the_quilt_lets_it_and_not_where_it_prote
         assert (Path(d).name, f) in tried, f"no write to {d}/ was refused: {result}"
 
 
-def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(tmp_path: Path) -> None:
-    """The shell variant, DR-275-ikmartin: an agent started for a turn cannot answer a prompt, so its own commands are allowed outright and the author's are denied; the shim on PATH tells a command the client refused from one loom refused after it ran."""
+@pytest.mark.parametrize("flags", [("--shell",), ()], ids=["shell", "mcp"])
+def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(
+    tmp_path: Path, flags: tuple[str, ...]
+) -> None:
+    """Either variant, DR-275-ikmartin: an agent started for a turn cannot answer a prompt, so its own commands are allowed outright in a shell and the author's are denied; the shim on PATH tells a command the client refused from one loom refused after it ran."""
     gate(CLAUDE, "claude")
-    q = quilt(tmp_path, "--shell")
+    q = quilt(tmp_path, *flags)
     result, ran = turn(q, COMMANDS)
     words = [line.split()[:1] for line in ran]
     assert ["status"] in words, f"loom status, which the agent may run, never ran: {ran}, {result}"
@@ -136,8 +139,8 @@ def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(tmp
     assert any("loom accept" in c for c in tried), f"no loom accept was refused: {result}"
 
 
-def test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_loom_in_a_shell(tmp_path: Path) -> None:
-    """The default variant: the client starts the server from the `.mcp.json` loom wrote, which names no `--quilt` since the client runs it in the project, its tools are allowed outright, and `loom` typed in a shell is refused; the record's author is the name the file gave the server, so the shim on PATH, which the server's absolute command never passes through, logs no `loom` at all."""
+def test_a_claude_attached_over_mcp_writes_as_its_agent_and_runs_no_authors_command(tmp_path: Path) -> None:
+    """The default variant: the client starts the server from the `.mcp.json` loom wrote, which names no `--quilt` since the client runs it in the project, its tools are allowed outright, and the author's commands stay refused in a shell; the record's author is the name the file gave the server."""
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
     result, ran = turn(q, OVER_MCP)
@@ -157,12 +160,11 @@ def test_a_claude_attached_over_mcp_reads_a_resource_and_expands_a_modes_prompt(
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
     ok("session", "new", "--name", "client check", "--as", "A. Author", cwd=q)
-    result, ran = turn(q, READ_A_RESOURCE)
+    result, _ = turn(q, READ_A_RESOURCE)
     assert "\\label{dm-0002}" in str(result.get("result", "")), f"the reply has no label from quilt:dm-0002: {result}"
     assert not result["permission_denials"], f"something was refused: {result}"
-    prompted, ran_too = turn(q, A_PROMPT)
+    prompted, _ = turn(q, A_PROMPT)
     assert not prompted["permission_denials"], f"something was refused: {prompted}"
-    assert not [line for line in ran + ran_too if line.split()[:1]], f"loom ran in a shell: {ran + ran_too}"
     log = "\n".join(p.read_text() for p in (q / ".loom" / "sessions").glob("*/run.log"))
     assert "loom source dm-0002  (over MCP, reading quilt:dm-0002)" in log, f"no resource read was logged: {log}"
     assert "loom ai mode quick  (over MCP, for the quick prompt)" in log, (
@@ -176,10 +178,9 @@ def test_a_claude_attached_over_mcp_hears_what_the_person_did_since_it_last_look
     q = quilt(tmp_path)
     ok("session", "new", "--name", "client check", "--as", "A. Author", cwd=q)
     ok("annotate", "dm-0002", LEFT, "--kind", "question", "--as", "A. Author", cwd=q)
-    result, ran = turn(q, HEAR_SINCE)
+    result, _ = turn(q, HEAR_SINCE)
     assert LEFT in str(result.get("result", "")), f"the reply does not quote the person's annotation: {result}"
     assert not result["permission_denials"], f"something was refused: {result}"
-    assert not [line for line in ran if line.split()[:1]], f"loom ran in a shell: {ran}"
     log = "\n".join(p.read_text() for p in (q / ".loom" / "sessions").glob("*/run.log"))
     assert "loom since --as 'Claude Code Agent'  (over MCP)" in log, f"no loom since was logged: {log}"
     assert (q / ".loom" / "since" / "claude-code-agent.json").is_file(), "the agent's marker did not move"

@@ -62,15 +62,16 @@ NOT_TOOLS = frozenset({"mcp", "serve"})
 #: The one agent command that may reach the network, when the quilt's config allows it.
 NETWORK = frozenset({"library update"})
 #: The line loom puts in each agent's root file, one per variant: an agent attached over MCP starts from the server's tool, and one working through a shell from the command.
-MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom doctor`, fix what it reports, approve the loom server and restart this session. Write anywhere but the paths `loom_ai_orient` names as protected."
+MCP_LINE = "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, run `loom ai orient` in a shell instead, and `loom doctor` to tell the author why. Write anywhere but the paths the orientation names as protected."
 SHELL_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write anywhere but the paths `loom ai orient` names as protected."
 #: Lines an older loom wrote, each replaced where it stands so an upgraded quilt holds one line, not two.
 OLD_LINES = (
     "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom_ai_orient` names as yours to edit.",
     "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit.",
     "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom ai init` and approve the loom server. Write anywhere but the paths `loom_ai_orient` names as protected.",
+    "This directory is a quilt managed by loom. Before doing anything, call `loom_ai_orient`, the tool of the loom MCP server, and follow it; if you have no loom tools, ask the author to run `loom doctor`, fix what it reports, approve the loom server and restart this session. Write anywhere but the paths `loom_ai_orient` names as protected.",
 )
-#: The two ways an agent reaches loom: through the MCP server's tools, the default, or by typing `loom` in a shell, for an agent with no MCP.
+#: The two variants of the agent layer: the MCP server's tools with `loom` in a shell beside them, the default, or the shell alone, for an agent with no MCP.
 MCP, SHELL = "mcp", "shell"
 VERSION_FILE = ".loom-modes-version"
 
@@ -156,7 +157,7 @@ def quilt_config(root: Path) -> QuiltConfig:
 def permissions_json(config: QuiltConfig, *, shell: bool = False) -> str:
     """`.claude/settings.json` for a quilt, generated from the one table rather than written by hand.
 
-    Over MCP, the default, the agent's commands are the loom server's tools, allowed as `mcp__loom__*`, and the author's are not tools at all; `loom` typed in a shell is denied, which steers an agent to the tools and is not the boundary -- loom's own refusal under an agent (K5) is. With `shell`, for an agent that has no MCP, the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, since Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71) -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. The paths are `loom.agents`'s: the agent's places allowed, and what is always protected and what `[agents] deny` names denied; every other file is left to the client, which asks or not as the person runs it.
+    In a shell the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, since Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71) -- and allows `AGENT_COMMANDS` themselves outright, so the person is never asked to approve an agent's own reads and annotations. Over MCP, the default, the loom server's tools are allowed as well, as `mcp__loom__*`; the shell stays open beside them because it filters a result and takes `--batch`, and so that a server that cannot start does not cost the agent all of loom. With `shell`, for an agent that has no MCP, the tools are left out. Loom's own refusal under an agent (K5) is the boundary either way. The paths are `loom.agents`'s: the agent's places allowed, and what is always protected and what `[agents] deny` names denied; every other file is left to the client, which asks or not as the person runs it.
 
     The file is read twice and its two path forms are for different readings (DR-343-ikmartin): as the project's settings, `/x` is the quilt root, but an untrusted folder's allow rules are dropped there; passed with `--settings`, every rule holds but `/x` is under `.claude/`. So the allows are relative to the working directory, the quilt root an agent is started in, and the denies keep `/`, which anchors `/config.toml` to the root where a relative `config.toml` would refuse every file of that name.
     """
@@ -167,9 +168,11 @@ def permissions_json(config: QuiltConfig, *, shell: bool = False) -> str:
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
     allow = [f"Edit({d})" for d in claude_allows()]
     # the agent's own commands, allowed outright: approving each of them is friction with nothing to decide
-    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)] if shell else ["mcp__loom__*"]
+    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
+    if not shell:
+        allow.append("mcp__loom__*")
     deny = [f"Edit({d})" for d in claude_denies(config)]
-    deny += [f"Bash(loom {c}*)" for c in author_commands()] if shell else ["Bash(loom *)"]
+    deny += [f"Bash(loom {c}*)" for c in author_commands()]
     deny.append("Bash(rm *)")
     return json.dumps({"permissions": {"allow": allow, "deny": deny}}, indent=2) + "\n"
 
@@ -179,8 +182,8 @@ CLAUDE_SETTINGS = ".claude/settings.json"
 CODEX_RULES = ".codex/rules/loom.rules"
 
 
-def codex_rules(*, shell: bool = False) -> str:
-    """`.codex/rules/loom.rules`: the same policy as `permissions_json`, as Codex's command-prefix rules; over MCP, `loom` in a shell is forbidden and the tools are the way in.
+def codex_rules() -> str:
+    """`.codex/rules/loom.rules`: the same policy as `permissions_json`, as Codex's command-prefix rules, in either variant, since these rules govern only the shell.
 
     Codex matches commands, not paths, so the path rules have no counterpart here; the author's own verbs are refused by loom itself for an agent's name whatever the tool (DR-185). Codex reads a project's rules only once the project is trusted. Unverified: Codex was not installed where this was written.
     """
@@ -194,22 +197,19 @@ def codex_rules(*, shell: bool = False) -> str:
     def rule(words: list[str], decision: str) -> str:
         return f"prefix_rule(pattern = [{', '.join(json.dumps(w) for w in words)}], decision = {json.dumps(decision)})"
 
-    if shell:
-        body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
-        body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
-    else:
-        body = [rule(["loom"], "forbidden")]
+    body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
+    body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
     body.append(rule(["rm"], "forbidden"))
     return "\n".join(head + body) + "\n"
 
 
 def vendor_files(config: QuiltConfig, *, shell: bool = False) -> dict[str, str]:
     """Quilt-relative path -> text for the permission files loom owns whole in a quilt with `config`, in one variant; the agent root files are not among them (see `ensure_root_line`), nor the untracked MCP client files (`ai.clients`)."""
-    return {CLAUDE_SETTINGS: permissions_json(config, shell=shell), CODEX_RULES: codex_rules(shell=shell)}
+    return {CLAUDE_SETTINGS: permissions_json(config, shell=shell), CODEX_RULES: codex_rules()}
 
 
 def variant(root: Path) -> str | None:
-    """Which way the quilt's agents reach loom, read off its permission file: `MCP` when it allows the loom server's tools, `SHELL` when it allows `loom` commands, None with no file. Never recorded anywhere else, so it cannot disagree with what the file says."""
+    """Which way the quilt's agents reach loom, read off its permission file: `MCP` when it allows the loom server's tools, else `SHELL` when it allows `loom` commands, None with no file. Never recorded anywhere else, so it cannot disagree with what the file says."""
     p = root / CLAUDE_SETTINGS
     try:
         allow = json.loads(p.read_text(encoding="utf-8"))["permissions"]["allow"]

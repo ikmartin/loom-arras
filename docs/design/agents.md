@@ -56,8 +56,8 @@ An agent that wants one of these acts writes a suggestion on the thing concerned
 
 An agent attaches over MCP, or through the shell if it has no MCP, such as Aider. `loom ai init` writes the agent layer in one of two variants, `--mcp` (the default) or `--shell`. The variant is read back from `.claude/settings.json`, and `loom upgrade` keeps it. Both are generated from one table of agent commands (`AGENT_COMMANDS` in `loom/src/loom/ai/layout.py`):
 
-- **Over MCP**, `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` carry one line telling the agent to call `loom_ai_orient`, and, if it has no loom tools, to ask the author to run `loom doctor`, fix what it reports, approve the server and restart the session. The permission files allow the server's tools (`mcp__loom__*`) and the agent's own places, and deny the protected paths (above) and `loom` typed in a shell, which steers the agent to its tools. Claude Code's `.mcp.json` starts the server with no `--quilt`, since Claude Code runs it in the project, where `loom mcp` finds the quilt by walking up; the other apps' files name the quilt's path. The boundary itself is loom's refusal under an agent marker.
-- **In the shell**, the line says to run `loom ai orient`. The permission files allow each agent command and deny every other one.
+- **Over MCP**, `CLAUDE.md`, `AGENTS.md` and `GEMINI.md` carry one line telling the agent to call `loom_ai_orient`, and, if it has no loom tools, to run `loom ai orient` in a shell instead and `loom doctor` to tell the author why. The permission files allow the server's tools (`mcp__loom__*`), each agent command in a shell and the agent's own places, and deny the protected paths (above) and every other command. The shell stays open beside the tools because it filters a result and takes `--batch`, and so that a server that cannot start costs the agent its tools and not all of loom. Claude Code's `.mcp.json` starts the server with no `--quilt`, since Claude Code runs it in the project, where `loom mcp` finds the quilt by walking up; the other apps' files name the quilt's path. The boundary itself is loom's refusal under an agent marker.
+- **In the shell**, the line says to run `loom ai orient`. The permission files allow each agent command and deny every other one, and there is no server.
 
 In either variant, a loom command outside the table refuses under an agent's shell before it reads anything.
 
@@ -83,6 +83,8 @@ MCP is the intended way for any agent to attach. The server is `loom mcp --as NA
 - **It is optional.** The shell variant serves an agent without MCP. Both variants are tried with the real client before they ship, not only checked by unit tests. The client tier does this by hand (`invariants.md`).
 
 Every major coding agent can start a local MCP server: Claude Code and Claude desktop, Codex and ChatGPT desktop, Gemini's CLI, Cursor, VS Code, Zed, JetBrains, and local-model clients such as LM Studio. The web chat apps cannot, and they have no shell either.
+
+**Open.** Whether MCP stays the default. A Claude Code session working in the shell on one quilt found little the server would have added; the case for it rests on apps with no shell and on agents worse at quoting, and neither has been tried. Settling it means running the same task in a few clients over both routes. `mcp` is a required dependency because MCP is the default, so that follows the answer.
 
 ## Transcripts
 

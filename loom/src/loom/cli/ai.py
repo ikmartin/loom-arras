@@ -167,7 +167,7 @@ def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) 
     write : bool, default True
         False writes nothing and reports what would be written.
     shell : bool, optional
-        True for an agent that runs `loom` in a shell, False for one that attaches over MCP; default the way the quilt already uses, else MCP.
+        True for an agent with no MCP, which runs `loom` in a shell; False for one that attaches over MCP, with the shell beside the tools; default the way the quilt already uses, else MCP.
 
     Returns
     -------
@@ -246,7 +246,7 @@ def sdk_groups(shell: bool) -> list[Group]:
     "--mcp/--shell",
     "mcp",
     default=None,
-    help="How agents here reach loom: the loom MCP server's tools, or loom run in a shell, for an agent with no MCP. Default the way the quilt already uses, else MCP.",
+    help="How agents here reach loom: the loom MCP server's tools with loom in a shell beside them, or loom in a shell alone, for an agent with no MCP. Default the way the quilt already uses, else MCP.",
 )
 @click.option(
     "--client",

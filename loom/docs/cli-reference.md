@@ -1079,7 +1079,7 @@ The permission files say what agents may run, for Claude Code (.claude/settings.
 
 | option | description |
 |---|---|
-| `--mcp`, `--shell` | How agents here reach loom: the loom MCP server's tools, or loom run in a shell, for an agent with no MCP. Default the way the quilt already uses, else MCP. |
+| `--mcp`, `--shell` | How agents here reach loom: the loom MCP server's tools with loom in a shell beside them, or loom in a shell alone, for an agent with no MCP. Default the way the quilt already uses, else MCP. |
 | `--client` | Print the loom server's entry for this agent app, to add to its settings by hand, and write nothing. |
 | `--dry-run` | Say what would be written and write nothing. |
 | `--json` | Print the report as one JSON object. |

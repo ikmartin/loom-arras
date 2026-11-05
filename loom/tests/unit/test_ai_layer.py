@@ -107,9 +107,9 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     allow = data["permissions"]["allow"]
     # `.loom` is not denied wholesale: the session an agent writes in lives under it (plan 0.13 §5)
     assert allow[:3] == ["Edit(.loom/sessions/**)", "Edit(.loom/build/**)", "Edit(.loom/copies/**)"]
-    # over MCP the commands are the server's tools; `loom` typed in a shell is turned away
-    assert "mcp__loom__*" in allow and not any(r.startswith("Bash(") for r in allow)
-    assert "Bash(loom *)" in deny and "Bash(rm *)" in deny and "Edit(/config.toml)" in deny
+    # over MCP the server's tools are allowed, with the agent's own commands in a shell beside them, and the author's turned away
+    assert "mcp__loom__*" in allow and "Bash(loom status*)" in allow and "Bash(loom *)" not in deny
+    assert "Bash(loom accept*)" in deny and "Bash(rm *)" in deny and "Edit(/config.toml)" in deny
     # a fresh quilt protects only loom's records, the config and the research state: the person's files are open
     assert not [
         r
@@ -478,7 +478,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     assert AGENT_COMMANDS < every, "the allow-list names commands loom does not have"
     assert set(author_commands()) == every - AGENT_COMMANDS  # derived, never listed
 
-    # the shell variant's deny list is the complement; over MCP the author's commands are not tools at all
+    # the deny list is the complement, and the two variants differ only by the server's tools
     denied_paths = settings_deny_paths(QuiltConfig(), shell=True)
     denied = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied_paths if d.startswith("Bash(loom ")}
     assert denied == every - AGENT_COMMANDS
@@ -486,9 +486,8 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     assert {r.removeprefix("Bash(loom ").removesuffix("*)") for r in shell["allow"] if r.startswith("Bash(")} == (
         AGENT_COMMANDS
     )
-    # the paths are denied the same way in both
-    over_mcp = settings_deny_paths(QuiltConfig())
-    assert [d for d in over_mcp if d.startswith("Edit(")] == [d for d in denied_paths if d.startswith("Edit(")]
+    over_mcp = json.loads(permissions_json(QuiltConfig()))["permissions"]
+    assert over_mcp["deny"] == shell["deny"] and set(over_mcp["allow"]) - set(shell["allow"]) == {"mcp__loom__*"}
 
     # what the table must not admit: every command that writes into the quilt outside the session and .loom/build/, the history's restore among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
@@ -515,7 +514,7 @@ def test_codex_is_given_the_same_policy_as_claude(tmp_path: Path) -> None:
     """One policy, loom's own, rendered per tool (DR-283-ikmartin); a quilt does not change it."""
     from loom.ai.layout import AGENT_COMMANDS, CODEX_RULES, author_commands, codex_rules
 
-    rules = codex_rules(shell=True)
+    rules = codex_rules()
     for c in AGENT_COMMANDS:
         assert (
             f'prefix_rule(pattern = [{", ".join(json.dumps(w) for w in ["loom", *c.split()])}], decision = "allow")'
@@ -523,12 +522,10 @@ def test_codex_is_given_the_same_policy_as_claude(tmp_path: Path) -> None:
         )
     for c in author_commands():
         assert f'"{c.split()[-1]}"], decision = "forbidden")' in rules
-    # over MCP, `loom` in a shell is forbidden outright, as `rm` is in both
-    over_mcp = codex_rules()
-    assert 'prefix_rule(pattern = ["loom"], decision = "forbidden")' in over_mcp and '"allow"' not in over_mcp
+    assert 'prefix_rule(pattern = ["loom"], decision = "forbidden")' not in rules
     assert 'prefix_rule(pattern = ["rm"], decision = "forbidden")' in rules
     ok("init", str(tmp_path / "c"), "--ai", "codex", "--yes", cwd=tmp_path)
-    assert (tmp_path / "c" / CODEX_RULES).read_text() == over_mcp
+    assert (tmp_path / "c" / CODEX_RULES).read_text() == rules
     assert (tmp_path / "c" / ".claude" / "settings.json").is_file()  # the same table for the other tool, too
 
 
@@ -702,6 +699,7 @@ def test_an_old_instruction_line_is_replaced_where_it_stands(tmp_path: Path) -> 
     assert "CLAUDE.md" in ensure_root_line(tmp_path)
     assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"# Mine\n\n{MCP_LINE}\n\nMore of mine.\n"
     assert "CLAUDE.md" not in ensure_root_line(tmp_path)
-    (tmp_path / "CLAUDE.md").write_text(f"{OLD_LINES[2]}\n", encoding="utf-8")
-    ensure_root_line(tmp_path)
-    assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"{MCP_LINE}\n"
+    for old in OLD_LINES[2:]:
+        (tmp_path / "CLAUDE.md").write_text(f"{old}\n", encoding="utf-8")
+        ensure_root_line(tmp_path)
+        assert (tmp_path / "CLAUDE.md").read_text(encoding="utf-8") == f"{MCP_LINE}\n"
