@@ -92,6 +92,7 @@ Review:
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
 - `loom:foreign-annotations` (warning): a line of `.loom/annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads.
+- `loom:repeated-id` (warning, subject `record`): a line of the annotation log, the note log, the session index or the links file that gives a second record an id another record already has, usually a line a hand-resolved merge kept twice. One per line, naming both lines and the edit that clears it; nothing is dropped or renumbered.
 
 References and digests:
 

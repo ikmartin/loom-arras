@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
-from loom.paths import REVIEW_OBSERVATIONS
+from loom.paths import ANNOTATION_LOG, LINKS, NOTE_LOG, REVIEW_OBSERVATIONS
 from loom.records.annotations import ASKING, Annotation, Record, load_records
+from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
 from loom.records.snapshots import read_snapshot
@@ -27,6 +28,7 @@ from loom.scan.hashing import hash_text, mathematical_hash, normalize
 from loom.scan.model import Diagnostic, Fix
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
+from loom.sessions import INDEX as SESSION_INDEX
 
 
 @dataclass
@@ -574,6 +576,14 @@ class Records:
         diags: list[Diagnostic] = []
         for p in self.problems:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid review record: {p}", []))
+        for rel, events in (
+            (ANNOTATION_LOG, ("created", "replied")),
+            (NOTE_LOG, ("noted",)),
+            (SESSION_INDEX, ("created",)),
+            (LINKS, ()),
+        ):
+            for _line, said in repeated(self.root, rel, events):
+                diags.append(Diagnostic("warning", "loom:repeated-id", f"{rel}: {said}", [], subject="record"))
         detached: dict[str, list[str]] = {}
         for res in self.resolved(result):
             # one resolved or withdrawn needs nothing more, so the finding counts the open ones its fix acts on
