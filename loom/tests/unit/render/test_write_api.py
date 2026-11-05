@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import shutil
 import subprocess
@@ -324,6 +325,112 @@ def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.", k
 def on_demo(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path, str]:
     q = demo(tmp_path)
     return serve(q), q, new_session(q)
+
+
+ARDEN = Path(__file__).resolve().parents[2] / "quilts" / "sources" / "showcase-works" / "arden-cycle-spaces.pdf"
+
+
+def with_paper(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
+    """A served quilt with a PDF among its shown files."""
+    q = demo(tmp_path)
+    (q / "notes").mkdir()
+    (q / "notes" / "paper.pdf").write_bytes(ARDEN.read_bytes())
+    return serve(q), q
+
+
+def marked(s: ServeSession, q: Path) -> str:
+    """A box on the served PDF, over the wire and with no session; its id."""
+    done = succeeds(
+        s, "note", {"target": "notes/paper.pdf", "page": 1, "rects": [[10, 10, 60, 60]], "mark": "box", "author": WHO}
+    )
+    return str(done["note"])
+
+
+@case("note-change")
+def _note_change(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q = with_paper(serve, tmp_path)
+    nid = marked(s, q)
+    succeeds(s, "note-change", {"note": nid, "body": "says this now", "rects": [[20, 20, 70, 70]], "author": WHO})
+    from loom.notes import load
+
+    assert load(q)[nid].body == "says this now" and load(q)[nid].rects == [[20, 20, 70, 70]]
+    refuses(s, "note-change", {"note": "n-2026-01-01-9999", "body": "x", "author": WHO}, 404, "no-such-note", "no note")
+    refuses(
+        s,
+        "note-change",
+        {"note": nid, "body": "x", "author": "Reading Agent"},
+        403,
+        "not-yours",
+        "changes only its own",
+    )
+
+
+@case("note-erase")
+def _note_erase(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q = with_paper(serve, tmp_path)
+    nid = marked(s, q)
+    succeeds(s, "note-erase", {"note": nid, "author": WHO})
+    from loom.notes import load
+
+    assert load(q)[nid].erased
+    refuses(s, "note-erase", {"note": "n-2026-01-01-9999", "author": WHO}, 404, "no-such-note", "no note")
+
+
+@case("note-restore")
+def _note_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q = with_paper(serve, tmp_path)
+    nid = marked(s, q)
+    succeeds(s, "note-erase", {"note": nid, "author": WHO})
+    succeeds(s, "note-restore", {"note": nid, "author": WHO})
+    from loom.notes import load
+
+    assert load(q)[nid].erased is None
+    refuses(s, "note-restore", {"note": "n-2026-01-01-9999", "author": WHO}, 404, "no-such-note", "no note")
+
+
+@case("notes-take")
+def _notes_take(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q = with_paper(serve, tmp_path)
+    items = [
+        {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "a sticky note"},
+        {"page": 1, "mark": "pin"},
+    ]
+    done = succeeds(s, "notes-take", {"target": "notes/paper.pdf", "items": items, "author": WHO})
+    assert (done["taken"], done["already"], done["skipped"]) == (1, 0, 1)
+    refuses(s, "notes-take", {"target": "dm-0003", "items": items, "author": WHO}, 400, "not-a-pdf", "not a PDF")
+    refuses(s, "notes-take", {"target": "notes/paper.pdf", "author": WHO}, 400, "missing-field", "items")
+
+
+@case("pdf-save")
+def _pdf_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q = with_paper(serve, tmp_path)
+    data = base64.b64encode(ARDEN.read_bytes()).decode("ascii")
+    done = succeeds(s, "pdf-save", {"path": "notes/edited.pdf", "data": data, "author": WHO})
+    assert done["path"] == "notes/edited.pdf" and (q / "notes" / "edited.pdf").read_bytes() == ARDEN.read_bytes()
+    before = (q / "notes" / "paper.pdf").read_bytes()
+    refuses(s, "pdf-save", {"path": "notes/paper.pdf", "data": data, "author": WHO}, 409, "exists", "never replaces")
+    assert (q / "notes" / "paper.pdf").read_bytes() == before
+    refuses(s, "pdf-save", {"path": "../out.pdf", "data": data, "author": WHO}, 400, "bad-field", "outside the quilt")
+    refuses(s, "pdf-save", {"path": "notes/new.txt", "data": data, "author": WHO}, 400, "bad-field", "ends in .pdf")
+    refuses(
+        s, "pdf-save", {"path": ".loom/new.pdf", "data": data, "author": WHO}, 403, "hidden", "hidden from the viewer"
+    )
+    refuses(
+        s,
+        "pdf-save",
+        {"path": "notes/new.pdf", "data": base64.b64encode(b"no").decode(), "author": WHO},
+        400,
+        "bad-field",
+        "not a PDF",
+    )
+    refuses(
+        s,
+        "pdf-save",
+        {"path": "notes/new.pdf", "data": data, "author": "Reading Agent"},
+        403,
+        "author-only",
+        "only the author",
+    )
 
 
 @case("annotate")

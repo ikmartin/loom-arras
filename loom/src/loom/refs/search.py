@@ -397,6 +397,19 @@ def statement_span(page_text: str, label: str, statement: str) -> tuple[int, int
     return start, end
 
 
+def words_under(bbox_xml: str, rects: list[list[float]]) -> str:
+    """The page's words whose middles stand in `rects`, in reading order.
+
+    For a mark taken in from a PDF: another program drew its rectangles, which cut through a word's edge more often than they clear it, so `words_in_boxes`'s whole-word test would lose the ends of a line.
+    """
+    out: list[str] = []
+    for w in _words(bbox_xml):
+        cx, cy = (w[0] + w[2]) / 2, (w[1] + w[3]) / 2
+        if any(x0 <= cx <= x1 and y0 <= cy <= y1 for x0, y0, x1, y1 in rects):
+            out.append(w[4])
+    return _SPACE.sub(" ", " ".join(out)).strip()
+
+
 def words_in_boxes(bbox_xml: str, rects: list[list[float]]) -> str:
     """The page's own words under a reader's rectangles, in reading order.
 

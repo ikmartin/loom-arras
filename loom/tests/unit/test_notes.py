@@ -48,7 +48,7 @@ def test_a_note_is_written_on_each_thing_the_viewer_shows(q: Path) -> None:
     assert (
         on_work["target"]["citekey"] == "Calloway14"
         and on_work["page"] == 2
-        and on_work["rects"] == [[10, 20, 100, 40]]
+        and on_work["rects"] == [[10, 20, 110, 60]]
     )
     assert noted(q, "--on", f"{sid}#{said.seq}", "--quote", "orbit lemma")["target"] == {
         "message": {"session": sid, "seq": said.seq}
@@ -131,3 +131,229 @@ def test_a_note_is_linked_by_its_id_and_opens_what_it_is_on(q: Path) -> None:
     with pytest.raises(LinkError, match="no note"):
         resolve(result, q, "quilt:n-2026-01-01-0099")
     assert ok("link", n["id"], cwd=q).stdout.strip() == f"[](quilt:{n['id']})"
+
+
+ARDEN = Path(__file__).resolve().parents[1] / "quilts" / "sources" / "showcase-works" / "arden-cycle-spaces.pdf"
+#: "Cycle spaces" on page 1 of the Arden PDF, as `pdftotext -bbox-layout` places it.
+TITLE = "207,125,86,16"
+
+
+@pytest.fixture
+def paper(q: Path) -> Path:
+    """The quilt with a copy of a PDF among its shown files."""
+    (q / "notes" / "paper.pdf").write_bytes(ARDEN.read_bytes())
+    return q
+
+
+def published_note(root: Path, nid: str) -> dict:  # type: ignore[type-arg]
+    from loom.cli._quilt import open_scan
+    from loom.notes import published
+
+    return published(open_scan(str(root)))[nid]
+
+
+@pytest.mark.poppler
+def test_a_quote_on_a_pdf_is_not_looked_for_in_its_bytes(paper: Path) -> None:
+    """The words are on the page though the file's bytes hide them, so the note stands; a quote is placed by the page's word boxes, so it can be drawn."""
+    n = noted(paper, "--on", "notes/paper.pdf", "--page", "1", "--quote", "Cycle spaces of finite quivers")
+    row = published_note(paper, n["id"])
+    assert row["detached"] is False
+    assert row["rects"] and row["artifact"] and "mark" not in row
+
+
+@pytest.mark.poppler
+def test_a_mark_is_placed_by_its_words_needs_no_session_and_never_fades(
+    paper: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    n = noted(paper, "--on", "notes/paper.pdf", "--page", "1", "--quote", "Cycle spaces", "--mark", "highlight")
+    assert n["mark"] == "highlight" and n["session"] == "" and len(n["rects"]) == 1
+    assert 200 < n["rects"][0][0] < 215 and 120 < n["rects"][0][1] < 130
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2027-01-01T09:00:00Z")
+    assert published_note(paper, n["id"])["faded"] is False
+    refused(
+        "note",
+        "--on",
+        "notes/paper.pdf",
+        "--page",
+        "1",
+        "--quote",
+        "not in this paper at all",
+        "--mark",
+        "underline",
+        "--as",
+        "Tester",
+        cwd=paper,
+        code=2,
+        match="not on page 1",
+    )
+
+
+def test_what_a_mark_needs_is_refused_by_name(paper: Path) -> None:
+    """A mark is on a PDF and names its page; a pin says something; a box has one rectangle; ink has strokes."""
+    base = ("note", "--as", "Tester")
+    refused(
+        *base, "--on", "notes/a.md", "--quote", "orbit", "--mark", "highlight", cwd=paper, code=2, match="page of a PDF"
+    )
+    refused(
+        *base,
+        "--on",
+        "notes/paper.pdf",
+        "--quote",
+        "Cycle",
+        "--mark",
+        "highlight",
+        cwd=paper,
+        code=2,
+        match="names its page",
+    )
+    refused(
+        *base,
+        "--on",
+        "notes/paper.pdf",
+        "--page",
+        "1",
+        "--box",
+        TITLE,
+        "--mark",
+        "pin",
+        cwd=paper,
+        code=2,
+        match="says something",
+    )
+    refused(
+        *base,
+        "--on",
+        "notes/paper.pdf",
+        "--page",
+        "1",
+        "--mark",
+        "box",
+        "--stroke",
+        "1,2,3,4",
+        cwd=paper,
+        code=2,
+        match="one rectangle",
+    )
+    refused(
+        *base,
+        "--on",
+        "notes/paper.pdf",
+        "--page",
+        "1",
+        "--box",
+        TITLE,
+        "--mark",
+        "ink",
+        cwd=paper,
+        code=2,
+        match="needs its strokes",
+    )
+    refused(
+        *base,
+        "--on",
+        "notes/paper.pdf",
+        "--page",
+        "1",
+        "--mark",
+        "ink",
+        "--stroke",
+        "1,2,3",
+        cwd=paper,
+        code=2,
+        match="an x and a y",
+    )
+
+
+def test_every_mark_is_written_and_stroked_ones_are_bounded(paper: Path) -> None:
+    on = ("--on", "notes/paper.pdf", "--page", "1")
+    assert noted(paper, "look here", *on, "--box", "50,50,16,16", "--mark", "pin")["rects"] == [[50, 50, 66, 66]]
+    assert (
+        noted(paper, "words on the page", *on, "--box", "50,90,200,20", "--mark", "text")["body"] == "words on the page"
+    )
+    assert noted(paper, *on, "--box", "50,120,100,50", "--mark", "oval")["mark"] == "oval"
+    ink = noted(paper, *on, "--mark", "ink", "--stroke", "10,10,20,30,40,5", "--stroke", "50,50,60,60")
+    assert ink["strokes"] == [[10, 10, 20, 30, 40, 5], [50, 50, 60, 60]] and ink["rects"] == [[10, 5, 60, 60]]
+    assert noted(paper, *on, "--mark", "arrow", "--stroke", "1,2,30,40")["rects"] == [[1, 2, 30, 40]]
+
+
+@pytest.mark.poppler
+def test_a_mark_is_changed_erased_and_restored_and_the_log_keeps_it(paper: Path) -> None:
+    from loom.cli._quilt import open_scan
+    from loom.notes import load, published
+    from loom.paths import NOTE_LOG
+
+    on = ("--on", "notes/paper.pdf", "--page", "1")
+    hl = noted(paper, *on, "--quote", "Cycle spaces", "--mark", "highlight")["id"]
+    noted(paper, "worth a comment", "--edit", hl)
+    assert load(paper)[hl].body == "worth a comment"
+    noted(paper, "--erase", hl)
+    assert load(paper)[hl].erased
+    assert hl not in published(open_scan(str(paper)))
+    noted(paper, "--restore", hl)
+    assert load(paper)[hl].erased is None and load(paper)[hl].body == "worth a comment"
+    assert [json.loads(line)["event"] for line in (paper / NOTE_LOG).read_text().splitlines()] == [
+        "noted",
+        "changed",
+        "erased",
+        "restored",
+    ]
+
+
+@pytest.mark.poppler
+def test_an_agent_changes_only_its_own_marks(paper: Path) -> None:
+    on = ("--on", "notes/paper.pdf", "--page", "1")
+    mine = noted(paper, *on, "--quote", "Cycle spaces", "--mark", "highlight")["id"]
+    theirs = noted(paper, *on, "--quote", "finite quivers", "--mark", "underline", who=AGENT)["id"]
+    refused("note", "--erase", mine, "--as", AGENT, cwd=paper, code=2, match="an agent changes only its own")
+    refused("note", "no", "--edit", mine, "--as", AGENT, cwd=paper, code=2, match="an agent changes only its own")
+    assert noted(paper, "--erase", theirs, who=AGENT)["erased"]
+    assert "erased" not in noted(paper, "--restore", theirs, who=AGENT)
+
+
+@pytest.mark.poppler
+def test_a_changed_file_moves_a_mark_with_words_and_detaches_the_rest(paper: Path) -> None:
+    """The bytes change: words still on the page are drawn where they are now; a mark with no words, or whose words left, is detached (A3)."""
+    on = ("--on", "notes/paper.pdf", "--page", "1")
+    words = noted(paper, *on, "--quote", "Cycle spaces", "--mark", "highlight")["id"]
+    gone = noted(paper, *on, "--quote", "Elspeth Arden", "--mark", "highlight")["id"]
+    box = noted(paper, *on, "--box", TITLE, "--mark", "box")["id"]
+    assert not published_note(paper, words)["detached"] and not published_note(paper, box)["detached"]
+    pdf = paper / "notes" / "paper.pdf"
+    pdf.write_bytes(pdf.read_bytes() + b"\n% another version\n")
+    assert published_note(paper, words)["detached"] is False and published_note(paper, words)["rects"]
+    assert published_note(paper, box)["detached"] is True
+    pdf.unlink()
+    assert published_note(paper, gone)["detached"] is True
+
+
+@pytest.mark.poppler
+def test_a_pdfs_own_annotations_are_taken_in_once(paper: Path) -> None:
+    """Page, place and words say an annotation is already here, an erased one included, so taking a PDF in twice adds nothing; what wrote each stays in its origin and the words under a highlight are read from the page."""
+    from loom.cli._quilt import open_scan
+    from loom.notes import erase, load, published, take_in
+
+    result = open_scan(str(paper))
+    items = [
+        {
+            "page": 1,
+            "mark": "highlight",
+            "rects": [[206.9, 125.4, 293.4, 141.0]],
+            "body": "from Preview",
+            "origin": {"by": "Reader", "subtype": "Highlight", "color": [255, 255, 0], "ref": "19R", "sha": "abc"},
+        },
+        {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "a sticky note"},
+        {"page": 1, "mark": "ink", "strokes": [[10, 10, 20, 30]]},
+        {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]]},
+        {"page": "one", "mark": "pin", "rects": [[1, 1, 2, 2]], "body": "x"},
+    ]
+    kw = {"author": "Tester", "author_kind": "person"}
+    assert take_in(result, "notes/paper.pdf", items, **kw) == {"taken": 3, "already": 0, "skipped": 2}
+    notes = list(load(paper).values())
+    assert notes[0].quote == "Cycle spaces" and notes[0].origin["by"] == "Reader" and notes[0].session == ""  # type: ignore[index]
+    assert take_in(result, "notes/paper.pdf", items, **kw) == {"taken": 0, "already": 3, "skipped": 2}
+    erase(paper, notes[1].id, "Tester", "person")
+    assert take_in(result, "notes/paper.pdf", items, **kw)["taken"] == 0
+    # erased and from the file: the manifest goes on saying so, so the viewer goes on hiding the annotation in the file
+    erase(paper, notes[0].id, "Tester", "person")
+    assert published_note(paper, notes[0].id)["erased"]
+    assert notes[1].id not in published(result)

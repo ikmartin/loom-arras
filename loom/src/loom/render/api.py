@@ -7,6 +7,7 @@ Nothing here wakes an agent. An agent pulls: it reads open annotations with `loo
 
 from __future__ import annotations
 
+import base64
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -66,6 +67,11 @@ CAPABILITIES = [
     "history-restore",
     "note",
     "note-keep",
+    "note-change",
+    "note-erase",
+    "note-restore",
+    "notes-take",
+    "pdf-save",
 ]
 
 WRITE_API_VERSION = 1
@@ -302,6 +308,10 @@ RECORD_WRITES = (
     "annotate",
     "note",
     "note-keep",
+    "note-change",
+    "note-erase",
+    "note-restore",
+    "notes-take",
     "changes-keep",
     "history-record",
     "reply",
@@ -358,42 +368,109 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
 
 
 def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """`note` writes a note, a quote among them, on `target` in the session the write names; `note-keep` keeps one so it never fades."""
+    """The notes' endpoints: `note` writes one, a quote or a mark among them; `note-keep` keeps one so it never fades; `note-change`, `note-erase` and `note-restore` change, erase and restore one; `notes-take` writes a PDF's own annotations as marks.
+
+    Every write but `note-keep` and a note with no mark may name no session: a mark is a person's on the page they are reading, and asks for none (P14). The viewer's `write` gate names one for the writes that must have it.
+    """
     from loom.cli._common import ContentError, EnvError, NotFoundError
     from loom.cli.review import _writer
-    from loom.notes import NoteRefused, keep, write
+    from loom.notes import NoteRefused, change, erase, keep, restore, take_in, write
 
     which = _str(body, "session")
-    if not which:
+    mark = _str(body, "mark")
+    if not which and (endpoint == "note-keep" or (endpoint == "note" and not mark)):
         raise ApiError("no-session", "a write must name the session it belongs to")
     try:
-        sid, kind, name = _writer(root, which, _str(body, "author"), sniff=False)
+        sid, kind, name = _writer(root, which, _str(body, "author"), sniff=False, dry_run=not which)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except (EnvError, ContentError) as exc:
         raise ApiError("refused", str(exc)) from exc
+    sid = sid if which else ""
+    who = "agent" if kind == "agent" else "person"
     try:
         if endpoint == "note-keep":
             note = keep(root, _str(body, "note", required=True) or "", name)
             return {"ok": True, "result": f"kept {note.id}", "note": note.id}
+        if endpoint == "note-change":
+            note = change(
+                root,
+                _str(body, "note", required=True) or "",
+                name,
+                who,
+                body=_str(body, "body") if isinstance(body.get("body"), str) else None,
+                rects=body.get("rects"),
+                strokes=body.get("strokes"),
+            )
+            return {"ok": True, "result": f"changed {note.id}", "note": note.id}
+        if endpoint == "note-erase":
+            note = erase(root, _str(body, "note", required=True) or "", name, who)
+            return {"ok": True, "result": f"erased {note.id}", "note": note.id}
+        if endpoint == "note-restore":
+            note = restore(root, _str(body, "note", required=True) or "", name, who)
+            return {"ok": True, "result": f"restored {note.id}", "note": note.id}
+        if endpoint == "notes-take":
+            items = body.get("items")
+            if not isinstance(items, list):
+                raise ApiError("missing-field", "items is the list of annotations to take in")
+            took = take_in(
+                _scan(root), _str(body, "target", required=True) or "", items, author=name, author_kind=who, session=sid
+            )
+            return {"ok": True, "result": f"took in {took['taken']}", **took}
         page = body.get("page")
         if page is not None and (not isinstance(page, int) or page < 1):
             raise ApiError("bad-field", "page must be a positive integer")
-        rects = [[float(v) for v in r] for r in body.get("rects") or []] or None
         note = write(
             _scan(root),
             _str(body, "target", required=True) or "",
             author=name,
-            author_kind="agent" if kind == "agent" else "person",
+            author_kind=who,
             session=sid,
             body=_str(body, "body") or "",
             quote=_str(body, "quote"),
             page=page,
-            rects=rects,
+            rects=body.get("rects"),
+            mark=mark,
+            strokes=body.get("strokes"),
         )
     except NoteRefused as exc:
         raise ApiError(exc.code, exc.message, status=exc.status) from exc
     return {"ok": True, "result": f"noted {note.id}", "note": note.id}
+
+
+def _pdf_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """Write a PDF the viewer made as a new file of the project, at a path the person names (P7).
+
+    Refuses a path that exists, leaves the quilt, is hidden from the viewer or is not a `.pdf`, bytes that are not a PDF, and an agent: page edits are the person's act at the viewer.
+    """
+    from loom.cli._common import is_agent
+    from loom.files import Shown
+    from loom.scan.quilt import load_quilt, reviewer_identity
+
+    name = (_str(body, "path", required=True) or "").strip()
+    data = _str(body, "data", required=True) or ""
+    if is_agent(_str(body, "author") or reviewer_identity(root)[0]):
+        raise ApiError("author-only", "An agent reads and annotates; only the author saves a PDF", status=403)
+    if not name.lower().endswith(".pdf"):
+        raise ApiError("bad-field", "a saved PDF's name ends in .pdf")
+    path = (root / name).resolve()
+    if not path.is_relative_to(root.resolve()) or name.startswith("/"):
+        raise ApiError("bad-field", f"{name} is outside the quilt")
+    rel = path.relative_to(root.resolve()).as_posix()
+    if not Shown.of(load_quilt(root)).is_shown(rel):
+        raise ApiError("hidden", f"{rel} would be hidden from the viewer: name a place it shows", status=403)
+    if path.exists():
+        raise ApiError("exists", f"{rel} already exists; a saved PDF never replaces a file", status=409)
+    try:
+        raw = base64.b64decode(data, validate=True)
+    except ValueError as exc:
+        raise ApiError("bad-field", "data is not base64") from exc
+    if not raw.startswith(b"%PDF-"):
+        raise ApiError("bad-field", "data is not a PDF")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as fh:
+        fh.write(raw)
+    return {"ok": True, "result": f"saved {rel}", "path": rel, "bytes": len(raw)}
 
 
 def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -630,8 +707,10 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _changes(root, endpoint, body)
     if endpoint in ("history-record", "history-restore"):
         return _history(root, endpoint, body)
-    if endpoint in ("note", "note-keep"):
+    if endpoint in ("note", "note-keep", "note-change", "note-erase", "note-restore", "notes-take"):
         return _note(root, endpoint, body)
+    if endpoint == "pdf-save":
+        return _pdf_save(root, body)
     if endpoint == "library-cite":
         return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):
