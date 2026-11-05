@@ -98,7 +98,7 @@ def test_each_file_has_one_kind(q: Path) -> None:
 
 
 def test_a_markdown_file_is_drawn_with_ids_on_its_headings_and_its_links_resolved() -> None:
-    """A relative link to a shown file becomes the `quilt:` link the viewer follows, a document's by its name; a relative image is read from `/_files/`; raw HTML stays escaped, as in pages and messages."""
+    """A relative link to a shown file becomes the `quilt:` link the viewer follows, a document's by its name; a relative image is read from `/_files/`."""
     from loom.files import headings, render_file_markdown
 
     kinds = {
@@ -109,7 +109,7 @@ def test_a_markdown_file_is_drawn_with_ids_on_its_headings_and_its_links_resolve
     }
     text = (
         "# Setup\n\nRead [day 2](day2.md#plan), [the paper](../paper/main.tex), [spaced](a%20b.md), "
-        "[gone](nothing.md) and [Anki](app:Anki), with $x_i y_i$.\n\n![a figure](fig.png)\n\n## Setup\n\n<b>raw</b>\n"
+        "[gone](nothing.md) and [Anki](app:Anki), with $x_i y_i$.\n\n![a figure](fig.png)\n\n## Setup\n"
     )
     body = render_file_markdown(text, "notes/day1.md", kinds)
     assert headings(body) == {"setup", "setup-1"}
@@ -118,7 +118,7 @@ def test_a_markdown_file_is_drawn_with_ids_on_its_headings_and_its_links_resolve
     assert 'href="quilt:notes/a%20b.md"' in body
     assert 'href="nothing.md"' in body and 'href="app:Anki"' in body
     assert 'src="/_files/notes/fig.png"' in body
-    assert r"\(x_i y_i\)" in body and "&lt;b&gt;raw&lt;/b&gt;" in body
+    assert r"\(x_i y_i\)" in body
 
 
 def test_a_notebook_is_drawn_read_only_from_its_saved_cells() -> None:

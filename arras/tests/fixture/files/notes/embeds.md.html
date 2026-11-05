@@ -1,0 +1,15 @@
+<h1 id="html-in-a-markdown-file">HTML in a Markdown file</h1>
+<p>A file may use <kbd>ordinary</kbd> HTML, inline and as <abbr title="a run of HTML of its own">a block</abbr>, with <span class="math inline">\(x_i\)</span> beside it and Vector&lt;T&gt; left as a word.</p>
+<details open="">
+<summary>A fold of the file's own</summary>
+<p>Markdown still works inside it, with <em>emphasis</em> and <span class="math inline">\(y_i\)</span>.</p>
+</details>
+<p align="center"><img src="/_files/notes/figure.png" alt="The small figure" width="40"></p>
+<p>A video takes the column's width, whatever width it asks for.</p>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/loom-fixture" title="A video" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation" allow="fullscreen; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
+<h2 id="what-is-not-drawn">What is not drawn</h2>
+<p>A frame on an address that is not <code>https:</code> shows as the text it is.</p>
+&lt;iframe src="http://frames.example/plain"&gt;
+&lt;script&gt;window.loomHostile = 'script'&lt;/script&gt;
+<img src="no-such-image.png" alt="An image with a handler">
+<p><a id="by-scheme">A link by scheme</a>, <a id="by-tab">one with a tab in it</a>, and <span class="math inline">\(\href{ javascript:window.loomHostile='math'}{a link in a formula}\)</span>.</p>

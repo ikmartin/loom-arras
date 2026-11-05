@@ -157,3 +157,44 @@ test('an image and a PDF of the project are shown as files', async ({ page }) =>
 	await page.goto('/file/drafting/figures/fig.pdf');
 	await expect(pane(page, 0).locator('[data-kind="pdf"] canvas').first()).toBeVisible();
 });
+
+test.describe('a Markdown file holding HTML', () => {
+	test.use({
+		prepareQuilt: async ({}, use) => {
+			await use(({ root }) => {
+				writeFileSync(
+					join(root, 'notes/embedded.md'),
+					`# Embedded\n\nA word in <kbd>ordinary</kbd> HTML.\n\n<iframe width="560" height="315" src="https://www.youtube.com/embed/loom-fixture"></iframe>\n\n<img src="no-such-image.png" onerror="fetch('/_api').then((r) => r.json()).then((j) => (window.loomHostile = j.token))">\n\n<script>window.loomHostile = 'script'</script>\n`
+				);
+			});
+		}
+	});
+
+	test('is drawn under the real publisher, whose headers leave its frame alone; its script runs nothing, and a publication of something else does not restart its video', async ({ page, served }) => {
+		test.slow(); // three publications: the first, another file's, and its own
+		await page.route('https://www.youtube.com/embed/**', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><h1 id="player">player</h1>' }));
+		await page.goto('/file/notes/embedded.md');
+		const body = pane(page, 0).getByTestId('file-item').locator('.file-body');
+		await expect(body.locator('kbd')).toHaveText('ordinary');
+		const iframe = body.locator('iframe');
+		await expect(page.frameLocator('.file-body iframe').locator('#player')).toBeVisible();
+		await expect.poll(() => body.locator('img').evaluate((i: HTMLImageElement) => i.complete)).toBe(true);
+		expect(await page.evaluate(() => (window as unknown as { loomHostile?: string }).loomHostile)).toBeUndefined();
+		await expect(body).toContainText(`<script>window.loomHostile = 'script'</script>`);
+		// the body itself is confined as everything under /build/ is, and the viewer reads it all the same
+		const answer = await page.request.get(`${served.url}/build/files/notes/embedded.md.html`);
+		expect(answer.headers()['content-security-policy']).toBe('sandbox');
+
+		await iframe.evaluate((f: HTMLIFrameElement) => (f.dataset.kept = 'yes'));
+		const fetched = page.waitForResponse((r) => r.url().includes('/build/files/notes/embedded.md.html'));
+		const intro = join(served.root, 'notes/intro.md');
+		writeFileSync(intro, readFileSync(intro, 'utf8') + '\nAnother line.\n');
+		await fetched;
+		await page.waitForTimeout(100);
+		await expect(iframe).toHaveAttribute('data-kept', 'yes');
+
+		writeFileSync(join(served.root, 'notes/embedded.md'), '# Changed\n');
+		await expect(body.locator('h1')).toHaveText('Changed');
+		await expect(iframe).toHaveCount(0);
+	});
+});

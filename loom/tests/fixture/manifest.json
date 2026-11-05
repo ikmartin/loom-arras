@@ -2342,6 +2342,13 @@
    "path": "notes/deck.apkg"
   },
   {
+   "body": "files/notes/embeds.md.html",
+   "bytes": 1355,
+   "denied": null,
+   "kind": "markdown",
+   "path": "notes/embeds.md"
+  },
+  {
    "bytes": 73,
    "denied": null,
    "kind": "image",

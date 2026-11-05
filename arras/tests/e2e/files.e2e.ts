@@ -78,6 +78,96 @@ test('the research state keeps the same line, the line saying who wrote it stand
 	expect(meta.x).toBeCloseTo(at.x, 0);
 });
 
+test('a Markdown file draws the HTML it holds, with Markdown and mathematics working inside it', async ({ page }) => {
+	await page.goto('/file/notes/embeds.md');
+	const body = pane(page, 0).getByTestId('file-item').locator('.file-body');
+	await expect(body.locator('kbd')).toHaveText('ordinary');
+	await expect(body.locator('abbr')).toHaveAttribute('title', 'a run of HTML of its own');
+	await expect(body.locator('details summary')).toHaveText("A fold of the file's own");
+	await expect(body.locator('details em')).toHaveText('emphasis');
+	await expect(body.locator('details mjx-container')).toHaveCount(1);
+	await expect(body).toContainText('Vector<T> left as a word');
+	// its image is found as a Markdown image is, and what it may not ask of the viewer's page is gone
+	const line = body.locator('p[align="center"]');
+	await expect(line.locator('img')).toHaveAttribute('src', '/_files/notes/figure.png');
+	expect(await line.evaluate((p) => p.getAttributeNames())).toEqual(['align']);
+});
+
+test('a frame in a Markdown file is drawn inside the column at its own shape, and what it loads reaches nothing of the viewer', async ({ page }) => {
+	await page.setViewportSize({ width: 2000, height: 1400 });
+	// no network in a test: the player is a page that tries what a hostile one would
+	await page.route('https://www.youtube.com/embed/**', (route) =>
+		route.fulfill({
+			contentType: 'text/html',
+			body: `<!doctype html><h1 id="player">player</h1><script>
+				let reached = 'nothing';
+				try { reached = parent.document.title ? 'the viewer' : 'the viewer'; } catch {}
+				document.getElementById('player').dataset.reached = reached;
+				try { top.location.href = 'https://www.youtube.com/taken'; } catch {}
+			</script>`
+		})
+	);
+	await page.goto('/file/notes/embeds.md');
+	const body = pane(page, 0).getByTestId('file-item').locator('.file-body');
+	const iframe = body.locator('iframe');
+	await expect(iframe).toHaveCount(1);
+	// what the file wrote is gone, and what it is given is the publisher's
+	await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation');
+	await expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+	await expect(iframe).toHaveAttribute('allow', 'fullscreen; encrypted-media; picture-in-picture');
+	for (const gone of ['srcdoc', 'onload', 'frameborder']) expect(await iframe.getAttribute(gone)).toBeNull();
+	const player = page.frameLocator('.file-body iframe').locator('#player');
+	await expect(player).toHaveAttribute('data-reached', 'nothing');
+	await expect(page).toHaveURL(/\/file\/notes\/embeds\.md/);
+	// it asked for 560 by 315: it takes the column's width at that shape
+	const shape = async () => {
+		const [frame, column] = [(await iframe.boundingBox())!, (await body.boundingBox())!];
+		return { frame, column };
+	};
+	await expect.poll(async () => {
+		const { frame, column } = await shape();
+		return Math.abs(frame.width - column.width);
+	}).toBeLessThanOrEqual(1);
+	const { frame, column } = await shape();
+	expect(frame.width).toBeGreaterThan(560);
+	expect(frame.x).toBeCloseTo(column.x, 0);
+	expect(frame.height).toBeCloseTo((frame.width * 315) / 560, 0);
+	// in a pane narrower than it asked for, it scales rather than overflowing
+	await page.setViewportSize({ width: 500, height: 900 });
+	await expect.poll(async () => (await iframe.boundingBox())!.width).toBeLessThan(560);
+	const narrow = await shape();
+	expect(narrow.frame.x + narrow.frame.width).toBeLessThanOrEqual(narrow.column.x + narrow.column.width + 1);
+	expect(narrow.frame.height).toBeCloseTo((narrow.frame.width * 315) / 560, 0);
+	expect(await body.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+});
+
+test('nothing a Markdown file writes runs in the viewer: no script, no handler, no javascript: address', async ({ page }) => {
+	await page.goto('/file/notes/embeds.md');
+	const body = pane(page, 0).getByTestId('file-item').locator('.file-body');
+	// what is refused stays on the page as the text it is
+	await expect(body).toContainText(`<script>window.loomHostile = 'script'</script>`);
+	await expect(body).toContainText('<iframe src="http://frames.example/plain">');
+	await expect(body.locator('mjx-container svg a')).toHaveCount(1);
+	const written = await body.evaluate((el) => ({
+		scripts: el.querySelectorAll('script').length,
+		frames: [...el.querySelectorAll('iframe')].map((f) => f.getAttribute('src')),
+		handlers: [...el.querySelectorAll('*')].flatMap((e) => e.getAttributeNames().filter((n) => n.startsWith('on')))
+	}));
+	expect(written).toEqual({ scripts: 0, frames: ['https://www.youtube.com/embed/loom-fixture'], handlers: [] });
+	expect(await body.locator('#by-scheme').getAttribute('href')).toBeNull();
+	expect(await body.locator('#by-tab').getAttribute('href')).toBeNull();
+	// the image with the handler has failed by now, and each link is clicked as a person would
+	await expect.poll(() => body.locator('img[alt="An image with a handler"]').evaluate((i: HTMLImageElement) => i.complete)).toBe(true);
+	await body.locator('#by-scheme').click();
+	await body.locator('#by-tab').click();
+	await body.locator('mjx-container svg a').click();
+	await page.waitForTimeout(100);
+	// a formula's link reaches the page as written, and a browser reads the scheme past the space it opens with: the viewer does not follow it, in a browser that would run it either
+	const followed = await body.locator('mjx-container svg a').evaluate((a) => a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })));
+	expect(followed).toBe(false);
+	expect(await page.evaluate(() => (window as unknown as { loomHostile?: string }).loomHostile)).toBeUndefined();
+});
+
 test('a notebook is drawn read-only from its saved cells, an HTML output by its plain form', async ({ page }) => {
 	await page.goto('/file/notes/run.ipynb');
 	const file = pane(page, 0).getByTestId('file-item');

@@ -848,6 +848,7 @@ def _slug(s: str | None) -> str:
 
 _MATH = re.compile(r"\$\$(.+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)\$", re.S)
 _HOLE = "loommathx{}x"
+_HOLES = re.compile(_HOLE.format(r"(\d+)"))
 
 
 def _protect_math(text: str) -> tuple[str, list[tuple[bool, str]]]:
@@ -890,18 +891,42 @@ def source_line(text: str) -> Callable[[int], int]:
 
 
 def _restore_math(html_text: str, spans: list[tuple[bool, str]]) -> str:
-    """Put each lifted span back as the dialect writes it (specs/dialect.md §2.6)."""
+    """Put each lifted span back as the dialect writes it (specs/dialect.md §2.6), or in its words where it stands inside a tag, since an attribute holds no markup.
+
+    Everything that reaches here escapes `>` in an attribute (markdown-it, and `loom.raw_html` for what a file wrote), so each `<...>` is one tag.
+    """
     import html as _html
 
-    for i, (display, tex) in enumerate(spans):
+    def block(m: re.Match[str]) -> str:
+        i = int(m.group(1))
+        if i >= len(spans):
+            return m.group(0)
+        display, tex = spans[i]
         tex = _html.escape(tex, quote=False)
-        block = (
+        return (
             f'<div class="math display">\\[{tex}\\]</div>'
             if display
             else f'<span class="math inline">\\({tex}\\)</span>'
         )
-        html_text = html_text.replace(_HOLE.format(i), block)
-    return _lift_display_math(html_text)
+
+    def word(m: re.Match[str]) -> str:
+        return _html.escape(_lifted(m.group(0), spans), quote=True)
+
+    parts = re.split(r"(<[^>]*>)", html_text)
+    return _lift_display_math("".join(_HOLES.sub(word if i % 2 else block, part) for i, part in enumerate(parts)))
+
+
+def _lifted(value: str, spans: list[tuple[bool, str]]) -> str:
+    """`value` with each lifted span back as it was written, for a place no formula can be typeset: an attribute."""
+
+    def words(m: re.Match[str]) -> str:
+        i = int(m.group(1))
+        if i >= len(spans):
+            return m.group(0)
+        display, tex = spans[i]
+        return f"$${tex}$$" if display else f"${tex}$"
+
+    return _HOLES.sub(words, value)
 
 
 def _lift_display_math(html_text: str) -> str:
@@ -931,7 +956,12 @@ def _lift_display_math(html_text: str) -> str:
     return re.sub(r"<p>(.*?)</p>", split, html_text, flags=re.S)
 
 
-def render_markdown(text: str, *, tokens: Callable[[list[Any]], None] | None = None) -> str:
+def render_markdown(
+    text: str,
+    *,
+    tokens: Callable[[list[Any]], None] | None = None,
+    raw: Callable[[str, Callable[[str], str]], str] | None = None,
+) -> str:
     """Markdown rendered into the dialect's inline subset, math included.
 
     Every body loom publishes as HTML comes through here -- annotations, transcript messages and the project's Markdown files -- and all of them are written by people and agents who use `$...$` without thinking about it.
@@ -942,6 +972,8 @@ def render_markdown(text: str, *, tokens: Callable[[list[Any]], None] | None = N
         The Markdown as it was written.
     tokens : callable, optional
         Given the parsed tokens to change in place before they are rendered; a file's headings and relative links are set this way (`loom.files`). Mathematics is already lifted out, as `loommathxNx` words.
+    raw : callable, optional
+        What each piece of raw HTML becomes, given the piece and a function that puts lifted mathematics back in its words, for an attribute's value. It sees everything raw HTML can write, so it is the only way raw HTML reaches the output; with none, raw HTML is escaped and shows as text.
 
     Returns
     -------
@@ -953,7 +985,15 @@ def render_markdown(text: str, *, tokens: Callable[[list[Any]], None] | None = N
         from markdown_it import MarkdownIt
 
         # CommonMark has no tables, so an agent's `| a | b |` comparison arrived as one run-on paragraph; the dialect has them (specs/dialect.md §2.12), so the GFM table rule is enabled
-        md = MarkdownIt("commonmark", {"html": False}).enable("table")
+        md = MarkdownIt("commonmark", {"html": raw is not None}).enable("table")
+        if raw is not None:
+            clean = raw
+
+            def drawn(_renderer: Any, parsed: list[Any], index: int, _options: Any, _env: Any) -> str:
+                return clean(parsed[index].content, lambda value: _lifted(value, spans))
+
+            md.add_render_rule("html_block", drawn)
+            md.add_render_rule("html_inline", drawn)
         if tokens is None:
             out = str(md.render(protected)).strip()
         else:

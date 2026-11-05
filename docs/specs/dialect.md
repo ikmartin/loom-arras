@@ -11,6 +11,17 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 3. Encoding UTF-8. Void elements self-closed or not; both are valid.
 4. Every block element that originates in source carries `data-src="FILE:START:END"` where `START` and `END` are character offsets in the file.
 
+**[decided]** A **file's body** (manifest §1, `files`) is not a fragment, and the rules above do not bind it: it is a Markdown file drawn by the publisher, and it alone among published bodies may hold the HTML its author wrote. An annotation, a message, a page and an overview escape theirs (manifest §9, §10.1). A viewer inserts a body into its own page, which holds the write token (write-api §3), and agents write Markdown files, so a publisher writes that HTML back out through an allowlist, with every attribute value and run of text escaped, and never passes it through as written. The lists are `loom/src/loom/raw_html.py`:
+
+- Kept: what an ordinary README uses (paragraphs and headings, lists, tables, `details`, `figure`, `img`, inline elements such as `kbd`, `sub` and `abbr`), with `audio`, `video` and `iframe`; `id`, `title`, `lang` and `dir` on any of them, and what each element needs (`colspan`, `open`, `alt`, `align`). A player always has `controls` and never `autoplay`.
+- A URL is either relative, resolved against the shown files as Markdown's own are, or on a scheme for its use: `http`, `https`, `mailto`, `quilt`, `cited` or `app` for a link, `http` or `https` for anything fetched, and for an `img` also `data:` of a bitmap image. Any other URL is dropped.
+- Never kept: a handler, `class`, `style`, `name`, and tags such as `script`, `style`, `svg`, `math`, `form`, `object`, `embed`, `base`, `meta` and the viewer's own landmarks (`nav`, `aside`, `main`).
+- A refused tag shows as its own text, so nothing goes silently missing and a word in angle brackets stays a word. A refused attribute is dropped, and a comment is not shown.
+
+**[decided]** An `<iframe>` in a file's body loads only an `https:` address on a named host, a protocol-relative one being taken as `https:`, and is otherwise shown as text. It keeps its `src`, `width`, `height` and the attributes any element may keep, and everything else about it is the publisher's: `sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-presentation"`, so a player runs and the frame cannot navigate the viewer; `allow="fullscreen; encrypted-media; picture-in-picture"`; `allowfullscreen`; `referrerpolicy="strict-origin-when-cross-origin"`; `loading="lazy"`. It is written shut, so nothing after it is read as its contents. A viewer draws it at the column's width, in the shape its `width` and `height` name, at a fixed height where it names only `height`, and at 16:9 where it names neither.
+
+**Open.** Any `https:` host is drawn, not a named list. An HTML file of the project can already embed anything from the frames origin, and a list would decide for a reader which sites may teach them, but a frame stands inside the viewer's own page where a page of an HTML file stands in a frame of its own.
+
 ## 2. Structure
 
 ### 2.1 Fragment kinds
@@ -125,7 +136,7 @@ Review comparison fragments may mark changed prose with `<mark class="review-cha
 
 ## 3. Forbidden
 
-**[decided]** Scripts, styles, external stylesheets or fonts, iframes, forms, inline event attributes, absolute URLs except in `a.url`, and any element or class not listed here. A viewer must ignore unknown classes and render unknown elements as generic blocks; a validator must reject them. The ban is on fragments and the bodies a publisher draws: a frame belongs to a project's HTML file shown as a file (`write-api.md` §3), never to rendered mathematics or prose.
+**[decided]** Scripts, styles, external stylesheets or fonts, iframes, forms, inline event attributes, absolute URLs except in `a.url`, and any element or class not listed here. A viewer must ignore unknown classes and render unknown elements as generic blocks; a validator must reject them. The ban is on fragments and on every body a publisher draws except a Markdown file's, which §1 governs: a frame belongs to a project's HTML file shown as a file (`write-api.md` §3) or to a Markdown file that embeds one, never to rendered mathematics, a note or a message.
 
 ## 4. Validation
 

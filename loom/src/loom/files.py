@@ -258,23 +258,37 @@ def _target(href: str, directory: str, kinds: dict[str, str]) -> tuple[str, str,
     return joined, place, kinds[joined]
 
 
+def _link(href: str, directory: str, kinds: dict[str, str]) -> str:
+    """A relative link to a shown file as the `quilt:` link the viewer follows (a document's by its path, as every link to one is), and any other `href` as it stands."""
+    got = _target(href, directory, kinds)
+    if got is None:
+        return href
+    path, place, kind = got
+    if kind == "document":
+        return f"quilt:{quote(path)}"
+    return f"quilt:{quote(path)}" + (f"#{place}" if place else "") if kind in LINKABLE else href
+
+
+def _heading_words(inline: Any) -> str:
+    """What a heading's id is made from: its source, less any raw HTML tags in it."""
+    text = str(inline.content)
+    for child in inline.children or []:
+        if child.type == "html_inline":
+            text = text.replace(child.content, "", 1)
+    return text
+
+
 def _rewriter(directory: str, kinds: dict[str, str], seen: dict[str, int]) -> Any:
     """The token pass a file's Markdown takes: ids on its headings, a relative link to a shown file turned into a `quilt:` link (a document's by its path, as every link to one is), a relative image into its `/_files/` address."""
 
     def walk(tokens: list[Any]) -> None:
         for i, tok in enumerate(tokens):
             if tok.type == "heading_open" and i + 1 < len(tokens):
-                tok.attrSet("id", slug(tokens[i + 1].content, seen))
+                tok.attrSet("id", slug(_heading_words(tokens[i + 1]), seen))
             for child in tok.children or []:
                 if child.type == "link_open":
-                    got = _target(str(child.attrGet("href") or ""), directory, kinds)
-                    if got is None:
-                        continue
-                    path, place, kind = got
-                    if kind == "document":
-                        child.attrSet("href", f"quilt:{quote(path)}")
-                    elif kind in LINKABLE:
-                        child.attrSet("href", f"quilt:{quote(path)}" + (f"#{place}" if place else ""))
+                    href = str(child.attrGet("href") or "")
+                    child.attrSet("href", _link(href, directory, kinds))
                 elif child.type == "image":
                     got = _target(str(child.attrGet("src") or ""), directory, kinds)
                     if got is not None and got[2] == "image":
@@ -286,26 +300,34 @@ def _rewriter(directory: str, kinds: dict[str, str], seen: dict[str, int]) -> An
 def render_file_markdown(
     text: str, rel: str, kinds: dict[str, str], seen: dict[str, int] | None = None, *, tasks: list[Task] | None = None
 ) -> str:
-    """The Markdown file `rel` drawn as the publisher draws pages, with ids on its headings, its relative links resolved against the shown files `kinds`, and each task item a `li.task`.
+    """The Markdown file `rel` drawn as the publisher draws pages, with ids on its headings, its relative links resolved against the shown files `kinds`, its raw HTML through the allowlist (`loom.raw_html`), and each task item a `li.task`.
 
-    Raw HTML stays escaped, as it is in pages and messages; a person who wants HTML writes an HTML file. `seen` carries heading ids across calls, so a notebook's cells number repeats as one document does. `tasks` collects each item and makes its box tickable, for text that is a whole file; a notebook's cell passes none, so its boxes are only drawn.
+    Only a file's body takes raw HTML; pages and messages escape it. `seen` carries heading ids across calls, so a notebook's cells number repeats as one document does. `tasks` collects each item and makes its box tickable, for text that is a whole file; a notebook's cell passes none, so its boxes are only drawn.
     """
+    from loom.raw_html import clean
     from loom.records.store import render_markdown
     from loom.tasks import mark_items
 
-    rewrite = _rewriter(posixpath.dirname(rel), kinds, {} if seen is None else seen)
+    directory = posixpath.dirname(rel)
+    rewrite = _rewriter(directory, kinds, {} if seen is None else seen)
     mark = mark_items(text, tasks)
 
     def walk(tokens: list[Any]) -> None:
         mark(tokens)
         rewrite(tokens)
 
-    return render_markdown(text, tokens=walk)
+    def resolve(name: str, url: str) -> str:
+        if name == "href":
+            return _link(url, directory, kinds)
+        got = _target(url, directory, kinds)
+        return url if got is None else FILES_URL + quote(got[0])
+
+    return render_markdown(text, tokens=walk, raw=lambda source, words: clean(source, resolve, words))
 
 
 def headings(body: str) -> set[str]:
-    """The heading ids a drawn body carries: the places a link into it may name."""
-    return set(re.findall(r'<h[1-6] id="([^"]+)"', body))
+    """The heading ids a drawn body carries, written by Markdown or by a file's own HTML: the places a link into it may name."""
+    return set(re.findall(r'<h[1-6]\b[^>]*?\sid="([^"]+)"', body))
 
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")

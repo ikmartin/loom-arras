@@ -246,7 +246,8 @@ export function interceptLinks(active: () => boolean, manifest: () => Manifest |
 			follow({ ...here, anchor: decodeURIComponent(href.slice(1)), note: undefined }, from);
 			return;
 		}
-		if (NEVER.test(href)) {
+		// a browser drops controls and spaces from an address before it reads the scheme, so this does too
+		if (NEVER.test(href.replace(/[\x00-\x20]/g, ''))) {
 			e.preventDefault();
 			return;
 		}

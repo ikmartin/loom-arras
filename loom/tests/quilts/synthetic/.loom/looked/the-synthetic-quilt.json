@@ -23,7 +23,8 @@
   "drafting/sections/appendix.tex": "sha256:b511f4a754417a90de16a798f8b1f5808538dc0812d576efdb98c11a2b008cc2",
   "drafting/sections/results.tex": "sha256:3ab468a8d75228d4cf262cda574231952d3b96432a45a96960b0ccfdc773bfc6",
   "drafting/talk.tex": "sha256:a68be93d7495c2ea258d9ba890e8888fe71b514055f6ac95e74a21448e632e3c",
-  "notes/intro.md": "sha256:cda86e9ea6a0531f7bfd84650ba0b7211157455307d26c002f02d16e3f3f71ba",
+  "notes/embeds.md": "sha256:d3a3adb28d1bb479ea872e6c0e8cd6c2de02ad8e68d091c16b5eb40e6e1e0d43",
+  "notes/intro.md": "sha256:cbae928468767c7546d531159b932aa3bfe6466aec9570ec08f33f13c76e1782",
   "notes/page.html": "sha256:b93db0a398dc047ae3674082c9f52897d1cb46e7fd10807dce81e0173070bfcd",
   "notes/run.ipynb": "sha256:b1df23dc088580208def312f306200397a42aa624396e88f409f4968dd4699bc",
   "research-state.md": "sha256:d39eaf16dde35116426cb481d00e0d28c97fae8d924dc9054c9d035ae982844c"

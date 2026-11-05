@@ -38,7 +38,7 @@
 	/** The state each box was last asked for, which an older publication arriving late must not undo. */
 	const asked = new Map<string, boolean>();
 
-	// a drawn body is fetched by the manifest's hash, so an edit to the file shows on the next publication. What is drawn stays until the answer differs, so a publication that changed something else does not restart the page, and one that only moved a tick leaves the mathematics and the scroll position alone
+	// a drawn body is fetched by the manifest's hash, so an edit to the file shows on the next publication. What is drawn stays until the answer differs, so a publication that changed something else does not restart the page or a video playing in it, and one that only moved a tick leaves the mathematics and the scroll position alone
 	let held: string | undefined;
 	$effect(() => {
 		const f = file;
@@ -128,6 +128,19 @@
 			box.checked = li.dataset.done === 'true';
 		}, 3000);
 	}
+
+	// a frame in the body fills the column at the shape its width and height name, which a browser works out for an image and not for a frame
+	$effect(() => {
+		void body;
+		for (const frame of el?.querySelectorAll<HTMLIFrameElement>('.file-body iframe') ?? []) {
+			const [w, h] = [Number(frame.getAttribute('width')), Number(frame.getAttribute('height'))];
+			if (w > 0 && h > 0) frame.style.aspectRatio = `${w} / ${h}`;
+			else if (h > 0) {
+				frame.style.aspectRatio = 'auto';
+				frame.style.height = `${h}px`;
+			}
+		}
+	});
 
 	// a line a problem names (`L12`), whose text is then drawn a line at a time so the line can be shown
 	const line = $derived(Number(/^L(\d+)$/.exec(item.anchor ?? '')?.[1] ?? 0));
@@ -338,8 +351,18 @@
 		max-width: var(--prose-measure);
 		margin-inline: auto;
 	}
-	.file :global(.file-body img) {
+	.file :global(.file-body :is(img, video, audio)) {
 		max-width: 100%;
+		height: auto;
+	}
+	/* a frame the file embeds takes the column's width, however wide it asked to be; the shape is a video's until the file names its own */
+	.file :global(.file-body iframe) {
+		display: block;
+		width: 100%;
+		height: auto;
+		aspect-ratio: 16 / 9;
+		border: 0;
+		margin: var(--gap-tight) 0;
 	}
 	/* a task item's box stands where its bullet would */
 	.file :global(.file-body li.task) {
