@@ -60,8 +60,8 @@ LEFT = "Is the bound on the orbit count sharp?"
 A_PROMPT = "/mcp__loom__quick dm-0002"
 COMMANDS = (
     "This turn checks this folder's permission settings and nothing else. "
-    "With the Bash tool, run `loom status` and then `loom accept --help`, each exactly as written and in a call of its own. "
-    "The settings are expected to refuse one of the two: attempt both, never run either another way, and stop once both are attempted."
+    "With the Bash tool, run `loom status`, `loom --help`, `loom session --help` and then `loom accept --help`, each exactly as written and in a call of its own. "
+    "The settings are expected to refuse the last of the four: attempt all of them, never run any another way, and stop once all are attempted."
 )
 
 
@@ -134,6 +134,8 @@ def test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors(
     result, ran = turn(q, COMMANDS)
     words = [line.split()[:1] for line in ran]
     assert ["status"] in words, f"loom status, which the agent may run, never ran: {ran}, {result}"
+    assert ["--help"] in words, f"loom --help, which the orientation sends an agent to, never ran: {ran}, {result}"
+    assert "session --help" in ran, f"loom session --help never ran: {ran}, {result}"
     assert ["accept"] not in words, f"loom accept, which is the author's, ran: {ran}"
     tried = [str(i.get("command", "")) for i in refusals(result, "Bash")]
     assert any("loom accept" in c for c in tried), f"no loom accept was refused: {result}"

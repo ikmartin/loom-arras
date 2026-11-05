@@ -96,6 +96,20 @@ def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> N
     assert not [ln for ln in runs if "annotate" in ln and "(over MCP)" not in ln and "Which orbits" in ln]
 
 
+def test_the_orientation_is_never_a_file_however_long_the_research_state(tmp_path: Path) -> None:
+    """An agent attached over MCP may have no tool that reads a file, and a real quilt's research state already carries the orientation past the length that sends a result to one."""
+    q = demo(tmp_path)
+    (q / "research-state.md").write_text("A long state. " * 800)
+
+    async def body(client: Any) -> None:
+        r = await client.call_tool("loom_ai_orient", {})
+        said = r.content[0].text
+        assert not r.is_error and len(said) > 40_000 and "so it is in" not in said, said[:300]
+        assert said.startswith("# Orientation: working in a quilt") and "# Live state" in said
+
+    attached(q, body)
+
+
 def test_a_result_too_long_for_a_reply_is_a_file_the_agent_reads(tmp_path: Path) -> None:
     q = demo(tmp_path)
     (q / "drafting" / "nodes" / "dm-0097.tex").write_text(

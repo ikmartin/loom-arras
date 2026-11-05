@@ -64,6 +64,12 @@ class Gen:
     def run(self, *args: str, expect: int = 0, agent: bool = False) -> str:
         from loom.cli import main
 
+        if agent and args[0] in ("annotate", "note") and "--as" not in args:
+            args = (
+                *args,
+                "--as",
+                "agent",
+            )  # under a marker a write says who it is, and this story's unnamed agent is called that
         old = os.getcwd()
         try:
             os.chdir(self.root)

@@ -19,7 +19,7 @@ TAIL = 20
 def static_text(root: Path) -> str:
     """The standing documents, the quilt's own copies where it has them: where an agent is, how it works, and how to write what the author reads.
 
-    Printed together because the alternative is a two-part instruction — run a command, then read a file — whose second half fails silently. A command either ran or it did not.
+    Printed together because the alternative is a two-part instruction — run a command, then read a file — whose second half fails silently. A command either ran or it did not. The whole is longer than a client's shell shows at once (Claude Code's Bash tool keeps the first 2,000 bytes of anything over 30,000 and saves the rest to a file), which is why `orientation.md` opens with what must not be missed and says to read the rest.
     """
     from loom.ai.layout import tracked_docs
 

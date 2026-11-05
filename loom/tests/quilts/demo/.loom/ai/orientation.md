@@ -1,5 +1,12 @@
 # Orientation: working in a quilt
 
+**Read all of this before you act.** It is long: if your app cut it short or saved it to a file, read that file whole now, with a file-reading tool or in pieces, rather than searching it. What must not be missed:
+
+- **In a shell, sign everything you write** with `--as` and the name of the app you run in, never the model's, followed by `Agent`, the same each time: `--as "Claude Code Agent"`, `--as "Codex Agent"`, `--as "Gemini CLI Agent"`. A name that does not say it is an agent, with `Agent` or `AI`, is refused in a shell that marks one, and recorded as a person's in a shell that does not. Over MCP the server signs for you.
+- **What only the author does refuses you**, whatever name you give: `loom accept`, `loom adopt` and the rest of §3. To ask for one, write a `suggestion` on the thing concerned.
+- **The author reads the viewer, and what it does not show is never seen.** Your report is a `loom session say` message, and a finding is a `loom annotate` on what it concerns (`.loom/ai/rules.md`, Where work goes).
+- **Never write by hand** in `.loom/` outside your session's directory, `.loom/build/` and `.loom/copies/`, nor `config.toml`, nor the research state; Live state, at the end, lists all that is protected.
+
 You are working in a **quilt**: a research project managed by `loom`, usually mathematical, kept as LaTeX. It may hold several documents — a paper, a talk, notes from reading — or none yet; do not assume there is one paper, or a paper at all. `loom ai orient` printed this, `.loom/ai/rules.md` (how to work and what your output looks like), `.loom/ai/formatting.md` (how to write what the author reads) and the modes you can reach for. Read them once. Then run `loom status` and propose what to do from what it reports.
 
 Commands are written here as a shell takes them. Attached over MCP (`loom mcp`), each is the tool of the same name — `loom status` is `loom_status`, `loom library read` is `loom_library_read` — with its options as arguments (`--source-text` is `source_text`), and the author's commands are not tools. The server says who you are, so you pass no `--as`. A text is given as itself, never as `-` for stdin, and each item is a call of its own, so a tool has no `--batch`. A result too long for a reply is a file under `.loom/build/agent/`, which the tool names. If your app also gives you a shell, `loom` runs there too, for what a tool does not do, such as filtering a result or `--batch`; there you name yourself with `--as`.
@@ -46,7 +53,7 @@ To ask for one, write a `suggestion` on the thing concerned with your reasoning;
 
 ## 5. Sessions and the transcript
 
-A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one. In a shell, name yourself with `--as` on everything you write, a name with `Agent` or `AI` in it; over MCP, the server has named you.
+A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one.
 
 When the author points at something without naming it — "this", "here", "what I have selected" — `loom here` says what they are looking at in the viewer: the document, result or paper, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in. `loom since` says what people did since you last looked under your name: annotations and replies, what they resolved, applied or discarded, what they accepted and which accepted keys went stale, their edits to the research state, what they said in a transcript, and what they quoted. Run it at the start of a conversation, and whenever they say they have left you something.
 

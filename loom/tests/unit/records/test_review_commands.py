@@ -466,6 +466,8 @@ def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
         "diagonal is closed",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -499,12 +501,24 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
     made = ok(
-        "annotate", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT
+        "annotate",
+        "dm-0002",
+        "Orbits may be empty.",
+        "--quote",
+        "Every orbit",
+        "--session",
+        sid,
+        "--as",
+        "agent",
+        cwd=d,
+        env=AGENT,
     )
     ann = made.output.split()[0]
 
     # the run resolves the annotation it made itself, writing as the same run
-    got = ok("annotate", "--resolve", ann, "Fixed in the revision.", "--session", sid, cwd=d, env=AGENT)
+    got = ok(
+        "annotate", "--resolve", ann, "Fixed in the revision.", "--session", sid, "--as", "agent", cwd=d, env=AGENT
+    )
     assert got.output.strip() == f"resolved {ann}"
 
     assert [e["event"] for e in events(d)] == ["created", "resolved"]
@@ -531,6 +545,8 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "replace",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -544,6 +560,8 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "Still wrong, and the fix is smaller than I said.",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -564,6 +582,8 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "x",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
         code=2,
@@ -576,11 +596,23 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
     made = ok(
-        "annotate", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT
+        "annotate",
+        "dm-0002",
+        "Orbits may be empty.",
+        "--quote",
+        "Every orbit",
+        "--session",
+        sid,
+        "--as",
+        "agent",
+        cwd=d,
+        env=AGENT,
     )
     ann = made.output.split()[0]
 
-    gone = ok("annotate", "--discard", ann, "I misread the definition.", "--session", sid, cwd=d, env=AGENT)
+    gone = ok(
+        "annotate", "--discard", ann, "I misread the definition.", "--session", sid, "--as", "agent", cwd=d, env=AGENT
+    )
     assert gone.output.strip() == f"withdrew {ann}"
 
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
@@ -595,6 +627,8 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
         "x",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
         code=2,
@@ -634,6 +668,8 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
         "objection",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -688,6 +724,8 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
         "K. Kreck, Surgery and duality, Ann. of Math. 149 (1999).",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -702,6 +740,8 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
         "citation",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -806,6 +846,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "objection",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -819,6 +861,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "objection",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -832,6 +876,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "objection",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
@@ -852,7 +898,19 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     f.write_text(new)
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["detached"] == 2
-    ok("annotate", proof, "Read through; nothing to add.", "--kind", "note", "--session", sid, cwd=d, env=AGENT)
+    ok(
+        "annotate",
+        proof,
+        "Read through; nothing to add.",
+        "--kind",
+        "note",
+        "--session",
+        sid,
+        "--as",
+        "agent",
+        cwd=d,
+        env=AGENT,
+    )
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "agent"
     # Day 3: the author resolves the statement objection and accepts
@@ -937,15 +995,28 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
         "major",
         "--session",
         run_name,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )
-    ok("annotate", "dm-0003", "Also wrong", "--session", run_name, cwd=d, env=AGENT)
+    ok("annotate", "dm-0003", "Also wrong", "--session", run_name, "--as", "agent", cwd=d, env=AGENT)
     live = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
     assert len(live) == 2
     assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
 
-    ok("annotate", "--discard", live[1]["id"], "I misread the hypothesis", "--session", run_name, cwd=d, env=AGENT)
+    ok(
+        "annotate",
+        "--discard",
+        live[1]["id"],
+        "I misread the hypothesis",
+        "--session",
+        run_name,
+        "--as",
+        "agent",
+        cwd=d,
+        env=AGENT,
+    )
     after = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
     assert [f["id"] for f in after] == [live[0]["id"]]  # the withdrawn one is out of the way
 
@@ -1304,7 +1375,17 @@ def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
     """A comment on a region key with no quote -- a box drawn round an equation -- marks the display itself, so the reader can click it; nothing is put inside the formula."""
     d = synthetic(tmp_path)
     sid, _ = session(d)
-    ok("annotate", "sy-0001#eq:fix", "The fixed locus wants a name.", "--session", sid, cwd=d, env=AGENT)
+    ok(
+        "annotate",
+        "sy-0001#eq:fix",
+        "The fixed locus wants a name.",
+        "--session",
+        sid,
+        "--as",
+        "agent",
+        cwd=d,
+        env=AGENT,
+    )
     ann = [e["id"] for e in events(d) if e["event"] == "created"][-1]
     exits(1, "build", cwd=d)
     frag = (d / ".loom/build" / "fragments" / "nodes" / "sy-0001.html").read_text()
@@ -1498,6 +1579,8 @@ def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(
         "replace",
         "--session",
         sid,
+        "--as",
+        "agent",
         cwd=d,
         env=AGENT,
     )

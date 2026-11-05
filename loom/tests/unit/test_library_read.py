@@ -138,7 +138,7 @@ def test_why_tells_a_citation_suggestion_apart_from_a_result(tmp_path: Path) -> 
     sid = ok("session", "new", "--name", "r", "--as", "A. Author", cwd=q).stdout.split()[0]
     made = ok(
         "annotate", "dm-0002", "Kreck 1999 proves this.", "--quote", "Every orbit", "--kind", "citation",
-        "--payload", "K. Kreck, Surgery and duality (1999).", "--session", sid, cwd=q, env={"AI_AGENT": "1"},
+        "--payload", "K. Kreck, Surgery and duality (1999).", "--session", sid, "--as", "Reader Agent", cwd=q, env={"AI_AGENT": "1"},
     )  # fmt: skip
     ann = made.output.split()[0]
     doc = json_of("library", "why", ann, "--json", cwd=q)

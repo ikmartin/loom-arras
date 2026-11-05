@@ -288,6 +288,18 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
     assert "- undigested citekeys: " in r.output and "- open sessions: none" in r.output
 
 
+def test_the_orientation_opens_with_what_must_not_be_missed(tmp_path: Path) -> None:
+    """Claude Code's Bash tool saves anything over 30,000 bytes to a file and shows the whole lines of its first 2,000 (measured on 2.1.312), and `loom ai orient` is longer than that, so agents searched the file and missed the rules. So the opening fits inside what survives, and says to read the rest whole."""
+    q = bare(tmp_path)
+    said = ok("ai", "orient", cwd=q).stdout
+    assert len(said.encode()) > 30_000, "the orientation now fits a shell's reply: this opening may be unnecessary"
+    kept = said.encode()[:2_000].decode(errors="ignore").rsplit("\n", 1)[0]
+    opening = kept[: kept.index("You are working in a **quilt**")]
+    for rule in ("read that file whole", '--as "Claude Code Agent"', "`loom accept`", "`loom session say`", "`loom annotate`", "`config.toml`"):  # fmt: skip
+        assert rule in opening, rule
+    assert "server signs for you" in opening
+
+
 def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> None:
     q = bare(tmp_path)
     r = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED)
@@ -471,7 +483,14 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
 
 def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) -> None:
     """One table, `AGENT_COMMANDS`, decides what an agent may run: the deny list is its complement, so a command added later is the author's until it is admitted, and the settings file and the prose in rules.md are rendered from it (DR-173)."""
-    from loom.ai.layout import AGENT_COMMANDS, author_commands, command_tree, permissions_json, settings_deny_paths
+    from loom.ai.layout import (
+        AGENT_COMMANDS,
+        author_commands,
+        command_tree,
+        help_commands,
+        permissions_json,
+        settings_deny_paths,
+    )
     from loom.scan.quilt import QuiltConfig
 
     every = set(command_tree())
@@ -484,7 +503,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     assert denied == every - AGENT_COMMANDS
     shell = json.loads(permissions_json(QuiltConfig(), shell=True))["permissions"]
     assert {r.removeprefix("Bash(loom ").removesuffix("*)") for r in shell["allow"] if r.startswith("Bash(")} == (
-        AGENT_COMMANDS
+        AGENT_COMMANDS | set(help_commands())
     )
     over_mcp = json.loads(permissions_json(QuiltConfig()))["permissions"]
     assert over_mcp["deny"] == shell["deny"] and set(over_mcp["allow"]) - set(shell["allow"]) == {"mcp__loom__*"}
@@ -508,6 +527,29 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     for c in sorted(AGENT_COMMANDS):
         assert f"`loom {c}`" in rules, c  # the prose is the same table
     assert "{allowed_commands}" not in rules
+
+
+def test_an_agent_in_a_shell_may_ask_loom_what_it_offers(tmp_path: Path) -> None:
+    """The orientation sends a shell agent to `loom --help`, which was refused again and again because the rules named only commands; a rule for `session new` does not reach `loom session --help` either. The help is admitted in both clients' files, is no rule's to deny, and loom answers it under a marker with the commands an agent may run marked."""
+    from loom.ai.layout import codex_rules, help_commands, permissions_json
+    from loom.scan.quilt import QuiltConfig
+
+    assert help_commands() == ["--help", "-h", "ai --help", "ai -h", "session --help", "session -h"]
+    rules = json.loads(permissions_json(QuiltConfig(), shell=True))["permissions"]
+    codex = codex_rules()
+    for typed in help_commands():
+        assert f"Bash(loom {typed}*)" in rules["allow"], typed
+        assert f"Bash(loom {typed}*)" in json.loads(permissions_json(QuiltConfig()))["permissions"]["allow"], typed
+        assert not [d for d in rules["deny"] if typed.startswith(d.removeprefix("Bash(loom ").removesuffix("*)"))], (
+            typed
+        )
+        pattern = ", ".join(json.dumps(w) for w in ["loom", *typed.split()])
+        assert f'prefix_rule(pattern = [{pattern}], decision = "allow")' in codex, typed
+    q = bare(tmp_path)
+    for typed in help_commands():
+        said = ok(*typed.split(), cwd=q, env={"CLAUDECODE": "1"}).stdout
+        assert said.startswith("Usage: "), typed
+    assert "status*" in ok("--help", cwd=q, env={"CLAUDECODE": "1"}).stdout
 
 
 def test_codex_is_given_the_same_policy_as_claude(tmp_path: Path) -> None:
