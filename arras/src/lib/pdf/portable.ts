@@ -15,7 +15,7 @@ export interface Outgoing {
 	strokes?: number[][];
 	body: string;
 	by: string;
-	/** Its colour in the copy, 0–255; a highlighter's yellow where it has none of its own. */
+	/** Its colour in the copy, 0–255, where it has one of its own. */
 	color?: number[];
 }
 
@@ -176,7 +176,8 @@ async function fill(doc: PDFDocumentProxy, marks: readonly Outgoing[], replaced:
 				...common,
 				annotationType: TYPE.highlight,
 				rect: whole,
-				color: color ?? YELLOW,
+				// yellow marks a band or a pin well and a thin line hardly at all
+				color: color ?? (m.kind === 'highlight' || m.kind === 'pin' ? YELLOW : INK),
 				opacity: 1,
 				thickness: 12,
 				quadPoints: new Float32Array(m.rects.flatMap((r) => map.corners(r))),
@@ -348,7 +349,21 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
 	return null;
 }
 
-/** Every annotation of a PDF that a mark can hold, and how many it cannot; `keepRef` names each one's place in the file, for taking in the file being read. */
+/**
+ * Every annotation of a PDF that a mark can hold, and how many it cannot.
+ *
+ * Parameters
+ * ----------
+ * doc : PDFDocumentProxy
+ *     The PDF.
+ * keepRef : boolean, default false
+ *     Whether each names its place in the file, for taking in the file being read.
+ *
+ * Returns
+ * -------
+ * object
+ *     `items`, what `notes-take` writes; `skipped`, how many a mark cannot hold.
+ */
 export async function readAnnotations(doc: PDFDocumentProxy, keepRef = false): Promise<{ items: Incoming[]; skipped: number }> {
 	const items: Incoming[] = [];
 	let skipped = 0;
@@ -397,6 +412,26 @@ export interface NewPage {
  * A new PDF from pages of this one and others, turned as asked.
  *
  * pdf.js writes the pages, their annotations with them, and has no way to turn one; a page's `/Rotate` is rewritten afterwards in its written object, at the same length, taking the room from the space in its `/Type /Page`.
+ *
+ * Parameters
+ * ----------
+ * lib : pdf.js
+ *     The library.
+ * source : object
+ *     What `getDocument` opens for the PDF being edited.
+ * order : NewPage[]
+ *     The new file's pages, in order.
+ * others : Uint8Array[], default []
+ *     The PDFs pages are inserted from, `from` 1 being the first.
+ * marks : Outgoing[], default []
+ *     What to write into the pages, as a saved copy holds it.
+ * replaced : Replaced[], default []
+ *     Annotations in the file to leave out, since a note stands for each.
+ *
+ * Returns
+ * -------
+ * Uint8Array
+ *     The new file.
  */
 export async function editedPages(lib: Pdfjs, source: Parameters<Pdfjs['getDocument']>[0], order: readonly NewPage[], others: readonly Uint8Array[] = [], marks: readonly Outgoing[] = [], replaced: readonly Replaced[] = []): Promise<Uint8Array> {
 	// marks go in first, as a copy, since the page editor writes its objects where a rename could not reach them

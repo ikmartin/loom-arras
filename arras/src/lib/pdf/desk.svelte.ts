@@ -88,7 +88,10 @@ export class MarkDesk {
 			if (m) out.push({ ...m, ...this.#changed[n.id] });
 		}
 		const have = new Set(out.map((m) => m.id));
-		return [...out, ...this.#pending.filter((m) => !have.has(m.id))];
+		// the place stays lit while what is said about it is being written
+		const c = this.composing;
+		const lit: PageMark[] = c ? [{ id: 'composing', page: c.page, kind: c.kind === 'pin' ? 'pin' : 'box', rects: c.rects, body: '', plain: c.kind !== 'pin' }] : [];
+		return [...out, ...this.#pending.filter((m) => !have.has(m.id)), ...lit];
 	});
 
 	/** The annotations in the file that a note stands for, by reference; the pages leave them undrawn. */

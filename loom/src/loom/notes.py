@@ -436,6 +436,32 @@ def change(
     """Change what a note says or, on a mark that is not on words, where it stands.
 
     The words a highlight is on are its place, so a mark on words does not move; a pin or words on the page cannot be emptied, since they would then say nothing. The change is an event, and the log keeps what it replaced.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt's root.
+    note_id : str
+        The note.
+    who : str
+        Who changes it.
+    who_kind : str
+        `person`, who may change any note, or `agent`, who may change only its own.
+    body : str, optional
+        What it says now.
+    rects : list of [x0, y0, x1, y1], optional
+        Where a box, an oval, a pin or words on the page stands now.
+    strokes : list of list of float, optional
+        Where ink or an arrow runs now; its rectangle follows.
+
+    Returns
+    -------
+    Note
+        The note as it now stands.
+
+    See Also
+    --------
+    erase : take it off the page.
     """
     note = _mine(load(root), note_id, who, who_kind)
     event: dict[str, Any] = {"event": "changed", "id": note_id, "when": stamp(), "author": who}
@@ -459,7 +485,28 @@ def change(
 
 
 def erase(root: Path, note_id: str, who: str, who_kind: str) -> Note:
-    """Take a note off the page and out of every list; the log keeps it, and erasing an erased note changes nothing."""
+    """Take a note off the page and out of every list; the log keeps it, and erasing an erased note changes nothing.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt's root.
+    note_id : str
+        The note.
+    who : str
+        Who erases it.
+    who_kind : str
+        `person`, who may erase any note, or `agent`, who may erase only its own.
+
+    Returns
+    -------
+    Note
+        The note, with when it was erased.
+
+    See Also
+    --------
+    restore : put it back.
+    """
     note = _mine(load(root), note_id, who, who_kind)
     if note.erased is None:
         note.erased = stamp()
@@ -468,7 +515,24 @@ def erase(root: Path, note_id: str, who: str, who_kind: str) -> Note:
 
 
 def restore(root: Path, note_id: str, who: str, who_kind: str) -> Note:
-    """Put an erased note back; restoring one that stands changes nothing."""
+    """Put an erased note back; restoring one that stands changes nothing.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt's root.
+    note_id : str
+        The note.
+    who : str
+        Who restores it.
+    who_kind : str
+        `person`, who may restore any note, or `agent`, who may restore only its own.
+
+    Returns
+    -------
+    Note
+        The note as it now stands.
+    """
     note = _mine(load(root), note_id, who, who_kind)
     if note.erased is not None:
         _append(root, {"event": "restored", "id": note_id, "when": stamp(), "author": who})

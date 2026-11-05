@@ -72,6 +72,14 @@ async function clickMark(page: Page, testid: string): Promise<void> {
 	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+// an effect that feeds itself, or a write the page did not catch, fails the test that caused it
+test.beforeEach(({ page }, info) => {
+	page.on('pageerror', (e) => info.annotations.push({ type: 'pageerror', description: e.message }));
+});
+test.afterEach(({}, info) => {
+	expect(info.annotations.filter((a) => a.type === 'pageerror')).toEqual([]);
+});
+
 test('a highlight from the selection needs no session, is drawn at once, and is there after a reload', async ({ page, served }) => {
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
 	await selectWords(page, 2, 'order');
