@@ -727,11 +727,12 @@ def test_an_agents_link_is_the_runs_never_the_authors(tmp_path: Path, monkeypatc
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     a, b = f"{ck}-thm-1.1", f"{ck}-thm-4.1"
+    sid = new_session(q)
     monkeypatch.setenv("AI_AGENT", "1")
     link = ("library", "relate", a, b, "--kind", "depends-on", "--why", "w")
     # the actor, never the session it was asserted in
-    refused(*link, code=2, match="--as NAME", cwd=q)
-    ok(*link, "--as", "Reader Agent", "--session", new_session(q), cwd=q)
+    refused(*link, code=2, match="has not said who it is", cwd=q)
+    ok(*link, "--as", "Reader Agent", "--session", sid, cwd=q)
     assert read_links(q)[0].by == "Reader Agent"
 
 

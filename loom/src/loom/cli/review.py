@@ -402,18 +402,14 @@ def _writer(
 
     Writing with nothing active opens a session, for a person and an agent alike: refusing would make the first annotation of a sitting a two-command ritual.
 
-    The caller says who is writing; the shell is asked only when nobody does, and only where asking it makes sense. `sniff=False` is the API's: a write arriving over HTTP is somebody at a browser, and the shell `loom serve` happens to have been started in says nothing about them. With `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"`. Without a name to use it refuses, as a comment from an unnamed author always has, rather than guessing from the environment (plan 0.13 §8).
+    The caller says who is writing, and a declared name decides the kind by what it calls itself. An agent's shell must declare a name that says so (`signed`), and anybody with no name to use is refused, as a comment from an unnamed author always has been. `sniff=False` is the API's: a write arriving over HTTP is somebody at a browser, and the shell `loom serve` happens to have been started in says nothing about them; with `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"`.
     """
-    from loom.cli._common import agent_name, find_session, is_agent
+    from loom.cli._common import find_session, is_agent, signed
     from loom.sessions import ensure_active
 
-    # **An explicit identity wins, in both directions** (plan 0.13 §8). A declared name decides the kind by what it
-    # calls itself, so an agent naming itself is an agent in a person's shell and a person naming themselves is a
-    # person in an agent's; the marker is the safety net for a writer who declared nothing at all.
-    declared = (author or "").strip()
-    robot = agent_name() if sniff else None
-    name = declared or robot or _author(author, root)
-    kind = is_agent(declared) if declared else bool(robot)
+    declared = signed(author) if sniff else (author or "").strip()
+    name = declared or _author(author, root)
+    kind = is_agent(declared)
     if session:
         s = find_session(root, session)
     elif dry_run:

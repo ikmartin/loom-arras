@@ -108,6 +108,15 @@ def author_commands() -> list[str]:
     return [c for c in command_tree() if c not in AGENT_COMMANDS]
 
 
+def help_commands() -> list[str]:
+    """How an agent asks loom what it offers, as typed after `loom`: the top level's help and that of each group whose name alone no rule admits, `ai` and `session`.
+
+    The orientation sends an agent to these, they write nothing, and a rule for a command never reaches them: `Bash(loom session new*)` does not match `loom session --help`.
+    """
+    groups = {c.rsplit(" ", 1)[0] for c in AGENT_COMMANDS if " " in c} - AGENT_COMMANDS
+    return sorted(f"{group} {flag}".strip() for group in ("", *groups) for flag in ("--help", "-h"))
+
+
 def tracked_docs() -> dict[str, str]:
     """Quilt-relative path -> shipped text for every file whose edits `loom upgrade` preserves.
 
@@ -168,7 +177,7 @@ def permissions_json(config: QuiltConfig, *, shell: bool = False) -> str:
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
     allow = [f"Edit({d})" for d in claude_allows()]
     # the agent's own commands, allowed outright: approving each of them is friction with nothing to decide
-    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
+    allow += [f"Bash(loom {c}*)" for c in [*sorted(AGENT_COMMANDS), *help_commands()]]
     if not shell:
         allow.append("mcp__loom__*")
     deny = [f"Edit({d})" for d in claude_denies(config)]
@@ -197,7 +206,7 @@ def codex_rules() -> str:
     def rule(words: list[str], decision: str) -> str:
         return f"prefix_rule(pattern = [{', '.join(json.dumps(w) for w in words)}], decision = {json.dumps(decision)})"
 
-    body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
+    body = [rule(["loom", *c.split()], "allow") for c in [*sorted(AGENT_COMMANDS), *help_commands()]]
     body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
     body.append(rule(["rm"], "forbidden"))
     return "\n".join(head + body) + "\n"

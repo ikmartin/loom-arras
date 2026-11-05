@@ -25,6 +25,8 @@ from loom.paths import BUILD
 
 #: A result longer than this many characters goes to a file the agent reads with its own tools: about ten thousand tokens, where Claude Code starts warning, and well under every client's own limit.
 LARGE = 40_000
+#: Commands whose result is never such a file: an agent attached over MCP may have no tool that reads one, and the orientation is what it works from.
+WHOLE = frozenset({"ai orient"})
 
 
 def serve(root: Path, name: str) -> None:
@@ -216,7 +218,7 @@ def _result(
         return _error(err or f"{command} exited {done.returncode}", command, done.returncode)
     as_json = bool(arguments.get("json"))
     text = out if as_json or not err else out.rstrip("\n") + "\n\n" + err + "\n"
-    if len(text) > LARGE:
+    if len(text) > LARGE and spec.path not in WHOLE:
         path = _keep(root, arguments.get("session"), spec.name.removeprefix("loom_"), text)
         first = next((ln for ln in out.splitlines() if ln.strip()), "")
         said = f"{first}\n\nThe whole result is {len(text):,} characters, so it is in {path}; read or search that file."

@@ -86,7 +86,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
 
 {allowed_commands}
 
-  `loom new` without `--print` writes a node file; give it `--print`.
+  `loom new` without `--print` writes a node file; give it `--print`. `loom --help` and `--help` on any of these say what it takes.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 

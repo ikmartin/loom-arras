@@ -48,6 +48,12 @@
       "Bash(loom status*)",
       "Bash(loom suggestion*)",
       "Bash(loom write*)",
+      "Bash(loom --help*)",
+      "Bash(loom -h*)",
+      "Bash(loom ai --help*)",
+      "Bash(loom ai -h*)",
+      "Bash(loom session --help*)",
+      "Bash(loom session -h*)",
       "mcp__loom__*"
     ],
     "deny": [

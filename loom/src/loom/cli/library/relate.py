@@ -63,7 +63,7 @@ def relate_command(
         return
     if frm is None or to is None or kind is None:
         raise EnvError("give FROM TO --kind K to relate two results, or --undo LINK_ID to remove a relation")
-    from loom.cli._common import agent_marker
+    from loom.cli._common import signed
     from loom.refs.links import add_link, check_link, next_id, read_links
     from loom.scan.quilt import NoAuthorError, resolve_author
 
@@ -72,12 +72,8 @@ def relate_command(
     for end in (frm, to):
         find_result(result, end)
     # who asserted it, never the session it was asserted in: an assertion is somebody's, and a reader weighs it by whose
-    if who and who.strip():
-        by = who.strip()
-    elif agent_marker():
-        # an agent with no --session would otherwise be recorded as the author, by way of git: eleven links in the second study run were
-        raise EnvError("an agent is running this shell: pass --as NAME, so the relation says who asserted it")
-    else:
+    by = signed(who)
+    if not by:
         try:
             by = resolve_author(None, root)[0]
         except NoAuthorError as exc:

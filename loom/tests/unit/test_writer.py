@@ -1,7 +1,8 @@
-"""Who a write is recorded as, a person or an agent (DR-185, plan 0.13 §8): identity is declared, and the guard on the author's verbs is on the identity, not on the shell it came from."""
+"""Who a write is recorded as, a person or an agent (DR-185, plan 0.13 §8): identity is declared, and under an agent marker a declared name must say it is an agent's."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -21,8 +22,102 @@ def test_an_agent_that_has_not_said_who_it_is_is_refused_rather_than_guessed_at(
     monkeypatch.setenv("AI_AGENT", "1")
     with pytest.raises(Exception, match="has not said who it is"):
         writer(q, None)
-    # and an explicit identity wins over the marker
-    assert writer(q, "A. Author")[1] == "person"
+    assert writer(q, "Referee Agent") == ("Referee Agent", "agent")
+
+
+def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tmp_path: Path) -> None:
+    """`loom annotate` and `loom note` recorded such a write as `agent` while `loom new` and `loom session say` refused it; now all of them ask, and the refusal names what the app goes by."""
+    q = demo(tmp_path)
+    log = q / ".loom/annotations" / "log.jsonl"
+    before = log.read_text()
+    for act in (
+        ["annotate", "dm-0002", "A finding.", "--kind", "note"],
+        ["annotate", "dm-0002", "A finding.", "--kind", "note", "--dry-run"],
+        ["note", "Worth keeping.", "--on", "dm-0002"],
+        ["session", "say", "Said."],
+        ["new", "lemma"],
+        ["since"],
+        ["write", "state", "A state."],
+    ):
+        refused(*act, cwd=q, env={"CLAUDECODE": "1"}, code=2, match='--as "Claude Code Agent"')
+    assert log.read_text() == before
+    made = ok(
+        "annotate",
+        "dm-0002",
+        "A finding.",
+        "--kind",
+        "note",
+        "--as",
+        "Claude Code Agent",
+        cwd=q,
+        env={"CLAUDECODE": "1"},
+    )
+    assert made.stdout.split()[0] in log.read_text()
+
+
+def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_path: Path) -> None:
+    """Two of five agents signed `Claude` and `Claude Haiku 5.5`, and those notes were recorded as a person's, so `loom since` handed them back as what the person did. A name cannot be checked (DR-325-ikmartin), so under a marker it must say what the marker says: every command that records a declared name refuses, says how to sign, and writes nothing. With no marker the same name is taken at its word."""
+    q = demo(tmp_path)
+    log = q / ".loom/annotations" / "log.jsonl"
+    before = log.read_text()
+    marked = {"CLAUDECODE": "1"}
+    for name in ("Claude", "Claude Haiku 5.5", "A. Author"):
+        for act in (
+            ["annotate", "dm-0002", "A finding.", "--kind", "note"],
+            ["note", "Worth keeping.", "--on", "dm-0002"],
+            ["session", "say", "Said."],
+            ["session", "new", "--name", "A sitting"],
+            ["since"],
+            ["write", "state", "A state."],
+            ["new", "lemma", "--print"],
+            ["draft", "drafting/main.tex", "--ai", "copy.tex"],
+            [
+                "library",
+                "relate",
+                "Calloway14-prop-3.2",
+                "Calloway14-prop-3.3",
+                "--kind",
+                "same-notion",
+                "--why",
+                "A reason.",
+            ],
+        ):
+            refused(*act, "--as", name, cwd=q, env=marked, code=2, match=f"{name} does not say it is an agent")
+    refused(
+        "note",
+        "Worth keeping.",
+        "--on",
+        "dm-0002",
+        "--as",
+        "Claude",
+        cwd=q,
+        env=marked,
+        code=2,
+        match='--as "Claude Code Agent"',
+    )
+    assert log.read_text() == before
+    # the same name in a shell with no marker is a person's, and a name that says so is an agent's in either
+    unmarked = {m: None for m in AGENT_MARKERS}
+    assert ok("annotate", "dm-0002", "Mine.", "--kind", "note", "--as", "A. Author", cwd=q, env=unmarked)
+    assert ok("annotate", "dm-0002", "Theirs.", "--kind", "note", "--as", "Claude Agent", cwd=q, env=marked)
+    kinds = {e["body"]: (e["author"], e["kind"]) for e in map(json.loads, log.read_text().splitlines()) if "body" in e}
+    assert kinds["Mine."] == ("A. Author", "human") and kinds["Theirs."] == ("Claude Agent", "agent")
+
+
+def test_a_marker_names_the_agent_as_its_apps_server_does(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Over MCP the server signs as `<App> Agent`, so a shell agent told the same name writes the same records. Apps set the generic `AI_AGENT` beside their own marker, which says more; every name says it is an agent, or a session it opened would read as a person's."""
+    from loom.ai.clients import CLIENTS
+    from loom.cli._common import AGENT_NAMES, agent_name
+
+    apps = {c.agent for c in CLIENTS}
+    for marker, name in AGENT_NAMES.items():
+        assert is_agent(name) and (name in apps or marker == "AI_AGENT"), name
+    assert set(AGENT_NAMES) == set(AGENT_MARKERS)
+    assert agent_name() is None
+    monkeypatch.setenv("AI_AGENT", "claude-code_2-1-317_agent")
+    assert agent_name() == "agent"
+    monkeypatch.setenv("CLAUDECODE", "1")
+    assert agent_name() == "Claude Code Agent"
 
 
 def test_a_declared_agent_is_an_agent_however_its_name_is_punctuated() -> None:
