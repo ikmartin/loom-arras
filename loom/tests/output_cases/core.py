@@ -86,7 +86,9 @@ CASES: dict[str, list[Case]] = {
     ],
     "suggestion apply": [
         Case(("a-2026-09-16-hwtkaw", "--as", "Tester")),
-        Case(("a-2026-09-16-ecnav2", "--as", "Tester"), exit=1, unchanged=True, why="a suggestion that carries no text"),
+        Case(
+            ("a-2026-09-16-ecnav2", "--as", "Tester"), exit=1, unchanged=True, why="a suggestion that carries no text"
+        ),
         Case(("a-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such annotation"),
         Case(("a-2026-09-16-hwtkaw", "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
     ],
@@ -110,7 +112,10 @@ CASES: dict[str, list[Case]] = {
         Case(("--on", "README.md", "--quote", "demo", "--as", "Tester")),
         Case(("x", "--on", "dm-9999", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
         Case(
-            ("--keep", "n-2000-01-01-gk2svb", "--as", "Tester"), exit=2, unchanged=True, why="a note that does not exist"
+            ("--keep", "n-2000-01-01-gk2svb", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="a note that does not exist",
         ),
         Case(("--on", "dm-0002", "--as", "Tester"), exit=2, unchanged=True, why="a note that quotes and says nothing"),
     ],
@@ -198,7 +203,9 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "--at", "1", "--diff"), why="unchanged since the step: said so"),
         Case(("dm-0002", "--at", "accepted:The loom demo", "--diff")),
         Case(("dm-0002", "--at", "accepted:Nobody"), exit=2, unchanged=True, why="never accepted by that name"),
-        Case(("dm-0002", "--at", "a-2000-01-01-w8gk02"), exit=2, unchanged=True, why="an annotation that names nothing"),
+        Case(
+            ("dm-0002", "--at", "a-2000-01-01-w8gk02"), exit=2, unchanged=True, why="an annotation that names nothing"
+        ),
         Case(("dm-0002", "--diff"), exit=2, unchanged=True, why="--diff needs --at"),
         Case(("drafting/main.tex", "--at", "1"), exit=2, unchanged=True, why="--at is for a key"),
         Case(("dm-9999",), exit=2, unchanged=True, why="a key that names nothing"),

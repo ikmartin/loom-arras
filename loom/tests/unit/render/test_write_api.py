@@ -354,7 +354,9 @@ def _note_change(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.notes import load
 
     assert load(q)[nid].body == "says this now" and load(q)[nid].rects == [[20, 20, 70, 70]]
-    refuses(s, "note-change", {"note": "n-2026-01-01-810dgx", "body": "x", "author": WHO}, 404, "no-such-note", "no note")
+    refuses(
+        s, "note-change", {"note": "n-2026-01-01-810dgx", "body": "x", "author": WHO}, 404, "no-such-note", "no note"
+    )
     refuses(
         s,
         "note-change",
