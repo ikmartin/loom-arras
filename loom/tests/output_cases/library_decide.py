@@ -10,7 +10,7 @@ AS = ("--as", "Tester")
 #: A quotation that is on the demo's p.1 of Calloway14.
 QUOTED = "An involution of a topological space fixes a subspace"
 #: The id `suggested` gives its citation suggestion, the clock being fixed.
-SUGGESTION = "a-2026-01-02-0001"
+SUGGESTION = "a-2026-01-02-w4pkx8"
 
 
 def proposed(q: Path) -> None:
@@ -69,7 +69,7 @@ CASES: dict[str, list[Case]] = {
             why="--statement with two ids",
         ),
         Case(("nope", "--yes", *AS), exit=2, unchanged=True, why="an unknown id"),
-        Case(("a-1999-01-01-0001", *AS), exit=2, unchanged=True, why="an unknown annotation"),
+        Case(("a-1999-01-01-ekn992", *AS), exit=2, unchanged=True, why="an unknown annotation"),
         Case(
             ("Calloway14-rem-9.1", "--yes", *AS),
             proposed,
@@ -119,6 +119,6 @@ CASES: dict[str, list[Case]] = {
         Case((), exit=2, unchanged=True, why="none of --work, --session, --proposed"),
         Case(("--work", "Calloway14"), exit=2, unchanged=True, why="no --yes and no terminal to ask"),
         Case(("--work", "Nobody99xyz", "--yes"), exit=2, unchanged=True, why="an unknown work"),
-        Case(("--session", "s-1999-01-01-0001", "--yes"), exit=2, unchanged=True, why="an unknown session"),
+        Case(("--session", "s-1999-01-01-bfyfgz", "--yes"), exit=2, unchanged=True, why="an unknown session"),
     ],
 }

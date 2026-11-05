@@ -28,7 +28,7 @@ from loom.sessions import (
 def session() -> None:
     """Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
 
-    A session has a stable id (`s-2026-09-20-0001`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
+    A session has a stable id (`s-2026-09-20-k2m9xq`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
     """
 
 
@@ -123,7 +123,7 @@ def list_command(show_all: bool, as_json: bool, quilt_path: str | None) -> None:
     root = quilt.root
     here = active(root)
     every = sessions(root, deleted=show_all)
-    standing = sorted((s for s in every.values() if show_all or s.state == "open"), key=lambda s: s.id)
+    standing = sorted((s for s in every.values() if show_all or s.state == "open"), key=lambda s: s.created)
     rows = [
         {
             "id": s.id,

@@ -84,8 +84,8 @@ def test_a_post_needs_words_or_something_attached(tmp_path: Path) -> None:
     q, sid = quilt(tmp_path)
     with pytest.raises(ValueError):
         post(q, sid, "  ", "A. Author")
-    post(q, sid, "", "A. Author", changed=[{"id": "a-2026-09-16-0001", "kind": "note"}])
-    assert read_events(q, sid)[0].changed[0]["id"] == "a-2026-09-16-0001"
+    post(q, sid, "", "A. Author", changed=[{"id": "a-2026-09-16-ecnav2", "kind": "note"}])
+    assert read_events(q, sid)[0].changed[0]["id"] == "a-2026-09-16-ecnav2"
 
 
 def test_say_is_one_post_for_an_agent_and_a_person(tmp_path: Path) -> None:

@@ -26,13 +26,13 @@ def test_review_lists_every_proposal_and_open_suggestion_with_its_id_last(tmp_pa
     r = ok("library", "review", cwd=q)
     assert r.stdout.startswith("waiting for review: 1 proposed result and 1 citation suggestion"), r.output
     assert f"{ck}  theorem 4.1  p.12  {ck}-thm-4.1" in r.stdout
-    assert "on dm-0002: M. Kreck, Surgery and duality  a-2026-01-02-0001" in r.stdout
+    assert "on dm-0002: M. Kreck, Surgery and duality  a-2026-01-02-w4pkx8" in r.stdout
     assert "next: loom library verify ID, or loom library discard ID --why" in r.stdout
     # with a work, only that work's proposals
     only = json_of("library", "review", ck, "--json", cwd=q)
     assert [p["id"] for p in only["proposed"]] == [f"{ck}-thm-4.1"] and only["citations"] == []
     # and once decided, nothing waits
-    ok("library", "discard", f"{ck}-thm-4.1", "a-2026-01-02-0001", "--why", "not needed", *AS, cwd=q)
+    ok("library", "discard", f"{ck}-thm-4.1", "a-2026-01-02-w4pkx8", "--why", "not needed", *AS, cwd=q)
     assert ok("library", "review", cwd=q).stdout.startswith("nothing waits for review")
 
 

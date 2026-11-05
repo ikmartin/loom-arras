@@ -15,7 +15,7 @@ async function openFirstMark(page: Page): Promise<void> {
 }
 
 function linkInComment(m: typeof manifest, href: string): void {
-	m.annotations['a-2026-09-16-0001'].body_html = `<p>The hypothesis is used in <a href="${href}">Kresch, Theorem 2.1</a>.</p>`;
+	m.annotations['a-2026-09-16-ecnav2'].body_html = `<p>The hypothesis is used in <a href="${href}">Kresch, Theorem 2.1</a>.</p>`;
 }
 
 test.describe('the ledger', () => {

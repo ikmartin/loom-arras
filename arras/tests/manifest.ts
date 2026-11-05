@@ -7,10 +7,10 @@ import { readFileSync } from 'node:fs';
 export const manifest: any = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
 
 /** The fixture's open session, titled `referee`. */
-export const REFEREE = 's-2026-09-16-0001';
+export const REFEREE = 's-2026-09-16-p9z37z';
 
 /** The fixture's closed session, titled `quick`. */
-export const QUICK = 's-2026-09-15-0001';
+export const QUICK = 's-2026-09-15-fk1w66';
 
 /** Serve the fixture with `edit` applied to a copy of its manifest. */
 export async function serve(page: Page, edit: (m: typeof manifest) => void): Promise<void> {

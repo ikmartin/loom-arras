@@ -10,13 +10,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from loom.records.annotations import Record
+from loom.records.ids import ANNOTATION
 
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
 #: What loom keeps in a session's directory for itself, as opposed to what the session wrote there.
 SESSION_FILES = ("run.log", "inbox.jsonl")
-_MADE = re.compile(r"^(.*?)\s+→\s+(a-\d{4}-\d{2}-\d{2}-\d+)$")
+_MADE = re.compile(rf"^(.*?)\s+→\s+({ANNOTATION})$")
 KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 
 

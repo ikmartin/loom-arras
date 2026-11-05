@@ -35,7 +35,7 @@ test("a file's notes stand at its head, a faded one hidden until shown", async (
 });
 
 test("a session's notes read in its transcript, by time among its messages", async ({ page }) => {
-	await page.goto('/session/s-2026-09-16-0001');
+	await page.goto('/session/s-2026-09-16-p9z37z');
 	const transcript = page.getByTestId('transcript');
 	await expect(transcript.locator('[data-testid^="noted-"]')).toHaveCount(3);
 	await expect(transcript.getByTestId('noted-n-2026-09-16-0001')).toContainText('be a finite widget');

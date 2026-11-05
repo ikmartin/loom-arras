@@ -855,7 +855,7 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 
 Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
 
-A session has a stable id (`s-2026-09-20-0001`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
+A session has a stable id (`s-2026-09-20-k2m9xq`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
 
 #### `loom session close`
 

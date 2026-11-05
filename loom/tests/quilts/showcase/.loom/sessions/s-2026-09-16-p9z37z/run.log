@@ -1,0 +1,26 @@
+2026-09-16T11:00:00Z  loom annotate sh-0009 --quote --kind objection → a-2026-09-16-ecnav2
+2026-09-16T11:00:00Z  loom annotate sh-0009/proof --quote --kind suggestion → a-2026-09-16-hwtkaw
+2026-09-16T11:00:00Z  loom annotate sh-000C/proof --quote --kind objection → a-2026-09-16-6sn46y
+2026-09-16T11:00:00Z  loom annotate sh-0006/proof --quote --kind question → a-2026-09-16-tc3rcf
+2026-09-16T11:00:00Z  loom annotate sh-0004 --kind suggestion → a-2026-09-16-hqnbz4
+2026-09-16T11:00:00Z  loom annotate drafting/main-atomic.tex --kind suggestion → a-2026-09-16-bns3an
+2026-09-16T11:00:00Z  loom annotate sh-0200 --kind suggestion → a-2026-09-16-xgtcve
+2026-09-16T11:00:00Z  loom annotate sh-0009#eq:rank --kind objection → a-2026-09-16-hwnav1
+2026-09-16T11:00:00Z  loom annotate Arden24-prop-2.1 --quote --kind objection → a-2026-09-16-gahrrs
+2026-09-16T11:00:00Z  loom annotate sh-0005 --kind note → a-2026-09-16-a91hwf
+2026-09-16T11:00:00Z  loom annotate sh-000F --kind citation → a-2026-09-16-pmjbhz
+2026-09-16T11:00:00Z  loom annotate sh-0008 --kind objection → a-2026-09-16-0gvvrg
+2026-09-16T11:00:00Z  loom annotate sh-000B --kind suggestion → a-2026-09-16-brgdbq
+2026-09-16T11:00:00Z  loom annotate sh-0007/proof --quote --kind objection → a-2026-09-16-228x8b
+2026-09-16T11:00:00Z  loom write state
+2026-09-16T11:40:00Z  loom annotate --discard a-2026-09-16-0gvvrg → a-2026-09-16-0gvvrg
+2026-09-16T11:40:00Z  loom annotate --edit a-2026-09-16-brgdbq → a-2026-09-16-brgdbq
+2026-09-16T15:00:00Z  loom annotate --reply a-2026-09-16-ecnav2 → a-2026-09-16-010nww
+2026-09-16T15:05:00Z  loom annotate --reply a-2026-09-16-ecnav2 → a-2026-09-16-09rn6s
+2026-09-16T15:10:00Z  loom annotate --resolve a-2026-09-16-hwtkaw → a-2026-09-16-hwtkaw
+2026-09-16T15:10:00Z  loom annotate --resolve a-2026-09-16-tc3rcf → a-2026-09-16-tc3rcf
+2026-09-16T15:10:00Z  loom annotate --resolve a-2026-09-16-tc3rcf --undo → a-2026-09-16-tc3rcf
+2026-09-16T15:10:00Z  loom annotate sh-000A --quote --kind question → a-2026-09-16-5ny5y9
+2026-09-16T15:10:00Z  loom annotate sh-0003 --kind note → a-2026-09-16-2s0r7g
+2026-09-17T09:00:00Z  loom annotate sh-000C --kind suggestion → a-2026-09-17-rvgxnv
+2026-09-17T09:00:00Z  loom annotate --reply a-2026-09-16-6sn46y → a-2026-09-17-sp7m62

@@ -4,7 +4,7 @@ import { pickSession } from '../picker';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const TEXT = 'a-2026-09-17-0001';
+const TEXT = 'a-2026-09-17-rvgxnv';
 
 test('Take it writes the suggestion into its file, keeps a version first, and resolves it as applied', async ({ page, served }) => {
 	const [referee] = served.openSessions();

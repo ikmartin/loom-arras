@@ -54,7 +54,7 @@ test('what it recorded is grouped by the block it is on, named as a reader names
 test('a row links the annotation it made by its quilt: address, which opens where every such link does', async ({ page }) => {
 	// where the link opens, with its box, is the one rule's (links.e2e.ts); the row's part is to link the annotation
 	await page.goto(`/session/${REFEREE}?view=did`);
-	await expect(page.locator('[id="ann-a-2026-09-16-0001"]').getByTestId('did-annotation')).toHaveAttribute('href', 'quilt:a-2026-09-16-0001');
+	await expect(page.locator('[id="ann-a-2026-09-16-0001"]').getByTestId('did-annotation')).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 });
 
 test('with an empty log it says so in one line, rather than a section over nothing', async ({ page }) => {

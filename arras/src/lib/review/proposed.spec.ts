@@ -4,7 +4,7 @@ import type { Manifest } from '$lib/manifest/types';
 import { adoptionsOf, cardsOf, copySays, proposedCount, pullLabel, resultsOf } from './proposed';
 
 const m = fixture as unknown as Manifest;
-const TEXT = 'a-2026-09-17-0001';
+const TEXT = 'a-2026-09-17-rvgxnv';
 const COPY = '.loom/copies/aidoc.tex';
 
 /** The fixture with `over` applied to a deep copy. */

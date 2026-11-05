@@ -3,10 +3,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { manifest, REFEREE, serve } from '../manifest';
 
 const COPY = '.loom/copies/aidoc.tex';
-const TEXT = 'a-2026-09-17-0001';
-const PROSE = 'a-2026-09-16-0003';
-const MINE = 'a-2026-09-16-0007';
-const CITATION = 'a-2026-09-16-0005';
+const TEXT = 'a-2026-09-17-rvgxnv';
+const PROSE = 'a-2026-09-16-6sn46y';
+const MINE = 'a-2026-09-16-xgtcve';
+const CITATION = 'a-2026-09-16-hqnbz4';
 
 const ACTS = ['suggestion-apply', 'resolve', 'discard', 'library-cite'];
 

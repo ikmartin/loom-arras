@@ -13,10 +13,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote
 
+from loom.records import ids
+
 #: A markdown link whose destination is one of the two schemes.
 LINK = re.compile(r"\]\(((?:quilt|cited):[^)\s]+)\)")
-ANNOTATION = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
-SESSION = re.compile(r"^s-\d{4}-\d{2}-\d{2}-\d{4}$")
+ANNOTATION = re.compile(rf"^{ids.ANNOTATION}$")
+SESSION = re.compile(rf"^{ids.SESSION}$")
 
 
 class LinkError(ValueError):

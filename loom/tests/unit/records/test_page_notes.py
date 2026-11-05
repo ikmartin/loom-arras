@@ -45,20 +45,20 @@ def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     text_anchor = {
         "basis": "text", "start": 12, "end": 36, "exact": "balanced at every vertex", "prefix": "locus is ", "suffix": " of the",
     }  # fmt: skip
-    _note_on_page(q, sid, id="a-2026-09-21-0001", sha256="feed" * 16, anchor=text_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-tt5by2", sha256="feed" * 16, anchor=text_anchor)
     box_anchor = {"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-0002", sha256="feed" * 16, kind="note", anchor=box_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256="feed" * 16, kind="note", anchor=box_anchor)
     ok("annotate", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--as", "A. Author", cwd=q)
 
     records, problems = load_records(q)
     assert problems == []
     by_id = {a.id: a for r in records for a in r.annotations}
-    text = by_id["a-2026-09-21-0001"]
+    text = by_id["a-2026-09-21-tt5by2"]
     assert text.anchor is not None and (text.anchor.kind, text.anchor.page, text.anchor.basis) == ("pdf", 2, "text")
     assert (text.anchor.start, text.anchor.end) == (12, 36) and text.anchor.quads is None
     assert text.selector is not None and text.selector.exact == "balanced at every vertex"
     assert text.target_key == "doi:10.4171/demo/14-1"
-    box = by_id["a-2026-09-21-0002"]
+    box = by_id["a-2026-09-21-g3x1z0"]
     assert box.anchor is not None and box.anchor.basis == "box" and box.anchor.quads == [[82.8, 278.1, 529.2, 315.7]]
     # and a note on a key is exactly what it was: a selector and no page anchor
     plain = the(
@@ -87,18 +87,18 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
         "prefix": "",
         "suffix": "",
     }
-    _note_on_page(q, sid, id="a-2026-09-21-0001", sha256=sha, anchor=found_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-tt5by2", sha256=sha, anchor=found_anchor)
     lost_anchor = {"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-0002", sha256=sha, anchor=lost_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256=sha, anchor=lost_anchor)
     box_anchor = {"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-0003", sha256="dead" * 16, kind="note", anchor=box_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-0axwnh", sha256="dead" * 16, kind="note", anchor=box_anchor)
 
     by_id = {r.annotation.id: r for r in Records(q).resolved(open_scan(str(q)))}
-    found = by_id["a-2026-09-21-0001"]
+    found = by_id["a-2026-09-21-tt5by2"]
     assert found.work == "Calloway14" and found.recorded and not found.detached and found.span == (19, 43)
-    lost = by_id["a-2026-09-21-0002"]
+    lost = by_id["a-2026-09-21-g3x1z0"]
     assert lost.work == "Calloway14" and lost.recorded and lost.detached
-    box = by_id["a-2026-09-21-0003"]
+    box = by_id["a-2026-09-21-0axwnh"]
     # a stale artifact, but the rectangles are the record
     assert (box.work, box.recorded, box.detached) == ("Calloway14", False, False)
 
@@ -106,10 +106,10 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     j = json_of("status", "--json", cwd=q)
     carrying = [k for k, e in j["keys"].items() if "a-2026-09-21" in json.dumps(e)]
     assert carrying == [], f"a note on a page shows in the rows of {carrying}"
-    assert [r["id"] for r in j["reading"]] == ["a-2026-09-21-0001", "a-2026-09-21-0002", "a-2026-09-21-0003"]
+    assert [r["id"] for r in j["reading"]] == ["a-2026-09-21-tt5by2", "a-2026-09-21-g3x1z0", "a-2026-09-21-0axwnh"]
     assert j["reading"][0]["work"] == "Calloway14" and j["reading"][0]["page"] == 2
     listed = ok("status", "--reading", cwd=q).output
-    for said in ("Calloway14", "a-2026-09-21-0002", "detached", "p.2 (box)"):
+    for said in ("Calloway14", "a-2026-09-21-g3x1z0", "detached", "p.2 (box)"):
         assert said in listed, f"{said!r} not in status --reading:\n{listed}"
     assert "a-2026-09-21" not in ok("status", cwd=q).output
     # and the agent's own list carries the citekey and the page, which is what it can act on

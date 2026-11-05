@@ -10,7 +10,7 @@ from unittest import mock
 
 from tests.output_cases.base import Case, ai_copy, author
 
-S1, S2 = "s-2026-09-16-0001", "s-2026-09-16-0002"
+S1, S2 = "s-2026-09-16-p9z37z", "s-2026-09-16-cd0j88"
 AGENT = ("--as", "Probe Agent")
 
 KIND: dict[str, str] = {

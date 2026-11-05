@@ -2,7 +2,7 @@
 
 One line per event, current state by replay. It replaced a tree of `annotations.json` files, one per run and one per author per day, each rewritten whole whenever anything in it changed — which is why an annotation could only ever be *replied* to. An agent re-checking a finding that still stands now `edited`s it: the history stays in the log, one current body is shown, and a finding stops accumulating restatements of itself.
 
-Two people appending in parallel merge as two lines, which is why this is JSONL and not a database. A malformed line is reported as `loom:foreign-annotations` and skipped; it never stops the rest from loading.
+Two people appending in parallel keep both lines when they merge, which is why this is JSONL and not a database: git calls it a conflict, keeping both sides resolves it, and each record's id is its own (`records/ids.py`). A malformed line is reported as `loom:foreign-annotations` and skipped; it never stops the rest from loading.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from loom.anchors import Anchor, is_page_anchor
 from loom.locks import locked
 from loom.paths import ANNOTATION_LOG
 from loom.records.annotations import KINDS, Annotation, Record, next_id
+from loom.records.ids import ANNOTATION
 from loom.records.selectors import Selector
 
 LOG = ANNOTATION_LOG
@@ -35,7 +36,7 @@ def append(root: Path, event: dict[str, Any]) -> None:
 
 
 def append_new(root: Path, event: dict[str, Any], date: str) -> str:
-    """Append a new annotation's event under the next id for `date`.
+    """Append a new annotation's event under a fresh id for `date`.
 
     The read and the write share the log's lock, so two writers in any two processes never draw one id.
 
@@ -46,7 +47,7 @@ def append_new(root: Path, event: dict[str, Any], date: str) -> str:
     event : dict
         The `created` or `replied` event, without its `id`.
     date : str
-        The day the id is numbered within, `YYYY-MM-DD`.
+        The day the id names, `YYYY-MM-DD`.
 
     Returns
     -------
@@ -70,7 +71,7 @@ def source_of(event: dict[str, Any]) -> str:
 
 #: What `loom annotate` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
 #: filename the first time anything stored one per annotation, so it is the one identifier worth checking on the way in.
-ID = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
+ID = re.compile(rf"^{ANNOTATION}$")
 
 
 def _kind(given: Any) -> str:

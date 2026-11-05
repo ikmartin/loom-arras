@@ -89,7 +89,7 @@ test('opening a session says it is working until the publisher answers, and open
 	await page.route('**/_api/session-new', async (route) => {
 		calls += 1;
 		await answered;
-		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-0009  a long sitting  (active)' } });
+		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-7z63as  a long sitting  (active)' } });
 	});
 	await page.goto('/master/drafting/main');
 	await openPicker(page);
@@ -350,7 +350,7 @@ test.describe('sessions', () => {
 		// the fixture's two sessions, with the closed one opened and one annotation on sy-0002 moved into it, so that one key carries work from two sessions: the state the filter exists for, which the fixture does not happen to contain
 		await serve(page, (m) => {
 			for (const s of m.sessions) if (s.id === QUICK) s.state = 'open';
-			m.annotations['a-2026-09-16-0006'].run = QUICK;
+			m.annotations['a-2026-09-16-bns3an'].run = QUICK;
 		});
 		await page.goto('/node/sy-0002');
 		// nothing is selected at rest and the page shows everything

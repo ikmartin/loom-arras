@@ -25,7 +25,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "relations": [ ... ],
   "inclusion": { "drafting/main.tex": { ... } },
   "states": { "labels": { ... } },
-  "annotations": { "a-2026-09-16-0007": { ... } },
+  "annotations": { "a-2026-09-16-xgtcve": { ... } },
   "threads": { "2026-09-16T14-02-referee": { ... } },
   "reference_notes": [ ... ],
   "diagnostics": [ ... ],
@@ -35,7 +35,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "macros": { "default": [ ... ], "sets": { "Man12": [ ... ] } },
   "search": [ ... ],
   "files": [ ... ],
-  "notes": { "n-2026-11-02-0001": { ... } },
+  "notes": { "n-2026-11-02-yy8ca8": { ... } },
   "changes": [ ... ],
   "changes_since": { "who": "…", "when": "…" },
   "config": { "quilt": { ... }, "library": { ... }, "lint": { ... }, "agents": { ... }, "sync": { ... } }
@@ -271,9 +271,11 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** Every non-discarded annotation, plus discarded ones with `discarded: true` so the viewer can offer to show them.
 
+**[decided]** An annotation, a note and a session are keyed by `a-`, `n-` or `s-`, the day it was written as `YYYY-MM-DD`, `-`, and a token of lower-case letters and digits, as in `a-2026-11-05-k2m9xq`; a link between results is `link-` and a token. A viewer treats the token as opaque and takes no order from it, since clones of a quilt draw tokens apart. Order comes from the record's own `created` or `when`.
+
 ```json
-"a-2026-09-16-0007": {
-  "id": "a-2026-09-16-0007",
+"a-2026-09-16-xgtcve": {
+  "id": "a-2026-09-16-xgtcve",
   "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
   "created": "2026-09-16T14:31:08Z",
   "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
@@ -291,7 +293,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
   "placement": "after",
-  "run": "s-2026-09-16-0001",
+  "run": "s-2026-09-16-p9z37z",
   "discarded": false,
   "discard_reason": null
 }
@@ -313,7 +315,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ```json
 "sessions": [
-  {"id": "s-2026-09-16-0001", "title": "referee pass", "state": "open",
+  {"id": "s-2026-09-16-p9z37z", "title": "referee pass", "state": "open",
    "created": "2026-09-16T14:02:00Z", "opened": "2026-09-16T14:02:00Z", "rounds": 1, "active": true,
    "seq": 4, "last": "2026-09-17T09:12:00Z"}
 ]
@@ -341,19 +343,19 @@ The **id** is minted once and is the address; the **title** is the author's and 
 **[decided]** Sessions as the viewer displays them, keyed by session id. Loom publishes one thread of `kind` `session` per session; `kind` is an open string, and a viewer shows a kind it does not know generically.
 
 ```json
-"s-2026-09-16-0002": {
-  "id": "s-2026-09-16-0002",
+"s-2026-09-16-cd0j88": {
+  "id": "s-2026-09-16-cd0j88",
   "kind": "session",
   "title": "referee rl-0004",
   "created": "2026-09-16T14:02:00Z",
   "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
   "targets": ["rl-0004", "rl-0004/proof"],
   "attachments": [
-    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-0002/orbit-counts.py"},
+    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-cd0j88/orbit-counts.py"},
     {"name": "annotations", "kind": "annotations", "count": 3}
   ],
   "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]},
-          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-0001"}],
+          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-ecnav2"}],
   "discarded": false
 }
 ```
@@ -365,10 +367,10 @@ A thread carries no conversation: that is its transcript (§10.1). `log` comes f
 **[decided]** A session's conversation is published beside the manifest, never in it, because every viewer polls the manifest and a long conversation would make every poll pay for it. The build writes `transcripts/<session>/<n>.json`, page `n` (from 1) holding the events numbered `100(n-1)+1` to `100n`:
 
 ```json
-{"session": "s-2026-09-17-0002", "page": 1, "events": [
+{"session": "s-2026-09-17-nhv9jv", "page": 1, "events": [
   {"seq": 1, "kind": "message", "who": "A. Author", "when": "2026-09-17T11:00:00Z",
    "body": "Have a look at Theorem 3.2.", "body_html": "<p>Have a look at Theorem 3.2.</p>",
-   "changed": [{"id": "a-2026-09-17-0001", "kind": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
+   "changed": [{"id": "a-2026-09-17-rvgxnv", "kind": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
 ]}
 ```
 

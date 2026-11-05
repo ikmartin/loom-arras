@@ -406,7 +406,7 @@ def test_a_link_needs_a_kind_from_the_vocabulary_two_ends_and_a_reason(tmp_path:
     except ValueError:
         pass
     made = add_link(q, a, b, "generalises", "The first is stated for every DM-type morphism.", "isaac")
-    assert made.id == "link-0001" and read_links(q)[0].why.startswith("The first")
+    assert read_links(q)[0].id == made.id and read_links(q)[0].why.startswith("The first")
     assert set(KINDS) == {"same-notion", "generalises", "specialises", "depends-on", "contradicts"}
     assert remove_link(q, made.id).id == made.id and read_links(q) == []
 
@@ -418,9 +418,9 @@ def test_links_are_never_citable_and_never_in_a_digest(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
-    add_link(q, f"{ck}-thm-1.1", f"{ck}-thm-4.1", "depends-on", "Because.", "isaac")
+    made = add_link(q, f"{ck}-thm-1.1", f"{ck}-thm-4.1", "depends-on", "Because.", "isaac")
     for tex in q.rglob("*.tex"):
-        assert "link-0001" not in tex.read_text(), f"{tex} names a link"
+        assert made.id not in tex.read_text(), f"{tex} names a link"
     ok("build", cwd=q)
     m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     assert [x["kind"] for x in m["links"]] == ["depends-on"]
@@ -1946,28 +1946,26 @@ def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Pa
     """`why --depth` follows relations out from the result in one call; `relate --undo` removes one by id, records why, and refuses an unknown one."""
     q = demo(tmp_path)
     a, b, c, d = (f"Calloway14-{x}" for x in ("def-3.1", "prop-3.2", "prop-3.3", "thm-3.4"))
-    for frm, to in ((a, b), (b, c), (c, d)):
-        ok("library", "relate", frm, to, "--kind", "depends-on", "--why", "Because.", "--as", "isaac", cwd=q)
+    relate = ("--kind", "depends-on", "--why", "Because.", "--as", "isaac", "--json")
+    ab, bc, cd = (
+        json_of("library", "relate", frm, to, *relate, cwd=q)["link"]["id"] for frm, to in ((a, b), (b, c), (c, d))
+    )
 
     def walk(*extra: str) -> list[str]:
         return [x["id"] for x in json_of("library", "why", *extra, "--json", cwd=q)["links"]]
 
-    assert walk(a) == ["link-0001"]
-    assert walk(a, "--depth", "2") == ["link-0001", "link-0002"]
-    assert walk(a, "--depth", "5") == ["link-0001", "link-0002", "link-0003"]
-    assert walk(c) == ["link-0002", "link-0003"]  # both directions
+    assert walk(a) == [ab]
+    assert walk(a, "--depth", "2") == [ab, bc]
+    assert walk(a, "--depth", "5") == [ab, bc, cd]
+    assert walk(c) == [bc, cd]  # both directions
     every = [x["id"] for x in json_of("library", "--json", cwd=q)["links"]]
-    assert every == ["link-0001", "link-0002", "link-0003"]
-    undo = ("library", "relate", "--undo", "link-0002", "--why", "A misreading.", "--as", "A. Author")
-    assert ok(*undo, cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
+    assert every == [ab, bc, cd]
+    undo = ("library", "relate", "--undo", bc, "--why", "A misreading.", "--as", "A. Author")
+    assert ok(*undo, cwd=q).output.strip() == f"removed {bc}: {b} depends-on {c}"
     removed = json.loads((q / ".loom/digests" / "links-removed.jsonl").read_text())
-    assert (
-        removed["link"]["id"] == "link-0002"
-        and removed["why"] == "A misreading."
-        and removed["removed_by"] == "A. Author"
-    )
-    assert walk(a, "--depth", "5") == ["link-0001"]  # the chain is cut
-    refused(*undo, cwd=q, code=2, match="link-0002")
+    assert removed["link"]["id"] == bc and removed["why"] == "A misreading." and removed["removed_by"] == "A. Author"
+    assert walk(a, "--depth", "5") == [ab]  # the chain is cut
+    refused(*undo, cwd=q, code=2, match=bc)
     assert ok("library", "why", "Calloway14-setup", cwd=q).stdout.splitlines()[0].endswith("; no relations")
 
 

@@ -216,10 +216,10 @@ def test_a_session_dry_run_writes_nothing_and_an_unnamed_agent_is_refused(tmp_pa
         ("new", "--name", "afternoon"),
         ("use", sid),
         ("rename", sid, "--name", "late pass"),
-        ("close", "s-2026-09-16-0001"),
+        ("close", "s-2026-09-16-p9z37z"),
         ("delete", sid),
         ("delete", sid, "--purge"),
-        ("say", "hello", "--session", "s-2026-09-16-0001"),
+        ("say", "hello", "--session", "s-2026-09-16-p9z37z"),
     ):
         said = ok("session", *argv, "--as", WHO, "--dry-run", cwd=q)
         assert said.stdout.startswith("dry run: "), said.stdout
