@@ -111,3 +111,13 @@ export const jobs = new Jobs();
 export function running(job: Job | undefined): boolean {
 	return !!job && live(job);
 }
+
+/** Whether a run only reads a work's text, as filing a PDF starts one. */
+export function readingOnly(job: Job): boolean {
+	return job.steps.length === 1 && job.steps[0].name === 'map';
+}
+
+/** A run that only read a work's text and found nothing to say, which has nothing to show once it is over. */
+export function readQuietly(job: Job): boolean {
+	return readingOnly(job) && job.state === 'done' && !job.report?.works?.some((w) => w.no_text || w.map_error);
+}

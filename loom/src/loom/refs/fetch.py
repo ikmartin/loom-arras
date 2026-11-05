@@ -213,11 +213,11 @@ def carries_title(pdf: Path, entry: BibEntry) -> tuple[bool, float, str]:
     The check that guards a fetched PDF and a PDF the author files by hand alike. An entry with no title, or a PDF whose text cannot be read, is not refused here -- there is nothing to compare -- and says so with a score of 0.
     """
     from loom.refs.ingest import TITLE_MATCH, title_lines
-    from loom.refs.pages import page_texts
+    from loom.refs.pages import first_pages
 
     want = str(entry.fields.get("title") or "")
     try:
-        first = page_texts(pdf)[0] if want else ""
+        first = next(iter(first_pages(pdf, 1)), "") if want else ""
     except Exception:  # noqa: BLE001 -- an unreadable PDF is unchecked, not a crash
         first = ""
     if not (want and first):

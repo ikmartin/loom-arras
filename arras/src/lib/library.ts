@@ -30,6 +30,8 @@ export interface LedgerRow {
 	authors: string;
 	/** The person added it by hand, rather than a document citing it. */
 	added: boolean;
+	/** The citekeys of this work, a version's among them, that the person's documents cite. */
+	citing: string[];
 	/** Where its digest's results were read from: its LaTeX `source`, its `pages`, `both`, or '' when nobody says. */
 	from: 'source' | 'pages' | 'both' | '';
 	/** An agent or the person wrote its overview. */
@@ -62,6 +64,7 @@ export function ledgerRow(m: Manifest, ref: Reference, reached: Set<string>): Le
 	const onResults = Object.values(m.annotations).filter(
 		(a) => !a.discarded && !a.in_reply_to && a.status === 'open' && mine.has(m.keys[a.target.key]?.node ?? a.target.key)
 	).length;
+	const places = citedIn(m, ref).reduce((n, c) => n + Math.max(1, c.keys.length), 0);
 	return {
 		citekey: ref.citekey,
 		title: bibText(ref.bib.title as string) || ref.citekey,
@@ -74,9 +77,10 @@ export function ledgerRow(m: Manifest, ref: Reference, reached: Set<string>): Le
 		versions: [],
 		authors: surnames(ref.bib.author),
 		added: !!ref.added,
+		citing: places ? [ref.citekey] : [],
 		from: ({ extract: 'source', pdf: 'pages', mixed: 'both' } as const)[ref.digest?.method as 'extract' | 'pdf' | 'mixed'] ?? '',
 		overview: !!ref.overview,
-		cited: citedIn(m, ref).reduce((n, c) => n + Math.max(1, c.keys.length), 0),
+		cited: places,
 		identified: !!ref.work && !ref.work.startsWith('work:'),
 		text: `${ref.citekey} ${bibText(ref.bib.title as string)} ${bibText(ref.bib.author ?? '')}`.toLowerCase()
 	};
@@ -107,10 +111,23 @@ export function ledgerRows(m: Manifest, reached: Set<string>): LedgerRow[] {
 		top.identified ||= own.identified;
 		for (const k of ['digest', 'used', 'extracted', 'verified', 'proposed', 'open', 'cited'] as const) top[k] += own[k];
 		top.text += ' ' + own.text;
+		top.citing.push(...own.citing);
 		top.versions.push(ref.citekey);
 		rows.delete(ref.citekey);
 	}
 	return [...rows.values()];
+}
+
+/** What deleting a work takes with it, in the words of the question asked first. */
+export function goesWith(work: { pdf: boolean; results: number; verified: number; overview: boolean }): string {
+	const { pdf, results, verified, overview } = work;
+	const parts = [
+		pdf ? "loom's copy of its PDF and its page text" : '',
+		results ? `${results} result${results === 1 ? '' : 's'}${verified ? `, ${verified} of them verified by you,` : ''}` : '',
+		overview ? 'its overview' : ''
+	].filter(Boolean);
+	const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
+	return (list ? `This also deletes ${list}. ` : '') + 'This cannot be undone.';
 }
 
 /** A work as the column and the palette list it: one row, whichever of its documents is filed. */
@@ -206,6 +223,8 @@ export interface RunRow {
 	discarded?: string;
 	extract_error?: string;
 	map_error?: string;
+	/** Its PDF holds almost no text: a scan, which opens but cannot be searched or quoted. */
+	no_text?: boolean;
 }
 
 /**
@@ -243,7 +262,7 @@ export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[]
 	return out;
 }
 
-/** How many works want something of the author beyond results to check, which Proposed Changes counts, as the library's page counts them under "needs you", from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
+/** How many works want something of the author beyond results to check, which Proposed Changes counts, as Review › Library counts them under "needs you", from what stands on disk: the last run's problems are the page's alone, since only the page follows the publisher's runs. */
 export function needsYou(m: Manifest): number {
 	return ledgerRows(m, reachedExternal(m)).filter((r) => {
 		const ref = m.references?.[r.citekey];

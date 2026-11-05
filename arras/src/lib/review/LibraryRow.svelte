@@ -5,10 +5,10 @@
 		upload: boolean;
 		ask: boolean;
 		ignore: boolean;
-		remove: boolean;
+		delete: boolean;
 	}
 	/** An act on one work. */
-	export type RowAct = 'run' | 'redo' | 'upload' | 'ask' | 'ignore' | 'unignore' | 'remove';
+	export type RowAct = 'run' | 'redo' | 'upload' | 'ask' | 'ignore' | 'unignore' | 'delete';
 	/** What an act answered: whether it was done, and what to say in the row. */
 	export interface Done {
 		ok: boolean;
@@ -17,13 +17,14 @@
 </script>
 
 <script lang="ts">
-	// One work on the library's page (plan 0.24.4): what it is and who wrote it, whether its paper is filed, how much has been read off it and from where, how much the person verified and what waits for them, its overview, where they cite it, and its problems, each with what fixes it. Its ⋯ menu holds what can be done to it, each line only where the publisher serves it and where it applies; the acts themselves are the page's (`onact`), which follows a run and asks for the network once for every row. Stopping asking for a work's paper asks why, and removing a work asks first, in the row.
+	// One work in Review › Library (plan 0.24.4): what it is and who wrote it, whether its paper is filed, how much has been read off it and from where, how much the person verified and what waits for them, its overview, where they cite it, and its problems, each with what fixes it. Its ⋯ menu holds what can be done to it, each line only where the publisher serves it and where it applies; the acts themselves are the page's (`onact`), which follows a run and asks for the network once for every row. Stopping asking for a work's paper asks why, and deleting a work asks first, in the row, saying what goes with it.
 	import { goto } from '$app/navigation';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import ToolbarMenu from '$lib/workspace/ToolbarMenu.svelte';
 	import ToolbarItem from '$lib/workspace/ToolbarItem.svelte';
-	import type { FixAct, LedgerRow, Problem } from '$lib/library';
+	import { goesWith, resultCounts, type FixAct, type LedgerRow, type Problem } from '$lib/library';
+	import { store } from '$lib/manifest/client.svelte';
 	import type { Reference } from '$lib/manifest/types';
 	import { workUrl } from '$lib/nav';
 	import { route } from '$lib/paths';
@@ -51,20 +52,35 @@
 	} = $props();
 
 	const ck = $derived(row.citekey);
-	let prompt = $state<'ignore' | 'unignore' | 'remove' | null>(null);
+	let prompt = $state<'ignore' | 'unignore' | 'delete' | null>(null);
+	/** What the delete question is about: the whole work, or one copy of it. */
+	let doomed = $state('');
 	let why = $state('');
 	let said = $state('');
 	let busy = $state(false);
 
 	// what can be done to it now: a run while something is missing, again from scratch once it is digested; asking for its paper only while it has none
 	const missing = $derived(!row.filed || !ref.artifacts?.source || !row.digest);
-	const removable = $derived(row.added && row.cited === 0);
+	/** Why `key`, the work or one copy of it, cannot be deleted now; '' where it can. */
+	const kept = (keys: string[]) => {
+		const k = keys.find((c) => row.citing.includes(c));
+		return k ? `Your documents cite ${k}: remove the citations first` : '';
+	};
+	const question = $derived.by(() => {
+		const copy = doomed !== ck ? store.manifest?.references[doomed] : undefined;
+		if (copy) {
+			const n = resultCounts(copy);
+			return `Delete the copy ${doomed}? ${goesWith({ pdf: !!copy.artifacts?.pdf, results: n.extracted + n.verified + n.proposed, verified: n.verified, overview: !!copy.overview })}`;
+		}
+		const also = row.versions.length ? ` and its ${row.versions.length === 1 ? 'copy' : 'copies'} ${row.versions.join(', ')}` : '';
+		return `Delete ${ck}${also} from the library? ${goesWith({ pdf: row.filed, results: row.extracted + row.verified + row.proposed, verified: row.verified, overview: row.overview })}`;
+	});
 	const FIX: Record<FixAct, string> = { run: 'Fetch and digest it', redo: 'Digest it again', upload: 'Upload a PDF', ignore: 'Stop asking for its paper…' };
 	const fixLabel = (p: Problem, f: FixAct) => (p.code === 'lookup-failed' && f === 'run' ? 'Try again' : FIX[f]);
 	const offered = (f: FixAct) => (f === 'run' || f === 'redo' ? caps.runs : f === 'upload' ? caps.upload : caps.ignore && !row.unreadable && !row.filed);
 
 	async function act(a: RowAct, reason?: string): Promise<void> {
-		if (a === 'ignore' || a === 'unignore' || a === 'remove') {
+		if (a === 'ignore' || a === 'unignore') {
 			if (prompt !== a) {
 				prompt = a;
 				why = '';
@@ -76,8 +92,14 @@
 		const done = await onact(a, reason);
 		busy = false;
 		said = done.said;
-		// a refusal leaves the question standing, so the reason can be changed and sent again
-		if (done.ok) prompt = null;
+		// a refusal leaves the question standing, so the reason can be changed and sent again; deleting has no reason to change
+		if (done.ok || a === 'delete') prompt = null;
+	}
+
+	function askDelete(key: string): void {
+		doomed = key;
+		prompt = 'delete';
+		said = '';
 	}
 
 	async function copy(): Promise<void> {
@@ -125,10 +147,10 @@
 				<button type="submit" class="fix" disabled={busy || !why.trim()} data-testid="ignore-go">{prompt === 'ignore' ? 'Stop asking' : 'Ask again'}</button>
 				<button type="button" class="fix" onclick={() => (prompt = null)}>Cancel</button>
 			</form>
-		{:else if prompt === 'remove'}
-			<span class="prompt">
-				Remove {ck} from the library? A paper stored for it is set aside, not deleted.
-				<button type="button" class="fix danger" disabled={busy} onclick={() => void act('remove')} data-testid="remove-go">Remove</button>
+		{:else if prompt === 'delete'}
+			<span class="prompt" data-testid="delete-ask">
+				{question}
+				<button type="button" class="fix danger" disabled={busy} onclick={() => void act('delete', doomed)} data-testid="delete-go">Delete</button>
 				<button type="button" class="fix" onclick={() => (prompt = null)}>Cancel</button>
 			</span>
 		{/if}
@@ -166,9 +188,12 @@
 					<ToolbarItem label="Stop asking for its paper…" name="Stop asking for the paper of {ck}" testid="act-ignore" onclick={() => void act('ignore')} />
 				{/if}
 			{/if}
-			{#if caps.remove && removable}
+			{#if caps.delete}
 				<hr />
-				<ToolbarItem label="Remove from the library…" name="Remove {ck} from the library" testid="act-remove" onclick={() => void act('remove')} />
+				<ToolbarItem label="Delete from the library…" name="Delete {ck} from the library" off={kept([ck, ...row.versions]) || undefined} testid="act-delete" onclick={() => askDelete(ck)} />
+				{#each row.versions as v (v)}
+					<ToolbarItem label="Delete its copy {v}…" name="Delete the copy {v}" off={kept([v]) || undefined} testid="act-delete-{v}" onclick={() => askDelete(v)} />
+				{/each}
 			{/if}
 		</ToolbarMenu>
 	</td>

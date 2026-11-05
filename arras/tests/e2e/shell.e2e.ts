@@ -28,7 +28,7 @@ test('the column leads with the quilt, Settings and the fold, then Docs and Revi
 });
 
 test('Review is current on the quilt-management pages, and Docs everywhere else', async ({ page }) => {
-	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/library', 'docs'], ['/review/record/sessions', 'review'], ['/review/record', 'review'], ['/master/drafting/main', 'docs']] as const) {
+	for (const [path, on] of [['/review', 'review'], ['/review/problems', 'review'], ['/graph', 'docs'], ['/review/library', 'review'], ['/review/record/sessions', 'review'], ['/review/record', 'review'], ['/master/drafting/main', 'docs']] as const) {
 		await page.goto(path);
 		await expect(page.getByTestId(`primary-${on}`), path).toHaveAttribute('aria-current', 'page');
 	}

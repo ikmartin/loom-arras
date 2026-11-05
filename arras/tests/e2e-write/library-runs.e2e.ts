@@ -17,7 +17,7 @@ test("a work's run starts from its Info, asks for the network the quilt has off,
 });
 
 test("a run over every work starts from the library's page and gathers the bibliography first", async ({ page }) => {
-	await page.goto('/library');
+	await page.goto('/review/library');
 	await page.getByTestId('run-everything').click();
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');

@@ -3,11 +3,12 @@
 import type { Manifest } from '$lib/manifest/types';
 import { route } from '$lib/paths';
 import { yoursCount } from '$lib/diagnostics';
+import { needsYou } from '$lib/library';
 import { proposedCount } from './proposed';
 import { yourChangesCount } from './yourChanges';
 
 export interface Section {
-	id: 'changes' | 'proposed' | 'problems' | 'record';
+	id: 'changes' | 'proposed' | 'problems' | 'library' | 'record';
 	label: string;
 	/** What the section is for, under its name. */
 	blurb: string;
@@ -25,11 +26,13 @@ export function sectionsOf(m: Manifest): Section[] {
 	const open = (m.sessions ?? []).filter((s) => s.state === 'open').length;
 	const orphans = (m.canon ?? []).filter((c) => c.step && !c.in).length;
 	const problems = yoursCount(m);
+	const works = needsYou(m);
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 	const sections: Section[] = [
 		{ id: 'changes', label: 'Your Changes', blurb: 'edits to keep, mathematics to accept', href: route('/review'), waits: changes, says: count(changes, 'edit or block waits on you', 'edits and blocks wait on you') },
 		{ id: 'proposed', label: 'Proposed Changes', blurb: 'from agents and collaborators', href: route('/review/proposed'), waits: proposed, says: count(proposed, 'proposal to decide', 'proposals to decide') },
 		{ id: 'problems', label: 'Problems', blurb: "what's wrong in your files", href: route('/review/problems'), waits: problems, says: count(problems, 'error or warning in your files', 'errors and warnings in your files') },
+		{ id: 'library', label: 'Library', blurb: 'the works you read and cite', href: route('/review/library'), waits: works, says: count(works, 'work wants something of you', 'works want something of you') },
 		{ id: 'record', label: 'The Record', blurb: 'versions, sessions, everything done', href: route('/review/record'), waits: orphans, says: [count(open, 'open session', 'open sessions'), count(orphans, 'version no document leads to', 'versions no document leads to')].join(', ') }
 	];
 	return sections.filter((x) => x.id !== 'record' || m.publishes?.discussions !== false || (m.history?.steps.length ?? 0) > 0 || (m.canon ?? []).length > 0);
@@ -39,7 +42,7 @@ export function sectionsOf(m: Manifest): Section[] {
 export function sectionOf(routeId: string | null): Section['id'] | null {
 	if (routeId === '/review') return 'changes';
 	if (routeId === '/review/record' || routeId?.startsWith('/review/record/')) return 'record';
-	return (['proposed', 'problems'] as const).find((id) => routeId === `/review/${id}`) ?? null;
+	return (['proposed', 'problems', 'library'] as const).find((id) => routeId === `/review/${id}`) ?? null;
 }
 
 /** Where the Review tab opens: the first section where something waits, else Your Changes. */

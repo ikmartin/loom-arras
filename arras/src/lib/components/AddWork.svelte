@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Adding a work to the library by hand (plan 0.24.2): paste an identifier or a BibTeX entry, or drop a PDF. What is pasted is recognised as you type; an entry is read at once, and an identifier is looked up on "Look up", asking first for the network where the quilt has it off. The answer says what was found, the key it would take, whether loom can digest it, and which works in the library may already be it. Adding writes it into loom's bibliography and, unless unticked, fetches and digests it; the work's Info then opens on the run.
 	//
-	// A dropped PDF is kept whatever is known about it. It is filed under the work it shows it is, or as a new work whose title, author and year the person may correct, and no question about the network stands in its way: a lookup runs only where the network is already allowed.
+	// A dropped PDF is kept whatever is known about it. Its metadata is filled in where it can be guessed and the person may correct it; Add writes it, and where the PDF plainly is a work the library holds already, Add files it there, unless the person says it is another. No question about the network stands in its way: a lookup runs only where the network is already allowed. The filing answers at once; reading its text is a run, whose progress its Info shows.
 	//
 	// Given a `work`, it is the upload of that work's PDF alone (plan 0.24.4): the PDF is filed under it as soon as it is read, on the person's word, and the dialog closes where it was opened, unless there is something to say about the filing.
 	import { goto } from '$app/navigation';
@@ -49,6 +49,8 @@
 	let title = $state('');
 	let author = $state('');
 	let year = $state('');
+	/** The person says this PDF is not the work it looks like, so it is added as its own. */
+	let apart = $state(false);
 	/** What there is to say about a filing that is done, which keeps the dialog open: where it went and why. */
 	let notice = $state<{ citekey: string; text: string } | null>(null);
 	let digestNow = $state(true);
@@ -63,14 +65,16 @@
 	const online = $derived(store.manifest?.config?.library.online === true);
 	const refs = $derived(store.manifest?.references ?? {});
 	const lookable = $derived(!!kind && ['doi', 'arxiv', 'zbl'].includes(kind.kind));
-	const edited = $derived(!!seen?.offer && (title !== (seen.offer.title ?? '') || author !== (seen.offer.author ?? '') || year !== (seen.offer.year ?? '')));
-	/** Works in the library this PDF may be after all, each a button: what it names, what is nearest, what it may duplicate. */
-	const maybe = $derived(seen ? [...new Set([...seen.matches.map((m) => m.citekey), ...(seen.duplicates ?? []), ...(seen.nearest ? [seen.nearest] : [])])] : []);
+	/** Works in the library this PDF may be after all, each a button: those it names equally, and those with its identifier or its title. */
+	const maybe = $derived(seen && !seen.best ? [...new Set([...seen.matches.map((m) => m.citekey), ...(seen.duplicates ?? [])])] : []);
+	/** Whether Add has something to add: a work looked up, or a PDF. */
+	const ready = $derived(!!seen || found?.state === 'found');
 
 	function reset(): void {
 		text = '';
 		kind = found = seen = notice = null;
 		title = author = year = '';
+		apart = false;
 		busy = error = '';
 		allowed = false;
 		asking = null;
@@ -82,6 +86,8 @@
 		const now = text;
 		found = null;
 		error = '';
+		// what was pressed last is what Add adds: a pasted identifier takes over from a dropped PDF
+		if (now.trim()) seen = null;
 		if (timer) clearTimeout(timer);
 		if (!now.trim()) {
 			kind = null;
@@ -141,6 +147,11 @@
 		if (!work) await goto(workUrl(citekey) + '?view=info');
 	}
 
+	function press(): void {
+		if (seen) void fileUnder(seen.best && !apart ? seen.best : '');
+		else add();
+	}
+
 	function add(): void {
 		withNetwork(async (allow) => {
 			busy = 'Adding…';
@@ -154,7 +165,9 @@
 	async function upload(file: File | undefined): Promise<void> {
 		if (!file) return;
 		error = '';
-		seen = notice = null;
+		seen = notice = found = kind = null;
+		text = '';
+		apart = false;
 		if (file.size > MAX_MB * 1024 * 1024) return void (error = `${file.name} is larger than the ${MAX_MB} MB the viewer can carry; loom library add FILE on the command line takes it`);
 		busy = `Reading ${file.name}…`;
 		const data = await new Promise<string>((resolve, reject) => {
@@ -254,34 +267,28 @@
 			data-testid="add-drop"
 		>
 			<input type="file" accept="application/pdf,.pdf" onchange={(e) => void upload(e.currentTarget.files?.[0])} data-testid="add-file" />
-			{#if work}Drop the PDF here, or <u>choose it</u>.{:else}Drop a PDF here, or <u>choose one</u>: loom keeps a copy of it, under the work it shows it is or as a new work.{/if}
+			{#if seen}<strong data-testid="add-chosen">{seen.name}</strong>, or drop another.{:else if work}Drop the PDF here, or <u>choose it</u>.{:else}Drop a PDF here, or <u>choose one</u>.{/if}
 		</label>
 		{#if notice}
 			<div class="found" data-testid="add-notice">{notice.text}</div>
 		{:else if seen && !work}
 			{#if seen.held}
 				<div class="found" data-testid="add-matches">
-					<p><strong>{seen.name}</strong> is already in the library as <a href={workUrl(seen.best)}>{titleOf(seen.best)}</a> (<code>{seen.best}</code>).</p>
+					<p>This PDF is already in the library, as <a href={workUrl(seen.best)}>{titleOf(seen.best)}</a> (<code>{seen.best}</code>).</p>
 				</div>
-			{:else if seen.best}
+			{:else if seen.best && !apart}
 				<div class="found" data-testid="add-matches">
-					<p><strong>{seen.name}</strong> is <a href={workUrl(seen.best)}>{titleOf(seen.best)}</a> (<code>{seen.best}</code>).</p>
-					<button class="btn" onclick={() => void fileUnder(seen!.best)} disabled={!!busy} data-testid="add-file-there">File it there</button>
-					<button class="btn" onclick={() => void fileUnder('')} disabled={!!busy} data-testid="add-file-new">Add it as a new work instead</button>
+					<p>This is <a href={workUrl(seen.best)}>{titleOf(seen.best)}</a> (<code>{seen.best}</code>), which the library has. Add files this PDF under it.</p>
+					<button class="plain" onclick={() => (apart = true)} data-testid="add-different">It is a different work</button>
 				</div>
 			{:else if seen.offer}
-				<p class="said">No work in the library is plainly <strong>{seen.name}</strong>. Loom keeps it as a new work, from what the file gives; correct what you like:</p>
-				<div class="found" data-testid="add-found">
+				<div class="meta" data-testid="add-metadata">
+					<p class="meta-head">Metadata:</p>
 					<label class="field">Title <input bind:value={title} data-testid="add-title" /></label>
-					<label class="field">Author <input bind:value={author} placeholder="not given" data-testid="add-author" /></label>
-					<label class="field">Year <input bind:value={year} placeholder="not given" data-testid="add-year" /></label>
-					<ul>
-						{#if seen.digest === 'source'}<li class="can">Its LaTeX source can be fetched from arXiv, and loom reads its results off the source.</li>{/if}
-						{#if !edited}<li>It would be filed as <code data-testid="add-key">{seen.key}</code>.</li>{/if}
-						{#each maybe as d (d)}<li class="cannot" data-testid="add-duplicate">The library holds <a href={workUrl(d)}>{titleOf(d)}</a> (<code>{d}</code>), which may be this work. <button class="btn small" onclick={() => void fileUnder(d)} disabled={!!busy} data-testid="add-file-under">File it there instead</button></li>{/each}
-					</ul>
+					<label class="field">Author <input bind:value={author} data-testid="add-author" /></label>
+					<label class="field">Year <input bind:value={year} data-testid="add-year" /></label>
+					{#each maybe as d (d)}<p class="maybe" data-testid="add-duplicate">The library has <a href={workUrl(d)}>{titleOf(d)}</a> (<code>{d}</code>), which may be this work. <button class="plain" onclick={() => void fileUnder(d)} disabled={!!busy} data-testid="add-file-under">File it there instead</button></p>{/each}
 				</div>
-				<button class="btn" onclick={() => void fileUnder('')} disabled={!!busy} data-testid="add-file-new">Add it as a new work</button>
 			{/if}
 		{/if}
 		{#if error}<p class="error" role="alert" data-testid="add-error">{error}</p>{/if}
@@ -294,7 +301,7 @@
 				<button class="btn primary" onclick={() => void done(notice!.citekey)} data-testid="add-done">Done</button>
 			{:else}
 				<button class="btn" onclick={() => (open = false)}>Cancel</button>
-				{#if !work && (!seen || found)}<button class="btn primary" disabled={found?.state !== 'found' || !!busy} onclick={add} data-testid="add-add">Add</button>{/if}
+				{#if !work && !seen?.held}<button class="btn primary" disabled={!ready || !!busy} onclick={press} data-testid="add-add">Add</button>{/if}
 			{/if}
 		</footer>
 	</div>
@@ -413,9 +420,28 @@
 		border-color: var(--state-conflicted);
 		color: var(--state-conflicted);
 	}
-	.said {
+	.meta {
 		margin: 12px 0 0;
 		font-size: 12.5px;
+	}
+	.meta-head {
+		margin: 0 0 8px;
+		font-weight: 600;
+	}
+	.maybe {
+		margin: 8px 0 0;
+		color: var(--ink-soft);
+	}
+	.plain {
+		border: 0;
+		background: none;
+		padding: 0;
+		font: inherit;
+		color: var(--link);
+		cursor: pointer;
+	}
+	.plain:hover:not(:disabled) {
+		text-decoration: underline;
 	}
 	.field {
 		display: grid;
@@ -503,9 +529,7 @@
 		color: var(--sheet);
 		border-color: var(--ink);
 	}
-	.found .btn,
-	.said + .found + .btn,
-	.btn[data-testid='add-file-new'] {
-		margin-top: 8px;
+	.found .plain {
+		margin-top: 2px;
 	}
 </style>

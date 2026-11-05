@@ -347,12 +347,12 @@ test.describe('the tab strip', () => {
 
 	test("each pane's toolbar begins with its own item's views", async ({ page }) => {
 		await withPapers(page);
-		// a document beside a paper: the paper's pane carries Paper · Info though the document's pane is focused, and the document's carries none
+		// a document beside a paper: the paper's pane carries Text · Info though the document's pane is focused, and the document's carries none
 		await page.goto('/master/drafting/main' + beside('/library/Kre99'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(pane(page, 0).getByRole('group', { name: /^views of / })).toHaveCount(0);
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
-		await expect(views.getByRole('button')).toHaveText(['Paper', 'Info']);
+		await expect(views.getByRole('button')).toHaveText(['Text', 'Info']);
 		const bar = (await controls(page, 1).boundingBox())!;
 		const box = (await views.boundingBox())!;
 		expect(Math.abs(box.x - bar.x), "the views start at the toolbar's left edge, px").toBeLessThanOrEqual(1);
@@ -584,7 +584,7 @@ test.describe('a narrow window', () => {
 		await expect(strip.getByRole('group', { name: /^views of / })).toHaveCount(0);
 		await strip.getByTestId('pane-head-1').getByRole('tab').click();
 		const views = controls(page, 1).getByRole('group', { name: 'views of Kre99' });
-		await expect(views.getByRole('button')).toHaveText(['Paper', 'Info']);
+		await expect(views.getByRole('button')).toHaveText(['Text', 'Info']);
 		const bar = (await controls(page, 1).boundingBox())!;
 		expect(Math.abs((await views.boundingBox())!.x - bar.x)).toBeLessThanOrEqual(1);
 	});
@@ -690,7 +690,7 @@ test.describe('the toolbar', () => {
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
 	});
 
-	test('a paper shows settled annotations from its toolbar, and greys its page tools and its PDF off the Paper view', async ({ page }) => {
+	test('a paper shows settled annotations from its toolbar, and greys its page tools and its PDF off the Text view', async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
@@ -705,10 +705,10 @@ test.describe('the toolbar', () => {
 		await expect(page.getByTestId('tool-select')).toBeDisabled();
 		await viewMenu(page);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('aria-disabled', 'true');
-		await expect(page.getByTestId('open-pdf')).toHaveAttribute('title', /Paper view/);
+		await expect(page.getByTestId('open-pdf')).toHaveAttribute('title', /Text view/);
 	});
 
-	test('a paper with no readable copy greys its Paper view and opens on Info, which reads its digest', async ({ page }) => {
+	test('a paper with no readable copy greys its Text view and opens on Info, which reads its digest', async ({ page }) => {
 		await page.goto('/library/Kre99');
 		const paper = pane(page, 0).getByTestId('tab-paper');
 		await expect(paper).toBeDisabled();

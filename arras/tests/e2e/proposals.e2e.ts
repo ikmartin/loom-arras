@@ -182,7 +182,7 @@ test('the queue opens at a work the address names, and a work\'s Info and the le
 	});
 	await page.goto('/review/proposed?work=Kre99');
 	await expect(card(page)).toHaveAttribute('data-id', 'Kre99-thm-9.9');
-	await page.goto('/library');
+	await page.goto('/review/library');
 	await expect(page.getByTestId('pending-Kre99')).toHaveAttribute('href', '/review/proposed?work=Kre99#queue');
 	await page.goto('/library/Kre99?view=info');
 	await expect(page.getByTestId('proposals')).toContainText('1 proposed result of this work waits to be verified');

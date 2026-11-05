@@ -248,6 +248,10 @@ def run_pdftotext(args: list[str]) -> int:
     if not positional:
         return 1
     text, _ = read_fake_pdf(Path(positional[0]))
+    if "-f" in args or "-l" in args:
+        first = int(args[args.index("-f") + 1]) if "-f" in args else 1
+        last = int(args[args.index("-l") + 1]) if "-l" in args else None
+        text = "\f".join(text.split("\f")[first - 1 : last])
     target = positional[1] if len(positional) > 1 else str(Path(positional[0]).with_suffix(".txt"))
     if "-bbox-layout" in args:
         text = '<doc>\n<page width="612.000000" height="792.000000">\n</page>\n</doc>'
@@ -259,11 +263,12 @@ def run_pdftotext(args: list[str]) -> int:
 
 
 def run_pdfinfo(args: list[str]) -> int:
-    positional = [a for a in args if not a.startswith("-")]
+    valued = {i + 1 for i, a in enumerate(args) if a in ("-f", "-l", "-enc")}  # the values of those flags
+    positional = [a for i, a in enumerate(args) if i not in valued and not a.startswith("-")]
     if not positional:
         return 1
-    _, pages = read_fake_pdf(Path(positional[0]))
-    sys.stdout.write(f"Pages:          {pages}\n")
+    text, pages = read_fake_pdf(Path(positional[0]))
+    sys.stdout.write(f"Pages:          {max(pages, text.count(chr(12)) + 1)}\n")
     return 0
 
 

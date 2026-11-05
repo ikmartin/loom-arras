@@ -45,7 +45,7 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom history restore`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`;
 - saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - starting a library run in the viewer (`library-update`), which may use the network for that run on the person's word, as `--online` does;
-- adding a work to the library, filing a dropped PDF, and taking a work added by hand out again (`library-add`, `library-upload`, `library-file`, `library-remove`), and any lookup that asks for the network (`library-lookup` with `online`);
+- adding a work to the library, filing a dropped PDF, and deleting a work from it (`library-add`, `library-upload`, `library-file`, `library-delete`), and any lookup that asks for the network (`library-lookup` with `online`);
 - stopping loom asking for a work's paper, or asking again (`library-ignore`, as `loom library ignore`), since whether a work can be had is a claim about the world;
 - removing a relation someone else asserted.
 

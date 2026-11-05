@@ -409,7 +409,7 @@ test.describe('sections', () => {
 			await expect(page.getByTestId('docs-tree')).toBeVisible();
 		}
 		// the Library fills the panel with its own filters, which is the other half of the same rule
-		await page.goto('/library');
+		await page.goto('/review/library');
 		await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
 		await expect(page.getByTestId('show-proposed')).toBeVisible();
 	});

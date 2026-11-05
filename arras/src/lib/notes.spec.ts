@@ -57,7 +57,7 @@ describe('notes', () => {
 describe('Review as the meta view', () => {
 	it('leads with the person\'s text, and counts the suggestions with text to put in', () => {
 		const sections = sectionsOf(m);
-		expect(sections.map((s) => s.id)).toEqual(['changes', 'proposed', 'problems', 'record']);
+		expect(sections.map((s) => s.id)).toEqual(['changes', 'proposed', 'problems', 'library', 'record']);
 		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(1);
 		// a count is what waits for the author: an open session waits for no one
 		expect(sections.find((s) => s.id === 'record')!.waits).toBe(0);

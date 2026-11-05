@@ -17,7 +17,7 @@
 	const readable = $derived(!ref?.unreadable && !!ref?.artifacts?.pdf);
 	// the same test the work itself uses
 	const onPaper = $derived(!m || currentView(workViews(m, item.id), item.view) === 'paper');
-	const pdfOff = $derived(!readable ? 'No copy of this work is on file' : !onPaper ? 'Open the Paper view to open its PDF' : undefined);
+	const pdfOff = $derived(!readable ? 'No copy of this work is on file' : !onPaper ? 'Open the Text view to open its PDF' : undefined);
 </script>
 
 {#snippet tools()}<PdfTools view={workState(item).pdf} of={name} disabled={!readable || !onPaper} />{/snippet}

@@ -70,6 +70,8 @@ class WorkState:
     remapped: bool = False
     map_error: str = ""
     map_warning: str = ""
+    #: Whether this run found its PDF has next to no text on a page: a scan, which opens but cannot be searched or quoted.
+    no_text: bool = False
 
     @property
     def needs_a_person(self) -> str:
@@ -508,6 +510,7 @@ def _row(w: WorkState) -> dict[str, object]:
         "extract_error": w.extract_error,
         "mapped": w.remapped,
         "map_error": w.map_error,
+        "no_text": w.no_text,
         "blocked": w.blocked[0],
         "unreadable": w.unreadable,
         "needs_a_person": w.needs_a_person,
@@ -739,21 +742,25 @@ def _restore_verified(result: ScanResult, citekey: str, text: str) -> tuple[list
 
 
 def _map_step(result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None) -> None:
-    """Write page text and the section map for every work with a PDF whose recorded map is not current."""
+    """Write page text and the section map for every work with a PDF whose recorded map is not current; a run on one work says how far through its pages it is, with the item `pages`."""
     from loom.refs.pages import MapRefused, is_current, write_map
 
     root = result.quilt.root
+    told = progress
+    pages = (lambda done, total: told("map", "pages", done, total)) if told is not None and len(works) == 1 else None
     for w in _each(progress, "map", works):
         home = work_dir(root, result.bib[w.citekey])
         pdf = home / "paper.pdf"
         if not pdf.is_file() or (is_current(home, pdf) and not force):
             continue
         try:
-            m = write_map(home, pdf)
+            m = write_map(home, pdf, pages)
         except MapRefused as exc:
             w.map_error = str(exc)  # reported; the run carries on with the other twenty
             continue
         w.pages, w.sections, w.remapped = m.pages, len(m.sections), True
+        # sparse pages are slides as often as scans; only a page with next to nothing on it has no text to read
+        w.no_text = bool(m.pages) and m.chars / m.pages < 20
         if m.pages and m.chars / m.pages < 200:
             w.map_warning = "almost no text: probably a scan, which cannot be searched or quoted"
         elif m.suspect:

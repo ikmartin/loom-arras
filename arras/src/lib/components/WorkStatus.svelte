@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import type { Reference } from '$lib/manifest/types';
 	import { resultCounts } from '$lib/library';
-	import { jobs, running } from '$lib/jobs.svelte';
+	import { jobs, readQuietly, running } from '$lib/jobs.svelte';
 	import { can } from '$lib/write';
 	import AddWork from './AddWork.svelte';
 	import AskAgent from './AskAgent.svelte';
@@ -37,7 +37,7 @@
 	$effect(() => {
 		if (job && running(job) && !seen[job.id]) seen = { ...seen, [job.id]: true };
 	});
-	const shown = $derived(job && seen[job.id] ? job : undefined);
+	const shown = $derived(job && seen[job.id] && !readQuietly(job) ? job : undefined);
 	// the network question stands under the whole line, not inside the part whose action asked it
 	let answer = $state<((allow: boolean | null) => void) | null>(null);
 	const ask = (go: (allow: boolean | null) => void) => (answer = go);
@@ -49,7 +49,7 @@
 
 <div class="status" data-testid="work-status">
 	<span class="st" class:ok={paper} data-testid="status-paper">
-		<span class="ic" aria-hidden="true">{paper ? '✓' : '–'}</span>Paper{#if paper}<span class="sub">filed</span>{/if}
+		<span class="ic" aria-hidden="true">{paper ? '✓' : '–'}</span>Text{#if paper}<span class="sub">filed</span>{/if}
 		{#if uploads && !paper}<button class="act" onclick={() => (uploading = true)} data-testid="status-upload">Upload a PDF</button>{/if}
 		{#if runs && !paper}<LibraryRun works={[citekey]} label="Fetch it" {network} test="run-get" onask={ask} />{/if}
 	</span>

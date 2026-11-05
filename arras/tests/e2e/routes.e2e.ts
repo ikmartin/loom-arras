@@ -18,7 +18,7 @@ const routes: [string, string][] = [
 	['/tag/orbits', '#orbits'],
 	['/taxa', 'Taxa'],
 	['/taxon/lemma', 'Lemma'],
-	['/library', 'Library'],
+	['/review/library', 'Library'],
 	['/loose', 'Not in any document']
 ];
 

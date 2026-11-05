@@ -35,7 +35,7 @@ CAPABILITIES = [
     "library-add",
     "library-upload",
     "library-file",
-    "library-remove",
+    "library-delete",
     "library-ignore",
     "locate",
     "compare",
@@ -88,7 +88,7 @@ READS = (
 MAX_BODY = 344 * 1024 * 1024
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
-NO_REBUILD = (*READS, "adopt-decision", "library-update")
+NO_REBUILD = (*READS, "adopt-decision", "library-update", "library-upload")
 #: A publisher's own scan, offered to its handlers by `offer_scan`: `loom serve` answers with the scan its last publication made while no scan input has changed since, and None otherwise.
 _SCANS: dict[Path, Callable[[], ScanResult | None]] = {}
 
@@ -154,7 +154,7 @@ def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """Adding works by hand (plan 0.24.2): what a pasted text is (`library-recognise`), what it names (`library-lookup`), writing it into loom's bibliography (`library-add`), a dropped PDF kept and identified (`library-upload`) then filed under a work or as its own (`library-file`), and a work added by hand taken out again (`library-remove`).
+    """Adding works by hand (plan 0.24.2): what a pasted text is (`library-recognise`), what it names (`library-lookup`), writing it into loom's bibliography (`library-add`), a dropped PDF kept and identified (`library-upload`) then filed under a work or as its own (`library-file`), and a work added by hand taken out again (`library-delete`).
 
     A dropped PDF is filed whatever is known about it: lookups only add what they can. Every act but recognising is the author's, refused to a declared agent; a lookup that asks for the network is too, so an agent never grants itself it. `online` is the person's allowance of the network for that one act, as `--online` is.
     """
@@ -163,7 +163,7 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
 
     from loom.cli._common import is_agent
     from loom.refs.add import file_new, file_under, identify
-    from loom.refs.added import NotRemovable, add_entry, remove_entry
+    from loom.refs.added import NotDeletable, add_entry, delete_work
     from loom.refs.build import WORK_STEPS
     from loom.refs.identity import recognise
     from loom.refs.lookup import key_for, look_up
@@ -192,12 +192,13 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
     online = quilt.config.online or asks
     uploads = root / BUILD / "uploads"
 
-    def run(citekey: str) -> dict[str, Any] | None:
-        """The run a `fetch` asks for, on the work just added or filed, carrying the act's allowance of the network."""
+    def run(citekey: str, *, pages: bool = False) -> dict[str, Any] | None:
+        """The run on the work just added or filed: what a `fetch` asks for, carrying the act's allowance of the network; else, with `pages`, reading its text, which needs none."""
         jobs = _JOBS.get(root.resolve())
-        if not body.get("fetch") or jobs is None:
+        if jobs is None or not (body.get("fetch") or pages):
             return None
-        return jobs.submit([citekey], WORK_STEPS, who=who, online=asks).to_json()  # type: ignore[no-any-return]
+        steps = WORK_STEPS if body.get("fetch") else ("map",)
+        return jobs.submit([citekey], steps, who=who, online=asks).to_json()  # type: ignore[no-any-return]
 
     if endpoint == "library-lookup":
         found = look_up(_str(body, "text", required=True) or "", _scan(root).bib, online=online)
@@ -243,24 +244,33 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
             raise ApiError("no-such-upload", f"no PDF was dropped as {sha[:12]}", status=404)
         path = kept[0]
         name = path.name
-        result = scan(load_quilt(root))
+        result = _scan(root)
+        # where a run can read its text, filing answers at once and the run says how far through its pages it is
+        later = _JOBS.get(root.resolve()) is not None
         if body.get("new"):
             typed = body.get("entry")
             edits = {k: v for k, v in typed.items() if isinstance(v, str)} if isinstance(typed, dict) else None
-            filed = file_new(quilt, result.bib, path, who, came_from=name, online=online, edits=edits)
+            filed = file_new(
+                quilt, result.bib, path, who, came_from=name, online=online, edits=edits, read_pages=not later
+            )
         else:
             citekey = _str(body, "citekey", required=True) or ""
             if citekey not in result.bib:
                 raise ApiError("no-such-work", f"the library has no work {citekey}", status=404)
             _busy(root, citekey)
-            filed = file_under(quilt, result.bib, path, citekey, who, came_from=name)
+            filed = file_under(quilt, result.bib, path, citekey, who, came_from=name, read_pages=not later)
         citekey = filed["citekey"]
-        return {"ok": True, "result": f"filed {name} under {citekey}", **filed, "job": run(citekey)}
+        return {
+            "ok": True,
+            "result": f"filed {name} under {citekey}",
+            **filed,
+            "job": run(citekey, pages=filed["filed"]),
+        }
     citekey = _str(body, "citekey", required=True) or ""
     _busy(root, citekey)
     try:
-        return {"ok": True, "result": remove_entry(scan(quilt), citekey, who)}
-    except NotRemovable as exc:
+        return {"ok": True, "result": delete_work(scan(quilt), citekey, who)}
+    except NotDeletable as exc:
         raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-work" else 409) from exc
 
 
@@ -670,7 +680,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "library-add",
         "library-upload",
         "library-file",
-        "library-remove",
+        "library-delete",
     ):
         return _library_add(root, endpoint, body)
     if endpoint == "library-ignore":

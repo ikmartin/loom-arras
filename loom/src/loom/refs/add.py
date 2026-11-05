@@ -77,10 +77,10 @@ def _info_authors(info: dict[str, str]) -> str:
 def _first_page_title(pdf: Path) -> str:
     """The first line on page one that could be a title and is no sentence, or ''."""
     from loom.refs.ingest import title_lines
-    from loom.refs.pages import page_texts
+    from loom.refs.pages import first_pages
 
     try:
-        pages = page_texts(pdf)
+        pages = first_pages(pdf, 1)
     except Exception:  # noqa: BLE001 -- an unreadable PDF has no first page to read a title from
         return ""
     for line in title_lines(pages[0]) if pages else []:
@@ -178,7 +178,7 @@ def identify(
     http : callable, optional
         The transport `refs.lookup.look_up` asks with; tests inject their own.
     offer : bool, default True
-        Whether to make the entry where no work is best.
+        Whether to make the entry it would be as a work of its own, which a person may want even of a PDF matching a work; a lookup is asked only where no work is best.
 
     Returns
     -------
@@ -202,10 +202,10 @@ def identify(
         best = [m for m in best if m.citekey == top] or best[:1]
     if len(best) == 1:
         seen.best = best[0].citekey
-        return seen
-    seen.weak = identity.weak if not best else f"it names {' and '.join(m.citekey for m in best)} equally"
+    else:
+        seen.weak = identity.weak if not best else f"it names {' and '.join(m.citekey for m in best)} equally"
     if offer:
-        _offer(seen, bib, pdf, online=online, http=http)
+        _offer(seen, bib, pdf, online=online and not seen.best, http=http)
     return seen
 
 
@@ -257,6 +257,7 @@ def file_new(
     online: bool = False,
     http: Any = None,
     edits: dict[str, str] | None = None,
+    read_pages: bool = True,
 ) -> dict[str, Any]:
     """Keep `pdf` as a work of its own: the document is in the store before the entry naming it is written.
 
@@ -278,6 +279,8 @@ def file_new(
         The lookup's transport; tests inject their own.
     edits : dict, optional
         Fields the person typed, over what the document gives; an empty one is ignored.
+    read_pages : bool, default True
+        Whether to write its page text now, or leave it to a library run.
 
     Returns
     -------
@@ -303,7 +306,7 @@ def file_new(
     key = key_for(fields, set(bib))
     f = plan_new_work(root, pdf, key, fields, came_from)
     withdraw_setting_aside(root, f.sha, by)
-    file_document(quilt, f, by=by)
+    file_document(quilt, f, by=by, read_pages=read_pages)
     assert f.new is not None
     append_entries(quilt, [added_entry(key, f.new, by)])
     return _answer(key, filed=True, unmapped=f.unmapped)
@@ -343,7 +346,14 @@ def named_for(identity: Any, bib: dict[str, BibEntry], citekey: str) -> tuple[st
 
 
 def file_under(
-    quilt: Quilt, bib: dict[str, BibEntry], pdf: Path, citekey: str, by: str, *, came_from: str
+    quilt: Quilt,
+    bib: dict[str, BibEntry],
+    pdf: Path,
+    citekey: str,
+    by: str,
+    *,
+    came_from: str,
+    read_pages: bool = True,
 ) -> dict[str, Any]:
     """File `pdf` under the work a person named for it, as `loom library add PDF --for CITEKEY` files it, and say where it went.
 
@@ -363,6 +373,8 @@ def file_under(
         Who filed it, for the copy ledger.
     came_from : str
         Where it came from, as the ledger and a sibling entry's `loom-source` record it: the dropped file's name.
+    read_pages : bool, default True
+        Whether to write its page text now, or leave it to a library run.
 
     Returns
     -------
@@ -382,7 +394,7 @@ def file_under(
     sibling = plan_filing(quilt, bib, f, set(bib), {})
     withdraw_setting_aside(quilt.root, f.sha, by)
     if not f.already:
-        file_document(quilt, f, by=by)
+        file_document(quilt, f, by=by, read_pages=read_pages)
     if f.copy_of:
         record_copy_of(quilt, bib, f)
     append_entries(quilt, [sibling] if sibling is not None else [])

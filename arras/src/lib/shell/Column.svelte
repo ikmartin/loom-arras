@@ -287,7 +287,7 @@
 										{:else}
 											<li class="aside">nothing matches</li>
 										{/each}
-										<li><a href={route('/library')} data-testid="manage-link">Manage the library</a>{#if wanted}<a class="aside wanted" href={route('/library') + '?show=needs-you'} data-testid="manage-wanted">{wanted} {wanted === 1 ? 'needs' : 'need'} you</a>{/if}</li>
+										<li><a href={route('/review/library')} data-testid="manage-link">Manage the library</a>{#if wanted}<a class="aside wanted" href={route('/review/library') + '?show=needs-you'} data-testid="manage-wanted">{wanted} {wanted === 1 ? 'needs' : 'need'} you</a>{/if}</li>
 									</ul>
 								</div>
 							{/if}

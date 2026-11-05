@@ -38,7 +38,7 @@ describe('an item and its address', () => {
 	});
 
 	it('names nothing for a route that is not something to read', () => {
-		for (const href of ['/', '/graph', '/review?show=all', '/library']) expect(itemFromPath(m, href)).toBeNull();
+		for (const href of ['/', '/graph', '/review?show=all', '/review/library']) expect(itemFromPath(m, href)).toBeNull();
 	});
 
 	it('is one item whatever its place, so a place never makes a second tab', () => {

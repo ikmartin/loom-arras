@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -123,16 +126,55 @@ def _pdftotext(args: list[str]) -> str:
     return proc.stdout
 
 
-def page_texts(pdf: Path) -> list[str]:
-    """Every page of `pdf` as plain text, in order.
+#: How many pages one `pdftotext` reads at a time when a document is read whole: small enough to tick, large enough that starting it is no cost.
+RUN_OF_PAGES = 24
 
-    One subprocess for the whole document: pdftotext separates pages with a form feed, which is cheaper and more reliable than one invocation per page.
-    """
-    raw = _pdftotext(["-q", str(pdf), "-"])
+
+def _split_pages(raw: str) -> list[str]:
+    """pdftotext's output as pages: it ends each with a form feed, which leaves an empty final element that is not a page."""
     pages = raw.split("\f")
-    # a trailing form feed leaves an empty final element that is not a page
     if pages and not pages[-1].strip():
         pages.pop()
+    return pages
+
+
+def page_count(pdf: Path) -> int | None:
+    """How many pages `pdf` has, from `pdfinfo`; None when that cannot say."""
+    count = pdf_info(pdf).get("pages", "")
+    return int(count) if count.isdigit() else None
+
+
+def first_pages(pdf: Path, n: int = 2) -> list[str]:
+    """The text of the first `n` pages, which is all that says what a document is.
+
+    Asked of `pdftotext` alone: a 500-page book can take it twenty seconds whole and a twentieth of a second here.
+    """
+    return _split_pages(_pdftotext(["-q", "-f", "1", "-l", str(n), str(pdf), "-"]))[:n]
+
+
+def page_texts(pdf: Path, progress: Callable[[int, int], None] | None = None) -> list[str]:
+    """Every page of `pdf` as plain text, in order.
+
+    A long document is read in runs of pages, one `pdftotext` to a processor, so a book takes seconds rather than most of a minute and each run says how far it has got. `progress` is told (pages read, pages) as they come back. Use `first_pages` to learn what a document is.
+    """
+    total = page_count(pdf) or 0
+    if total <= RUN_OF_PAGES:
+        pages = _split_pages(_pdftotext(["-q", str(pdf), "-"]))
+        if progress is not None:
+            progress(len(pages), len(pages))
+        return pages
+    starts = range(1, total + 1, RUN_OF_PAGES)
+
+    def read(start: int) -> list[str]:
+        last = min(start + RUN_OF_PAGES - 1, total)
+        return _split_pages(_pdftotext(["-q", "-f", str(start), "-l", str(last), str(pdf), "-"]))
+
+    pages = []
+    with ThreadPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
+        for run in pool.map(read, starts):
+            pages += run
+            if progress is not None:
+                progress(len(pages), total)
     return pages
 
 
@@ -326,7 +368,7 @@ def find_sections(pages: list[str]) -> list[Section]:
     return _after_the_references(_monotonic(found), len(pages))
 
 
-def write_map(home: Path, pdf: Path) -> PageMap:
+def write_map(home: Path, pdf: Path, progress: Callable[[int, int], None] | None = None) -> PageMap:
     """Write `pages/NNNN.txt` and `sections.json` under `home`; returns what was found.
 
     Parameters
@@ -335,6 +377,8 @@ def write_map(home: Path, pdf: Path) -> PageMap:
         The work's directory under `refs/`.
     pdf : Path
         The artifact to read.
+    progress : callable, optional
+        Told (pages read, pages) as the text comes back.
 
     Returns
     -------
@@ -345,7 +389,7 @@ def write_map(home: Path, pdf: Path) -> PageMap:
     --------
     read_map : the same record, read back without the PDF.
     """
-    pages = page_texts(pdf)
+    pages = page_texts(pdf, progress)
     out = home / "pages"
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("*.txt"):

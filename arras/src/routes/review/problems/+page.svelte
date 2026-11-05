@@ -88,7 +88,7 @@
 	const again = (ck: string, f: Fix) => f.act?.endpoint === 'library-update' && (f.act.body as { works?: string[] }).works?.[0] === ck && !!(f.act.body as { redo?: boolean }).redo;
 	const workAct = (ck: string, items: Diagnostic[]) => items.flatMap((d) => d.fixes ?? []).find((f) => again(ck, f));
 	/** Where a work with no paper can be given one, or asked for no longer: its row in the library, by its key. */
-	const inLibrary = (d: Diagnostic) => (d.code.endsWith(':no-readable-copy') && d.keys[0] ? `${route('/library')}?q=${encodeURIComponent(d.keys[0])}` : '');
+	const inLibrary = (d: Diagnostic) => (d.code.endsWith(':no-readable-copy') && d.keys[0] ? `${route('/review/library')}?q=${encodeURIComponent(d.keys[0])}` : '');
 </script>
 
 {#snippet problem(d: Diagnostic, id: string, ck: string)}

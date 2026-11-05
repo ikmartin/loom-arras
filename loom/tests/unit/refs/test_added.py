@@ -1,4 +1,4 @@
-"""Works a person adds by hand: written into loom's bibliography marked as added, read back by the scan, and taken out again while nothing cites them."""
+"""Works a person adds by hand: written into loom's bibliography marked as added, read back by the scan, and deleted again while nothing cites them."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from loom.refs.added import NotRemovable, add_entry, added, remove_entry
+from loom.refs.added import NotDeletable, add_entry, added, delete_work
 from loom.scan.bib import BIBLIOGRAPHY, parse_bib
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
@@ -44,29 +44,29 @@ def test_a_taken_key_or_an_entry_with_no_title_is_refused(tmp_path: Path) -> Non
         add_entry(load_quilt(q), {"author": "Nobody"}, "Nob00", "A. Author")
 
 
-def test_an_added_work_nothing_cites_is_removed_and_nothing_else_is(tmp_path: Path) -> None:
+def test_an_added_work_nothing_cites_is_deleted_and_nothing_else_is(tmp_path: Path) -> None:
     q = demo(tmp_path)
     before = (q / BIBLIOGRAPHY).read_text(encoding="utf-8")
     add_entry(load_quilt(q), FIELDS, "Ost18", "A. Author")
-    said = remove_entry(scan(load_quilt(q)), "Ost18", "A. Author")
-    assert said == "removed Ost18 from the library"
+    said = delete_work(scan(load_quilt(q)), "Ost18", "A. Author")
+    assert said == "deleted Ost18 from the library"
     assert (q / BIBLIOGRAPHY).read_text(encoding="utf-8") == before
 
 
-def test_a_gathered_work_a_cited_one_and_an_unknown_one_are_not_removed(
+def test_a_gathered_work_a_cited_one_and_an_unknown_one_are_not_deleted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     q = demo(tmp_path)
-    with pytest.raises(NotRemovable) as caught:
-        remove_entry(scan(load_quilt(q)), "Calloway14", "A. Author")
-    assert caught.value.code == "not-added"
-    with pytest.raises(NotRemovable) as caught:
-        remove_entry(scan(load_quilt(q)), "Nobody99", "A. Author")
+    with pytest.raises(NotDeletable) as caught:
+        delete_work(scan(load_quilt(q)), "Calloway14", "A. Author")
+    assert caught.value.code == "from-document" and "gathering brings it back" in caught.value.message
+    with pytest.raises(NotDeletable) as caught:
+        delete_work(scan(load_quilt(q)), "Nobody99", "A. Author")
     assert caught.value.code == "no-such-work"
     add_entry(load_quilt(q), FIELDS, "Ost18", "A. Author")
     monkeypatch.setattr("loom.refs.build.cited_counts", lambda result: {"Ost18": 2})
-    with pytest.raises(NotRemovable) as caught:
-        remove_entry(scan(load_quilt(q)), "Ost18", "A. Author")
+    with pytest.raises(NotDeletable) as caught:
+        delete_work(scan(load_quilt(q)), "Ost18", "A. Author")
     assert caught.value.code == "cited" and "2 results" in caught.value.message
     assert "Ost18" in parse_bib((q / BIBLIOGRAPHY).read_text(encoding="utf-8"))
 

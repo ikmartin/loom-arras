@@ -18,7 +18,7 @@ from loom.paths import STORAGE, under
 from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, declared, primary
 from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in
-from loom.refs.pages import page_texts, sha256_of, storage_root, write_map
+from loom.refs.pages import first_pages, page_count, page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations, set_aside_documents
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
@@ -451,14 +451,15 @@ def _held(pdf: Path, title: str) -> tuple[str, int] | None:
     from loom.refs.resolve import _fold
 
     try:
-        pages = page_texts(pdf)
+        pages = first_pages(pdf, 1)
     except Exception:  # noqa: BLE001 -- an unreadable document matches nothing
         return None
     lines = [_fold(" ".join(x.split())) for x in (pages[0] if pages else "").splitlines()[:TOP_LINES] if x.strip()]
     span = _title_span(lines, title) if title else None
     if span is None:
         return None
-    return (lines[span[1]] if span[1] < len(lines) else ""), len(pages)
+    count = page_count(pdf)  # `pdfinfo` is optional, and a page count is what tells a copy from a longer version
+    return (lines[span[1]] if span[1] < len(lines) else ""), len(page_texts(pdf)) if count is None else count
 
 
 def same_document(pdf: Path, wid: WorkId | None, stored: list[tuple[BibEntry, Path]]) -> tuple[str, str]:
@@ -525,6 +526,21 @@ def load_ledger(root: Path) -> dict[str, dict[str, str]]:
     return data if isinstance(data, dict) else {}
 
 
+def drop_copies(root: Path, key: str, home: Path | None) -> list[str]:
+    """Take out of the ledger the records of copies of `key`, and of what went to `home`; the hashes they held.
+
+    For deleting a work, so that the same PDF given again is a new document.
+    """
+    ledger = load_ledger(root)
+    to = home.relative_to(storage_root(root)).as_posix() if home is not None else None
+    gone = [sha for sha, rec in ledger.items() if rec.get("duplicate-of") == key or (to and rec.get("to") == to)]
+    if gone:
+        for sha in gone:
+            del ledger[sha]
+        (storage_root(root) / LEDGER).write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return gone
+
+
 def record_copy(root: Path, sha: str, source: str, home: Path, extra: dict[str, str] | None = None) -> None:
     """Append one copy to the ledger, with `extra` fields such as what a document showed against the work a person named for it. Nothing is ever removed from it.
 
@@ -566,7 +582,7 @@ def _own_account(pdf: Path) -> tuple[WorkId | None, dict[str, str]]:
         if stem_year:
             fields["year"] = stem_year.group(1)
     try:
-        pages = page_texts(pdf)
+        pages = first_pages(pdf)
     except Exception:  # noqa: BLE001 -- an unreadable PDF is reported, never fatal
         return None, fields
     head = "\n".join(pages[:2])
@@ -755,7 +771,7 @@ class Filing:
 def held_under(root: Path, bib: dict[str, BibEntry], sha: str) -> str:
     """The work the library holds these bytes under, or '': the ledger's record, while its document stands and an entry names its home.
 
-    A record outlives what it records: a work taken out leaves its copy behind, unnamed, and the same PDF added again must be filed rather than told it is held. A recorded copy of a version's document is held under that version.
+    A record can outlive what it records: an entry deleted by hand leaves its copy behind, unnamed, and the same PDF added again must be filed rather than told it is held. A recorded copy of a version's document is held under that version.
     """
     rec = load_ledger(root).get(sha)
     if rec is None:
@@ -835,10 +851,10 @@ def record_copy_of(quilt: Quilt, bib: dict[str, BibEntry], f: Filing) -> None:
     record_copy(quilt.root, f.sha, f.source, work_dir(quilt.root, bib[f.copy_of]), {"duplicate-of": f.copy_of})
 
 
-def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
+def file_document(quilt: Quilt, f: Filing, *, by: str = "", read_pages: bool = True) -> None:
     """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with what the document showed against the work a person named and who named it.
 
-    A filing that replaces a set-aside document clears what was read off it (its word boxes; its page text is rewritten), keeps it set aside by its hash, and withdraws the work's own claim, since the work now holds a document wanted.
+    With `read_pages` false the page text is left to a library run, since a long book takes seconds and the PDF stands without it. A filing that replaces a set-aside document clears what was read off it (its word boxes; its page text is rewritten), keeps it set aside by its hash, and withdraws the work's own claim, since the work now holds a document wanted.
     """
     from loom.refs.unreadable import declare
 
@@ -850,7 +866,7 @@ def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
     if f.kind == "pdf":
         shutil.copy(f.path, f.home / "paper.pdf")
         try:
-            if not write_map(f.home, f.home / "paper.pdf").chars:
+            if read_pages and not write_map(f.home, f.home / "paper.pdf").chars:
                 f.unmapped = "it has no text layer"
         except Exception as exc:  # noqa: BLE001 -- no poppler, or no text layer: the PDF stands either way
             f.unmapped = str(exc)

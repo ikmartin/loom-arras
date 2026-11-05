@@ -105,7 +105,7 @@ test('a work with no paper to read links to its row in the library, where one is
 	await page.goto('/review/problems');
 	const link = page.getByTestId('problems-yours').getByTestId('problem-library').first();
 	await expect(link).toHaveText('In the library');
-	await expect(link).toHaveAttribute('href', /^\/library\?q=/);
+	await expect(link).toHaveAttribute('href', /^\/review\/library\?q=/);
 	await link.click();
 	await expect(page.getByTestId('library-works')).toBeVisible();
 	await expect(page.getByTestId('library-works').locator('tbody tr').first()).toBeVisible();

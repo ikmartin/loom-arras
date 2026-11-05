@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Manifest } from '$lib/manifest/types';
 import { reachedExternal } from '$lib/reached';
-import { bySection, citedIn, filterResults, keepRow, ledgerRow, ledgerRows, matches, needsWork, problemsOf, readFrom, resultFilters, shelf, workResults } from './library';
+import { bySection, citedIn, filterResults, goesWith, keepRow, ledgerRow, ledgerRows, matches, needsWork, problemsOf, readFrom, resultFilters, shelf, workResults } from './library';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 
@@ -201,5 +201,14 @@ describe("the library's page", () => {
 		expect(matches(kre, 'artin kresch')).toBe(true);
 		expect(matches(kre, 'kre99')).toBe(true);
 		expect(matches(kre, 'manolache')).toBe(false);
+	});
+});
+
+describe('what deleting a work takes with it', () => {
+	it('names only what is there', () => {
+		expect(goesWith({ pdf: false, results: 0, verified: 0, overview: false })).toBe('This cannot be undone.');
+		expect(goesWith({ pdf: true, results: 0, verified: 0, overview: false })).toBe("This also deletes loom's copy of its PDF and its page text. This cannot be undone.");
+		expect(goesWith({ pdf: true, results: 12, verified: 3, overview: true })).toBe("This also deletes loom's copy of its PDF and its page text, 12 results, 3 of them verified by you, and its overview. This cannot be undone.");
+		expect(goesWith({ pdf: false, results: 1, verified: 0, overview: false })).toBe('This also deletes 1 result. This cannot be undone.');
 	});
 });

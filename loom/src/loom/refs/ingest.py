@@ -11,7 +11,7 @@ from pathlib import Path
 
 from loom.refs.fetch import ARRIVAL, title_ratio
 from loom.refs.identity import arxiv_base, declared, identify
-from loom.refs.pages import page_texts, sha256_of
+from loom.refs.pages import first_pages, sha256_of
 from loom.refs.resolve import _fold, query_for
 from loom.scan.bib import BibEntry
 
@@ -47,7 +47,6 @@ class Candidate:
 
     path: Path
     sha256: str
-    pages: int = 0
     signals: list[Signal] = field(default_factory=list)
 
     def ranked(self) -> list[tuple[str, float, list[Signal]]]:
@@ -137,7 +136,7 @@ def identifiers_in(text: str) -> tuple[set[str], set[str]]:
     return dois, arxivs
 
 
-def look_at(pdf: Path, bib: dict[str, BibEntry]) -> Candidate:
+def look_at(pdf: Path, bib: dict[str, BibEntry], pages: list[str] | None = None) -> Candidate:
     """Run every signal over one PDF; reads the file and nothing else, and never writes.
 
     Parameters
@@ -146,6 +145,8 @@ def look_at(pdf: Path, bib: dict[str, BibEntry]) -> Candidate:
         The file to identify.
     bib : dict
         The bibliography, by citekey.
+    pages : list of str, optional
+        Its first pages, where they have been read already.
 
     Returns
     -------
@@ -158,10 +159,9 @@ def look_at(pdf: Path, bib: dict[str, BibEntry]) -> Candidate:
     """
     out = Candidate(path=pdf, sha256=sha256_of(pdf))
     try:
-        pages = page_texts(pdf)
+        pages = first_pages(pdf) if pages is None else pages
     except Exception:  # noqa: BLE001 -- an unreadable PDF is a thing to report, not a thing to crash on
         return out
-    out.pages = len(pages)
     head = "\n".join(pages[:2])
     dois, arxivs = identifiers_in(head)
     for ck, entry in bib.items():
@@ -422,7 +422,7 @@ def identify_document(pdf: Path, bib: dict[str, BibEntry]) -> Identity:
     """
     out = Identity(path=pdf)
     try:
-        pages = page_texts(pdf)
+        pages = first_pages(pdf)
     except Exception:  # noqa: BLE001 -- an unreadable PDF is skipped with its reason, never a crash
         out.weak = "its text cannot be read: no text layer, or no pdftotext"
         return out
@@ -430,7 +430,7 @@ def identify_document(pdf: Path, bib: dict[str, BibEntry]) -> Identity:
     out.lines = [" ".join(x.split()) for x in (pages[0] if pages else "").splitlines()[:TOP_LINES] if x.strip()]
     out.strong = _strong(out, bib)
     if not out.strong:
-        guess, _score, sigs = look_at(pdf, bib).best()
+        guess, _score, sigs = look_at(pdf, bib, pages).best()
         out.nearest = guess
         named = ", ".join(sorted({*out.dois, *(f"arXiv:{a}" for a in out.arxivs)}))
         out.weak = (

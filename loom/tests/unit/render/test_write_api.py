@@ -1301,6 +1301,8 @@ def _library_file(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     )
     filed = succeeds(s, "library-file", {"upload": up["upload"], "citekey": "Man12", "name": "pullbacks.pdf"})
     assert filed["citekey"] == "Man12" and filed["filed"] is True
+    # filing answers at once, and reading its text is a run with no network in it
+    assert [step["name"] for step in filed["job"]["steps"]] == ["map"] and filed["job"]["online"] is False
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert manifest["references"]["Man12"]["artifacts"]["pdf"] is True
     # a new work, its entry from the PDF's own account
@@ -1337,15 +1339,15 @@ def _library_file(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     refuses(s, "library-file", {"upload": "0" * 64, "citekey": "Man12"}, 404, "no-such-upload", "no PDF was dropped")
 
 
-@case("library-remove")
-def _library_remove(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("library-delete")
+def _library_delete(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, _ = on_demo(serve, tmp_path)
     succeeds(s, "library-add", {"text": ENTRY})
-    assert succeeds(s, "library-remove", {"citekey": "Ost18"})["result"] == "removed Ost18 from the library"
+    assert succeeds(s, "library-delete", {"citekey": "Ost18"})["result"] == "deleted Ost18 from the library"
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert "Ost18" not in manifest["references"]
-    refuses(s, "library-remove", {"citekey": "Calloway14"}, 409, "not-added", "comes from a document")
-    refuses(s, "library-remove", {"citekey": "Nobody99"}, 404, "no-such-work", "no work Nobody99")
+    refuses(s, "library-delete", {"citekey": "Calloway14"}, 409, "from-document", "gathering brings it back")
+    refuses(s, "library-delete", {"citekey": "Nobody99"}, 404, "no-such-work", "no work Nobody99")
 
 
 @case("library-ignore")

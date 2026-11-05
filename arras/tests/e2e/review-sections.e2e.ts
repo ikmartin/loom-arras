@@ -5,7 +5,7 @@ import { manifest, QUICK, REFEREE, serve } from '../manifest';
 test('Review\'s column lists its sections, each counting what waits there, the current one marked', async ({ page }) => {
 	await page.goto('/review');
 	const list = page.getByTestId('review-sections');
-	await expect(list.getByRole('link')).toHaveText([/^Your Changes/, /^Proposed Changes/, /^Problems/, /^The Record/]);
+	await expect(list.getByRole('link')).toHaveText([/^Your Changes/, /^Proposed Changes/, /^Problems/, /^Library/, /^The Record/]);
 	await expect(page.getByTestId('section-changes')).toHaveAttribute('aria-current', 'page');
 	// what changed since it was accepted, or was taken in, and the one file edited since the look; a block never accepted is listed there, not counted
 	const unresolved = (manifest.unresolved ?? []).filter((r: { cause: string }) => r.cause !== 'never-accepted').length;
@@ -21,6 +21,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	// each says what it is for
 	await expect(page.getByTestId('section-changes')).toContainText('edits to keep, mathematics to accept');
 	await expect(page.getByTestId('section-record')).toContainText('versions, sessions, everything done');
+	await expect(page.getByTestId('section-library')).toContainText('the works you read and cite');
 	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /3 proposals to decide/);
 	// each section is its own page, and the column marks it
 	for (const id of ['proposed', 'problems', 'record']) {
@@ -97,4 +98,17 @@ test("a section's count stands beside its name, on the name's line, not under it
 	const count = (await page.getByTestId('section-count-changes').boundingBox())!;
 	expect(count.x).toBeGreaterThanOrEqual(name.x + name.width);
 	expect(count.y).toBeLessThan(name.y + 16);
+});
+
+test('Review › Library is the ledger, counting the works that want something of the person, and the Docs shelf leads to it', async ({ page }) => {
+	await page.goto('/');
+	await page.getByTestId('library-toggle').click();
+	const wanted = await page.getByTestId('manage-wanted').innerText();
+	await page.getByTestId('manage-link').click();
+	await expect(page).toHaveURL(/\/review\/library$/);
+	await expect(page.getByTestId('primary-review')).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByTestId('section-library')).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByRole('heading', { level: 1, name: 'Library' })).toBeVisible();
+	await expect(page.getByTestId('library-works')).toBeVisible();
+	await expect(page.getByTestId('section-count-library')).toHaveText(wanted.split(' ')[0]);
 });
