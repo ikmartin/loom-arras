@@ -546,9 +546,29 @@ class FramesHandler(SimpleHTTPRequestHandler):
         target = (root / rel).resolve()
         return target if target.is_relative_to(root) and target.is_file() else None
 
+    def _listing(self) -> bytes | None:
+        """`/.loom/files.json`: every shown file's path, the one thing here that is not a shown file, at an address no shown file can have since `.loom` is never shown; so a page can find what the project holds."""
+        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
+        if self.path.split("?", 1)[0] != "/.loom/files.json" or self.shown is None:
+            return None
+        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            return None
+        return json.dumps({"files": self.shown.walk()}).encode("utf-8")
+
     def _answer(self, body: bool) -> None:
         from urllib.parse import parse_qs, urlsplit
 
+        listing = self._listing()
+        if listing is not None:
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(listing)))
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            if body:
+                self.wfile.write(listing)
+            return
         target = self._target()
         if target is None:
             self.send_error(HTTPStatus.NOT_FOUND)

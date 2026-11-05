@@ -8,6 +8,12 @@ A widget is fixed by its locus. The [page on gadgets](page.html#second) has more
 
 ![A small figure](figure.png)
 
+## To do
+
+- [x] Read the first lemma
+- [ ] Count the gadgets with $n$ handles
+- [ ] Draw a widget
+
 ## Next
 
 Review the cards: [Open Anki](app:Anki).

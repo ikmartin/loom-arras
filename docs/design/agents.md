@@ -16,6 +16,9 @@ It writes the quilt's files where the quilt lets it (below), and everything else
 - **Notes** about the mathematics (not built yet, see [README](README.md#decided-not-yet-built)).
 - **The session's transcript**, with `loom session say` (below).
 - **Files it hands the author** in its session's directory, which is never deleted from, and intermediates in `.loom/build/SESSION/`, which it may overwrite.
+- **An HTML file** a quilt builds for itself, when the author asks for a view of their own such as what is still open. It runs in the viewer on an origin of its own: it reads the project's shown files, lists them at `/.loom/files.json`, and its `quilt:` links open in the viewer. It cannot write, its browser storage lasts only until `loom serve` restarts, and nothing stops it sending what it reads to the network (`specs/write-api.md` §3).
+
+A box in a Markdown file, `- [ ]`, is the person's to tick in the viewer: `file-tick` refuses a declared agent, and `loom since` reports each box they set. An agent editing the file keeps each `[x]` as it finds it and ticks a box only when the author asks. That is advice, since an edit to a file cannot be told from anyone else's.
 
 ### Where an agent may write
 

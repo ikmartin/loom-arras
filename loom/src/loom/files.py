@@ -20,6 +20,7 @@ from urllib.parse import quote, unquote
 if TYPE_CHECKING:
     from loom.scan.quilt import Quilt
     from loom.scan.scan import ScanResult
+    from loom.tasks import Task
 
 #: Where `loom serve` answers a shown file on the viewer's own origin, sandboxed.
 FILES_URL = "/_files/"
@@ -282,14 +283,24 @@ def _rewriter(directory: str, kinds: dict[str, str], seen: dict[str, int]) -> An
     return walk
 
 
-def render_file_markdown(text: str, rel: str, kinds: dict[str, str], seen: dict[str, int] | None = None) -> str:
-    """The Markdown file `rel` drawn as the publisher draws pages, with ids on its headings and its relative links resolved against the shown files `kinds`.
+def render_file_markdown(
+    text: str, rel: str, kinds: dict[str, str], seen: dict[str, int] | None = None, *, tasks: list[Task] | None = None
+) -> str:
+    """The Markdown file `rel` drawn as the publisher draws pages, with ids on its headings, its relative links resolved against the shown files `kinds`, and each task item a `li.task`.
 
-    Raw HTML stays escaped, as it is in pages and messages; a person who wants HTML writes an HTML file. `seen` carries heading ids across calls, so a notebook's cells number repeats as one document does.
+    Raw HTML stays escaped, as it is in pages and messages; a person who wants HTML writes an HTML file. `seen` carries heading ids across calls, so a notebook's cells number repeats as one document does. `tasks` collects each item and makes its box tickable, for text that is a whole file; a notebook's cell passes none, so its boxes are only drawn.
     """
     from loom.records.store import render_markdown
+    from loom.tasks import mark_items
 
-    return render_markdown(text, tokens=_rewriter(posixpath.dirname(rel), kinds, {} if seen is None else seen))
+    rewrite = _rewriter(posixpath.dirname(rel), kinds, {} if seen is None else seen)
+    mark = mark_items(text, tasks)
+
+    def walk(tokens: list[Any]) -> None:
+        mark(tokens)
+        rewrite(tokens)
+
+    return render_markdown(text, tokens=walk)
 
 
 def headings(body: str) -> set[str]:
@@ -385,7 +396,11 @@ def attach_files(result: ScanResult, manifest: dict[str, Any], files: dict[str, 
                 text = (root / rel).read_text(encoding="utf-8", errors="replace")
             except OSError:
                 text = ""
-            body = render_file_markdown(text, rel, kinds) if kind == "markdown" else render_notebook(text, rel, kinds)
+            body = (
+                render_file_markdown(text, rel, kinds, tasks=[])
+                if kind == "markdown"
+                else render_notebook(text, rel, kinds)
+            )
             entry["body"] = f"{BODIES}/{rel}.html"
             files[entry["body"]] = body
         entries.append(entry)

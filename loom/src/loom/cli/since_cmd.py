@@ -19,7 +19,7 @@ from loom.cli.report import Report, counted
 def since_command(declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Report what people did since you last looked, and move your marker past it.
 
-    People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; and what they said in a session's transcript. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+    People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
     """
     from loom.since import since, write_marker
 
@@ -53,6 +53,7 @@ def _verdict(got: Any) -> str:
         "the research state changed" if got.state else "",
         counted(len(got.said), "message") if got.said else "",
         counted(len(got.notes), "note") if got.notes else "",
+        counted(len(got.ticks), "box set", "boxes set") if got.ticks else "",
     ]
     return f"{window}: " + ", ".join(s for s in said if s)
 
@@ -111,4 +112,12 @@ def _lines(got: Any) -> list[str]:
         if n.get("body"):
             noted.append(f"      {n['body']}")
     block("noted", len(got.notes), noted)
+    block(
+        "boxes set",
+        len(got.ticks),
+        [
+            f"  [{'x' if t['done'] else ' '}] {t['path']}:{t['line']}  {t['words']} · by {t['by'] or 'the person'} at {_at(t['when'])}"
+            for t in got.ticks
+        ],
+    )
     return out

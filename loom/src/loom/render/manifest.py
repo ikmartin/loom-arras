@@ -728,7 +728,7 @@ def _acts(result: ScanResult, history: Any) -> list[dict[str, Any]]:
             row["actor"] = e.actor
         if e.step is not None:
             row["step"] = e.step
-        for k in ("path", "paths", "message", "hunks", "kept_for", "copy", "page"):
+        for k in ("path", "paths", "message", "hunks", "kept_for", "copy", "page", "line", "done"):
             v = e.get(k)
             if v not in (None, "", []):
                 row[k] = v

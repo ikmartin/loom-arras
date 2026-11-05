@@ -139,6 +139,9 @@ export interface HistoryAct {
 	to?: string;
 	/** A version a restore put back, by its landmark's file name. */
 	version?: string;
+	/** The line of a box set in the viewer, and the state it was set to. */
+	line?: number;
+	done?: boolean;
 }
 
 /** One step of the history: an import, a stamp, an agent document's copy or an adoption. */

@@ -36,6 +36,17 @@ test('a Markdown file is drawn, opened at the heading a link names, and its link
 	await expect(page).toHaveURL(/\/file\/notes\/intro\.md/);
 });
 
+test('a box in a Markdown file is drawn but cannot be changed with no publisher to write to', async ({ page }) => {
+	await page.goto('/file/notes/intro.md');
+	const tasks = pane(page, 0).getByTestId('file-item').locator('li.task');
+	await expect(tasks).toHaveCount(3);
+	await expect(tasks.nth(0).locator('input')).toBeChecked();
+	await expect(tasks.nth(0).locator('input')).toBeDisabled();
+	await expect(tasks.nth(1).locator('input')).not.toBeChecked();
+	await expect(tasks.nth(1).locator('input')).toBeDisabled();
+	await expect(tasks.nth(1)).toHaveText(/^Count the gadgets/);
+});
+
 test('Markdown wraps at the line width in a wide window, centred, whatever the format, and fills a narrower pane', async ({ page }) => {
 	await page.setViewportSize({ width: 2000, height: 900 });
 	const file = pane(page, 0).getByTestId('file-item');

@@ -9,9 +9,10 @@
 	import { PdfView } from '$lib/pdf/view.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
 	import { quote } from '$lib/notes';
-	import { can } from '$lib/write';
+	import { can, write } from '$lib/write';
 	import type { Item } from '../item';
 	import { openOutside } from '../links';
+	import { onlyTicks, ticksIn } from '../tasks';
 	import HtmlFrame from './HtmlFrame.svelte';
 
 	let { item }: { item: Item } = $props();
@@ -32,12 +33,22 @@
 	let el: HTMLElement | undefined = $state();
 	let opens = $state(false);
 	let refused = $state('');
+	let tickable = $state(false);
+	let tickRefused = $state('');
+	/** The state each box was last asked for, which an older publication arriving late must not undo. */
+	const asked = new Map<string, boolean>();
 
-	// a drawn body is fetched by the manifest's hash, so an edit to the file shows on the next publication
+	// a drawn body is fetched by the manifest's hash, so an edit to the file shows on the next publication. What is drawn stays until the answer differs, so a publication that changed something else does not restart the page, and one that only moved a tick leaves the mathematics and the scroll position alone
+	let held: string | undefined;
 	$effect(() => {
 		const f = file;
 		const hash = store.hash;
-		body = text = null;
+		if (f?.path !== held) {
+			body = text = null;
+			tickRefused = '';
+			asked.clear();
+		}
+		held = f?.path;
 		failed = '';
 		if (!f) return;
 		const at = f.body ? dataUrl(f.body) : f.kind === 'text' || f.kind === 'tex' || f.kind === 'document' ? filesUrl(f.path) : '';
@@ -45,11 +56,78 @@
 		void fetch(at + (at.includes('?') ? '&' : '?') + 'h=' + encodeURIComponent(hash), { cache: 'no-cache' })
 			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${f.path}: ${r.status}`))))
 			.then((t) => {
-				if (f.body) body = t;
-				else text = t;
+				if (held !== f.path) return;
+				if (!f.body) text = t;
+				else if (body !== null && onlyTicks(body, t)) settle(t);
+				else body = t;
 			})
 			.catch((e: Error) => (failed = e.message));
 	});
+
+	$effect(() => {
+		if (file?.kind === 'markdown') void can('file-tick').then((yes) => (tickable = yes));
+	});
+
+	/** The input of a drawn task item, given one if it has none yet: at the head of its words, which a loose list holds in a paragraph. */
+	function boxOf(li: HTMLElement): HTMLInputElement {
+		const found = li.querySelector<HTMLInputElement>(':scope > input.task-box, :scope > p > input.task-box');
+		if (found) return found;
+		const box = document.createElement('input');
+		box.type = 'checkbox';
+		box.className = 'task-box';
+		box.setAttribute('aria-label', li.textContent?.trim().slice(0, 120) || 'A task');
+		(li.querySelector<HTMLElement>(':scope > p') ?? li).prepend(box);
+		return box;
+	}
+
+	// the publisher marks a task item and the viewer draws its box, which only a file loom can write to may change
+	$effect(() => {
+		void body;
+		const live = tickable;
+		for (const li of el?.querySelectorAll<HTMLElement>('.file-body li.task') ?? []) {
+			const box = boxOf(li);
+			const task = li.dataset.task;
+			box.checked = (task ? asked.get(task) : undefined) ?? li.dataset.done === 'true';
+			box.disabled = !(live && task);
+		}
+	});
+
+	/** A new publication's boxes on the page as it stands. */
+	function settle(html: string): void {
+		const now = ticksIn(html);
+		for (const li of el?.querySelectorAll<HTMLElement>('.file-body li.task') ?? []) {
+			const task = li.dataset.task;
+			const done = task ? now.get(task) : undefined;
+			if (!task || done === undefined) continue;
+			li.dataset.done = String(done);
+			if (asked.get(task) === done) asked.delete(task);
+			boxOf(li).checked = asked.get(task) ?? done;
+		}
+	}
+
+	/** A box the person changed: it shows at once, and goes back with the reason if the publisher refuses. Once it is written the publication has it, so what a publication says wins again after a moment, whatever became of the file. */
+	async function ticked(e: Event): Promise<void> {
+		const box = e.target;
+		if (!(box instanceof HTMLInputElement) || !box.classList.contains('task-box')) return;
+		const li = box.closest<HTMLElement>('li.task');
+		const task = li?.dataset.task;
+		if (!li || !task) return;
+		const done = box.checked;
+		asked.set(task, done);
+		tickRefused = '';
+		const got = await write('file-tick', { path: item.id, task, done });
+		if (!got.ok) {
+			if (asked.get(task) === done) asked.delete(task);
+			box.checked = !done;
+			tickRefused = got.error?.message ?? 'That box could not be changed.';
+			return;
+		}
+		setTimeout(() => {
+			if (asked.get(task) !== done) return;
+			asked.delete(task);
+			box.checked = li.dataset.done === 'true';
+		}, 3000);
+	}
 
 	// a line a problem names (`L12`), whose text is then drawn a line at a time so the line can be shown
 	const line = $derived(Number(/^L(\d+)$/.exec(item.anchor ?? '')?.[1] ?? 0));
@@ -153,7 +231,8 @@
 	</div>
 {:else}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="page item file" data-testid="file-item" data-kind={file.kind} data-file={file.path} bind:this={el} onmouseup={selected}>
+	<div class="page item file" data-testid="file-item" data-kind={file.kind} data-file={file.path} bind:this={el} onmouseup={selected} onchange={ticked}>
+		{#if tickRefused}<p class="tick-refused" role="alert" data-testid="file-tick-refused">{tickRefused}</p>{/if}
 		{#if file.kind === 'image'}
 			<!-- a box drawn on the image is a region it quotes -->
 			<div class="image-frame" onpointerdown={press} onpointermove={move} onpointerup={release} data-testid="image-frame">
@@ -261,6 +340,24 @@
 	}
 	.file :global(.file-body img) {
 		max-width: 100%;
+	}
+	/* a task item's box stands where its bullet would */
+	.file :global(.file-body li.task) {
+		list-style: none;
+	}
+	.file :global(.file-body .task-box) {
+		margin: 0 0.45em 0 -1.4em;
+		vertical-align: -0.1em;
+	}
+	.tick-refused {
+		position: sticky;
+		top: 0;
+		margin: 0 0 var(--gap-tight);
+		padding: var(--gap-hair) var(--gap-tight);
+		background: var(--paper);
+		border-bottom: 1px solid var(--rule);
+		color: var(--ink-soft);
+		z-index: 1;
 	}
 	/* a file's own headings, which annotations and messages rarely have, sized as a page's are */
 	.file :global(.file-body :is(h1, h2, h3, h4)) {

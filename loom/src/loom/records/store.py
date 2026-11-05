@@ -871,6 +871,24 @@ def _protect_math(text: str) -> tuple[str, list[tuple[bool, str]]]:
 _CODE = re.compile(r"(```[\s\S]*?```|(?<!`)`+(?!`)[\s\S]*?(?<!`)`+(?!`))")
 
 
+def source_line(text: str) -> Callable[[int], int]:
+    """Where a line of `text` with its mathematics lifted (`_protect_math`) stands in `text` itself.
+
+    A lifted span takes the line breaks inside it with it, which puts every later `token.map` out by as many; for a token pass that must name a line of the file (`loom.tasks`).
+    """
+    gone: list[tuple[int, int]] = []
+    at = 0
+    for i, part in enumerate(_CODE.split(text)):
+        last = 0
+        for m in () if i % 2 else _MATH.finditer(part):
+            at += part.count("\n", last, m.start())
+            last = m.end()
+            if "\n" in m.group(0):
+                gone.append((at, m.group(0).count("\n")))
+        at += part.count("\n", last)
+    return lambda line: line + sum(n for held, n in gone if held < line)
+
+
 def _restore_math(html_text: str, spans: list[tuple[bool, str]]) -> str:
     """Put each lifted span back as the dialect writes it (specs/dialect.md §2.6)."""
     import html as _html

@@ -946,6 +946,45 @@ def _changes_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     succeeds(s, "changes-keep", {"path": "README.md", "hunks": [0], "seen": sha256((q / "README.md").read_text())})
 
 
+@case("file-tick")
+def _file_tick(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.looks import changes
+    from loom.scan.quilt import load_quilt, save_author
+    from loom.tasks import items
+
+    save_author("Tester")
+    s, q, _ = on_demo(serve, tmp_path)
+    succeeds(s, "changes-keep", {})
+    p = q / "todo.md"
+    p.write_text("- [ ] one\n- [x] two\n", encoding="utf-8")
+    succeeds(s, "changes-keep", {})
+    one, two = (t.id for t in items(p.read_text(encoding="utf-8")))
+    said = succeeds(s, "file-tick", {"path": "todo.md", "task": one, "done": True})
+    assert said["result"] == "ticked a box in todo.md"
+    assert p.read_text(encoding="utf-8") == "- [x] one\n- [x] two\n"
+    # it is published before the answer comes, and not listed back to the person who made it
+    m = json.loads(get(s.url + "build/manifest.json")[2])
+    body = next(f["body"] for f in m["files"] if f["path"] == "todo.md")
+    assert f'data-done="true" data-task="{one}"' in get(s.url + "build/" + body)[2].decode()
+    assert [(a["path"], a["line"], a["done"]) for a in m["history"]["acts"] if a["action"] == "tick"] == [
+        ("todo.md", 1, True)
+    ]
+    assert "todo.md" not in {c.path for c in changes(load_quilt(q), "Tester")}
+    assert "already" in succeeds(s, "file-tick", {"path": "todo.md", "task": one, "done": True})["result"]
+    assert succeeds(s, "file-tick", {"path": "todo.md", "task": two, "done": False})["result"].startswith("unticked")
+    body = {"path": "todo.md", "task": one, "done": False}
+    refuses(s, "file-tick", {**body, "author": "Referee (Agent)"}, 403, "author-only", "the person's")
+    refuses(s, "file-tick", {"task": one, "done": False}, 400, "missing-field", "path")
+    refuses(s, "file-tick", {"path": "todo.md", "done": False}, 400, "missing-field", "task")
+    refuses(s, "file-tick", {"path": "todo.md", "task": one, "done": "yes"}, 400, "bad-field", "true or false")
+    refuses(s, "file-tick", {**body, "path": "none.md"}, 404, "no-such-file", "none.md")
+    refuses(s, "file-tick", {**body, "path": "config.toml"}, 409, "not-a-task", "not a Markdown file")
+    refuses(s, "file-tick", {**body, "task": "1:00000000"}, 409, "stale", "changed since")
+    # the token is what keeps other pages out, here as for every write
+    assert post(s.url + "_api/file-tick", body, token="wrong")[0] == 403
+    assert p.read_text(encoding="utf-8") == "- [x] one\n- [ ] two\n"
+
+
 @case("changes-undo")
 def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.scan.quilt import save_author

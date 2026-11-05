@@ -367,6 +367,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **2026-11-02.** The project's shown files are served sandboxed on the viewer's origin too, at `/_files/`. An HTML file the viewer frames runs on a second loopback origin, the frames origin, where its scripts and embedded players work: that origin serves shown files and nothing of loom's, answers only its own host, and is refused by the write API like any other page, so a framed page still never runs as the viewer (plan 0.22.7).
 
+**2026-11-04.** The frames origin also answers `/.loom/files.json`, the sorted paths of the shown files, because a page that had to hard-code file names silently missed new ones. It adds only names of what that origin already serves, and a framed page still cannot write (plan 0.27).
+
 ### Loom opens only documents in their application
 
 **Rule.** `POST /_api/open` opens an application by a plain name, or a shown file whose suffix is on `loom.files.OPENABLE` (notebooks, spreadsheets, office documents, Anki packages, audio, video, books) and that has no executable bit. Any other file, a hidden one, and a name that could be a path or an option are refused.

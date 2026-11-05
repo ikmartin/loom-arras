@@ -42,7 +42,8 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-61](WQ-61-read-view-content-visibility.md) | the read view's blocks skipped while off screen, once the reader's place holds | arras | a way to keep the place when a skipped block above the reader changes, shown on relloc within 4 px |
 | [WQ-62](WQ-62-suggestions-folded-in.md) | a document read with its open suggestions folded in | loom, arras | a suggestion of a paragraph or more is too cramped to read in its in-place view, in a review of the author's own text |
 | [WQ-63](WQ-63-take-part-of-a-pull.md) | taking part of a pull | loom, arras | a pull holds a change the author wants and one they don't, and they take it whole and undo the rest by hand |
+| [WQ-64](WQ-64-html-file-reach.md) | what an HTML file in a quilt can reach: loom's records, lasting state, and a list of open boxes in loom itself | loom, arras | an HTML file the author keeps opening has to export loom's records by hand or loses state they wanted kept, or a second quilt builds a list of open boxes |
 
-Twenty-five active, twenty slots of headroom.
+Twenty-three active, twenty-two slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

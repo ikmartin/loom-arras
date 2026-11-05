@@ -46,12 +46,20 @@ class Since:
     state: list[dict[str, Any]] = field(default_factory=list)
     said: list[dict[str, Any]] = field(default_factory=list)
     notes: list[dict[str, Any]] = field(default_factory=list)
+    ticks: list[dict[str, Any]] = field(default_factory=list)
     marker: Marker | None = None
 
     @property
     def empty(self) -> bool:
         return not (
-            self.annotations or self.acts or self.accepted or self.stale or self.state or self.said or self.notes
+            self.annotations
+            or self.acts
+            or self.accepted
+            or self.stale
+            or self.state
+            or self.said
+            or self.notes
+            or self.ticks
         )
 
     def to_json(self) -> dict[str, Any]:
@@ -68,6 +76,7 @@ class Since:
             "said": self.said,
             # `notes` is a report's own field, so a person's notes are reported as what they `noted`
             "noted": self.notes,
+            "ticks": self.ticks,
         }
 
 
@@ -154,6 +163,7 @@ def since(result: ScanResult, name: str) -> Since:
     current = _state(result, window, new, out)
     _said(root, new, out)
     _notes(root, new, out)
+    _ticks(result, new, out)
     out.marker = Marker(when=now, seen=marks, stale=stale, state=current)
     return out
 
@@ -298,6 +308,22 @@ def _notes(root: Path, new: Any, out: Since) -> None:
             continue
         row = {**n.to_dict(), "link": f"[](quilt:{n.id})"}
         out.notes.append(row)
+
+
+def _ticks(result: ScanResult, new: Any, out: Since) -> None:
+    """Each box a person set since, as it last stood, with its file, its line and its words."""
+    from loom.cli._common import is_agent
+    from loom.history.ledger import load_history
+    from loom.tasks import TICK
+
+    last: dict[tuple[str, int], Any] = {}
+    for e in load_history(result.quilt.history_dir).entries:
+        if e.action == TICK and not is_agent(e.actor or "") and new(e.when, f"tick:{e.line}"):
+            last[(str(e.get("path")), int(e.get("line")))] = e
+    for (path, line), e in last.items():
+        out.ticks.append(
+            {"path": path, "line": line, "done": e.get("done"), "words": e.get("words"), "by": e.actor, "when": e.when}
+        )
 
 
 def _name(result: ScanResult, key: str) -> str:

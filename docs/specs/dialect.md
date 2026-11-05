@@ -119,6 +119,10 @@ Review comparison fragments may mark changed prose with `<mark class="review-cha
 
 **[decided]** **Links to applications** (plan 0.22.7). `<a href="app:NAME">` asks the publisher to open the application `NAME` on this machine (`write-api.md`, `open`), on the reader's click; a viewer with no publisher to ask leaves it unfollowed and says why. A link in any other scheme a viewer does not read (`zotero:`, `vscode:`, `https:` to another site) opens outside the viewer, never in its tab, and `javascript:`, `data:`, `file:`, `vbscript:` and `blob:` are never followed.
 
+### 2.14 Task items
+
+**[decided]** A list item of a project's Markdown file or a notebook's Markdown cell whose words open with `[ ] ` or `[x] ` is `<li class="task" data-done="false">`, or `data-done="true"`, with the box taken out of its words. In a Markdown file it also carries `data-task="LINE:HASH"`, its 1-based source line and a hash of that line less its box, which a tick sends back (`write-api.md`, `file-tick`) and which refuses a line that has since changed. A viewer draws the box: one that cannot write, or an item with no `data-task`, draws a box that cannot be changed. Annotations, messages and pages keep the brackets as text.
+
 ## 3. Forbidden
 
 **[decided]** Scripts, styles, external stylesheets or fonts, iframes, forms, inline event attributes, absolute URLs except in `a.url`, and any element or class not listed here. A viewer must ignore unknown classes and render unknown elements as generic blocks; a validator must reject them. The ban is on fragments and the bodies a publisher draws: a frame belongs to a project's HTML file shown as a file (`write-api.md` §3), never to rendered mathematics or prose.

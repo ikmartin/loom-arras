@@ -27,6 +27,7 @@ ALLOWED_CLASSES = {
     "mark": {"annotation", "review-changed"},
     "figure": {"diagram", "fallback", "failed"},
     "section": {"annotation-block"},
+    "li": {"task"},
 }
 BLOCKS_NEEDING_SRC = {"section", "h1", "h2", "h3", "h4", "h5", "h6", "p", "details", "figure", "table", "pre", "ul", "ol", "dl", "blockquote"}
 

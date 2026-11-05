@@ -63,6 +63,8 @@ export function actWords(a: HistoryAct): string {
 			return `Brought ${file(a.path ?? '')} back into the quilt`;
 		case 'page-write':
 			return `Wrote the page ${a.page ?? file(a.path ?? '')}`;
+		case 'tick':
+			return `${a.done ? 'Ticked' : 'Unticked'} a box in ${file(a.path ?? '')}`;
 		case 'move': {
 			// a move between folders keeps its file name, so each end is said by its path
 			const [from, to] = [a.from ?? '', a.to ?? ''];

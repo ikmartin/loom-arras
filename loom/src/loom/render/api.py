@@ -62,6 +62,7 @@ CAPABILITIES = [
     "here",
     "changes-keep",
     "changes-undo",
+    "file-tick",
     "history-record",
     "history-restore",
     "note",
@@ -300,6 +301,7 @@ def _scan(root: Path) -> ScanResult:
 #: Writes that change records alone, which the scan never reads, or keep a version, whose landmark the build reads again (`build(reuse=…)`); their publication builds from the last scan (`ServeSession.rebuild`).
 RECORD_WRITES = (
     "annotate",
+    "file-tick",
     "note",
     "note-keep",
     "changes-keep",
@@ -449,6 +451,28 @@ def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "ok": True,
         "result": "; ".join(filter(None, [f"kept {what}" if path else "kept everything", versions.said()])),
     }
+
+
+def _file_tick(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`file-tick`: the person sets one box of a Markdown file (`loom.tasks`), `task` being the id the published body gives it; refused to a declared agent, which edits a file as it edits any other."""
+    from loom.cli._common import is_agent
+    from loom.scan.quilt import load_quilt, reviewer_identity
+    from loom.tasks import TickRefused, tick
+
+    who = reviewer_identity(root)[0]
+    if is_agent(_str(body, "author") or who):
+        raise ApiError("author-only", "An agent edits the file; a tick in the viewer is the person's", status=403)
+    path = _str(body, "path", required=True) or ""
+    task = _str(body, "task", required=True) or ""
+    done = body.get("done")
+    if not isinstance(done, bool):
+        raise ApiError("bad-field", "done must be true or false")
+    try:
+        changed = tick(load_quilt(root), who, path, task, done)
+    except TickRefused as exc:
+        raise ApiError(exc.code, exc.message, status=404 if exc.code == "no-such-file" else 409) from exc
+    verb = "ticked" if done else "unticked"
+    return {"ok": True, "result": f"{verb} a box in {path}" if changed else f"that box in {path} is already {verb}"}
 
 
 def _history(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -628,6 +652,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _open(root, body)
     if endpoint in ("changes-keep", "changes-undo"):
         return _changes(root, endpoint, body)
+    if endpoint == "file-tick":
+        return _file_tick(root, body)
     if endpoint in ("history-record", "history-restore"):
         return _history(root, endpoint, body)
     if endpoint in ("note", "note-keep"):

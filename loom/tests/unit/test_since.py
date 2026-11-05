@@ -54,6 +54,29 @@ def test_a_first_look_reports_a_persons_annotations_whole_and_the_next_reports_n
     assert again["first"] is False and again["annotations"] == [] and again["verdict"].endswith(": nothing")
 
 
+def test_the_boxes_a_person_set_are_reported_as_they_last_stood_and_once(q: Path) -> None:
+    from loom.scan.quilt import load_quilt
+    from loom.tasks import items, tick
+
+    p = q / "todo.md"
+    p.write_text("- [ ] one\n- [ ] two\n- [ ] three\n", encoding="utf-8")
+    one, two, three = (t.id for t in items(p.read_text(encoding="utf-8")))
+    quilt = load_quilt(q)
+    tick(quilt, WHO, "todo.md", one, True)
+    tick(quilt, WHO, "todo.md", two, True)
+    tick(quilt, WHO, "todo.md", two, False)
+    tick(quilt, AGENT, "todo.md", three, True)
+    got = look(q, "--dry-run")
+    assert [(t["path"], t["line"], t["done"], t["words"], t["by"]) for t in got["ticks"]] == [
+        ("todo.md", 1, True, "one", WHO),
+        ("todo.md", 2, False, "two", WHO),
+    ]
+    assert "2 boxes set" in got["verdict"]
+    said = ok("since", "--as", AGENT, cwd=q).stdout
+    assert "boxes set (2)" in said and "[x] todo.md:1  one" in said and "[ ] todo.md:2  two" in said
+    assert look(q)["ticks"] == []
+
+
 def test_a_record_of_the_markers_own_second_is_reported_once(q: Path) -> None:
     """Under one fixed clock every record carries the marker's second, so only what the marker carries tells old from new; the clock is set after the session's opening, which the real one stamped."""
     fixed = {"LOOM_FIXED_TIME": "2099-01-01T00:00:00Z"}

@@ -234,6 +234,32 @@ def keep(
     return look
 
 
+def take_line(quilt: Quilt, who: str, path: str, before: str, after: str, line: int) -> None:
+    """Take the one line a person just changed in the viewer into their look, so a change they made there is not listed back to them (`loom.tasks`).
+
+    Every other change to the file stays listed. A line the look does not hold as `before` does is part of a change already listed, and stays in it. `line` is a line of `tasks.split_lines`; no ledger line, since the act that called this writes its own.
+    """
+    from loom.records.snapshots import read_raw, write_raw
+    from loom.tasks import split_lines
+
+    look = read_look(quilt.root, who)
+    seen = look.files.get(path) if look else None
+    old = read_raw(quilt.root, seen, quilt.history_dir) if seen else None
+    if look is None or old is None:
+        return
+    if old == before:
+        look.files[path] = write_raw(quilt.root, after, quilt.history_dir)
+        _write(quilt.root, look)
+        return
+    held, now = split_lines(old), split_lines(before)
+    for tag, i1, _i2, j1, j2 in difflib.SequenceMatcher(None, held, now).get_opcodes():
+        if tag == "equal" and j1 <= line < j2:
+            held[i1 + line - j1] = split_lines(after)[line]
+            look.files[path] = write_raw(quilt.root, "".join(held), quilt.history_dir)
+            _write(quilt.root, look)
+            return
+
+
 def undo(
     quilt: Quilt,
     who: str,

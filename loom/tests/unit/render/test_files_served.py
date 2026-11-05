@@ -75,6 +75,39 @@ def test_an_html_page_runs_on_the_frames_origin_with_the_bridge_and_nothing_of_l
     assert refused.value.code == 501
 
 
+def test_a_page_can_list_the_shown_files_and_nothing_else(served) -> None:  # type: ignore[no-untyped-def]
+    """So a page finds what the project holds, new files included, without being told their names."""
+    s, q, frames = served
+    status, headers, body = get(frames + "/.loom/files.json")
+    assert status == 200 and headers["Content-Type"] == "application/json"
+    files = json.loads(body)["files"]
+    assert files == sorted(files) and {"notes/page.html", "notes/a.md"} <= set(files)
+    assert not [f for f in files if f.startswith((".hidden/", "scratch/", ".loom/"))]
+    assert get(frames + "/.loom/state.toml")[0] == 404, "the one address under .loom it answers"
+    port = frames.rsplit(":", 1)[1]
+    assert get(frames + "/.loom/files.json", {"Host": f"rebound.example:{port}"})[0] == 404
+    put(q, "notes/new.md", "# New\n")
+    assert "notes/new.md" in json.loads(get(frames + "/.loom/files.json")[2])["files"]
+
+
+def test_a_tick_publishes_from_the_last_scan(served) -> None:  # type: ignore[no-untyped-def]
+    from loom.tasks import items
+
+    s, q, _ = served
+    p = put(q, "notes/b.md", "- [ ] one\n")
+    deadline = time.time() + 6
+    while time.time() < deadline:
+        m = json.loads(get(s.url + "build/manifest.json")[2])
+        if any(f["path"] == "notes/b.md" for f in m["files"]):
+            break
+        time.sleep(0.05)
+    scan = s.last_report.result
+    task = items(p.read_text(encoding="utf-8"))[0].id
+    assert post(s.url + "_api/file-tick", {"path": "notes/b.md", "task": task, "done": True})[0] == 200
+    assert s.last_report.result is scan
+    assert p.read_text(encoding="utf-8") == "- [x] one\n"
+
+
 def test_open_is_the_persons_click_and_never_runs_code(served, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
     from loom import files
 
