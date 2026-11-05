@@ -11,13 +11,16 @@
 	let {
 		view,
 		of = '',
-		disabled = false
+		disabled = false,
+		markup = false
 	}: {
 		view: PdfView;
 		/** What the controls act on, for their accessible names: they stand apart from the paper, over its pane, so each says whose it is. */
 		of?: string;
 		/** Nothing to act on here: every control is drawn and none acts. */
 		disabled?: boolean;
+		/** Whether this paper can be marked, which puts the markup bar's switch among the controls. */
+		markup?: boolean;
 	} = $props();
 
 	const on = $derived(of ? ` in ${of}` : '');
@@ -65,6 +68,19 @@
 
 <div class="tools" class:disabled role="group" aria-label="reading tools{on}">
 	<ToolPair holder={view} {of} {disabled} />
+	{#if markup}
+		<button
+			type="button"
+			class="tool"
+			class:on={!disabled && view.marking}
+			title="Markup: highlight, comment and draw on the page, and save a copy with what you marked"
+			aria-label="Markup{on}"
+			aria-pressed={view.marking}
+			data-testid="markup-toggle"
+			{disabled}
+			onclick={() => (view.marking = !view.marking)}><Icon name="pen" size={15} /></button
+		>
+	{/if}
 
 	<span class="bar" aria-hidden="true"></span>
 

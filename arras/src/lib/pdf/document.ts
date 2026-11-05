@@ -31,17 +31,20 @@ const open = new Map<string, Promise<PDFDocumentProxy>>();
 export function document_(url: string): Promise<PDFDocumentProxy> {
 	let doc = open.get(url);
 	if (!doc) {
-		doc = pdfjs().then((lib) =>
-			lib.getDocument({
-				url,
-				standardFontDataUrl: `${base}/pdfjs/standard_fonts/`,
-				cMapUrl: `${base}/pdfjs/cmaps/`,
-				cMapPacked: true
-			}).promise
-		);
+		doc = pdfjs().then((lib) => lib.getDocument(sourceOf(url)).promise);
 		open.set(url, doc);
 	}
 	return doc;
+}
+
+/** What `getDocument` opens for a URL or for bytes, its fonts and CMaps from this bundle; for a caller that needs a document of its own, whose annotation storage reaches no pane. */
+export function sourceOf(from: string | Uint8Array) {
+	return {
+		...(typeof from === 'string' ? { url: from } : { data: from }),
+		standardFontDataUrl: `${base}/pdfjs/standard_fonts/`,
+		cMapUrl: `${base}/pdfjs/cmaps/`,
+		cMapPacked: true
+	};
 }
 
 /** Forget a document, so the next call reopens it: for a paper whose bytes changed under the viewer. */

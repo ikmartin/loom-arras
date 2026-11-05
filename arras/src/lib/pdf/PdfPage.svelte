@@ -14,8 +14,12 @@
 	// has been patched for twice.
 	import { onDestroy, untrack } from 'svelte';
 	import { asPercent, document_, pdfjs } from './document';
+	import { markAt, type PageMark } from './marks';
+	import PageMarks, { type Drawn, type Moved } from './PageMarks.svelte';
 
 	type Rect = readonly number[];
+	/** An annotation the PDF itself holds, with words to read: another program's comment. */
+	type Embedded = { id: string; subtype: string; rects: number[][]; body: string; by: string };
 
 	let {
 		url,
@@ -30,7 +34,14 @@
 		onmark,
 		onsized,
 		ondrawn,
-		onlink
+		onlink,
+		marks = [],
+		selected = '',
+		hide = [],
+		ondraw,
+		onpick,
+		onmove,
+		onembedded
 	}: {
 		url: string;
 		page?: number;
@@ -39,8 +50,8 @@
 		scale?: number;
 		/** Whether to draw at all. False keeps the page's size and releases everything that costs memory. */
 		render?: boolean;
-		/** `select` uses the text layer; `box` drags a region. A page with no text layer forces `box` whatever this says. */
-		tool?: 'select' | 'box';
+		/** `select` uses the text layer; `box` drags a region; a word mark's tool leaves the words selectable; any other mark's takes the pointer. A page with no text layer forces `box` for what uses the words. */
+		tool?: string;
 		/** The id of the mark to show as the one being looked at. */
 		focus?: string;
 		/** The reader selected text: the page, what they selected, and the rectangles it covers. */
@@ -55,6 +66,20 @@
 		onsized?: (e: { page: number; width: number; height: number }) => void;
 		/** The reader followed a link inside the paper to another of its pages; a link out of it opens in a new tab and is not reported. */
 		onlink?: (e: { page: number }) => void;
+		/** The notes drawn on this page. */
+		marks?: PageMark[];
+		/** The mark being looked at, which can be moved. */
+		selected?: string;
+		/** Annotations in the PDF that a note now stands for, by their reference: left off the canvas, so nothing is drawn twice. */
+		hide?: string[];
+		/** The reader drew a mark with a tool that takes the pointer. */
+		ondraw?: (e: Drawn & { page: number }) => void;
+		/** The reader clicked a mark, or nothing (`id` empty). */
+		onpick?: (e: { id: string }) => void;
+		/** The reader moved or resized the mark being looked at. */
+		onmove?: (e: Moved) => void;
+		/** The reader clicked an annotation the PDF holds. */
+		onembedded?: (e: Embedded & { client: Box }) => void;
 	} = $props();
 
 	let host: HTMLDivElement;
@@ -68,6 +93,11 @@
 	let drawn = $state(false);
 	/** The paper's own links on this page (plan 0.13 item 5, "link followed"): where each is, and where it goes. */
 	let links = $state<{ left: string; top: string; width: string; height: string; url?: string; page?: number }[]>([]);
+	/** The comments the PDF itself holds on this page, in points from its top left. */
+	let embedded = $state<Embedded[]>([]);
+
+	/** What is left off the canvas, as a string, since the list is new at every manifest and the page is drawn again only when what it says changes. */
+	const hidden = $derived(hide.join());
 
 	/** Box mode: what the toolbar says, or forced on a page whose text layer has nothing to select. */
 	const boxing = $derived(tool === 'box' || empty);
@@ -129,7 +159,9 @@
 			if (!ctx) return;
 			ctx.scale(ratio, ratio);
 			const t1 = performance.now();
-			const task = p.render({ canvasContext: ctx, viewport, canvas }) as unknown as Cancellable;
+			// an annotation a note stands for stays out of the drawing, through the document's annotation storage, which no page saves
+			for (const id of hide) doc.annotationStorage.setValue(id, { noView: true });
+			const task = p.render({ canvasContext: ctx, viewport, canvas, ...(hide.length ? { annotationMode: lib.AnnotationMode.ENABLE_STORAGE } : {}) }) as unknown as Cancellable;
 			running = task;
 			await task.promise;
 			if (running === task) running = null;
@@ -147,7 +179,14 @@
 			// The paper's links, drawn by us rather than by PDF.js's annotation layer, which wants a link service with a
 			// contract of its own; a `Link` annotation is a rectangle and a destination, and that is all a reader needs.
 			const found: typeof links = [];
+			const held: Embedded[] = [];
 			for (const a of await p.getAnnotations()) {
+				const said = (a.contentsObj?.str ?? '').trim();
+				if (a.subtype !== 'Link' && a.subtype !== 'Popup' && a.subtype !== 'Widget' && said && a.rect && !hide.includes(a.id)) {
+					const [ax, ay] = viewport.convertToViewportPoint(a.rect[0], a.rect[1]);
+					const [bx, by] = viewport.convertToViewportPoint(a.rect[2], a.rect[3]);
+					held.push({ id: a.id, subtype: a.subtype, body: said, by: a.titleObj?.str ?? '', rects: [[Math.min(ax, bx) / scale, Math.min(ay, by) / scale, Math.max(ax, bx) / scale, Math.max(ay, by) / scale]] });
+				}
 				if (a.subtype !== 'Link' || !Array.isArray(a.rect)) continue;
 				const r = a.rect as number[];
 				const [x0, y0] = viewport.convertToViewportPoint(r[0], r[1]);
@@ -171,6 +210,7 @@
 			}
 			if (stale()) return;
 			links = found;
+			embedded = held;
 			timed('open', t0, t1);
 			timed('render', t1, t2);
 			timed('text', t2, t3);
@@ -188,6 +228,7 @@
 		void url;
 		void page;
 		void scale;
+		void hidden;
 		const on = render && !!canvas && !!textLayer;
 		untrack(() => {
 			if (on) void draw();
@@ -215,6 +256,32 @@
 		if (!client.length) return;
 		const rects = client.map((r) => toPoints(r));
 		onselect?.({ page, text, rects, client: union(client) });
+	}
+
+	/** A click that selected nothing, asked what it landed on: a mark takes no pointer, so a press on a highlight can begin a selection like one on any other words. */
+	function clicked(e: MouseEvent): void {
+		if (tool !== 'select' || window.getSelection()?.toString().trim()) return;
+		const at = host.getBoundingClientRect();
+		const k = box.width / (size.width || 1);
+		landed((e.clientX - at.left) * k, (e.clientY - at.top) * k);
+	}
+
+	function landed(x: number, y: number): boolean {
+		const hit = markAt(marks, x, y);
+		if (hit) {
+			onpick?.({ id: hit.id });
+			return true;
+		}
+		const held = embedded.find((a) => a.rects.some((r) => x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3]));
+		if (held) {
+			const at = host.getBoundingClientRect();
+			const k = size.width / (box.width || 1);
+			const [x0, y0, x1, y1] = held.rects[0];
+			onembedded?.({ ...held, client: { left: at.left + x0 * k, top: at.top + y0 * k, width: (x1 - x0) * k, height: (y1 - y0) * k } });
+			return true;
+		}
+		onpick?.({ id: '' });
+		return false;
 	}
 
 	/** The box tool, or the modifier that reaches it without leaving the select tool. */
@@ -247,6 +314,11 @@
 		const top = Math.min(d.y0, d.y1) + at.top;
 		// a click without a drag leaves a point, which is the degenerate span
 		const rect = { left, top, width: Math.abs(d.x1 - d.x0), height: Math.abs(d.y1 - d.y0) };
+		// on a page with no words every press comes here, so a click on a mark is still a click on it
+		if (rect.width < 3 && rect.height < 3 && tool === 'select') {
+			const [x, y] = toPoints(rect);
+			if (landed(x, y)) return;
+		}
 		onbox?.({ page, rects: [toPoints(rect)], client: rect });
 	}
 
@@ -276,6 +348,7 @@
 			bind:this={textLayer}
 			style="--total-scale-factor: {scale};"
 			onmouseup={readSelection}
+			onclick={clicked}
 			onpointerdown={startBox}
 			onpointermove={moveBox}
 			onpointerup={endBox}
@@ -292,6 +365,7 @@
 				{/each}
 			</div>
 		{/if}
+		<PageMarks {marks} {box} {scale} {tool} {selected} {embedded} ondraw={(e) => ondraw?.({ ...e, page })} {onpick} {onmove} />
 		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
 		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once.
 		     An annotation's mark is one button per line of its span, classed as a mark in a fragment is (`annotation`,

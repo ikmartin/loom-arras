@@ -195,7 +195,7 @@ Each visual channel answers exactly one question, and no two channels answer the
 | hue | what kind of thing is said |
 | weight | how severe (objection and suggestion; the other kinds take the middle step) |
 | wash | which annotation's box is open, whatever its kind and severity, at one strength; at 3%, that it is settled |
-| shape | what it is attached to: an underline for a phrase, a rule for a display, a tint for a PDF span, an outline for a box |
+| shape | what it is attached to: an underline for a phrase, a rule for a display, a tint for a PDF span, an outline for a box; a mark on a PDF page, which has no kind, is the neutral in the shape it was drawn |
 
 ### A5. Opening an annotation never costs the text.
 

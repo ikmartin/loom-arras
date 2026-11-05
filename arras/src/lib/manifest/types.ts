@@ -56,9 +56,21 @@ export interface Note {
   rects?: number[][];
   /** When it was kept, so it never fades. */
   kept?: string;
-  /** Older than two weeks, not kept, and linked from nothing durable: hidden until asked for. */
+  /** How it is drawn on a PDF page: highlight, underline, strike, pin, ink, text, box, oval or arrow. A mark never fades. */
+  mark?: string;
+  /** A stroked mark's points, x, y, x, y… per stroke, in points from the page's top left. */
+  strokes?: number[][];
+  /** The hash of the PDF it was written on. */
+  artifact?: string;
+  /** Where a mark taken in from a PDF came from. */
+  origin?: { by?: string; subtype?: string; color?: number[]; ref?: string; sha?: string };
+  /** When it was erased; only a note still hiding an annotation in its file is published with this. */
+  erased?: string;
+  /** The reference of the annotation in the PDF that this note stands for, while the file is the one it was taken from: the viewer hides that annotation on the page. */
+  hides?: string;
+  /** Older than two weeks, not kept, not a mark, and linked from nothing durable: hidden until asked for. */
   faded: boolean;
-  /** Its quote is no longer in what it is on. */
+  /** Its quote is no longer in what it is on, or the PDF it was drawn on has changed and its words are not found again. */
   detached: boolean;
 }
 

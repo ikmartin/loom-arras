@@ -273,7 +273,12 @@ A note has no kind, severity or resolution: it says what someone wants kept besi
 | `--quote` | The words it quotes there. |
 | `--page` | The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work. |
 | `--box` `X,Y,W,H` | A region of the page or image, in points from its top left. |
+| `--mark` | Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades. |
+| `--stroke` `X,Y,X,Y,…` | A line of ink or an arrow, in points from the page's top left; repeat for more lines. |
 | `--keep` `ID` | Keep note ID, so it never fades. |
+| `--edit` `ID` | Say TEXT in note ID instead. An agent changes only its own. |
+| `--erase` `ID` | Erase note ID. The log keeps it. An agent erases only its own. |
+| `--restore` `ID` | Put erased note ID back. |
 | `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
 | `--as` | Who is writing. An agent names itself, including Agent or AI. |
 | `--json` | Print the report as one JSON object. |

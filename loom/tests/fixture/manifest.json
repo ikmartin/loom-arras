@@ -7635,6 +7635,32 @@
     "session": "s-2026-09-16-0001"
    },
    "when": "2026-09-16T11:30:00Z"
+  },
+  "n-2026-09-16-0004": {
+   "artifact": "4631633d64d450f0e82b56d66dd9a41efcc5919df13107656a81627aa0d13239",
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "the figure's corner",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-0004",
+   "mark": "box",
+   "page": 1,
+   "rects": [
+    [
+     4.0,
+     4.0,
+     24.0,
+     16.0
+    ]
+   ],
+   "session": "",
+   "target": {
+    "file": "drafting/figures/fig.pdf"
+   },
+   "when": "2026-09-16T11:30:00Z"
   }
  },
  "publisher": {

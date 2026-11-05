@@ -304,7 +304,7 @@ def _notes(root: Path, new: Any, out: Since) -> None:
     from loom.notes import load
 
     for n in load(root).values():
-        if n.author_kind == "agent" or not new(n.when, f"note:{n.id}"):
+        if n.author_kind == "agent" or n.erased or not new(n.when, f"note:{n.id}"):
             continue
         row = {**n.to_dict(), "link": f"[](quilt:{n.id})"}
         out.notes.append(row)

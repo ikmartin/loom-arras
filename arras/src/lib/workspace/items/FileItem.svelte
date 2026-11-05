@@ -4,7 +4,9 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import { dataUrl, filesUrl } from '$lib/paths';
-	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
+	import { MarkDesk } from '$lib/pdf/desk.svelte';
+	import MarkedDoc from '$lib/pdf/MarkedDoc.svelte';
+	import { mergeLines } from '$lib/pdf/marks';
 	import PdfTools from '$lib/pdf/PdfTools.svelte';
 	import { PdfView } from '$lib/pdf/view.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
@@ -12,13 +14,15 @@
 	import { can, write } from '$lib/write';
 	import type { Item } from '../item';
 	import { openOutside } from '../links';
+	import { paneOf } from '../state.svelte';
+	import { workspace } from '../store.svelte';
 	import { onlyTicks, ticksIn } from '../tasks';
 	import HtmlFrame from './HtmlFrame.svelte';
 
 	let { item }: { item: Item } = $props();
 
 	/** The suffixes the publisher opens in their application: documents only (`loom.files.OPENABLE`). */
-	const OPENABLE = new Set(['ipynb', 'csv', 'xlsx', 'xls', 'ods', 'docx', 'odt', 'pptx', 'key', 'numbers', 'pages', 'apkg', 'colpkg', 'mp4', 'mov', 'mp3', 'm4a', 'wav', 'epub', 'djvu']);
+	const OPENABLE = new Set(['pdf', 'ipynb', 'csv', 'xlsx', 'xls', 'ods', 'docx', 'odt', 'pptx', 'key', 'numbers', 'pages', 'apkg', 'colpkg', 'mp4', 'mov', 'mp3', 'm4a', 'wav', 'epub', 'djvu']);
 
 	const m = $derived(store.manifest!);
 	const file = $derived(m.files?.find((f) => f.path === item.id));
@@ -26,6 +30,13 @@
 	const suffix = $derived(name.includes('.') ? name.split('.').pop()!.toLowerCase() : '');
 	const pdfPage = $derived(Number(/^page=(\d+)$/.exec(item.anchor ?? '')?.[1] ?? 1));
 	const paper = new PdfView();
+	const desk = new MarkDesk(() => ({ on: item.id, owns: (n) => n.target.file === item.id, url: filesUrl(item.id), name }));
+	const holder = paneOf();
+	const hidesNotes = $derived(holder ? workspace.hidesNotes(holder.index) : false);
+	let canOpen = $state(false);
+	$effect(() => {
+		void can('open').then((yes) => (canOpen = yes));
+	});
 
 	let body = $state<string | null>(null);
 	let text = $state<string | null>(null);
@@ -169,7 +180,7 @@
 
 	type Box = { left: number; top: number; width: number; height: number };
 	/** What the chip offers to quote: words, or a region of a PDF page or the image, and where it stands. */
-	let offered = $state<{ text?: string; page?: number; rects?: number[][]; at: Box; range?: Range } | null>(null);
+	let offered = $state<{ text?: string; page?: number; rects?: number[][]; lines?: number[][]; at: Box; range?: Range } | null>(null);
 
 	/** Words selected in the drawn body or the text, offered once the mouse is up. */
 	function selected(): void {
@@ -211,14 +222,22 @@
 		const [x, y, w, h] = [Math.min(drag.x, drag.x2), Math.min(drag.y, drag.y2), Math.abs(drag.x2 - drag.x), Math.abs(drag.y2 - drag.y)];
 		if (w > 4 && h > 4) {
 			const k = img.naturalWidth / (b.width || 1);
-			offered = { rects: [[x * k, y * k, w * k, h * k].map((v) => Math.round(v * 10) / 10)], at: { left: b.left + x, top: b.top + y, width: w, height: h } };
+			offered = { rects: [[x * k, y * k, (x + w) * k, (y + h) * k].map((v) => Math.round(v * 10) / 10)], at: { left: b.left + x, top: b.top + y, width: w, height: h } };
 		} else drag = null;
 	}
 
 	function quoting(): Promise<string> {
 		const o = offered;
 		if (!o || !file) return Promise.resolve('');
-		return quote({ target: file.path, ...(o.page ? { page: o.page } : {}), ...(o.rects ? { rects: o.rects } : { quote: o.text }) });
+		return quote({ target: file.path, ...(o.page ? { page: o.page } : {}), ...(o.rects ? { rects: o.rects } : { quote: o.text, ...(o.lines ? { rects: o.lines } : {}) }) });
+	}
+
+	function highlight(): void {
+		const o = offered;
+		if (!o?.page || !o.lines || !o.text) return;
+		desk.markWords('highlight', { page: o.page, text: o.text, rects: o.lines });
+		offered = null;
+		window.getSelection()?.removeAllRanges();
 	}
 </script>
 
@@ -228,16 +247,22 @@
 	<HtmlFrame path={file.path} anchor={item.anchor ?? ''} seq={item.seq ?? 0} key={`file:${file.path}`} />
 {:else if file.kind === 'pdf'}
 	<div class="file-pdf" data-testid="file-item" data-kind="pdf">
-		<PdfTools view={paper} />
-		<PdfDoc
+		<PdfTools view={paper} markup />
+		<MarkedDoc
+			{desk}
+			view={paper}
 			url={filesUrl(file.path)}
+			{name}
+			dir={item.id.includes('/') ? item.id.slice(0, item.id.lastIndexOf('/')) : ''}
+			hidden={hidesNotes}
+			onoutside={canOpen ? () => void open().then(() => (desk.said = refused)) : undefined}
 			page={pdfPage}
 			seq={item.seq ?? 0}
-			view={paper}
+			focus={item.note ?? ''}
 			onselect={(e) => {
 				// the selection's range goes with the offer, so letting go of the words takes the chip with them
 				const sel = window.getSelection();
-				offered = { page: e.page, text: e.text, at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+				offered = { page: e.page, text: e.text, lines: mergeLines(e.rects), at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
 			}}
 			onbox={(e) => (offered = { page: e.page, rects: e.rects, at: e.client })}
 		/>
@@ -277,6 +302,7 @@
 		at={offered.at}
 		range={offered.range}
 		onquote={quoting}
+		onhighlight={desk.writes && offered.lines ? highlight : undefined}
 		ondone={() => {
 			offered = null;
 			drag = null;

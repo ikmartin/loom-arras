@@ -21,8 +21,11 @@
 	import type { Reference } from '$lib/manifest/types';
 	import type { WorkLink } from '$lib/worklink';
 	import { write, type WriteResult } from '$lib/write';
-	import PdfDoc from './PdfDoc.svelte';
+	import { MarkDesk } from './desk.svelte';
+	import MarkedDoc from './MarkedDoc.svelte';
+	import { mergeLines } from './marks';
 	import type { PdfView } from './view.svelte';
+	import type { Outgoing } from './portable';
 	import NoteAt from './NoteAt.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
 	import { quote } from '$lib/notes';
@@ -53,6 +56,21 @@
 	} = $props();
 
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
+	const desk = new MarkDesk(() => ({ on: citekey, owns: (n) => n.target.citekey === citekey, url, name: `${citekey}.pdf`, extras: annotationsToSave }));
+
+	/** A hue for each kind, as theme.css draws them in the light: an annotation in a saved copy says what kind of thing it is by the same colour. */
+	const HUES: Record<string, number[]> = { objection: [163, 45, 45], suggestion: [160, 122, 10], question: [24, 95, 165], citation: [107, 63, 160], note: [111, 109, 102] };
+
+	/** The open annotations on this work's pages, as a saved copy holds them. */
+	function annotationsToSave(): Outgoing[] {
+		const out: Outgoing[] = [];
+		for (const a of notes) {
+			const rects = spans?.marks?.[a.id];
+			if (!rects?.length || a.status !== 'open') continue;
+			out.push({ page: a.target.page ?? 0, kind: 'highlight', rects, body: `${a.kind}${a.severity ? ` (${a.severity})` : ''}: ${new DOMParser().parseFromString(a.body_html, 'text/html').body.textContent?.trim() ?? ''}`, by: a.author?.id ?? '', color: HUES[a.kind] ?? HUES.note });
+		}
+		return out;
+	}
 
 	$effect(() => {
 		const drop = () => {
@@ -70,7 +88,7 @@
 	 *
 	 * **Selecting text is not a request to annotate it.** The composer used to open on every mouse-up, which meant the ordinary thing a reader does with a paper — highlight a phrase and copy it — was impossible without a form appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the box tool has no such ambiguity and still opens the composer directly.
 	 */
-	let offered = $state<{ page: number; text: string; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
+	let offered = $state<{ page: number; text: string; lines: number[][]; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
 	onDestroy(clearPending);
 	/** The composer closed, written or not: the place it was lit for goes out. */
 	const done = () => {
@@ -272,18 +290,21 @@
 <section class="reading" data-testid="reading">
 	{#if url}
 		<div class="paper" class:show-settled={ui.showSettled} bind:this={pane}>
-			<PdfDoc
+			<MarkedDoc
+				{desk}
+				{view}
 				{url}
+				name="{citekey}.pdf"
+				hidden={hide}
 				page={opening.page}
 				share={opening.share}
 				seq={opening.seq}
-				{view}
 				spans={drawn}
 				focus={focusOn}
 				lands={!spent}
 				onselect={(e) => {
 					const sel = window.getSelection();
-					offered = { page: e.page, text: e.text, at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+					offered = { page: e.page, text: e.text, lines: mergeLines(e.rects), at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
 					here.selection = { item: `work:${citekey}`, page: e.page, text: e.text, rects: e.rects };
 				}}
 				onbox={(e) => {
@@ -316,7 +337,15 @@
 				noting = { page: offered.page, text: offered.text, at: offered.at };
 				offered = null;
 			}}
-			onquote={() => (offered ? quote({ target: citekey, page: offered.page, quote: offered.text }) : Promise.resolve(''))}
+			onquote={() => (offered ? quote({ target: citekey, page: offered.page, quote: offered.text, rects: offered.lines }) : Promise.resolve(''))}
+			onhighlight={desk.writes
+				? () => {
+						if (!offered) return;
+						desk.markWords('highlight', { page: offered.page, text: offered.text, rects: offered.lines });
+						offered = null;
+						window.getSelection()?.removeAllRanges();
+					}
+				: undefined}
 			ondone={() => {
 				offered = null;
 				window.getSelection()?.removeAllRanges();
@@ -352,7 +381,7 @@
 		min-height: 0;
 		display: flex;
 	}
-	.paper > :global(.doc) {
+	.paper > :global(.marked) {
 		flex: 1 1 auto;
 		min-width: 0;
 	}

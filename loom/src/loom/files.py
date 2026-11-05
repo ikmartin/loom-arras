@@ -49,6 +49,7 @@ DRAWN = frozenset({"markdown", "notebook"})
 #: What `loom serve` opens in its application on the person's click: documents only, never a file that runs code.
 OPENABLE = frozenset(
     {
+        ".pdf",
         ".ipynb",
         ".csv",
         ".xlsx",
