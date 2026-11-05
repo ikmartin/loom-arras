@@ -1238,12 +1238,35 @@
      "description": "A region of the page or image, in points from its top left.",
      "type": "string"
     },
+    "edit": {
+     "description": "Say TEXT in note ID instead. An agent changes only its own.",
+     "type": "string"
+    },
+    "erase": {
+     "description": "Erase note ID. The log keeps it. An agent erases only its own.",
+     "type": "string"
+    },
     "json": {
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
     "keep": {
      "description": "Keep note ID, so it never fades.",
+     "type": "string"
+    },
+    "mark": {
+     "description": "Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades.",
+     "enum": [
+      "highlight",
+      "underline",
+      "strike",
+      "pin",
+      "ink",
+      "text",
+      "box",
+      "oval",
+      "arrow"
+     ],
      "type": "string"
     },
     "on": {
@@ -1258,9 +1281,20 @@
      "description": "The words it quotes there.",
      "type": "string"
     },
+    "restore": {
+     "description": "Put erased note ID back.",
+     "type": "string"
+    },
     "session": {
      "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
      "type": "string"
+    },
+    "stroke": {
+     "description": "A line of ink or an arrow, in points from the page's top left; repeat for more lines.",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
     },
     "text": {
      "type": "string"
