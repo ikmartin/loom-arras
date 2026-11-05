@@ -235,9 +235,7 @@
 {/if}
 
 <style>
-	/* The transcript takes the pane's whole width, its margin growing a little with the pane. Not `--measure`, which is the paper's text block (33rem in the paper formats) and leaves a wide pane mostly blank. */
 	.chat {
-		--chat-margin: clamp(var(--gap-wide), 4%, 3rem);
 		display: flex;
 		flex-direction: column;
 		height: 100%;
@@ -247,14 +245,16 @@
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow: auto;
-		padding: var(--gap) var(--chat-margin);
+		padding: var(--gap) var(--gap-wide);
 	}
 	.top {
 		height: 1px;
 	}
+	/* The transcript reads as Markdown does: at the reader's Width, centred in a wide pane, with the pane's whole width still scrolling it. */
 	.messages {
 		list-style: none;
-		margin-block: 0;
+		max-width: var(--prose-measure);
+		margin: 0 auto;
 		padding: 0;
 	}
 	/* a note quoted into the session: quieter than a message, in the annotation neutral */

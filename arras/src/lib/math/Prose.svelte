@@ -44,6 +44,10 @@
 <div class={klass} bind:this={el}>{@html html}</div>
 
 <style>
+	/* A line stops at the reader's Width however wide the pane is; a page of its own centres the column. */
+	div {
+		max-width: var(--prose-measure);
+	}
 	/* A table an author or an agent writes in Markdown (a comparison, a list of citations against the draft) — ruled like the viewer's own tables, and scrolled within itself rather than widening the column when it is wider than the prose. */
 	div :global(table) {
 		display: block;

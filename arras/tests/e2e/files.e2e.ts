@@ -1,6 +1,6 @@
 // The project's files (plan 0.22.7): Docs is the project's tree, a directory folding as an explorer's does and remembered so; a Markdown file and a notebook are drawn as the publisher drew them, at the heading a link names; a `.tex` part opens the document that reads it, at its place; an `app:` link asks a publisher, and with none it says so and goes nowhere.
 import { expect, test } from '@playwright/test';
-import { pane, settings } from '../workspace';
+import { pane, prefs, settings } from '../workspace';
 
 test('Docs is the tree of the project: a directory folds, and stays as it was left', async ({ page }) => {
 	await page.goto('/master/drafting/main');
@@ -34,6 +34,37 @@ test('a Markdown file is drawn, opened at the heading a link names, and its link
 	await file.getByRole('link', { name: 'the paper' }).click();
 	await expect(page.getByTestId('pane-1').getByTestId('item-tab').first()).toContainText('main.tex');
 	await expect(page).toHaveURL(/\/file\/notes\/intro\.md/);
+});
+
+test('Markdown wraps at the line width in a wide window, centred, whatever the format, and fills a narrower pane', async ({ page }) => {
+	await page.setViewportSize({ width: 2000, height: 900 });
+	const file = pane(page, 0).getByTestId('file-item');
+	const body = file.locator('.file-body');
+	// the default format is a paper's, whose text block is narrower than any of these: Width alone decides
+	for (const [width, rems] of [['narrow', 40], ['mid', 48], ['wide', 56]] as const) {
+		await prefs(page, { width });
+		await page.goto('/file/notes/intro.md');
+		await expect(body.locator('h1')).toBeVisible();
+		const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+		const [at, around] = [(await body.boundingBox())!, (await file.boundingBox())!];
+		expect(at.width).toBeCloseTo(rems * rem, 0);
+		expect(Math.abs(at.x - around.x - (around.x + around.width - at.x - at.width))).toBeLessThanOrEqual(4);
+	}
+	// a pane narrower than the line is simply filled, up to its padding
+	await page.setViewportSize({ width: 600, height: 900 });
+	await expect.poll(async () => (await file.boundingBox())!.width - (await body.boundingBox())!.width).toBeLessThanOrEqual(52);
+});
+
+test('the research state keeps the same line, the line saying who wrote it standing over the text', async ({ page }) => {
+	await page.setViewportSize({ width: 2000, height: 900 });
+	await page.goto('/page/state');
+	const state = page.getByTestId('research-state');
+	const body = state.locator('.body');
+	await expect(body).toBeVisible();
+	const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+	const [at, meta] = [(await body.boundingBox())!, (await state.getByTestId('page-meta').boundingBox())!];
+	expect(at.width).toBeCloseTo(48 * rem, 0);
+	expect(meta.x).toBeCloseTo(at.x, 0);
 });
 
 test('a notebook is drawn read-only from its saved cells, an HTML output by its plain form', async ({ page }) => {
