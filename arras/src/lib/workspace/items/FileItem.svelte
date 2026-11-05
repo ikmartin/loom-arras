@@ -164,7 +164,7 @@
 			{name}
 			dir={item.id.includes('/') ? item.id.slice(0, item.id.lastIndexOf('/')) : ''}
 			hidden={hidesNotes}
-			onoutside={canOpen ? open : undefined}
+			onoutside={canOpen ? () => void open().then(() => (desk.said = refused)) : undefined}
 			page={pdfPage}
 			seq={item.seq ?? 0}
 			focus={item.note ?? ''}

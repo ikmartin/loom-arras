@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Page edits (plan 0.27): turn, delete, reorder and insert pages, into a new file. Nothing here touches the PDF being read (P7): the result is saved beside it under a name the person gives, or handed to the browser, and marks go into it as a saved copy's do. Editing a page's own text is for its application.
 	import type { PDFDocumentProxy } from 'pdfjs-dist';
-	import { onMount, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Popover from '$lib/components/Popover.svelte';
 	import { store } from '$lib/manifest/client.svelte';
@@ -55,6 +55,11 @@
 			docs = [d];
 			rows = pagesOf(0, d.numPages);
 		});
+	});
+
+	// the PDFs inserted were opened here; the one being read is shared with its pane
+	onDestroy(() => {
+		for (const d of docs.slice(1)) void d.loadingTask.destroy();
 	});
 
 	function pick(key: number, e: MouseEvent): void {

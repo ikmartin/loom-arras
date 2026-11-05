@@ -209,6 +209,8 @@ def test_loom_opens_an_application_or_a_document_and_never_a_file_that_runs_code
     assert open_command(shown, app="Anki", platform="linux") == ["gtk-launch", "Anki"]
     assert open_command(shown, file="deck.apkg", platform="darwin") == ["open", str((q / "deck.apkg").resolve())]
     assert open_command(shown, file="deck.apkg", platform="linux")[0] == "xdg-open"
+    put(q, "paper.pdf", b"%PDF-1.4")
+    assert open_command(shown, file="paper.pdf", platform="darwin") == ["open", str((q / "paper.pdf").resolve())]
     for kwargs, code in [
         ({"app": "-a Terminal"}, "bad-app"),
         ({"app": "../Evil"}, "bad-app"),
