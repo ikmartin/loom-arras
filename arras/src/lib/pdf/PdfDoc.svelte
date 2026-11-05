@@ -20,9 +20,11 @@
 	let {
 		url,
 		page = 1,
+		share = 0,
 		seq = 0,
 		spans = [],
 		focus = '',
+		lands = true,
 		scale,
 		window: near = 2,
 		view,
@@ -30,17 +32,22 @@
 		onbox,
 		onmark,
 		onpage,
-		onlink
+		onlink,
+		onmoved
 	}: {
 		url: string;
 		/** The page to open at; changing it scrolls there. */
 		page?: number;
+		/** How far down `page` to open, as a share of its height. */
+		share?: number;
 		/** Changed each time the reader is sent to `page` or `focus`, so being sent to the place already shown lands there again. */
 		seq?: number;
 		/** What to draw, by page: a work's results, and the annotations on its pages, which carry their kind, severity, basis and whether they are settled, and are marked `note`. */
 		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
+		/** Whether `focus` is scrolled to; false shows it as the one looked at and leaves the reader where they are. */
+		lands?: boolean;
 		/** Overrides the reader's own zoom, for a pane whose size is not theirs to choose (the proposal box). */
 		scale?: number;
 		/** How many pages either side of the one in view are drawn. */
@@ -54,6 +61,8 @@
 		onpage?: (e: { page: number }) => void;
 		/** A link inside the paper was followed to another of its pages; the document scrolls there and says so. */
 		onlink?: (e: { page: number }) => void;
+		/** The reader moved the paper by their own hand, as opposed to its being sent somewhere; `away` once the page it was last sent to has left the view. */
+		onmoved?: (e: { away: boolean }) => void;
 	} = $props();
 
 	// The renderer's own view, used when no caller supplied one; `v` is the one in force either way.
@@ -118,7 +127,7 @@
 		void drawAt;
 		void columnWidth;
 		void count;
-		if (!focus && !workspace.resizing) requestAnimationFrame(toText);
+		if ((!focus || !lands) && !workspace.resizing) requestAnimationFrame(toText);
 	});
 	// The controls read the scale actually drawn, which is the fitted one while fit-width holds.
 	$effect(() => {
@@ -154,13 +163,15 @@
 	$effect(() => {
 		v.page = at;
 	});
-	// A control asking for a page, by nonce so that asking for the one already shown still scrolls to it.
+	// A control asking for a page, taken off the view as it is answered.
 	$effect(() => {
 		const want = v.jump;
 		if (!want || !column || !count) return;
 		const n = Math.min(Math.max(want.page, 1), count);
 		const target = column.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
+		v.jump = null;
+		moving = 'hand';
 		here = n;
 		keep = { page: n, share: 0 };
 		toPage(target, 'smooth');
@@ -171,7 +182,15 @@
 		let dropped = false;
 		document_(url)
 			.then((doc) => {
-				if (!dropped) count = doc.numPages;
+				if (dropped) return;
+				v.file = { id: doc.fingerprints[0] ?? '', pages: doc.numPages };
+				count = doc.numPages;
+				// a paper opened far into itself never draws its first page, whose size every page not yet drawn stands on
+				void doc.getPage(1).then((first) => {
+					if (dropped || sizes[1]) return;
+					const box = first.getViewport({ scale: 1 });
+					sizes = { ...sizes, 1: { width: box.width, height: box.height } };
+				}, () => {});
 			})
 			.catch((exc) => {
 				problem = exc instanceof Error ? exc.message : String(exc);
@@ -185,15 +204,18 @@
 	// fight the reader for the scrollbar.
 	$effect(() => {
 		const want = page;
+		const down = share;
 		void seq;
 		if (!column || !count) return;
 		const n = Math.min(Math.max(want, 1), count);
-		const target = column.querySelector(`[data-holder="${n}"]`);
+		const target = column.querySelector<HTMLElement>(`[data-holder="${n}"]`);
 		if (target) {
 			// `n`, not `here`: reading what the scroll handler writes would land again at every scroll
 			here = n;
-			toPage(target);
-			keep = { page: n, share: 0, top: column.scrollTop };
+			sentTo = n;
+			moving = 'told';
+			keep = { page: n, share: down };
+			putBack(target);
 		}
 	});
 
@@ -204,12 +226,33 @@
 		void sizes;
 		const holder = keep && column?.querySelector<HTMLElement>(`[data-holder="${keep.page}"]`);
 		if (!column || !keep || !holder) return;
-		// moved since it was kept, and not by the browser holding the offset inside a column grown shorter: the reader scrolled, and their place is the one to keep
+		// moved since it was kept, and not by the browser holding the offset inside a column grown shorter: the reader scrolled, and their place is the one to keep. A place the paper was told stands until a hand or a landing moves it, and is the one to put back whatever the browser's scroll anchoring made of pages growing above it, which leaves the offset into a page and not the share of it.
 		const end = column.scrollHeight - column.clientHeight;
-		if (keep.top !== undefined && column.scrollTop !== keep.top && !(keep.top > end && column.scrollTop >= end - 1)) return;
+		if (moving !== 'told' && keep.top !== undefined && column.scrollTop !== keep.top && !(keep.top > end && column.scrollTop >= end - 1)) return;
+		putBack(holder);
+	});
+
+	/** Put the column where `keep` says, on `holder`, its page, as that page is laid out now. */
+	function putBack(holder: HTMLElement): void {
+		if (!column || !keep) return;
 		const next = holder.nextElementSibling as HTMLElement | null;
 		column.scrollTop = holder.offsetTop + keep.share * ((next?.offsetTop ?? column.scrollHeight) - holder.offsetTop);
 		keep = { ...keep, top: column.scrollTop };
+	}
+
+	/** What last set the paper moving: told a place, landing on a mark, or the reader's own hand, by a gesture or by asking for a page; a scroll that follows the hand is theirs. */
+	let moving: 'told' | 'landing' | 'hand' = 'told';
+	/** The page the paper was last sent to, which the reader has left once it is out of view. */
+	let sentTo = 0;
+	$effect(() => {
+		const el = column;
+		if (!el) return;
+		const mine = () => (moving = 'hand');
+		const gestures = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const;
+		for (const e of gestures) el.addEventListener(e, mine, { passive: true });
+		return () => {
+			for (const e of gestures) el.removeEventListener(e, mine);
+		};
 	});
 
 	$effect(() => {
@@ -222,10 +265,12 @@
 		// sent there again: land again
 		void seq;
 		// a moving divider changes the width every frame; land once it is put down
-		if (!id || !column || workspace.resizing) return;
+		if (!id || !lands || !column || workspace.resizing) return;
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
+		sentTo = at.page;
+		moving = 'landing';
 		landed = '';
 		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and fell back to the top of the page every time. Wait for the mark, then give up on the page.
 		let tries = 0;
@@ -266,6 +311,7 @@
 	function goTo(n: number): void {
 		const target = column?.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
+		moving = 'hand';
 		here = n;
 		keep = { page: n, share: 0 };
 		toPage(target, 'smooth');
@@ -288,7 +334,8 @@
 
 	/** The page the reader is on: the last whose holder starts above the column's middle. */
 	function follow(): void {
-		if (!column) return;
+		// a column with no height is one not on screen, and what it reads is not where the reader is
+		if (!column?.clientHeight) return;
 		tops ??= [...column.querySelectorAll<HTMLElement>('[data-holder]')].map((h) => h.offsetTop);
 		const middle = column.scrollTop + column.clientHeight / 2;
 		let lo = 0;
@@ -307,7 +354,12 @@
 		let at = 0;
 		while (at + 1 < tops.length && tops[at + 1] <= top) at++;
 		const height = (tops[at + 1] ?? column.scrollHeight) - tops[at];
-		if (tops.length) keep = { page: at + 1, share: height > 0 ? Math.max(0, (top - tops[at]) / height) : 0, top };
+		if (tops.length) {
+			const moved = moving === 'hand' && top !== keep?.top;
+			keep = { page: at + 1, share: height > 0 ? Math.max(0, (top - tops[at]) / height) : 0, top };
+			v.place = { page: keep.page, share: keep.share };
+			if (moved) onmoved?.({ away: !!sentTo && ((tops[sentTo] ?? column.scrollHeight) <= top || tops[sentTo - 1] >= top + column.clientHeight) });
+		}
 		if (best !== here) {
 			here = best;
 			onpage?.({ page: best });

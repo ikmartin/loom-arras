@@ -18,8 +18,9 @@
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
 	import { resultPlace, type WorkLink } from '$lib/worklink';
-	import type { Item } from '../item';
+	import { itemKey, type Item } from '../item';
 	import { workState } from '../state.svelte';
+	import { workspace } from '../store.svelte';
 	import { currentView, workViews } from '../views';
 
 	let { item }: { item: Item } = $props();
@@ -62,7 +63,9 @@
 			.filter(Boolean)
 			.join(', ');
 	});
-	/** The page to open at: whatever the item's place names, the page of the result it names, else the first. A paper always opens somewhere. */
+	/** Whether a link names a place on this work's pages; an empty one, as a `cited:` link with no keys gives, names none. */
+	const named = $derived(Object.keys(item.place ?? {}).length > 0);
+	/** The page a link sends the paper to: whatever the item's place names, the page of the result it names, else the first. With no place named it opens where the reader last was (`Reading`). */
 	const reading = $derived(item.place?.page || (item.place?.result ? resultPlace(m, item.place.result)?.page : undefined) || 1);
 	// The place the item points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
 	const locator = $derived<WorkLink | null>(ref?.work ? { id: ref.work, ...(item.place ?? {}) } : null);
@@ -116,7 +119,7 @@
 	<div class="page item work" class:reading={tab === 'paper'}>
 		{#if tab === 'paper'}
 			<div class="reader" data-testid="reader">
-				<Reading {citekey} {ref} page={reading} seq={item.place ? item.seq : 0} {locator} view={pdf} />
+				<Reading {citekey} {ref} page={reading} seq={named ? (item.seq ?? 0) : 0} {locator} view={pdf} onleft={() => workspace.update(itemKey(item), { place: undefined })} />
 			</div>
 		{:else}
 			<div class="prose info" data-testid="work-info">

@@ -76,8 +76,14 @@ test.describe('a citation', () => {
 		await expect(pane(page, 1).getByTestId(`mark-${RESULT}`)).toBeInViewport();
 	});
 
-	test('with no result behind it opens the page its postnote names, or the front where it names none', async ({ page }) => {
+	test('with no result behind it opens the page its postnote names, or the work as a plain link opens it where it names none', async ({ page }) => {
 		await filed(page);
+		// `\cite[Lemma 9]{Kre99}` names no page and no result the digest holds, so it is a plain link to the work: at its front, for a work never read
+		const lemma = () => pane(page, 0).locator('span.cite[data-postnote="Lemma 9"] a').first();
+		await page.goto('/node/sy-0100');
+		await expect(lemma()).toHaveAttribute('href', '/library/Kre99');
+		await lemma().click();
+		await onPage(page, 1, 1);
 		// a digest result's own heading cites its work at the page, `[Kre99, Theorem 2.1, p. 4]`, and names no result
 		await page.goto('/node/' + RESULT);
 		const heading = pane(page, 0).locator('span.cite[data-postnote="Theorem 2.1, p.~4"] a').first();
@@ -85,12 +91,10 @@ test.describe('a citation', () => {
 		expect(await hovered(page, heading)).toBe(4);
 		await heading.click();
 		await onPage(page, 1, 4);
-		// `\cite[Lemma 9]{Kre99}` names no page and no result the digest holds: the work, at its front, as a bare citation opens it
+		// and the plain link then opens where that left the reader
 		await page.goto('/node/sy-0100');
-		const lemma = pane(page, 0).locator('span.cite[data-postnote="Lemma 9"] a').first();
-		await expect(lemma).toHaveAttribute('href', '/library/Kre99');
-		await lemma.click();
-		await onPage(page, 1, 1);
+		await lemma().click();
+		await onPage(page, 1, 4);
 	});
 });
 

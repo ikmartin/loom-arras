@@ -624,3 +624,321 @@ readOnly("a paper's page in view is what loom here reports, at the address loom 
 	await expect.poll(() => looking().item?.page).toBe(2);
 	expect(looking().item.link).toMatch(/^cited:.+\?page=2$/);
 });
+
+// Where a work opens: where the reader last was, unless a link names a place. These write nothing to the quilt, only to this browser, so each runs on its worker's copy in a browser of its own.
+const BELLAMY = '/library/Bellamy19';
+const SECOND = '/library/Arden24A';
+const QUOTE = 'The median orders of a weighted digraph are in bijection with the vertices';
+
+/** A work's file in the served copy, by what its manifest says. */
+function fileOf(served: Served, citekey: string): Buffer {
+	const ref = JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).references[citekey];
+	return readFileSync(join(served.root, '.loom', ref.artifacts.dir, 'paper.pdf'));
+}
+
+/** The paper's scrolling column in a pane. */
+const paperIn = (page: Page, pane: number) => page.locator(`[data-pane="${pane}"] .column`);
+
+type At = { page: number; share: number };
+
+/** Where a pane's paper stands, read off the column itself: the page at its top, and how far down that page. */
+async function placeIn(page: Page, pane = 0): Promise<At> {
+	return paperIn(page, pane).evaluate((c) => {
+		const tops = [...c.querySelectorAll<HTMLElement>('[data-holder]')].map((h) => h.offsetTop);
+		let at = 0;
+		while (at + 1 < tops.length && tops[at + 1] <= c.scrollTop) at++;
+		return { page: at + 1, share: Math.max(0, (c.scrollTop - tops[at]) / ((tops[at + 1] ?? c.scrollHeight) - tops[at])) };
+	});
+}
+
+const said = (at: At) => `page ${at.page}, ${at.share.toFixed(3)} down`;
+
+/** Wait until a pane's paper stands at `want`, to within `within` of a page: a hundredth is about eleven pixels at the default zoom. */
+async function isAt(page: Page, want: At, { pane = 0, within = 0.01 } = {}): Promise<void> {
+	await expect
+		.poll(async () => {
+			const at = await placeIn(page, pane);
+			return at.page === want.page && Math.abs(at.share - want.share) <= within ? said(want) : said(at);
+		})
+		.toBe(said(want));
+}
+
+/** As `isAt`, and still there a moment later: what undoes a place arrives after it has been reached, a drawn page or a landing's scroll. */
+async function staysAt(page: Page, want: At, { pane = 0, within = 0.01 } = {}): Promise<void> {
+	await isAt(page, want, { pane, within });
+	await paperIn(page, pane).locator(`[data-holder="${want.page}"] canvas`).waitFor();
+	await page.waitForTimeout(800);
+	await isAt(page, want, { pane, within });
+}
+
+/** Scroll a pane's paper to `want` as a reader does, with the wheel: only a hand on the paper moves it off a link's place. */
+async function readTo(page: Page, want: At, pane = 0): Promise<void> {
+	const paper = paperIn(page, pane);
+	await paper.locator(`[data-holder="${want.page}"]`).waitFor({ state: 'attached' });
+	const box = (await paper.boundingBox())!;
+	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+	await expect
+		.poll(
+			async () => {
+				const away = await paper.evaluate((c, to) => {
+					const holder = c.querySelector<HTMLElement>(`[data-holder="${to.page}"]`)!;
+					const next = holder.nextElementSibling as HTMLElement | null;
+					return Math.round(holder.offsetTop + to.share * ((next?.offsetTop ?? c.scrollHeight) - holder.offsetTop) - c.scrollTop);
+				}, want);
+				if (Math.abs(away) <= 4) return 'there';
+				await page.mouse.wheel(0, away);
+				return `${away}px away`;
+			},
+			{ intervals: [300] }
+		)
+		.toBe('there');
+}
+
+/** Open a work from the column's Library, as a reader chooses what to read. A work and its revision are one row, so a row is named by how its key begins. */
+async function fromShelf(page: Page, citekey: string): Promise<void> {
+	const row = page.locator(`a[data-testid^="library-work-${citekey}"]`);
+	if (!(await row.isVisible())) await page.getByTestId('library-toggle').click();
+	await row.click();
+}
+
+/** Leave for the work's Info and come back, which makes the paper again. */
+async function toInfoAndBack(page: Page): Promise<void> {
+	await page.getByTestId('tab-info').click();
+	await page.getByTestId('work-info').waitFor();
+	await page.getByTestId('tab-paper').click();
+}
+
+/** A PDF of `n` pages saying their numbers, the first small and the rest A4, as nothing in the showcase is: long enough that most of it is never drawn, and not one size throughout. */
+function longPdf(n: number): Buffer {
+	const bodies = ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Count ${n} /Kids [${Array.from({ length: n }, (_, i) => `${4 + 2 * i} 0 R`).join(' ')}] >>`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+	for (let i = 0; i < n; i++) {
+		const text = `BT /F1 24 Tf 72 400 Td (Page ${i + 1}) Tj ET`;
+		bodies.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${i ? '595 842' : '400 600'}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + 2 * i} 0 R >>`);
+		bodies.push(`<< /Length ${text.length} >>\nstream\n${text}\nendstream`);
+	}
+	let out = '%PDF-1.4\n';
+	const offsets = bodies.map((b, i) => {
+		const at = out.length;
+		out += `${i + 1} 0 obj\n${b}\nendobj\n`;
+		return at;
+	});
+	const xref = out.length;
+	out += `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+	out += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+	return Buffer.from(out, 'latin1');
+}
+
+readOnly('a work opens where the reader left it: after a reload, by a plain link, from the shelf and from the library’s page', async ({ page }) => {
+	const left = { page: 2, share: 0.4 };
+	await page.goto(BELLAMY);
+	await readTo(page, left);
+	await page.reload();
+	await staysAt(page, left);
+	// a new visit, by a plain link
+	await page.goto('/review');
+	await page.goto(BELLAMY);
+	await staysAt(page, left);
+	// from the shelf, with something else being read
+	await page.goto(SECOND);
+	await fromShelf(page, 'Bellamy19');
+	await staysAt(page, left);
+	// from the library's own page
+	await page.goto('/review/library');
+	await page.getByTestId('ledger-Bellamy19').locator('a.title').click();
+	await staysAt(page, left);
+});
+
+readOnly('a link that names a place wins over where the reader last was, and is where they are from then on', async ({ page }) => {
+	const left = { page: 3, share: 0.2 };
+	await page.goto(BELLAMY);
+	await readTo(page, left);
+	// a page
+	await page.goto(`${BELLAMY}?page=2`);
+	await staysAt(page, { page: 2, share: 0 });
+	// and the visit has moved where the reader last was
+	await page.goto(BELLAMY);
+	await staysAt(page, { page: 2, share: 0 });
+	// a quote with no page, which the paper only learns is on page 2 from loom's answer
+	await readTo(page, left);
+	await page.goto(`${BELLAMY}?quote=${encodeURIComponent(QUOTE)}`);
+	const lit = page.locator('[data-mark="_locator"]').first();
+	await expect(lit).toBeInViewport();
+	await expect(page.getByTestId('page-at')).toHaveValue('2');
+	await page.waitForTimeout(800);
+	await expect(lit).toBeInViewport();
+	// a result, by its address and by a citation of it
+	await page.goto(SECOND);
+	await readTo(page, { page: 1, share: 0.5 });
+	await page.goto(`${SECOND}?page=3&result=Arden24A-thm-5.1`);
+	const mark = page.locator('[data-mark="Arden24A-thm-5.1"]').first();
+	await expect(mark).toBeInViewport();
+	await page.waitForTimeout(800);
+	await expect(mark).toBeInViewport();
+	await expect(page.getByTestId('page-at')).toHaveValue('3');
+	await readTo(page, { page: 1, share: 0.5 });
+	await page.goto('/node/sh-0100');
+	await page.locator('[data-pane="0"] span.cite[data-target="Arden24A-thm-5.1"] a').first().click();
+	await expect(page.locator('[data-pane="1"] [data-mark="Arden24A-thm-5.1"]').first()).toBeInViewport();
+	await expect(page.getByTestId('pane-1').getByTestId('page-at')).toHaveValue('3');
+});
+
+readOnly('a work never read opens at its start, whatever was read before it', async ({ page }) => {
+	await page.goto(BELLAMY);
+	await staysAt(page, { page: 1, share: 0 });
+	await readTo(page, { page: 2, share: 0.4 });
+	await page.goto(SECOND);
+	await staysAt(page, { page: 1, share: 0 });
+});
+
+readOnly('two works keep a place each', async ({ page }) => {
+	const first = { page: 3, share: 0.2 };
+	const second = { page: 2, share: 0.4 };
+	await page.goto(BELLAMY);
+	await readTo(page, first);
+	await page.goto(SECOND);
+	await readTo(page, second);
+	await page.reload();
+	await staysAt(page, second);
+	await fromShelf(page, 'Bellamy19');
+	await staysAt(page, first);
+	await page.getByRole('tab', { name: 'Arden24A' }).click();
+	await staysAt(page, second);
+});
+
+readOnly('a work is open in one pane of a window, and a second window on it leaves the first where it is', async ({ page, context }) => {
+	await page.goto(`${BELLAMY}?beside=${encodeURIComponent(BELLAMY)}`);
+	await expect(page.locator('[data-pane]')).toHaveCount(1);
+	await page.goto(BELLAMY);
+	const mine = { page: 2, share: 0.4 };
+	await readTo(page, mine);
+	// a second window opens where the first was, and goes its own way
+	const other = await context.newPage();
+	await other.goto(BELLAMY);
+	await staysAt(other, mine);
+	const theirs = { page: 3, share: 0.2 };
+	await readTo(other, theirs);
+	await staysAt(page, mine);
+	// not even a paper made again takes the other window's place: what this window was doing is in the tab
+	await toInfoAndBack(page);
+	await staysAt(page, mine);
+	await staysAt(other, theirs);
+	// whichever moved last is what the next visit opens at
+	await readTo(page, { page: 1, share: 0.5 });
+	await page.waitForTimeout(400);
+	const third = await context.newPage();
+	await third.goto(BELLAMY);
+	await staysAt(third, { page: 1, share: 0.5 });
+});
+
+readOnly('a tab brought back and a paper back from Info are where they were left', async ({ page }) => {
+	const left = { page: 2, share: 0.4 };
+	await page.goto(BELLAMY);
+	await readTo(page, left);
+	await fromShelf(page, 'Arden24');
+	await staysAt(page, { page: 1, share: 0 });
+	await page.getByRole('tab', { name: 'Bellamy19' }).click();
+	await staysAt(page, left);
+	await toInfoAndBack(page);
+	await staysAt(page, left);
+	// a page asked for in the box is answered once, not again by a paper made later
+	const at = page.getByTestId('page-at');
+	await at.click();
+	await page.keyboard.type('3');
+	await page.keyboard.press('Enter');
+	await expect(at).toHaveValue('3');
+	await readTo(page, left);
+	await toInfoAndBack(page);
+	await staysAt(page, left);
+});
+
+readOnly('a link’s place holds until the reader has left its page: then it comes off the address, and a reload stays with them', async ({ page }) => {
+	await page.goto(`${BELLAMY}?quote=${encodeURIComponent(QUOTE)}`);
+	const lit = page.locator('[data-mark="_locator"]').first();
+	await expect(lit).toBeInViewport();
+	await expect(page).toHaveURL(/quote=/);
+	// moved within its page, the link is still in force and still lit, and a paper made again does not send the reader back to its place
+	const within = { page: 2, share: 0.4 };
+	await readTo(page, within);
+	await expect(page).toHaveURL(/quote=/);
+	await expect(lit).toBeAttached();
+	await toInfoAndBack(page);
+	await staysAt(page, within);
+	await expect(lit).toBeAttached();
+	// off its page, it lets go
+	const on = { page: 3, share: 0.2 };
+	await readTo(page, on);
+	await expect(page).toHaveURL(new RegExp(`${BELLAMY}$`));
+	await expect(page.locator('[data-mark="_locator"]')).toHaveCount(0);
+	await staysAt(page, on);
+	await page.reload();
+	await staysAt(page, on);
+});
+
+readOnly('a plain link to a work already open leaves the reader where they are', async ({ page }) => {
+	const left = { page: 2, share: 0.4 };
+	await page.goto(BELLAMY);
+	await readTo(page, left);
+	await fromShelf(page, 'Bellamy19');
+	await staysAt(page, left);
+	// and with a link's place in force, it is the plain link that goes
+	await page.goto(`${BELLAMY}?page=3`);
+	await staysAt(page, { page: 3, share: 0 });
+	await readTo(page, { page: 3, share: 0.2 });
+	await fromShelf(page, 'Bellamy19');
+	await expect(page).toHaveURL(new RegExp(`${BELLAMY}$`));
+	await staysAt(page, { page: 3, share: 0.2 });
+});
+
+readOnly('a place holds at another zoom and another width, with most of a long paper never drawn', async ({ page }) => {
+	const body = longPdf(40);
+	await page.route('**/paper.pdf', (r) => r.fulfill({ body, contentType: 'application/pdf' }));
+	await page.goto(BELLAMY);
+	await expect(page.getByTestId('page-count')).toContainText('40');
+	const at = page.getByTestId('page-at');
+	await at.click();
+	await page.keyboard.type('30');
+	await page.keyboard.press('Enter');
+	await page.locator('[data-testid="pdf-page-30"] canvas').waitFor();
+	const left = { page: 30, share: 0.4 };
+	await readTo(page, left);
+	await page.reload();
+	await staysAt(page, left);
+	// the pages it passed over hold a size and nothing else, and the size is the first page's even though the first page was never drawn
+	await expect(page.locator('[data-testid="pdf-page-1"] canvas')).toHaveCount(0);
+	await expect(page.locator('[data-testid="pdf-page-20"] canvas')).toHaveCount(0);
+	const tall = (n: number) => page.locator(`[data-holder="${n}"]`).evaluate((h) => h.getBoundingClientRect().height);
+	expect((await tall(20)) / (await tall(30))).toBeCloseTo(600 / 842, 2);
+	const zoom = page.getByTestId('zoom-at');
+	await zoom.click();
+	await page.keyboard.type('75');
+	await page.keyboard.press('Enter');
+	await expect(zoom).toHaveValue('75%');
+	await staysAt(page, left, { within: 0.02 });
+	await page.reload();
+	await staysAt(page, left, { within: 0.02 });
+	await page.setViewportSize({ width: 900, height: 700 });
+	await page.reload();
+	await staysAt(page, left, { within: 0.02 });
+});
+
+readOnly('a place in another file behind the work is not carried over, and a page it no longer has is not looked for', async ({ page, served }) => {
+	const left = { page: 2, share: 0.4 };
+	await page.goto(BELLAMY);
+	await readTo(page, left);
+	await page.waitForTimeout(400);
+	// another file of the same length: its page 2 is not the page they were on
+	const another = fileOf(served, 'Arden24A');
+	await page.route('**/paper.pdf', (r) => r.fulfill({ body: another, contentType: 'application/pdf' }));
+	await page.reload();
+	await staysAt(page, { page: 1, share: 0 });
+	// a shorter file has no such page, and opens at its start rather than at its end
+	await page.unroute('**/paper.pdf');
+	await page.reload();
+	await readTo(page, { page: 3, share: 0.2 });
+	await page.waitForTimeout(400);
+	const shorter = longPdf(2);
+	await page.route('**/paper.pdf', (r) => r.fulfill({ body: shorter, contentType: 'application/pdf' }));
+	await page.reload();
+	await expect(page.getByTestId('page-count')).toContainText('2');
+	await staysAt(page, { page: 1, share: 0 });
+});

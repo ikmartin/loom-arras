@@ -3,6 +3,7 @@
 // It is a separate object because the controls and the renderer need not be in the same place. `PdfDoc` draws its own toolbar when nothing else claims one, and a page with a rail of its own creates a view, hands it to both, and puts the controls on one line with everything else it offers.
 
 import { prefs } from '$lib/prefs.svelte';
+import type { PagePlace, PaperFile } from './position';
 
 export type Tool = 'select' | 'box';
 
@@ -21,13 +22,19 @@ export class PdfView {
 	/** The scale actually drawn, which is the fitted one while `fitWidth` holds; the renderer writes it. */
 	scale = $state(1);
 
-	/** A request to scroll somewhere, carrying a nonce so that asking for the page already shown still scrolls to it. */
-	jump = $state<{ page: number; n: number } | null>(null);
+	/** The file open here, once it is known; the renderer writes it in the same step that lays out its pages, so what opens the paper can say where. */
+	file = $state.raw<PaperFile | null>(null);
+	/** Where the reader is, as the renderer last read it off the column. This view outlives its renderer, so a paper made again for the same tab opens here. */
+	place = $state.raw<PagePlace | null>(null);
+	/** The stamp of the last link the reader has moved on from by their own hand: nothing sends them back to it, and a paper made again opens where they went. */
+	spent = $state(0);
+
+	/** A request to scroll somewhere, which the renderer takes off once it has gone: a paper made again must not answer it a second time. */
+	jump = $state<{ page: number } | null>(null);
 
 	/** Send the reader to a page. Out-of-range asks are clamped rather than refused: a reader who types 99 of 12 means the end. */
 	goTo(page: number): void {
-		const n = (this.jump?.n ?? 0) + 1;
-		this.jump = { page: Math.max(1, this.count ? Math.min(page, this.count) : page), n };
+		this.jump = { page: Math.max(1, this.count ? Math.min(page, this.count) : page) };
 	}
 
 	/** Set the zoom. An instruction about size leaves the fitted mode rather than fighting it. */
