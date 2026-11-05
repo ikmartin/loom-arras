@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.locks import locked
 from loom.paths import SESSIONS
 
 DIR = SESSIONS
@@ -171,12 +172,14 @@ def create(root: Path, title: str, who: str, *, purpose: str = "") -> Session:
     Session
     """
     when = stamp()
-    sid = next_id(root, when[:10])
-    append_event(
-        root,
-        {"event": "created", "id": sid, "title": title, "who": who, "when": when}
-        | ({"purpose": purpose} if purpose else {}),
-    )
+    # the read and the write share the index's lock, so two writers in any two processes never draw one id
+    with locked(index_path(root)):
+        sid = next_id(root, when[:10])
+        append_event(
+            root,
+            {"event": "created", "id": sid, "title": title, "who": who, "when": when}
+            | ({"purpose": purpose} if purpose else {}),
+        )
     return sessions(root)[sid]
 
 
@@ -234,13 +237,22 @@ def ensure_active(root: Path, who: str, title: str = "") -> Session:
 
     Annotating with no session open is the common case on a first sitting, and refusing it would make the first comment of the day a two-command ritual. A person and an agent are treated alike here (plan 0.13 §5).
     """
-    sid = active(root)
-    standing = sessions(root)
-    if sid and sid in standing:
-        return standing[sid]
-    s = create(root, title or f"session of {stamp()[:10]}", who)
-    set_active(root, s.id)
+    found = _active_session(root)
+    if found is not None:
+        return found
+    # again under the lock: writers that all found nothing active share the one the first of them opens
+    with locked(index_path(root)):
+        found = _active_session(root)
+        if found is not None:
+            return found
+        s = create(root, title or f"session of {stamp()[:10]}", who)
+        set_active(root, s.id)
     return s
+
+
+def _active_session(root: Path) -> Session | None:
+    """The active session, when one is active and still stands."""
+    return sessions(root).get(active(root) or "")
 
 
 class SessionNotFound(LookupError):

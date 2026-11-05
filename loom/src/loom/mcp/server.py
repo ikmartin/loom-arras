@@ -1,6 +1,6 @@
 """`loom mcp`'s server: the agent commands as MCP tools over stdio, each call run as the `loom` command it stands for; the modes as prompts; and what a link names as resources.
 
-Every call is a `loom` subprocess in the quilt's root, under `AI_AGENT=1`, so the agent guard (K5) stands behind each one, and the command it ran is the command a person reruns. Reading tools run side by side; every other one takes one lock, so two writes never race for an id. A prompt and a resource read run reading commands the same way (`prompts.py`, `resources.py`); only the resource list, and the research state, which no command prints alone, are read in the server itself. The only module that imports the SDK.
+Every call is a `loom` subprocess in the quilt's root, under `AI_AGENT=1`, so the agent guard (K5) stands behind each one, and the command it ran is the command a person reruns. Reading tools run side by side; every other one takes one lock in the server, so an agent's own writes run in the order it sent them and not every write need be safe beside another. Ids are kept apart by the commands themselves (`loom.locks`), which is what holds across two servers or a shell beside one. A prompt and a resource read run reading commands the same way (`prompts.py`, `resources.py`); only the resource list, and the research state, which no command prints alone, are read in the server itself. The only module that imports the SDK.
 """
 
 from __future__ import annotations
@@ -266,10 +266,14 @@ def _keep(root: Path, session: object, what: str, text: str) -> str:
     where.mkdir(parents=True, exist_ok=True)
     stem = datetime.now().strftime("%Y-%m-%dT%H-%M-%S") + "-" + what
     path, n = where / f"{stem}.txt", 2
-    while path.exists():
-        path, n = where / f"{stem}-{n}.txt", n + 1
-    path.write_text(text, encoding="utf-8")
-    return path.relative_to(root).as_posix()
+    # created exclusively, so a second server keeping a result in the same second takes the next name
+    while True:
+        try:
+            with path.open("x", encoding="utf-8") as fh:
+                fh.write(text)
+            return path.relative_to(root).as_posix()
+        except FileExistsError:
+            path, n = where / f"{stem}-{n}.txt", n + 1
 
 
 def _log(root: Path, given: object, command: str, why: str = "") -> None:

@@ -34,6 +34,9 @@ LOOKED = f"{LOOM}/looked"
 #: The default of `[quilt] history`; code reads the setting, never this.
 HISTORY = f"{LOOM}/history"
 
+#: What a command locks while it draws a node id (`loom.locks`), since those are read from the whole quilt and no one file holds them. It holds nothing, so it stays with what loom can rebuild.
+ID_LOCK = f"{BUILD}/ids.lock"
+
 #: Where `loom new`, atomize and fork write node files, relative to the document they serve.
 NODES = "nodes"
 

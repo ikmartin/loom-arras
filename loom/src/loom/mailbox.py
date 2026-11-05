@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import bisect
-import fcntl
 import json
 import re
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.locks import locked
 from loom.sessions import DIR
 
 INBOX = "inbox.jsonl"
@@ -262,14 +262,10 @@ def post(
     d = session_dir(root, sid)
     d.mkdir(parents=True, exist_ok=True)
     # Two writers -- the person through the viewer and an agent through `say` -- must not draw the same number.
-    with inbox_path(root, sid).open("a", encoding="utf-8") as fh:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        try:
-            e = Event(seq=last_seq(root, sid) + 1, kind=kind, who=who, when=stamp(), body=body, changed=changed or [])
-            fh.write(json.dumps(e.to_json(), ensure_ascii=False, sort_keys=True) + "\n")
-            fh.flush()
-        finally:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    p = inbox_path(root, sid)
+    with locked(p), p.open("a", encoding="utf-8") as fh:
+        e = Event(seq=last_seq(root, sid) + 1, kind=kind, who=who, when=stamp(), body=body, changed=changed or [])
+        fh.write(json.dumps(e.to_json(), ensure_ascii=False, sort_keys=True) + "\n")
     return e
 
 

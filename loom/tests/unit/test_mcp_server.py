@@ -185,3 +185,49 @@ def test_the_server_serves_only_an_agent_and_says_what_it_needs(
     refused("mcp", "--as", "Isaac", cwd=q, code=2, match="Isaac does not say it is an agent")
     monkeypatch.setattr("loom.mcp.sdk.has_sdk", lambda: False)
     refused("mcp", "--as", AGENT, cwd=q, code=2, match="loom mcp needs the MCP SDK")
+
+
+def test_two_servers_on_one_quilt_never_lose_a_node(tmp_path: Path) -> None:
+    """Measured before the lock: 16 calls over two servers all reported success, and 8 files existed. The server's own lock is one server's, so what holds here is the command's."""
+    from mcp import Client
+    from mcp.client.stdio import StdioServerParameters
+
+    q = demo(tmp_path)
+    nodes = q / "drafting" / "nodes"
+    before = {p.name for p in nodes.glob("*.tex")}
+    calls = 6
+    reports: list[Any] = []
+
+    def server(name: str) -> StdioServerParameters:
+        return StdioServerParameters(
+            command=sys.executable, args=["-m", "loom", "mcp", "--as", name], cwd=q, env=dict(os.environ)
+        )
+
+    async def main() -> None:
+        async with Client(server("First Agent")) as a, Client(server("Second Agent")) as b:  # type: ignore[arg-type]
+
+            async def call(client: Any, i: int) -> None:
+                reports.append(await client.call_tool("loom_new", {"taxon": "definition", "title": f"Race {i}"}))
+
+            async with anyio.create_task_group() as tasks:
+                for i in range(calls):
+                    tasks.start_soon(call, a if i % 2 else b, i)
+
+    anyio.run(main)
+    assert not [r.content[0].text for r in reports if r.is_error]
+    made = {p.name for p in nodes.glob("*.tex")} - before
+    assert len(made) == calls, made
+    assert {f"[Race {i}]" for i in range(calls)} == {
+        f"[{line.split('[', 1)[1].split(']', 1)[0]}]"
+        for name in made
+        for line in (nodes / name).read_text().splitlines()
+        if line.startswith("\\begin{definition}")
+    }
+
+
+def test_two_large_results_in_one_second_are_kept_in_two_files(tmp_path: Path) -> None:
+    from loom.mcp.server import _keep
+
+    first, second = _keep(tmp_path, None, "status", "one"), _keep(tmp_path, None, "status", "two")
+    assert first != second
+    assert (tmp_path / first).read_text() == "one" and (tmp_path / second).read_text() == "two"

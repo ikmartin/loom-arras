@@ -131,7 +131,7 @@ def load_records(root: Path) -> tuple[list[Record], list[str]]:
 
 
 def next_id(records: list[Record], date: str) -> str:
-    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (amended: the counter is not per file)."""
+    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (amended: the counter is not per file). What is written draws it under the log's lock (`log.append_new`); with no lock it is only a preview."""
     n = 0
     prefix = f"a-{date}-"
     for record in records:

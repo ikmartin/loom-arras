@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.locks import locked
 from loom.paths import NOTE_LOG
 
 #: A note's id, which reaches a URL fragment and a `quilt:` link.
@@ -183,22 +184,25 @@ def write(
     target = target_of(result, on, page=page, rects=rects, quote=quote)
     if not (body.strip() or (quote or "").strip() or rects or target.get("session")):
         raise NoteRefused("empty", "a note quotes something or says something")
+    root = result.quilt.root
     when = stamp()
-    note = Note(
-        id=_next_id(result.quilt.root, when[:10]),
-        when=when,
-        author=author,
-        author_kind=author_kind,
-        session=session,
-        target=target,
-        body=body.strip(),
-        quote=(quote or "").strip() or None,
-        page=page,
-        rects=rects,
-    )
-    event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
-    event["author"] = author
-    _append(result.quilt.root, event)
+    # the read and the write share the log's lock, so two writers in any two processes never draw one id
+    with locked(_path(root)):
+        note = Note(
+            id=_next_id(root, when[:10]),
+            when=when,
+            author=author,
+            author_kind=author_kind,
+            session=session,
+            target=target,
+            body=body.strip(),
+            quote=(quote or "").strip() or None,
+            page=page,
+            rects=rects,
+        )
+        event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
+        event["author"] = author
+        _append(root, event)
     return note
 
 

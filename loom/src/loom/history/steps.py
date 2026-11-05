@@ -6,12 +6,14 @@
 from __future__ import annotations
 
 import re
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loom.history.ledger import Entry, History, append_entry
+from loom.history.ledger import Entry, History, append_entry, load_history
 from loom.history.versions import version_filename
+from loom.locks import locked
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import hash_text, sha256
 from loom.scan.nodes import NodeRec
@@ -124,8 +126,11 @@ def refuse_interrupted(history: History) -> None:
     """Refuse to record a step while an interrupted one's directory is still there.
 
     A step cut short before its ledger line leaves a directory nothing reads, numbered as the next step will be; writing beside it would give two directories one number, and writing over it would repair the record behind the person's back (P13). So every command that records a step refuses first, naming the directory and the command that clears it, and changes nothing. Call it before anything else is written.
+
+    Read fresh under the ledger's lock: a step another process is writing this moment also has a directory and no line yet, and telling someone to remove that one would destroy it. An absent ledger has no writer, since `write_step` makes it before anything else.
     """
-    stray = history.unrecorded_dirs()
+    with locked(history.ledger) if history.ledger.exists() else nullcontext():
+        stray = load_history(history.dir).unrecorded_dirs()
     if not stray:
         return
     from loom.cli._common import EnvError
@@ -143,6 +148,30 @@ def refuse_interrupted(history: History) -> None:
     )
 
 
+def refuse_stale(history: History) -> None:
+    """Refuse a step planned from a `history` the ledger has moved past.
+
+    A plan writes its own number into what it records, so a plan another step has overtaken cannot simply take the next number. Running the command again plans afresh.
+
+    Parameters
+    ----------
+    history : History
+        What the plan was made from. Call this holding the lock on its ledger, before anything is written.
+
+    Raises
+    ------
+    EnvError
+        When another step has been recorded since `history` was read.
+    """
+    now = load_history(history.dir).next_step()
+    if now != history.next_step():
+        from loom.cli._common import EnvError
+
+        raise EnvError(
+            f"another loom process recorded step {now - 1:04d} while this one was being prepared, so nothing was recorded; run this again"
+        )
+
+
 def write_step(
     history: History,
     action: str,
@@ -153,29 +182,34 @@ def write_step(
     document_text: str | None = None,
     document_name: str | None = None,
 ) -> Entry:
-    """Create `NNNN-<stem>/` with the version files, the preamble when it changed, and the document's copy, then append the ledger line; the line is last so a step that is only half written is never in the record."""
+    """Create `NNNN-<stem>/` with the version files, the preamble when it changed, and the document's copy, then append the ledger line; the line is last so a step that is only half written is never in the record.
+
+    All under the ledger's lock, so two processes never draw one step number; a `history` the ledger has moved past is refused (`refuse_stale`).
+    """
     refuse_interrupted(history)
-    n = history.next_step()
-    dirname = step_dirname(n, stem)
-    step_dir = history.dir / dirname
-    step_dir.mkdir(parents=True)
-    for key, text in plan.texts.items():
-        (step_dir / version_filename(key)).write_text(text, encoding="utf-8")
-    if plan.preamble:
-        (step_dir / "preamble.tex").write_text(plan.preamble_text, encoding="utf-8")
-    if document_text is not None and document_name:
-        (step_dir / document_name).write_text(document_text, encoding="utf-8")
-    data: dict[str, Any] = {"step": n, "dir": dirname}
-    data.update(extra or {})
-    data["froze"] = dict(sorted(plan.froze.items()))
-    if plan.of:
-        data["of"] = dict(sorted(plan.of.items()))
-    if plan.removed:
-        data["removed"] = list(plan.removed)
-    if plan.restored:
-        data["restored"] = list(plan.restored)
-    data["preamble"] = plan.preamble
-    return append_entry(history.dir, action, data, actor)
+    with locked(history.ledger):
+        refuse_stale(history)
+        n = history.next_step()
+        dirname = step_dirname(n, stem)
+        step_dir = history.dir / dirname
+        step_dir.mkdir(parents=True)
+        for key, text in plan.texts.items():
+            (step_dir / version_filename(key)).write_text(text, encoding="utf-8")
+        if plan.preamble:
+            (step_dir / "preamble.tex").write_text(plan.preamble_text, encoding="utf-8")
+        if document_text is not None and document_name:
+            (step_dir / document_name).write_text(document_text, encoding="utf-8")
+        data: dict[str, Any] = {"step": n, "dir": dirname}
+        data.update(extra or {})
+        data["froze"] = dict(sorted(plan.froze.items()))
+        if plan.of:
+            data["of"] = dict(sorted(plan.of.items()))
+        if plan.removed:
+            data["removed"] = list(plan.removed)
+        if plan.restored:
+            data["restored"] = list(plan.restored)
+        data["preamble"] = plan.preamble
+        return append_entry(history.dir, action, data, actor)
 
 
 def conflicted_in(result: ScanResult, doc: str) -> list[str]:
