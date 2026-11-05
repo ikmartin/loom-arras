@@ -670,6 +670,16 @@ async function staysAt(page: Page, want: At, { pane = 0, within = 0.01 } = {}): 
 	await isAt(page, want, { pane, within });
 }
 
+/** Wait until this browser has kept `want` as where the reader is in `citekey`, which it does once the column has been still a moment: a window opened or a reload before that finds the place before it. */
+async function kept(page: Page, citekey: string, want: At): Promise<void> {
+	await expect
+		.poll(async () => {
+			const at = await page.evaluate((citekey) => Object.values<Record<string, At>>(JSON.parse(localStorage.getItem('arras.positions') ?? '{}'))[0]?.[citekey], citekey);
+			return at && at.page === want.page && Math.abs(at.share - want.share) <= 0.01 ? said(want) : at ? said(at) : 'nothing kept';
+		})
+		.toBe(said(want));
+}
+
 /** Scroll a pane's paper to `want` as a reader does, with the wheel: only a hand on the paper moves it off a link's place. */
 async function readTo(page: Page, want: At, pane = 0): Promise<void> {
 	const paper = paperIn(page, pane);
@@ -823,7 +833,7 @@ readOnly('a work is open in one pane of a window, and a second window on it leav
 	await staysAt(other, theirs);
 	// whichever moved last is what the next visit opens at
 	await readTo(page, { page: 1, share: 0.5 });
-	await page.waitForTimeout(400);
+	await kept(page, 'Bellamy19', { page: 1, share: 0.5 });
 	const third = await context.newPage();
 	await third.goto(BELLAMY);
 	await staysAt(third, { page: 1, share: 0.5 });
@@ -924,7 +934,7 @@ readOnly('a place in another file behind the work is not carried over, and a pag
 	const left = { page: 2, share: 0.4 };
 	await page.goto(BELLAMY);
 	await readTo(page, left);
-	await page.waitForTimeout(400);
+	await kept(page, 'Bellamy19', left);
 	// another file of the same length: its page 2 is not the page they were on
 	const another = fileOf(served, 'Arden24A');
 	await page.route('**/paper.pdf', (r) => r.fulfill({ body: another, contentType: 'application/pdf' }));
@@ -934,7 +944,7 @@ readOnly('a place in another file behind the work is not carried over, and a pag
 	await page.unroute('**/paper.pdf');
 	await page.reload();
 	await readTo(page, { page: 3, share: 0.2 });
-	await page.waitForTimeout(400);
+	await kept(page, 'Bellamy19', { page: 3, share: 0.2 });
 	const shorter = longPdf(2);
 	await page.route('**/paper.pdf', (r) => r.fulfill({ body: shorter, contentType: 'application/pdf' }));
 	await page.reload();

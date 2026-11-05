@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, prefs } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { QUICK, REFEREE, saying, serve } from '../manifest';
+import { noPolls } from '../polls';
 
 type Ev = { seq: number; kind: string; who: string; when: string; body?: string; body_html?: string };
 
@@ -222,17 +223,17 @@ test.describe('where a publisher serves', () => {
 	test('the first poll follows the newest page at once, not a second later', async ({ page }) => {
 		const state = { events: [said(1, 'Referee Agent')] };
 		await publisher(page, state);
+		// the interval never fires, so a poll that comes at all came on landing
+		await noPolls(page);
 		// the ask for the newest page carries the largest `since`; every other ask is a poll
-		const at: { latest?: number; poll?: number } = {};
+		const asked: string[] = [];
 		page.on('request', (r) => {
 			const since = r.url().includes('/_api/events') ? new URL(r.url()).searchParams.get('since') : null;
-			if (since === String(Number.MAX_SAFE_INTEGER)) at.latest ??= Date.now();
-			else if (since !== null) at.poll ??= Date.now();
+			if (since !== null) asked.push(since === String(Number.MAX_SAFE_INTEGER) ? 'newest' : 'poll');
 		});
 		await page.goto('/session/' + REFEREE);
-		await expect.poll(() => at.poll).toBeDefined();
-		// the interval is a second; a poll that waited for it would come a second after landing
-		expect(at.poll! - at.latest!).toBeLessThan(600);
+		await expect.poll(() => asked.includes('poll')).toBe(true);
+		expect(asked[0]).toBe('newest');
 	});
 
 	test('under a publisher the transcript opens on the newest page the publisher holds, not everything since the last build', async ({ page }) => {

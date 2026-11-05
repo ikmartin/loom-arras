@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { noPolls } from '../polls';
 import { expect, test } from '../served';
 
 type Watched = { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; typeset: Element[][]; kept: Element; wrapped?: boolean };
@@ -27,9 +28,8 @@ async function watch(page: Page, selector: string): Promise<void> {
 
 /** From the page's first script on, no poll fires, the manifest's included, and each stream it opens is noted: what reaches the page after that came by the publisher's word. */
 async function withoutPolling(page: Page): Promise<void> {
+	await noPolls(page);
 	await page.addInitScript(() => {
-		const setInterval = window.setInterval;
-		window.setInterval = ((run: TimerHandler, ms = 0, ...rest: unknown[]) => (ms >= 1000 ? 0 : setInterval(run, ms, ...rest))) as typeof window.setInterval;
 		const streams: EventSource[] = ((window as unknown as Streams).streams = []);
 		window.EventSource = class extends window.EventSource {
 			constructor(url: string | URL, init?: EventSourceInit) {

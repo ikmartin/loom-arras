@@ -30,6 +30,9 @@ export default defineConfig({
 				test: {
 					name: 'unit',
 					environment: 'node',
+					// a limit on a hang, since no unit test here is about time: the graph's layout outran vitest's 5 s default on a loaded machine
+					testTimeout: 120000,
+					hookTimeout: 120000,
 					include: ['src/**/*.{test,spec}.{js,ts}', 'tests/unit/**/*.{test,spec}.{js,ts}'],
 					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
