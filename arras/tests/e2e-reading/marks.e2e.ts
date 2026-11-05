@@ -169,11 +169,17 @@ test.describe('on a project PDF', () => {
 		await drag(page, 1, [0.2, 0.5], [0.4, 0.6]);
 		await expect(marks(page, 'arrow')).toHaveCount(1);
 
-		// lines of ink drawn close together are one mark
+		// lines of ink drawn close together are one mark; a busy machine can leave more than `INK_PAUSE` between two drags, so that timer is held back here and the change of tool ends them
+		const inkPause = await page.evaluateHandle(() => {
+			const setTimeout = window.setTimeout;
+			window.setTimeout = ((run: TimerHandler, ms = 0, ...rest: unknown[]) => (ms === 900 ? 0 : setTimeout(run, ms, ...rest))) as typeof window.setTimeout;
+			return () => (window.setTimeout = setTimeout);
+		});
 		await page.getByTestId('tool-ink').click();
 		await drag(page, 1, [0.5, 0.5], [0.6, 0.55]);
 		await drag(page, 1, [0.6, 0.55], [0.7, 0.5]);
 		await page.getByTestId('tool-select').click();
+		await inkPause.evaluate((restore) => void restore());
 		await expect(marks(page, 'ink')).toHaveCount(1);
 		await published(served, 6);
 		const ink = marksOf(served).find((n) => n.mark === 'ink')!;

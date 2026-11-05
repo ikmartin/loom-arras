@@ -110,16 +110,19 @@ def test_a_tick_publishes_from_the_last_scan(served) -> None:  # type: ignore[no
     assert p.read_text(encoding="utf-8") == "- [x] one\n"
 
 
-def test_open_is_the_persons_click_and_never_runs_code(served, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+def test_open_is_the_persons_click_and_never_runs_code(tmp_path: Path, serve, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
     from loom import files
+    from tests.unit._quilts import demo
 
     if not files.can_open():
         pytest.skip("loom opens applications on macOS and Linux")
-    s, q, _ = served
-    launched: list[list[str]] = []
-    monkeypatch.setattr(files, "launch", launched.append)
+    q = demo(tmp_path)
     put(q, "deck.apkg", b"PK")
     put(q, "run.command", "#!/bin/sh\n")
+    # counted with the watcher unstarted, since it would publish those two files whenever its poll came
+    s = serve(q, watch=False)
+    launched: list[list[str]] = []
+    monkeypatch.setattr(files, "launch", launched.append)
     assert "open" in json.loads(get(s.url + "_api")[2])["capabilities"]
     builds = s.builds
     assert post(s.url + "_api/open", {"app": "Anki"}) == (200, {"ok": True, "result": "opened", "opened": "Anki"})
