@@ -106,6 +106,11 @@ class WorkState:
             return (f"discarded on arrival: {self.fetched.discarded}", "")
         if self.declared or self.candidate:
             return ("source not fetched yet", "loom library update --online gets it from arXiv")
+        if self.pdf and not self.identified:
+            return (
+                "",
+                "",
+            )  # a document held and no identifier to ask after: it is read by its pages, and nothing is waited for
         if self.identified or self.pdf:
             # a DOI names the published article and a dropped PDF is a page image: neither is LaTeX, and only arXiv serves that
             return (

@@ -101,16 +101,17 @@ def wrong_documents(
 ) -> list[Problem]:
     """Stored PDFs that fail the strong match for their own entry (`ingest.identify_stored`): another entry's (`wrong-document`), or not shown to be the work (`unconfirmed-document`).
 
-    Another entry's when it names that entry plainly, or carries that entry's title and not its own; a version of the same work is never another's. Read from the recorded page text, so a work never mapped is not checked, and a work whose document the author set aside is not checked either.
+    Another entry's when it names that entry plainly, or carries that entry's title and not its own; a version of the same work is never another's. Read from the recorded page text, so a work never mapped is not checked, and a work whose document the author set aside is not checked either. A document a person provided is theirs to name: failing to show it is its work is no problem there, though being plainly another's still is.
     """
     from loom.refs.fetch import work_dir
     from loom.refs.ingest import TITLE_MATCH, identify_stored, shortfall
-    from loom.refs.pages import read_page
-    from loom.refs.scan import primary_of
+    from loom.refs.pages import read_page, sha256_of
+    from loom.refs.scan import load_ledger, primary_of
     from loom.refs.unreadable import declarations
 
     tops = primary_of(bib)
     aside = declarations(root, "forget")
+    provided = load_ledger(root)
     out: list[Problem] = []
     listed = list(works)
     for i, ck in enumerate(listed, 1):
@@ -143,7 +144,7 @@ def wrong_documents(
         best, named = max(theirs, default=(0.0, ""))
         if best >= TITLE_MATCH and (not title or _title_score(title, first) < TITLE_MATCH):
             out.append(Problem("wrong-document", ck, f"its PDF's first page carries {named}'s title", ck))
-        else:
+        elif sha256_of(home / "paper.pdf") not in provided:
             out.append(
                 Problem(
                     "unconfirmed-document", ck, f"it does not show it is the work: {shortfall(identity, entry)}", ck
@@ -164,7 +165,7 @@ def empty_digests(root: Path, works: Iterable[str]) -> list[Problem]:
 
 
 def guessed_maps(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) -> list[Problem]:
-    """Section maps `PageMap.suspect` calls a guess: far too few sections for the document's length."""
+    """Section maps `PageMap.suspect` calls a guess: far too few sections for the document's length. A scan with no text has no map to doubt."""
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
 
@@ -173,7 +174,7 @@ def guessed_maps(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) -> 
         if ck not in bib:
             continue
         m = read_map(work_dir(root, bib[ck]))
-        if m is not None and m.suspect:
+        if m is not None and m.suspect and m.chars:
             out.append(Problem("guessed-map", ck, f"{len(m.sections)} sections found in {m.pages} pages", ck))
     return out
 

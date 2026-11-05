@@ -209,7 +209,7 @@ export interface RunRow {
 }
 
 /**
- * A work's problems, each with its fixes: from the manifest, what stands on disk (its diagnostics `no-readable-copy` and `unresolved-work`, and `version_mismatch`); from the last run on it, what that run could not do.
+ * A work's problems, each with its fixes: from the manifest, what stands on disk (its diagnostics `no-readable-copy` and `unresolved-work`, and `version_mismatch`); from the last run on it, what that run could not do, a failed lookup or fetch only for a work that does not hold its paper.
  *
  * Parameters
  * ----------
@@ -235,8 +235,9 @@ export function problemsOf(m: Manifest, ref: Reference, run?: RunRow): Problem[]
 		out.push({ code: 'no-copy', text: 'No copy of the paper can be read here.', fixes: identified ? ['run', 'upload', 'ignore'] : ['upload', 'ignore'] });
 	}
 	if (ref.version_mismatch) out.push({ code: 'another-version', text: 'Its digest was read from another version than the one cited.', fixes: ['redo'] });
-	if (run?.lookup_error) out.push({ code: 'lookup-failed', text: `The last lookup could not be made: ${run.lookup_error}`, fixes: ['run'] });
-	if (run?.discarded) out.push({ code: 'not-this-work', text: `The paper the last run fetched was not this work: ${run.discarded}`, fixes: ['upload'] });
+	// a lookup or a fetch only ever adds to what is held: holding the paper, a work has nothing to fix when one comes back empty
+	if (run?.lookup_error && !ref.artifacts?.pdf) out.push({ code: 'lookup-failed', text: `The last lookup could not be made: ${run.lookup_error}`, fixes: ['run'] });
+	if (run?.discarded && !ref.artifacts?.pdf) out.push({ code: 'not-this-work', text: `The paper the last run fetched was not this work: ${run.discarded}`, fixes: ['upload'] });
 	if (run?.extract_error) out.push({ code: 'extract-failed', text: `Reading its results off the source failed: ${run.extract_error}`, fixes: ['redo'] });
 	if (run?.map_error) out.push({ code: 'map-failed', text: `Mapping its pages failed: ${run.map_error}`, fixes: ['redo'] });
 	return out;

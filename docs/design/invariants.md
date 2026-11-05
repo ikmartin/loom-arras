@@ -293,13 +293,13 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### A document is filed only on a strong match
 
-**Rule.** A PDF is filed against a bibliography entry, by `library add`, only when its text holds the entry's identifier, or the entry's full title with its first author leading the byline. Anything weaker is skipped, and the reason given.
+**Rule.** Without the person naming the work, a PDF is filed against a bibliography entry, by `library add`, only when its text holds the entry's identifier, or the entry's full title with its first author, where it names one, leading the byline or the file name. Anything weaker is not filed against that entry: the PDF is kept as a work of its own, and the report names the nearest entry. Naming the work (`--for`, or its own upload) files it on the person's word, with what it shows to the contrary reported and recorded.
 
 **Why.** A handbook that named Olsson fifth and shared half the title of his 2003 paper was filed as that paper on those two weak signals, and the real paper was then skipped because the slot was taken.
 
-**Guard.** `loom/tests/unit/refs/test_library_store.py::test_a_weak_match_is_skipped_with_its_reason`, `loom/tests/unit/refs/test_scan.py::test_gathering_files_a_document_against_an_entry_only_on_a_strong_match`
+**Guard.** `loom/tests/unit/refs/test_library_store.py::test_a_weak_match_is_not_filed_against_the_entry_and_the_pdf_is_kept_as_a_work_of_its_own`, `loom/tests/unit/refs/test_scan.py::test_gathering_files_a_document_against_an_entry_only_on_a_strong_match`
 
-**Record.** DR-331-ikmartin
+**Record.** DR-331-ikmartin. 2026-11-04, at the author's request: what is withheld is the filing against the entry, never the PDF. The author could not add revision notes with no DOI, a scanned textbook, or a book whose PDF was refused after its entry was written; a PDF they provide is now always kept. The rule the failure taught is unchanged for a match loom makes on its own; a file name a reference manager wrote now counts as evidence, and an entry naming no author is matched on its whole title.
 
 ### Redoing a step keeps what a person verified
 

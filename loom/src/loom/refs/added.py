@@ -61,6 +61,13 @@ def entry_text(key: str, etype: str, fields: Mapping[str, str]) -> str:
     return "\n".join(lines) + "\n}\n"
 
 
+def added_entry(key: str, fields: Mapping[str, str], who: str, etype: str = "", source: str = SOURCE) -> Candidate:
+    """The entry a work added by hand is written as: `loom-added` says when and by whom, and its other `loom-*` fields are kept as given."""
+    own = {k: v for k, v in fields.items() if v}
+    own[ADDED] = f"{stamp()}, {who}" if who else stamp()
+    return Candidate(key, entry_text(key, etype or ("article" if own.get("journal") else "misc"), own), source)
+
+
 def add_entry(quilt: Quilt, fields: Mapping[str, str], key: str, who: str, etype: str = "") -> str:
     """Write a work into the library as added by hand, and return its key.
 
@@ -94,10 +101,7 @@ def add_entry(quilt: Quilt, fields: Mapping[str, str], key: str, who: str, etype
     own = {k: v for k, v in fields.items() if not k.startswith("loom-") and v}
     if not own.get("title"):
         raise ValueError("the entry has no title, so the library could not show it")
-    own[ADDED] = f"{stamp()}, {who}" if who else stamp()
-    append_entries(
-        quilt, [Candidate(key, entry_text(key, etype or ("article" if own.get("journal") else "misc"), own), SOURCE)]
-    )
+    append_entries(quilt, [added_entry(key, own, who, etype)])
     return key
 
 

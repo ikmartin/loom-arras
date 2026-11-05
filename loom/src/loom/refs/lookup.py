@@ -66,12 +66,14 @@ def _surnames(author: str) -> list[str]:
 
 
 def key_for(entry: Mapping[str, str], taken: set[str], wanted: str = "") -> str:
-    """The key a work is filed as: `wanted` when it is free, else the first author's surname's first three letters and the year's last two (`Man08`); a taken one gets a letter (`Man08A`)."""
+    """The key a work is filed as: `wanted` when it is free, else the first three letters of the first author's surname, or of its title's first word, and the year's last two (`Man08`); a taken one gets a letter (`Man08A`)."""
     from loom.refs.scan import _free_key
 
     if wanted and wanted not in taken:
         return wanted
-    surname = (_surnames(entry.get("author", "")) or ["Work"])[0]
+    # a work naming no author is known by its title's first word
+    words = [w for w in re.findall(r"[^\W\d_]+", entry.get("title", "")) if w.lower() not in ("a", "an", "the")]
+    surname = (_surnames(entry.get("author", "")) or words or ["Work"])[0]
     letters = re.sub(r"[^A-Za-z]", "", unicodedata.normalize("NFKD", surname)) or "Work"
     year = re.sub(r"\D", "", entry.get("year", ""))[-2:]
     base = wanted or (letters[:1].upper() + letters[1:3].lower() + year)
@@ -79,7 +81,7 @@ def key_for(entry: Mapping[str, str], taken: set[str], wanted: str = "") -> str:
 
 
 def duplicates(entry: Mapping[str, str], wid: WorkId | None, bib: Mapping[str, BibEntry]) -> list[str]:
-    """The works already in the library that may be this one: the same identifier, an arXiv id compared without its version, or the same title and year."""
+    """The works already in the library that may be this one: the same identifier, an arXiv id compared without its version, or the same title with no differing year."""
     ids = {
         (w.scheme, arxiv_base(w.value) if w.scheme == "arxiv" else w.value.lower())
         for w in declared(BibEntry("", "misc", dict(entry)))
@@ -90,7 +92,12 @@ def duplicates(entry: Mapping[str, str], wid: WorkId | None, bib: Mapping[str, B
     out = []
     for key, other in bib.items():
         theirs = {(w.scheme, arxiv_base(w.value) if w.scheme == "arxiv" else w.value.lower()) for w in declared(other)}
-        same_title = title and _fold(other.fields.get("title", "")) == title and other.fields.get("year", "") == year
+        theirs_year = other.fields.get("year", "")
+        same_title = (
+            title
+            and _fold(other.fields.get("title", "")) == title
+            and (not year or not theirs_year or theirs_year == year)
+        )
         if ids & theirs or same_title:
             out.append(key)
     return sorted(out, key=str.lower)

@@ -1,10 +1,11 @@
 <script lang="ts">
-	// A work's status line on Info (plan 0.24.1): whether its paper and its LaTeX source are filed, how much of its digest exists and how much you have verified, and whether it has an overview. What is missing carries the action that makes it, where the publisher serves it: an overview is asked of an agent, and the rest is made by a library run, one run per work, which looks it up, fetches it, extracts its results and maps them, doing nothing that is done. The run's progress shows beneath while it goes, and stays until dismissed once this page has seen it run.
+	// A work's status line on Info (plan 0.24.1): whether its paper and its LaTeX source are filed, how much of its digest exists and how much you have verified, and whether it has an overview. What is missing carries the action that makes it, where the publisher serves it: a missing paper is uploaded by the person or fetched, an overview is asked of an agent, and the rest is made by a library run, one run per work, which looks it up, fetches it, extracts its results and maps them, doing nothing that is done. The run's progress shows beneath while it goes, and stays until dismissed once this page has seen it run.
 	import { onMount } from 'svelte';
 	import type { Reference } from '$lib/manifest/types';
 	import { resultCounts } from '$lib/library';
 	import { jobs, running } from '$lib/jobs.svelte';
 	import { can } from '$lib/write';
+	import AddWork from './AddWork.svelte';
 	import AskAgent from './AskAgent.svelte';
 	import JobProgress from './JobProgress.svelte';
 	import LibraryRun from './LibraryRun.svelte';
@@ -13,11 +14,14 @@
 	let { citekey, ref }: { citekey: string; ref: Reference } = $props();
 
 	let runs = $state(false);
+	let uploads = $state(false);
+	let uploading = $state(false);
 	onMount(() => {
 		void can('library-update').then((yes) => {
 			runs = yes;
 			if (yes) jobs.ask();
 		});
+		void can('library-file').then((yes) => (uploads = yes));
 	});
 
 	const paper = $derived(!!ref.artifacts?.pdf);
@@ -46,7 +50,8 @@
 <div class="status" data-testid="work-status">
 	<span class="st" class:ok={paper} data-testid="status-paper">
 		<span class="ic" aria-hidden="true">{paper ? '✓' : '–'}</span>Paper{#if paper}<span class="sub">filed</span>{/if}
-		{#if runs && !paper}<LibraryRun works={[citekey]} label="Get it" {network} test="run-get" onask={ask} />{/if}
+		{#if uploads && !paper}<button class="act" onclick={() => (uploading = true)} data-testid="status-upload">Upload a PDF</button>{/if}
+		{#if runs && !paper}<LibraryRun works={[citekey]} label="Fetch it" {network} test="run-get" onask={ask} />{/if}
 	</span>
 	<span class="st" class:ok={source} data-testid="status-source">
 		<span class="ic" aria-hidden="true">{source ? '✓' : '–'}</span>Source{#if source}<span class="sub">LaTeX</span>{:else if paper}<span class="sub">none: results come from the pages</span>{/if}
@@ -60,6 +65,7 @@
 		<AskAgent {citekey} {ref} quiet test="status-ask" />
 	</span>
 </div>
+{#if uploads}<AddWork bind:open={uploading} work={citekey} />{/if}
 {#if answer}<NetworkAsk onallow={() => reply(true)} onoffline={() => reply(false)} oncancel={() => reply(null)} />{/if}
 {#if shown}
 	<JobProgress
@@ -72,6 +78,17 @@
 {/if}
 
 <style>
+	.act {
+		border: 0;
+		background: none;
+		color: var(--link);
+		padding: 0;
+		font: inherit;
+		cursor: pointer;
+	}
+	.act:hover {
+		text-decoration: underline;
+	}
 	.status {
 		display: flex;
 		flex-wrap: wrap;

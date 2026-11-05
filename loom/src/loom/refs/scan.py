@@ -526,7 +526,7 @@ def load_ledger(root: Path) -> dict[str, dict[str, str]]:
 
 
 def record_copy(root: Path, sha: str, source: str, home: Path, extra: dict[str, str] | None = None) -> None:
-    """Append one copy to the ledger, with `extra` fields such as an override `library add --force` made. Nothing is ever removed from it.
+    """Append one copy to the ledger, with `extra` fields such as what a document showed against the work a person named for it. Nothing is ever removed from it.
 
     `home` is recorded relative to the store (`doi/10.1090_…`), so the ledger survives a move of the store.
     """
@@ -735,8 +735,15 @@ class Filing:
     already: str = ""
     #: The version this document is a copy of (`same_document`), which the ledger records; '' otherwise.
     copy_of: str = ""
-    #: The refusal `--force` overrode, recorded in the ledger with who forced it.
+    #: What the document shows against the work a person named for it, recorded in the ledger with who named it.
     forced: str = ""
+    #: A person named the work (`--for`, or a work's own upload): bytes filed under another work are filed here all the same.
+    named: bool = False
+    #: The entry a new work is written with, when the document becomes a work of its own (`refs.add.plan_new_work`).
+    new: dict[str, str] | None = None
+    #: Why no existing entry took a new work's document, and the entry nearest it, for the report.
+    apart: str = ""
+    nearest: str = ""
     #: Why no page text was written for a filed PDF.
     unmapped: str = ""
     #: The hash of the document set aside (`library ignore`) that this one replaces at the work's home; '' when it replaces none.
@@ -745,12 +752,35 @@ class Filing:
     replaces_why: str = ""
 
 
+def held_under(root: Path, bib: dict[str, BibEntry], sha: str) -> str:
+    """The work the library holds these bytes under, or '': the ledger's record, while its document stands and an entry names its home.
+
+    A record outlives what it records: a work taken out leaves its copy behind, unnamed, and the same PDF added again must be filed rather than told it is held. A recorded copy of a version's document is held under that version.
+    """
+    rec = load_ledger(root).get(sha)
+    if rec is None:
+        return ""
+    copy_of = str(rec.get("duplicate-of") or "")
+    if copy_of:
+        return copy_of if copy_of in bib else ""
+    store = storage_root(root)
+    stored = store / rec.get("to", "") / "paper.pdf"
+    if not stored.is_file() or sha256_of(stored) != sha:
+        return ""
+    return next((k for k, e in bib.items() if work_dir(root, e) == stored.parent), "")
+
+
 def plan_filing(
-    quilt: Quilt, bib: dict[str, BibEntry], f: Filing, taken: set[str], seen: dict[str, str]
+    quilt: Quilt,
+    bib: dict[str, BibEntry],
+    f: Filing,
+    taken: set[str],
+    seen: dict[str, str],
+    planned: set[Path] | None = None,
 ) -> Candidate | None:
     """Decide where `f` lands, filling in its home, sibling or `already`; returns the sibling entry to append, or None.
 
-    Never over a document, unless the author set it aside (`library ignore`): then the new PDF takes its place at the work's home, even when the same bytes are filed elsewhere. Otherwise a copy of a version's document (`same_document`) is not filed and `record_copy_of` records it, another version goes beside the first under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
+    Never over a document, unless the author set it aside (`library ignore`): then the new PDF takes its place at the work's home, even when the same bytes are filed elsewhere. Otherwise a copy of a version's document (`same_document`) is not filed and `record_copy_of` records it, another version goes beside the first under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once; bytes held under another work are filed here too where a person named this one. `planned` is the homes this run has given out, so two documents of one work in one run do not land on one home. Reads only; `file_document` writes.
     """
     root = quilt.root
     store = storage_root(root)
@@ -758,17 +788,20 @@ def plan_filing(
         f.already = f"the same document as {seen[f.sha]}"
         return None
     seen[f.sha] = f.path.name
+    planned = set() if planned is None else planned
     entry = bib[f.citekey]
     claimed = work_dir(root, entry)
     first = claimed / "paper.pdf" if f.kind == "pdf" else claimed / "src"
-    held = first.is_file() if f.kind == "pdf" else first.is_dir() and any(first.rglob("*.tex"))
-    aside = declarations(root, "forget").get(f.citekey) if f.kind == "pdf" and held else None
+    stands = first.is_file() if f.kind == "pdf" else first.is_dir() and any(first.rglob("*.tex"))
+    held = stands or claimed in planned
+    aside = declarations(root, "forget").get(f.citekey) if f.kind == "pdf" and stands else None
     if aside is not None and sha256_of(first) != f.sha:
         f.home, f.replaces, f.replaces_why = claimed, aside.sha256 or sha256_of(first), aside.why
+        planned.add(claimed)
         return None
-    ledger = load_ledger(root)
-    if f.kind == "pdf" and f.sha in ledger:
-        rec = ledger[f.sha]
+    holder = held_under(root, bib, f.sha) if f.kind == "pdf" else ""
+    if holder and (not f.named or one_work_of([holder, f.citekey], bib)):
+        rec = load_ledger(root)[f.sha]
         f.already = (
             f"already recorded as a copy of {rec['duplicate-of']}'s document, from {rec.get('from', 'elsewhere')}"
             if rec.get("duplicate-of")
@@ -777,8 +810,9 @@ def plan_filing(
         return None
     if not held:
         f.home = claimed
+        planned.add(claimed)
         return None
-    if f.kind == "pdf" and sha256_of(first) == f.sha:
+    if f.kind == "pdf" and stands and sha256_of(first) == f.sha:
         f.already = f"already filed for {f.citekey}"
         return None
     top = primary_of(bib).get(f.citekey, f.citekey)
@@ -790,6 +824,7 @@ def plan_filing(
             return None
     own = store / "file" / f.sha[:16]
     f.home = own
+    planned.add(own)
     f.sibling = _free_key(top, taken)
     taken.add(f.sibling)
     return _sibling(f.path, wid, bib[top], f.sibling, source=f.source, home=own.relative_to(store))
@@ -801,7 +836,7 @@ def record_copy_of(quilt: Quilt, bib: dict[str, BibEntry], f: Filing) -> None:
 
 
 def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
-    """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with the override and who made it when `--force` did.
+    """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with what the document showed against the work a person named and who named it.
 
     A filing that replaces a set-aside document clears what was read off it (its word boxes; its page text is rewritten), keeps it set aside by its hash, and withdraws the work's own claim, since the work now holds a document wanted.
     """
@@ -815,7 +850,8 @@ def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
     if f.kind == "pdf":
         shutil.copy(f.path, f.home / "paper.pdf")
         try:
-            write_map(f.home, f.home / "paper.pdf")
+            if not write_map(f.home, f.home / "paper.pdf").chars:
+                f.unmapped = "it has no text layer"
         except Exception as exc:  # noqa: BLE001 -- no poppler, or no text layer: the PDF stands either way
             f.unmapped = str(exc)
     else:

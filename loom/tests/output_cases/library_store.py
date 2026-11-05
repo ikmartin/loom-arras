@@ -54,12 +54,14 @@ CASES: dict[str, list[Case]] = {
     ],
     "library add": [
         Case(("man12.tex", "--for", "Man12", "--as", "Tester"), tex_file),
-        Case(("pile",), pile, why="filed, and skipped with their reasons"),
+        Case(("pile",), pile, why="each filed under its work or as a work of its own"),
         Case(("pile", "--dry-run"), pile, unchanged=True),
         Case(("refs",), ingest_pdf, poppler=True, why="the shipped PDF again: already in the store"),
         Case(("notes.txt", "--for", "Man12"), tex_file, exit=2, why="neither a PDF nor LaTeX", unchanged=True),
         Case(("man12.tex", "--for", "Nobody99xyz"), tex_file, exit=2, why="names no work", unchanged=True),
-        Case(("wrong.pdf", "--for", "Man12"), wrong, exit=2, why="it does not show it is Man12", unchanged=True),
+        Case(
+            ("wrong.pdf", "--for", "Man12", "--as", "Tester"), wrong, why="filed on your word, with what it shows said"
+        ),
         Case(("man12.tex", "--force"), tex_file, exit=2, why="--force without --for", unchanged=True),
         Case(("man12.tex", "--for", "Man12"), tex_file, env=AGENT, exit=2, why="the author's", unchanged=True),
     ],

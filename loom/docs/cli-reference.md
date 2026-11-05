@@ -553,14 +553,15 @@ A WORK is a citekey, its identifier (`doi:…`, `arXiv:…`), a fragment of a ci
 
 `loom library add [OPTIONS] FILE...`
 
-File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
+Keep PDFs and LaTeX sources in loom's store, a PDF whatever is known about it.
 
-A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it, unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
+A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. Every PDF is copied into the store. It is filed under an entry on a strong match: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline or its file name. Any other PDF becomes a work of its own, its entry made from what it shows: its file name, its document information, its first page. A lookup of the identifier it states, where the network is allowed, only adds to that entry. With `--for`, every FILE is that work's: a PDF is taken at your word, and what it shows to the contrary is reported and recorded. A LaTeX source is filed only on a strong match, skipped with its reason otherwise, and with `--for` refused when it shows it is another work's unless `--force`. A work that holds a document gets the new one beside it under a sibling entry, never over it, unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
 
 | option | description |
 |---|---|
-| `--for` `WORK` | The work every FILE is; without it each is matched to the bibliography by what it shows. |
-| `--force` | With --for, file a document that does not show it is that work; the override is recorded. |
+| `--for` `WORK` | The work every FILE is, which is taken at your word for a PDF; without it each is matched to the bibliography by what it shows. |
+| `--force` | With --for, file a LaTeX source that shows it is another work; the override is recorded. |
+| `--online` | Allow this run to look up the identifier a PDF states, over `[library] online`. |
 | `--as` `NAME` | Who is filing, when the user config and git do not say. |
 | `--dry-run` | Say what would be filed, skipped and refused, and write nothing. |
 | `--json` | Print the report as one JSON object. |

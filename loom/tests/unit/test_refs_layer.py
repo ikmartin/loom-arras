@@ -1854,10 +1854,6 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
     assert not home.exists()
 
     title = parse_bib((q / ".loom/digests" / "bibliography.bib").read_text())["Man12"].fields["title"]
-    # a PDF whose first page carries another title is refused: filed under the wrong work, every anchor would read the wrong paper (CLI study, defect 9)
-    wrong = _fake_pdf(tmp_path / "wrong.pdf", "Advanced Topics in the Arithmetic of Elliptic Curves")
-    refused("library", "add", wrong, "--for", "Man12", cwd=q, code=2, match="does not show it is Man12")
-    assert not (home / "paper.pdf").exists()
     one = _fake_pdf(tmp_path / "one.pdf", f"{title}\nCristina Manolache\nfirst copy")
     two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nCristina Manolache\nsecond copy\fan appendix")
     said = ok("library", "add", one, "--for", "Man12", cwd=q).stdout
@@ -1886,11 +1882,11 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
 
 
 def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped_the_rest(tmp_path: Path) -> None:
-    """An identifier on the page files a document alone, and so does its whole title with the entry's first author leading its byline; anything weaker is skipped with its reason; a work that has a PDF gets the new one beside it; --dry-run files nothing."""
+    """An identifier on the page files a document alone, and so does its whole title with the entry's first author leading its byline; anything weaker is kept as a work of its own, with the reason; a work that has a PDF gets the new one beside it; --dry-run files nothing."""
     q = demo(tmp_path)
     pile = tmp_path / "pile"
     _fake_pdf(pile / "a.pdf", "Virtual pull-backs\nCristina Manolache\narXiv:0805.2065v2 [math.AG]")
-    _fake_pdf(pile / "Hartshorne - 1977 - Algebraic Geometry.pdf", "Some other text entirely\nnobody at all")
+    _fake_pdf(pile / "Hartshorne - 1977 - Notes on geometry.pdf", "Some other text entirely\nnobody at all")
     _fake_pdf(pile / "b.pdf", "Algebraic Geometry\nRobin Hartshorne\nSpringer")
     _fake_pdf(
         pile / "c.pdf", "Fixed loci of involutions on separated spaces\nImogen Calloway\narXiv:1301.00001v1, a preprint"
@@ -1901,25 +1897,24 @@ def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped
 
     dry = json_of("library", "add", pile, "--dry-run", "--json", cwd=q)
     rows = {Path(r["file"]).name: r for r in dry["documents"]}
-    assert (dry["filed"], dry["skipped"], dry["refused"]) == (3, 2, 0)
+    assert (dry["filed"], dry["skipped"], dry["refused"]) == (5, 0, 0)
     assert (rows["a.pdf"]["citekey"], rows["a.pdf"]["outcome"]) == ("Man12", "filed")
     assert rows["a.pdf"]["strong"][0]["how"] == "arXiv:0805.2065v2 is on its first pages"
-    hart = rows["Hartshorne - 1977 - Algebraic Geometry.pdf"]
-    assert hart["outcome"] == "skipped" and hart["reason"].startswith("Har77 is the nearest entry, by its first author")
+    hart = rows["Hartshorne - 1977 - Notes on geometry.pdf"]
+    assert hart["outcome"] == "filed" and hart["new"] and hart["citekey"] != "Har77"
+    assert hart["reason"].startswith("Har77 is the nearest entry, by its first author")
     assert (rows["b.pdf"]["citekey"], rows["b.pdf"]["outcome"]) == ("Har77", "filed")
     assert (rows["c.pdf"]["outcome"], rows["c.pdf"]["sibling"]) == ("filed", "Calloway14A")
-    assert (rows["d.pdf"]["outcome"], rows["d.pdf"]["reason"]) == ("skipped", "nothing in the bibliography matches it")
+    assert (rows["d.pdf"]["outcome"], rows["d.pdf"]["reason"]) == ("filed", "nothing in the bibliography matches it")
     assert not (work_home(q, "Man12") / "paper.pdf").exists() and not (work_home(q, "Har77") / "paper.pdf").exists()
 
     r = ok("library", "add", pile, cwd=q)
     assert (work_home(q, "Man12") / "paper.pdf").read_bytes() == (pile / "a.pdf").read_bytes()
     assert (work_home(q, "Har77") / "paper.pdf").read_bytes() == (pile / "b.pdf").read_bytes()
-    assert r.stdout.startswith("5 documents: 3 filed, 2 skipped, 0 refused"), r.output
+    assert r.stdout.startswith("5 documents: 5 filed, 0 skipped, 0 refused"), r.output
     said = " ".join(r.stdout.split())
-    assert (
-        "d.pdf: nothing in the bibliography matches it" in said
-        and "Hartshorne - 1977 - Algebraic Geometry.pdf: Har77" in said
-    )
+    assert 'd.pdf as the new work Lec, titled "Lecture notes on something unrelated"' in said
+    assert 'Hartshorne - 1977 - Notes on geometry.pdf as the new work Har77A, titled "Notes on geometry"' in said
     assert b"Imogen" not in (work_home(q, "Calloway14") / "paper.pdf").read_bytes()  # the shipped copy is untouched
 
 

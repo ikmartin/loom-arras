@@ -1,6 +1,6 @@
 """What a document is, read off the document itself: the signals a pile of PDFs is matched by, and the rule `loom library add` files on.
 
-**A match is strong only when the document says so plainly**: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is a guess and is skipped with its reason, because a wrong PDF filed against the right entry is worse than an unfiled one: the corpus this was built against has 25 files for 22 entries, eleven of which match nothing at all, and two weak signals once filed "Logarithmic geometry and moduli" as Olsson's 2003 paper.
+**A match is strong only when the document says so plainly**: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author, where it names one, leads its byline; a reference manager's file name stating both counts, since it comes from a catalogue and a scanned book shows nothing else. Anything weaker is a guess and is never filed against that entry, because a wrong PDF filed against the right entry is worse than one kept apart: the corpus this was built against has 25 files for 22 entries, eleven of which match nothing at all, and two weak signals once filed "Logarithmic geometry and moduli" as Olsson's 2003 paper. The PDF itself is kept all the same, as a work of its own (`refs.add`).
 """
 
 from __future__ import annotations
@@ -113,6 +113,21 @@ def filename_title(stem: str) -> str:
     """
     m = re.match(r"^.{0,80}?\s-\s(?:\d{4}\s-\s)?(.+)$", stem)
     return (m.group(1) if m else stem).strip()
+
+
+#: The names leading a reference manager's filename: words starting with a letter, joined by spaces, commas, `and` or `&`.
+_FILE_NAMES = re.compile(r"^[^\W\d_][\w'’.-]*(?:(?:,\s*|\s+&\s+|\s+)[^\W\d_][\w'’.-]*){0,5}$")
+
+
+def filename_authors(stem: str) -> str:
+    """The authors a filename like `Author and Author - 2019 - The Real Title` leads with, as BibTeX writes them, or '' for any other name.
+
+    The year may be absent, as Zotero leaves it for a book it has none for; without one the part before the dash must read as names, so `Chapter 3 - Options` gives none.
+    """
+    m = re.match(r"^(?P<who>[^-]+?)(?:\s+et\s+al\.?)?\s+-\s+(?P<year>(?:19|20)\d\d\s+-\s+)?", stem)
+    if m is None or not (m.group("year") or _FILE_NAMES.match(m.group("who").strip())):
+        return ""
+    return " and ".join(n for n in re.split(r"\s+and\s+|\s*&\s*|,\s*", m.group("who").strip()) if n)
 
 
 def identifiers_in(text: str) -> tuple[set[str], set[str]]:
@@ -269,6 +284,20 @@ def _first_surname(entry: BibEntry) -> str:
     return _fold(names[0]) if names else ""
 
 
+def _title_alone(title: str, entry: BibEntry) -> bool:
+    """Whether the entry's whole title is all there is to match it by: it names no author, and the title is more than one word."""
+    return not _first_surname(entry) and len(title.split()) > 1
+
+
+def _named_in_file(identity: Identity, entry: BibEntry, title: str) -> bool:
+    """Whether the document's file name states the entry's whole title and its first author, or the title alone where it names none."""
+    stem = identity.path.stem
+    if _fold(filename_title(stem)) != title:
+        return False
+    surname = _first_surname(entry)
+    return f" {surname} " in f" {_fold(stem)} " if surname else _title_alone(title, entry)
+
+
 #: A line the text layer sets between a title and its byline that is not a name: arXiv's margin stamp.
 _STAMP = re.compile(r"^arXiv:\S+\s*\[", re.I)
 #: A line that is one name and nothing else, as a byline set one name a line prints it.
@@ -355,12 +384,16 @@ def _strong(identity: Identity, bib: dict[str, BibEntry]) -> list[Strong]:
                 span: tuple[int, int] | None = (0, 0) if _fold(identity.title) == title else None
             else:
                 span = _title_span(folded, title)
-            if span is not None and _leads(identity, entry, span):
+            if span is not None and _title_alone(title, entry):
+                hit = Strong(ck, TITLE_AND_AUTHOR, "its title is the entry's, which names no author")
+            elif span is not None and _leads(identity, entry, span):
                 hit = Strong(
                     ck,
                     TITLE_AND_AUTHOR,
                     f"its title is the entry's and {query_for(entry).surnames[0]} leads its byline",
                 )
+            elif identity.kind == "pdf" and _named_in_file(identity, entry, title):
+                hit = Strong(ck, TITLE_AND_AUTHOR, "its file name states the entry's title and first author")
         if hit:
             found.append(hit)
     found.sort(key=lambda m: (-m.strength, m.citekey))

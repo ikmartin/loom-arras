@@ -115,35 +115,35 @@ def test_a_work_argument_narrows_every_step_and_one_naming_nothing_is_refused(tm
     refused("library", "update", "Nobody99", code=2, match="names no work", cwd=q)
 
 
-def test_a_weak_match_is_skipped_with_its_reason(tmp_path: Path) -> None:
-    """The handbook names Olsson fifth and shares half the title of his 2003 paper; two weak signals filed it as that paper, and then skipped the real one because the slot was taken (audit §4)."""
+def test_a_weak_match_is_not_filed_against_the_entry_and_the_pdf_is_kept_as_a_work_of_its_own(tmp_path: Path) -> None:
+    """The handbook names Olsson fifth and shares half the title of his 2003 paper; two weak signals filed it as that paper, and then skipped the real one because the slot was taken (audit §4). Neither is lost now: the handbook is a work of its own, with the nearest entry named."""
     q = demo(tmp_path)
     _olsson(q)
     pile = tmp_path / "pile"
     _fake_pdf(pile / "Handbook of Moduli.pdf", HANDBOOK)
     _fake_pdf(pile / "olsson.pdf", OLSSON)
-    r = ok("library", "add", pile, cwd=q)
-    assert r.stdout.startswith("2 documents: 1 filed, 1 skipped, 0 refused"), r.output
+    r = ok("library", "add", pile, "--as", "A. Author", cwd=q)
+    assert r.stdout.startswith("2 documents: 2 filed, 0 skipped, 0 refused"), r.output
     said = " ".join(r.stdout.split())
-    assert "Handbook of Moduli.pdf: olsson03 is the nearest entry" in said
-    assert "its title is not olsson03's in full and Olsson does not lead its byline" in said
+    assert 'Handbook of Moduli.pdf as the new work Log, titled "Logarithmic geometry and moduli"' in said
+    assert "--for olsson03 files it there instead, if that is what it is" in said
     assert "olsson.pdf as olsson03's PDF, with its page text" in said
     home = work_home(q, "olsson03")
     assert (home / "paper.pdf").read_bytes() == (pile / "olsson.pdf").read_bytes()
+    assert (work_home(q, "Log") / "paper.pdf").read_bytes() == (pile / "Handbook of Moduli.pdf").read_bytes()
     rows = {Path(d["file"]).name: d for d in json_of("library", "add", pile, "--dry-run", "--json", cwd=q)["documents"]}
     assert rows["Handbook of Moduli.pdf"]["outcome"] == "skipped" and rows["olsson.pdf"]["outcome"] == "skipped"
     assert rows["olsson.pdf"]["reason"].startswith("already in loom's store")
 
 
-def test_a_pdf_naming_another_work_is_refused_and_force_records_the_override(tmp_path: Path) -> None:
-    """With `--for` the check still runs: a document that shows it is another entry's is refused, naming it, exit 2, and `--force` files it and records who overrode what."""
+def test_a_pdf_showing_another_work_is_filed_on_the_persons_word_and_the_evidence_recorded(tmp_path: Path) -> None:
+    """With `--for` a PDF is the person's to name: what it shows to the contrary is said and recorded with who named it, and nothing asks them to say it twice."""
     q = demo(tmp_path)
     _olsson(q, handbook_entry=True)
     handbook = _fake_pdf(tmp_path / "Handbook of Moduli.pdf", HANDBOOK)
-    r = refused("library", "add", handbook, "--for", "olsson03", code=2, match="it is abramovich16's", cwd=q)
-    assert said("pass --force with --for olsson03", r.output) and not (work_home(q, "olsson03") / "paper.pdf").exists()
     refused("library", "add", handbook, "--force", code=2, match="--force applies only with --for", cwd=q)
-    ok("library", "add", handbook, "--for", "olsson03", "--force", "--as", "A. Author", cwd=q)
+    r = ok("library", "add", handbook, "--for", "olsson03", "--as", "A. Author", cwd=q)
+    assert said("on your word, though it is abramovich16's", r.stdout)
     assert (work_home(q, "olsson03") / "paper.pdf").is_file()
     ledger = json.loads((q / ".loom/digests" / "storage" / "copied.json").read_text())
     row = next(v for v in ledger.values() if v["from"] == "Handbook of Moduli.pdf")

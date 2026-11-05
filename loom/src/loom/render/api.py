@@ -83,8 +83,8 @@ READS = (
     "library-lookup",
 )
 
-#: The largest request body the publisher reads: a 64 MB PDF in base64, the largest a person drops in the viewer.
-MAX_BODY = 96 * 1024 * 1024
+#: The largest request body the publisher reads: a 256 MB PDF in base64, the largest a person drops in the viewer, which is about what a browser can encode; `loom library add` takes any size.
+MAX_BODY = 344 * 1024 * 1024
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "adopt-decision", "library-update")
@@ -153,15 +153,15 @@ def _library_update(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """Adding works by hand (plan 0.24.2): what a pasted text is (`library-recognise`), what it names (`library-lookup`), writing it into loom's bibliography (`library-add`), a dropped PDF kept and identified (`library-upload`) then filed (`library-file`), and a work added by hand taken out again (`library-remove`).
+    """Adding works by hand (plan 0.24.2): what a pasted text is (`library-recognise`), what it names (`library-lookup`), writing it into loom's bibliography (`library-add`), a dropped PDF kept and identified (`library-upload`) then filed under a work or as its own (`library-file`), and a work added by hand taken out again (`library-remove`).
 
-    Every act but recognising is the author's, refused to a declared agent; a lookup that asks for the network is too, so an agent never grants itself it. `online` is the person's allowance of the network for that one act, as `--online` is.
+    A dropped PDF is filed whatever is known about it: lookups only add what they can. Every act but recognising is the author's, refused to a declared agent; a lookup that asks for the network is too, so an agent never grants itself it. `online` is the person's allowance of the network for that one act, as `--online` is.
     """
     import base64
     import hashlib
 
     from loom.cli._common import is_agent
-    from loom.refs.add import FilingRefused, file_under, identify
+    from loom.refs.add import file_new, file_under, identify
     from loom.refs.added import NotRemovable, add_entry, remove_entry
     from loom.refs.build import WORK_STEPS
     from loom.refs.identity import recognise
@@ -198,24 +198,6 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
             return None
         return jobs.submit([citekey], WORK_STEPS, who=who, online=asks).to_json()  # type: ignore[no-any-return]
 
-    def offer(path: Path, result: ScanResult) -> tuple[Any, dict[str, Any]]:
-        """What a kept upload shows, and for one matching no work the entry its own pages offer, looked up when the network is allowed."""
-        seen = identify(result, path)
-        extra: dict[str, Any] = {}
-        if seen.offer:
-            ident = seen.offer.get("eprint") or seen.offer.get("doi") or ""
-            found = look_up(ident, result.bib, online=online) if ident else None
-            if found is not None and found.state == "found":
-                extra = {"offer": found.entry, "key": found.key, "digest": found.digest, "duplicates": found.duplicates}
-            else:
-                extra = {
-                    "offer": seen.offer,
-                    "key": key_for(seen.offer, set(result.bib)),
-                    "digest": "lookup",
-                    "duplicates": [],
-                }
-        return seen, extra
-
     if endpoint == "library-lookup":
         found = look_up(_str(body, "text", required=True) or "", _scan(root).bib, online=online)
         return {"ok": True, "result": found.state, "found": found.to_json()}
@@ -250,8 +232,9 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
         path = uploads / sha / f"{stem}.pdf"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        seen, extra = offer(path, _scan(root))
-        return {"ok": True, "result": f"kept {name}", "upload": sha, "name": name, **seen.to_json(), **extra}
+        result = _scan(root)
+        seen = identify(root, result.bib, path, online=online)
+        return {"ok": True, "result": f"kept {name}", "upload": sha, "name": name, **seen.to_json()}
     if endpoint == "library-file":
         sha = _str(body, "upload", required=True) or ""
         kept = sorted((uploads / sha).glob("*.pdf")) if re.fullmatch(r"[0-9a-f]{64}", sha) else []
@@ -259,24 +242,18 @@ def _library_add(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, A
             raise ApiError("no-such-upload", f"no PDF was dropped as {sha[:12]}", status=404)
         path = kept[0]
         name = path.name
+        result = scan(load_quilt(root))
         if body.get("new"):
-            seen, extra = offer(path, _scan(root))
-            if seen.best or not extra:
-                raise ApiError("not-new", f"{name} shows it is {seen.best}; file it there", status=409)
-            if not extra["offer"].get("title"):
-                raise ApiError(
-                    "no-title",
-                    f"{name}'s first pages give no title loom trusts: paste its DOI, arXiv id or BibTeX entry to add the work, then drop the PDF again",
-                    status=409,
-                )
-            citekey = add_entry(quilt, extra["offer"], extra["key"], who)
+            typed = body.get("entry")
+            edits = {k: v for k, v in typed.items() if isinstance(v, str)} if isinstance(typed, dict) else None
+            filed = file_new(quilt, result.bib, path, who, came_from=name, online=online, edits=edits)
         else:
             citekey = _str(body, "citekey", required=True) or ""
-        _busy(root, citekey)
-        try:
-            filed = file_under(scan(load_quilt(root)), path, citekey, who, came_from=name)
-        except FilingRefused as exc:
-            raise ApiError("filing-refused", str(exc), status=409) from exc
+            if citekey not in result.bib:
+                raise ApiError("no-such-work", f"the library has no work {citekey}", status=404)
+            _busy(root, citekey)
+            filed = file_under(quilt, result.bib, path, citekey, who, came_from=name)
+        citekey = filed["citekey"]
         return {"ok": True, "result": f"filed {name} under {citekey}", **filed, "job": run(citekey)}
     citekey = _str(body, "citekey", required=True) or ""
     _busy(root, citekey)

@@ -179,6 +179,10 @@ describe("the library's page", () => {
 		expect(problemsOf(m, m.references.Har77)).toEqual([]);
 		m.references.Man12.version_mismatch = true;
 		const run = { citekey: 'Man12', lookup_error: 'zbMATH Open: HTTP 503', discarded: 'the title did not match', extract_error: 'no main file', map_error: '' };
+		// holding its paper, a work has nothing to fix when a lookup or a fetch comes back empty
+		m.references.Man12.artifacts!.pdf = true;
+		expect(problemsOf(m, m.references.Man12, run).map((p) => p.code)).toEqual(['another-version', 'extract-failed']);
+		m.references.Man12.artifacts!.pdf = false;
 		expect(problemsOf(m, m.references.Man12, run).map((p) => p.code)).toEqual(['another-version', 'lookup-failed', 'not-this-work', 'extract-failed']);
 		expect(problemsOf(m, m.references.Man12, run)[1].text).toContain('HTTP 503');
 	});

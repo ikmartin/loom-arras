@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from loom.scan.bib import parse_bib
 from tests.helpers import exits, json_of, ok, refused, run
 from tests.unit._quilts import demo, mapped, new_session, propose, work_home
 
@@ -232,12 +233,9 @@ def test_add_files_the_behrend_fantechi_pdf_its_byline_marked_for_affiliations(t
     _fake_pdf(pile / "Handbook of Moduli.pdf", HANDBOOK)
     r = run("library", "add", str(pile), "--dry-run", cwd=q)
     said = " ".join(r.stdout.split())
-    assert "1 would be filed" in said, r.output
+    assert "2 would be filed" in said, r.output
     assert "The intrinsic normal cone.pdf as behrend-fantechi_IntrinsicNormalCone1997's PDF" in said
-    assert (
-        "Handbook of Moduli.pdf: olsson03 is the nearest entry" in said
-        and "its title is not olsson03's in full" in said
-    )
+    assert "Handbook of Moduli.pdf as the new work" in said and "--for olsson03 files it there instead" in said
     behrend = pile / "Behrend and Fantechi - 1997 - The intrinsic normal cone.pdf"
     ok("library", "add", str(behrend), "--for", "behrend-fantechi_IntrinsicNormalCone1997", cwd=q)
 
@@ -309,12 +307,14 @@ def test_check_advises_ignore_for_a_duplicate_entry_and_ignore_clears_it(tmp_pat
 
 
 def _olsson_holding_the_handbook(tmp_path: Path) -> Path:
-    """The demo with olsson03 holding *Logarithmic Geometry and Moduli*, as the old `refs add` filed it in the author's quilt."""
+    """The demo with olsson03 holding *Logarithmic Geometry and Moduli*, as the old `refs add` filed it in the author's quilt: in the store, and in no ledger of what a person provided."""
+    from loom.refs.pages import write_map
+
     q = demo(tmp_path)
     with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(OLSSON_BIB)
-    wrong = _fake_pdf(tmp_path / "Handbook of Moduli.pdf", HANDBOOK)
-    ok("library", "add", str(wrong), "--for", "olsson03", "--force", *AS, cwd=q)
+    home = work_home(q, "olsson03")
+    write_map(home, _fake_pdf(home / "paper.pdf", HANDBOOK))
     return q
 
 
@@ -355,35 +355,48 @@ def test_ignore_then_add_replaces_a_wrong_document(tmp_path: Path) -> None:
 # --- 2: add's next lines name a command that works for the case shown
 
 
-def test_add_says_what_entry_a_document_naming_an_unknown_identifier_needs(tmp_path: Path) -> None:
+def test_add_keeps_a_document_naming_an_unknown_identifier_as_a_work_stating_it(tmp_path: Path) -> None:
     q = demo(tmp_path)
     pdf = _fake_pdf(tmp_path / "pile" / "new.pdf", "A paper nobody cites\nA. Writer\narXiv:2504.01234v1\n")
-    said = " ".join(ok("library", "add", str(pdf.parent), "--dry-run", cwd=q).stdout.split())
-    assert "it names arXiv:2504.01234v1, which no entry states" in said, said
-    assert "eprint = {2504.01234v1}" in said and "--for WORK" not in said
+    said = " ".join(ok("library", "add", str(pdf.parent), *AS, cwd=q).stdout.split())
+    assert 'new.pdf as the new work Pap, titled "A paper nobody cites"' in said, said
+    entry = parse_bib((q / ".loom/digests/bibliography.bib").read_text())["Pap"]
+    assert entry.fields["eprint"] == "2504.01234v1" and entry.fields["archiveprefix"] == "arXiv"
+    assert (work_home(q, "Pap") / "paper.pdf").is_file()
 
 
 def test_add_for_a_work_names_the_version_a_document_is(tmp_path: Path) -> None:
-    """The Manolache preprint given `--for` the work: refused as its version's, naming `--for` that version."""
+    """The Manolache preprint given `--for` the work: filed under the version it states, which is that work."""
     q = demo(tmp_path)
     with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(OLSSON_BIB + "\n@article{olsson03A, author={Olsson, M}, title={Logarithmic Geometry and Algebraic Stacks}, "
                  "year={2003}, eprint={0301.00001v1}, archiveprefix={arXiv}, loom-copy-of={olsson03}}\n")  # fmt: skip
     pdf = _fake_pdf(tmp_path / "preprint.pdf", OLSSON + "arXiv:0301.00001v1\n")
-    r = refused("library", "add", str(pdf), "--for", "olsson03", code=2, match="it is olsson03A's", cwd=q)
-    assert "loom library add FILE --for olsson03A" in " ".join(r.output.split()), r.output
+    said = " ".join(ok("library", "add", str(pdf), "--for", "olsson03", *AS, cwd=q).stdout.split())
+    assert "preprint.pdf as olsson03A's PDF" in said and "on your word" not in said, said
+    assert not (work_home(q, "olsson03") / "paper.pdf").exists()
 
 
-def test_add_names_the_nearest_entry_with_force_for_a_document_it_cannot_confirm(tmp_path: Path) -> None:
+def test_add_files_a_scan_under_the_entry_its_reference_manager_named_it_for(tmp_path: Path) -> None:
+    """A scanned book shows nothing on its pages, and a reference manager's file name is what a catalogue says it is."""
     q = demo(tmp_path)
     with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(OLSSON_BIB)
     pdf = _fake_pdf(
         tmp_path / "pile" / "Olsson - 2003 - Logarithmic geometry and algebraic stacks.pdf", "Some scan\nno byline\n"
     )
+    row = json_of("library", "add", str(pdf.parent), "--dry-run", "--json", cwd=q)["documents"][0]
+    assert (row["citekey"], row["outcome"]) == ("olsson03", "filed"), row
+    assert row["strong"][0]["how"] == "its file name states the entry's title and first author"
+
+
+def test_add_names_the_nearest_entry_for_a_document_it_keeps_apart(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
+        fh.write(OLSSON_BIB)
+    pdf = _fake_pdf(tmp_path / "pile" / "Olsson - 2003 - Notes on stacks.pdf", "Some scan\nno byline\n")
     said = " ".join(ok("library", "add", str(pdf.parent), "--dry-run", cwd=q).stdout.split())
-    assert "olsson03 is the nearest entry" in said, said
-    assert "loom library add FILE --for olsson03 --force files it there, if you know it is" in said
+    assert "as the new work" in said and "--for olsson03 files it there instead, if that is what it is" in said, said
 
 
 # --- 1.6: update reports this run's acts, and closes on library's counts
@@ -499,8 +512,8 @@ def test_check_names_its_stages_on_stderr(tmp_path: Path, monkeypatch: pytest.Mo
         assert stage in said[-1], said
 
 
-def test_a_document_whose_entry_names_no_author_says_so(tmp_path: Path) -> None:
-    """Li and Tian's gathered entry has a title and no author: the skip said "its first author is not in its byline", about an author nobody named."""
+def test_a_document_whose_entry_names_no_author_is_matched_on_its_whole_title(tmp_path: Path) -> None:
+    """Li and Tian's gathered entry has a title and no author: the skip said "its first author is not in its byline", about an author nobody named. The whole title is all there is to match it by, and it is enough."""
     q = demo(tmp_path)
     with (q / ".loom/digests" / "bibliography.bib").open("a") as fh:
         fh.write(
@@ -510,9 +523,9 @@ def test_a_document_whose_entry_names_no_author_says_so(tmp_path: Path) -> None:
         tmp_path / "pile" / "Li and Tian - 1998.pdf",
         "VIRTUAL MODULI CYCLES AND GROMOV-WITTEN\nINVARIANTS OF ALGEBRAIC VARIETIES\nJUN LI AND GANG TIAN\nIntroduction\n",
     )
-    said = " ".join(ok("library", "add", str(pdf.parent), "--dry-run", cwd=q).stdout.split())
-    assert "LiandTian1998Virtualmodu names no author to look for in its byline" in said, said
-    assert "first author is not in its byline" not in said
+    row = json_of("library", "add", str(pdf.parent), "--dry-run", "--json", cwd=q)["documents"][0]
+    assert (row["citekey"], row["outcome"]) == ("LiandTian1998Virtualmodu", "filed"), row
+    assert row["strong"][0]["how"] == "its title is the entry's, which names no author"
 
 
 #: First pages from the author's refs/ and store, as their text layers read, each the work named; every one was refused or reported with a false reason.

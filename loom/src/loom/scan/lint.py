@@ -11,7 +11,7 @@ from pathlib import Path
 from loom.paths import COPIES
 from loom.refs.identity import declared
 from loom.refs.resolve import load as load_candidates
-from loom.scan.bib import citekey_slug
+from loom.scan.bib import BibEntry, citekey_slug
 from loom.scan.diagnostics import can_disable
 from loom.scan.digests import digest_header, extracted_from, missing_packages, other_version, source_version
 from loom.scan.directives import KNOWN_KEYS, REGION_KEYS
@@ -491,7 +491,8 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     # a cited work with no global identifier can never be deduplicated, fetched, or matched against another quilt's
     for ck in sorted({c.citekey for c in edges.cites}):
         entry = result.bib.get(ck)
-        if entry is not None and not declared(entry):
+        # holding its document, a work wants nothing fetched: its identifier is the person's to add or not
+        if entry is not None and not declared(entry) and not _holds_document(result.quilt.root, entry):
             # a lookup already made is named here, read from loom's store; lint itself never touches the network
             found = load_candidates(result.quilt.root, entry)
             if found:
@@ -596,6 +597,14 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         )
     )
     return diags
+
+
+def _holds_document(root: Path, entry: BibEntry) -> bool:
+    """Whether loom's store holds a document for the work: its PDF, or its LaTeX."""
+    from loom.refs.fetch import work_dir
+
+    home = work_dir(root, entry)
+    return (home / "paper.pdf").is_file() or (home / "src").is_dir()
 
 
 def _no_readable_copy(result: ScanResult, digest_keys: set[str]) -> list[Diagnostic]:

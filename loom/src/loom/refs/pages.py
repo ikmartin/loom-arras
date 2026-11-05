@@ -136,6 +136,29 @@ def page_texts(pdf: Path) -> list[str]:
     return pages
 
 
+def pdf_info(pdf: Path) -> dict[str, str]:
+    """The document information a PDF carries, as `pdfinfo` prints it, by lowercased name (`title`, `author`); {} when it cannot be read.
+
+    Failing soft, as `pdfinfo` is optional: it is what a scan with no text layer says about itself, and a work is filed without it.
+    """
+    try:
+        proc = subprocess.run(
+            ["pdfinfo", "-enc", "UTF-8", str(pdf)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    if proc.returncode != 0:
+        return {}
+    pairs = (line.partition(":") for line in proc.stdout.splitlines())
+    return {name.strip().lower(): value.strip() for name, sep, value in pairs if sep and value.strip()}
+
+
 _PAGE = re.compile(r'<page\s+width="([\d.]+)"\s+height="([\d.]+)"')
 
 

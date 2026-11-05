@@ -1408,7 +1408,7 @@ def build_showcase(dest: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         pdf = Path(tmp) / "Halloway - 2026 - Notes on balanced quivers.pdf"
         _tiny_pdf(pdf)
-        g.run("library", "add", str(pdf), "--for", "Halloway26", "--force", "--as", SHOWCASE)
+        g.run("library", "add", str(pdf), "--for", "Halloway26", "--as", SHOWCASE)
     bib.write_text(text, encoding="utf-8")
     g.run(
         "library", "update", "--only", "gather"

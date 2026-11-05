@@ -1274,9 +1274,27 @@ def _library_file(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         s, "library-file", {"upload": new["upload"], "new": True, "name": "Halberd - 2021 - Gadget towers.pdf"}
     )
     assert made["citekey"] == new["key"] and made["filed"] is True
-    # a PDF whose pages give no title loom trusts is not made a work on its own say
+    # a PDF whose pages give no title is a work all the same, under its file name or what the person typed
     bare = succeeds(s, "library-upload", {"name": "scan.pdf", "data": _fake_pdf("arXiv:2103.00001")})
-    refuses(s, "library-file", {"upload": bare["upload"], "new": True}, 409, "no-title", "paste its DOI")
+    assert bare["offer"]["title"] == "scan"
+    typed = succeeds(
+        s, "library-file", {"upload": bare["upload"], "new": True, "entry": {"title": "A scanned note", "author": ""}}
+    )
+    assert typed["filed"] is True
+    refs = json.loads(get(s.url + "build/manifest.json")[2])["references"]
+    assert (
+        refs[typed["citekey"]]["bib"]["title"] == "A scanned note"
+        and refs[typed["citekey"]]["artifacts"]["pdf"] is True
+    )
+    # the same bytes again answer with the work holding them
+    again = succeeds(s, "library-upload", {"name": "scan copy.pdf", "data": _fake_pdf("arXiv:2103.00001")})
+    assert (again["best"], again["held"]) == (typed["citekey"], True)
+    assert succeeds(s, "library-file", {"upload": again["upload"], "new": True})["citekey"] == typed["citekey"]
+    # a PDF named for a work is filed there on the person's word, and what it shows otherwise is said
+    other = succeeds(s, "library-upload", {"name": "other.pdf", "data": _fake_pdf("Nothing like that work")})
+    named = succeeds(s, "library-file", {"upload": other["upload"], "citekey": "Calloway14"})
+    assert named["filed"] is True and named["sibling"] == "Calloway14A" and "does not show it is" in named["note"]
+    refuses(s, "library-file", {"upload": other["upload"], "citekey": "Nobody"}, 404, "no-such-work", "no work Nobody")
     refuses(s, "library-file", {"upload": "0" * 64, "citekey": "Man12"}, 404, "no-such-upload", "no PDF was dropped")
 
 
