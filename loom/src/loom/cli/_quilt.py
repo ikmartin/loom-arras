@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 import click
 
 from loom.cli._common import ContentError, EnvError, NotFoundError
+from loom.locks import locked
+from loom.paths import ID_LOCK
 from loom.scan.bib import BibEntry
 from loom.scan.quilt import NoQuiltError, Quilt, find_quilt
 from loom.scan.scan import ScanResult, scan
@@ -40,6 +44,42 @@ def open_scan(quilt_path: str | None) -> ScanResult:
         return scan(quilt)
     with Progress("reading the quilt"):
         return scan(quilt)
+
+
+@contextmanager
+def drawing_ids(quilt_path: str | None) -> Iterator[None]:
+    """Hold the quilt's id lock, showing that a wait is alive (T6); outside any quilt, the refusal `open_quilt` gives."""
+    from loom.cli.report import Progress
+
+    lock = open_quilt(quilt_path).root / ID_LOCK
+    with locked(lock, patience=lambda: Progress("waiting for another loom writing to this quilt")):
+        yield
+
+
+def draws_ids(command: Callable[..., Any]) -> Callable[..., Any]:
+    """Hold the quilt's id lock for the whole of a command that draws a node id or plans a history step, its scan included, since what the command must not reuse is read from that scan.
+
+    On `new`, `fork`, `draft` and `stamp`, which write straight after they scan; `history restore` takes `drawing_ids` itself, since its `--quilt` may be its group's. A `dry_run` or `print_only` call draws nothing and takes nothing.
+
+    Parameters
+    ----------
+    command : callable
+        A click callback taking `quilt_path` by keyword.
+
+    Returns
+    -------
+    callable
+        The callback, holding the lock while it runs.
+    """
+
+    @wraps(command)
+    def holding(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("dry_run") or kwargs.get("print_only"):
+            return command(*args, **kwargs)
+        with drawing_ids(kwargs.get("quilt_path")):
+            return command(*args, **kwargs)
+
+    return holding
 
 
 def open_bib(quilt_path: str | None) -> tuple[Quilt, dict[str, BibEntry]]:

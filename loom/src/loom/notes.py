@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.locks import locked
 from loom.paths import NOTE_LOG
 
 #: A note's id, which reaches a URL fragment and a `quilt:` link.
@@ -390,26 +391,29 @@ def write(
     strokes = clean_strokes(strokes)
     if not (body.strip() or (quote or "").strip() or rects or strokes or target.get("session")):
         raise NoteRefused("empty", "a note quotes something or says something")
+    root = result.quilt.root
     rects, artifact = _placed(result, target, mark, page, (quote or "").strip() or None, rects, strokes, body.strip())
     when = stamp()
-    note = Note(
-        id=_next_id(result.quilt.root, when[:10]),
-        when=when,
-        author=author,
-        author_kind=author_kind,
-        session=session,
-        target=target,
-        body=body.strip(),
-        quote=(quote or "").strip() or None,
-        page=page,
-        rects=rects,
-        mark=mark,
-        strokes=strokes,
-        artifact=artifact,
-    )
-    event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
-    event["author"] = author
-    _append(result.quilt.root, event)
+    # the read and the write share the log's lock, so two writers in any two processes never draw one id
+    with locked(_path(root)):
+        note = Note(
+            id=_next_id(root, when[:10]),
+            when=when,
+            author=author,
+            author_kind=author_kind,
+            session=session,
+            target=target,
+            body=body.strip(),
+            quote=(quote or "").strip() or None,
+            page=page,
+            rects=rects,
+            mark=mark,
+            strokes=strokes,
+            artifact=artifact,
+        )
+        event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
+        event["author"] = author
+        _append(root, event)
     return note
 
 
@@ -593,63 +597,65 @@ def take_in(
     pdf = pdf_of(result, probe)
     if pdf is None:
         raise NoteRefused("not-a-pdf", f"{on} is not a PDF held on this machine")
-    notes = load(root)
-    held = [n for n in notes.values() if n.target == probe and n.page and n.rects]
-    when = stamp()
-    day = when[:10]
-    count = max((int(i.rsplit("-", 1)[1]) for i in notes if i.startswith(f"n-{day}-")), default=0)
-    boxes: dict[int, str] = {}
-    out = {"taken": 0, "already": 0, "skipped": 0}
-    for item in items:
-        try:
-            page = item.get("page")
-            mark = item.get("mark")
-            body = str(item.get("body") or "").strip()
-            rects = clean_rects(item.get("rects"))
-            strokes = clean_strokes(item.get("strokes"))
-            if not isinstance(page, int) or not isinstance(mark, str):
-                raise NoteRefused("bad-field", "an item names its page and mark")
-            rects, artifact = _placed(result, probe, mark, page, None, rects, strokes, body)
-        except NoteRefused:
-            out["skipped"] += 1
-            continue
-        here = rects or []
-        if any(n.page == page and (n.body or "") == body and _same_place(n.rects or [], here) for n in held):
-            out["already"] += 1
-            continue
-        quote = None
-        if mark in ON_WORDS:
-            if page not in boxes:
-                try:
-                    boxes[page] = token_boxes(pdf, page, None)
-                except MapRefused:
-                    boxes[page] = ""
-            quote = words_under(boxes[page], here) or None
-        origin = dict(item["origin"]) if isinstance(item.get("origin"), dict) else None
-        if origin and origin.get("ref"):
-            origin["sha"] = artifact
-        count += 1
-        note = Note(
-            id=f"n-{day}-{count:04d}",
-            when=when,
-            author=author,
-            author_kind=author_kind,
-            session=session,
-            target=probe,
-            body=body,
-            quote=quote,
-            page=page,
-            rects=here,
-            mark=mark,
-            strokes=strokes,
-            artifact=artifact,
-            origin=origin,
-        )
-        event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
-        event["author"] = author
-        _append(root, event)
-        held.append(note)
-        out["taken"] += 1
+    # one count over the whole run, so the log stays locked from the read to the last write and no writer beside it draws an id from this run
+    with locked(_path(root)):
+        notes = load(root)
+        held = [n for n in notes.values() if n.target == probe and n.page and n.rects]
+        when = stamp()
+        day = when[:10]
+        count = max((int(i.rsplit("-", 1)[1]) for i in notes if i.startswith(f"n-{day}-")), default=0)
+        boxes: dict[int, str] = {}
+        out = {"taken": 0, "already": 0, "skipped": 0}
+        for item in items:
+            try:
+                page = item.get("page")
+                mark = item.get("mark")
+                body = str(item.get("body") or "").strip()
+                rects = clean_rects(item.get("rects"))
+                strokes = clean_strokes(item.get("strokes"))
+                if not isinstance(page, int) or not isinstance(mark, str):
+                    raise NoteRefused("bad-field", "an item names its page and mark")
+                rects, artifact = _placed(result, probe, mark, page, None, rects, strokes, body)
+            except NoteRefused:
+                out["skipped"] += 1
+                continue
+            here = rects or []
+            if any(n.page == page and (n.body or "") == body and _same_place(n.rects or [], here) for n in held):
+                out["already"] += 1
+                continue
+            quote = None
+            if mark in ON_WORDS:
+                if page not in boxes:
+                    try:
+                        boxes[page] = token_boxes(pdf, page, None)
+                    except MapRefused:
+                        boxes[page] = ""
+                quote = words_under(boxes[page], here) or None
+            origin = dict(item["origin"]) if isinstance(item.get("origin"), dict) else None
+            if origin and origin.get("ref"):
+                origin["sha"] = artifact
+            count += 1
+            note = Note(
+                id=f"n-{day}-{count:04d}",
+                when=when,
+                author=author,
+                author_kind=author_kind,
+                session=session,
+                target=probe,
+                body=body,
+                quote=quote,
+                page=page,
+                rects=here,
+                mark=mark,
+                strokes=strokes,
+                artifact=artifact,
+                origin=origin,
+            )
+            event = {"event": "noted", "kind": "agent" if author_kind == "agent" else "person", **note.to_dict()}
+            event["author"] = author
+            _append(root, event)
+            held.append(note)
+            out["taken"] += 1
     return out
 
 

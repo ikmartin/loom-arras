@@ -45,6 +45,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-64](WQ-64-html-file-reach.md) | what an HTML file in a quilt can reach: loom's records, lasting state, and a list of open boxes in loom itself | loom, arras | an HTML file the author keeps opening has to export loom's records by hand or loses state they wanted kept, or a second quilt builds a list of open boxes |
 | [WQ-65](WQ-65-marks-beside-the-manifest.md) | a PDF's marks in a sidecar rather than the manifest | loom, arras | the notes in a quilt's manifest cross one megabyte |
 
-Twenty-three active, twenty-two slots of headroom.
+Twenty-four active, twenty-one slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

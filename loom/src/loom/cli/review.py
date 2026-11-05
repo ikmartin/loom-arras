@@ -28,7 +28,7 @@ from loom.records.annotations import (
     next_id,
 )
 from loom.records.ledger import AcceptRow, append_rows
-from loom.records.log import append
+from loom.records.log import append, append_new
 from loom.records.selectors import find_quote, make_selector
 from loom.records.snapshots import snapshots_dir, write_snapshot
 from loom.records.store import Records
@@ -457,6 +457,11 @@ def _append(root: Path, event: dict[str, Any], dry_run: bool) -> None:
         append(root, event)
 
 
+def _append_new(root: Path, event: dict[str, Any], records: list[Any], date: str, dry_run: bool) -> str:
+    """`records.log.append_new`, and the id it drew; a dry run says the id it would draw and writes nothing."""
+    return next_id(records, date) if dry_run else append_new(root, event, date)
+
+
 def _one_comment(
     result: ScanResult,
     writer: tuple[str, str, str],
@@ -523,13 +528,11 @@ def _one_comment(
         reply_kind = full_kind(kind) if kind else "question"
         if reply_kind is None:
             raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
-        ann_id = next_id(records, date)
-        _append(
+        ann_id = _append_new(
             root,
             {
                 **base,
                 "event": "replied",
-                "id": ann_id,
                 "target": parent.target_key,
                 # the text the reply was written against, which may have moved on since the note it answers
                 "against": _version(result, parent.target_key, dry_run=dry_run) or parent.target_hash,
@@ -539,6 +542,8 @@ def _one_comment(
                 "body": message or "",
                 "reply_to": reply,
             },
+            records,
+            date,
             dry_run,
         )
         return f"{ann_id}  {parent.target_key}  reply to {reply}  ({aid})"
@@ -590,13 +595,11 @@ def _one_comment(
         )
     if payload == "" and placement != "replace":
         raise EnvError("an empty --payload deletes the quoted words, so it goes with --placement replace")
-    ann_id = next_id(records, date)
-    _append(
+    ann_id = _append_new(
         root,
         {
             **base,
             "event": "created",
-            "id": ann_id,
             "target": key,
             "against": _version(result, key, dry_run=dry_run) or key_hash(result, node_key),
             "anchor": selector.to_dict() if selector else None,
@@ -607,6 +610,8 @@ def _one_comment(
             "payload": payload,
             "placement": placement,
         },
+        records,
+        date,
         dry_run,
     )
     sev = f" {severity}" if severity else ""
@@ -709,18 +714,16 @@ def _note_on_page(
         raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
     if severity is not None and kind not in GRADED:
         raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
-    ann_id = next_id(records, date)
     # Quads are recorded only for a box, where they are the anchor; for text they are derived at build time from
     # the offsets, as a result's are, so a record never carries two descriptions that could drift apart.
     recorded = placed.anchor.to_dict()
     if placed.anchor.basis == "text":
         recorded.pop("quads", None)
-    _append(
+    ann_id = _append_new(
         result.quilt.root,
         {
             **base,
             "event": "created",
-            "id": ann_id,
             "target": str(wid),
             "against": "sha256:" + placed.anchor.sha256,
             "anchor": {**recorded, **placed.selector.to_dict()},
@@ -728,6 +731,8 @@ def _note_on_page(
             "body": message or "",
             "severity": severity,
         },
+        records,
+        date,
         dry_run,
     )
     sev = f" {severity}" if severity else ""

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
+from loom.locks import locked
 from loom.paths import LINKS, LINKS_REMOVED
 
 #: The vocabulary, closed. Each is read "<from> <kind> <to>".
@@ -134,22 +135,25 @@ def add_link(root: Path, frm: str, to: str, kind: str, why: str, by: str) -> Lin
     --------
     check_link : the refusals, for a caller that writes nothing.
     """
-    links = read_links(root)
-    check_link(links, frm, to, kind, why)
-    made = Link(id=next_id(links), frm=frm, to=to, kind=kind, why=why.strip(), by=by, when=stamp())
-    links.append(made)
-    write_links(root, links)
+    # the file is rewritten whole, so its lock keeps a writer from losing another's link as well as from drawing its id
+    with locked(links_path(root)):
+        links = read_links(root)
+        check_link(links, frm, to, kind, why)
+        made = Link(id=next_id(links), frm=frm, to=to, kind=kind, why=why.strip(), by=by, when=stamp())
+        links.append(made)
+        write_links(root, links)
     return made
 
 
 def remove_link(root: Path, link_id: str) -> Link:
     """Remove one link, returning what was removed."""
-    links = read_links(root)
-    keep = [x for x in links if x.id != link_id]
-    if len(keep) == len(links):
-        raise LookupError(f"no link {link_id}")
-    gone = next(x for x in links if x.id == link_id)
-    write_links(root, keep)
+    with locked(links_path(root)):
+        links = read_links(root)
+        keep = [x for x in links if x.id != link_id]
+        if len(keep) == len(links):
+            raise LookupError(f"no link {link_id}")
+        gone = next(x for x in links if x.id == link_id)
+        write_links(root, keep)
     return gone
 
 

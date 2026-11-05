@@ -11,7 +11,7 @@ from loom.scan.scan import ScanResult
 
 
 def visible_locals(result: ScanResult, prefix: str) -> set[str]:
-    """Every local part under `prefix` that anything can point at: ids in source, the acceptance ledger's keys, the history ledger's keys and every file name under its steps (an id the history has recorded is never allocated again), annotation targets, references anywhere (dangling included), and git history."""
+    """Every local part under `prefix` that anything can point at: ids in source, the acceptance ledger's keys, the history ledger's keys and every file name under its steps (an id the history has recorded is never allocated again), annotation targets, references anywhere (dangling included), and git history. A command that writes the id it draws from these holds the id lock from before its scan (`cli._quilt.draws_ids`)."""
     pat = re.compile(r"\b" + re.escape(prefix) + r"-([0-9A-Z]{4})\b")
     found: set[str] = set()
     for src in result.files.values():

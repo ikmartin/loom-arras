@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from loom.anchors import Anchor, is_page_anchor
+from loom.locks import locked
 from loom.paths import ANNOTATION_LOG
-from loom.records.annotations import KINDS, Annotation, Record
+from loom.records.annotations import KINDS, Annotation, Record, next_id
 from loom.records.selectors import Selector
 
 LOG = ANNOTATION_LOG
@@ -31,6 +32,35 @@ def append(root: Path, event: dict[str, Any]) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def append_new(root: Path, event: dict[str, Any], date: str) -> str:
+    """Append a new annotation's event under the next id for `date`.
+
+    The read and the write share the log's lock, so two writers in any two processes never draw one id.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt.
+    event : dict
+        The `created` or `replied` event, without its `id`.
+    date : str
+        The day the id is numbered within, `YYYY-MM-DD`.
+
+    Returns
+    -------
+    str
+        The id it drew.
+
+    See Also
+    --------
+    append : for an event about an annotation that already has an id.
+    """
+    with locked(log_path(root)):
+        ann_id = next_id(replay(root)[0], date)
+        append(root, {**event, "id": ann_id})
+    return ann_id
 
 
 def source_of(event: dict[str, Any]) -> str:

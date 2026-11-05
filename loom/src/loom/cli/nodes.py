@@ -8,7 +8,7 @@ import shlex
 import click
 
 from loom.cli._common import EnvError, NotFoundError, destination, find_session, refuse_protected, whoever, writer
-from loom.cli._quilt import open_scan, quilt_option
+from loom.cli._quilt import draws_ids, open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
 from loom.cli.report import Group, Report, counted
@@ -90,6 +90,7 @@ def _declared(result: ScanResult) -> str:
 )
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
+@draws_ids
 def new(
     taxon: str,
     title: str | None,
@@ -136,7 +137,12 @@ def new(
     name = result.taxa[env].name if env in result.taxa else env
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
+        # exclusively, so a file that arrived since the check above is refused and never overwritten, lock or no lock
+        try:
+            with path.open("x", encoding="utf-8") as fh:
+                fh.write(skeleton(result, node_id, env, title, author))
+        except FileExistsError:
+            raise EnvError(f"{path} already exists") from None
     named = rel.removeprefix(f"{base}/") if base else rel
     line = f"\\input{{{named.removesuffix('.tex')}}}"
     Report(

@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, destination, writer
-from loom.cli._quilt import open_quilt, open_scan, quilt_option, require_text, resolve_key
+from loom.cli._quilt import drawing_ids, draws_ids, open_quilt, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
@@ -28,12 +29,14 @@ from loom.history.steps import (
     plan_document_stamp,
     plan_freeze,
     refuse_interrupted,
+    refuse_stale,
     slug,
     stamp_document,
     text_hash,
     write_step,
 )
 from loom.history.versions import matching_version, materialize, parse_address, read_version, version_at
+from loom.locks import locked
 from loom.paths import BUILD, COPIES
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
@@ -86,6 +89,7 @@ def _history(result: ScanResult) -> History:
 @click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
+@draws_ids
 def draft(
     document: str,
     ai_name: str,
@@ -178,25 +182,28 @@ def _draft_ai(
         return
     context = capture_context(result, source_rel) if section else None
     dest = root / dest_rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(plan.text, encoding="utf-8")
-    entry = write_step(
-        history,
-        "copy",
-        f"copy-{Path(dest_rel).stem}",
-        plan.freeze,
-        actor,
-        extra={
-            "from": source_rel,
-            "to": dest_rel,
-            "bases": plan.bases,
-            "scope": plan.scope,
-            "suffix": plan.suffix,
-            "context": context,
-        },
-        document_text=plan.source_text,
-        document_name=Path(source_rel).name,
-    )
+    # the copy is written before its step, so whether the step can still be recorded is settled first: a refusal leaves no copy
+    with locked(history.ledger):
+        refuse_stale(history)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(plan.text, encoding="utf-8")
+        entry = write_step(
+            history,
+            "copy",
+            f"copy-{Path(dest_rel).stem}",
+            plan.freeze,
+            actor,
+            extra={
+                "from": source_rel,
+                "to": dest_rel,
+                "bases": plan.bases,
+                "scope": plan.scope,
+                "suffix": plan.suffix,
+                "context": context,
+            },
+            document_text=plan.source_text,
+            document_name=Path(source_rel).name,
+        )
     Report(
         f"wrote {dest_rel}, an agent document drafted from {source_rel}; step {entry.step:04d} records it",
         lines=detail(entry.step or 0),
@@ -219,6 +226,7 @@ def _draft_ai(
 @click.option("--dry-run", is_flag=True, help="Say what the step would record, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
+@draws_ids
 def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
 
@@ -337,6 +345,7 @@ class StepType(click.ParamType[int]):
 @click.option("--dry-run", is_flag=True, help="Print the plan and the patch, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
+@draws_ids
 def fork(
     node_id: str,
     in_doc: str,
@@ -1046,6 +1055,12 @@ def history_restore(name: str, to: str | None, dry_run: bool, as_json: bool, qui
     refuse_under_agent("loom history restore", "Ask the author to start the document.")
     if to is None:
         raise EnvError("loom history restore needs --to FILE, the new document")
+    with nullcontext() if dry_run else drawing_ids(quilt_path):
+        _restore(name, to, dry_run, as_json, quilt_path)
+
+
+def _restore(name: str, to: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """`loom history restore`: the ids it inserts are drawn from this scan, so the caller holds the id lock from before it."""
     result = open_scan(quilt_path)
     hist, e, text = _landmark(result.quilt, name)
     quilt = result.quilt

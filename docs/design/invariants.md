@@ -165,6 +165,18 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Record.** DR-265-ikmartin
 
+### Drawing an id takes a lock
+
+**Rule.** Whatever draws an id from what it can see holds an exclusive lock from the read to the write, in the command itself, so the lock holds across shells, servers and the viewer alike (`loom/src/loom/locks.py`). What is numbered in a log is drawn under a lock on that log: an annotation's, a note's, a session's and a link's id, a step's number, a message's sequence number. A node id has no one file to draw from, so `loom new`, `loom fork` and `loom history restore` hold `.loom/build/ids.lock` from before their scan until their file is written, as `loom draft` and `loom stamp` do for the step they plan. A step planned from a history the ledger has since moved past is refused before anything is written. `loom new` also creates its file exclusively, so it never overwrites what no lock could stop: a person saving at that moment, or a filesystem with no locks, on which loom says so and goes on (P13).
+
+`loom import`, `loom linearize` and incorporating an agent document hold no lock while they draw node ids, since a compile, a prompt or a preview stands between the draw and the write. They write those ids into a document, never into a file the id names, so a collision is two definitions of one id, which is reported and overwrites nothing (P13). `loom id` says ids and reserves none: `--next` prints one, and a patch or a labelled copy holds them only once the author puts it in a document.
+
+**Why.** A study of `loom mcp` beside `loom` in a shell, on copies of the demo, with writers started at the same moment. Two `loom new` calls both reported success with one file written in ten trials of twelve, a node silently lost; through two servers, sixteen calls reported success and eight files existed. Two `loom annotate` calls drew one id in ten trials of twelve, so a reply to that id could not say which annotation it meant. A lock inside one server had hidden this from any agent with one server.
+
+**Guard.** `loom/tests/unit/test_parallel_writers.py::test_parallel_new_each_make_a_file_of_their_own_or_refuse_cleanly`, `loom/tests/unit/test_parallel_writers.py::test_parallel_annotate_gives_every_annotation_its_own_id`, `loom/tests/unit/test_parallel_writers.py::test_parallel_note_gives_every_note_its_own_id`, `loom/tests/unit/test_parallel_writers.py::test_parallel_steps_each_draw_a_number_of_their_own`, `loom/tests/unit/test_mcp_server.py::test_two_servers_on_one_quilt_never_lose_a_node`
+
+**Record.** The study of 2026-11-04.
+
 ### Resolving a name never creates anything
 
 **Rule.** One resolver turns a `--session` value into a session. A value that matches nothing, or several, is an error that says what it saw, and nothing on disk changes; making a session is an act of its own.

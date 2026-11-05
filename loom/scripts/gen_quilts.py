@@ -20,7 +20,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from loom.paths import AI, ANNOTATION_LOG, BIBLIOGRAPHY, COPIES, SINCE, STORAGE
+from loom.paths import AI, ANNOTATION_LOG, BIBLIOGRAPHY, BUILD, COPIES, SINCE, STORAGE
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCES = REPO / "tests" / "quilts" / "sources"
@@ -1649,7 +1649,8 @@ def _differences(a: Path, b: Path) -> list[str]:
         # The generator uses these copies while building the quilt, but the
         # quilt's .gitignore deliberately keeps them out of its committed copy.
         return not (
-            rel.startswith(f"{SINCE}/")
+            rel.startswith(f"{BUILD}/")
+            or rel.startswith(f"{SINCE}/")
             or rel.startswith(f"{STORAGE}/cache/")
             or (rel.startswith(f"{STORAGE}/") and "/src/" in rel)
         )

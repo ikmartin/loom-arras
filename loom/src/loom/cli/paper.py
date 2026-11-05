@@ -17,8 +17,9 @@ from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.report import Group, Item, Progress, Report, counted
-from loom.history.ledger import actor_for, append_entry, load_history
+from loom.history.ledger import LEDGER, actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, refuse_interrupted, text_hash, write_step
+from loom.locks import locked
 from loom.paths import BUILD, LOOM, RETIRED, documents_named
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
@@ -346,25 +347,26 @@ def run_import(
                     f"the drafted document does not typeset as the original; {plan.dest_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway.\n"
                     + diffs
                 )
-    history = load_history(quilt.history_dir)
     original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
     name = slug(Path(plan.dest_rel).stem)
-    entry = write_step(
-        history,
-        "import",
-        name,
-        FreezePlan(),
-        actor_for(root),
-        extra={
-            "from": {"name": plan.master_rel, "hash": text_hash(original)},
-            "landmark": f"{name}.tex",
-            "to": {"path": f"{name}.tex", "hash": text_hash(plan.text)},
-            "inlined": list(plan.inlined),
-            "drafted": {"path": plan.dest_rel, "hash": text_hash(draft.text), "ids": len(draft.insertions)},
-        },
-        document_text=plan.text,
-        document_name=f"{name}.tex",
-    )
+    # read under the lock, so a step recorded elsewhere meanwhile cannot refuse this one after its document is written
+    with locked(quilt.history_dir / LEDGER):
+        entry = write_step(
+            load_history(quilt.history_dir),
+            "import",
+            name,
+            FreezePlan(),
+            actor_for(root),
+            extra={
+                "from": {"name": plan.master_rel, "hash": text_hash(original)},
+                "landmark": f"{name}.tex",
+                "to": {"path": f"{name}.tex", "hash": text_hash(plan.text)},
+                "inlined": list(plan.inlined),
+                "drafted": {"path": plan.dest_rel, "hash": text_hash(draft.text), "ids": len(draft.insertions)},
+            },
+            document_text=plan.text,
+            document_name=f"{name}.tex",
+        )
     main_set = set_main(load_quilt(root), plan.dest_rel)
     after = scan(load_quilt(root))
     wrote = [Item(f"{plan.master_rel} -> {plan.dest_rel}, {len(draft.insertions)} ids inserted")]

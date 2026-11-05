@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -324,6 +327,46 @@ def test_a_changed_file_moves_a_mark_with_words_and_detaches_the_rest(paper: Pat
     assert published_note(paper, box)["detached"] is True
     pdf.unlink()
     assert published_note(paper, gone)["detached"] is True
+
+
+def test_a_note_written_during_a_take_in_draws_an_id_of_its_own(paper: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A take-in counts once and numbers its whole run from that, so a note written while it runs waits for the log rather than drawing the number the run is about to use."""
+    import loom.notes as notes
+    from loom.cli._quilt import open_scan
+
+    result = open_scan(str(paper))
+    counted = threading.Event()
+    placed = notes._placed
+
+    def slowly(*args: Any, **kwargs: Any) -> Any:
+        if not counted.is_set():
+            counted.set()
+            time.sleep(0.3)
+        return placed(*args, **kwargs)
+
+    monkeypatch.setattr(notes, "_placed", slowly)
+    items = [{"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "from the file"}]
+    taker = threading.Thread(
+        target=notes.take_in,
+        args=(result, "notes/paper.pdf", items),
+        kwargs={"author": "Tester", "author_kind": "person"},
+    )
+    taker.start()
+    assert counted.wait(5)
+    notes.write(
+        result,
+        "notes/paper.pdf",
+        author="Tester",
+        author_kind="person",
+        session="",
+        body="beside",
+        page=1,
+        mark="pin",
+        rects=[[9, 9, 25, 25]],
+    )
+    taker.join()
+    ids = [e["id"] for e in map(json.loads, notes._path(paper).read_text().splitlines()) if e["event"] == "noted"]
+    assert len(ids) == len(set(ids)) == 2
 
 
 @pytest.mark.poppler
