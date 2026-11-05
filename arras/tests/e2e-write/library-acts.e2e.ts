@@ -11,7 +11,7 @@ test("a row's menu runs on its work, asking for the network the quilt has off, a
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');
 	await expect(run).toHaveCount(1);
-	await expect(run).toHaveAttribute('data-state', 'done', { timeout: 60000 });
+	await expect(run).toHaveAttribute('data-state', 'done');
 });
 
 test('"Stop asking for its paper…" asks why and declares it unreadable, and asking again undoes it', async ({ page }) => {
@@ -49,7 +49,7 @@ test('two rows selected run as one, followed on the page', async ({ page }) => {
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');
 	await expect(run).toHaveCount(1);
-	await expect(run).toHaveAttribute('data-state', 'done', { timeout: 60000 });
+	await expect(run).toHaveAttribute('data-state', 'done');
 	await expect(page.getByTestId('bulk-run')).toHaveCount(0);
 });
 

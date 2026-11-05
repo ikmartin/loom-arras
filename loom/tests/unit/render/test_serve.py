@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.helpers import ok, refused
+from tests.helpers import PATIENCE, ok, refused
 from tests.unit._quilts import demo
 from tests.unit.render._serve import get
 
@@ -45,7 +46,7 @@ def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untype
     time.sleep(0.3)
     node.write_text(node.read_text().replace("[Orbits]", "[Orbits, revised]"))
     os.utime(node, None)
-    deadline = time.time() + 6
+    deadline = time.time() + PATIENCE
     after = before
     while time.time() < deadline:
         _, headers, body = get(s.url + "build/manifest.json")
@@ -55,7 +56,7 @@ def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untype
         time.sleep(0.2)
     assert after != before, "manifest did not change within the deadline"
     assert json.loads(body)["nodes"]["dm-0002"]["title"] == "Orbits, revised"
-    deadline = time.time() + 3
+    deadline = time.time() + PATIENCE
     while s.builds < 2 and time.time() < deadline:  # the counter steps after the publish the ETag already shows
         time.sleep(0.1)
     assert s.builds >= 2
@@ -158,13 +159,13 @@ def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.M
     node = d / "drafting" / "nodes" / "dm-0002.tex"
     time.sleep(0.3)
     node.write_text(node.read_text().replace("[Orbits]", "[Orbits, again]"))
-    deadline = time.time() + 6
+    deadline = time.time() + PATIENCE
     while s.builds < 2 and time.time() < deadline:
         time.sleep(0.1)
     assert s.builds >= 2, "the change was not picked up"
     settled, seen = s.builds, polls[0]
     # a watcher that chased its own build would rebuild on the first poll after it, so three polls settle it
-    deadline = time.time() + 6
+    deadline = time.time() + PATIENCE
     while polls[0] < seen + 3 and time.time() < deadline:
         time.sleep(0.05)
     assert polls[0] >= seen + 3, "the watcher stopped polling"
@@ -238,7 +239,7 @@ def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, se
 
     monkeypatch.setattr(ServeSession, "first_build", publish_then_edit)
     session = serve(q)
-    deadline = time.monotonic() + 6
+    deadline = time.monotonic() + PATIENCE
     while time.monotonic() < deadline:
         _, _, body = get(session.url + "build/manifest.json")
         if json.loads(body)["nodes"]["dm-0002"]["title"] == "Edited at startup":
@@ -249,12 +250,14 @@ def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, se
     assert session.builds >= 2
 
 
-def test_a_write_of_records_publishes_from_the_last_scan_and_once(session, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
-    """A session, an annotation and a message change nothing the scan reads: each is published before it answers, from the last scan, and the watcher, which sees the same files a moment later, builds nothing more (plan 0.18.2)."""
+def test_a_write_of_records_publishes_from_the_last_scan_and_once(
+    serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:  # type: ignore[no-untyped-def]
+    """A session, an annotation and a message change nothing the scan reads: each is published before it answers, from the last scan, and the watcher, which sees the same files afterwards, builds nothing more (plan 0.18.2)."""
     from loom.render import build as build_mod
     from tests.unit.render._serve import post
 
-    s, d = session
+    s = serve(demo(tmp_path), watch=False)
     scans = [0]
     real = build_mod.scan
 
@@ -283,18 +286,32 @@ def test_a_write_of_records_publishes_from_the_last_scan_and_once(session, monke
     assert any(
         a["target"].get("key") == "dm-0003" and "A note." in json.dumps(a) for a in manifest["annotations"].values()
     )
+    assert s.watcher is not None
+    s.watcher.start()
     time.sleep(1.0)  # five polls
     assert s.builds == before + 3, "the watcher built again what the API had published"
 
 
 def test_a_burst_of_edits_publishes_once(session) -> None:  # type: ignore[no-untyped-def]
+    """A poll that sees the first edit of a burst publishes all of it, since a build reads the files as they are when it begins. The publication lock makes it so here: that poll's build waits on it while the rest of the burst is written, where it would otherwise depend on whether the burst fits between two polls."""
     s, d = session
     time.sleep(0.3)
     before = s.builds
-    for name in ("dm-0001.tex", "dm-0002.tex", "dm-0003.tex"):
-        node = d / "drafting" / "nodes" / name
-        node.write_text(node.read_text() + "\n% edited\n")
-    deadline = time.time() + 6
+    saw_the_first = threading.Event()
+    publish = s.watcher.on_change
+
+    def noted(changed: list[Path]) -> None:
+        saw_the_first.set()
+        publish(changed)
+
+    s.watcher.on_change = noted
+    with s.lock:
+        for name in ("dm-0001.tex", "dm-0002.tex", "dm-0003.tex"):
+            node = d / "drafting" / "nodes" / name
+            node.write_text(node.read_text() + "\n% edited\n")
+            assert saw_the_first.wait(PATIENCE), "no poll saw the first edit"
+            time.sleep(0.2)  # for that poll to reach the lock
+    deadline = time.time() + PATIENCE
     while s.builds == before and time.time() < deadline:
         time.sleep(0.05)
     time.sleep(1.0)
@@ -307,7 +324,7 @@ def test_serve_streams_each_publication_and_ends_when_it_stops(session) -> None:
 
     s, d = session
     assert json.loads(get(s.url + "_api")[2])["stream"] is True
-    with urllib.request.urlopen(s.url + "_api/stream", timeout=10) as resp:
+    with urllib.request.urlopen(s.url + "_api/stream", timeout=PATIENCE) as resp:
         assert resp.headers["Content-Type"] == "text/event-stream"
         assert resp.readline() == b": open\n" and resp.readline() == b"\n"
         s.rebuild()
@@ -317,19 +334,19 @@ def test_serve_streams_each_publication_and_ends_when_it_stops(session) -> None:
 
 
 def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) -> None:
-    """An append to the annotation log is seen within a fraction of a second though the tree is scanned only every ten, so an agent's finding reaches a served page without waiting out a scan (plan 0.19.2)."""
+    """An append to the annotation log is seen though the next scan of the tree is an hour away, so an agent's finding reaches a served page without waiting out a scan (plan 0.19.2)."""
     from loom.render.watch import Watcher
 
     (tmp_path / ".loom/annotations").mkdir(parents=True)
     entries = tmp_path / ".loom/annotations" / "log.jsonl"
     entries.write_text("")
     seen: list[list[Path]] = []
-    w = Watcher(tmp_path, seen.append, interval=10.0)
+    w = Watcher(tmp_path, seen.append, interval=3600.0)
     w.start()
     try:
         time.sleep(0.3)
         entries.write_text('{"event": "created"}\n')
-        deadline = time.time() + 2
+        deadline = time.time() + PATIENCE
         while not seen and time.time() < deadline:
             time.sleep(0.05)
         assert seen and any(p.name == "log.jsonl" for p in seen[0])
@@ -338,19 +355,19 @@ def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) 
 
 
 def test_a_record_written_before_the_watcher_starts_is_seen_on_its_first_poll(tmp_path: Path) -> None:
-    """An annotation filed while the first build ran, after it read the files and before the watcher began, is seen within a fraction of a second rather than at the first full scan."""
+    """An annotation filed while the first build ran, after it read the files and before the watcher began, is seen on the first poll rather than at the first full scan, an hour away."""
     from loom.render.watch import Watcher
 
     (tmp_path / ".loom/annotations").mkdir(parents=True)
     entries = tmp_path / ".loom/annotations" / "log.jsonl"
     entries.write_text("")
     seen: list[list[Path]] = []
-    w = Watcher(tmp_path, seen.append, interval=10.0)
+    w = Watcher(tmp_path, seen.append, interval=3600.0)
     time.sleep(0.05)  # a later mtime than the baseline's on a filesystem with coarse timestamps
     entries.write_text('{"event": "created"}\n')
     w.start()
     try:
-        deadline = time.time() + 2
+        deadline = time.time() + PATIENCE
         while not seen and time.time() < deadline:
             time.sleep(0.05)
         assert seen and any(p.name == "log.jsonl" for p in seen[0])
@@ -370,7 +387,7 @@ def test_the_watcher_still_scans_the_tree_on_its_interval(tmp_path: Path) -> Non
     try:
         time.sleep(0.2)
         source.write_text("b")
-        deadline = time.time() + 3
+        deadline = time.time() + PATIENCE
         while not seen and time.time() < deadline:
             time.sleep(0.05)
         assert seen and seen[0] == [source]

@@ -31,7 +31,7 @@ const marksOf = (served: Served) => Object.values(notes(served)).filter((n) => n
 
 async function openPaper(page: Page, url: string, n = 1): Promise<void> {
 	await page.goto(url);
-	await expect.poll(() => page.locator(`[data-testid="pdf-page-${n}"] .text span`).count(), { timeout: 30000 }).toBeGreaterThan(10);
+	await expect.poll(() => page.locator(`[data-testid="pdf-page-${n}"] .text span`).count()).toBeGreaterThan(10);
 }
 
 /** Select the words of a span, as a reader does, and let go. */
@@ -49,7 +49,7 @@ async function selectWords(page: Page, n: number, phrase: string): Promise<void>
 }
 
 const marks = (page: Page, kind?: string) => page.locator(kind ? `[data-testid^="page-mark-"][data-kind="${kind}"]` : '[data-testid^="page-mark-"]');
-const published = (served: Served, count: number) => expect.poll(() => marksOf(served).length, { timeout: 15000 }).toBe(count);
+const published = (served: Served, count: number) => expect.poll(() => marksOf(served).length).toBe(count);
 
 /** Press and drag across a page, from and to fractions of its size. */
 async function drag(page: Page, n: number, from: [number, number], to: [number, number]): Promise<void> {
@@ -107,18 +107,18 @@ test.describe('on a project PDF', () => {
 		await clickMark(page, `page-mark-${id}`);
 		await page.getByTestId('mark-comment').fill('the title says it');
 		await page.getByTestId('mark-done').click();
-		await expect.poll(() => notes(served)[id]?.body, { timeout: 15000 }).toBe('the title says it');
+		await expect.poll(() => notes(served)[id]?.body).toBe('the title says it');
 		await page.reload();
-		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count(), { timeout: 30000 }).toBeGreaterThan(10);
+		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count()).toBeGreaterThan(10);
 		await clickMark(page, `page-mark-${id}`);
 		await expect(page.getByTestId('mark-card-body')).toContainText('the title says it');
 		await page.getByTestId('mark-erase').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(0);
-		await expect.poll(() => id in notes(served), { timeout: 15000 }).toBe(false);
+		await expect.poll(() => id in notes(served)).toBe(false);
 		await page.getByTestId('markup-toggle').click();
 		await page.getByTestId('mark-undo').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(1);
-		await expect.poll(() => id in notes(served), { timeout: 15000 }).toBe(true);
+		await expect.poll(() => id in notes(served)).toBe(true);
 		expect(readFileSync(join(served.root, FILE)).equals(readFileSync(ARDEN))).toBe(true);
 	});
 
@@ -189,7 +189,7 @@ test.describe('on a project PDF', () => {
 		await page.mouse.down();
 		await page.mouse.move(grab.x + grab.width / 2 + 30, grab.y + grab.height / 2 + 20, { steps: 4 });
 		await page.mouse.up();
-		await expect.poll(() => notes(served)[box[0]].rects![0][0], { timeout: 15000 }).toBeGreaterThan(x0 + 5);
+		await expect.poll(() => notes(served)[box[0]].rects![0][0]).toBeGreaterThan(x0 + 5);
 		expect(notes(served)[box[0]].rects![0][1]).toBeGreaterThan(y0 + 5);
 		const moved = notes(served)[box[0]].rects![0];
 		const handle = (await page.getByTestId('mark-handle-se').boundingBox())!;
@@ -197,11 +197,11 @@ test.describe('on a project PDF', () => {
 		await page.mouse.down();
 		await page.mouse.move(handle.x + 44, handle.y + 34, { steps: 4 });
 		await page.mouse.up();
-		await expect.poll(() => notes(served)[box[0]].rects![0][2], { timeout: 15000 }).toBeGreaterThan(moved[2] + 5);
+		await expect.poll(() => notes(served)[box[0]].rects![0][2]).toBeGreaterThan(moved[2] + 5);
 		// and the keyboard takes it back, then takes it off the page
 		await page.getByTestId('mark-done').click();
 		await page.keyboard.press('ControlOrMeta+z');
-		await expect.poll(() => notes(served)[box[0]].rects![0][2], { timeout: 15000 }).toBeCloseTo(moved[2], 0);
+		await expect.poll(() => notes(served)[box[0]].rects![0][2]).toBeCloseTo(moved[2], 0);
 		await clickMark(page, `page-mark-${box[0]}`);
 		await page.getByTestId('mark-done').focus();
 		await page.locator('body').evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -218,7 +218,7 @@ test.describe('on a project PDF', () => {
 		await clickMark(page, `page-mark-${id}`);
 		await page.getByTestId('mark-comment').fill('in the copy');
 		await page.getByTestId('mark-done').click();
-		await expect.poll(() => notes(served)[id]?.body, { timeout: 15000 }).toBe('in the copy');
+		await expect.poll(() => notes(served)[id]?.body).toBe('in the copy');
 		await page.getByTestId('markup-toggle').click();
 		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
 		expect(saved.suggestedFilename()).toBe('paper-annotated.pdf');

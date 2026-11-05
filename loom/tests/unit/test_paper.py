@@ -620,7 +620,7 @@ def test_import_inlines_an_arxiv_bbl_when_the_bib_is_absent(tmp_path: Path) -> N
     assert inline_bbl(tmp_path, "paper.tex", text) == (text, None)  # a real .bib wins
 
 
-def test_atomize_and_linearize_say_what_they_are_doing_on_a_long_run(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_atomize_and_linearize_say_what_they_are_doing_on_a_long_run(tmp_path: Path, monkeypatch, progress) -> None:  # type: ignore[no-untyped-def]
     """T6: 41.8 s of silence for atomize and 30.6 s for linearize on the author's quilt. A clock that moves ten seconds a reading stands in for the long run; each command names its stages on stderr."""
     import io
     import itertools

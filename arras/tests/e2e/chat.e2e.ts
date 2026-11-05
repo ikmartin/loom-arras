@@ -39,7 +39,7 @@ test.describe('the transcript', () => {
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		const chat = pane(page, 1).getByTestId('chat');
 		// The cold MathJax bundle and 80 display formulas share CI with three other suites.
-		await expect(chat.locator('.math mjx-container')).toHaveCount(80, { timeout: 15000 });
+		await expect(chat.locator('.math mjx-container')).toHaveCount(80);
 		await expect(chat.getByTestId('message-40')).toBeInViewport();
 		await expect(chat.getByTestId('message-1')).not.toBeInViewport();
 		await expect(chat.locator('h1, h2')).toHaveCount(0);

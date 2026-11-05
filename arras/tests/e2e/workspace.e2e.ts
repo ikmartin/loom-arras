@@ -438,7 +438,6 @@ test.describe('the tab strip', () => {
 	});
 
 	test('past the floor the tabs scroll, and the views beneath them keep their place', async ({ page }) => {
-		test.setTimeout(60000);
 		await withPapers(page);
 		// the right pane as narrow as a work lets it be, 420px, so ten tabs pass the floor
 		await prefs(page, { divider: 0.8 });

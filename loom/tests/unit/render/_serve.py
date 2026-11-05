@@ -9,6 +9,8 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from tests.helpers import PATIENCE
+
 
 class QuickServer(ThreadingHTTPServer):
     """`serve_forever` checks for shutdown every 0.5 s by default and `ServeSession.stop` waits that out; a test's server checks ten times as often."""
@@ -30,7 +32,7 @@ def get(url: str, headers: dict[str, str] | None = None) -> tuple[int, dict[str,
     """GET `url`; an HTTP error is returned as its status with an empty body."""
     req = urllib.request.Request(url, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=PATIENCE) as resp:
             return resp.status, dict(resp.headers), resp.read()
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers), b""
@@ -42,12 +44,12 @@ def post(url: str, body: dict[str, Any], token: str | None = None) -> tuple[int,
     headers = {"Content-Type": "application/json"}
     if token is None:
         base = url.split("/_api/")[0] + "/_api"
-        token = json.loads(urllib.request.urlopen(base, timeout=5).read()).get("token", "")
+        token = json.loads(urllib.request.urlopen(base, timeout=PATIENCE).read()).get("token", "")
     if token:
         headers["X-Loom-Token"] = token
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=PATIENCE) as resp:
             return resp.status, json.loads(resp.read())
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read() or b"{}")

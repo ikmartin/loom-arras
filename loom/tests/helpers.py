@@ -19,6 +19,9 @@ from loom.cli import main
 
 T = TypeVar("T")
 
+#: How long, in seconds, a test waits for what must happen before it says it never did. Never a claim about speed: a machine running other suites has taken minutes over what takes a second alone, and a wait ends as soon as the thing happens, so only a real failure ever spends this.
+PATIENCE = 180.0
+
 
 def run(
     *args: str | Path,

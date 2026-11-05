@@ -8,7 +8,7 @@ import pytest
 
 from loom.render.api import CAPABILITIES, ApiError, handle
 from loom.sessions import active, close, create, resume, sessions, set_active
-from tests.helpers import ok, refused
+from tests.helpers import PATIENCE, ok, refused
 from tests.unit._quilts import demo, new_session
 
 WHO = "A. Author"
@@ -168,7 +168,7 @@ def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
             stderr=subprocess.PIPE,
         )
         os.write(main, f"{answer}\n".encode())
-        out, err = proc.communicate(timeout=60)
+        out, err = proc.communicate(timeout=PATIENCE)
     finally:
         os.close(main)
         os.close(tty)

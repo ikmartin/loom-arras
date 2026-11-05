@@ -75,7 +75,7 @@ test('a landmark\'s formulas typeset with its own macros: no formula falls back 
 	// a landmark's fragment names its macro set, which arras defines in one formula of its own before typesetting the fragment; a definition MathJax cannot read would fail that formula and leave the set undefined
 	await page.goto('/canon/widgets-v1');
 	const math = page.locator('.fragment .math');
-	await expect(math.first().locator('mjx-container')).toBeAttached({ timeout: 15000 });
+	await expect(math.first().locator('mjx-container')).toBeAttached();
 	await expect(page.locator('.fragment mjx-container [data-mml-node="merror"]')).toHaveCount(0);
 	await expect(page.locator('.fragment')).not.toContainText('\\providecommand');
 	await expect(page.locator('.fragment')).not.toContainText('\\renewcommand');
@@ -96,7 +96,7 @@ test("a landmark whose first formula is an environment keeps its macros out of t
 	});
 	await page.goto('/canon/widgets-v1');
 	const math = page.locator('.fragment .math');
-	await expect(math.first().locator('mjx-container')).toBeAttached({ timeout: 15000 });
+	await expect(math.first().locator('mjx-container')).toBeAttached();
 	await expect(page.locator('.fragment')).not.toContainText('\\renewcommand');
 	await expect(page.locator('.fragment')).toContainText('Fixed(σ)');
 	await expect(page.locator('.fragment mjx-container [data-mml-node="merror"]')).toHaveCount(0);

@@ -19,14 +19,14 @@ from typing import Any
 import pytest
 
 from loom.version import INTERFACE_VERSION
-from tests.helpers import edit, exits, json_of, ok, run, the
+from tests.helpers import PATIENCE, edit, exits, json_of, ok, run, the
 
 FAKE_GIT = """import sys
 if "--version" in sys.argv:
     print("git version 2.0 (fake)")
 sys.exit(0 if "--version" in sys.argv else 1)
 """
-HANG = "import time\ntime.sleep(60)\n"
+HANG = "import time\ntime.sleep(600)\n"
 XPDF = """import sys
 if "-v" in sys.argv:
     sys.stderr.write("pdftotext version 4.05\\n")
@@ -159,7 +159,7 @@ def test_a_hung_tool_is_reported_not_waited_on(box: Box, monkeypatch: pytest.Mon
     box.script("latexmk", HANG)
     began = time.monotonic()
     got = item(doctor(box, code=2), "latexmk")
-    assert time.monotonic() - began < 8
+    assert time.monotonic() - began < PATIENCE, "doctor waited on the hung tool"
     assert got["status"] == "fail" and got["detail"].startswith("hung: -v did not answer in 1 s"), got
     assert "take" in got["remedy"] and str(box.bin / "latexmk") in got["remedy"]
 

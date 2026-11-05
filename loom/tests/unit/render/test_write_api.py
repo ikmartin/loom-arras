@@ -277,7 +277,7 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
 #
 # One case per endpoint in CAPABILITIES, each run against a real `loom serve`: one write that succeeds, with what the server wrote read back from the quilt, and one refusal, with its status, code and message. `test_every_capability_has_a_case` fails when an endpoint is served that has no case here.
 
-Serve = Callable[[Path], ServeSession]
+Serve = Callable[..., ServeSession]
 Case = Callable[[Serve, Path, pytest.MonkeyPatch], None]
 CASES: dict[str, Case] = {}
 WHO = "A Reader"
@@ -886,14 +886,14 @@ def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyP
     succeeds(s, "adopt-reopen", body)
 
 
-def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
+def synthetic(serve: Serve, tmp_path: Path, *, watch: bool = True) -> tuple[ServeSession, Path]:
     """A copy of loom's synthetic quilt, served (which builds it)."""
     root = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", root, ignore=shutil.ignore_patterns("build", ".git"))
     from loom.scan.quilt import save_author
 
     save_author("The synthetic quilt")
-    return serve(root), root
+    return serve(root, watch=watch), root
 
 
 @case("review-accept")
@@ -901,7 +901,7 @@ def _review_accept(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     from loom.records.store import Records
     from loom.scan.quilt import load_quilt
 
-    s, root = synthetic(serve, tmp_path)
+    s, root = synthetic(serve, tmp_path, watch=False)
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
     # accepting is the author's, whatever reviewer an agent names beside itself
     agent = {"reviewer": "The synthetic quilt", "keys": ["sy-0001"], "author": "Referee (Agent)"}

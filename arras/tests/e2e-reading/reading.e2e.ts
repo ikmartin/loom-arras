@@ -55,7 +55,7 @@ async function drawn(page: Page, n: number, { every = 300, after = 0 } = {}): Pr
 				layer = now.layer;
 				return held ? 'held' : said;
 			},
-			{ intervals: [every], timeout: 30000 }
+			{ intervals: [every] }
 		)
 		.toBe('held');
 	return layer;
@@ -136,7 +136,7 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	expect(anchor).not.toHaveProperty('quads'); // derived at build time, never recorded for text
 	// and the mark appears once the publisher has rebuilt the sidecar: the underline a fragment draws, beneath each line, over the hue's 5% wash
 	const mark = page.getByTestId(`mark-${written.id}`).first();
-	await expect(mark).toBeVisible({ timeout: 15000 });
+	await expect(mark).toBeVisible();
 	await expect(mark).toHaveClass(/annotation/);
 	await expect(mark).toHaveClass(/k-note/);
 	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
@@ -184,7 +184,7 @@ test('a selection across a citation and a reference is quoted as they were writt
 			const m = await (await page.request.get('/build/manifest.json')).json();
 			const a = m.annotations[written.id as string];
 			return a ? `${a.recorded} ${a.anchored}` : 'absent';
-		}, { timeout: 15000 })
+		})
 		.toBe('true true');
 });
 
@@ -203,7 +203,7 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 			const same = Math.abs(again.y - box.y) < 1 && Math.abs(again.height - box.height) < 1;
 			box = again;
 			return same ? 'held' : `moved to y ${again.y}, height ${again.height}`;
-		}, { intervals: [300, 300, 300, 300], timeout: 5000 })
+		}, { intervals: [300, 300, 300, 300] })
 		.toBe('held');
 	// traced, so a drag that draws nothing says what the pointer actually hit
 	await page.evaluate(() => {
@@ -231,7 +231,7 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	expect(anchor.quads).toHaveLength(1);
 	// a box anchor is an outline in the hue, not an underline
 	const mark = page.getByTestId(`mark-${written.id}`);
-	await expect(mark).toBeVisible({ timeout: 15000 });
+	await expect(mark).toBeVisible();
 	await expect(mark).toHaveClass(/basis-box/);
 	await expect(mark).toHaveCSS('border-top-width', '2px');
 	await expect(mark).toHaveCSS('border-top-color', 'rgb(111, 109, 102)');
@@ -275,7 +275,7 @@ test('the session selection governs the page: a note the view hides is not drawn
 	await page.getByTestId('session-new-title').fill('an empty sitting');
 	await page.getByTestId('session-new-title').press('Enter');
 	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
-	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting', { timeout: 10000 });
+	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting');
 	await openPicker(page);
 	await page.getByTestId('show-current').click();
 	await expect(page.getByTestId(`mark-${id}`)).toHaveCount(0);
@@ -312,7 +312,7 @@ test('a session is named on the spot and closed from the page', async ({ page, s
 	await page.getByTestId('session-new-title').fill('reading Bellamy, closely');
 	await page.getByTestId('session-new-title').press('Enter');
 	// it is selected on being opened, and the footer says so because that is where a note would land
-	await expect(page.getByTestId('session-footer-name')).toContainText('reading Bellamy, closely', { timeout: 10000 });
+	await expect(page.getByTestId('session-footer-name')).toContainText('reading Bellamy, closely');
 	// closing the selected session clears the selection, so writing is unavailable until another is chosen
 	await openPicker(page);
 	// the verbs stand over a row only while the pointer is on it
@@ -320,7 +320,7 @@ test('a session is named on the spot and closed from the page', async ({ page, s
 	await expect(row.locator('[data-testid^="session-close-"]')).toBeHidden();
 	await row.hover();
 	await row.locator('[data-testid^="session-close-"]').click();
-	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session', { timeout: 10000 });
+	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 });
 
 test('two notes on one place are one mark with no count drawn, and one box holding both', async ({ page, served }) => {
@@ -334,7 +334,7 @@ test('two notes on one place are one mark with no count drawn, and one box holdi
 	}
 	// one mark carries both ids; nothing is drawn to say how many
 	const stacked = page.locator('[data-testid="pdf-page-2"] .mark.note[data-annotation*=" "]').first();
-	await expect(stacked).toBeVisible({ timeout: 15000 });
+	await expect(stacked).toBeVisible();
 	await expect(stacked).not.toHaveAttribute('data-count');
 	expect(await stacked.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 	const ids = (await stacked.getAttribute('data-annotation'))!.split(/\s+/);
@@ -356,18 +356,18 @@ test('a box shows the write it fired, without being closed and reopened', async 
 	await expect(page.getByTestId('note-at')).toBeHidden();
 	const id = served.written('resolve me').id as string;
 	const mark = page.getByTestId(`mark-${id}`);
-	await expect(mark).toBeVisible({ timeout: 15000 });
+	await expect(mark).toBeVisible();
 	await mark.click();
 	const box = page.getByTestId('comment-expanded');
 	await expect(box.getByTestId('outcome')).toHaveCount(0);
 	await box.getByTestId('verb-resolve').first().click();
 	// the same box, still open, still where the reader put it, now settled: the outcome said once, and reopen its one verb
-	await expect(box.getByTestId('outcome').first()).toHaveText('· resolved', { timeout: 10000 });
+	await expect(box.getByTestId('outcome').first()).toHaveText('· resolved');
 	await expect(box.locator('article.box').first()).toHaveClass(/settled/);
 	await expect(box.getByTestId('verb-resolve')).toHaveCount(0);
 	const undo = box.getByTestId('verb-reopen').first();
 	await undo.click();
-	await expect(box.getByTestId('outcome')).toHaveCount(0, { timeout: 10000 });
+	await expect(box.getByTestId('outcome')).toHaveCount(0);
 });
 
 test('a selection records the lines it covers and nothing else', async ({ page, served }) => {
@@ -376,13 +376,13 @@ test('a selection records the lines it covers and nothing else', async ({ page, 
 	await select(page, 'rational polytope');
 	await page.getByTestId('note-body').fill('the quads of this note are the lines it covers');
 	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
 
 	const written = served.written('the quads of this note are the lines it covers');
 	const id = String(written.id);
 	const sidecar = join(served.root, '.loom/build', bellamy(served).spans.path);
 	await expect
-		.poll(() => JSON.parse(readFileSync(sidecar, 'utf8')).marks?.[id]?.length ?? 0, { timeout: 15000 })
+		.poll(() => JSON.parse(readFileSync(sidecar, 'utf8')).marks?.[id]?.length ?? 0)
 		.toBeGreaterThan(0);
 
 	const spans = JSON.parse(readFileSync(sidecar, 'utf8'));
@@ -452,9 +452,9 @@ readOnly('the preview lands on its mark, and a scroll inside it does not dismiss
 	const cardScrolls = () => page.evaluate(() => (window as unknown as { __cardScrolls: number }).__cardScrolls);
 	await page.locator('[data-pane="0"] span.cite[data-citekey="Arden24"] a').first().hover();
 	const card = page.getByTestId('link-preview');
-	await expect(card.getByTestId('mark-_stmt').first()).toBeVisible({ timeout: 10000 });
+	await expect(card.getByTestId('mark-_stmt').first()).toBeVisible();
 	// the renderer has scrolled its own column to the mark, so the mark is inside the preview's page, and the dismissal has heard it: the card stands
-	await expect.poll(() => card.evaluate(markOutsidePreview), { timeout: 5000 }).toBeLessThanOrEqual(2);
+	await expect.poll(() => card.evaluate(markOutsidePreview)).toBeLessThanOrEqual(2);
 	await expect.poll(cardScrolls).toBeGreaterThan(0);
 	await expect(card).toBeVisible();
 	// and a wheel inside the card scrolls the card, not away from it: once that scroll has been heard, the card still stands
@@ -471,7 +471,7 @@ readOnly('a citation opens its paper at the result, past the first page, and a \
 	const cite = page.locator('[data-pane="0"] span.cite[data-target="Arden24A-thm-5.1"] a').first();
 	await expect(cite).toHaveAttribute('href', '/library/Arden24A?page=3&result=Arden24A-thm-5.1');
 	await cite.click();
-	await expect(page.locator('[data-pane="1"] [data-mark="Arden24A-thm-5.1"]').first()).toBeInViewport({ timeout: 15000 });
+	await expect(page.locator('[data-pane="1"] [data-mark="Arden24A-thm-5.1"]').first()).toBeInViewport();
 	await expect(page.getByTestId('pane-1').getByTestId('page-at')).toHaveValue('3');
 	// a remark of the revision refers to its Corollary 5.2 by `\ref`, which opens the paper at that result too
 	await page.goto('/node/Arden24A-rem-5.3');
@@ -483,7 +483,7 @@ readOnly('a citation opens its paper at the result, past the first page, and a \
 
 readOnly('a link that quotes a work without a page is lit on the page the publisher finds it on', async ({ page }) => {
 	await page.goto('/library/Bellamy19?quote=' + encodeURIComponent('The median orders of a weighted digraph are in bijection with the vertices'));
-	await expect(page.locator('[data-mark="_locator"]').first()).toBeInViewport({ timeout: 15000 });
+	await expect(page.locator('[data-mark="_locator"]').first()).toBeInViewport();
 	await expect(page.getByTestId('page-at')).toHaveValue('2');
 });
 
@@ -518,7 +518,7 @@ readOnly('a paper opened into half a pane fits its text, and its landing dot is 
 			const roomLeft = box.x - paneBox.x;
 			const pastRight = box.x + box.width - (paneBox.x + paneBox.width);
 			return roomLeft >= 8 && pastRight <= 0 ? 'inside' : `starts ${roomLeft}px into the pane, ends ${pastRight}px past its right edge`;
-		}, { timeout: 8000 })
+		})
 		.toBe('inside');
 	// and the reader's own zoom returns the moment they give one
 	await page.getByTestId('zoom-at').fill('140');
@@ -533,7 +533,7 @@ readOnly('a result is drawn only where a link lands, takes no pointer, and its w
 		await page.emulateMedia({ colorScheme: scheme });
 		await page.goto('/library/Bellamy19?page=2');
 		const mark = page.locator('.page .mark.result').first();
-		await expect(mark).toBeAttached({ timeout: 15000 });
+		await expect(mark).toBeAttached();
 		await mark.scrollIntoViewIfNeeded();
 		expect(alpha(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)), `${scheme}: drawn at rest`).toBe(0);
 		const hit = await mark.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.tagName; });
@@ -546,7 +546,7 @@ readOnly('a result is drawn only where a link lands, takes no pointer, and its w
 		expect((await page.evaluate(() => String(window.getSelection()))).trim().length, `${scheme}: a drag across a result selects its words`).toBeGreaterThan(3);
 		await page.goto('/library/Bellamy19?page=2&result=Bellamy19-thm-3.2');
 		const landed = page.locator('.page .mark.result.on').first();
-		await expect(landed).toBeAttached({ timeout: 15000 });
+		await expect(landed).toBeAttached();
 		const a = alpha(await landed.evaluate((el) => getComputedStyle(el).backgroundColor));
 		expect(a, `${scheme}: a landed result is tinted`).toBeGreaterThan(0);
 		expect(a, `${scheme}: a landed result covers its words`).toBeLessThan(0.5);
@@ -563,7 +563,7 @@ readOnly('a result that starts mid-line lands with every line of it in half a pa
 	});
 	await page.goto('/library/Bellamy19?page=2&result=Bellamy19-thm-3.2&beside=%2Fnode%2Fsh-0009');
 	const lines = page.locator('[data-pane="0"] [data-mark="Bellamy19-thm-3.2"]');
-	await expect(lines).toHaveCount(4, { timeout: 10000 });
+	await expect(lines).toHaveCount(4);
 	const pane = (await page.getByTestId('pane-0').boundingBox())!;
 	// polled, since the scroll to the result is smooth: the lines that stick out of the pane, until none do
 	await expect
@@ -580,16 +580,15 @@ readOnly('a result that starts mid-line lands with every line of it in half a pa
 
 readOnly('a paper drawn again at a new zoom never shows a render refused', async ({ page, context }) => {
 	// a page redrawn while its first draw was running told the reader "Cannot use the same canvas during multiple render() operations" (phase 5). The race needs a slow machine to show, so the CPU is slowed and the zoom changed while pages are drawing.
-	readOnly.setTimeout(90000);
 	const cdp = await context.newCDPSession(page);
 	await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
 	for (const at of ['/library/Arden24', '/master/drafting/main-atomic']) {
 		await page.goto(at);
 		if (at.startsWith('/master')) {
-			await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor({ timeout: 30000 });
+			await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
 			await page.locator('[data-pane="0"] a', { hasText: 'Proposition 2.1' }).first().click();
 		}
-		await page.getByTestId('zoom-in').waitFor({ timeout: 30000 });
+		await page.getByTestId('zoom-in').waitFor();
 		const before = (await layerOf(page, 1)).layer;
 		await page.evaluate(async () => {
 			const b = document.querySelector<HTMLButtonElement>('[data-testid="zoom-in"]');

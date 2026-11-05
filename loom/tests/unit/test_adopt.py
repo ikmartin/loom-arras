@@ -675,6 +675,7 @@ def test_an_unlabelled_node_is_document_level_and_never_a_missing_proposal(tmp_p
     assert "+An unlabelled remark, revised." in r.stdout
 
 
+@pytest.mark.usefixtures("progress")
 def test_adopts_preview_says_what_it_is_doing_on_a_long_run(tmp_path, monkeypatch):
     """T6: 17.6 s of silence before a preview on the author's quilt. A clock that moves ten seconds a reading stands in for it; the stages are named on stderr."""
     import importlib
