@@ -107,7 +107,7 @@ def session_thread(
 
 
 def build_threads(root: Path, records: list[Record] | None = None, result: ScanResult | None = None) -> dict[str, Any]:
-    """Every session as a thread, keyed by its id; with a scan, each log line says what it names."""
+    """Every session as a thread, keyed by its id, oldest first; with a scan, each log line says what it names."""
     from loom.records.annotations import load_records
     from loom.sessions import files_dir, sessions
 
@@ -115,7 +115,7 @@ def build_threads(root: Path, records: list[Record] | None = None, result: ScanR
         records, _ = load_records(root)
     by_rel = {r.rel: r for r in records}
     out: dict[str, Any] = {}
-    for s in sessions(root).values():
+    for s in sorted(sessions(root).values(), key=lambda s: s.created):
         record = by_rel.get(s.id)
         where = files_dir(root, s)
         out[s.id] = session_thread(root, s, record, where, result)

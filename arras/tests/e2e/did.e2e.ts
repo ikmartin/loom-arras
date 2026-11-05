@@ -35,7 +35,7 @@ test('a command run again and again is one row, with how many times, and links w
 
 test('what it recorded is grouped by the block it is on, named as a reader names it, each with its kind by hue and where it stands', async ({ page }) => {
 	await page.goto(`/session/${REFEREE}?view=did`);
-	const made = page.locator('[id="ann-a-2026-09-16-0001"]');
+	const made = page.locator('[id="ann-a-2026-09-16-ecnav2"]');
 	const group = page.getByTestId('did-group').filter({ has: made });
 	await expect(group.getByTestId('did-on')).toHaveAttribute('title', 'sy-0003');
 	await expect(group.getByTestId('did-on')).not.toHaveText('sy-0003');
@@ -47,14 +47,14 @@ test('what it recorded is grouped by the block it is on, named as a reader names
 	await expect(made.getByTestId('did-state')).toHaveText('open');
 	await expect(made.getByTestId('did-first')).toContainText('finite');
 	// an annotation the log names twice, made and then resolved, is one row, where it stands now
-	await expect(page.locator('[id="ann-a-2026-09-16-0002"]')).toHaveCount(1);
-	await expect(page.locator('[id="ann-a-2026-09-16-0002"]').getByTestId('did-state')).toHaveText('resolved');
+	await expect(page.locator('[id="ann-a-2026-09-16-hwtkaw"]')).toHaveCount(1);
+	await expect(page.locator('[id="ann-a-2026-09-16-hwtkaw"]').getByTestId('did-state')).toHaveText('resolved');
 });
 
 test('a row links the annotation it made by its quilt: address, which opens where every such link does', async ({ page }) => {
 	// where the link opens, with its box, is the one rule's (links.e2e.ts); the row's part is to link the annotation
 	await page.goto(`/session/${REFEREE}?view=did`);
-	await expect(page.locator('[id="ann-a-2026-09-16-0001"]').getByTestId('did-annotation')).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
+	await expect(page.locator('[id="ann-a-2026-09-16-ecnav2"]').getByTestId('did-annotation')).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 });
 
 test('with an empty log it says so in one line, rather than a section over nothing', async ({ page }) => {

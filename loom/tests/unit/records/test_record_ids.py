@@ -223,3 +223,35 @@ def test_a_later_event_about_a_record_is_no_second_record(tmp_path: Path) -> Non
 def test_the_shipped_demo_repeats_no_id(tmp_path: Path) -> None:
     q = demo(tmp_path)
     assert not [d for d in json_of("lint", "--json", cwd=q)["diagnostics"] if d["code"] == "loom:repeated-id"]
+
+
+def test_the_manifest_lists_records_oldest_first_whatever_their_tokens(tmp_path: Path) -> None:
+    """The manifest's keys are sorted, which was oldest first only while ids counted up; the viewer takes these sections in the order they are written."""
+    from loom.render.publish import manifest_text
+
+    manifest = {"z": 1, "annotations": {"a-b": {"y": 1, "x": 2}, "a-a": {}}, "other": {"b": 1, "a": 2}}
+    written = json.loads(manifest_text(manifest))
+    assert list(written) == ["annotations", "other", "z"]
+    assert list(written["annotations"]) == ["a-b", "a-a"]
+    assert list(written["annotations"]["a-b"]) == ["x", "y"]
+    assert list(written["other"]) == ["a", "b"]
+
+
+def test_a_merged_log_reaches_the_manifest_in_the_order_it_was_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A merge puts one clone's lines after the other's, whatever the hour; the viewer's order is the hour's."""
+    one, two = _clones(tmp_path)
+    args = ("annotate", "dm-0002", "words", "--kind", "question", *AS)
+    # the earlier id sorts last and its line is merged last, so only the hour puts it first
+    tokens = iter(["zzzzzz", "000000"])
+    monkeypatch.setattr("loom.records.ids._token", lambda _prefix, _attempt: next(tokens))
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2031-01-01T09:00:00Z")
+    earlier = ok(*args, cwd=two).stdout.split()[0]
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2031-01-01T10:00:00Z")
+    later = ok(*args, cwd=one).stdout.split()[0]
+    _merge(one, two, ANNOTATION_LOG, 1)
+    ok("build", cwd=one)
+    published = json.loads((one / ".loom/build/manifest.json").read_text(encoding="utf-8"))["annotations"]
+    order = list(published)
+    assert order.index(earlier) < order.index(later)

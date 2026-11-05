@@ -271,7 +271,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** Every non-discarded annotation, plus discarded ones with `discarded: true` so the viewer can offer to show them.
 
-**[decided]** An annotation, a note and a session are keyed by `a-`, `n-` or `s-`, the day it was written as `YYYY-MM-DD`, `-`, and a token of lower-case letters and digits, as in `a-2026-11-05-k2m9xq`; a link between results is `link-` and a token. A viewer treats the token as opaque and takes no order from it, since clones of a quilt draw tokens apart. Order comes from the record's own `created` or `when`.
+**[decided]** An annotation, a note and a session are keyed by `a-`, `n-` or `s-`, the day it was written as `YYYY-MM-DD`, `-`, and a token of lower-case letters and digits, as in `a-2026-11-05-k2m9xq`; a link between results is `link-` and a token. A viewer treats the token as opaque and takes no order from it, since clones of a quilt draw tokens apart. The entries of `annotations`, `notes` and `threads` are written oldest first, by the record's own `created` or `when`, and in the order they were written within one second; every other object in the manifest has its keys sorted.
 
 ```json
 "a-2026-09-16-xgtcve": {

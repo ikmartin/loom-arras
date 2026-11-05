@@ -749,12 +749,12 @@ def detached(result: Any, note: Note) -> bool:
 
 
 def published(result: Any) -> dict[str, dict[str, Any]]:
-    """Every note as the manifest carries it, with `faded` and `detached` computed now."""
+    """Every note as the manifest carries it, oldest first, with `faded` and `detached` computed now."""
     notes = load(result.quilt.root)
     links = linked(result, notes)
     now = stamp()
     out: dict[str, dict[str, Any]] = {}
-    for nid, n in notes.items():
+    for nid, n in sorted(notes.items(), key=lambda item: item[1].when):
         pdf = pdf_of(result, n.target)
         ref, sha = (n.origin or {}).get("ref"), (n.origin or {}).get("sha")
         hides = ref if ref and pdf is not None and pdf.is_file() and sha == artifact_of(pdf) else None

@@ -1,5 +1,73 @@
 {
  "annotations": {
+  "a-2026-09-16-ecnav2": {
+   "anchored": true,
+   "applied": null,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-ecnav2",
+   "in": null,
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "payload_html": null,
+   "placement": null,
+   "quote": "finite widget",
+   "recorded": true,
+   "resolved_why": null,
+   "run": "s-2026-09-16-p9z37z",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-hwtkaw": {
+   "anchored": true,
+   "applied": null,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>Cite the orbit lemma by number here.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-hwtkaw",
+   "in": null,
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
+   "placement": "replace",
+   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
+   "recorded": true,
+   "resolved_why": null,
+   "run": "s-2026-09-16-p9z37z",
+   "severity": "minor",
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004",
+    "page": null,
+    "work": null
+   }
+  },
   "a-2026-09-16-6sn46y": {
    "anchored": false,
    "applied": null,
@@ -34,36 +102,70 @@
     "work": null
    }
   },
-  "a-2026-09-16-a91hwf": {
+  "a-2026-09-16-tc3rcf": {
    "anchored": false,
    "applied": null,
    "author": {
-    "id": "The synthetic quilt",
-    "kind": "person",
-    "label": "The synthetic quilt"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "basis": null,
-   "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
+   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
    "created": "2026-09-16T00:00:00Z",
-   "detached": true,
+   "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-a91hwf",
+   "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
-   "kind": "question",
-   "payload": null,
-   "payload_html": null,
+   "kind": "citation",
+   "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-tc3rcf:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
    "placement": null,
-   "quote": "an involution $\\sigma$ of $X$",
+   "quote": null,
+   "recorded": true,
+   "resolved_why": "accepted",
+   "run": "s-2026-09-16-p9z37z",
+   "severity": null,
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-hqnbz4": {
+   "anchored": false,
+   "applied": null,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-hqnbz4",
+   "in": null,
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": "any standard text on group actions",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-hqnbz4:0:34\">any standard text on group actions</p>",
+   "placement": null,
+   "quote": null,
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
-    "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
-    "key": "sy-0001",
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002",
     "page": null,
     "work": null
    }
@@ -102,41 +204,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-ecnav2": {
-   "anchored": true,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
-   },
-   "basis": null,
-   "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
-   "created": "2026-09-16T00:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-ecnav2",
-   "in": null,
-   "in_reply_to": null,
-   "kind": "objection",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
-   "quote": "finite widget",
-   "recorded": true,
-   "resolved_why": null,
-   "run": "s-2026-09-16-p9z37z",
-   "severity": "major",
-   "status": "open",
-   "target": {
-    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
-    "key": "sy-0003",
-    "page": null,
-    "work": null
-   }
-  },
-  "a-2026-09-16-gahrrs": {
+  "a-2026-09-16-xgtcve": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -145,53 +213,19 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
-   "body_html": "<p>Done in the next revision.</p>",
+   "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-gahrrs",
-   "in": null,
-   "in_reply_to": "a-2026-09-16-hwtkaw",
-   "kind": "question",
+   "id": "a-2026-09-16-xgtcve",
+   "in": "drafting/talk.tex",
+   "in_reply_to": null,
+   "kind": "suggestion",
    "payload": null,
    "payload_html": null,
    "placement": null,
-   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
-   "recorded": true,
-   "resolved_why": null,
-   "run": "s-2026-09-16-p9z37z",
-   "severity": null,
-   "status": "open",
-   "target": {
-    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
-    "key": "sy-0004",
-    "page": null,
-    "work": null
-   }
-  },
-  "a-2026-09-16-hqnbz4": {
-   "anchored": false,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
-   },
-   "basis": null,
-   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
-   "created": "2026-09-16T00:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-hqnbz4",
-   "in": null,
-   "in_reply_to": null,
-   "kind": "citation",
-   "payload": "any standard text on group actions",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-hqnbz4:0:34\">any standard text on group actions</p>",
-   "placement": null,
-   "quote": null,
+   "quote": "Every orbit of a widget",
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
@@ -238,36 +272,70 @@
     "work": null
    }
   },
-  "a-2026-09-16-hwtkaw": {
+  "a-2026-09-16-gahrrs": {
    "anchored": true,
    "applied": null,
    "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
    },
    "basis": null,
-   "body_html": "<p>Cite the orbit lemma by number here.</p>",
+   "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-hwtkaw",
+   "id": "a-2026-09-16-gahrrs",
    "in": null,
-   "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
-   "placement": "replace",
+   "in_reply_to": "a-2026-09-16-hwtkaw",
+   "kind": "question",
+   "payload": null,
+   "payload_html": null,
+   "placement": null,
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": "minor",
-   "status": "resolved",
+   "severity": null,
+   "status": "open",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-a91hwf": {
+   "anchored": false,
+   "applied": null,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "basis": null,
+   "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": true,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-a91hwf",
+   "in": null,
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "payload_html": null,
+   "placement": null,
+   "quote": "an involution $\\sigma$ of $X$",
+   "recorded": true,
+   "resolved_why": null,
+   "run": "s-2026-09-16-p9z37z",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
+    "key": "sy-0001",
     "page": null,
     "work": null
    }
@@ -302,74 +370,6 @@
    "target": {
     "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
     "key": "sy-000A",
-    "page": null,
-    "work": null
-   }
-  },
-  "a-2026-09-16-tc3rcf": {
-   "anchored": false,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
-   },
-   "basis": null,
-   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
-   "created": "2026-09-16T00:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-tc3rcf",
-   "in": null,
-   "in_reply_to": null,
-   "kind": "citation",
-   "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-tc3rcf:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
-   "placement": null,
-   "quote": null,
-   "recorded": true,
-   "resolved_why": "accepted",
-   "run": "s-2026-09-16-p9z37z",
-   "severity": null,
-   "status": "resolved",
-   "target": {
-    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
-    "key": "sy-0003",
-    "page": null,
-    "work": null
-   }
-  },
-  "a-2026-09-16-xgtcve": {
-   "anchored": true,
-   "applied": null,
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person",
-    "label": "The synthetic quilt"
-   },
-   "basis": null,
-   "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
-   "created": "2026-09-16T00:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-xgtcve",
-   "in": "drafting/talk.tex",
-   "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
-   "quote": "Every orbit of a widget",
-   "recorded": true,
-   "resolved_why": null,
-   "run": "s-2026-09-16-p9z37z",
-   "severity": null,
-   "status": "open",
-   "target": {
-    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
-    "key": "sy-0002",
     "page": null,
     "work": null
    }
@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "41bf27e6218d7ac50ae78f0d0e0dcf307e464ab0d0c59ef11521b2483ec6e6da",
+   "hash": "fd0a10b1fbb1d05bae32be0719364c1dc2bcfd37b080be7d9cce1f95fee76367",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "ccec3062e9d7e27e0100993f85b3251b01337397cbfe061eb2f5806d56e1e3b8",
+   "hash": "20bfb5a81fd58ee2a1377891492b5ed304b65429396cece4cdb87eb68cafff29",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "50054b3cce78330eef6c6ec8bd9c258aa303ad073e896baac8f6710b561bbfd0",
+   "hash": "8c41301430c5f6c11c7bf169a1e0087c35230530001f931984fb43dfbf2ee406",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -7589,6 +7589,22 @@
    },
    "when": "2026-08-20T09:00:00Z"
   },
+  "n-2026-09-16-91x7ga": {
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person"
+   },
+   "body": "",
+   "detached": false,
+   "faded": false,
+   "id": "n-2026-09-16-91x7ga",
+   "quote": "Let $(X,\\sigma)$ be a finite widget.",
+   "session": "s-2026-09-16-p9z37z",
+   "target": {
+    "key": "sy-0003"
+   },
+   "when": "2026-09-16T11:30:00Z"
+  },
   "n-2026-09-16-1t8s9z": {
    "author": {
     "id": "The synthetic quilt",
@@ -7618,22 +7634,6 @@
    "session": "s-2026-09-16-p9z37z",
    "target": {
     "session": "s-2026-09-16-p9z37z"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-91x7ga": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-91x7ga",
-   "quote": "Let $(X,\\sigma)$ be a finite widget.",
-   "session": "s-2026-09-16-p9z37z",
-   "target": {
-    "key": "sy-0003"
    },
    "when": "2026-09-16T11:30:00Z"
   },

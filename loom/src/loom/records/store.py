@@ -784,7 +784,8 @@ class Records:
             if key in derived:
                 entry["derived"] = derived[key]
         anns: dict[str, Any] = {}
-        for res in self.resolved(result):
+        # oldest first, whichever clone wrote it: published in this order (`publish.WRITTEN_IN_ORDER`)
+        for res in sorted(self.resolved(result), key=lambda r: r.annotation.created):
             a = res.annotation
             anns[a.id] = {
                 "id": a.id,
