@@ -253,6 +253,12 @@
 		color: var(--ink-faint);
 		font-style: italic;
 	}
+	/* a drawn body stands centred in a wide pane, as a document's column does; its one action stands with it */
+	.file :global(.file-body),
+	.file[data-kind='notebook'] .actions {
+		max-width: var(--prose-measure);
+		margin-inline: auto;
+	}
 	.file :global(.file-body img) {
 		max-width: 100%;
 	}

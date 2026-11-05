@@ -12,10 +12,20 @@
 </script>
 
 <div class="page item research-state" data-testid="research-state">
-	{#if page}
-		<PageMeta {page} />
-		<Prose html={page.body_html} />
-	{:else}
-		<p class="muted">This quilt has no research state yet; an agent writes one with <code>loom write state</code>.</p>
-	{/if}
+	<div class="measured">
+		{#if page}
+			<PageMeta {page} />
+			<Prose html={page.body_html} />
+		{:else}
+			<p class="muted">This quilt has no research state yet; an agent writes one with <code>loom write state</code>.</p>
+		{/if}
+	</div>
 </div>
+
+<style>
+	/* centred in a wide pane, as a document's column does, with the line saying who wrote it standing over the text */
+	.measured {
+		max-width: var(--prose-measure);
+		margin-inline: auto;
+	}
+</style>

@@ -92,7 +92,8 @@
 
 	/* set by the size and width preferences below */
 	--body-size: 13.5px;
-	--measure: 44rem;
+	--measure: 48rem;
+	--prose-measure: 48rem;
 	--body-face: var(--serif);
 
 	color-scheme: light;
@@ -192,9 +193,10 @@
 .arras[data-size='s'] { --body-size: 13.5px; }
 .arras[data-size='m'] { --body-size: 16px; }
 .arras[data-size='l'] { --body-size: 19px; }
-.arras[data-width='narrow'] { --measure: 36rem; }
-.arras[data-width='mid'] { --measure: 44rem; }
-.arras[data-width='wide'] { --measure: 52rem; }
+/* `--measure` is a document's text block, which a paper format below sets for itself. `--prose-measure` is the line of Markdown, which is not a paper, so it follows Width alone. */
+.arras[data-width='narrow'] { --measure: 40rem; --prose-measure: 40rem; }
+.arras[data-width='mid'] { --measure: 48rem; --prose-measure: 48rem; }
+.arras[data-width='wide'] { --measure: 56rem; --prose-measure: 56rem; }
 .arras[data-face='serif'] { --body-face: var(--serif); }
 .arras[data-face='sans'] { --body-face: var(--sans); }
 

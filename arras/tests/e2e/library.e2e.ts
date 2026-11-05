@@ -248,6 +248,10 @@ test.describe('a work', () => {
 		await expect(overview).toContainText('Kresch builds cycle groups for Artin stacks');
 		await expect(overview.getByTestId('page-meta')).toContainText('written by Survey Agent');
 		await expect(overview.locator('mjx-container')).toHaveCount(1);
+		// its lines stop at the line width, wherever the page around it runs to
+		await page.setViewportSize({ width: 2000, height: 900 });
+		const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+		await expect.poll(async () => (await overview.locator('.body').boundingBox())!.width).toBeCloseTo(48 * rem, 0);
 		// a work with none shows no overview
 		await page.goto('/library/Man12');
 		await page.getByTestId('tab-info').click();

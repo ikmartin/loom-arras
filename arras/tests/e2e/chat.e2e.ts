@@ -1,6 +1,6 @@
 // A session's transcript: what agents said into the session, read beside the documents (plan 0.20.1). It comes from the build's pages and, where a publisher serves, from a poll of `/_api/events`; the viewer posts nothing into it. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane } from '../workspace';
+import { beside, pane, prefs } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { QUICK, REFEREE, saying, serve } from '../manifest';
 
@@ -201,17 +201,22 @@ test.describe('where a publisher serves', () => {
 		await expect(page.getByTestId('message-3')).toBeInViewport();
 	});
 
-	test('in a wide pane the transcript takes its width', async ({ page }) => {
-		// the paper's measure (33rem) left two thirds of a wide pane blank; the margin is at most 3rem a side
-		await page.setViewportSize({ width: 1600, height: 900 });
+	test('the transcript keeps the line of Markdown: centred in a wide pane, following Width, filling a narrow one', async ({ page }) => {
+		await page.setViewportSize({ width: 2000, height: 900 });
 		await publisher(page, { events: [said(1, 'Referee Agent')] });
-		await page.goto('/session/' + REFEREE);
-		await expect(page.getByTestId('message-1')).toBeVisible();
-		const chat = (await page.getByTestId('chat').boundingBox())!;
-		const message = (await page.getByTestId('message-1').boundingBox())!;
-		expect(chat.width).toBeGreaterThan(900);
-		expect(message.x - chat.x).toBeLessThanOrEqual(49);
-		expect(message.width).toBeGreaterThan(chat.width - 2 * 48 - 20);
+		const chat = page.getByTestId('chat');
+		const transcript = page.getByTestId('transcript');
+		for (const [width, rems] of [['narrow', 40], ['mid', 48], ['wide', 56]] as const) {
+			await prefs(page, { width });
+			await page.goto('/session/' + REFEREE);
+			await expect(page.getByTestId('message-1')).toBeVisible();
+			const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+			const [at, around] = [(await transcript.boundingBox())!, (await chat.boundingBox())!];
+			expect(at.width).toBeCloseTo(rems * rem, 0);
+			expect(Math.abs(at.x - around.x - (around.x + around.width - at.x - at.width))).toBeLessThanOrEqual(2);
+		}
+		await page.setViewportSize({ width: 600, height: 900 });
+		await expect.poll(async () => (await chat.boundingBox())!.width - (await transcript.boundingBox())!.width).toBeLessThanOrEqual(64);
 	});
 
 	test('the first poll follows the newest page at once, not a second later', async ({ page }) => {
