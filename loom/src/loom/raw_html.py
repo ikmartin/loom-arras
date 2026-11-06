@@ -74,7 +74,7 @@ _HOST = re.compile(r"[A-Za-z0-9.-]+")
 
 
 def frame_address(value: str) -> str | None:
-    """The address a frame may load, or None: `https:` on a named host, a protocol-relative address taken as `https:`."""
+    """The address a frame may load, or None: an `https:` address naming any host, a protocol-relative one taken as `https:`."""
     url = _CONTROLS.sub("", value)
     if url.startswith("//"):
         url = "https:" + url
