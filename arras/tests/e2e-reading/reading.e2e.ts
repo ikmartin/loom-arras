@@ -4,7 +4,7 @@
 import { expect, readOnly, test, type Served } from '../served';
 import type { Page } from '@playwright/test';
 import { openPicker, pickSession } from '../picker';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PAGE2 = '/library/Bellamy19?page=2';
@@ -630,10 +630,10 @@ const BELLAMY = '/library/Bellamy19';
 const SECOND = '/library/Arden24A';
 const QUOTE = 'The median orders of a weighted digraph are in bijection with the vertices';
 
-/** A work's file in the served copy, by what its manifest says. */
-function fileOf(served: Served, citekey: string): Buffer {
-	const ref = JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).references[citekey];
-	return readFileSync(join(served.root, '.loom', ref.artifacts.dir, 'paper.pdf'));
+/** A work's file in a copy of the quilt, by what its manifest says. */
+function fileOf(root: string, citekey: string): Buffer {
+	const ref = JSON.parse(readFileSync(join(root, '.loom/build/manifest.json'), 'utf8')).references[citekey];
+	return readFileSync(join(root, '.loom', ref.artifacts.dir, 'paper.pdf'));
 }
 
 /** The paper's scrolling column in a pane. */
@@ -927,13 +927,15 @@ readOnly('a place in another file behind the work is not carried over, and a pag
 	await readTo(page, left);
 	await page.waitForTimeout(400);
 	// another file of the same length: its page 2 is not the page they were on
-	const another = fileOf(served, 'Arden24A');
+	const another = fileOf(served.root, 'Arden24A');
 	await page.route('**/paper.pdf', (r) => r.fulfill({ body: another, contentType: 'application/pdf' }));
 	await page.reload();
 	await staysAt(page, { page: 1, share: 0 });
-	// a shorter file has no such page, and opens at its start rather than at its end
+	// a file that came back is the one they were in
 	await page.unroute('**/paper.pdf');
 	await page.reload();
+	await staysAt(page, left);
+	// a shorter file has no such page, and opens at its start rather than at its end
 	await readTo(page, { page: 3, share: 0.2 });
 	await page.waitForTimeout(400);
 	const shorter = longPdf(2);
@@ -941,4 +943,77 @@ readOnly('a place in another file behind the work is not carried over, and a pag
 	await page.reload();
 	await expect(page.getByTestId('page-count')).toContainText('2');
 	await staysAt(page, { page: 1, share: 0 });
+});
+
+test.describe('a PDF among the project’s files', () => {
+	const OWN = 'notes/bellamy.pdf';
+	const AT = `/file/${OWN}`;
+	// the same bytes as Bellamy19's paper, as a reference kept in a folder and also added to the library is
+	test.use({
+		prepareQuilt: async ({}, use: (p: (q: { root: string }) => void) => Promise<void>) => {
+			await use(({ root }) => {
+				mkdirSync(join(root, 'notes'), { recursive: true });
+				writeFileSync(join(root, OWN), fileOf(root, 'Bellamy19'));
+			});
+		}
+	});
+
+	test('opens where it was left, after a reload, by a plain link and as a tab brought back', async ({ page }) => {
+		await page.goto(AT);
+		await staysAt(page, { page: 1, share: 0 });
+		const left = { page: 2, share: 0.4 };
+		await readTo(page, left);
+		await page.reload();
+		await staysAt(page, left);
+		await page.goto('/review');
+		await page.goto(AT);
+		await staysAt(page, left);
+		await fromShelf(page, 'Arden24');
+		await staysAt(page, { page: 1, share: 0 });
+		await page.getByRole('tab', { name: 'bellamy.pdf' }).click();
+		await staysAt(page, left);
+	});
+
+	test('a link to its page wins, until the reader has left that page: then the address lets go, and a reload stays with them', async ({ page }) => {
+		await page.goto(AT);
+		await readTo(page, { page: 2, share: 0.4 });
+		await page.goto(`${AT}#page=3`);
+		await staysAt(page, { page: 3, share: 0 });
+		// moved within its page, the link is still in force, and a tab brought back does not send the reader back to its place
+		const within = { page: 3, share: 0.2 };
+		await readTo(page, within);
+		await expect(page).toHaveURL(/#page=3$/);
+		await fromShelf(page, 'Arden24');
+		await page.getByRole('tab', { name: 'bellamy.pdf' }).click();
+		await staysAt(page, within);
+		// off its page, it lets go
+		const on = { page: 1, share: 0.5 };
+		await readTo(page, on);
+		await expect(page).toHaveURL(new RegExp(`${AT}$`));
+		await staysAt(page, on);
+		await page.reload();
+		await staysAt(page, on);
+	});
+
+	test('the same file as a work keeps one place, whichever way it is opened, and neither moves the other when both are open', async ({ page }) => {
+		const first = { page: 2, share: 0.4 };
+		await page.goto(BELLAMY);
+		await readTo(page, first);
+		await page.goto(AT);
+		await staysAt(page, first);
+		// a place the column can stand at in half a pane too, where the pages are drawn smaller and its end comes sooner
+		const then = { page: 2, share: 0.1 };
+		await readTo(page, then);
+		await page.goto(BELLAMY);
+		await staysAt(page, then);
+		await page.goto(`${BELLAMY}?beside=${encodeURIComponent(AT)}`);
+		await staysAt(page, then, { pane: 0 });
+		await staysAt(page, then, { pane: 1 });
+		const beside = { page: 1, share: 0.5 };
+		await readTo(page, beside, 1);
+		await staysAt(page, then, { pane: 0 });
+		await page.waitForTimeout(400);
+		await page.goto(BELLAMY);
+		await staysAt(page, beside);
+	});
 });

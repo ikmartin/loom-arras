@@ -217,8 +217,8 @@ export class Workspace {
 		this.focus = pane;
 	}
 
-	/** Record where an open item now is — its anchor, place or view — without revealing it: the reader moved within it. */
-	update(key: string, patch: Partial<Pick<Item, 'view' | 'anchor' | 'place' | 'params'>>): void {
+	/** Record where an open item now is — its anchor, place, note or view — without revealing it: the reader moved within it. */
+	update(key: string, patch: Partial<Pick<Item, 'view' | 'anchor' | 'place' | 'note' | 'params'>>): void {
 		for (const p of this.panes) {
 			const i = p.items.findIndex((x) => itemKey(x) === key);
 			if (i >= 0) p.items[i] = { ...p.items[i], ...patch, seq: p.items[i].seq };

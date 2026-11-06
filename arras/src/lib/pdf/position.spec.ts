@@ -17,53 +17,53 @@ function memoryStorage(): Storage {
 	};
 }
 
-describe('a reader’s place in a work', () => {
+describe('a reader’s place in a file', () => {
 	beforeEach(() => {
 		vi.stubGlobal('localStorage', memoryStorage());
 	});
 
-	it('comes back as it was kept, once per work and per corpus', () => {
-		keepPlace('q', 'A', FILE, { page: 3, share: 0.25 });
-		keepPlace('q', 'B', FILE, { page: 7, share: 0.5 });
-		keepPlace('r', 'A', FILE, { page: 9, share: 0.75 });
-		expect(keptPlace('q', 'A', FILE)).toEqual({ page: 3, share: 0.25 });
-		expect(keptPlace('q', 'B', FILE)).toEqual({ page: 7, share: 0.5 });
-		expect(keptPlace('r', 'A', FILE)).toEqual({ page: 9, share: 0.75 });
+	it('comes back as it was kept, one for each file', () => {
+		const other = { id: 'def', pages: 12 };
+		keepPlace(FILE, { page: 3, share: 0.25 });
+		keepPlace(other, { page: 7, share: 0.5 });
+		expect(keptPlace(FILE)).toEqual({ page: 3, share: 0.25 });
+		expect(keptPlace(other)).toEqual({ page: 7, share: 0.5 });
 	});
 
-	it('is nothing for a work never read', () => {
-		expect(keptPlace('q', 'A', FILE)).toBeNull();
+	it('is nothing for a file never read', () => {
+		expect(keptPlace(FILE)).toBeNull();
 	});
 
-	it('is forgotten at the top of the first page, where a work opens anyway', () => {
-		keepPlace('q', 'A', FILE, { page: 3, share: 0.25 });
-		keepPlace('q', 'A', FILE, { page: 1, share: 0 });
-		expect(keptPlace('q', 'A', FILE)).toBeNull();
-		expect(localStorage.getItem('arras.positions')).toBe('{"q":{}}');
+	it('is forgotten at the top of the first page, where a file opens anyway', () => {
+		keepPlace(FILE, { page: 3, share: 0.25 });
+		keepPlace(FILE, { page: 1, share: 0 });
+		expect(keptPlace(FILE)).toBeNull();
+		expect(localStorage.getItem('arras.places')).toBe('{}');
 	});
 
-	it('does not carry over to another file behind the work, or a file of another length', () => {
-		keepPlace('q', 'A', FILE, { page: 3, share: 0.25 });
-		expect(keptPlace('q', 'A', { id: 'other', pages: 12 })).toBeNull();
-		expect(keptPlace('q', 'A', { id: 'abc', pages: 2 })).toBeNull();
+	it('is not found under another file, or the same identifier at another length, and is still there for the file it was in', () => {
+		keepPlace(FILE, { page: 3, share: 0.25 });
+		expect(keptPlace({ id: 'other', pages: 12 })).toBeNull();
+		expect(keptPlace({ id: 'abc', pages: 2 })).toBeNull();
+		expect(keptPlace(FILE)).toEqual({ page: 3, share: 0.25 });
 	});
 
 	it.each([
-		['a page past the end', { page: 13, share: 0, file: 'abc', pages: 12 }],
-		['a page below the first', { page: 0, share: 0, file: 'abc', pages: 12 }],
-		['a page that is no number', { page: '3', share: 0, file: 'abc', pages: 12 }],
-		['a share past the page', { page: 3, share: 1.5, file: 'abc', pages: 12 }],
-		['a share that is no number', { page: 3, share: null, file: 'abc', pages: 12 }]
+		['a page past the end', { page: 13, share: 0 }],
+		['a page below the first', { page: 0, share: 0 }],
+		['a page that is no number', { page: '3', share: 0 }],
+		['a share past the page', { page: 3, share: 1.5 }],
+		['a share that is no number', { page: 3, share: null }]
 	])('ignores %s', (_why, kept) => {
-		localStorage.setItem('arras.positions', JSON.stringify({ q: { A: kept } }));
-		expect(keptPlace('q', 'A', FILE)).toBeNull();
+		localStorage.setItem('arras.places', JSON.stringify({ 'abc:12': kept }));
+		expect(keptPlace(FILE)).toBeNull();
 	});
 
 	it('survives a store that holds nonsense, and writes over it', () => {
-		localStorage.setItem('arras.positions', 'not json');
-		expect(keptPlace('q', 'A', FILE)).toBeNull();
-		keepPlace('q', 'A', FILE, { page: 2, share: 0.5 });
-		expect(keptPlace('q', 'A', FILE)).toEqual({ page: 2, share: 0.5 });
+		localStorage.setItem('arras.places', 'not json');
+		expect(keptPlace(FILE)).toBeNull();
+		keepPlace(FILE, { page: 2, share: 0.5 });
+		expect(keptPlace(FILE)).toEqual({ page: 2, share: 0.5 });
 	});
 
 	it('fails quietly in a browser that refuses to store', () => {
@@ -75,7 +75,7 @@ describe('a reader’s place in a work', () => {
 				throw new Error('denied');
 			}
 		});
-		expect(() => keepPlace('q', 'A', FILE, { page: 2, share: 0.5 })).not.toThrow();
-		expect(keptPlace('q', 'A', FILE)).toBeNull();
+		expect(() => keepPlace(FILE, { page: 2, share: 0.5 })).not.toThrow();
+		expect(keptPlace(FILE)).toBeNull();
 	});
 });

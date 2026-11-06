@@ -24,6 +24,11 @@ export class WorkState {
 	pdf = new PdfView();
 }
 
+export class FileState {
+	/** The reader's view of a PDF among the project's files: the tool, the fit, the page. */
+	pdf = new PdfView();
+}
+
 export class NodeState {
 	notes = new Annotations();
 	arrival: Arrival = { at: null };
@@ -41,6 +46,9 @@ export function documentState(item: Item): DocumentState {
 }
 export function workState(item: Item): WorkState {
 	return workspace.stateOf(itemKey(item), () => new WorkState());
+}
+export function fileState(item: Item): FileState {
+	return workspace.stateOf(itemKey(item), () => new FileState());
 }
 export function nodeState(item: Item): NodeState {
 	return workspace.stateOf(itemKey(item), () => new NodeState());

@@ -7,14 +7,14 @@
 	import { MarkDesk } from '$lib/pdf/desk.svelte';
 	import MarkedDoc from '$lib/pdf/MarkedDoc.svelte';
 	import { mergeLines } from '$lib/pdf/marks';
+	import { paperPlace } from '$lib/pdf/place.svelte';
 	import PdfTools from '$lib/pdf/PdfTools.svelte';
-	import { PdfView } from '$lib/pdf/view.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
 	import { quote } from '$lib/notes';
 	import { can, write } from '$lib/write';
-	import type { Item } from '../item';
+	import { itemKey, type Item } from '../item';
 	import { openOutside } from '../links';
-	import { paneOf } from '../state.svelte';
+	import { fileState, paneOf } from '../state.svelte';
 	import { workspace } from '../store.svelte';
 	import { onlyTicks, ticksIn } from '../tasks';
 	import HtmlFrame from './HtmlFrame.svelte';
@@ -29,7 +29,14 @@
 	const name = $derived(item.id.split('/').pop() ?? item.id);
 	const suffix = $derived(name.includes('.') ? name.split('.').pop()!.toLowerCase() : '');
 	const pdfPage = $derived(Number(/^page=(\d+)$/.exec(item.anchor ?? '')?.[1] ?? 1));
-	const paper = new PdfView();
+	const paper = $derived(fileState(item).pdf);
+	/** Whether a link names a place on a PDF's pages: its page, or a mark on it. With none, it opens where the reader last was. */
+	const named = $derived(/^page=\d+$/.test(item.anchor ?? '') || !!item.note);
+	const place = paperPlace(
+		() => paper,
+		() => ({ seq: named ? (item.seq ?? 0) : 0, page: pdfPage }),
+		() => workspace.update(itemKey(item), { anchor: undefined, note: undefined })
+	);
 	const desk = new MarkDesk(() => ({ on: item.id, owns: (n) => n.target.file === item.id, url: filesUrl(item.id), name }));
 	const holder = paneOf();
 	const hidesNotes = $derived(holder ? workspace.hidesNotes(holder.index) : false);
@@ -256,9 +263,12 @@
 			dir={item.id.includes('/') ? item.id.slice(0, item.id.lastIndexOf('/')) : ''}
 			hidden={hidesNotes}
 			onoutside={canOpen ? () => void open().then(() => (desk.said = refused)) : undefined}
-			page={pdfPage}
-			seq={item.seq ?? 0}
+			page={place.opening.page}
+			share={place.opening.share}
+			seq={place.opening.seq}
 			focus={item.note ?? ''}
+			lands={!place.spent}
+			onmoved={place.moved}
 			onselect={(e) => {
 				// the selection's range goes with the offer, so letting go of the words takes the chip with them
 				const sel = window.getSelection();

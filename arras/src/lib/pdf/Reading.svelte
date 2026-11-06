@@ -7,7 +7,7 @@
 	//
 	// **It opens where the reader last was, unless a link sends it elsewhere.** A link's place wins for as long as it is in force, and where it lands is then where the reader is. Once they move by their own hand nothing sends them back to it, and once its page has left the view the link is done with: its place comes off the item and so off the URL, so a reload returns to where they went.
 	import { artifactUrl, dataUrl } from '$lib/paths';
-	import { keepPlace, keptPlace, type PagePlace } from './position';
+	import { paperPlace } from './place.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { visible } from '$lib/sessions/sessions.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
@@ -150,44 +150,12 @@
 			dropped = true;
 		};
 	});
-	/** Whether the reader has moved on from the link that is in force. */
-	const spent = $derived(!!seq && view.spent === seq);
-	/** Where the paper was last told to go, and not moved from until a new link says otherwise: the place coming off the item, or a plain link revealing what is already open, is no reason to move. */
-	let told: (PagePlace & { seq: number }) | null = null;
-	/**
-	 * Where the paper opens. A link that is in force sends it to the page loom lit, which a quote with no page learns only from the answer, else the one asked for: opened at page 1 while lighting page 2, the place the renderer keeps across a redraw is page 1's, and putting it back cancels the landing's scroll. Otherwise it goes where the reader last was in this view, else in this browser, once the file is known to be the one they were in.
-	 */
-	const opening = $derived.by<PagePlace & { seq: number }>(() => {
-		if (seq && !spent) {
-			const at = lit?.page ?? page;
-			if (!told || told.page !== at || told.share || told.seq !== seq) told = { page: at, share: 0, seq };
-			return told;
-		}
-		if (told) return told;
-		const file = view.file;
-		if (!file) return { page: 1, share: 0, seq: 0 };
-		return (told = { ...(view.place ?? keptPlace(store.manifest?.corpus.name ?? '', citekey, file) ?? { page: 1, share: 0 }), seq: 0 });
-	});
-
-	// Kept once the column has been still a moment, and when the page goes: not on every frame of a scroll. The stored place is only ever read when the paper opens, so a second window on this work never moves this one.
-	let saving: ReturnType<typeof setTimeout> | undefined;
-	function save(): void {
-		clearTimeout(saving);
-		const place = view.place;
-		const file = view.file;
-		const corpus = store.manifest?.corpus.name;
-		if (place && file && corpus) keepPlace(corpus, citekey, file, place);
-	}
-	$effect(() => {
-		void view.place;
-		clearTimeout(saving);
-		saving = setTimeout(save, 250);
-	});
-	$effect(() => {
-		window.addEventListener('pagehide', save);
-		return () => window.removeEventListener('pagehide', save);
-	});
-	onDestroy(save);
+	// A link in force sends the paper to the page loom lit, which a quote with no page learns only from the answer, else the one asked for: opened at page 1 while lighting page 2, the place the renderer keeps across a redraw is page 1's, and putting it back cancels the landing's scroll.
+	const place = paperPlace(
+		() => view,
+		() => ({ seq, page: lit?.page ?? page }),
+		() => onleft?.()
+	);
 
 	// a work's pages in a pane hide every annotation while the pane does
 	const holder = paneOf();
@@ -296,12 +264,12 @@
 				{url}
 				name="{citekey}.pdf"
 				hidden={hide}
-				page={opening.page}
-				share={opening.share}
-				seq={opening.seq}
+				page={place.opening.page}
+				share={place.opening.share}
+				seq={place.opening.seq}
 				spans={drawn}
 				focus={focusOn}
-				lands={!spent}
+				lands={!place.spent}
 				onselect={(e) => {
 					const sel = window.getSelection();
 					offered = { page: e.page, text: e.text, lines: mergeLines(e.rects), at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
@@ -317,9 +285,7 @@
 				onmoved={(e) => {
 					// what was being looked at is left behind with the place, so nothing lands back on it
 					active = '';
-					if (!seq) return;
-					view.spent = seq;
-					if (e.away) onleft?.();
+					place.moved(e);
 				}}
 			/>
 		</div>
