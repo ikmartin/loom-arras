@@ -90,7 +90,7 @@ test('a row opens its mark in the other pane, and the mark travels to its own bo
 
 	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await row.getByTestId('did-annotation').click();
-	await expect.poll(() => mark.evaluate(outOfPane), { timeout: 5000 }).toBeLessThanOrEqual(2);
+	await expect.poll(() => mark.evaluate(outOfPane)).toBeLessThanOrEqual(2);
 
 	await mark.dblclick();
 	// the box it lands on flashes, so the eye is told where it landed; the row stays where it was

@@ -12,13 +12,13 @@ test('Take it writes the suggestion into its file, keeps a version first, and re
 	await pickSession(page, referee);
 	const row = page.locator(`[data-testid="suggestion"][data-id="${TEXT}"]`);
 	await row.getByTestId('proposed-take').click();
-	await expect(page.getByTestId('proposed-bar-said')).toContainText('Applied the suggestion in main.tex', { timeout: 15000 });
+	await expect(page.getByTestId('proposed-bar-said')).toContainText('Applied the suggestion in main.tex');
 	expect(readFileSync(join(served.root, 'drafting/nodes/sy-0002.tex'), 'utf8')).toContain('the fixed points are those of');
 	const resolved = served.log().find((e) => e.event === 'resolved' && e.id === TEXT);
 	expect(resolved?.applied).toBeTruthy();
 	// the version kept first is in the document's history, named for the act
 	await page.goto('/review/record?document=drafting%2Fmain.tex');
-	await expect(page.getByTestId('history-tick').last()).toContainText('Before applying a suggestion', { timeout: 10000 });
+	await expect(page.getByTestId('history-tick').last()).toContainText('Before applying a suggestion');
 });
 
 test("a note written while another session's transcript is read lands in the session written in", async ({ page, served }) => {

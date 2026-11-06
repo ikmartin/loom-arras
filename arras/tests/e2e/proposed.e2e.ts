@@ -255,7 +255,7 @@ test('what taking a copy in did is said even when the copy leaves the manifest b
 	});
 	await page.goto('/review/proposed?copy=' + encodeURIComponent(COPY));
 	await page.getByTestId('apply').click();
-	await expect(page.getByTestId('proposed-summary')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('proposed-summary')).toBeVisible();
 	answer();
 	await expect(page.getByTestId('proposed-answer')).toContainText('Took 1 change into main: 0 accepted, 1 wait in Your Changes.');
 });

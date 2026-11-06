@@ -76,7 +76,7 @@ test('live reload follows the manifest only', async ({ page }) => {
 	const named = page.getByTestId('quilt-name');
 	await expect(named).toHaveText(manifest.corpus.name);
 	version = 1;
-	await expect(named).toHaveText('Renamed corpus', { timeout: 5000 });
+	await expect(named).toHaveText('Renamed corpus');
 });
 
 test('a session opens on its Chat, and reads also as what it did', async ({ page }) => {

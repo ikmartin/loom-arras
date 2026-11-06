@@ -295,7 +295,7 @@ def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_pat
     assert data["error_at"] == {"file": "drafting/nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
 
 
-def test_check_says_it_is_alive_while_it_lints(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_check_says_it_is_alive_while_it_lints(tmp_path: Path, monkeypatch, progress) -> None:  # type: ignore[no-untyped-def]
     """T6: the progress line starts with the command, so a slow lint before the first compile is not silent."""
     import time
 

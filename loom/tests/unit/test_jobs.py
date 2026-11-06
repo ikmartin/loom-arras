@@ -8,9 +8,10 @@ from typing import Any
 
 from loom.jobs import Job, Jobs, Step
 from loom.refs.build import STEPS, WORK_STEPS
+from tests.helpers import PATIENCE
 
 
-def _settle(jobs: Jobs, timeout: float = 5.0) -> list[dict[str, Any]]:
+def _settle(jobs: Jobs, timeout: float = PATIENCE) -> list[dict[str, Any]]:
     """The jobs once none is queued or running."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:

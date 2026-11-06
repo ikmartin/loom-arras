@@ -28,7 +28,7 @@ export async function still(page: Page): Promise<void> {
 				last = now;
 				return held ? 'held' : `moving: ${now.slice(0, 200)}`;
 			},
-			{ intervals: [250], timeout: 20000 }
+			{ intervals: [250] }
 		)
 		.toBe('held');
 }
@@ -36,7 +36,7 @@ export async function still(page: Page): Promise<void> {
 /** Wait until the page is drawn, its fonts loaded, every formula typeset, and its layout still. */
 export async function settle(page: Page): Promise<void> {
 	// a page's title, or in reading mode a pane's content, since an item draws no chrome and a session no title
-	await page.waitForSelector('main h1, [data-pane] > .body > *', { timeout: 15000 });
+	await page.waitForSelector('main h1, [data-pane] > .body > *');
 	await page.evaluate(() => document.fonts.ready.then(() => undefined));
 	await page.waitForFunction(() => document.querySelectorAll('.math:not(:has(mjx-container))').length === 0);
 	await still(page);

@@ -89,6 +89,7 @@ class Clock:
         return self.now
 
 
+@pytest.mark.usefixtures("progress")
 def test_progress_is_silent_at_first_then_one_line_at_a_time_off_a_terminal() -> None:
     clock, out = Clock(), io.StringIO()
     with Progress("rendering", total=3, stream=out, tty=False, clock=clock, ticking=False) as p:
@@ -105,6 +106,7 @@ def test_progress_is_silent_at_first_then_one_line_at_a_time_off_a_terminal() ->
     assert lines[1] == "rendering  2/3  talk.tex  0:20  still working, 17 s"
 
 
+@pytest.mark.usefixtures("progress")
 def test_progress_on_a_terminal_rewrites_one_line() -> None:
     clock, out = Clock(), io.StringIO()
     with Progress("extract", total=2, stream=out, tty=True, clock=clock, ticking=False, quiet=0) as p:
@@ -114,6 +116,7 @@ def test_progress_on_a_terminal_rewrites_one_line() -> None:
     assert text.count("\r\x1b[2K") == 2 and text.endswith("\n") and "\n" not in text[:-1]
 
 
+@pytest.mark.usefixtures("progress")
 def test_progress_follows_a_builds_stages_and_counts() -> None:
     """`build` and `refs build` report `(stage, item, n, total)`; the line names the stage, the item and its place in the count."""
     clock, out = Clock(), io.StringIO()

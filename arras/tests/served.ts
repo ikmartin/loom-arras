@@ -6,6 +6,7 @@ import { cpSync, createWriteStream, existsSync, readFileSync, rmSync, mkdirSync,
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { patient } from './sites';
 
 /** What a config says about its quilt, in `metadata`. */
 export interface Suite {
@@ -130,8 +131,8 @@ async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promis
 			}
 			out.end();
 		};
-		// the build directory serves what is on disk, and the copy carries the template's build, so a manifest says the server listens, not that its first build is done
-		const deadline = Date.now() + 60000;
+		// the build directory serves what is on disk, and the copy carries the template's build, so a manifest says the server listens, not that its first build is done; a server still starting is left to finish, since starting it again starts over
+		const deadline = Date.now() + patient.timeout;
 		let token = '';
 		while (!exited && Date.now() < deadline) {
 			try {
@@ -225,16 +226,20 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 		},
 		{ scope: 'worker' }
 	],
-	served: async ({ ownQuilt, sharedServed, prepareQuilt }, use, info) => {
-		if (!ownQuilt) {
-			if (prepareQuilt) throw new Error('prepareQuilt requires a private quilt');
-			await use(await sharedServed());
-			return;
-		}
-		const running = await start(suiteOf(info), `${info.testId}-${info.repeatEachIndex}-${info.retry}`, prepareQuilt);
-		await use(running.served);
-		await finish(running, info);
-	},
+	served: [
+		async ({ ownQuilt, sharedServed, prepareQuilt }, use, info) => {
+			if (!ownQuilt) {
+				if (prepareQuilt) throw new Error('prepareQuilt requires a private quilt');
+				await use(await sharedServed());
+				return;
+			}
+			const running = await start(suiteOf(info), `${info.testId}-${info.repeatEachIndex}-${info.retry}`, prepareQuilt);
+			await use(running.served);
+			await finish(running, info);
+		},
+		// a budget of its own, so that a server slow to start leaves the test all of the test's
+		{ timeout: patient.timeout }
+	],
 	baseURL: async ({ served }, use) => {
 		await use(served.url);
 	}

@@ -279,9 +279,11 @@ test.describe('the contents', () => {
 
 test('a session rename shows at once', async ({ page }) => {
 	await writes(page, ['session-rename']);
-	// the publisher takes its time; the name must not wait for it
+	// the publisher does not answer until the name has shown, so a name that waited for it never would
+	let shown = () => {};
+	const nameShown = new Promise<void>((r) => (shown = r));
 	await page.route('**/_api/session-rename', async (route) => {
-		await new Promise((r) => setTimeout(r, 3000));
+		await nameShown;
 		await route.fulfill({ json: { ok: true, result: '' } });
 	});
 	await page.goto('/master/drafting/main');
@@ -293,8 +295,11 @@ test('a session rename shows at once', async ({ page }) => {
 	await page.getByTestId(`session-edit-${REFEREE}`).click();
 	await page.getByTestId(`session-rename-${REFEREE}`).fill('the second reading');
 	await page.getByTestId(`session-rename-${REFEREE}`).press('Enter');
-	await expect(page.getByTestId(`session-${REFEREE}`)).toContainText('the second reading', { timeout: 1000 });
-	await expect(page.getByTestId('session-footer-name')).toHaveText('the second reading', { timeout: 1000 });
+	await expect(page.getByTestId(`session-${REFEREE}`)).toContainText('the second reading');
+	await expect(page.getByTestId('session-footer-name')).toHaveText('the second reading');
+	const answered = page.waitForResponse('**/_api/session-rename');
+	shown();
+	await answered;
 });
 
 test('⟳ reopens and selects', async ({ page }) => {

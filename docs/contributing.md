@@ -41,6 +41,8 @@ The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/
 - Every diagnostic code is in `docs/specs/diagnostics.md` before loom emits it, and some test emits it. `test_all_emitted_codes_are_known` checks only that the fixtures' codes are in loom's table, not that every code is emitted.
 - CI sees only committed files, so `loom/tests/unit/test_tracked.py` fails on a shipped file under `loom/src`, `loom/tests/quilts` or `arras/src` that is untracked or ignored.
 - When loom's pytest runs beside the Playwright suites, `scripts/verify` gives it half the cores and splits the rest among the suites, because together they once starved the reading suite into timeouts.
+- `scripts/verify` takes the first slot nothing on the machine holds, so its Playwright servers never meet another worktree's or a suite started by hand; `arras/tests/sites.ts` says what a slot is. Suites started by hand run in slot 0, so two of them in two checkouts need `ARRAS_SLOT=N` on one.
+- A test fails on what happened, never on how busy the machine is. Waits are bounded generously and end as soon as the thing happens (`PATIENCE` in `loom/tests/helpers.py`; `patient` in `arras/tests/sites.ts`; `testTimeout` in `arras/vite.config.ts`), so only a real failure spends them. A claim about speed is made structurally, by holding back what must not be waited for and asserting what still arrives (`noPolls` in `arras/tests/polls.ts`), or timed by `scripts/bench`, never by a stopwatch inside a test. loom's tests run with `LOOM_PROGRESS=off`, since how long a command took decides whether it prints progress; a test of the progress line asks for it with the `progress` fixture.
 
 ## Construction
 

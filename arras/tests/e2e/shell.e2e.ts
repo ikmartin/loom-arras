@@ -78,7 +78,7 @@ test('a scrollbar shows only while its panel or pane is being scrolled', async (
 		expect(await color(region)).toBe(hidden);
 		await region.evaluate((e) => e.scrollBy(0, 60));
 		await expect.poll(() => color(region)).not.toBe(hidden);
-		await expect.poll(() => color(region), { timeout: 3000 }).toBe(hidden);
+		await expect.poll(() => color(region)).toBe(hidden);
 	}
 });
 

@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from tests.helpers import json_of, ok
+from tests.helpers import PATIENCE, json_of, ok
 from tests.unit.render._serve import get, post
 
 PAGE = '<!doctype html><title>p</title><body><h1 id="a">A</h1><a href="quilt:dm-0003">x</a></body>\n'
@@ -71,7 +71,9 @@ def test_an_html_page_runs_on_the_frames_origin_with_the_bridge_and_nothing_of_l
     import urllib.request
 
     with pytest.raises(urllib.error.HTTPError) as refused:
-        urllib.request.urlopen(urllib.request.Request(frames + "/_api/here", data=b"{}", method="POST"), timeout=5)
+        urllib.request.urlopen(
+            urllib.request.Request(frames + "/_api/here", data=b"{}", method="POST"), timeout=PATIENCE
+        )
     assert refused.value.code == 501
 
 
@@ -95,7 +97,7 @@ def test_a_tick_publishes_from_the_last_scan(served) -> None:  # type: ignore[no
 
     s, q, _ = served
     p = put(q, "notes/b.md", "- [ ] one\n")
-    deadline = time.time() + 6
+    deadline = time.time() + PATIENCE
     while time.time() < deadline:
         m = json.loads(get(s.url + "build/manifest.json")[2])
         if any(f["path"] == "notes/b.md" for f in m["files"]):
@@ -108,16 +110,19 @@ def test_a_tick_publishes_from_the_last_scan(served) -> None:  # type: ignore[no
     assert p.read_text(encoding="utf-8") == "- [x] one\n"
 
 
-def test_open_is_the_persons_click_and_never_runs_code(served, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+def test_open_is_the_persons_click_and_never_runs_code(tmp_path: Path, serve, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
     from loom import files
+    from tests.unit._quilts import demo
 
     if not files.can_open():
         pytest.skip("loom opens applications on macOS and Linux")
-    s, q, _ = served
-    launched: list[list[str]] = []
-    monkeypatch.setattr(files, "launch", launched.append)
+    q = demo(tmp_path)
     put(q, "deck.apkg", b"PK")
     put(q, "run.command", "#!/bin/sh\n")
+    # counted with the watcher unstarted, since it would publish those two files whenever its poll came
+    s = serve(q, watch=False)
+    launched: list[list[str]] = []
+    monkeypatch.setattr(files, "launch", launched.append)
     assert "open" in json.loads(get(s.url + "_api")[2])["capabilities"]
     builds = s.builds
     assert post(s.url + "_api/open", {"app": "Anki"}) == (200, {"ok": True, "result": "opened", "opened": "Anki"})
@@ -142,7 +147,7 @@ def test_a_markdown_edit_republishes_without_a_scan(served) -> None:  # type: ig
     time.sleep(0.3)
     before, scan = s.builds, s.last_report.result
     put(q, "notes/a.md", "# A changed\n")
-    deadline = time.time() + 6
+    deadline = time.time() + PATIENCE
     while s.builds == before and time.time() < deadline:
         time.sleep(0.05)
     assert s.builds > before and s.last_report.result is scan

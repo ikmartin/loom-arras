@@ -7,7 +7,7 @@ test("a work's run starts from its Info, asks for the network the quilt has off,
 	await expect(page.getByTestId('network-ask')).toBeVisible();
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');
-	await expect(run).toHaveAttribute('data-state', 'done', { timeout: 60000 });
+	await expect(run).toHaveAttribute('data-state', 'done');
 	// offline, looking up and fetching act on nothing, and say so; the run still reaches its verdict
 	await expect(run.locator('[data-step="resolve"]')).toHaveAttribute('data-state', 'skipped');
 	await expect(run.locator('[data-step="fetch"]')).toHaveAttribute('data-state', 'skipped');
@@ -22,7 +22,7 @@ test("a run over every work starts from the library's page and gathers the bibli
 	await page.getByTestId('network-offline').click();
 	const run = page.getByTestId('job-progress');
 	await expect(run.locator('[data-step="gather"]')).toBeVisible();
-	await expect(run).toHaveAttribute('data-state', 'done', { timeout: 120000 });
+	await expect(run).toHaveAttribute('data-state', 'done');
 	await expect(run.locator('[data-step="gather"]')).toHaveAttribute('data-state', 'done');
 });
 
@@ -34,7 +34,7 @@ test("a cited work's problem offers digesting the work again, which starts a run
 	fs.writeFileSync(digest, fs.readFileSync(digest, 'utf8').replace('\\end{theorem}', 'See \\ref{nowhere-at-all}.\n\\end{theorem}'));
 	await page.goto('/review/problems');
 	const works = page.getByTestId('problems-works');
-	await expect(works).toBeVisible({ timeout: 15000 });
+	await expect(works).toBeVisible();
 	await expect(page.getByTestId('problems-yours')).not.toContainText('nowhere-at-all');
 	await works.locator('summary').first().click();
 	const work = page.locator('[data-testid="problem-work"][data-work="Kre99"]');
@@ -43,6 +43,6 @@ test("a cited work's problem offers digesting the work again, which starts a run
 	const said = work.getByTestId('digest-said');
 	await expect(said).toContainText('Digesting Kre99 again');
 	// the fixture's digest of Kre99 was made by hand and has no paper to read again, so the run ends with nothing new, and says so
-	await expect(said).toContainText('Done.', { timeout: 60000 });
+	await expect(said).toContainText('Done.');
 	await expect(said).toContainText('digested');
 });

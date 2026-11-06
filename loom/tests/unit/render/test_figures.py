@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import threading
-import time
 from pathlib import Path
 
 import pytest
 
 from loom.render import fallback
 from loom.render.fallback import SvgResult
-from tests.helpers import ok
+from tests.helpers import PATIENCE, ok
 
 PREAMBLE = r"""\documentclass{amsart}
 \usepackage{amsthm}
@@ -70,25 +69,15 @@ def test_each_figure_compiles_once_though_a_node_its_document_and_its_review_pre
 def test_the_figures_of_one_document_compile_at_the_same_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A whole paper is one fragment, and its figures compiled one after another: a cold build of the author's quilt spent most of fifteen minutes so."""
     q = quilt(tmp_path, "Some prose.\n\n" + "\n\n".join(f"Figure {n}: {diagram(n)}" for n in range(4)))
-    running = 0
-    most = 0
-    lock = threading.Lock()
+    # each compile waits until all four are compiling, which figures compiled one after another never are: the first would wait out the barrier and break it
+    together = threading.Barrier(4, timeout=PATIENCE)
 
-    def slow(body: str, preamble: str, cache_dir: Path, key: str, *_args: object) -> SvgResult:
-        nonlocal running, most
-        with lock:
-            running += 1
-            most = max(most, running)
-        time.sleep(0.3)
-        with lock:
-            running -= 1
+    def meeting(body: str, preamble: str, cache_dir: Path, key: str, *_args: object) -> SvgResult:
+        together.wait()
         return SvgResult("<svg/>", key, False)
 
-    monkeypatch.setattr(fallback, "_compile_svg", slow)
-    started = time.perf_counter()
+    monkeypatch.setattr(fallback, "_compile_svg", meeting)
     ok("build", cwd=q)
-    assert most >= 4, most
-    assert time.perf_counter() - started < 4 * 0.3 + 1.0
     master = (q / ".loom/build" / "fragments" / "masters" / "drafting" / "main.html").read_text(encoding="utf-8")
     assert master.count("<svg/>") == 4 and "loom-figure" not in master
 

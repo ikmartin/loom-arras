@@ -13,7 +13,7 @@ Usage:
 
 CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (docs/contributing.md). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
 
-Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan.
+Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Those ports are the machine's, so a run takes the first slot no other run or server holds, and keeps it until it ends. Every deselection and skip lives here with its reason, never in a plan.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import argparse
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -32,11 +33,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 UNIT = "not tex and not paper and not network and not client"
 LOOM_XDIST = ["-n", "auto", "--dist", "loadgroup"]
-# the one arras build of a run, which every Playwright suite copies; slot 1 gives the suites ports and scratch directories apart from a suite started by hand (arras/tests/sites.ts)
-ARRAS_BUILD = ".tmp-e2e/slot-1/bundle"
-ARRAS_SUITE_ENV = {"ARRAS_SLOT": "1", "ARRAS_PREBUILT": str(ROOT / "arras" / ARRAS_BUILD)}
+# the one arras build of a run, which every Playwright suite copies; a slot gives the suites ports and scratch directories apart from a suite started by hand and from another worktree's run (arras/tests/sites.ts); `{slot}` is filled in by `in_slot`
+ARRAS_BUILD = ".tmp-e2e/slot-{slot}/bundle"
+ARRAS_SUITE_ENV = {"ARRAS_SLOT": "{slot}", "ARRAS_PREBUILT": str(ROOT / "arras" / ARRAS_BUILD)}
 # where the figure scripts write when verify runs them
-SHOTS_OUT = str(ROOT / "arras" / ".tmp-e2e" / "slot-1" / "shots-out")
+SHOTS_OUT = str(ROOT / "arras" / ".tmp-e2e" / "slot-{slot}" / "shots-out")
+#: The slots a run may take; slot 0 is a suite started by hand, and CI's fresh runner takes slot 1, where its workflow looks for the build.
+SLOTS = range(1, 60)
+#: Bound for the length of a run to claim a slot: the base port no suite serves on, shifted by the slot as the others are.
+CLAIM_PORT = 4175
 
 
 @dataclass
@@ -151,6 +156,65 @@ def share_cores(chosen: list[Step]) -> list[Step]:
     return out
 
 
+def slot_ports() -> list[int]:
+    """The base ports the suites serve on, from `arras/tests/sites.ts`, which owns them."""
+    source = (ROOT / "arras" / "tests" / "sites.ts").read_text(encoding="utf-8")
+    table = re.search(r"const PORTS = \{(.*?)\}", source)
+    ports = [int(p) for p in re.findall(r":\s*(\d+)", table.group(1))] if table else []
+    if not ports or CLAIM_PORT in ports:
+        raise SystemExit(f"verify: arras/tests/sites.ts names no PORTS table apart from the claim port {CLAIM_PORT}")
+    return ports
+
+
+def free(port: int) -> bool:
+    """Whether a server could listen on `port` on loopback. Asked as Node's server asks, since a closed connection's TIME_WAIT is no obstacle to one."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def holders(ports: list[int]) -> str:
+    """What holds `ports`, as `lsof` says; what to tell someone when no slot is free."""
+    if shutil.which("lsof") is None:
+        return "no lsof here to say what holds them"
+    spec = [f"-iTCP:{p}" for p in ports]
+    found = subprocess.run(["lsof", "-nP", "-sTCP:LISTEN", *spec], capture_output=True, text=True).stdout
+    return found.rstrip() or "nothing lsof can see"
+
+
+def claim_slot() -> tuple[int, socket.socket]:
+    """The first slot whose ports are all free, and the socket holding it for as long as it stays open.
+
+    Two runs starting together cannot take one slot: only one binds its claim port, exclusively, and the operating system lets it go however the run ends, so a killed run leaves nothing to clean up. A server on a suite's port (a hand-started suite, say) puts its slot out of the running too, since Playwright would refuse to start beside it.
+    """
+    ports = slot_ports()
+    for slot in SLOTS:
+        claim = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            claim.bind(("127.0.0.1", CLAIM_PORT + 100 * slot))
+        except OSError:
+            claim.close()
+            continue
+        if all(free(p + 100 * slot) for p in ports):
+            return slot, claim
+        claim.close()
+    first = [p + 100 * SLOTS[0] for p in [CLAIM_PORT, *ports]]
+    raise SystemExit(f"verify: no slot from {SLOTS[0]} to {SLOTS[-1]} is free. Slot {SLOTS[0]}'s ports:\n{holders(first)}")
+
+
+def in_slot(step: Step, slot: int) -> Step:
+    """`step` with its `{slot}` filled in."""
+    return replace(
+        step,
+        cmd=[c.replace("{slot}", str(slot)) for c in step.cmd],
+        env={k: v.replace("{slot}", str(slot)) for k, v in step.env.items()},
+    )
+
+
 def run(step: Step) -> Result:
     start = time.monotonic()
     try:
@@ -228,6 +292,14 @@ def main() -> int:
             parser.error(f"no step {', '.join(map(repr, unknown)) or 'named'}; the steps are {', '.join(s.name for s in STEPS)}")
         chosen = [s for s in STEPS if s.name in names and (args.only is None or s.lane == args.only)]
     chosen = share_cores(chosen)
+    # held until the process ends; only a run that serves anything needs one
+    if any("ARRAS_SLOT" in s.env for s in chosen):
+        slot, claim = claim_slot()
+        chosen = [in_slot(s, slot) for s in chosen]
+        # no build in this run means none in this slot to copy, so each suite's `scripts/bundle.mjs` builds, under its lock
+        if not any(s.name == "build" for s in chosen):
+            chosen = [replace(s, env={k: v for k, v in s.env.items() if k != "ARRAS_PREBUILT"}) for s in chosen]
+        print(f"arras suites in slot {slot}, on ports from {min(slot_ports()) + 100 * slot}", flush=True)
     lanes: dict[str, list[Step]] = {}
     for s in chosen:
         lanes.setdefault(s.lane, []).append(s)

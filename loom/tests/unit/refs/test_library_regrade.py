@@ -485,6 +485,7 @@ def test_search_pages_folds_a_works_versions(tmp_path: Path) -> None:
 # --- 4, T6: check shows that it is alive
 
 
+@pytest.mark.usefixtures("progress")
 def test_check_names_its_stages_on_stderr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """13.6–16.9 s of silence on the author's quilt, nearly all of it comparing versions' PDFs. A clock that moves ten seconds a reading stands in for it."""
     import importlib

@@ -32,7 +32,6 @@ Second prose.
 for (const width of [736, 1100, 1440]) {
  test(`section source, preamble and close/reopen at ${width}px`, async ({page, served}) => {
   // preview, incorporate, a close that builds the quilt first and a reopen: past the default 30 s on a CI runner
-  test.setTimeout(90000);
   await page.setViewportSize({width, height:1000});
   await page.goto('/review/proposed?copy=' + encodeURIComponent('.loom/copies/first-scope.tex'));
   const row = page.locator('[data-testid="change-row"][data-key="sy-0A01"]');
@@ -82,7 +81,7 @@ for (const width of [736, 1100, 1440]) {
   await expect(page.getByRole('button',{name:'Close and keep saved copy'})).toBeVisible();
   await page.getByRole('button',{name:'Close and keep saved copy'}).click();
   // closing builds the quilt before it answers, which a CI runner takes longer over
-  await expect(page.locator('main')).toContainText('Closed agent document', {timeout: 30000});
+  await expect(page.locator('main')).toContainText('Closed agent document');
   await page.getByRole('button',{name:'Reopen draft'}).click();
   await expect(page.getByRole('button',{name:'Close draft',exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

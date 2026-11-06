@@ -21,7 +21,7 @@ test('keeping an edit keeps a version of the document, which Restore puts back a
 	await page.getByTestId('history-restore-go').click();
 	await expect(page.getByTestId('history-bar-said')).toContainText('Put main.tex back as “Kept an edit” holds it');
 	expect(readFileSync(node, 'utf8')).toContain('Each orbit');
-	await expect(page.getByTestId('history-tick').last()).toContainText('Before restoring', { timeout: 10000 });
+	await expect(page.getByTestId('history-tick').last()).toContainText('Before restoring');
 });
 
 test('a version is recorded by name, and a name in use is refused', async ({ page }) => {
@@ -30,7 +30,7 @@ test('a version is recorded by name, and a name in use is refused', async ({ pag
 	await page.getByTestId('history-record-name').fill('Before referee');
 	await page.getByTestId('history-record-go').click();
 	await expect(page.getByTestId('history-bar-said')).toHaveText('Kept this version of main.tex as “Before referee”.');
-	await expect(page.getByTestId('history-tick').last()).toContainText('Before referee', { timeout: 10000 });
+	await expect(page.getByTestId('history-tick').last()).toContainText('Before referee');
 	await page.getByTestId('history-record').click();
 	await page.getByTestId('history-record-name').fill('Before referee');
 	await page.getByTestId('history-record-go').click();

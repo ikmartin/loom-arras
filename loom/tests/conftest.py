@@ -135,6 +135,8 @@ def isolated_env(
 
     for var in AGENT_MARKERS:
         monkeypatch.delenv(var, raising=False)
+    # a command slow enough to show progress depends on how busy the machine is, and a test reads what the command said; the `progress` fixture lets it through
+    monkeypatch.setenv("LOOM_PROGRESS", "off")
     monkeypatch.setenv("FAKE_TEX_LOG", str(tmp_path / "fake-tex.log"))
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig-none"))
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
@@ -152,3 +154,9 @@ def isolated_env(
 @pytest.fixture
 def home(isolated_env: Path) -> Path:
     return isolated_env
+
+
+@pytest.fixture
+def progress(isolated_env: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Let loom's progress lines through, for a test of them; every other test runs with them off."""
+    monkeypatch.delenv("LOOM_PROGRESS")

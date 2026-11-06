@@ -2,9 +2,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { noPolls } from '../polls';
 import { expect, test } from '../served';
 
 type Watched = { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; typeset: Element[][]; kept: Element; wrapped?: boolean };
+type Streams = { streams: EventSource[] };
 
 const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 
@@ -24,17 +26,31 @@ async function watch(page: Page, selector: string): Promise<void> {
 	}, selector);
 }
 
+/** From the page's first script on, no poll fires, the manifest's included, and each stream it opens is noted: what reaches the page after that came by the publisher's word. */
+async function withoutPolling(page: Page): Promise<void> {
+	await noPolls(page);
+	await page.addInitScript(() => {
+		const streams: EventSource[] = ((window as unknown as Streams).streams = []);
+		window.EventSource = class extends window.EventSource {
+			constructor(url: string | URL, init?: EventSourceInit) {
+				super(url, init);
+				streams.push(this);
+			}
+		};
+	});
+}
+
+// What keeps this fast is structure, tested without a clock: the watcher looks at loom's records between scans of the tree (`test_the_watcher_sees_loom_s_own_records_between_full_scans`) and the publisher says when it has published, which is all that can bring the mark here, where two one-second polls once stood in series. How long it takes is `scripts/bench`'s to say.
 test('an annotation filed from the command line is drawn into the open document, which is not drawn again', async ({ page, served }) => {
+	await withoutPolling(page);
 	await page.goto('/master/drafting/main');
 	await allTypeset(page);
+	// a publication before the stream opens is one only the poll would have told of
+	await page.waitForFunction(() => (window as unknown as Streams).streams.some((s) => s.readyState === EventSource.OPEN));
 	await watch(page, '[data-pane="0"] .fragment h1[data-src]');
 	const id = served.loom(['annotate', 'sy-0002', 'Which orbits?', '--quote', 'one or two points']).split(/\s+/)[0];
-	const filed = Date.now();
 	const mark = page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`);
-	await expect(mark).toHaveCount(1, { timeout: 15000 });
-	// the watcher looks at loom's records five times a second and the publisher says when it has published, where two one-second polls stood in series; GitHub's runner rebuilds more slowly than a workstation (about 1.65 s there), so it is given more room
-	const budget = process.env.GITHUB_ACTIONS ? 2500 : 1500;
-	expect(Date.now() - filed, 'ms from the command returning to the mark being drawn').toBeLessThan(budget);
+	await expect(mark).toHaveCount(1);
 	await allTypeset(page);
 	const r = await page.evaluate((id) => {
 		const w = window as unknown as Watched;
@@ -56,7 +72,7 @@ test('an edit keeps the blocks after it in its file, and moves their offsets', a
 	await watch(page, `[data-pane="0"] .fragment [data-src="${last}"]`);
 	const file = join(served.root, 'drafting', 'nodes', 'sy-0002.tex');
 	writeFileSync(file, readFileSync(file, 'utf8').replace('one or two points', 'one or two points, never more'));
-	await expect(page.locator('[data-pane="0"] .fragment').getByText('never more')).toBeVisible({ timeout: 15000 });
+	await expect(page.locator('[data-pane="0"] .fragment').getByText('never more')).toBeVisible();
 	const after = await page.evaluate(() => {
 		const w = window as unknown as Watched;
 		return { kept: w.kept.isConnected, src: w.kept.getAttribute('data-src') };

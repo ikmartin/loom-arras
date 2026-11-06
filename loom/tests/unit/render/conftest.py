@@ -16,15 +16,20 @@ from tests.unit.render._serve import QuickServer, fake_bundle
 
 @pytest.fixture
 def serve(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Path], ServeSession]]:
-    """Start `loom serve` over any quilt: the stand-in bundle, a free port, no compiling masters; every server started is stopped at teardown."""
+    """Start `loom serve` over any quilt: the stand-in bundle, a free port, no compiling masters; every server started is stopped at teardown. `watch=False` leaves the watcher unstarted, for a test counting a write's own publications, which a poll landing between the write and its rebuild adds to; `s.watcher.start()` begins it."""
     monkeypatch.setattr(serve_mod, "ThreadingHTTPServer", QuickServer)
     started: list[ServeSession] = []
     bundle = fake_bundle(tmp_path)
 
-    def start(q: Path) -> ServeSession:
+    def start(q: Path, *, watch: bool = True) -> ServeSession:
         s = ServeSession(load_quilt(q), bundle, port=0, compile_masters=False, interval=0.2)
         started.append(s)
-        s.start()
+        if watch:
+            s.start()
+        else:
+            s.listen()
+            s.first_look()
+            s.first_build()
         return s
 
     yield start

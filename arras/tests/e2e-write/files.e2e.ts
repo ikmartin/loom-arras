@@ -31,7 +31,7 @@ test('an HTML file runs in a frame of its own origin: its links open in the view
 		getSelection()!.addRange(range);
 	});
 	await expect
-		.poll(() => JSON.parse(served.loom(['here', '--json'])).looking?.selection?.text ?? '', { timeout: 10000 })
+		.poll(() => JSON.parse(served.loom(['here', '--json'])).looking?.selection?.text ?? '')
 		.toContain('A gadget is a widget with a handle');
 	// a `quilt:` link in it opens beside the page, as any link in the viewer does
 	await frame.getByRole('link', { name: 'the first lemma' }).click();
@@ -61,7 +61,7 @@ test('a box in a Markdown file is ticked in place: one character of the file cha
 	await expect(boxes.nth(1)).toBeChecked();
 	await expect.poll(() => onDisk(served.root, 'notes/intro.md')).toBe(before.replace('- [ ] Count', '- [x] Count'));
 	// once the publication has reached the page it has not been drawn again, so the mathematics and the place hold
-	await expect.poll(generated, { timeout: 10000 }).not.toBe(start);
+	await expect.poll(generated).not.toBe(start);
 	await page.waitForTimeout(500);
 	expect(await drawn!.evaluate((h) => h.isConnected)).toBe(true);
 	await expect(boxes.nth(1)).toBeChecked();
@@ -141,7 +141,7 @@ test('an HTML file can find and read the project and open what it finds, and can
 	);
 	const manifest = () => page.evaluate(async () => await (await fetch('/build/manifest.json', { cache: 'no-cache' })).text());
 	await page.goto('/file/notes/intro.md');
-	await expect.poll(manifest, { timeout: 10000 }).toContain('notes/open.html');
+	await expect.poll(manifest).toContain('notes/open.html');
 	await page.goto('/file/notes/open.html');
 	const frame = page.frameLocator('[data-testid="html-frame"]');
 	const link = frame.getByRole('link', { name: 'notes/intro.md: 2' });

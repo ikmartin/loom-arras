@@ -6,7 +6,6 @@ Real processes, since that is what an in-process lock cannot cover: two shells, 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import threading
@@ -63,7 +62,6 @@ def racing(
             subprocess.Popen(
                 [sys.executable, "-c", source, str(gate), str(ready), *argv],
                 cwd=q,
-                env={**os.environ, "LOOM_PROGRESS": "off"},
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
