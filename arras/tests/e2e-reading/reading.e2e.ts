@@ -670,6 +670,14 @@ async function staysAt(page: Page, want: At, { pane = 0, within = 0.01 } = {}): 
 	await isAt(page, want, { pane, within });
 }
 
+/** Wait until page `n`'s top is at the top of a pane's paper, where asking for a page sends it, and still there a moment later. Measured exactly, since a page's top can fall between pixels, where `placeIn`, which reads rounded offsets, calls it the foot of the page before. */
+async function arrived(page: Page, n: number, pane = 0): Promise<void> {
+	const off = () => paperIn(page, pane).evaluate((c, n) => Math.abs(c.querySelector(`[data-holder="${n}"]`)!.getBoundingClientRect().top - c.getBoundingClientRect().top), n);
+	await expect.poll(off).toBeLessThanOrEqual(1);
+	await page.waitForTimeout(800);
+	await expect.poll(off).toBeLessThanOrEqual(1);
+}
+
 /** Wait until this browser has kept `want` as where the reader is in a file, which it does once the column has been still a moment: a window opened or a reload before that finds the place before it. */
 async function kept(page: Page, want: At): Promise<void> {
 	await expect
@@ -855,6 +863,8 @@ readOnly('a tab brought back and a paper back from Info are where they were left
 	await page.keyboard.type('3');
 	await page.keyboard.press('Enter');
 	await expect(at).toHaveValue('3');
+	// read back from page 3, once the paper is there
+	await arrived(page, 3);
 	await readTo(page, left);
 	await toInfoAndBack(page);
 	await staysAt(page, left);
@@ -928,6 +938,22 @@ readOnly('a place holds at another zoom and another width, with most of a long p
 	await page.setViewportSize({ width: 900, height: 700 });
 	await page.reload();
 	await staysAt(page, left, { within: 0.02 });
+});
+
+readOnly('a page asked for as a long paper opens is where it stays, as the pages around it draw at their own size', async ({ page }) => {
+	const body = longPdf(300);
+	await page.route('**/paper.pdf', (r) => r.fulfill({ body, contentType: 'application/pdf' }));
+	await page.goto(BELLAMY);
+	await expect(page.getByTestId('page-count')).toContainText('300');
+	const at = page.getByTestId('page-at');
+	await at.click();
+	await page.keyboard.type('250');
+	await page.keyboard.press('Enter');
+	await arrived(page, 250);
+	await expect(at).toHaveValue('250');
+	// and it is where a paper made again opens
+	await toInfoAndBack(page);
+	await arrived(page, 250);
 });
 
 readOnly('a place in another file behind the work is not carried over, and a page it no longer has is not looked for', async ({ page, served }) => {

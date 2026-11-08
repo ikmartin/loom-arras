@@ -191,13 +191,11 @@
 		const want = v.jump;
 		if (!want || !column || !count) return;
 		const n = Math.min(Math.max(want.page, 1), count);
-		const target = column.querySelector(`[data-holder="${n}"]`);
-		if (!target) return;
+		if (!column.querySelector(`[data-holder="${n}"]`)) return;
 		v.jump = null;
 		moving = 'hand';
 		here = n;
-		keep = { page: n, share: 0 };
-		toPage(target, 'smooth');
+		toPage(n);
 		onpage?.({ page: n });
 	});
 
@@ -263,7 +261,7 @@
 		keep = { ...keep, top: column.scrollTop };
 	}
 
-	/** What last set the paper moving: told a place, landing on a mark, or the reader's own hand, by a gesture or by asking for a page; a scroll that follows the hand is theirs. */
+	/** What last set the paper moving: told a place, landing on a mark, or the reader's own hand, by a gesture or by asking for a page, which is a place told once the paper is there; a scroll that follows the hand is theirs. */
 	let moving: 'told' | 'landing' | 'hand' = 'told';
 	/** The page the paper was last sent to, which the reader has left once it is out of view. */
 	let sentTo = 0;
@@ -313,8 +311,7 @@
 			if (fits) toText();
 			if (!mark) {
 				// no mark after all: the page, which is wider than a half-pane column, so vertically only
-				const holder = column?.querySelector(`[data-holder="${at.page}"]`);
-				if (holder) toPage(holder, 'smooth');
+				toPage(at.page);
 				return;
 			}
 			if (drawn) landed = id;
@@ -324,21 +321,24 @@
 		return () => cancelAnimationFrame(frame);
 	});
 
-	/** Scroll a page's top to the top of the column, and nothing sideways: a page is wider than a half-pane column, and scrolling it into view let the browser align its right edge, over a landing that had just set where the text starts. */
-	function toPage(target: Element, behavior: ScrollBehavior = 'auto'): void {
-		if (!column) return;
-		const top = column.scrollTop + target.getBoundingClientRect().top - column.getBoundingClientRect().top;
-		column.scrollTo({ top, behavior });
+	/** Put page `n`'s top at the top of the column, nothing sideways, and say so as a scroll there would; from then it is a place told, until a hand moves it.
+	 *
+	 * At once and told, since the pages around it then draw at their own size: put back over them, a smooth scroll stops short or its next frame carries the paper past, and a place taken as the hand's gives way to the browser's scroll anchoring, which holds the paper for only some of the pages that grow. Nothing sideways, since a page is wider than a half-pane column, and scrolling it into view let the browser align its right edge, over a landing that had just set where the text starts.
+	 */
+	function toPage(n: number): void {
+		const target = column?.querySelector<HTMLElement>(`[data-holder="${n}"]`);
+		if (!column || !target) return;
+		column.scrollTop = target.offsetTop;
+		follow();
+		moving = 'told';
 	}
 
 	/** Sent to a page by a link inside the paper: scroll there and say so, as a scroll would. */
 	function goTo(n: number): void {
-		const target = column?.querySelector(`[data-holder="${n}"]`);
-		if (!target) return;
+		if (!column?.querySelector(`[data-holder="${n}"]`)) return;
 		moving = 'hand';
 		here = n;
-		keep = { page: n, share: 0 };
-		toPage(target, 'smooth');
+		toPage(n);
 		onpage?.({ page: n });
 	}
 
