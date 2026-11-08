@@ -62,6 +62,19 @@ function freePort(): Promise<number> {
 	});
 }
 
+/** The write token this attempt's server recorded on taking `port`; '' until it has.
+ *
+ * The record is written only once the port is held, whereas an answer on the port proves nothing: when two workers are given one port, the server that took it answers the other's probe before the loser has exited, and a test left on it writes to the other test's quilt.
+ */
+function tokenFrom(root: string, port: number): string {
+	try {
+		const record = JSON.parse(readFileSync(join(root, '.loom/serve.json'), 'utf8')) as { port: number; token: string };
+		return record.port === port ? record.token : '';
+	} catch {
+		return '';
+	}
+}
+
 function parseLines(path: string): Entry[] {
 	return readFileSync(path, 'utf8')
 		.split('\n')
@@ -141,8 +154,8 @@ async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promis
 				// leave Node’s parser paused when the server closes the connection.
 				await res.arrayBuffer();
 				if (res.ok) {
-					token = ((await (await fetch(`${url}/_api`)).json()) as { token: string }).token;
-					break;
+					token = tokenFrom(root, port);
+					if (token) break;
 				}
 			} catch {
 				/* not listening yet */
