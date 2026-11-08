@@ -22,28 +22,29 @@ const open = new Map<string, Promise<PDFDocumentProxy>>();
 
 /** One document per URL, shared between everything that draws it: the pane, a preview, the proposal box.
  *
- * The standard fonts and the CMaps are served from this bundle's own `static/`, staged there by
- * `scripts/pdfjs-assets.mjs`. Both are fetched per document and only when one needs them — a paper that embeds all its
- * fonts asks for neither — so they cost package weight and nothing at load. A deployed corpus must render offline, and
- * a viewer that silently falls back to another font is worse than a larger one, because a reader cannot see which
- * glyphs moved.
+ * Everything PDF.js fetches besides the worker is served from this bundle's own `static/`, staged there by `scripts/pdfjs-assets.mjs`: the standard fonts and CMaps, the decoders for a scan's JPEG 2000 and JBIG2 images and for ICC colour, and the CMYK profile. Each is fetched per document and only when one needs it, so they cost package weight and nothing at load. A deployed corpus must render offline, and a viewer that silently falls back to another font or leaves out an image is worse than a larger one, because a reader cannot see what moved or went missing.
  */
 export function document_(url: string): Promise<PDFDocumentProxy> {
-	let doc = open.get(url);
-	if (!doc) {
-		doc = pdfjs().then((lib) => lib.getDocument(sourceOf(url)).promise);
-		open.set(url, doc);
-	}
+	const kept = open.get(url);
+	if (kept) return kept;
+	const doc = pdfjs().then((lib) => lib.getDocument(sourceOf(url)).promise);
+	open.set(url, doc);
+	// a load that failed is not kept, so the next open tries again: the publisher may only have been restarting
+	doc.catch(() => {
+		if (open.get(url) === doc) open.delete(url);
+	});
 	return doc;
 }
 
-/** What `getDocument` opens for a URL or for bytes, its fonts and CMaps from this bundle; for a caller that needs a document of its own, whose annotation storage reaches no pane. */
+/** What `getDocument` opens for a URL or for bytes, with what it fetches from this bundle; for a caller that needs a document of its own, whose annotation storage reaches no pane. */
 export function sourceOf(from: string | Uint8Array) {
 	return {
 		...(typeof from === 'string' ? { url: from } : { data: from }),
 		standardFontDataUrl: `${base}/pdfjs/standard_fonts/`,
 		cMapUrl: `${base}/pdfjs/cmaps/`,
-		cMapPacked: true
+		cMapPacked: true,
+		wasmUrl: `${base}/pdfjs/wasm/`,
+		iccUrl: `${base}/pdfjs/iccs/`
 	};
 }
 

@@ -322,6 +322,60 @@ trailer<</Root 1 0 R>>
 	});
 });
 
+test('a paper that failed to load is tried again when it is next opened', async ({ page }) => {
+	const pdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]>>endobj
+trailer<</Root 1 0 R>>
+%%EOF`;
+	let down = true;
+	await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
+	await page.route('**/paper.pdf', (route) => (down ? route.abort() : route.fulfill({ body: pdf, contentType: 'application/pdf' })));
+	await page.goto('/library/Kre99');
+	await expect(page.getByTestId('pdf-problem')).toBeVisible();
+	down = false;
+	// no reload: another work in front of it, then back by its tab
+	await page.locator('button, summary').filter({ hasText: /^\W*Library/ }).first().click();
+	await page.locator('a[href="/library/Man12"]').first().click();
+	await page.getByRole('tab', { name: 'Kre99' }).click();
+	await expect(page.getByTestId('pdf-page-1').locator('canvas').first()).toBeVisible();
+	await expect(page.getByTestId('pdf-problem')).toHaveCount(0);
+});
+
+test('a scanned paper draws, its JPEG 2000 and JBIG2 images decoded from what the bundle ships', async ({ page }) => {
+	// one page, a black square in each half: the left in JPEG 2000, the right in JBIG2
+	const jpx = Buffer.from('AAAADGpQICANCocKAAAAFGZ0eXBqcDIgAAAAAGpwMiAAAAAtanAyaAAAABZpaGRyAAAAEAAAABAAAQcHAAAAAAAPY29scgEAAAAAABEAAACUanAyY/9P/1EAKQAAAAAAEAAAABAAAAAAAAAAAAAAABAAAAAQAAAAAAAAAAAAAQcBAf9SAAwAAAABAAQEBAAB/1wAEEBASEhQSEhQSEhQSEhQ/2QAJQABQ3JlYXRlZCBieSBPcGVuSlBFRyB2ZXJzaW9uIDIuNS40/5AACgAAAAAAFgAB/5PfgAgHgICAgP/Z', 'base64');
+	const jbig2 = Buffer.from('AAAAADAAAQAAABMAAAAQAAAAEAAAAAAAAAAAAAAAAAAAASYAAQAAABwAAAAQAAAAEAAAAAAAAAAAAAEmoL/////gAgAg', 'base64');
+	const image = (n: number, dict: string, data: Buffer) => [Buffer.from(`${n} 0 obj<</Type/XObject/Subtype/Image/Width 16/Height 16/ColorSpace/DeviceGray${dict}/Length ${data.length}>>stream\n`), data, Buffer.from('\nendstream endobj\n')];
+	const contents = 'q 100 0 0 100 0 0 cm /L Do Q q 100 0 0 100 100 0 cm /R Do Q';
+	const pdf = Buffer.concat([
+		Buffer.from(`%PDF-1.5
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Resources<</XObject<</L 5 0 R/R 6 0 R>>>>/Contents 4 0 R>>endobj
+4 0 obj<</Length ${contents.length}>>stream
+${contents}
+endstream endobj
+`),
+		...image(5, '/BitsPerComponent 8/Filter/JPXDecode', jpx),
+		...image(6, '/BitsPerComponent 1/Filter/JBIG2Decode', jbig2),
+		Buffer.from('trailer<</Root 1 0 R>>\n%%EOF')
+	]);
+	await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
+	await page.route('**/paper.pdf', (route) => route.fulfill({ body: pdf, contentType: 'application/pdf' }));
+	await page.goto('/library/Kre99');
+	const canvas = page.getByTestId('pdf-page-1').locator('canvas').first();
+	await expect
+		.poll(() =>
+			canvas.evaluate((c: HTMLCanvasElement) => {
+				const red = (x: number) => c.getContext('2d')!.getImageData(Math.round(c.width * x), Math.round(c.height / 2), 1, 1).data[0];
+				return [red(0.25), red(0.75)];
+			})
+		)
+		.toEqual([0, 0]);
+});
+
 test.describe('the digest', () => {
 	test("a digest result's page links to the result on its paper, in the pane", async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));

@@ -112,8 +112,8 @@ describe('a corpus URL', () => {
 		expect(fetched).toEqual(['/sub/build/manifest.json', '/sub/build/fragments/sy-0003.html', '/sub/build/source/sy-0003.tex', '/sub/_api']);
 	});
 
-	it('gives PDF.js its fonts and character maps from under the base', async () => {
+	it('gives PDF.js its fonts, character maps, decoders and colour profile from under the base', async () => {
 		const options = (await document_('/sub/refs/Kre99/paper.pdf')) as unknown as Record<string, unknown>;
-		expect(options).toMatchObject({ url: '/sub/refs/Kre99/paper.pdf', standardFontDataUrl: '/sub/pdfjs/standard_fonts/', cMapUrl: '/sub/pdfjs/cmaps/' });
+		expect(options).toMatchObject({ url: '/sub/refs/Kre99/paper.pdf', standardFontDataUrl: '/sub/pdfjs/standard_fonts/', cMapUrl: '/sub/pdfjs/cmaps/', wasmUrl: '/sub/pdfjs/wasm/', iccUrl: '/sub/pdfjs/iccs/' });
 	});
 });
