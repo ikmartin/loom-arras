@@ -134,6 +134,8 @@ export function goesWith(work: { pdf: boolean; results: number; verified: number
 export interface ShelfRow {
 	citekey: string;
 	title: string;
+	/** Its authors' surnames, as a byline gives them; '' where none is known. */
+	authors: string;
 	/** A copy of one of its documents is filed here. */
 	filed: boolean;
 	/** The citekey a choice opens: the work's own where its copy is filed, else a version's that is. */
@@ -144,7 +146,7 @@ export interface ShelfRow {
 }
 
 /**
- * The works a reader opens, one row each by title: a version is folded into its work, as the ledger folds it.
+ * The works a reader opens, one row each: a version is folded into its work, as the ledger folds it.
  *
  * Parameters
  * ----------
@@ -153,7 +155,7 @@ export interface ShelfRow {
  * Returns
  * -------
  * ShelfRow[]
- *     Sorted by title; a version whose work is not in the manifest keeps a row of its own.
+ *     Sorted by author, then title; a work with no author known stands by its title among them, so the list follows what each row starts with. A version whose work is not in the manifest keeps a row of its own.
  */
 export function shelf(m: Manifest): ShelfRow[] {
 	const refs = Object.values(m.references ?? {});
@@ -165,13 +167,14 @@ export function shelf(m: Manifest): ShelfRow[] {
 			return {
 				citekey: r.citekey,
 				title: bibText(r.bib.title) || r.citekey,
+				authors: surnames(r.bib.author),
 				filed: !!copy,
 				opens: (copy ?? r).citekey,
 				unreadable: !!r.unreadable,
 				text: all.map((x) => `${x.citekey} ${bibText(x.bib.title)} ${bibText(x.bib.author ?? '')}`).join(' ').toLowerCase()
 			};
 		})
-		.sort((a, b) => a.title.localeCompare(b.title));
+		.sort((a, b) => (a.authors || a.title).localeCompare(b.authors || b.title) || a.title.localeCompare(b.title));
 }
 
 /** How many of a work's results are in each state a reader is told: extracted by loom, verified by a person, proposed by an agent. */

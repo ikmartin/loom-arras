@@ -26,7 +26,7 @@
 
 	let { label, primary, docsHref, indexes, masters, currentDoc, onDocument, contents, currentSection, children, rail, panel, panelLabel }: ShellProps = $props();
 
-	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's title alone: what each holds and needs is said on its Info and on the library's page, not beside every row. A choice opens in the focused pane, as every choice in the column does.
+	// The Library in the column: a work is one thing a reader opens, so the column lists them, one row each however many documents it has. A row carries the work's author and title alone, sorted by author: what each holds and needs is said on its Info and on the library's page, not beside every row. A choice opens in the focused pane, as every choice in the column does.
 	const works = $derived(store.manifest ? shelf(store.manifest) : []);
 	let readOnly = $state(false);
 	onMount(() => { void can('review-accept').then((yes) => readOnly = !yes); });
@@ -281,7 +281,7 @@
 									<ul class="plain library" data-testid="library-list">
 										{#each library as r (r.citekey)}
 											<li>
-												<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}">{r.title}</a>
+												<a href={workUrl(r.opens)} data-testid="library-work-{r.citekey}">{r.authors ? `${r.authors}, ${r.title}` : r.title}</a>
 												{#if r.unreadable}<span class="aside">unreadable</span>{/if}
 											</li>
 										{:else}

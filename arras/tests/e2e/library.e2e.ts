@@ -144,12 +144,20 @@ test.describe('the ledger', () => {
 		await expect(list).not.toContainText('more');
 	});
 
-	test("the column lists works by title alone", async ({ page }) => {
+	test('the column lists works by author and title alone, sorted by author', async ({ page }) => {
 		// what each holds and needs is said on its Info and in Review, not beside every row: no dot, no count
+		await serve(page, (m) => {
+			const one = m.references.Kre99;
+			m.references = {
+				Zeb: { ...structuredClone(one), citekey: 'Zeb', version_of: undefined, bib: { title: 'Zebras', author: 'Casella, George and Berger, Roger' } },
+				Sta: { ...structuredClone(one), citekey: 'Sta', version_of: undefined, bib: { title: 'Statistics for quants' } },
+				Abs: { ...structuredClone(one), citekey: 'Abs', version_of: undefined, bib: { title: 'Abstract nonsense', author: 'Mac Lane, Saunders' } }
+			};
+		});
 		await page.goto('/master/drafting/main');
 		await page.getByTestId('library-toggle').click();
 		const list = page.getByTestId('library-list');
-		await expect(list.locator('a[href^="/library/"]').first()).toBeVisible();
+		await expect(list.locator('a[href^="/library/"]')).toHaveText(['Casella and Berger, Zebras', 'Mac Lane, Abstract nonsense', 'Statistics for quants']);
 		await expect(list.locator('.dot')).toHaveCount(0);
 		const texts = await list.locator('li').allInnerTexts();
 		for (const t of texts.filter((x) => !/Manage|more|nothing/.test(x))) expect(t, t).not.toMatch(/\b\d+p?\s*$/);
