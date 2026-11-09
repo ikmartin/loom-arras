@@ -23,7 +23,7 @@ const withPaper = {
 	}
 };
 
-function notes(served: Served): Record<string, { mark?: string; body: string; rects?: number[][]; strokes?: number[][]; session: string; quote?: string; page?: number; origin?: { by?: string } }> {
+function notes(served: Served): Record<string, { mark?: string; body: string; rects?: number[][]; strokes?: number[][]; session: string; quote?: string; page?: number; color?: string; origin?: { by?: string } }> {
 	return JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).notes ?? {};
 }
 
@@ -235,6 +235,51 @@ test.describe('on a project PDF', () => {
 		expect(items).toHaveLength(1);
 		expect(items[0]).toMatchObject({ mark: 'highlight', body: 'in the copy', page: 1 });
 		await expect(page.getByTestId('mark-said')).toContainText('Saved a copy with 1 annotation');
+	});
+
+	test('a colour is chosen on the chip, stays in the hand, changes on its mark with undo, and goes into a saved copy', async ({ page, served }) => {
+		test.slow();
+		await openPaper(page, `/file/${FILE}`);
+		await selectWords(page, 1, 'Cycle');
+		await page.locator('.tray').getByTestId('swatch-green').click();
+		await published(served, 1);
+		const id = Object.keys(notes(served))[0];
+		expect(notes(served)[id].color).toBe('green');
+		const band = page.getByTestId(`mark-band-${id}`).locator('rect').first();
+		const fill = () => band.evaluate((r) => getComputedStyle(r).fill);
+		await expect.poll(fill).toBe('rgb(160, 232, 140)');
+
+		await clickMark(page, `page-mark-${id}`);
+		await page.getByTestId('mark-card').getByTestId('swatch-pink').click();
+		await expect.poll(fill).toBe('rgb(255, 166, 208)');
+		await expect.poll(() => notes(served)[id]?.color).toBe('pink');
+		await page.getByTestId('mark-done').click();
+
+		// changing one mark leaves the colour in the hand, and that is what the next mark is drawn in
+		await page.getByTestId('markup-toggle').click();
+		const held = page.getByTestId('mark-colors');
+		await expect(held.getByTestId('swatch-green')).toHaveAttribute('aria-pressed', 'true');
+		await page.getByTestId('mark-undo').click();
+		await expect.poll(() => notes(served)[id]?.color).toBe('green');
+		await held.getByTestId('swatch-blue').click();
+		await page.getByTestId('tool-rect').click();
+		await drag(page, 1, [0.2, 0.6], [0.5, 0.75]);
+		await published(served, 2);
+		const box = marksOf(served).find((n) => n.mark === 'box');
+		expect(box?.color).toBe('blue');
+		await expect.poll(() => page.locator('.k-box .shape').first().evaluate((s) => getComputedStyle(s).stroke)).toBe('rgb(26, 111, 196)');
+		await page.getByTestId('tool-rect').click();
+
+		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
+		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));
+		expect(items.find((i) => i.mark === 'highlight')?.color).toBe('green');
+		expect(items.find((i) => i.mark === 'ink')?.color).toBe('blue');
+
+		await page.reload();
+		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count()).toBeGreaterThan(10);
+		await expect.poll(fill).toBe('rgb(160, 232, 140)');
+		await page.getByTestId('markup-toggle').click();
+		await expect(page.getByTestId('mark-colors').getByTestId('swatch-blue')).toHaveAttribute('aria-pressed', 'true');
 	});
 
 	test('annotations are taken in from another copy once, and never from a different paper', async ({ page, served }) => {

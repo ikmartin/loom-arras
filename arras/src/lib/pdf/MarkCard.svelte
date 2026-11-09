@@ -5,6 +5,7 @@
 	import { untrack } from 'svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
 	import type { MarkDesk } from './desk.svelte';
+	import Swatches from './Swatches.svelte';
 
 	let { desk }: { desk: MarkDesk } = $props();
 
@@ -107,6 +108,9 @@
 				></textarea>
 			{:else if text}
 				<button type="button" class="said as-text" data-testid="mark-card-body" disabled={!desk.writes} onclick={() => (editing = true)}><TexProse {text} /></button>
+			{/if}
+			{#if desk.writes && mark && !mark.plain}
+				<Swatches value={mark.color ?? ''} onpick={(c) => desk.recolor(mark.id, c)} />
 			{/if}
 			{#if desk.writes}
 				<footer>

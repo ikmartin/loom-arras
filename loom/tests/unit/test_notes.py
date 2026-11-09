@@ -280,6 +280,51 @@ def test_every_mark_is_written_and_stroked_ones_are_bounded(paper: Path) -> None
 
 
 @pytest.mark.poppler
+def test_a_mark_takes_a_colour_keeps_it_through_a_comment_and_can_lose_it(paper: Path) -> None:
+    from loom.notes import load
+
+    on = ("--on", "notes/paper.pdf", "--page", "1")
+    hl = noted(paper, *on, "--quote", "Cycle spaces", "--mark", "highlight", "--color", "green")["id"]
+    assert load(paper)[hl].color == "green"
+    assert "green highlight on notes/paper.pdf" in ok("since", "--as", AGENT, "--dry-run", cwd=paper).stdout
+    noted(paper, "worth a comment", "--edit", hl)
+    assert load(paper)[hl].color == "green"
+    # a change of colour alone leaves what it says
+    noted(paper, "--edit", hl, "--color", "pink")
+    assert (load(paper)[hl].color, load(paper)[hl].body) == ("pink", "worth a comment")
+    noted(paper, "--edit", hl, "--color", "none")
+    assert load(paper)[hl].color is None and load(paper)[hl].body == "worth a comment"
+    assert "color" not in noted(paper, *on, "--quote", "Cycle spaces", "--mark", "underline")
+
+
+@pytest.mark.poppler
+def test_a_colour_is_for_a_mark_and_is_one_of_the_five(paper: Path) -> None:
+    from loom.cli._quilt import open_scan
+    from loom.notes import NoteRefused, change, write
+
+    base = ("note", "--as", "Tester", "--on", "notes/paper.pdf", "--page", "1", "--quote", "Cycle")
+    refused(*base, "--color", "green", cwd=paper, code=2, match="only a mark")
+    refused(*base, "--mark", "highlight", "--color", "teal", cwd=paper, code=2, match="teal")
+    with pytest.raises(NoteRefused, match="one of yellow"):
+        write(
+            open_scan(str(paper)),
+            "notes/paper.pdf",
+            author="T",
+            author_kind="person",
+            session="",
+            page=1,
+            quote="Cycle",
+            mark="highlight",
+            color="teal",
+        )
+    plain = noted(
+        paper, "--on", "notes/paper.pdf", "--page", "1", "--quote", "Cycle", "--session", open_session(paper)
+    )["id"]
+    with pytest.raises(NoteRefused, match="only a mark"):
+        change(paper, plain, "T", "person", color="green")
+
+
+@pytest.mark.poppler
 def test_a_mark_is_changed_erased_and_restored_and_the_log_keeps_it(paper: Path) -> None:
     from loom.cli._quilt import open_scan
     from loom.notes import load, published
@@ -382,9 +427,10 @@ def test_a_pdfs_own_annotations_are_taken_in_once(paper: Path) -> None:
             "mark": "highlight",
             "rects": [[206.9, 125.4, 293.4, 141.0]],
             "body": "from Preview",
+            "color": "yellow",
             "origin": {"by": "Reader", "subtype": "Highlight", "color": [255, 255, 0], "ref": "19R", "sha": "abc"},
         },
-        {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "a sticky note"},
+        {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "a sticky note", "color": "teal"},
         {"page": 1, "mark": "ink", "strokes": [[10, 10, 20, 30]]},
         {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]]},
         {"page": "one", "mark": "pin", "rects": [[1, 1, 2, 2]], "body": "x"},
@@ -393,6 +439,7 @@ def test_a_pdfs_own_annotations_are_taken_in_once(paper: Path) -> None:
     assert take_in(result, "notes/paper.pdf", items, **kw) == {"taken": 3, "already": 0, "skipped": 2}
     notes = list(load(paper).values())
     assert notes[0].quote == "Cycle spaces" and notes[0].origin["by"] == "Reader" and notes[0].session == ""  # type: ignore[index]
+    assert notes[0].color == "yellow" and notes[1].color is None
     assert take_in(result, "notes/paper.pdf", items, **kw) == {"taken": 0, "already": 3, "skipped": 2}
     erase(paper, notes[1].id, "Tester", "person")
     assert take_in(result, "notes/paper.pdf", items, **kw)["taken"] == 0

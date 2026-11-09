@@ -354,6 +354,11 @@ def _note_change(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.notes import load
 
     assert load(q)[nid].body == "says this now" and load(q)[nid].rects == [[20, 20, 70, 70]]
+    succeeds(s, "note-change", {"note": nid, "color": "blue", "author": WHO})
+    assert load(q)[nid].color == "blue" and load(q)[nid].body == "says this now"
+    succeeds(s, "note-change", {"note": nid, "color": "", "author": WHO})
+    assert load(q)[nid].color is None
+    refuses(s, "note-change", {"note": nid, "color": "teal", "author": WHO}, 400, "bad-field", "one of yellow")
     refuses(s, "note-change", {"note": "n-2026-01-01-9999", "body": "x", "author": WHO}, 404, "no-such-note", "no note")
     refuses(
         s,

@@ -1238,6 +1238,18 @@
      "description": "A region of the page or image, in points from its top left.",
      "type": "string"
     },
+    "color": {
+     "description": "The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's.",
+     "enum": [
+      "none",
+      "yellow",
+      "green",
+      "blue",
+      "pink",
+      "purple"
+     ],
+     "type": "string"
+    },
     "edit": {
      "description": "Say TEXT in note ID instead. An agent changes only its own.",
      "type": "string"

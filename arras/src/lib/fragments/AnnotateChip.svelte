@@ -1,5 +1,8 @@
 <script lang="ts">
 	// The one selection chip: a selection stays a selection, and this offers the other things, **annotate** (the composer, with a kind) and **quote** (a note quoting the words, in one press, plan 0.22.8). Where an annotation cannot go -- a project file, a message -- it offers quote alone. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on its first button does. The caller shows it while a selection is offered and takes it down once the composer opens or the quote is written.
+	import Swatches from '$lib/pdf/Swatches.svelte';
+	import { prefs } from '$lib/prefs.svelte';
+
 	type Box = { left: number; top: number; width: number; height: number };
 
 	let {
@@ -18,7 +21,7 @@
 		onaccept?: () => void;
 		/** Write a note quoting the selection; the refusal, or '' once written. */
 		onquote?: () => Promise<string>;
-		/** Mark the selection on a PDF page, in one press; absent anywhere else. */
+		/** Mark the selection on a PDF page, in one press and the colour in the hand; absent anywhere else. */
 		onhighlight?: () => void;
 		/** The quote is written and said: the caller takes the chip down. */
 		ondone?: () => void;
@@ -117,7 +120,18 @@
 	{:else}
 		{#if onaccept}<button type="button" class="chip" data-testid="annotate-offer" onmousedown={(e) => e.preventDefault()} onclick={onaccept}>annotate</button>{/if}
 		{#if onquote}<button type="button" class="chip" data-testid="quote-offer" title="Quote it into the session: a note an agent reads with loom since" onmousedown={(e) => e.preventDefault()} onclick={quoting}>quote</button>{/if}
-		{#if onhighlight}<button type="button" class="chip" data-testid="highlight-offer" title="Highlight these words on the page" onmousedown={(e) => e.preventDefault()} onclick={onhighlight}>highlight</button>{/if}
+		{#if onhighlight}<button type="button" class="chip" data-testid="highlight-offer" title="Highlight these words on the page" onmousedown={(e) => e.preventDefault()} onclick={onhighlight}>highlight</button>
+			<span class="tray">
+				<Swatches
+					value={prefs.markColor}
+					neutral={false}
+					onpick={(c) => {
+						prefs.markColor = c;
+						onhighlight();
+					}}
+				/>
+			</span>
+		{/if}
 	{/if}
 </span>
 
@@ -128,6 +142,15 @@
 		z-index: 30;
 		display: flex;
 		gap: 4px;
+	}
+	.tray {
+		display: flex;
+		align-items: center;
+		padding: 0 0.3em;
+		border-radius: var(--rad-pill);
+		border: 1px solid var(--rule);
+		background: var(--sheet);
+		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
 	}
 	.chip {
 		font-family: var(--sans);

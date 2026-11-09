@@ -58,6 +58,8 @@ export interface Note {
   kept?: string;
   /** How it is drawn on a PDF page: highlight, underline, strike, pin, ink, text, box, oval or arrow. A mark never fades. */
   mark?: string;
+  /** The colour a mark was given, one of the viewer's `MARK_COLORS`; a mark without one is the neutral. */
+  color?: string;
   /** A stroked mark's points, x, y, x, y… per stroke, in points from the page's top left. */
   strokes?: number[][];
   /** The hash of the PDF it was written on. */

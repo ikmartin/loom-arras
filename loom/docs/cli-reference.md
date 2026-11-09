@@ -275,6 +275,7 @@ A note has no kind, severity or resolution: it says what someone wants kept besi
 | `--box` `X,Y,W,H` | A region of the page or image, in points from its top left. |
 | `--mark` | Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades. |
 | `--stroke` `X,Y,X,Y,…` | A line of ink or an arrow, in points from the page's top left; repeat for more lines. |
+| `--color` | The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's. |
 | `--keep` `ID` | Keep note ID, so it never fades. |
 | `--edit` `ID` | Say TEXT in note ID instead. An agent changes only its own. |
 | `--erase` `ID` | Erase note ID. The log keeps it. An agent erases only its own. |

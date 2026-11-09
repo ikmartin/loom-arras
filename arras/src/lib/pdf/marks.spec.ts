@@ -1,8 +1,43 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { Note } from '$lib/manifest/types';
-import { kindOf, markAt, markOf, mergeLines, movable, refit, simplify, type PageMark } from './marks';
+import { COLOR_NAMES, copyColor, kindOf, MARK_COLORS, markAt, markOf, mergeLines, movable, nearestColor, paintOf, refit, simplify, type MarkColor, type PageMark } from './marks';
 
 const mark = (over: Partial<PageMark>): PageMark => ({ id: 'n', page: 1, kind: 'highlight', rects: [[0, 0, 10, 10]], body: '', ...over });
+
+describe("a mark's colour", () => {
+	it('is the nearest by hue, and black, white and grey stay the neutral', () => {
+		expect([[255, 255, 0], [60, 200, 80], [30, 120, 255], [255, 105, 180], [140, 80, 220]].map(nearestColor)).toEqual(['yellow', 'green', 'blue', 'pink', 'purple']);
+		expect([[0, 0, 0], [255, 255, 255], [128, 128, 130]].map(nearestColor)).toEqual([undefined, undefined, undefined]);
+	});
+
+	it('is itself when its own paint comes back from a PDF', () => {
+		for (const name of COLOR_NAMES) {
+			expect(nearestColor(MARK_COLORS[name].band)).toBe(name);
+			expect(nearestColor(MARK_COLORS[name].line)).toBe(name);
+		}
+	});
+
+	it('goes into a copy as the PDF had it until its reader changes it', () => {
+		expect(copyColor('highlight', 'yellow', [250, 240, 30])).toEqual([250, 240, 30]);
+		expect(copyColor('highlight', 'green', [250, 240, 30])).toEqual([...MARK_COLORS.green.band]);
+		expect(copyColor('underline', 'green')).toEqual([...MARK_COLORS.green.line]);
+		expect(copyColor('ink', '', [10, 10, 10])).toEqual([10, 10, 10]);
+		expect(copyColor('ink')).toBeUndefined();
+	});
+
+	it('paints nothing for a colour this viewer does not know', () => {
+		expect(paintOf('teal' as MarkColor)).toBe('');
+		expect(paintOf('')).toBe('');
+		expect(paintOf('green')).toContain('--line: rgb(30 125 54)');
+	});
+
+	it('is one the record takes', () => {
+		const python = readFileSync(fileURLToPath(new URL('../../../../loom/src/loom/notes.py', import.meta.url)), 'utf8');
+		expect(/^MARK_COLORS = \((.*)\)$/m.exec(python)?.[1].replaceAll('"', '').split(', ')).toEqual(COLOR_NAMES);
+	});
+});
 
 describe('mergeLines', () => {
 	it('makes one rectangle per line of what a text layer gives', () => {

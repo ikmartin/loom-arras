@@ -192,10 +192,12 @@ Each visual channel answers exactly one question, and no two channels answer the
 
 | channel | answers |
 |---|---|
-| hue | what kind of thing is said |
+| hue | on an annotation, what kind of thing is said; on a mark on a PDF page, whatever its reader uses that colour to say |
 | weight | how severe (objection and suggestion; the other kinds take the middle step) |
 | wash | which annotation's box is open, whatever its kind and severity, at one strength; at 3%, that it is settled |
-| shape | what it is attached to: an underline for a phrase, a rule for a display, a tint for a PDF span, an outline for a box; a mark on a PDF page, which has no kind, is the neutral in the shape it was drawn |
+| shape | what it is attached to: an underline for a phrase, a rule for a display, a tint for a PDF span, an outline for a box; a mark on a PDF page is the shape it was drawn |
+
+A mark on a PDF page has no kind, so its hue is left to its reader: it is the neutral until given one of five marking colours, and loom gives those colours no meaning. They are brighter than the annotation hues and drawn only on marks, so neither is taken for the other.
 
 ### A5. Opening an annotation never costs the text.
 
@@ -205,7 +207,7 @@ A box never covers the words it is about. Travel between a mark and its record i
 
 - At rest only open, top-level annotations are drawn.
 - Settled annotations (resolved or withdrawn, marked by hand) are not drawn until the reader turns them on, and then at 3% wash with the underline at half weight and 50% opacity, the words untouched.
-- The system uses four hues, one neutral and three weights, and nothing else.
+- Annotations use four hues, one neutral and three weights, and nothing else. The five marking colours appear only on a mark on a PDF page and on the controls that choose them (A4).
 - An annotation looks the same on every surface: text, PDF and hover card.
 
 ## T · Terminal output
