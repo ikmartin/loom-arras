@@ -504,6 +504,7 @@ def _proof_nodes(
                     )
             pending.append((path, proof, stmt_key, att.via, att.ref_labels))
     per_statement: dict[str, list[tuple[float, str, Env, str]]] = {}
+    unattached: dict[str, int] = {}
     for path, proof, stmt_key, via, ref_labels in pending:
         src = files[path]
         if stmt_key is None:
@@ -516,9 +517,22 @@ def _proof_nodes(
                     [Location(path, src.line_of(proof.start))],
                 )
             )
-            key = f"{path}#proof:{proof.start}"
+            unattached[path] = unattached.get(path, 0) + 1
+            found = labels_in(src.clean, proof.own_ranges())
+            labels = [lab for lab, _ in found]
+            key, pid = _unattached_key(asm, path, labels, unattached[path], slugs)
             asm.nodes[key] = NodeRec(
-                key=key, kind="proof", file=path, start=proof.start, end=proof.end, env="proof", attach_via="none"
+                key=key,
+                kind="proof",
+                file=path,
+                start=proof.start,
+                end=proof.end,
+                id=pid,
+                env="proof",
+                labels=labels,
+                label_offsets=dict(found),
+                aliases=[lab for lab in labels if lab != pid],
+                attach_via="none",
             )
             asm._env_keys[(path, proof.start)] = key
             continue
@@ -568,6 +582,19 @@ def _proof_nodes(
                     [stmt_key],
                 )
             )
+
+
+def _unattached_key(asm: Assembly, path: str, labels: list[str], n: int, slugs: set[str]) -> tuple[str, str | None]:
+    """The key of a proof attached to no statement, and its id if it has one.
+
+    Its first label, else `n`, its place among the file's unattached proofs, so lengthening other text leaves the key alone. A label some node already holds gives way to the next form.
+    """
+    first = labels[0] if labels else None
+    if first and is_id_shaped(first, slugs) and first not in asm.nodes:
+        return first, first
+    if first and f"{path}#{first}" not in asm.nodes:
+        return f"{path}#{first}", None
+    return f"{path}#proof:{n}", None
 
 
 def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
