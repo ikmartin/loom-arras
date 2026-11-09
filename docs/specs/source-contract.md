@@ -21,7 +21,7 @@ Theorem-like environments, headings and proofs are nodes. "With an id" means the
 | heading, `\part` to `\subparagraph`, with an id | the id |
 | heading without | `FILE#LABEL`, else `FILE#COMMAND:N` |
 | attached proof (section 5) | its id, else `S/proof`, `S/proof/2`, … |
-| unattached proof | `FILE#proof:OFFSET`; `loom:unattached-proof` (error) |
+| unattached proof | its id, else `FILE#LABEL`, else `FILE#proof:N`, the Nth unattached proof in FILE; `loom:unattached-proof` (error) |
 | other environment: `equation`, `figure`, undeclared | none; its labels name regions, `KEY#LABEL` |
 | a file | none; it owns the text no node claims |
 

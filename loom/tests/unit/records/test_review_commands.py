@@ -1464,6 +1464,26 @@ def test_an_annotation_whose_document_stops_holding_the_node_is_detached(tmp_pat
     assert m["annotations"][ann]["detached"] is True
 
 
+def test_rewriting_one_unattached_proof_detaches_only_the_annotation_on_its_words(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    main = d / "drafting" / "main.tex"
+    answers = (
+        "\\begin{enumerate}\n\\item One.\n\\begin{proof}\nThe first answer is short.\n\\end{proof}\n"
+        "\\item Two.\n\\begin{proof}\nThe second answer is unique.\n\\end{proof}\n\\end{enumerate}\n"
+    )
+    edit(main, "\\end{document}", answers + "\\end{document}")
+    first, second = sorted(
+        (k for k in status_json(d)["keys"] if "#proof:" in k), key=lambda k: int(k.rsplit(":", 1)[1])
+    )
+    rewritten = ok("annotate", first, "A hint.", "--quote", "The first answer is short", *AS, cwd=d).output.split()[0]
+    kept = ok("annotate", second, "Another.", "--quote", "The second answer is unique", *AS, cwd=d).output.split()[0]
+    edit(main, "The first answer is short.", "This answer has been rewritten at considerably greater length.")
+    exits(1, "build", cwd=d, match="unattached-proof")
+    annotations = json.loads((d / ".loom/build" / "manifest.json").read_text())["annotations"]
+    assert annotations[rewritten]["detached"] is True
+    assert annotations[kept]["detached"] is False
+
+
 # ---- documents that move (plan 0.16 phase 1) ---------------------------------------------------
 
 FLAT = ("drafting/main.tex", "--to", "drafting/main-flat.tex", "--keep-shared", "--no-check")

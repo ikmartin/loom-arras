@@ -103,6 +103,81 @@ two
     assert codes.count("loom:positional-proof-key") == 1
 
 
+ANSWERS = (
+    PREAMBLE
+    + r"""\begin{document}
+\begin{enumerate}
+\item First exercise.
+\begin{proof}[Answer]
+The first answer.
+\end{proof}
+\item Second exercise.
+\begin{proof}[Answer]
+The second answer.
+\end{proof}
+\end{enumerate}
+\end{document}
+"""
+)
+
+
+def test_an_unattached_proof_keeps_its_key_when_earlier_text_lengthens(tmp_path: Path) -> None:
+    keys = ["drafting/main.tex#proof:1", "drafting/main.tex#proof:2"]
+    before = make_quilt(tmp_path, {"drafting/main.tex": ANSWERS})
+    assert [k for k, n in before.nodes.items() if n.kind == "proof"] == keys
+    longer = ANSWERS.replace("The first answer.", "The first answer, now at considerably greater length.")
+    after = make_quilt(tmp_path, {"drafting/main.tex": longer})
+    assert [k for k, n in after.nodes.items() if n.kind == "proof"] == keys
+    second = after.nodes[keys[1]]
+    assert "The second answer." in after.files["drafting/main.tex"].clean[second.start : second.end]
+
+
+def test_an_unattached_proof_takes_its_first_label_as_its_key(tmp_path: Path) -> None:
+    r = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\begin{enumerate}
+\item One.
+\begin{proof}\label{ab-0900}An id.\end{proof}
+\item Two.
+\begin{proof}\label{ans:two}A label.\end{proof}
+\item Three.
+\begin{proof}Neither.\end{proof}
+\end{enumerate}
+\end{document}
+"""
+        },
+    )
+    assert r.nodes["ab-0900"].id == "ab-0900" and r.nodes["ab-0900"].attach_via == "none"
+    assert r.nodes["drafting/main.tex#ans:two"].id is None
+    assert r.assembly.labels["ans:two"] == "drafting/main.tex#ans:two"
+    assert "drafting/main.tex#proof:3" in r.nodes, "a labelled proof still counts, so labelling one moves no other"
+
+
+def test_two_unattached_proofs_sharing_a_label_are_both_kept(tmp_path: Path) -> None:
+    r = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\begin{enumerate}
+\item One.
+\begin{proof}\label{ans}First.\end{proof}
+\item Two.
+\begin{proof}\label{ans}Second.\end{proof}
+\end{enumerate}
+\end{document}
+"""
+        },
+    )
+    assert {k for k, n in r.nodes.items() if n.kind == "proof"} == {
+        "drafting/main.tex#ans",
+        "drafting/main.tex#proof:2",
+    }
+
+
 def test_statement_nested_in_proof_and_enclosure_keys(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
