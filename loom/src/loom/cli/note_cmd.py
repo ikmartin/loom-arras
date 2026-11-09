@@ -7,7 +7,7 @@ import click
 from loom.cli._common import EnvError
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.report import Report
-from loom.notes import MARKS
+from loom.notes import MARK_COLORS, MARKS
 
 
 @click.command(name="note")
@@ -42,6 +42,12 @@ from loom.notes import MARKS
     metavar="X,Y,X,Y,…",
     help="A line of ink or an arrow, in points from the page's top left; repeat for more lines.",
 )
+@click.option(
+    "--color",
+    type=click.Choice(("none", *MARK_COLORS)),
+    default=None,
+    help="The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's.",
+)
 @click.option("--keep", "keep_id", default=None, metavar="ID", help="Keep note ID, so it never fades.")
 @click.option(
     "--edit", "edit_id", default=None, metavar="ID", help="Say TEXT in note ID instead. An agent changes only its own."
@@ -70,6 +76,7 @@ def note_command(
     box: str | None,
     mark: str | None,
     strokes: tuple[str, ...],
+    color: str | None,
     keep_id: str | None,
     edit_id: str | None,
     erase_id: str | None,
@@ -98,7 +105,9 @@ def note_command(
             kind, name = _writer(root, session, declared, dry_run=True)[1:]
             who = "agent" if kind == "agent" else "person"
             if edit_id:
-                note = change(root, edit_id, name, who, body=text)
+                # a change of colour alone leaves what it says
+                said_now = None if color and not text else text
+                note = change(root, edit_id, name, who, body=said_now, color="" if color == "none" else color)
                 said = f"changed {note.id}"
             elif erase_id:
                 note = erase(root, erase_id, name, who)
@@ -141,6 +150,7 @@ def note_command(
             rects=rects,
             mark=mark,
             strokes=lines or None,
+            color=None if color == "none" else color,
         )
     except NoteRefused as exc:
         raise EnvError(exc.message) from None

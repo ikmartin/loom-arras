@@ -2,7 +2,9 @@
 	// The markup bar (plan 0.28), above the paper while its switch is on: the tools that draw, undo, and what goes to and from a PDF file. A tool stays up until another is chosen, Escape is pressed or it is pressed again, as a highlighter stays in the hand. Where no publisher takes writes only saving a copy and editing pages remain, which need none.
 	import Icon from '$lib/components/Icon.svelte';
 	import type { MarkDesk } from './desk.svelte';
-	import type { PageTool } from './marks';
+	import { prefs } from '$lib/prefs.svelte';
+	import type { MarkColor, PageTool } from './marks';
+	import Swatches from './Swatches.svelte';
 	import type { PdfView } from './view.svelte';
 
 	let {
@@ -39,6 +41,12 @@
 		view.tool = view.tool === tool ? 'select' : tool;
 	}
 
+	// lines of ink in hand are one mark in one colour, so a new colour ends them
+	function hold(color: MarkColor | ''): void {
+		desk.flush();
+		prefs.markColor = color;
+	}
+
 	$effect(() => {
 		if (desk.writes) void desk.countHere();
 	});
@@ -50,6 +58,9 @@
 			{#each TOOLS as t (t.tool)}
 				<button type="button" class="tool" class:on={view.tool === t.tool} title={t.title} aria-label={t.title} aria-pressed={view.tool === t.tool} data-testid="tool-{t.tool}" onclick={() => choose(t.tool)}><Icon name={t.icon} size={15} /></button>
 			{/each}
+		</div>
+		<div class="group" title="The colour of what is marked next" data-testid="mark-colors">
+			<Swatches value={prefs.markColor} onpick={hold} />
 		</div>
 		<div class="group">
 			<button type="button" class="tool" title="Undo" aria-label="Undo" data-testid="mark-undo" disabled={!desk.canUndo} onclick={() => desk.undo()}><Icon name="undo" size={15} /></button>

@@ -104,7 +104,7 @@ def _lines(got: Any) -> list[str]:
             or (f"{t['message']['session']} #{t['message']['seq']}" if "message" in t else t.get("session", ""))
         )
         at = f", page {n['page']}" if n.get("page") else ""
-        what = f"{n['mark']} " if n.get("mark") else ""
+        what = "".join(f"{n[k]} " for k in ("color", "mark") if n.get(k))
         noted.append(f"  {n['id']} {what}on {on}{at}  {n['author']['id']} at {_at(n['when'])}  {n['link']}")
         if n.get("quote"):
             noted.append(f'      quoting "{n["quote"]}"')

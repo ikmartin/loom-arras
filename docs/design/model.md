@@ -117,7 +117,7 @@ Notes are records loom writes (P1, P2), through one command, and share the annot
 
 A mark records the hash of the PDF it was drawn on, so a changed file is noticed: words are found again on their page, and anything else is detached, listed and not drawn (A3).
 
-**Open.** Whether marks should take colours. A mark is drawn in the annotation neutral, because hue says what kind of thing is said (A4) and a mark has no kind; a colour an import brought is kept on the record and written back to a saved copy, not drawn. A reader who colour-codes a paper would want otherwise, and that would mean changing A4 and A6 together.
+**A mark's colour is its reader's.** A mark is the annotation neutral until its reader gives it one of five colours, yellow, green, blue, pink or purple, and loom gives none of them a meaning (A4). The viewer holds the colour last chosen, so a reader who colour-codes picks it once and keeps marking. A colour taken in from a PDF is drawn as the nearest of the five, and black, white and grey stay the neutral; the exact colour stays on the record, and a saved copy writes it back unless the reader has since changed the mark's colour.
 
 **Open.** Where durable notes in the author's own words live (as nodes in a notes document, or as kept notes); and how a note cites a script by path and hash, until loom can run code.
 

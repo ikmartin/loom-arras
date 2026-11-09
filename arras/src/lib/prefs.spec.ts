@@ -30,7 +30,8 @@ describe('the display preferences', () => {
 			width: 'mid',
 			theme: 'system',
 			format: 'p1',
-			comments: 'floating'
+			comments: 'floating',
+			markColor: ''
 		});
 	});
 

@@ -10,10 +10,13 @@
 	//
 	// **A dumb renderer**, as `PdfPage` is: it is given the marks and the tool and it reports what the reader drew, picked or moved, writing nothing and knowing nothing of notes.
 	//
+	// **Highlights stand on a layer of their own**, multiplied over the page so the words under them stay black. It cannot be inside the layer of the rest, which is a stacking context of its own and would multiply against nothing.
+	//
 	// **A mark takes no pointer**, so a press on a highlight begins a selection like a press on any other words, and `PdfPage` asks `markAt` where a click landed. Each mark still has its button, which takes the keyboard and says what the mark is; a pin's and words on the page also take the pointer, since nothing lies under them to select. The tools that draw take the whole page's pointer while they are up.
 	import Icon from '$lib/components/Icon.svelte';
 	import { asPercent } from './document';
-	import { bound, DRAWING, kindOf, movable, ON_WORDS, refit, simplify, type MarkKind, type PageMark } from './marks';
+	import { prefs } from '$lib/prefs.svelte';
+	import { bound, DRAWING, kindOf, movable, ON_WORDS, paintOf, refit, simplify, type MarkKind, type PageMark } from './marks';
 	import { arrowHead, TEXT_SIZE } from './portable';
 
 	let {
@@ -50,6 +53,8 @@
 
 	const shown = $derived(marks.map((m) => (grip && held && m.id === grip.id ? { ...m, ...refit(m, held) } : m)));
 	const chosen = $derived(shown.find((m) => m.id === selected && movable(m)));
+	const bands = $derived(shown.filter((m) => m.kind === 'highlight'));
+	const drawn = $derived(shown.filter((m) => m.kind !== 'highlight'));
 
 	function at(e: PointerEvent): [number, number] {
 		const r = host!.getBoundingClientRect();
@@ -144,22 +149,27 @@
 		if (m && to && to.some((v, i) => Math.abs(v - from[i]) >= 0.5)) onmove?.({ id, ...refit(m, to) });
 	}
 
-	const label = (m: PageMark) => (m.plain ? 'a note' : m.kind) + (m.quote ? `: ${m.quote}` : m.body ? `: ${m.body}` : '');
+	const label = (m: PageMark) => (m.plain ? 'a note' : `${m.color ? `${m.color} ` : ''}${m.kind}`) + (m.quote ? `: ${m.quote}` : m.body ? `: ${m.body}` : '');
 </script>
 
+<svg class="bands" viewBox="0 0 {box.width} {box.height}" preserveAspectRatio="none" aria-hidden="true">
+	{#each bands as m (m.id)}
+		<g class="m" class:on={m.id === selected} style={paintOf(m.color)} data-testid="mark-band-{m.id}">
+			{#each m.rects as r, i (i)}
+				<rect class="band" x={r[0]} y={r[1]} width={r[2] - r[0]} height={r[3] - r[1]} />
+			{/each}
+		</g>
+	{/each}
+</svg>
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="page-marks" class:drawing class:idle={tool !== 'select'} bind:this={host} data-testid="page-marks" onpointerdown={begin} onpointermove={extend} onpointerup={finish}>
 	<svg viewBox="0 0 {box.width} {box.height}" preserveAspectRatio="none" aria-hidden="true">
-		{#each shown as m (m.id)}
-			<g class="m k-{m.kind}" class:plain={m.plain} class:on={m.id === selected}>
+		{#each drawn as m (m.id)}
+			<g class="m k-{m.kind}" class:plain={m.plain} class:on={m.id === selected} style={paintOf(m.color)}>
 				{#if ON_WORDS.includes(m.kind)}
 					{#each m.rects as r, i (i)}
-						{#if m.kind === 'highlight'}
-							<rect class="band" x={r[0]} y={r[1]} width={r[2] - r[0]} height={r[3] - r[1]} />
-						{:else}
-							{@const y = m.kind === 'strike' ? (r[1] + r[3]) / 2 : r[3]}
-							<line class="rule" x1={r[0]} x2={r[2]} y1={y} y2={y} />
-						{/if}
+						{@const y = m.kind === 'strike' ? (r[1] + r[3]) / 2 : r[3]}
+						<line class="rule" x1={r[0]} x2={r[2]} y1={y} y2={y} />
 					{/each}
 				{:else if m.kind === 'box'}
 					{@const r = m.rects[0]}
@@ -178,7 +188,7 @@
 			</g>
 		{/each}
 		{#if line && line.length >= 4}
-			<g class="m on">
+			<g class="m on" style={paintOf(prefs.markColor)}>
 				{#if tool === 'ink'}
 					<polyline class="shape" points={pointsOf(line)} />
 				{:else if tool === 'rect'}
@@ -204,7 +214,7 @@
 			data-kind={m.kind}
 			data-testid="page-mark-{m.id}"
 			aria-label={label(m)}
-			style="left: {place.left}; top: {place.top}; width: {place.width}; height: {place.height};{m.kind === 'text' ? ` font-size: ${TEXT_SIZE * scale}px;` : ''}"
+			style="left: {place.left}; top: {place.top}; width: {place.width}; height: {place.height};{m.kind === 'text' ? ` font-size: ${TEXT_SIZE * scale}px;` : ''} {paintOf(m.color)}"
 			onclick={(e) => {
 				e.stopPropagation();
 				onpick?.({ id: m.id });
@@ -251,15 +261,20 @@
 		height: 100%;
 		overflow: visible;
 	}
-	/* The annotation neutral (A4): hue says what kind of thing is said, and a mark has no kind. On the page's own white, whatever the theme, so the words stay readable and the tint stays a tint. */
+	.bands {
+		z-index: 1;
+		pointer-events: none;
+		mix-blend-mode: multiply;
+	}
+	/* The annotation neutral until its reader gives it a colour (A4), on the page's own white whatever the theme, so the words stay readable and the tint stays a tint. */
 	.band {
-		fill: var(--ann-neutral);
-		fill-opacity: 0.3;
+		fill: var(--band, var(--ann-neutral));
+		fill-opacity: var(--band-strength, 0.3);
 	}
 	.rule,
 	.shape {
 		fill: none;
-		stroke: var(--ann-neutral);
+		stroke: var(--line, var(--ann-neutral));
 		stroke-width: 1.3;
 		stroke-linecap: round;
 		stroke-linejoin: round;
@@ -270,11 +285,13 @@
 		stroke-dasharray: 2 2;
 	}
 	.m.on .band {
-		fill-opacity: 0.45;
+		stroke: var(--line, var(--ann-neutral));
+		stroke-width: 0.8;
 	}
 	.m.on .rule,
 	.m.on .shape {
-		stroke: var(--accent);
+		stroke: var(--line, var(--accent));
+		stroke-width: 2;
 	}
 	.hit,
 	.embedded {
@@ -293,7 +310,7 @@
 	.hit.words {
 		pointer-events: auto;
 		cursor: pointer;
-		color: var(--ann-neutral);
+		color: var(--line, var(--ann-neutral));
 	}
 	.idle .hit.pin,
 	.idle .hit.words {
@@ -303,10 +320,10 @@
 		position: static;
 		width: 100%;
 		height: 100%;
-		fill: #fff;
+		fill: var(--band, #fff);
 	}
 	.hit.pin.on {
-		color: var(--accent);
+		color: var(--line, var(--accent));
 	}
 	/* words on the page, set on the page's white in a dark ink whatever the theme, as they are in a saved copy */
 	.hit.words {
@@ -315,7 +332,7 @@
 		text-align: left;
 		white-space: pre-wrap;
 		overflow: visible;
-		color: #3c3c42;
+		color: var(--line, #3c3c42);
 	}
 	.hit.words.on {
 		outline: 1px dashed var(--accent);

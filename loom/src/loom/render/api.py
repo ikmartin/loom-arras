@@ -413,6 +413,7 @@ def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 body=_str(body, "body") if isinstance(body.get("body"), str) else None,
                 rects=body.get("rects"),
                 strokes=body.get("strokes"),
+                color=body["color"] if isinstance(body.get("color"), str) else None,
             )
             return {"ok": True, "result": f"changed {note.id}", "note": note.id}
         if endpoint == "note-erase":
@@ -444,6 +445,7 @@ def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             rects=body.get("rects"),
             mark=mark,
             strokes=body.get("strokes"),
+            color=_str(body, "color"),
         )
     except NoteRefused as exc:
         raise ApiError(exc.code, exc.message, status=exc.status) from exc

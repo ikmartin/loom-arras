@@ -4,9 +4,10 @@
 
 import { store } from '$lib/manifest/client.svelte';
 import type { Note } from '$lib/manifest/types';
+import { prefs } from '$lib/prefs.svelte';
 import { can, write, type WriteResult } from '$lib/write';
 import { document_, pdfjs, sourceOf } from './document';
-import { boundOfStrokes, markOf, mergeLines, type MarkKind, type PageMark } from './marks';
+import { boundOfStrokes, copyColor, markOf, mergeLines, type MarkColor, type MarkKind, type PageMark } from './marks';
 import { annotatedCopy, notTheSamePaper, readAnnotations, type Incoming, type Outgoing, type Replaced } from './portable';
 
 type Box = { left: number; top: number; width: number; height: number };
@@ -90,7 +91,7 @@ export class MarkDesk {
 		const have = new Set(out.map((m) => m.id));
 		// the place stays lit while what is said about it is being written
 		const c = this.composing;
-		const lit: PageMark[] = c ? [{ id: 'composing', page: c.page, kind: c.kind === 'pin' ? 'pin' : 'box', rects: c.rects, body: '', plain: c.kind !== 'pin' }] : [];
+		const lit: PageMark[] = c ? [{ id: 'composing', page: c.page, kind: c.kind === 'pin' ? 'pin' : 'box', rects: c.rects, body: '', plain: c.kind !== 'pin', color: c.kind === 'pin' ? prefs.markColor : '' }] : [];
 		return [...out, ...this.#pending.filter((m) => !have.has(m.id)), ...lit];
 	});
 
@@ -108,7 +109,7 @@ export class MarkDesk {
 		const changed: Record<string, Partial<PageMark>> = {};
 		for (const [id, over] of Object.entries(this.#changed)) {
 			const row = live.get(id);
-			const same = row && (over.body === undefined || row.body === over.body) && (over.rects === undefined || JSON.stringify(row.rects) === JSON.stringify(over.rects)) && (over.strokes === undefined || JSON.stringify(row.strokes) === JSON.stringify(over.strokes));
+			const same = row && (over.body === undefined || row.body === over.body) && (over.rects === undefined || JSON.stringify(row.rects) === JSON.stringify(over.rects)) && (over.strokes === undefined || JSON.stringify(row.strokes) === JSON.stringify(over.strokes)) && (over.color === undefined || (row.color ?? '') === over.color);
 			if (row && !same) changed[id] = over;
 		}
 		if (Object.keys(changed).length !== Object.keys(this.#changed).length) this.#changed = changed;
@@ -130,10 +131,10 @@ export class MarkDesk {
 		last = this;
 	}
 
-	async #write(kind: MarkKind, page: number, place: Place, body = '', quote?: string, recorded = true): Promise<string> {
+	async #write(kind: MarkKind, page: number, place: Place, { body = '', quote, color = prefs.markColor }: { body?: string; quote?: string; color?: MarkColor | '' } = {}): Promise<string> {
 		const fresh = `pending-${++this.#fresh}`;
-		this.#pending = [...this.#pending, { id: fresh, page, kind, ...place, body, quote }];
-		const res = await write('note', { target: this.#surface().on, page, mark: kind, ...place, ...(body ? { body } : {}), ...(quote ? { quote } : {}) });
+		this.#pending = [...this.#pending, { id: fresh, page, kind, ...place, body, quote, color }];
+		const res = await write('note', { target: this.#surface().on, page, mark: kind, ...place, ...(body ? { body } : {}), ...(quote ? { quote } : {}), ...(color ? { color } : {}) });
 		if (!this.#done(res)) {
 			this.#pending = this.#pending.filter((m) => m.id !== fresh);
 			return '';
@@ -141,11 +142,10 @@ export class MarkDesk {
 		const id = String((res as WriteResult & { note?: string }).note);
 		this.#pending = this.#pending.map((m) => (m.id === fresh ? { ...m, id } : m));
 		if (this.selected === fresh) this.selected = id;
-		if (recorded)
-			this.#step({
-				undo: () => this.#erase(id),
-				redo: () => this.#restore(id)
-			});
+		this.#step({
+			undo: () => this.#erase(id),
+			redo: () => this.#restore(id)
+		});
 		return id;
 	}
 
@@ -171,7 +171,7 @@ export class MarkDesk {
 
 	/** A word mark on what was selected, one rectangle to a line. */
 	markWords(kind: MarkKind, e: { page: number; text: string; rects: number[][] }): void {
-		void this.#write(kind, e.page, { rects: mergeLines(e.rects) }, '', e.text);
+		void this.#write(kind, e.page, { rects: mergeLines(e.rects) }, { quote: e.text });
 	}
 
 	/** A word mark on a region, where a page has no words to select. */
@@ -207,7 +207,7 @@ export class MarkDesk {
 		}
 		this.flush();
 		const id = `pending-${++this.#fresh}`;
-		this.#pending = [...this.#pending, { id, page, kind: 'ink', strokes: [line], rects: [boundOfStrokes([line])], body: '' }];
+		this.#pending = [...this.#pending, { id, page, kind: 'ink', strokes: [line], rects: [boundOfStrokes([line])], body: '', color: prefs.markColor }];
 		this.#ink = { id, page, timer: setTimeout(() => this.flush(), INK_PAUSE) };
 	}
 
@@ -219,7 +219,7 @@ export class MarkDesk {
 		this.#ink = null;
 		const held = this.#pending.find((m) => m.id === open.id);
 		this.#pending = this.#pending.filter((m) => m.id !== open.id);
-		if (held?.strokes) void this.#write('ink', held.page, { rects: held.rects, strokes: held.strokes });
+		if (held?.strokes) void this.#write('ink', held.page, { rects: held.rects, strokes: held.strokes }, { color: held.color });
 	}
 
 	/** Write what was being composed, if it says anything. */
@@ -228,7 +228,7 @@ export class MarkDesk {
 		this.composing = null;
 		const words = body.trim();
 		if (!c || !words) return;
-		await this.#write(c.kind, c.page, { rects: c.kind === 'text' ? [fitted(c.rects[0], words)] : c.rects }, words);
+		await this.#write(c.kind, c.page, { rects: c.kind === 'text' ? [fitted(c.rects[0], words)] : c.rects }, { body: words });
 	}
 
 	/** Look at a mark, or at nothing. */
@@ -247,6 +247,15 @@ export class MarkDesk {
 		if (!m || now === was) return;
 		void this.#change(id, { body: now });
 		this.#step({ undo: () => this.#change(id, { body: was }), redo: () => this.#change(id, { body: now }) });
+	}
+
+	/** Give a mark another colour, leaving the colour in the hand as it was. */
+	recolor(id: string, color: MarkColor | ''): void {
+		const m = this.marks.find((n) => n.id === id);
+		const was = m?.color ?? '';
+		if (!m || color === was) return;
+		void this.#change(id, { color });
+		this.#step({ undo: () => this.#change(id, { color: was }), redo: () => this.#change(id, { color }) });
 	}
 
 	/** Move or resize a mark. */
@@ -311,9 +320,13 @@ export class MarkDesk {
 				continue;
 			}
 			const over = this.#changed[n.id];
-			marks.push({ page: m.page, kind: m.kind, rects: over?.rects ?? m.rects, strokes: over?.strokes ?? m.strokes, body: over?.body ?? m.body, by: n.origin?.by ?? n.author?.id ?? '', ...(n.origin?.color ? { color: n.origin.color } : {}) });
+			const color = copyColor(m.kind, over?.color ?? m.color, n.origin?.color);
+			marks.push({ page: m.page, kind: m.kind, rects: over?.rects ?? m.rects, strokes: over?.strokes ?? m.strokes, body: over?.body ?? m.body, by: n.origin?.by ?? n.author?.id ?? '', ...(color ? { color } : {}) });
 		}
-		for (const m of this.#pending) marks.push({ page: m.page, kind: m.kind, rects: m.rects, strokes: m.strokes, body: m.body, by: '' });
+		for (const m of this.#pending) {
+			const color = copyColor(m.kind, m.color);
+			marks.push({ page: m.page, kind: m.kind, rects: m.rects, strokes: m.strokes, body: m.body, by: '', ...(color ? { color } : {}) });
+		}
 		return { marks: [...marks, ...(this.#surface().extras?.() ?? [])], left };
 	}
 

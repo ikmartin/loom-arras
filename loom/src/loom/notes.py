@@ -4,7 +4,7 @@ A note is a record of its own beside the annotation log, `.loom/annotations/note
 
 A note fades when it is not kept, is older than `FADE_DAYS`, and nothing durable links to it -- an annotation, a message, a page or a kept note holding `quilt:n-…`. Fading is computed (P3): a faded note is hidden by default, shown with one toggle, and never deleted.
 
-A note on a page of a PDF may be a **mark**, which says how it is drawn there: a highlight, an underline, a strike-through, a pin, ink, words on the page, a box, an oval or an arrow. A mark needs no session, never fades, and can be changed, erased and restored by events of its own. It records the hash of the PDF it was drawn on (`artifact`), so a changed file is noticed (A3): a mark with words is found again on its page and one that cannot be is detached. `rects` are `[x0, y0, x1, y1]` in points from the page's top left, or in an image's pixels.
+A note on a page of a PDF may be a **mark**, which says how it is drawn there: a highlight, an underline, a strike-through, a pin, ink, words on the page, a box, an oval or an arrow. A mark needs no session, never fades, and can be changed, erased and restored by events of its own. It is the neutral unless given one of `MARK_COLORS`, and what a colour means is its reader's. It records the hash of the PDF it was drawn on (`artifact`), so a changed file is noticed (A3): a mark with words is found again on its page and one that cannot be is detached. `rects` are `[x0, y0, x1, y1]` in points from the page's top left, or in an image's pixels.
 """
 
 from __future__ import annotations
@@ -38,6 +38,8 @@ ON_WORDS = ("highlight", "underline", "strike")
 STROKED = ("ink", "arrow")
 #: The marks that say nothing without words of their own.
 SAYING = ("pin", "text")
+#: The colours a mark can be given; a mark with none is the neutral.
+MARK_COLORS = ("yellow", "green", "blue", "pink", "purple")
 #: The most points one mark's strokes may hold; the manifest carries them.
 MAX_POINTS = 20000
 
@@ -58,6 +60,7 @@ class Note:
     rects: list[list[float]] | None = None
     kept: str | None = None  # when it was kept
     mark: str | None = None  # how it is drawn on a PDF page, one of MARKS
+    color: str | None = None  # the colour a mark was given, one of MARK_COLORS
     strokes: list[list[float]] | None = None  # x, y, x, y… per stroke, in points from the page's top left
     artifact: str | None = None  # the hash of the PDF it was written on
     origin: dict[str, Any] | None = (
@@ -75,7 +78,7 @@ class Note:
             "target": self.target,
             "body": self.body,
         }
-        for k in ("quote", "page", "rects", "kept", "mark", "strokes", "artifact", "origin", "erased"):
+        for k in ("quote", "page", "rects", "kept", "mark", "color", "strokes", "artifact", "origin", "erased"):
             if getattr(self, k) is not None:
                 out[k] = getattr(self, k)
         return out
@@ -129,6 +132,7 @@ def load(root: Path) -> dict[str, Note]:
                 page=int(e["page"]) if isinstance(e.get("page"), int) else None,
                 rects=e.get("rects") if isinstance(e.get("rects"), list) else None,
                 mark=str(e["mark"]) if e.get("mark") else None,
+                color=str(e["color"]) if e.get("color") else None,
                 strokes=e.get("strokes") if isinstance(e.get("strokes"), list) else None,
                 artifact=str(e["artifact"]) if e.get("artifact") else None,
                 origin=e.get("origin") if isinstance(e.get("origin"), dict) else None,
@@ -145,6 +149,8 @@ def load(root: Path) -> dict[str, Note]:
                 n.rects = e["rects"]
             if isinstance(e.get("strokes"), list):
                 n.strokes = e["strokes"]
+            if isinstance(e.get("color"), str):
+                n.color = e["color"] or None
         elif e.get("event") == "erased":
             out[e["id"]].erased = str(e.get("when", ""))
         elif e.get("event") == "restored":
@@ -336,6 +342,20 @@ def target_of(
         raise NoteRefused("no-such-thing", f"{on} names nothing the viewer shows", 404) from None
 
 
+def _color(color: str | None, mark: str | None) -> str | None:
+    """A mark's colour once checked, None for the neutral.
+
+    `write` and `change` share it; an empty `color` is how a change takes one off.
+    """
+    if not color:
+        return None
+    if mark is None:
+        raise NoteRefused("bad-field", "only a mark takes a colour")
+    if color not in MARK_COLORS:
+        raise NoteRefused("bad-field", f"a mark's colour is one of {', '.join(MARK_COLORS)}")
+    return color
+
+
 def write(
     result: Any,
     on: str,
@@ -349,6 +369,7 @@ def write(
     rects: list[list[float]] | None = None,
     mark: str | None = None,
     strokes: list[list[float]] | None = None,
+    color: str | None = None,
 ) -> Note:
     """Write one note on `on`, quoting `quote` there when given; a quote with neither words nor a region is the target alone.
 
@@ -376,6 +397,8 @@ def write(
         How it is drawn on a PDF page, one of `MARKS`.
     strokes : list of list of float, optional
         A stroked mark's points, x, y, x, y… per stroke.
+    color : str, optional
+        A mark's colour, one of `MARK_COLORS`; without one it is the neutral.
 
     Returns
     -------
@@ -389,6 +412,7 @@ def write(
     target = target_of(result, on, page=page, rects=rects, quote=quote)
     rects = clean_rects(rects)
     strokes = clean_strokes(strokes)
+    color = _color(color, mark)
     if not (body.strip() or (quote or "").strip() or rects or strokes or target.get("session")):
         raise NoteRefused("empty", "a note quotes something or says something")
     root = result.quilt.root
@@ -408,6 +432,7 @@ def write(
             page=page,
             rects=rects,
             mark=mark,
+            color=color,
             strokes=strokes,
             artifact=artifact,
         )
@@ -436,8 +461,9 @@ def change(
     body: str | None = None,
     rects: Any = None,
     strokes: Any = None,
+    color: str | None = None,
 ) -> Note:
-    """Change what a note says or, on a mark that is not on words, where it stands.
+    """Change what a note says, a mark's colour or, on a mark that is not on words, where it stands.
 
     The words a highlight is on are its place, so a mark on words does not move; a pin or words on the page cannot be emptied, since they would then say nothing. The change is an event, and the log keeps what it replaced.
 
@@ -457,6 +483,8 @@ def change(
         Where a box, an oval, a pin or words on the page stands now.
     strokes : list of list of float, optional
         Where ink or an arrow runs now; its rectangle follows.
+    color : str, optional
+        A mark's colour now, one of `MARK_COLORS`; '' takes it off, leaving the neutral.
 
     Returns
     -------
@@ -482,8 +510,11 @@ def change(
         if note.mark is None or note.mark in ON_WORDS or note.mark in STROKED:
             raise NoteRefused("bad-field", "this note's place is not a rectangle of its own to move")
         event["rects"] = note.rects = clean_rects(rects)
+    if color is not None:
+        note.color = _color(color, note.mark)
+        event["color"] = note.color or ""
     if set(event) == {"event", "id", "when", "author"}:
-        raise NoteRefused("missing-field", "say what changes: body, rects or strokes")
+        raise NoteRefused("missing-field", "say what changes: body, rects, strokes or color")
     _append(root, event)
     return note
 
@@ -572,7 +603,7 @@ def take_in(
     on : str
         The PDF they are taken onto: a shown file's path or a citekey.
     items : iterable of dict
-        Each `{page, mark, rects?, strokes?, body?, origin?}`, in points from the page's top left.
+        Each `{page, mark, rects?, strokes?, body?, color?, origin?}`, in points from the page's top left. A `color` not in `MARK_COLORS` leaves the mark neutral.
     author : str
         Who takes them in; what wrote each one stays in its `origin`.
     author_kind : str
@@ -647,6 +678,7 @@ def take_in(
                 page=page,
                 rects=here,
                 mark=mark,
+                color=item["color"] if item.get("color") in MARK_COLORS else None,
                 strokes=strokes,
                 artifact=artifact,
                 origin=origin,

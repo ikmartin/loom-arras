@@ -3,7 +3,7 @@
 // Everything here takes the pdf.js library as an argument, so it runs in a test under node as it does in the page.
 
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
-import { bound, type MarkKind, ON_WORDS } from './marks';
+import { bound, type MarkColor, type MarkKind, nearestColor, ON_WORDS } from './marks';
 
 type Pdfjs = typeof import('pdfjs-dist');
 
@@ -32,6 +32,8 @@ export interface Incoming {
 	rects?: number[][];
 	strokes?: number[][];
 	body: string;
+	/** The nearest of a mark's colours to its own, where it has one. */
+	color?: MarkColor;
 	origin: { by?: string; subtype: string; color?: number[]; ref?: string };
 }
 
@@ -329,7 +331,8 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
 		...(a.color?.length === 3 ? { color: Array.from(a.color) } : {}),
 		...(keepRef ? { ref: a.id } : {})
 	};
-	const base = { page: page.pageNumber, mark, body, origin };
+	const color = a.color?.length === 3 ? nearestColor(a.color) : undefined;
+	const base = { page: page.pageNumber, mark, body, origin, ...(color ? { color } : {}) };
 	if (ON_WORDS.includes(mark)) {
 		const q = a.quadPoints;
 		const rects: number[][] = [];

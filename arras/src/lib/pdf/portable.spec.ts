@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import * as lib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { copyColor, MARK_COLORS } from './marks';
 import { annotatedCopy, editedPages, notTheSamePaper, outlineOf, readAnnotations, renameSubtypes, wrapped, type Outgoing } from './portable';
 
 const pdfjs = lib as unknown as typeof import('pdfjs-dist');
@@ -53,6 +54,18 @@ describe('a copy with annotations', () => {
 		expect(items[0]).toMatchObject({ page: 1, body: 'on the title', origin: { by: 'A Reader', subtype: 'Highlight' } });
 		expect(items[5].strokes?.[0].map(Math.round)).toEqual([60, 120, 110, 150, 160, 120]);
 		expect(items[0].origin.ref).toBeUndefined();
+	});
+
+	it('keeps a colour there and back, and a PDF\'s own black stays neutral', async () => {
+		const coloured: Outgoing[] = [
+			{ page: 1, kind: 'highlight', rects: TITLE, body: '', by: '', color: copyColor('highlight', 'green') },
+			{ page: 1, kind: 'underline', rects: [[100, 300, 300, 312]], body: '', by: '', color: copyColor('underline', 'pink') },
+			{ page: 2, kind: 'ink', rects: [[60, 120, 160, 150]], strokes: [[60, 120, 110, 150, 160, 120]], body: '', by: '', color: [0, 0, 0] }
+		];
+		const { bytes } = await annotatedCopy(pdfjs, source(), coloured);
+		const { items } = await readAnnotations(await open(bytes));
+		expect(items.map((i) => i.color)).toEqual(['green', 'pink', undefined]);
+		expect(items[0].origin.color).toEqual([...MARK_COLORS.green.band]);
 	});
 
 	it('says what it could not place, and leaves out what a note now stands for', async () => {
