@@ -132,6 +132,11 @@ def test_an_unattached_proof_keeps_its_key_when_earlier_text_lengthens(tmp_path:
     assert "The second answer." in after.files["drafting/main.tex"].clean[second.start : second.end]
 
 
+def test_an_unattached_proof_keeps_its_optional_argument_as_its_title(tmp_path: Path) -> None:
+    r = make_quilt(tmp_path, {"drafting/main.tex": ANSWERS})
+    assert r.nodes["drafting/main.tex#proof:1"].title == "Answer"
+
+
 def test_an_unattached_proof_takes_its_first_label_as_its_key(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,

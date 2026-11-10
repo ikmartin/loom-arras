@@ -578,6 +578,7 @@ class Converter:
         with converting() as outermost:
             out: list[str] = []
             pos = a
+            cuts = self._cuts(a, b)
             while pos < b:
                 child = self.ctx.child_at.get(pos)
                 if child is not None:
@@ -585,11 +586,35 @@ class Converter:
                     out.append(self.ctx.child_html(key))
                     pos = end
                     continue
-                nxt = min([s for s in self.ctx.child_at if pos < s < b] + [b])
+                nxt = next((s for s in cuts if s > pos), b)
                 out.append(self._blocks(pos, nxt))
                 pos = nxt
             markup = "".join(out)
             return resolve(markup) if outermost else markup
+
+    def _cuts(self, a: int, b: int) -> list[int]:
+        """Claimant starts in (a, b) a range may be cut at, in order: none inside a list.
+
+        `list_env` renders each item through `render_range` and meets its claimants there; cut at one instead, a list is left unclosed and its later `\\item`s are dropped. An unclosed list runs to `b`.
+        """
+        starts = sorted(s for s in self.ctx.child_at if a < s < b)
+        if not starts:
+            return starts
+        lists: list[tuple[int, int]] = []
+        depth = 0
+        opened = a
+        for t in tokenize(self.ctx.clean[a:b]):
+            if t.kind == "begin" and t.value in LIST_ENVS:
+                if depth == 0:
+                    opened = t.start + a
+                depth += 1
+            elif t.kind == "end" and t.value in LIST_ENVS and depth:
+                depth -= 1
+                if depth == 0:
+                    lists.append((opened, t.end + a))
+        if depth:
+            lists.append((opened, b))
+        return [s for s in starts if not any(x < s < y for x, y in lists)]
 
     def _blocks(self, a: int, b: int) -> str:
         toks = [t for t in tokenize(self.ctx.clean[a:b])]
@@ -1406,8 +1431,8 @@ class Converter:
         body = self.render_range(after, body_end)
         data_src = ctx.src(t.start, env_end)
         if env == "proof":
-            title_html = f' <span class="title">{self.inline_text(title, spans[0][0])}</span>' if title else ""
-            return f'<details class="env env-proof" data-src="{data_src}"{self._landmark_pair(None)} open><summary class="env-label">Proof{title_html}</summary>{body}</details>'
+            head = self.inline_text(title, spans[0][0]) if title else "Proof"
+            return f'<details class="env env-proof" data-src="{data_src}"{self._landmark_pair(None)} open><summary class="env-label">{head}</summary>{body}</details>'
         taxon = ctx.taxa.get(env)
         name = taxon.name if taxon else env.capitalize()
         style = taxon.style if taxon else "plain"

@@ -44,6 +44,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-63](WQ-63-take-part-of-a-pull.md) | taking part of a pull | loom, arras | a pull holds a change the author wants and one they don't, and they take it whole and undo the rest by hand |
 | [WQ-64](WQ-64-html-file-reach.md) | what an HTML file in a quilt can reach: loom's records, lasting state, and a list of open boxes in loom itself | loom, arras | an HTML file the author keeps opening has to export loom's records by hand or loses state they wanted kept, or a second quilt builds a list of open boxes |
 | [WQ-65](WQ-65-marks-beside-the-manifest.md) | a PDF's marks in a sidecar rather than the manifest | loom, arras | the notes in a quilt's manifest cross one megabyte |
+| [WQ-66](WQ-66-documents-that-need-shell-escape.md) | a document that needs shell escape or its own build rules, approved per machine | loom | a document the author wants loom to compile needs `-shell-escape`, or a build rule only a `latexmkrc` can add |
 
 Twenty-four active, twenty-one slots of headroom.
 

@@ -72,12 +72,12 @@ Rules: the class `env-<taxon-slug>` uses the lowercased, hyphenated taxon (`env-
 ```html
 <details class="env env-proof" id="rl-0004-proof" data-key="rl-0004/proof" data-of="rl-0004"
          data-src="nodes/rl-0004.tex:612:1420" open>
-  <summary class="env-label">Proof<span class="title"> of Theorem 3.4</span></summary>
+  <summary class="env-label">Proof of Theorem 3.4</summary>
   <p>...</p>
 </details>
 ```
 
-A labelled proof node carries `data-id` as well, and a proof of a statement with an id carries `data-pair` and `data-hash` as a statement does (2.4). `open` is a hint the viewer may ignore.
+The label is the proof's optional argument, as `amsthm` prints it: `\begin{proof}[Answer]` reads `Answer`, and a proof with none reads `Proof`. A labelled proof node carries `data-id` as well, and a proof of a statement with an id carries `data-pair` and `data-hash` as a statement does (2.4). `open` is a hint the viewer may ignore.
 
 ### 2.6 Paragraphs and inline markup
 
