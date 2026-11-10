@@ -82,6 +82,12 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
+@click.option(
+    "--html",
+    "html",
+    is_flag=True,
+    help="Also make a document's HTML with TeX4ht, into .loom/build/<name>/html/, and say how much of it loom can place.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def compile(  # noqa: A001
@@ -89,16 +95,19 @@ def compile(  # noqa: A001
     engine: str | None,
     with_file: str | None,
     draft_file: str | None,
+    html: bool,
     run_dir: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
-    Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
+    Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which nothing reads yet: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
+    if html and (draft_file or with_file):
+        raise EnvError("--html makes a document's HTML; give a document, not --draft or --with")
     parts = ["loom compile"] + ([target] if target else [])
     if with_file:
         parts += ["--with", with_file]
@@ -146,7 +155,18 @@ def compile(  # noqa: A001
             res = compile_document(
                 root, result.base_of(master), master, root / document_build(master), engine_for(result, master, engine)
             )
+        if html:
+            report = compile_report(res, label, root, missing)
+            with Progress("making HTML", 1) as p:
+                p.item(master)
+                made = html_report(result, master, engine_for(result, master, engine))
+            report.data["html"] = made
+            report.lines.append(made["said"])
+            report.emit(as_json)
+            return
     else:
+        if html:
+            raise EnvError("--html makes a document's HTML; give a document, not a key")
         key = resolve_key(result, target)
         require_text(result, key)
         if not result.masters:
@@ -170,6 +190,66 @@ def compile(  # noqa: A001
         if res.usable == "failed":
             missing = missing_packages(result, b.closure + [key])
     compile_report(res, label, root, missing).emit(as_json)
+
+
+def html_report(result: ScanResult, master: str, engine: str) -> dict[str, Any]:
+    """Make `master`'s HTML with TeX4ht beside its PDF, rebuild it as a fragment, and say how much of it loom places: `said` is the report's line, the rest its JSON.
+
+    The run starts from the PDF's aux and bibliography in the document's build directory, so its references print what the PDF prints; nodes are counted against the scan's statements and proofs that the document reaches.
+    """
+    from loom.render.normalise import normalise
+    from loom.tex.tex4ht import compile_html, placed
+
+    root = result.quilt.root
+    build = root / document_build(master)
+    closure = result.closures.get(master)
+    envs = [*(closure.taxa if closure else ()), "proof"]
+    res = compile_html(root, result.base_of(master), master, build / "html", envs=envs, engine=engine, seed=build)
+    where = (build / "html").relative_to(root).as_posix() + "/"
+    out: dict[str, Any] = {
+        "outdir": where,
+        "made": res.html is not None,
+        "passes": res.passes,
+        "seconds": round(res.seconds, 1),
+        "errors": res.errors[:5],
+    }
+    if res.html is None:
+        out["said"] = f"no HTML: {res.first_error or 'make4ht made no page'}"
+        return out
+    n = normalise(res.html.read_text(encoding="utf-8", errors="replace"))
+    (build / "html" / "fragment.html").write_text(n.html, encoding="utf-8")
+    files = result.files
+    from loom.tex.align import rendered_words
+    from loom.tex.tex4ht import definitions
+
+    macros, environments = definitions(closure)
+    heads = frozenset(w for t in (closure.taxa.values() if closure else ()) for w in rendered_words(t.name)) | {"proof"}
+    p = placed(
+        n.html,
+        lambda rel: files[rel].clean if rel in files else None,
+        master,
+        result.base_of(master),
+        macros,
+        heads,
+        environments,
+    )
+    nodes = sum(
+        1 for node in result.nodes.values() if master in node.reached_by and node.kind in ("environment", "proof")
+    )
+    out.update(
+        nodes=n.nodes,
+        nodes_in_document=nodes,
+        blocks=p.blocks,
+        exact=p.exact,
+        near=p.near,
+        unplaced=[{"file": f, "line": ln, "words": w} for f, ln, w in p.unplaced],
+        dropped=sorted(set(n.dropped)),
+    )
+    out["said"] = (
+        f"its HTML is in {where} ({res.seconds:.1f}s): {n.nodes} of {counted(nodes, 'node')} stamped, "
+        f"{p.exact} of {counted(p.blocks, 'block')} placed exactly, {p.near} nearly, {p.missed} not at all"
+    )
+    return out
 
 
 def substitution_for(result: ScanResult, key: str, with_file: str) -> str:

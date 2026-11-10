@@ -1194,7 +1194,7 @@ The viewer is at /, and the build directory it reads at /build/. One server runs
 
 Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
-Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
+Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which nothing reads yet: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.
 
 | option | description |
 |---|---|
@@ -1202,6 +1202,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | `--with` `FILE` | Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--session` `SESSION` | Log this call to the session. |
+| `--html` | Also make a document's HTML with TeX4ht, into .loom/build/<name>/html/, and say how much of it loom can place. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

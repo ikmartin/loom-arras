@@ -1,0 +1,363 @@
+"""Run TeX4ht on a document, into HTML that loom normalises (plan 0.29.2): TeX decides what the document says.
+
+The run is `make4ht`'s draft mode with loom's own configuration (`configuration`), on a copy of the document's directory outside the quilt from which every TeX4ht file a quilt could carry is removed, with a home of its own: a `.mk4` build file and a `.make4ht` configuration are Lua programs, and `tex4ht.env` names the commands `t4ht` runs, so each would be a quilt's command run unasked. It is seeded with the last `pdflatex` compile's aux and bibliography, so every reference prints the number the PDF prints and one pass is enough; a document with no compile behind it gets a second pass when the first changed its aux. A run that makes no HTML leaves the last good one in place.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from loom.scan.preamble import PreambleClosure
+from loom.tex.runner import stage_document, stop_run
+
+#: What a quilt could carry that TeX4ht or make4ht would run or obey: build files, make4ht's own configuration, and the commands `t4ht` reads.
+CARRIED = re.compile(r"(?:\.mk4|\.make4ht|^tex4ht\.env|^\.tex4ht)$")
+#: Engine flags for make4ht; `latex` (DVI) stands for pdflatex, as TeX4ht has no PDF mode.
+ENGINE = {"pdflatex": [], "latex": [], "lualatex": ["-l"], "xelatex": ["-x"]}
+#: Figures TeX4ht's DVI route reads bounding boxes of from `.xbb` files, which `extractbb` writes beside them.
+FIGURES = (".pdf", ".png", ".jpg", ".jpeg")
+#: What a run's output directory keeps: the page, its stylesheet and the pictures TeX4ht made.
+KEPT = (".html", ".css", ".svg", ".png", ".jpg", ".jpeg")
+
+#: Count every numbered row of a multi-row display, as amsmath does: TeX4ht's MathJax mode passes the display through verbatim and steps `equation` once, labelling only the first row, so every later number sharing the counter drifts and later labels print `??`.
+ROWS = r"""\ExplSyntaxOn
+\int_new:N \l__loom_depth_int
+\bool_new:N \l__loom_numbered_bool
+\bool_new:N \l__loom_blank_bool
+\tl_new:N \l__loom_label_tl
+\tl_new:N \l__loom_prev_tl
+\cs_new_protected:Npn \__loom_row:
+  {
+    \bool_if:NT \l__loom_numbered_bool
+      {
+        \refstepcounter { equation }
+        \tl_if_empty:NF \l__loom_label_tl { \exp_args:NV \label \l__loom_label_tl }
+      }
+    \bool_set_true:N \l__loom_numbered_bool
+    \bool_set_true:N \l__loom_blank_bool
+    \tl_clear:N \l__loom_label_tl
+  }
+\cs_new_protected:Npn \loom_rows:nN #1 #2
+  {
+    \int_zero:N \l__loom_depth_int
+    \bool_set_true:N \l__loom_numbered_bool
+    \bool_set_true:N \l__loom_blank_bool
+    \tl_clear:N \l__loom_label_tl
+    \tl_clear:N \l__loom_prev_tl
+    \tl_map_inline:nn {#1}
+      {
+        \tl_if_eq:NnTF \l__loom_prev_tl { \begin } { \int_incr:N \l__loom_depth_int }
+          {
+            \tl_if_eq:NnTF \l__loom_prev_tl { \end } { \int_decr:N \l__loom_depth_int }
+              {
+                \int_compare:nNnT \l__loom_depth_int = 0
+                  { \tl_if_eq:NnT \l__loom_prev_tl { \label } { \tl_set:Nn \l__loom_label_tl {##1} } }
+              }
+          }
+        \tl_set:Nn \l__loom_prev_tl {##1}
+        \int_compare:nNnTF \l__loom_depth_int = 0
+          {
+            \tl_if_eq:nnTF {##1} { \\ } { \__loom_row: }
+              {
+                \bool_set_false:N \l__loom_blank_bool
+                \tl_if_eq:nnT {##1} { \notag } { \bool_set_false:N \l__loom_numbered_bool }
+                \tl_if_eq:nnT {##1} { \nonumber } { \bool_set_false:N \l__loom_numbered_bool }
+                \tl_if_eq:nnT {##1} { \tag } { \bool_set_false:N \l__loom_numbered_bool }
+              }
+          }
+          { \bool_set_false:N \l__loom_blank_bool }
+      }
+    \bool_if:NTF \l__loom_blank_bool { \bool_if:NT #2 { \__loom_row: } } { \__loom_row: }
+  }
+\cs_new_protected:Npn \loom_rows:nn #1 #2
+  {
+    \cs_if_exist:cT {#1}
+      {
+        \RenewDocumentEnvironment{#1}{+!b}
+          {
+            \NoFonts\expandafter\VerbMathToks\expandafter{\detokenize{##1}}{#1}\EndNoFonts
+            \loom_rows:nN {##1} #2
+          }{}
+      }
+  }
+\clist_map_inline:nn { align, gather, alignat, flalign, xalignat, xxalignat } { \loom_rows:nn {#1} \c_false_bool }
+\loom_rows:nn { eqnarray } \c_true_bool
+\ExplSyntaxOff
+"""
+
+#: Where each node begins and in which file, where the reader is when an included file starts and ends, and which label each reference prints, wrapped round the kernel's and hyperref's `\@setref` once every package has defined its own.
+STAMPS = r"""\def\loomnode#1{\ConfigureEnv{#1}{\ifvmode\IgnorePar\fi\EndP\HCode{<div class="loom-node" data-env="#1" data-file="\CurrentFilePath\CurrentFile" data-line="\the\inputlineno">}}{\ifvmode\IgnorePar\fi\EndP\HCode{</div>}}{}{}}
+\AddToHook{file/before}{\HCode{<!--loom-file \CurrentFilePath\CurrentFile-->}}
+\AddToHook{file/after}{\HCode{<!--loom-file-end-->}}
+\makeatletter
+\AddToHook{begindocument/end}{%
+\let\loom@setref\@setref
+\def\@setref#1#2#3{\HCode{<span class="loom-ref" data-label="\detokenize{#3}">}\loom@setref{#1}{#2}{#3}\HCode{</span>}}}
+\makeatother
+"""
+
+_ENV = re.compile(r"^[A-Za-z@*]+$")
+
+
+def configuration(envs: list[str]) -> str:
+    """The `.cfg` for a document whose nodes are the environments `envs`: MathJax mode, the row counting, and the stamps."""
+    nodes = "".join(f"\\loomnode{{{e}}}" for e in sorted(set(envs)) if _ENV.match(e))
+    return "\\Preamble{xhtml,mathjax}\n\\begin{document}\n" + ROWS + STAMPS + nodes + "\n\\EndPreamble\n"
+
+
+@dataclass
+class HtmlResult:
+    """How a TeX4ht run went: `html` is the page this run made, None when it made none, though the last good one stays in `outdir`."""
+
+    ok: bool
+    outdir: Path
+    returncode: int
+    html: Path | None = None
+    log: str = ""
+    errors: list[str] = field(default_factory=list)
+    passes: int = 0
+    seconds: float = 0.0
+
+    @property
+    def first_error(self) -> str:
+        return self.errors[0] if self.errors else (f"make4ht exited {self.returncode}" if self.returncode else "")
+
+
+def compile_html(
+    root: Path,
+    base: str,
+    tex: str,
+    outdir: Path,
+    *,
+    envs: list[str],
+    engine: str = "pdflatex",
+    seed: Path | None = None,
+    timeout: int = 600,
+    started: Callable[[subprocess.Popen[str]], None] | None = None,
+) -> HtmlResult:
+    """Make the HTML of the document `tex` into `outdir`, from `base`, its quilt-relative directory (P12).
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    base : str
+        The document's directory, `ScanResult.base_of`; '' at the root.
+    tex : str
+        The document, quilt-relative.
+    outdir : Path
+        Where the page and its pictures go; replaced only by a run that made a page.
+    envs : list of str
+        The environments loom reads as nodes, each stamped where it begins (`configuration`).
+    engine : str, default 'pdflatex'
+    seed : Path, optional
+        The directory of the document's last `pdflatex` compile, whose aux and bibliography the run starts from.
+    timeout : int, default 600
+        Seconds for each pass; the pass is killed with everything it started.
+    started : callable, optional
+        Handed each pass's process, for a caller that may end it with `stop_run`.
+
+    Returns
+    -------
+    HtmlResult
+    """
+    exe = shutil.which("make4ht")
+    if exe is None:
+        return HtmlResult(False, outdir, 127, errors=["make4ht is not installed"])
+    began = time.monotonic()
+    stem = Path(tex).stem
+    with tempfile.TemporaryDirectory(prefix="loom-html-") as tmp:
+        stage = stage_document(root, base, [tex], Path(tmp) / "src")
+        cwd = stage / base
+        for f in sorted(stage.rglob("*")):
+            if f.is_file() and CARRIED.search(f.name):
+                f.unlink()
+        for f in sorted(cwd.rglob("*")):
+            if f.is_file() and f.suffix.lower() in FIGURES and shutil.which("extractbb"):
+                subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
+        name = os.path.relpath(stage / tex, cwd)
+        if seed is not None:
+            for suffix in (".aux", ".bbl", ".toc", ".out"):
+                if (seed / f"{stem}{suffix}").is_file():
+                    shutil.copy2(seed / f"{stem}{suffix}", cwd / f"{stem}{suffix}")
+        (cwd / "loom-html.cfg").write_text(configuration(envs), encoding="utf-8")
+        (cwd / "loom-html.mk4").write_text(
+            "-- loom's build file: make4ht's defaults and nothing else\n", encoding="utf-8"
+        )
+        home = Path(tmp) / "home"
+        home.mkdir()
+        env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
+        if "TEXMFHOME" not in os.environ:
+            env["TEXMFHOME"] = _texmfhome()
+        out = Path(tmp) / "out"
+        cmd = [
+            exe,
+            *ENGINE.get(engine, []),
+            "-m",
+            "draft",
+            "-u",
+            "-c",
+            "loom-html.cfg",
+            "-e",
+            "loom-html.mk4",
+            "-d",
+            str(out),
+            name,
+            "mathjax",
+        ]
+        aux = cwd / f"{stem}.aux"
+        passes, code, said = 0, 0, ""
+        while True:
+            before = aux.read_bytes() if aux.is_file() else None
+            proc = subprocess.Popen(
+                cmd,
+                cwd=cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+                env=env,
+                start_new_session=True,
+            )
+            if started is not None:
+                started(proc)
+            try:
+                said, _ = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                stop_run(proc)
+                proc.communicate()
+                return HtmlResult(
+                    False,
+                    outdir,
+                    124,
+                    errors=[f"make4ht timed out after {timeout}s"],
+                    passes=passes + 1,
+                    seconds=time.monotonic() - began,
+                )
+            passes += 1
+            code = proc.returncode
+            after = aux.read_bytes() if aux.is_file() else None
+            if seed is not None or after == before or passes >= 3 or not (out / f"{stem}.html").is_file():
+                break
+        log = cwd / f"{stem}.log"
+        text = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else said
+        errors = re.findall(r"^! .*$", text, re.M)
+        page = out / f"{stem}.html"
+        if page.is_file():
+            outdir.parent.mkdir(parents=True, exist_ok=True)
+            fresh = Path(tempfile.mkdtemp(prefix=f".{outdir.name}.run-", dir=outdir.parent))
+            for f in out.iterdir():
+                if f.is_file() and f.suffix.lower() in KEPT:
+                    shutil.copy2(f, fresh / f.name)
+            old = outdir.with_name(f".{outdir.name}.old")
+            shutil.rmtree(old, ignore_errors=True)
+            if outdir.exists():
+                outdir.rename(old)
+            fresh.rename(outdir)
+            shutil.rmtree(old, ignore_errors=True)
+        made = outdir / f"{stem}.html" if page.is_file() else None
+        return HtmlResult(
+            made is not None and code == 0, outdir, code, made, text, errors, passes, time.monotonic() - began
+        )
+
+
+@dataclass
+class Placed:
+    """How a normalised fragment's blocks stand in the source: placed as an unbroken run of words, placed nearly, or not at all, with up to ten of the last for a report; a block of fewer than two words is too short to say and counts in none."""
+
+    blocks: int = 0
+    exact: int = 0
+    near: int = 0
+    unplaced: list[tuple[str, int, str]] = field(default_factory=list)
+    missed: int = 0
+
+
+def placed(
+    fragment: str,
+    clean: Callable[[str], str | None],
+    master: str,
+    base: str,
+    macros: dict[str, str] | None = None,
+    heads: frozenset[str] = frozenset(),
+    environments: dict[str, str] | None = None,
+) -> Placed:
+    """Place each block of `fragment` in the source it came from.
+
+    `clean(path)` is a quilt-relative file's text with comments blanked, as the scan holds it, or None; a block's file is the master's when TeX4ht named none, and is read against the document's directory `base` otherwise (P12). `macros` and `environments` are the document's own (`definitions`), each read as the words its code prints, and `heads` its theorems' names, folded, which a block may begin with though the source never says them.
+    """
+    import posixpath
+
+    from loom.render.normalise import blocks
+    from loom.tex.align import Source, rendered_words
+
+    out = Placed()
+    sources: dict[str, tuple[Source, list[int]] | None] = {}
+    for b in blocks(fragment):
+        words = rendered_words(b.text)
+        if len(words) < 2:
+            continue
+        rel = master if not b.file else posixpath.normpath(posixpath.join(base, b.file))
+        if rel not in sources:
+            text = clean(rel)
+            sources[rel] = (
+                (Source(text, macros, environments), [0] + [m.end() for m in re.finditer("\n", text)])
+                if text is not None
+                else None
+            )
+        out.blocks += 1
+        got = None
+        if (known := sources[rel]) is not None:
+            src, lines = known
+            got = src.place(words, lines[min(max(b.line - 1, 0), len(lines) - 1)], heads=heads)
+        if got is None:
+            out.missed += 1
+            if len(out.unplaced) < 10:
+                out.unplaced.append((rel, b.line, " ".join(words)[:80]))
+        elif got.exact:
+            out.exact += 1
+        else:
+            out.near += 1
+    return out
+
+
+_ENVIRONMENT = re.compile(r"\\(?:re)?newenvironment\s*\*?\s*\{([^{}]+)\}")
+
+
+def definitions(closure: PreambleClosure | None) -> tuple[dict[str, str], dict[str, str]]:
+    """A document's own macros, each by its definition, and its own environments, each by the code it opens with, from its preamble closure: what alignment reads them as printing."""
+    from loom.scan.tokenize import read_args
+
+    if closure is None:
+        return {}, {}
+    macros = {m.name: m.body for m in closure.macros.values()}
+    environments: dict[str, str] = {}
+    text = closure.clean_text()
+    for m in _ENVIRONMENT.finditer(text):
+        (_args, _default, opening, _closing), _, _ = read_args(text, m.end(), "oomm")
+        if opening:
+            environments[m.group(1).strip()] = opening
+    return macros, environments
+
+
+_TEXMFHOME: str | None = None
+
+
+def _texmfhome() -> str:
+    """The person's own TeX tree, as their home names it: a run's home is empty, and their packages must still be found."""
+    global _TEXMFHOME
+    if _TEXMFHOME is None:
+        try:
+            _TEXMFHOME = subprocess.run(
+                ["kpsewhich", "-var-value=TEXMFHOME"], capture_output=True, text=True, timeout=30, check=False
+            ).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            _TEXMFHOME = ""
+    return _TEXMFHOME
