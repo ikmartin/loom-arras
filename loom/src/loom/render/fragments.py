@@ -458,10 +458,7 @@ class FragmentRenderer:
         conv = Converter(ctx)
         body = conv.render_range(env.body_start, env.body_end) if env else ""
         self._sink.extend(ctx.diagnostics)
-        title = ""
-        if node.title:
-            base = _title_base(env, node)
-            title = f'<span class="title"> {conv.inline_text(node.title, base)}</span>'
+        head = conv.inline_text(node.title, _title_base(env, node)) if node.title else "Proof"
         attrs = ['class="env env-proof"', f'id="{slug(node.key)}"', f'data-key="{html.escape(node.key, quote=True)}"']
         if node.id:
             attrs.insert(1, f'data-id="{html.escape(node.id, quote=True)}"')
@@ -469,7 +466,7 @@ class FragmentRenderer:
             attrs.append(f'data-of="{html.escape(node.of, quote=True)}"')
         attrs.append(f'data-src="{ctx.src(node.start, node.end)}"')
         attrs.extend(self._pair_attrs(node))
-        return f'<details {" ".join(attrs)} open><summary class="env-label">Proof{title}</summary>{body}</details>'
+        return f'<details {" ".join(attrs)} open><summary class="env-label">{head}</summary>{body}</details>'
 
     def _section_html(self, node: NodeRec, mode: str) -> str:
         ctx = self._context(node, mode)

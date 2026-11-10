@@ -529,6 +529,7 @@ def _proof_nodes(
                 end=proof.end,
                 id=pid,
                 env="proof",
+                title=proof.optarg.strip() if proof.optarg else None,
                 labels=labels,
                 label_offsets=dict(found),
                 aliases=[lab for lab in labels if lab != pid],
