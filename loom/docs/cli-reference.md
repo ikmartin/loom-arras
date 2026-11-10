@@ -149,7 +149,7 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 
 List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
-Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.
 
 | option | description |
 |---|---|
@@ -1179,13 +1179,13 @@ Rendering is cached per block by its inputs, which include loom's own version an
 
 Serve the viewer for this quilt and keep it current: it republishes on every change until interrupted.
 
-The viewer is at /, and the build directory it reads at /build/. One server runs per quilt.
+The viewer is at /, and the build directory it reads at /build/. One server runs per quilt. Every document a change reaches compiles in the background, the one being read first, as does on starting each one never compiled or edited since; a compile that makes no PDF leaves the last good one, and `loom status` lists it.
 
 | option | description |
 |---|---|
 | `--port` | Port to listen on; fails if busy. |
 | `--open` | Open the browser. |
-| `--no-compile` | Never run latexmk after a change. |
+| `--no-compile` | Compile nothing, neither after a change nor on starting. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom compile`

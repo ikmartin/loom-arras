@@ -15,12 +15,12 @@ from loom.render.serve import BUILD_URL, DEFAULT_PORT, ServeSession, locate_bund
 @click.command()
 @click.option("--port", default=DEFAULT_PORT, show_default=True, help="Port to listen on; fails if busy.")
 @click.option("--open", "open_browser", is_flag=True, help="Open the browser.")
-@click.option("--no-compile", is_flag=True, help="Never run latexmk after a change.")
+@click.option("--no-compile", is_flag=True, help="Compile nothing, neither after a change nor on starting.")
 @quilt_option
 def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | None) -> None:
     """Serve the viewer for this quilt and keep it current: it republishes on every change until interrupted.
 
-    The viewer is at /, and the build directory it reads at /build/. One server runs per quilt.
+    The viewer is at /, and the build directory it reads at /build/. One server runs per quilt. Every document a change reaches compiles in the background, the one being read first, as does on starting each one never compiled or edited since; a compile that makes no PDF leaves the last good one, and `loom status` lists it.
     """
     from loom.arras_bundle import BundleEnvError
 

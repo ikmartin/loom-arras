@@ -1,7 +1,6 @@
 <script lang="ts">
-	// A document's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar where a publisher serves writes, then **history ▾** where the document has one (plan 0.20.6); under *view*, `show all annotations` and `show settled annotations` with their keys, then `open the PDF`, the cheap escape from a manual latexmk. `e`, `h` and `s` do what the two annotation lines do from the keyboard, inside the document. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
+	// A document's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar where a publisher serves writes, then **history ▾** where the document has one (plan 0.20.6); under *view*, `show all annotations` and `show settled annotations` with their keys. `e`, `h` and `s` do what the two annotation lines do from the keyboard, inside the document. Its compiled PDF opens from its row in the tree. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
 	import { store } from '$lib/manifest/client.svelte';
-	import { dataUrl } from '$lib/paths';
 	import { isLandmark, type Item } from '../item';
 	import { historyOf } from '../history';
 	import HistoryMenu from '../HistoryMenu.svelte';
@@ -60,8 +59,6 @@
 					onclick={() => (ui.showSettled = !ui.showSettled)}
 				/>
 			{/if}
-			{#if notes.ready || anySettled}<hr />{/if}
-			<ToolbarItem label="open the PDF" name="open the PDF of {name}" href={master.pdf ? dataUrl(master.pdf) : undefined} off={master.pdf ? undefined : 'This document has no compiled PDF'} testid="open-pdf" />
 		{/snippet}
 	</ItemToolbar>
 {:else}

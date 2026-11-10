@@ -102,7 +102,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. A document is named by its path without `.tex`, kept as a path: `fragment` is `fragments/masters/<name>.html` and `pdf` is `<name>/<stem>.pdf`, both under the build directory, so two documents that share a file name in two directories never share either; a viewer addresses a document by the same name. An agent's document is one that carries `copy_of`, the document it was copied from, where the history's moves have taken it; only one of the person's is the default, has a Review tab, or is selected by the document workspace, and the list holds the person's documents first. A viewer shows a copy beside the document `copy_of` names.
+`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. `compiled` is the PDF's own time, so it changes with every compile that makes one, and a viewer that shows the PDF reads it again when it does. A document is named by its path without `.tex`, kept as a path: `fragment` is `fragments/masters/<name>.html` and `pdf` is `<name>/<stem>.pdf`, both under the build directory, so two documents that share a file name in two directories never share either; a viewer addresses a document by the same name. An agent's document is one that carries `copy_of`, the document it was copied from, where the history's moves have taken it; only one of the person's is the default, has a Review tab, or is selected by the document workspace, and the list holds the person's documents first. A viewer shows a copy beside the document `copy_of` names.
 
 ## 3. Nodes
 

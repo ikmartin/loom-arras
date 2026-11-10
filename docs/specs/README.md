@@ -25,7 +25,7 @@ Status: version 2, implemented by loom and arras (2026-10-31; version 1, 2026-09
 
 1. Write fragments conforming to `dialect.md` and a manifest conforming to `manifest.md`.
 2. Publish atomically: fragments first, manifest last, by rename.
-3. Never depend on the viewer for anything: no callbacks, and no notification beyond a stream that says a new manifest exists, carrying nothing else (`GET /_api/stream`, specs/write-api.md), which a viewer may ignore.
+3. Never depend on the viewer for anything: no callbacks, and no notification beyond a stream that says a new manifest exists and how each document's compile stands (`GET /_api/stream`, specs/write-api.md), which a viewer may ignore.
 4. Carry every diagnostic it knows about into the manifest, using reserved codes where they apply.
 5. Regenerate the whole build directory from source on demand; nothing in it is durable.
 

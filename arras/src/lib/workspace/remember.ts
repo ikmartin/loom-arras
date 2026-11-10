@@ -41,6 +41,8 @@ export function rememberedIn(m: Manifest): string {
 	const there =
 		it.kind === 'document'
 			? m.masters.some((x) => x.path === it.id) || (m.canon ?? []).some((x) => x.path === it.id)
+			: it.kind === 'pdf'
+				? m.masters.some((x) => x.path === it.id && !!x.pdf)
 			: it.kind === 'work'
 				? !!m.references?.[it.id]
 				: it.kind === 'session'

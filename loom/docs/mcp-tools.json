@@ -1559,7 +1559,7 @@
    "read_only_hint": true
   },
   "command": "loom status",
-  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nNotes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.",
+  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nNotes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {

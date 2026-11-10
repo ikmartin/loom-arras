@@ -5,11 +5,14 @@ The engine is the master's `% !TEX program` if present, else `[quilt] engine`. N
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -142,6 +145,7 @@ def compile_document(
     engine: str = "pdflatex",
     halt_on_error: bool = True,
     timeout: int = 600,
+    started: Callable[[subprocess.Popen[str]], None] | None = None,
 ) -> CompileResult:
     """Compile a document from `base`, the quilt-relative directory it compiles from (P12), in a clean copy of that directory (`stage_document`).
 
@@ -161,16 +165,19 @@ def compile_document(
     halt_on_error : bool, default True
     timeout : int, default 600
         Seconds.
+    started : callable, optional
+        Handed latexmk's process as it starts, for a caller that may end it with `stop_run`.
 
     Returns
     -------
     CompileResult
+        Its `pdf` and `aux` are None when this run made no PDF, though the last good ones stay in `outdir`.
     """
     tex_rel = Path(tex).relative_to(root).as_posix() if Path(tex).is_absolute() else Path(tex).as_posix()
     with tempfile.TemporaryDirectory(prefix="loom-compile-") as tmp:
         stage = stage_document(root, base, [tex_rel], Path(tmp))
         cwd = stage / base
-        res = compile_tex(cwd, os.path.relpath(stage / tex_rel, cwd), outdir, engine, halt_on_error, timeout)
+        res = compile_tex(cwd, os.path.relpath(stage / tex_rel, cwd), outdir, engine, halt_on_error, timeout, started)
     res.cwd = root / base
     return res
 
@@ -209,32 +216,64 @@ def stage_document(root: Path, base: str, extra: list[str], dest: Path) -> Path:
 
 
 def compile_tex(
-    root: Path, tex_rel: str, outdir: Path, engine: str = "pdflatex", halt_on_error: bool = True, timeout: int = 600
+    root: Path,
+    tex_rel: str,
+    outdir: Path,
+    engine: str = "pdflatex",
+    halt_on_error: bool = True,
+    timeout: int = 600,
+    started: Callable[[subprocess.Popen[str]], None] | None = None,
 ) -> CompileResult:
-    """Compile `tex_rel` (relative to `root`) with latexmk into `outdir`; return a result even when latexmk is missing."""
+    """Compile `tex_rel` (relative to `root`) with latexmk into `outdir`; return a result even when latexmk is missing.
+
+    latexmk reads no rc file (`-norc`): one in a quilt is a Perl program, and one at home may turn on shell escape. The run writes into a scratch directory beside `outdir`, seeded with `outdir`'s files so latexmk still runs only the passes it needs, and its output replaces `outdir`'s only when it made a PDF: a failed run leaves the last good PDF and aux in place, and only its log is kept. The run is a process group of its own, killed whole on timeout or by `stop_run` on the process `started` is handed.
+    """
     engine = normalise_engine(engine)
     exe = which_latexmk()
     outdir.mkdir(parents=True, exist_ok=True)
     if exe is None:
         return CompileResult(False, engine, outdir, 127, errors=["latexmk is not installed"])
-    cmd = [exe, *ENGINE_FLAGS[engine], "-interaction=nonstopmode", f"-outdir={outdir}"]
-    if halt_on_error:
-        cmd.append("-halt-on-error")
-    cmd.append(tex_rel)
+    stem = Path(tex_rel).stem
+    made = {f"{stem}.pdf", f"{stem}.dvi"}
+    run = Path(tempfile.mkdtemp(prefix=f".{outdir.name}.run-", dir=outdir.parent))
     try:
-        proc = subprocess.run(
+        # what tells this run's success is a PDF of its own making, and its log must be its own
+        shutil.copytree(
+            outdir,
+            run,
+            dirs_exist_ok=True,
+            ignore=lambda d, names: {n for n in names if Path(d) == outdir and (n in made or n == f"{stem}.log")},
+        )
+        cmd = [exe, "-norc", *ENGINE_FLAGS[engine], "-interaction=nonstopmode", f"-outdir={run}"]
+        if halt_on_error:
+            cmd.append("-halt-on-error")
+        cmd.append(tex_rel)
+        proc = subprocess.Popen(
             cmd,
             cwd=root,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             errors="replace",
-            timeout=timeout,
-            check=False,
             env=os.environ.copy(),
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired:
-        return CompileResult(False, engine, outdir, 124, errors=[f"latexmk timed out after {timeout}s"])
-    stem = Path(tex_rel).stem
+        if started is not None:
+            started(proc)
+        try:
+            out, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            stop_run(proc)
+            proc.communicate()
+            return CompileResult(False, engine, outdir, 124, errors=[f"latexmk timed out after {timeout}s"])
+        made_one = any((run / n).is_file() for n in made)
+        for f in sorted(run.rglob("*")) if made_one else [run / f"{stem}.log"]:
+            if f.is_file():
+                target = outdir / f.relative_to(run)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(f, target)
+    finally:
+        shutil.rmtree(run, ignore_errors=True)
     log = outdir / f"{stem}.log"
     errors: list[str] = []
     warnings: list[str] = []
@@ -244,17 +283,30 @@ def compile_tex(
         warnings = re.findall(r"^(?:LaTeX|Package \w+|Class \w+) Warning: .*$", text, re.M)
     pdf = outdir / f"{stem}.pdf"
     aux = outdir / f"{stem}.aux"
-    ok = proc.returncode == 0 and pdf.exists()
     return CompileResult(
-        ok,
+        proc.returncode == 0 and made_one and pdf.exists(),
         engine,
         outdir,
         proc.returncode,
-        proc.stdout + proc.stderr,
+        out + err,
         errors,
-        pdf if pdf.exists() else None,
-        aux if aux.exists() else None,
+        pdf if made_one and pdf.exists() else None,
+        aux if made_one and aux.exists() else None,
         log if log.exists() else None,
         warnings,
         root,
     )
+
+
+def stop_run(proc: subprocess.Popen[str]) -> None:
+    """End a compile `compile_tex` started, with every program latexmk ran: TERM to its process group, then KILL to what is left after two seconds."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+    try:
+        proc.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        pass
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(proc.pid, signal.SIGKILL)

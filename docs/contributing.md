@@ -52,7 +52,7 @@ The construction principles C1–C5 (`docs/design/principles.md`) govern how the
 - C2, vertical slices: work runs end to end, source to arras page, not one layer at a time.
 - C3, the fixture is the contract's executable form: a change to loom's output regenerates it (`docs/specs/tools/refresh-fixture.sh`); a change to the interface changes it first.
 - C4, author files are sacred: the test comes before the command that touches a file.
-- C5, two codebases sharing nothing but `docs/specs/`.
+- C5, one tool in two languages: loom and its viewer each have their own build and tests, the viewer ships inside loom, and `docs/specs/` changes with the code on either side.
 
 ## Rules for every change
 

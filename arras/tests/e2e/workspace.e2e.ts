@@ -656,7 +656,8 @@ test.describe('the toolbar', () => {
 		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show all annotationse', 'show settled annotationss', 'annotations off in this panea']);
 		await expect(menu.getByTestId('toggle-settled')).toHaveAttribute('aria-keyshortcuts', 's');
 		await expect(menu.getByTestId('toggle-hide-notes')).toHaveAttribute('aria-keyshortcuts', 'a');
-		await expect(menu.getByTestId('open-pdf')).toHaveText('open the PDF');
+		// its compiled PDF opens from its row in the tree, not from here
+		await expect(menu.getByTestId('open-pdf')).toHaveCount(0);
 		// a mode inside it is on: the dot on view says so, and the menu closed on the choice
 		await expect(page.getByTestId('toolbar-view-on')).toHaveCount(0);
 		await page.getByTestId('toggle-settled').click();

@@ -319,7 +319,7 @@ def test_a_burst_of_edits_publishes_once(session) -> None:  # type: ignore[no-un
 
 
 def test_serve_streams_each_publication_and_ends_when_it_stops(session) -> None:  # type: ignore[no-untyped-def]
-    """`/_api/stream` says each time a new manifest is published, and nothing about what changed, so a viewer listening fetches it at once instead of on its next poll; the server's stop ends it (plan 0.19.2)."""
+    """`/_api/stream` says each time a new manifest is published, and nothing about what changed, so a viewer listening fetches it at once instead of on its next poll; it opens with how the compiles stand, and says again when that changes; the server's stop ends it (plan 0.19.2, 0.29.1)."""
     import urllib.request
 
     s, d = session
@@ -327,10 +327,14 @@ def test_serve_streams_each_publication_and_ends_when_it_stops(session) -> None:
     with urllib.request.urlopen(s.url + "_api/stream", timeout=PATIENCE) as resp:
         assert resp.headers["Content-Type"] == "text/event-stream"
         assert resp.readline() == b": open\n" and resp.readline() == b"\n"
+        assert [resp.readline(), resp.readline(), resp.readline()] == [b"event: compiles\n", b"data: {}\n", b"\n"]
         s.rebuild()
         assert [resp.readline(), resp.readline(), resp.readline()] == [b"event: manifest\n", b"data:\n", b"\n"]
+        s.publications.compiled(b'{"main.tex":{"state":"queued","again":false,"last":null}}')
+        assert resp.readline() == b"event: compiles\n"
+        assert json.loads(resp.readline()[len(b"data: ") :])["main.tex"]["state"] == "queued"
         s.publications.close()
-        assert resp.read() == b""
+        assert resp.read() == b"\n"
 
 
 def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) -> None:

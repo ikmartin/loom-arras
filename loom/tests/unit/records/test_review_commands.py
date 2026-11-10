@@ -1748,3 +1748,25 @@ def test_cited_works_nothing_depends_on_are_one_line(tmp_path: Path) -> None:
     cited = out.split("in cited works", 1)[1]
     idle = [ln for ln in cited.splitlines() if "none you depend on, not counted" in ln]
     assert len(idle) == 1 and not any(re.match(r"^\s+\d+ not counted\s", ln) for ln in cited.splitlines()), cited
+
+
+def test_status_lists_a_document_the_server_last_compiled_into_no_pdf(tmp_path: Path) -> None:
+    """While `loom serve` runs, `status` names a document its last compile left without a PDF, with the line TeX stopped at and the command that shows the whole log, and `--json` carries how every compile stands; with no server it says nothing of compiles (plan 0.29.1)."""
+    d = demo(tmp_path)
+    (d / ".loom/build").mkdir(parents=True, exist_ok=True)
+    (d / ".loom/serve.json").write_text("{}", encoding="utf-8")
+    last = {
+        "result": "failed",
+        "ended": "2026-11-10T12:00:00Z",
+        "error": "! Undefined control sequence.",
+        "at": "l.12 \\hlind",
+    }
+    state = {"paper.tex": {"state": "idle", "again": False, "last": last}}
+    (d / ".loom/build/compiles.json").write_text(json.dumps(state), encoding="utf-8")
+    assert status_json(d)["compiles"]["paper.tex"]["last"]["result"] == "failed"
+    out = ok("status", cwd=d).output
+    assert "did not compile cleanly" in out, out
+    assert "no PDF, the last good one kept: ! Undefined control sequence. at l.12 \\hlind" in flat(out), out
+    assert "fix: loom compile paper" in out, out
+    (d / ".loom/serve.json").unlink()
+    assert "compiles" not in status_json(d)
