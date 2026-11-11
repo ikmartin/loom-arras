@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import hashlib
 import re
+from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
@@ -23,8 +24,18 @@ def _tokens(text: str) -> list[tuple[str, int, int]]:
 
 
 def _changed(before: str, after: str) -> tuple[list[list[int]], list[list[int]]]:
-    left, right = _tokens(before), _tokens(after)
-    match = difflib.SequenceMatcher(None, [x[0] for x in left], [x[0] for x in right], autojunk=False)
+    """The spans of `before` and of `after` whose words differ: `word_changes` with every word read as written."""
+    return word_changes(before, after, lambda word: word)
+
+
+def word_changes(before: str, after: str, read: Callable[[str], str]) -> tuple[list[list[int]], list[list[int]]]:
+    """The spans of `before` and of `after` whose words differ, each word compared as `read` makes it; a change of spacing alone is none.
+
+    Matched over the words alone, the spaces between them no tokens of their own: a whole document has thousands of single spaces, and a matcher indexing each made the diff of an agent's copy against its document take fourteen seconds, on every build.
+    """
+    left = [t for t in _tokens(before) if t[0].strip()]
+    right = [t for t in _tokens(after) if t[0].strip()]
+    match = difflib.SequenceMatcher(None, [read(x[0]) for x in left], [read(x[0]) for x in right], autojunk=False)
     out: list[list[list[int]]] = [[], []]
     for kind, a, b, c, d in match.get_opcodes():
         if kind == "equal":

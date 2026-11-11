@@ -213,10 +213,24 @@ def attach_adoptions(
     from loom.reshape.copy import derived_key
 
     contributions = []
+    # each key's closure, read once a build and only for the keys a changed result could affect
+    closures: dict[str, set[str]] = {}
+
+    def closure_of(k: str) -> set[str]:
+        if k not in closures:
+            closures[k] = set(result.dependencies.closure(k))
+        return closures[k]
+
     for copy in sorted(load_history(result.quilt.history_dir).copies(result.masters)):
         try:
             data = comparison(result, copy)
             choices = decisions(result, copy, manifest.get("reviewer", {}).get("name"), data=data)
+            # the copy's macros, one set for all its rows and its prose
+            proposal_pre = result.closures.get(copy)
+            macro_name = "adopt:" + data["fingerprint"][:20]
+            manifest["macros"]["sets"][macro_name] = to_mathjax(
+                parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
+            )
             rows = []
             for row in data["changes"]:
                 # a clash is shown, never offered, so the person sees why it can't be taken
@@ -231,11 +245,6 @@ def attach_adoptions(
                 local_node = result.nodes.get(key)
                 proposed_node = result.nodes.get(derived)
                 current_pre = result.closures.get(data["source"])
-                proposal_pre = result.closures.get(copy)
-                macro_name = "adopt:" + data["fingerprint"][:20]
-                manifest["macros"]["sets"][macro_name] = to_mathjax(
-                    parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
-                )
                 # a merged result is shown as it would be written: both edits, line by line
                 before, after = row["current"], row["merged"] or row["proposed"]
                 left, right = _changed(before, after)
@@ -276,10 +285,8 @@ def attach_adoptions(
                             changed_targets.add(target)
                 affected = [
                     {"key": k, "citation": _citation(result, k, key)}
-                    for k in manifest["keys"]
-                    if changed_targets.intersection(result.dependencies.closure(k))
-                    and k != key
-                    and not result.nodes[k].derived_of
+                    for k in (manifest["keys"] if changed_targets else ())
+                    if k != key and not result.nodes[k].derived_of and changed_targets & closure_of(k)
                 ]
                 rows.append(
                     {
@@ -292,7 +299,6 @@ def attach_adoptions(
                     }
                 )
             current_pre = result.closures.get(data["source"])
-            proposal_pre = result.closures.get(copy)
             context_key = next((k for k, n in result.nodes.items() if data["source"] in n.reached_by), "")
             prose = pair(
                 renderer,
@@ -304,10 +310,7 @@ def attach_adoptions(
                 proposal_pre.raw_text() if proposal_pre else "",
                 files,
             )
-            prose["incoming_macros"] = "adopt:" + data["fingerprint"][:20]
-            manifest["macros"]["sets"][prose["incoming_macros"]] = to_mathjax(
-                parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
-            )
+            prose["incoming_macros"] = macro_name
             if rows or data["document_changed"] or data["preamble_changed"]:
                 contributions.append(
                     {

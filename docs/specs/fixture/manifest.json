@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "69fc51715f6e5b60369b9f4f75bc42a4e47b845aeae2a61be6128f9b425b8901",
+   "hash": "423bb24e1545382f0bf5d7b996d84ee6d7cecf0303bb79079f6487f62943a0a0",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "ba138892d0d7b20b3246be738fa73d697119c2a1b3c0de2b1277076591637190",
+   "hash": "94ee9a3c95a9be7b56707d7bed6ac8d33e36f1b475edc18582e8f4fcf954c8f9",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "f5396b6bb2f1ed5a231846366d293f964139b568551ef837d90ed8935f9ba83c",
+   "hash": "b627226551ff5c74c9a2a072d42821786d488d1531bce6a78ec054bdfcd93559",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -2994,30 +2994,6 @@
        "accepted_spans": [
         [
          68,
-         80
-        ],
-        [
-         81,
-         85
-        ],
-        [
-         86,
-         99
-        ],
-        [
-         100,
-         104
-        ],
-        [
-         105,
-         107
-        ],
-        [
-         108,
-         118
-        ],
-        [
-         119,
          136
         ]
        ],
@@ -3026,30 +3002,6 @@
        "current_spans": [
         [
          68,
-         70
-        ],
-        [
-         71,
-         72
-        ],
-        [
-         73,
-         76
-        ],
-        [
-         77,
-         80
-        ],
-        [
-         81,
-         83
-        ],
-        [
-         84,
-         94
-        ],
-        [
-         95,
          133
         ]
        ]
@@ -3147,30 +3099,6 @@
        "accepted_spans": [
         [
          68,
-         80
-        ],
-        [
-         81,
-         85
-        ],
-        [
-         86,
-         99
-        ],
-        [
-         100,
-         104
-        ],
-        [
-         105,
-         107
-        ],
-        [
-         108,
-         118
-        ],
-        [
-         119,
          136
         ]
        ],
@@ -3179,30 +3107,6 @@
        "current_spans": [
         [
          68,
-         70
-        ],
-        [
-         71,
-         72
-        ],
-        [
-         73,
-         76
-        ],
-        [
-         77,
-         80
-        ],
-        [
-         81,
-         83
-        ],
-        [
-         84,
-         94
-        ],
-        [
-         95,
          133
         ]
        ]
@@ -3591,30 +3495,6 @@
        "accepted_spans": [
         [
          68,
-         80
-        ],
-        [
-         81,
-         85
-        ],
-        [
-         86,
-         99
-        ],
-        [
-         100,
-         104
-        ],
-        [
-         105,
-         107
-        ],
-        [
-         108,
-         118
-        ],
-        [
-         119,
          136
         ]
        ],
@@ -3623,30 +3503,6 @@
        "current_spans": [
         [
          68,
-         70
-        ],
-        [
-         71,
-         72
-        ],
-        [
-         73,
-         76
-        ],
-        [
-         77,
-         80
-        ],
-        [
-         81,
-         83
-        ],
-        [
-         84,
-         94
-        ],
-        [
-         95,
          133
         ]
        ]

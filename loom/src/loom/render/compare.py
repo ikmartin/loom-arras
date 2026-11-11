@@ -5,7 +5,6 @@ A pair is two nodes with one plain key (`zk-0001` and `zk-0001-ai`, or a key in 
 
 from __future__ import annotations
 
-import difflib
 import hashlib
 import re
 from dataclasses import dataclass, field
@@ -19,7 +18,7 @@ from loom.render.canon import CanonDoc, _preamble_for, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
 from loom.render.manifest import own_text
 from loom.render.publish import write_atomic
-from loom.render.review_compare import _render, _tokens
+from loom.render.review_compare import _render, word_changes
 from loom.scan.hashing import normalize, pair_hash
 from loom.scan.labels import plain_key
 from loom.scan.scan import ScanResult
@@ -86,18 +85,7 @@ def _side(result: ScanResult, history: History, canon: dict[str, CanonDoc], item
 
 def _changed(before: str, after: str) -> tuple[list[list[int]], list[list[int]]]:
     """Review's word diff, a derived label counted as its plain one."""
-    left, right = _tokens(before), _tokens(after)
-    words = [[_DERIVED_IN_TOKEN.sub("", x[0]) for x in side] for side in (left, right)]
-    match = difflib.SequenceMatcher(None, words[0], words[1], autojunk=False)
-    out: list[list[list[int]]] = [[], []]
-    for kind, a, b, c, d in match.get_opcodes():
-        if kind == "equal":
-            continue
-        for index, tokens, start, end, text in ((0, left, a, b, before), (1, right, c, d, after)):
-            lo = tokens[start][1] if start < len(tokens) else len(text)
-            hi = tokens[end - 1][2] if end > start else lo
-            out[index].append([lo, hi])
-    return out[0], out[1]
+    return word_changes(before, after, lambda word: _DERIVED_IN_TOKEN.sub("", word))
 
 
 def _base(

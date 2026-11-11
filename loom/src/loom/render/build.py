@@ -316,12 +316,30 @@ def _write_transcripts(root: Path, files: dict[str, str | bytes]) -> None:
 
     Out of the manifest, which every viewer polls: a long conversation would make every poll pay for it.
     """
-    from loom.mailbox import pages
+    from loom.mailbox import inbox_path, pages
     from loom.sessions import sessions
 
     for sid in sessions(root):
-        for n, page in pages(root, sid).items():
-            files[f"transcripts/{sid}/{n}.json"] = json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
+        inbox = inbox_path(root, sid)
+        try:
+            stamp: tuple[int, int] | None = (inbox.stat().st_mtime_ns, inbox.stat().st_size)
+        except OSError:
+            stamp = None
+        known = _TRANSCRIPTS.get(inbox)
+        if stamp is not None and known is not None and known[0] == stamp:
+            files.update(known[1])
+            continue
+        made = {
+            f"transcripts/{sid}/{n}.json": json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
+            for n, page in pages(root, sid).items()
+        }
+        if stamp is not None:
+            _TRANSCRIPTS[inbox] = (stamp, made)
+        files.update(made)
+
+
+#: Each session's transcript pages as last written, by its inbox's modification time and size: a session nobody wrote in since is not rendered again by a server that rebuilds on every change.
+_TRANSCRIPTS: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
 
 
 #: The fragments' input hashes for the last scan built from, the numbering they were hashed with, and each file's text hash; a build from the same scan (`reuse`) reads them rather than hashing every file again.
