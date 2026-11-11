@@ -6,7 +6,8 @@ import click
 
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.cli.report import Group, Item, Report, counted
-from loom.paths import AI, LOOM_GITIGNORE
+from loom.paths import AI, ANNOTATION_TYPES, LOOM_GITIGNORE
+from loom.records.types import default_text
 
 
 @click.command()
@@ -14,7 +15,7 @@ from loom.paths import AI, LOOM_GITIGNORE
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
 def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Refresh .loom/.gitignore and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones."""
+    """Refresh .loom/.gitignore, write .loom/annotation-types.toml where a quilt has none, and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones."""
     from loom.ai.clients import write_clients
     from loom.ai.layout import SHELL, upgrade_layer, variant
     from loom.cli.ai import NO_SERVER, sdk_groups
@@ -27,6 +28,11 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     beside: list[str] = []
     if write_loom_ignore(root, write=not dry_run):
         written.append(LOOM_GITIGNORE)
+    if not (root / ANNOTATION_TYPES).exists():
+        # a quilt made before there were types gets the defaults; a file that is there is the person's, edited or not
+        if not dry_run:
+            (root / ANNOTATION_TYPES).write_text(default_text(), encoding="utf-8")
+        written.append(ANNOTATION_TYPES)
     added: list[str] = []
     sdk: list[Group] = []
     has_ai = (root / AI).is_dir()

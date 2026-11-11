@@ -43,6 +43,8 @@ NODES = "nodes"
 #: The acceptance ledger, written only by `loom accept`.
 LEDGER = f"{LOOM}/state.toml"
 ANNOTATION_LOG = f"{ANNOTATIONS}/log.jsonl"
+#: The quilt's annotation types: presets a person picks from and an agent reads, written by `loom init` with the defaults.
+ANNOTATION_TYPES = f"{LOOM}/annotation-types.toml"
 #: Notes, a quote among them: their own log beside the annotations'.
 NOTE_LOG = f"{ANNOTATIONS}/notes.jsonl"
 #: Works an agent proposed citing and the author accepted.

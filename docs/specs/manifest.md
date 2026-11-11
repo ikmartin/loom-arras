@@ -26,6 +26,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "inclusion": { "drafting/main.tex": { ... } },
   "states": { "labels": { ... } },
   "annotations": { "a-2026-09-16-xgtcve": { ... } },
+  "annotation_types": [ { "id": "revision", ... } ],
   "threads": { "2026-09-16T14-02-referee": { ... } },
   "reference_notes": [ ... ],
   "diagnostics": [ ... ],
@@ -41,6 +42,8 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "config": { "quilt": { ... }, "library": { ... }, "lint": { ... }, "agents": { ... }, "sync": { ... } }
 }
 ```
+
+**[decided]** `annotation_types` is the quilt's annotation types in its file's order (`.loom/annotation-types.toml`, else the defaults): each `{id, name, look: {color, style, weight, opacity}, open, notes, instructions}`. `color` is one of grey, brown, red, orange, yellow, green, blue, purple, pink; `style` is underline, highlight or strike; `weight` is whole pixels and `opacity` percent. `open` says an annotation of the type stays open until resolved; `notes` that it is listed in Notes. A viewer offers these types and draws an annotation in its own look; it never decides what to show by a type's id.
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`. `corpus.directory` is the name of the directory the project is, its root's own name (`relloc` for a quilt at `~/quilts/relloc`), whatever `name` says; a viewer names what `files` lists a view of by it. Optional and additive.
 

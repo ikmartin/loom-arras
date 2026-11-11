@@ -4,6 +4,7 @@
       "Edit(.loom/sessions/**)",
       "Edit(.loom/build/**)",
       "Edit(.loom/copies/**)",
+      "Edit(.loom/annotation-types.toml)",
       "Bash(loom ai annotations*)",
       "Bash(loom ai drafts*)",
       "Bash(loom ai mode*)",

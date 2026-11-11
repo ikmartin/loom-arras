@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from loom.paths import (
     ADOPTION_DECISIONS,
     AI,
+    ANNOTATION_TYPES,
     ANNOTATIONS,
     BUILD,
     COPIES,
@@ -39,6 +40,8 @@ if TYPE_CHECKING:
 CONFIG = "config.toml"
 #: Where an agent always writes, whatever the list says: its session's directory, the build output and its copies.
 AGENT_PLACES = (SESSIONS, BUILD, COPIES)
+#: Files inside `.loom/` an agent may edit: the annotation types, which a quilt grows with its agents.
+AGENT_FILES = (ANNOTATION_TYPES,)
 #: The session index, a record inside an agent's place that only loom writes.
 SESSION_INDEX = f"{SESSIONS}/index.jsonl"
 #: Loom's record directories under `.loom/`, each named, since a Claude Code deny of `.loom/` would beat the places' allows; the history is the quilt's `[quilt] history` beside them.
@@ -150,7 +153,7 @@ def denied_by(config: QuiltConfig, rel: str) -> str | None:
     rel = PurePosixPath(rel).as_posix()
     if rel == SESSION_INDEX:
         return rel
-    if _under(rel, AGENT_PLACES):
+    if _under(rel, AGENT_PLACES) or rel in AGENT_FILES:
         return None
     if _under(rel, (LOOM,)):
         return f"{LOOM}/"
@@ -185,7 +188,7 @@ def refusal(config: QuiltConfig, rel: str) -> str | None:
 
 def claude_allows() -> list[str]:
     """The paths Claude Code lets an agent edit without asking: its places, relative to the quilt root it is started in (DR-343-ikmartin)."""
-    return [f"{p}/**" for p in AGENT_PLACES]
+    return [f"{p}/**" for p in AGENT_PLACES] + list(AGENT_FILES)
 
 
 def claude_denies(config: QuiltConfig) -> list[str]:

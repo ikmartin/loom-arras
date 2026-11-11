@@ -409,6 +409,24 @@ export interface States {
   derived: Record<string, StateLabel>;
 }
 
+/** How an annotation is drawn: one of the nine colours, a style, a thickness in whole pixels and an opacity in percent. */
+export interface Look {
+  color: string;
+  style: 'underline' | 'highlight' | 'strike';
+  weight: number;
+  opacity: number;
+}
+
+/** A type an annotation may carry: a label with a look, whether its annotations stay open until resolved, whether they are listed in Notes, and instructions for agents. */
+export interface AnnotationType {
+  id: string;
+  name: string;
+  look: Look;
+  open: boolean;
+  notes: boolean;
+  instructions: string;
+}
+
 export interface Annotation {
   id: string;
   author: Author;
@@ -703,6 +721,8 @@ export interface Manifest {
   inclusion: Record<string, InclusionNode>;
   states: States;
   annotations: Record<string, Annotation>;
+  /** The quilt's annotation types, in its file's order (specs/manifest.md §1). */
+  annotation_types?: AnnotationType[];
   threads: Record<string, Thread>;
   /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
   sessions?: SessionRow[];

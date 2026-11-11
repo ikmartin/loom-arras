@@ -1,0 +1,169 @@
+"""The quilt's annotation types: `.loom/annotation-types.toml`, the presets a person picks from and an agent reads.
+
+A type is a label with a look, whether its annotations stay open until resolved, whether they are listed in Notes, and instructions for agents. An annotation names its type by id and keeps its own look, so nothing here is needed to read one: a missing or malformed file loads the defaults with a diagnostic and never stops a quilt from loading.
+"""
+
+from __future__ import annotations
+
+import re
+import tomllib
+from dataclasses import dataclass
+from importlib import resources
+from pathlib import Path
+from typing import Any
+
+from loom.paths import ANNOTATION_TYPES
+
+#: The colours an annotation can take; what each means is its reader's.
+COLORS = ("grey", "brown", "red", "orange", "yellow", "green", "blue", "purple", "pink")
+#: How an annotation is drawn on words.
+STYLES = ("underline", "highlight", "strike")
+#: A type's id: what annotations name it by, so it reaches a URL fragment and a CSS hook.
+ID = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
+WEIGHTS = (1, 10)
+OPACITIES = (0, 100)
+
+
+@dataclass(frozen=True)
+class Look:
+    """How an annotation is drawn: a colour, a style, a thickness in whole pixels and an opacity in percent."""
+
+    color: str
+    style: str
+    weight: int
+    opacity: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"color": self.color, "style": self.style, "weight": self.weight, "opacity": self.opacity}
+
+
+@dataclass(frozen=True)
+class AnnotationType:
+    id: str
+    name: str
+    look: Look
+    open: bool  # an annotation of this type stays open until someone resolves it; False: it only informs
+    notes: bool  # annotations of this type are also listed in Notes
+    instructions: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "look": self.look.to_dict(),
+            "open": self.open,
+            "notes": self.notes,
+            "instructions": self.instructions,
+        }
+
+
+@dataclass
+class Types:
+    """The quilt's types in file order, the file they came from (None: the defaults), and one problem per thing that could not be read."""
+
+    types: list[AnnotationType]
+    source: str | None
+    problems: list[str]
+
+    def get(self, type_id: str | None) -> AnnotationType | None:
+        return next((t for t in self.types if t.id == type_id), None)
+
+    def find(self, given: str) -> AnnotationType | None:
+        """A type by its id or its name, either in any case."""
+        g = given.strip().lower()
+        return next((t for t in self.types if g in (t.id, t.name.lower())), None)
+
+
+def default_text() -> str:
+    """The defaults as `loom init` writes them, comments included."""
+    return resources.files("loom").joinpath("assets", "init", "annotation-types.toml").read_text(encoding="utf-8")
+
+
+def look_problem(look: dict[str, Any]) -> str | None:
+    """Why a look as given cannot be drawn; None when it can. Each of the four fields is optional here, since a look given on the command line overrides only what it names."""
+    if "color" in look and look["color"] not in COLORS:
+        return f"color must be one of {', '.join(COLORS)}"
+    if "style" in look and look["style"] not in STYLES:
+        return f"style must be one of {', '.join(STYLES)}"
+    for field, (lo, hi), unit in (("weight", WEIGHTS, "whole pixels"), ("opacity", OPACITIES, "percent")):
+        if field in look:
+            v = look[field]
+            if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+                return f"{field} is {unit} from {lo} to {hi}"
+    return None
+
+
+def _one(entry: Any, n: int, seen: set[str]) -> tuple[AnnotationType | None, str | None]:
+    """The `n`th `[[type]]` as a type, or why it is skipped."""
+    if not isinstance(entry, dict):
+        return None, f"type {n} is not a table"
+    tid = entry.get("id")
+    if not isinstance(tid, str) or not ID.match(tid):
+        return None, f"type {n} has no id of lowercase letters, digits and hyphens"
+    if tid in seen:
+        return None, f"type {tid!r} is given twice; the first is kept"
+    name = entry.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None, f"type {tid!r} has no name"
+    look = {k: entry[k] for k in ("color", "style", "weight", "opacity") if k in entry}
+    missing = [k for k in ("color", "style", "weight", "opacity") if k not in look]
+    if missing:
+        return None, f"type {tid!r} has no {', '.join(missing)}"
+    why = look_problem(look)
+    if why:
+        return None, f"type {tid!r}: {why}"
+    flags = {k: entry.get(k, False) for k in ("open", "notes")}
+    bad = [k for k, v in flags.items() if not isinstance(v, bool)]
+    if bad:
+        return None, f"type {tid!r}: {' and '.join(bad)} must be true or false"
+    instructions = entry.get("instructions", "")
+    if not isinstance(instructions, str):
+        return None, f"type {tid!r}: instructions must be text"
+    return AnnotationType(
+        id=tid,
+        name=name.strip(),
+        look=Look(**look),
+        open=flags["open"],
+        notes=flags["notes"],
+        instructions=instructions.strip(),
+    ), None
+
+
+def parse_types(text: str) -> tuple[list[AnnotationType], list[str]]:
+    """The types a file's text holds, and one problem per entry skipped; raises `tomllib.TOMLDecodeError` when it is not TOML."""
+    data = tomllib.loads(text)
+    entries = data.get("type", [])
+    if not isinstance(entries, list):
+        return [], ["`type` must be an array of tables, written [[type]]"]
+    out: list[AnnotationType] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for n, entry in enumerate(entries, 1):
+        t, why = _one(entry, n, seen)
+        if t is None:
+            problems.append(why or f"type {n} is not readable")
+            continue
+        seen.add(t.id)
+        out.append(t)
+    return out, problems
+
+
+def defaults() -> list[AnnotationType]:
+    types, _ = parse_types(default_text())
+    return types
+
+
+def load_types(root: Path) -> Types:
+    """The quilt's annotation types: its file's, or the defaults when there is no file or it is not TOML.
+
+    An entry that cannot be read is skipped and named; the rest of the file still counts, so one bad edit costs one type rather than every type a mode names.
+    """
+    path = root / ANNOTATION_TYPES
+    if not path.is_file():
+        return Types(defaults(), None, [])
+    try:
+        text = path.read_text(encoding="utf-8")
+        types, problems = parse_types(text)
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        return Types(defaults(), None, [f"{ANNOTATION_TYPES} cannot be read ({exc}); the default types are used"])
+    return Types(types, ANNOTATION_TYPES, [f"{ANNOTATION_TYPES}: {p}" for p in problems])

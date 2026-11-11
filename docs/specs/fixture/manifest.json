@@ -1,4 +1,58 @@
 {
+ "annotation_types": [
+  {
+   "id": "revision",
+   "instructions": "Something that is wrong and must change before the text is right: a wrong step, a gap in an argument, a false or unsupported claim, a citation that does not cover the use made of it, an unclear sentence, a loose definition, a misused term.\n\nSay in the comment how serious it is, by how bad the fault is rather than how strongly you feel about it.",
+   "look": {
+    "color": "red",
+    "opacity": 65,
+    "style": "highlight",
+    "weight": 2
+   },
+   "name": "Revision",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "suggestion",
+   "instructions": "Something that could be better, for the writer to weigh: a clearer order, a sharper statement, a shorter proof, a better name. Nothing is wrong; if something is, it is a revision.\n\nA work worth citing that the bibliography lacks is a suggestion too: name the work.",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "name": "Suggestion",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "question",
+   "instructions": "Something you could not decide and the writer should answer: an ambiguity in a statement, a choice between hypotheses or conventions that is theirs to make, a place they should look. Ask one thing, and say what would settle it if you know.",
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "name": "Question",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "note",
+   "instructions": "An aside that asks nothing and is worth finding again: an explanation, a remark on why a step works, a sign that something checks out, or a dead end, counterexample or decision about this result, recorded when you find it.",
+   "look": {
+    "color": "grey",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "name": "Note",
+   "notes": true,
+   "open": false
+  }
+ ],
  "annotations": {
   "a-2026-09-16-ecnav2": {
    "anchored": true,
@@ -420,7 +474,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "bb242cde3a45201ae7399509bd4f41b704478c5d5dee9bb264aa1ddd0ad7416f",
+   "hash": "72e9dd18932fd513b521f047b30dc86e6a4d7dfd95d7d17f092fae359cb7b5e8",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +489,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "0092aef254ff1a897048076e7657dac49b67ac52d4f9c6a54383070fa78f1b1d",
+   "hash": "c486f8d77cb52f590a9b7cb4619f070d21879c4d1ec5a98a3b2e03151d774c91",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +504,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "243c8db71bfa34e1e7238a92bfd3e6e4e57e64408e0858a5c5871d5605ee583c",
+   "hash": "40066a1a4a72c34aa9f7c6b231372f2de4d6832650030b6b956b7460cce6d300",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -541,6 +595,7 @@
    "codes": [
     "loom:agent-document-unrecorded",
     "loom:agent-permissions-stale",
+    "loom:annotation-types",
     "loom:citekey-slug-collision",
     "loom:cites-proposed-node",
     "loom:closure-failed",

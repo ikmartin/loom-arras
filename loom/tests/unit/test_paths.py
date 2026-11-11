@@ -8,7 +8,7 @@ from pathlib import Path
 
 import loom
 from loom import paths
-from loom.agents import AGENT_PLACES, LOOM_DIRS, LOOM_FILES, claude_denies, denied_by
+from loom.agents import AGENT_FILES, AGENT_PLACES, LOOM_DIRS, LOOM_FILES, claude_denies, denied_by
 from loom.records.store import Records
 from loom.scan.quilt import load_quilt
 from tests.helpers import ok
@@ -102,14 +102,20 @@ def test_the_history_setting_is_honoured_wherever_the_history_is_reached(tmp_pat
 
 
 def test_every_path_under_loom_is_an_agents_place_or_protected() -> None:
-    """Every `.loom/` path `loom.paths` names is either where an agent writes or in loom's own table, so a record added later is protected until someone decides otherwise: Claude Code's denies name them one by one, since a deny on `.loom/` would beat the places' allows."""
+    """Every `.loom/` path `loom.paths` names is either where an agent writes, a file of loom's an agent may edit, or in loom's own table, so a record added later is protected until someone decides otherwise: Claude Code's denies name them one by one, since a deny on `.loom/` would beat the places' allows."""
     from loom.scan.quilt import QuiltConfig
 
     named = {v for k, v in vars(paths).items() if k.isupper() and isinstance(v, str) and v.startswith(f"{paths.LOOM}/")}
     under = lambda rel, dirs: any(rel == d or rel.startswith(f"{d}/") for d in dirs)  # noqa: E731
     protected = (*LOOM_DIRS, paths.HISTORY)
-    loose = sorted(p for p in named if not under(p, AGENT_PLACES) and not under(p, protected) and p not in LOOM_FILES)
+    loose = sorted(
+        p
+        for p in named
+        if not under(p, AGENT_PLACES) and not under(p, protected) and p not in (*LOOM_FILES, *AGENT_FILES)
+    )
     assert not loose, f"neither an agent's place nor protected: {loose}"
     for p in named:
-        if p == paths.SESSIONS + "/index.jsonl" or not under(p, AGENT_PLACES):
+        if p in AGENT_FILES:
+            assert denied_by(QuiltConfig(), p) is None, p
+        elif p == paths.SESSIONS + "/index.jsonl" or not under(p, AGENT_PLACES):
             assert denied_by(QuiltConfig(), p) is not None, p

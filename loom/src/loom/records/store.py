@@ -125,6 +125,9 @@ class Records:
         self.latest = latest_rows(self.rows, self.reviewer)
         self.shared_latest = latest_rows(self.rows)
         self.records, self.problems = load_records(root)
+        from loom.records.types import load_types
+
+        self.types = load_types(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
         self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
@@ -576,6 +579,8 @@ class Records:
         diags: list[Diagnostic] = []
         for p in self.problems:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid review record: {p}", []))
+        for p in self.types.problems:
+            diags.append(Diagnostic("warning", "loom:annotation-types", p, [], subject="record"))
         for rel, events in (
             (ANNOTATION_LOG, ("created", "replied")),
             (NOTE_LOG, ("noted",)),
@@ -709,6 +714,8 @@ class Records:
         states = self.key_states(result)
         derived = self.derived(result, states)
         manifest["reviewer"] = {"name": self.reviewer, "source": self.reviewer_source}
+        # the quilt's annotation types, in its file's order: what a viewer offers and how an untouched annotation of each is drawn
+        manifest["annotation_types"] = [t.to_dict() for t in self.types.types]
         for author in sorted({row.author for row in self.rows if row.author}):
             # One ledger/source snapshot for every perspective; summaries never observe or write.
             other = copy.copy(self)
