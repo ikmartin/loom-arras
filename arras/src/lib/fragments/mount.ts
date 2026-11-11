@@ -93,7 +93,7 @@ export function settled(a: { status: string } | undefined): boolean {
 	return !!a && a.status !== 'open';
 }
 
-/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or excluded by the session filter. */
+/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or hidden with every annotation in its pane. */
 export function inert(mark: HTMLElement): boolean {
 	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
 }

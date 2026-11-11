@@ -42,40 +42,6 @@ export interface Corpus {
   directory?: string;
 }
 
-/** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no type. */
-export interface Note {
-  id: string;
-  when: string;
-  author: { kind: "person" | "agent" | (string & {}); id: string };
-  session: string;
-  /** What it is on: one of a key, a cited work's page, a shown file, a transcript message, or the session alone. */
-  target: { key?: string; work?: string; citekey?: string; file?: string; message?: { session: string; seq: number }; session?: string };
-  body: string;
-  quote?: string;
-  page?: number;
-  rects?: number[][];
-  /** When it was kept, so it never fades. */
-  kept?: string;
-  /** How it is drawn on a PDF page: highlight, underline, strike, pin, ink, text, box, oval or arrow. A mark never fades. */
-  mark?: string;
-  /** The colour a mark was given, one of the viewer's `MARK_COLORS`; a mark without one is the neutral. */
-  color?: string;
-  /** A stroked mark's points, x, y, x, y… per stroke, in points from the page's top left. */
-  strokes?: number[][];
-  /** The hash of the PDF it was written on. */
-  artifact?: string;
-  /** Where a mark taken in from a PDF came from. */
-  origin?: { by?: string; subtype?: string; color?: number[]; ref?: string; sha?: string };
-  /** When it was erased; only a note still hiding an annotation in its file is published with this. */
-  erased?: string;
-  /** The reference of the annotation in the PDF that this note stands for, while the file is the one it was taken from: the viewer hides that annotation on the page. */
-  hides?: string;
-  /** Older than two weeks, not kept, not a mark, and linked from nothing durable: hidden until asked for. */
-  faded: boolean;
-  /** Its quote is no longer in what it is on, or the PDF it was drawn on has changed and its words are not found again. */
-  detached: boolean;
-}
-
 /** An open file changed since the reviewer's look (plan 0.22.8). */
 export interface FileChange {
   path: string;
@@ -432,12 +398,22 @@ export interface Annotation {
   id: string;
   author: Author;
   created: string;
-  /** What it is about. A key in the corpus -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
-  target: { key: string; hash: string; work?: string | null; page?: number | null };
+  /** What it is about: a key in the corpus; a cited work's identifier, with `work` the citekey the viewer knows it by and `page` the page it is on, none for the whole work (plan 0.13 item 2); or a project PDF, with `file` its path and `page`. */
+  target: { key: string; hash: string; work?: string | null; page?: number | null; file?: string | null };
   /** The document a claim about a node is read in, as a master path; null for the node wherever it appears. Drawn in that document, listed on the node's page, absent elsewhere. */
   in?: string | null;
-  /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
+  /** On a cited work's page, anchored through its store: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. Null for one that records its own place (`rects`). */
   basis?: "text" | "box" | null;
+  /** On a PDF page, where it stands now, in points from the page's top left: its words found again on a changed file. */
+  rects?: number[][] | null;
+  /** A drawing's points, x, y, x, y… per stroke, in points from the page's top left. */
+  strokes?: number[][] | null;
+  /** The tool it was drawn with: `pin`, `ink`, `text`, `box`, `oval` or `arrow`; null for one on words, which its look's style draws. */
+  mark?: string | null;
+  /** Where one taken in from a PDF's own annotations came from. */
+  origin?: { by?: string; subtype?: string; color?: number[]; ref?: string; sha?: string } | null;
+  /** The reference of the PDF's own annotation it stands for, while the file is the one it was taken from: the viewer leaves that one undrawn. */
+  hides?: string | null;
   /** The id of one of the quilt's `annotation_types`, or null for an untyped annotation. A type deleted since leaves an id no type has. */
   type: string | null;
   /** The whole look to draw it with, whatever its type now says. */
@@ -721,8 +697,6 @@ export interface Manifest {
   research_state?: Page;
   /** Every file of the project the viewer shows, hidden ones left out (plan 0.22.7); absent from an older publisher. */
   files?: ProjectFile[];
-  /** Every note, by id (plan 0.22.8). */
-  notes?: Record<string, Note>;
   /** The open files changed since the reviewer's look, and that look; absent before a first look. */
   changes?: FileChange[];
   changes_since?: { who: string; when: string };

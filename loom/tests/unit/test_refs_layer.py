@@ -1689,6 +1689,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         "hash": manifest["annotations"][a]["target"]["hash"],
         "work": "Bellamy19",
         "page": 2,
+        "file": None,
     }
     assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
     assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]

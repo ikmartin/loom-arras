@@ -1,6 +1,5 @@
-// Review as the meta view and notes (plan 0.22.8), read from the fixture: Review leads with what changed in the open files since the author's look, each with its diff; Proposed Changes lists what waits to be taken; a file's notes stand quietly at its head, a faded one hidden until asked for; and the notes of a session read in its transcript, by time among its messages.
+// Review as the meta view (plan 0.22.8), read from the fixture: Review leads with what changed in the open files since the author's look, each with its diff, and Proposed Changes lists what waits to be taken.
 import { expect, test } from '@playwright/test';
-import { pane } from '../workspace';
 
 test('Review leads with the changes since the look, each file with its diff, and lists what is proposed', async ({ page }) => {
 	await page.goto('/review');
@@ -20,29 +19,4 @@ test('Review leads with the changes since the look, each file with its diff, and
 	await expect(page.getByTestId('proposed')).toBeVisible();
 	// a suggestion opens in the document that reads it, at its place, with it open there
 	await expect(page.getByTestId('suggestion-open').first()).toHaveAttribute('href', /^\/master\/drafting\/main\?note=a-[\d-]+/);
-});
-
-test("a file's notes stand at its head, a faded one hidden until shown", async ({ page }) => {
-	await page.goto('/file/notes/intro.md');
-	const notes = pane(page, 0).getByTestId('notes-here');
-	await expect(notes.locator('summary')).toContainText('1 note');
-	await expect(notes.locator('summary')).toContainText('1 faded');
-	await notes.locator('summary').click();
-	await expect(notes).toContainText('A widget is fixed by its locus');
-	await expect(notes).toContainText('kept');
-	await notes.getByTestId('notes-faded').click();
-	await expect(notes).toContainText('Notes on the widgets');
-});
-
-test("a session's notes read in its transcript, by time among its messages", async ({ page }) => {
-	await page.goto('/session/s-2026-09-16-p9z37z');
-	const transcript = page.getByTestId('transcript');
-	await expect(transcript.locator('[data-testid^="noted-"]')).toHaveCount(3);
-	await expect(transcript.getByTestId('noted-n-2026-09-16-91x7ga')).toContainText('be a finite widget');
-	await expect(transcript.getByTestId('noted-n-2026-09-16-41e22x')).toContainText('the parity count');
-	// the faded one is left out here as everywhere
-	await expect(transcript.getByTestId('noted-n-2026-08-20-h6g96a')).toHaveCount(0);
-	// a note's link opens what it is on
-	await transcript.getByTestId('noted-n-2026-09-16-1t8s9z').getByRole('link').click();
-	await expect(page.getByTestId('pane-1').getByTestId('item-tab').first()).toContainText('intro.md');
 });

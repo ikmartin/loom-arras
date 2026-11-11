@@ -6,7 +6,7 @@
 // attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
 // author has since moved.
 //
-// **Annotations belong to no session.** An annotation carries its author, time and version, and is written whatever is selected; a session is a sitting with its transcript and notes, and the selection is where a note, a quote or a question to an agent goes. Hiding every annotation is a pane's own (`workspace.hideNotes`).
+// **Annotations belong to no session.** An annotation carries its author, time and version, and is written whatever is selected; a session is a sitting with its transcript, and the selection is where a write that names one goes, such as verifying a proposed result. Hiding every annotation is a pane's own (`workspace.hideNotes`).
 //
 // A write that names a session is available only while an *open* one is selected. Nothing is created automatically: the courtesy of
 // opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to
@@ -75,7 +75,7 @@ export function selected(m: Manifest | null): SessionRow | null {
 }
 
 /**
- * Why a write that names a session (a note, a quote, a question to an agent) is unavailable, or `''` when it is allowed. An annotation names none.
+ * Why a write that names a session (verifying or discarding a proposed result) is unavailable, or `''` when it is allowed. An annotation names none.
  *
  * The two sentences live here and are read by every write surface, so the interface cannot word the same refusal two ways.
  */

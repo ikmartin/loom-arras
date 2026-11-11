@@ -11,10 +11,7 @@ import pytest
 
 from loom.links import ANNOTATION as ANNOTATION_LINK
 from loom.links import SESSION as SESSION_LINK
-from loom.notes import ID as NOTE_ID
-from loom.notes import LINK as NOTE_LINK
-from loom.notes import MESSAGE, load
-from loom.paths import ANNOTATION_LOG, LINKS, NOTE_LOG
+from loom.paths import ANNOTATION_LOG, LINKS
 from loom.records.ids import draw, repeated
 from loom.records.log import ID as ANNOTATION_ID
 from loom.records.log import replay
@@ -62,16 +59,6 @@ def test_two_clones_merge_into_records_each_with_an_id_of_its_own(tmp_path: Path
     assert status[mine] == "resolved" and status[theirs] == "open"
 
 
-def test_two_clones_merge_into_notes_each_with_an_id_of_its_own(tmp_path: Path) -> None:
-    """A note's replay keeps the last under an id, so the earlier of two left every view."""
-    one, two = _clones(tmp_path)
-    mine, theirs = (ok("note", "the same words", "--on", "dm-0002", *AS, cwd=q).stdout.split()[1] for q in (one, two))
-    assert mine != theirs
-    _merge(one, two, NOTE_LOG, 1)
-    assert {mine, theirs} <= set(load(one))
-    _no_report(one)
-
-
 def test_two_clones_merge_into_sessions_each_with_an_id_of_its_own(tmp_path: Path) -> None:
     """A session's replay keeps the last `created` under an id, so the earlier session left `session list`, and both clones' files shared one directory."""
     one, two = _clones(tmp_path)
@@ -97,21 +84,14 @@ def test_two_clones_merge_into_links_each_with_an_id_of_its_own(tmp_path: Path) 
 
 @pytest.mark.parametrize(
     "pattern",
-    [ANNOTATION_ID, ANNOTATION_LINK, NOTE_ID, SESSION_ID, SESSION_LINK],
-    ids=["annotation", "annotation-link", "note", "session", "session-link"],
+    [ANNOTATION_ID, ANNOTATION_LINK, SESSION_ID, SESSION_LINK],
+    ids=["annotation", "annotation-link", "session", "session-link"],
 )
 def test_every_pattern_reads_what_is_drawn_and_what_was_counted(pattern: re.Pattern[str]) -> None:
     """A pattern that still wanted digits would refuse every new id, and an id written under a counter is still an id."""
     head = pattern.pattern.strip("^").split("\\d", 1)[0]
     assert pattern.match(draw(f"{head}2026-11-05-", ()))
     assert pattern.match(f"{head}2026-11-05-0001")
-
-
-def test_a_link_or_a_message_target_reads_a_drawn_id() -> None:
-    note, session = draw("n-2026-11-05-", ()), draw("s-2026-11-05-", ())
-    assert NOTE_LINK.search(f"[](quilt:{note})")
-    found = MESSAGE.match(f"{session}#3")
-    assert found is not None and found.group(1) == session
 
 
 def test_a_draw_is_six_characters_a_url_and_a_filename_can_hold() -> None:
@@ -160,21 +140,6 @@ def _second_annotation(q: Path) -> str:
     return str(made["id"])
 
 
-def _second_note(q: Path) -> str:
-    note = {
-        "event": "noted",
-        "id": "n-2026-11-05-a5v44a",
-        "author": "A",
-        "kind": "person",
-        "session": "s",
-        "target": {"key": "dm-0002"},
-        "when": "2026-11-05T00:00:00Z",
-    }
-    _append(q, NOTE_LOG, note)
-    _append(q, NOTE_LOG, {**note, "author": "B"})
-    return "n-2026-11-05-a5v44a"
-
-
 def _second_session(q: Path) -> str:
     made = _last(q, INDEX, "created")
     _append(q, INDEX, {**made, "title": "another clone's sitting"})
@@ -190,8 +155,8 @@ def _second_link(q: Path) -> str:
 
 @pytest.mark.parametrize(
     ("rel", "provoke"),
-    [(ANNOTATION_LOG, _second_annotation), (NOTE_LOG, _second_note), (INDEX, _second_session), (LINKS, _second_link)],
-    ids=["annotation", "note", "session", "link"],
+    [(ANNOTATION_LOG, _second_annotation), (INDEX, _second_session), (LINKS, _second_link)],
+    ids=["annotation", "session", "link"],
 )
 def test_lint_reports_two_records_under_one_id(tmp_path: Path, rel: str, provoke: Callable[[Path], str]) -> None:
     """Keeping both sides of a merge conflict leaves two records under one id, which a reply or a link cannot tell apart; nothing said so."""

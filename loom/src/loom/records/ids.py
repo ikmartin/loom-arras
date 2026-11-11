@@ -21,7 +21,6 @@ from pathlib import Path
 DAY = r"\d{4}-\d{2}-\d{2}"
 TOKEN = r"[0-9a-z]+"
 ANNOTATION = rf"a-{DAY}-{TOKEN}"
-NOTE = rf"n-{DAY}-{TOKEN}"
 SESSION = rf"s-{DAY}-{TOKEN}"
 
 #: Crockford's base 32 in lower case: no `i`, `l`, `o` or `u`, so a token survives being read aloud and rarely spells a word.

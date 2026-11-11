@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
-from loom.paths import ANNOTATION_LOG, LINKS, NOTE_LOG, REVIEW_OBSERVATIONS
+from loom.paths import ANNOTATION_LOG, LINKS, REVIEW_OBSERVATIONS
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
@@ -88,6 +88,10 @@ class ResolvedAnnotation:
     work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
     target: str = ""  # the target key now: a whole document's path followed across moves, else the key as written
     in_doc: str | None = None  # the document `in` names now, followed across moves; as written when it is gone
+    # on a PDF page: where it stands now, its words found again on a changed file
+    rects: list[list[float]] | None = None
+    # taken in from a PDF's own annotation that is still in the file as it is now: that annotation's reference
+    hides: str | None = None
 
 
 def is_document_path(result: ScanResult, path: str) -> bool:
@@ -505,6 +509,9 @@ class Records:
                     res.target = a.target_key
                     out.append(res)
                     continue
+                if a.target_key not in result.nodes and (a.page is not None or self._work(result, a, works)):
+                    out.append(self._on_pdf_or_work(result, a, rec, works))
+                    continue
                 # a document named by path is wherever the history's moves have taken it
                 in_doc = (result.current_document(a.in_doc) or a.in_doc) if a.in_doc else None
                 target = a.target_key
@@ -567,6 +574,46 @@ class Records:
         span = locate_offsets(page, a.selector.exact) if page and a.selector and a.selector.exact else None
         return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
 
+    def _work(self, result: ScanResult, a: Annotation, works: dict[str, str]) -> str:
+        """The citekey of the cited work `a`'s target identifies, '' when it names none; looked up once per target."""
+        from loom.refs.identity import identify, parse
+
+        if a.target_key not in works:
+            wid = parse(a.target_key) if not a.target_key.lower().endswith(".pdf") else None
+            works[a.target_key] = next(
+                (
+                    ck
+                    for ck, entry in result.bib.items()
+                    if wid and any((w.scheme, w.value) == (wid.scheme, wid.value) for w in identify(entry))
+                ),
+                "",
+            )
+        return works[a.target_key]
+
+    def _on_pdf_or_work(
+        self, result: ScanResult, a: Annotation, rec: Record, works: dict[str, str]
+    ) -> ResolvedAnnotation:
+        """An annotation on a page of a PDF that records its own place, or on a cited work as a whole.
+
+        On a page, it is detached when the PDF's bytes changed under it and its words are not found again, and stands where they are found when they are (`marks.on_the_pdf_now`); a whole work has nothing to detach from.
+        """
+        from loom.records.marks import artifact_of, on_the_pdf_now, pdf_of
+
+        ck = self._work(result, a, works)
+        if a.page is None:
+            return ResolvedAnnotation(a, rec, None, False, True, ck, target=a.target_key)
+        pdf = pdf_of(result, a.target_key, ck)
+        if pdf is None:
+            return ResolvedAnnotation(a, rec, None, bool(a.artifact), True, ck, target=a.target_key, rects=a.rects)
+        quote = a.selector.exact if a.selector else None
+        detached, moved = on_the_pdf_now(pdf, a.artifact, a.page, quote)
+        ref, sha = (a.origin or {}).get("ref"), (a.origin or {}).get("sha")
+        # the PDF's own annotation it came from is still in the file, so a viewer drawing the file's annotations hides that one
+        hides = str(ref) if ref and pdf.is_file() and sha == artifact_of(pdf) else None
+        return ResolvedAnnotation(
+            a, rec, None, detached, True, ck, target=a.target_key, rects=moved or a.rects, hides=hides
+        )
+
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
@@ -591,7 +638,6 @@ class Records:
             diags.append(Diagnostic("warning", "loom:annotation-types", p, [], subject="record"))
         for rel, events in (
             (ANNOTATION_LOG, ("created", "replied")),
-            (NOTE_LOG, ("noted",)),
             (SESSION_INDEX, ("created",)),
             (LINKS, ()),
         ):
@@ -820,7 +866,9 @@ class Records:
                     "key": res.target,
                     "hash": a.target_hash,
                     "work": res.work or None,
-                    "page": a.anchor.page if a.anchor else None,
+                    "page": a.anchor.page if a.anchor else a.page,
+                    # a project PDF, by its path
+                    "file": a.target_key if a.target_key.lower().endswith(".pdf") else None,
                 },
                 # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9); where the history's moves have taken it, so a viewer draws it on the document as it is now
                 "in": res.in_doc,
@@ -831,10 +879,18 @@ class Records:
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
-                "anchored": (a.selector is not None or a.anchor is not None) and not res.detached and res.recorded,
+                "anchored": (a.selector is not None or a.anchor is not None or bool(a.rects))
+                and not res.detached
+                and res.recorded,
                 "detached": res.detached,
                 "recorded": res.recorded,
                 "quote": a.selector.exact if a.selector else None,
+                # on a PDF page that records its own place: where it stands, its strokes, the tool it was drawn with, and where an import came from
+                "rects": res.rects,
+                "strokes": a.strokes,
+                "mark": a.mark,
+                "origin": a.origin,
+                "hides": res.hides,
                 "payload": a.payload,
                 "placement": a.placement,
                 "resolved_why": a.resolved_why,

@@ -1113,7 +1113,7 @@ article.box.settled { border-left-color: color-mix(in srgb, var(--ann-line) 50%,
 	background: transparent;
 	box-shadow: inset 0 0 0 1.5px var(--ann-line);
 }
-/* Settled, that is resolved: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), it is drawn at 40% of its opacity. A mark the session filter excludes (`hidden`) is not drawn either way. */
+/* Settled, that is resolved: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), it is drawn at 40% of its opacity. A mark in a pane that hides its annotations (`hidden`) is not drawn either way. */
 .annotation.settled {
 	--ann-k: 0;
 	cursor: auto;

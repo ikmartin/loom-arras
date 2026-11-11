@@ -1,13 +1,13 @@
-// What a reader does with marks on one PDF (plan 0.28): which are drawn, which is being looked at, the writes, their undo, and the copy and the taking-in. The surfaces that show a PDF each make one and hand it to `MarkedDoc`; the page components stay dumb and report what the reader did.
+// What a reader does with the annotations on one PDF's pages (plan 0.28): which are drawn as marks, which is being looked at, the writes through `annotate`, `edit` and `delete`, their undo, and the copy and the taking-in. The surfaces that show a PDF each make one and hand it to `MarkedDoc`; the page components stay dumb and report what the reader did.
 //
 // **A mark shows at once.** A write publishes a new manifest only after a moment, and a highlight that appeared a second after the press would read as a press that failed. So what has been written but not yet published is held here and drawn with the rest, and each is let go once the manifest says the same.
 
 import { store } from '$lib/manifest/client.svelte';
-import type { Note } from '$lib/manifest/types';
+import type { Annotation } from '$lib/manifest/types';
 import { prefs } from '$lib/prefs.svelte';
 import { can, write, type WriteResult } from '$lib/write';
 import { document_, pdfjs, sourceOf } from './document';
-import { boundOfStrokes, copyColor, markOf, mergeLines, type MarkColor, type MarkKind, type PageMark } from './marks';
+import { boundOfStrokes, copyColor, markOf, mergeLines, ON_WORDS, type MarkColor, type MarkKind, type PageMark } from './marks';
 import { annotatedCopy, notTheSamePaper, readAnnotations, type Incoming, type Outgoing, type Replaced } from './portable';
 
 type Box = { left: number; top: number; width: number; height: number };
@@ -15,10 +15,12 @@ type Place = Pick<PageMark, 'rects' | 'strokes'>;
 
 /** What a desk works on. A function, since it follows a component's props. */
 export interface Surface {
-	/** What a write names: a shown file's path or a citekey. */
+	/** What a write names: a project PDF's path or a citekey. */
 	on: string;
-	/** Whether a note is on this PDF. */
-	owns: (n: Note) => boolean;
+	/** Whether an annotation is on this PDF's pages. */
+	owns: (a: Annotation) => boolean;
+	/** Whether the marks include the annotations on words: on a project PDF they do; on a cited work's page those are drawn from the sidecar with their boxes, and the marks are the drawings. */
+	words?: boolean;
 	/** Where the PDF is served. */
 	url: string;
 	/** Its name, for a saved copy. */
@@ -59,7 +61,7 @@ export class MarkDesk {
 	said = $state('');
 	/** Whether this viewer's publisher takes the writes. */
 	writes = $state(false);
-	/** How many annotations the PDF holds that no note stands for yet, once counted. */
+	/** How many annotations the PDF holds that no annotation of loom's stands for yet, once counted. */
 	here = $state<number | null>(null);
 	busy = $state(false);
 
@@ -71,22 +73,26 @@ export class MarkDesk {
 	#redo = $state<Step[]>([]);
 	#fresh = 0;
 	#ink: { id: string; page: number; timer: ReturnType<typeof setTimeout> } | null = null;
+	/** What each delete took out of the log, by annotation id, which its undo puts back. Held until the page closes. */
+	#removed: Record<string, Record<string, unknown>[]> = {};
 
 	constructor(surface: () => Surface) {
 		this.#surface = surface;
-		void can('note-change').then((yes) => (this.writes = yes));
+		void can('annotate').then((yes) => (this.writes = yes));
 	}
 
-	/** The notes on this PDF, as published. */
-	#rows = $derived<Note[]>(Object.values(store.manifest?.notes ?? {}).filter((n) => this.#surface().owns(n)));
+	/** The top-level annotations on this PDF's pages, as published. */
+	#rows = $derived<Annotation[]>(Object.values(store.manifest?.annotations ?? {}).filter((a) => !a.in_reply_to && (a.target.page ?? 0) > 0 && this.#surface().owns(a)));
+	/** The ones drawn as marks. */
+	#drawn = $derived<Annotation[]>(this.#rows.filter((a) => !!a.mark || !!this.#surface().words));
 
 	/** What is drawn: the published marks with what is on its way laid over them. */
 	marks = $derived.by<PageMark[]>(() => {
 		const out: PageMark[] = [];
-		for (const n of this.#rows) {
-			if (this.#gone.includes(n.id)) continue;
-			const m = markOf(n);
-			if (m) out.push({ ...m, ...this.#changed[n.id] });
+		for (const a of this.#drawn) {
+			if (this.#gone.includes(a.id)) continue;
+			const m = markOf(a);
+			if (m) out.push({ ...m, ...this.#changed[a.id] });
 		}
 		const have = new Set(out.map((m) => m.id));
 		// the place stays lit while what is said about it is being written
@@ -95,21 +101,21 @@ export class MarkDesk {
 		return [...out, ...this.#pending.filter((m) => !have.has(m.id)), ...lit];
 	});
 
-	/** The annotations in the file that a note stands for, by reference; the pages leave them undrawn. */
-	hides = $derived<string[]>(this.#rows.flatMap((n) => (n.hides ? [n.hides] : [])));
+	/** The annotations in the file that one of loom's stands for, by reference; the pages leave them undrawn. */
+	hides = $derived<string[]>(this.#rows.flatMap((a) => (a.hides ? [a.hides] : [])));
 	canUndo = $derived(this.#undo.length > 0);
 	canRedo = $derived(this.#redo.length > 0);
 
 	/** Let go of what the manifest now says; called whenever it changes. */
 	settle(): void {
-		const rows = this.#rows;
-		const live = new Map(rows.filter((n) => !n.erased).map((n) => [n.id, n]));
+		const live = new Map(this.#rows.map((a) => [a.id, a]));
 		if (this.#pending.some((m) => live.has(m.id))) this.#pending = this.#pending.filter((m) => !live.has(m.id));
 		if (this.#gone.some((id) => !live.has(id))) this.#gone = this.#gone.filter((id) => live.has(id));
 		const changed: Record<string, Partial<PageMark>> = {};
 		for (const [id, over] of Object.entries(this.#changed)) {
 			const row = live.get(id);
-			const same = row && (over.body === undefined || row.body === over.body) && (over.rects === undefined || JSON.stringify(row.rects) === JSON.stringify(over.rects)) && (over.strokes === undefined || JSON.stringify(row.strokes) === JSON.stringify(over.strokes)) && (over.color === undefined || (row.color ?? '') === over.color);
+			const now = row ? markOf(row) : null;
+			const same = now && (over.body === undefined || now.body === over.body) && (over.rects === undefined || JSON.stringify(now.rects) === JSON.stringify(over.rects)) && (over.strokes === undefined || JSON.stringify(now.strokes) === JSON.stringify(over.strokes)) && (over.color === undefined || now.color === (over.color || 'grey'));
 			if (row && !same) changed[id] = over;
 		}
 		if (Object.keys(changed).length !== Object.keys(this.#changed).length) this.#changed = changed;
@@ -134,36 +140,47 @@ export class MarkDesk {
 	async #write(kind: MarkKind, page: number, place: Place, { body = '', quote, color = prefs.markColor }: { body?: string; quote?: string; color?: MarkColor | '' } = {}): Promise<string> {
 		const fresh = `pending-${++this.#fresh}`;
 		this.#pending = [...this.#pending, { id: fresh, page, kind, ...place, body, quote, color }];
-		const res = await write('note', { target: this.#surface().on, page, mark: kind, ...place, ...(body ? { body } : {}), ...(quote ? { quote } : {}), ...(color ? { color } : {}) });
+		// one on words is drawn by its look's style, a drawing by its tool
+		const words = ON_WORDS.includes(kind);
+		const look = { ...(color ? { color } : {}), ...(words ? { style: kind } : {}) };
+		const res = await write('annotate', { target: this.#surface().on, page, ...(words ? {} : { mark: kind }), ...place, ...(body ? { message: body } : {}), ...(quote ? { quote } : {}), ...(Object.keys(look).length ? { look } : {}) });
 		if (!this.#done(res)) {
 			this.#pending = this.#pending.filter((m) => m.id !== fresh);
 			return '';
 		}
-		const id = String((res as WriteResult & { note?: string }).note);
+		const id = (res.result ?? '').split(/\s+/)[0];
 		this.#pending = this.#pending.map((m) => (m.id === fresh ? { ...m, id } : m));
 		if (this.selected === fresh) this.selected = id;
 		this.#step({
-			undo: () => this.#erase(id),
+			undo: () => this.#delete(id),
 			redo: () => this.#restore(id)
 		});
 		return id;
 	}
 
-	async #erase(id: string): Promise<void> {
+	async #delete(id: string): Promise<void> {
 		this.#gone = [...this.#gone, id];
 		if (this.selected === id) this.selected = '';
-		if (!this.#done(await write('note-erase', { note: id }))) this.#gone = this.#gone.filter((g) => g !== id);
+		const res = await write('delete', { annotation: id });
+		if (!this.#done(res)) {
+			this.#gone = this.#gone.filter((g) => g !== id);
+			return;
+		}
+		this.#removed[id] = res.removed ?? [];
 	}
 
 	async #restore(id: string): Promise<void> {
+		const events = this.#removed[id];
+		if (!events?.length) return;
 		this.#gone = this.#gone.filter((g) => g !== id);
-		this.#done(await write('note-restore', { note: id }));
+		if (this.#done(await write('restore', { events }))) delete this.#removed[id];
 	}
 
 	async #change(id: string, over: Partial<PageMark>): Promise<void> {
 		this.#changed = { ...this.#changed, [id]: { ...this.#changed[id], ...over } };
 		this.#pending = this.#pending.map((m) => (m.id === id ? { ...m, ...over } : m));
-		if (!this.#done(await write('note-change', { note: id, ...over }))) {
+		const edit = { ...(over.body !== undefined ? { message: over.body } : {}), ...(over.rects ? { rects: over.rects } : {}), ...(over.strokes ? { strokes: over.strokes } : {}), ...(over.color !== undefined ? { look: { color: over.color || 'grey' } } : {}) };
+		if (!this.#done(await write('edit', { annotation: id, ...edit }))) {
 			const { [id]: _, ...rest } = this.#changed;
 			this.#changed = rest;
 		}
@@ -268,10 +285,10 @@ export class MarkDesk {
 		this.#step({ undo: () => this.#change(e.id, was), redo: () => this.#change(e.id, now) });
 	}
 
-	/** Take a mark off the page. */
+	/** Take a mark off the page: delete its annotation, which undo puts back. */
 	erase(id: string): void {
-		void this.#erase(id);
-		this.#step({ undo: () => this.#restore(id), redo: () => this.#erase(id) });
+		void this.#delete(id);
+		this.#step({ undo: () => this.#restore(id), redo: () => this.#delete(id) });
 	}
 
 	async undo(): Promise<void> {
@@ -308,20 +325,20 @@ export class MarkDesk {
 		}
 	}
 
-	/** Every mark and placed note as a saved copy holds it, and how many notes on the pages have no place there. */
+	/** Every mark as a saved copy holds it, and how many have no place on a page any more. */
 	#outgoing(): { marks: Outgoing[]; left: number } {
 		const marks: Outgoing[] = [];
 		let left = 0;
-		for (const n of this.#rows) {
-			if (n.erased || !n.page) continue;
-			const m = this.#gone.includes(n.id) ? null : markOf(n);
+		for (const a of this.#drawn) {
+			if (this.#gone.includes(a.id)) continue;
+			const m = markOf(a);
 			if (!m) {
-				if (!n.faded && !this.#gone.includes(n.id)) left++;
+				left++;
 				continue;
 			}
-			const over = this.#changed[n.id];
-			const color = copyColor(m.kind, over?.color ?? m.color, n.origin?.color);
-			marks.push({ page: m.page, kind: m.kind, rects: over?.rects ?? m.rects, strokes: over?.strokes ?? m.strokes, body: over?.body ?? m.body, by: n.origin?.by ?? n.author?.id ?? '', ...(color ? { color } : {}) });
+			const over = this.#changed[a.id];
+			const color = copyColor(m.kind, over?.color ?? m.color, a.origin?.color);
+			marks.push({ page: m.page, kind: m.kind, rects: over?.rects ?? m.rects, strokes: over?.strokes ?? m.strokes, body: over?.body ?? m.body, by: a.origin?.by ?? a.author?.id ?? '', ...(color ? { color } : {}) });
 		}
 		for (const m of this.#pending) {
 			const color = copyColor(m.kind, m.color);
@@ -330,9 +347,9 @@ export class MarkDesk {
 		return { marks: [...marks, ...(this.#surface().extras?.() ?? [])], left };
 	}
 
-	/** The annotations in the file to leave out of a copy, since a note stands for each. */
+	/** The annotations in the file to leave out of a copy, since one of loom's stands for each. */
 	#replaced(): Replaced[] {
-		return this.#rows.flatMap((n) => (n.hides && n.page ? [{ page: n.page, ref: n.hides }] : []));
+		return this.#rows.flatMap((a) => (a.hides && a.target.page ? [{ page: a.target.page, ref: a.hides }] : []));
 	}
 
 	/** What a page edit writes into its new file. */
@@ -351,7 +368,7 @@ export class MarkDesk {
 			const { bytes, written, left: unplaced } = await annotatedCopy(lib, sourceOf(this.#surface().url), marks, this.#replaced());
 			download(bytes, this.#surface().name.replace(/\.pdf$/i, '') + '-annotated.pdf');
 			const out = left + unplaced;
-			this.said = `Saved a copy with ${written} ${written === 1 ? 'annotation' : 'annotations'}${out ? `; ${out} ${out === 1 ? 'note has' : 'notes have'} no place on a page and ${out === 1 ? 'was' : 'were'} left out` : ''}.`;
+			this.said = `Saved a copy with ${written} ${written === 1 ? 'annotation' : 'annotations'}${out ? `; ${out} ${out === 1 ? 'has' : 'have'} no place on a page and ${out === 1 ? 'was' : 'were'} left out` : ''}.`;
 		} catch (exc) {
 			this.said = `Could not save a copy: ${exc instanceof Error ? exc.message : String(exc)}`;
 		} finally {
@@ -359,7 +376,7 @@ export class MarkDesk {
 		}
 	}
 
-	/** Count the annotations in the PDF being read that no note stands for. */
+	/** Count the annotations in the PDF being read that none of loom's stands for. */
 	async countHere(): Promise<void> {
 		try {
 			const { items } = await readAnnotations(await document_(this.#surface().url), true);
@@ -374,7 +391,7 @@ export class MarkDesk {
 			this.said = skipped ? `That PDF holds nothing a mark can hold (${skipped} left).` : 'That PDF holds no annotations.';
 			return;
 		}
-		const res = (await write('notes-take', { target: this.#surface().on, items })) as WriteResult & { taken?: number; already?: number; skipped?: number };
+		const res = (await write('annotations-take', { target: this.#surface().on, items })) as WriteResult & { taken?: number; already?: number; skipped?: number };
 		if (!this.#done(res)) return;
 		const left = skipped + (res.skipped ?? 0);
 		this.said = `Took in ${res.taken ?? 0}${res.already ? `; ${res.already} ${res.already === 1 ? 'was' : 'were'} here already` : ''}${left ? `; ${left} could not be held` : ''}.`;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
 	//
-	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
+	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. One drawn with a tool (`mark`) is the desk's (`desk.svelte.ts`), drawn as a mark; every other is drawn here from the sidecar, with its box. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
 	//
 	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	//
@@ -29,7 +29,6 @@
 	import type { Outgoing } from './portable';
 	import NoteAt from './NoteAt.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
-	import { quote } from '$lib/notes';
 	import { clearPending, showPending } from '$lib/fragments/pending';
 	import { onDestroy } from 'svelte';
 	import { here } from '$lib/here.svelte';
@@ -48,7 +47,7 @@
 		page: number;
 		/** Changed each time a link sends the reader to a place, so being sent again lands again; 0 where no link names one. */
 		seq?: number;
-		/** A place the URL points at: `span`, `box`, `quote` are lit transiently; `annot` focuses a note's mark. */
+		/** A place the URL points at: `span`, `box`, `quote` are lit transiently; `annot` focuses an annotation's mark. */
 		locator?: WorkLink | null;
 		/** The reader's view, which the controls drawn beside the paper act on and which outlives this component. */
 		view: PdfView;
@@ -57,7 +56,7 @@
 	} = $props();
 
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
-	const desk = new MarkDesk(() => ({ on: citekey, owns: (n) => n.target.citekey === citekey, url, name: `${citekey}.pdf`, extras: annotationsToSave }));
+	const desk = new MarkDesk(() => ({ on: citekey, owns: (a) => a.target.work === citekey, url, name: `${citekey}.pdf`, extras: annotationsToSave }));
 
 	/** The open annotations on this work's pages, as a saved copy holds them: each in its own style and colour as theme.css draws them in the light, the band for a highlight and the line otherwise, with its type's name before its words. */
 	function annotationsToSave(): Outgoing[] {
@@ -82,10 +81,10 @@
 	});
 	let spans = $state<Sidecar | null>(null);
 	let active = $state('');
-	/** The place a note is being written against, while the composer is open. */
+	/** The place an annotation is being written against, while the composer is open. */
 	let noting = $state<{ page: number; text?: string; rects?: number[][]; at: { left: number; top: number; width: number; height: number } } | null>(null);
 	/**
-	 * A selection waiting to be made into a note, if the reader wants one.
+	 * A selection waiting to be made into an annotation, if the reader wants one.
 	 *
 	 * **Selecting text is not a request to annotate it.** The composer used to open on every mouse-up, which meant the ordinary thing a reader does with a paper — highlight a phrase and copy it — was impossible without a form appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the box tool has no such ambiguity and still opens the composer directly.
 	 */
@@ -121,10 +120,10 @@
 		boxes?.refresh();
 	});
 
-	/** The annotations on this work's pages, top-level; a resolved one is drawn as settled. */
+	/** The annotations on this work's pages, top-level and not drawn with a tool; a resolved one is drawn as settled. */
 	const notes = $derived(
 		Object.values(store.manifest?.annotations ?? {}).filter(
-			(a) => a.target.work === citekey && a.in_reply_to === null && (a.target.page ?? 0) > 0
+			(a) => a.target.work === citekey && a.in_reply_to === null && (a.target.page ?? 0) > 0 && !a.mark
 		)
 	);
 	/** The place the URL points at, mapped by loom into rectangles, while the URL carries it. */
@@ -181,7 +180,7 @@
 		}
 		out.push(...stacked.values());
 		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });
-		// a box drawn for a note stays drawn while the note is written
+		// a box drawn for an annotation stays drawn while it is written
 		if (noting?.rects) out.push({ id: '_noting', page: noting.page, rects: noting.rects, transient: true });
 		return out;
 	});
@@ -222,7 +221,7 @@
 	});
 
 
-	// A link to a note on this work arrives with its box open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
+	// A link to an annotation on this work arrives with its box open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
 	let openedFor = '';
 	$effect(() => {
 		const id = locator?.annot;
@@ -248,7 +247,7 @@
 		active = e.id;
 		if (e.note) ui.activeAnnotation = e.id;
 		if (e.travel) {
-			// a note travels to where it is listed: its session's record of it, or its card (a result takes no pointer, so only a note arrives here)
+			// an annotation travels to its box wherever one stands (a result takes no pointer, so only an annotation arrives here)
 			goTo(document.querySelector(`[id="ann-${CSS.escape(e.id)}"]`), e.el);
 			return;
 		}
@@ -304,7 +303,6 @@
 				noting = { page: offered.page, text: offered.text, at: offered.at };
 				offered = null;
 			}}
-			onquote={() => (offered ? quote({ target: citekey, page: offered.page, quote: offered.text, rects: offered.lines }) : Promise.resolve(''))}
 			onhighlight={desk.writes
 				? () => {
 						if (!offered) return;
@@ -313,10 +311,6 @@
 						window.getSelection()?.removeAllRanges();
 					}
 				: undefined}
-			ondone={() => {
-				offered = null;
-				window.getSelection()?.removeAllRanges();
-			}}
 		/>
 	{/if}
 	{#if noting}

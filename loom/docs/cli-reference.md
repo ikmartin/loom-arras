@@ -224,21 +224,23 @@ THING is a node or any key in it, a document's path, an annotation id, a session
 
 ## Review
 
-Annotate, note, accept, keep or undo what changed, and see what rests on what.
+Annotate, accept, keep or undo what changed, and see what rests on what.
 
 ### `loom annotate`
 
 `loom annotate [OPTIONS] [TARGET] [MESSAGE]`
 
-Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.
+Write an annotation on TARGET: a key, an equation's qualified key, a master path, a cited work, or a project PDF; a MESSAGE of `-` is read from stdin.
 
-An annotation carries its author, its time and the version of the text it was written on, and belongs to no session. A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it); it lands in the same log as every other annotation, and `loom status --reading` lists it.
+An annotation carries its author, its time and the version of the text it was written on, and belongs to no session. One on a cited work with no --page is on the whole work. One on a page of a PDF -- a cited work by citekey or identifier, or a project PDF by its path -- names the page with --page and the place with --quote (words on it), --box (a rectangle) or --stroke (ink), drawn with a --mark tool where it is not on words; `loom status --reading` lists those on cited works.
 
 | option | description |
 |---|---|
 | `--quote` | Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page. |
-| `--page` `N` | A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box. |
-| `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. |
+| `--page` `N` | Page N of a PDF: a cited work (TARGET a citekey or a work identifier) or a project PDF by its path; with --quote, --box or --stroke. |
+| `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. With --edit, where a drawn one stands now. |
+| `--stroke` `X,Y,X,Y,…` | A line of ink or an arrow on the page, in points from its top left; repeat for more lines. With --edit, its lines now. |
+| `--mark` | Draw it on the PDF page with this tool: a pin or words on the page in the --box, a box or an oval round it, ink or an arrow along each --stroke. |
 | `--type` `TYPE` | The annotation's type, by id or name, from the quilt's annotation types; default none. With --edit, '' takes it off. |
 | `--color` | Its colour, over its type's. |
 | `--style` | How it is drawn on words, over its type's. |
@@ -256,32 +258,6 @@ An annotation carries its author, its time and the version of the text it was wr
 | `--applied` | With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--dry-run` | Say what would be written, and write nothing. |
-| `--json` | Print the report as one JSON object. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom note`
-
-`loom note [OPTIONS] [TEXT]`
-
-Write a note on THING, quoting words there or naming a region, or keep one.
-
-A note has no kind, severity or resolution: it says what someone wants kept beside a thing, and a quote is a note with the words it quotes. It fades from view after 14 days unless it is kept or something durable links to it -- an annotation, a message, the research state, a kept note -- and is never deleted. An agent reads a person's notes with `loom since`.
-
-| option | description |
-|---|---|
-| `--on` `THING` | What it is on: a key, a document, a cited work's citekey (the whole work, or one page of it with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session. |
-| `--quote` | The words it quotes there. |
-| `--page` | The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work. |
-| `--box` `X,Y,W,H` | A region of the page or image, in points from its top left. |
-| `--mark` | Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades. |
-| `--stroke` `X,Y,X,Y,…` | A line of ink or an arrow, in points from the page's top left; repeat for more lines. |
-| `--color` | The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's. |
-| `--keep` `ID` | Keep note ID, so it never fades. |
-| `--edit` `ID` | Say TEXT in note ID instead. An agent changes only its own. |
-| `--erase` `ID` | Erase note ID. The log keeps it. An agent erases only its own. |
-| `--restore` `ID` | Put erased note ID back. |
-| `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
-| `--as` | Who is writing. An agent names itself, including Agent or AI. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -963,7 +939,7 @@ Make WHICH the active session, resuming it when it was closed. WHICH is an id, a
 
 `loom here [OPTIONS]`
 
-Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.
+Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.
 
 The viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.
 

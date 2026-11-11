@@ -9,6 +9,6 @@ export interface Sidecar {
 	pages: Record<string, { width: number; height: number; rotate: number }>;
 	/** The work's results, by result id: one rectangle per line. */
 	quads: Record<string, number[][]>;
-	/** The notes on its pages, by annotation id: one rectangle per line, or the rectangle that was drawn. */
+	/** The annotations on its pages, by id: one rectangle per line, or the rectangle that was drawn. */
 	marks?: Record<string, number[][]>;
 }

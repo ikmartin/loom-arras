@@ -22,7 +22,7 @@ class Annotation:
     author_kind: str  # agent | person: who wrote it, which is not where it belongs (plan 0.13 §5)
     author_id: str
     created: str
-    target_key: str  # a key in the quilt, or -- for a note on a page of a cited work -- the work's identifier
+    target_key: str  # a key, a cited work's identifier (on one of its pages or the whole work), or a project PDF's path
     target_hash: str
     selector: Selector | None  # the text triple: what was quoted, and the words either side
     type: str | None  # the id of its type in the quilt's types, or None: a type is only a label
@@ -46,6 +46,13 @@ class Annotation:
     resolved_why: str | None = None
     #: A suggestion resolved as applied: `{hash}`, its key's text once the suggestion was taken.
     applied: dict[str, Any] | None = None
+    #: On a PDF page without a page anchor (`records/marks.py`): the page, its place and strokes in points from the page's top left, the drawing tool, the PDF's hash and where an import came from.
+    page: int | None = None
+    rects: list[list[float]] | None = None
+    strokes: list[list[float]] | None = None
+    mark: str | None = None
+    artifact: str | None = None
+    origin: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -66,6 +73,11 @@ class Annotation:
             "placement": self.placement,
             "resolved_why": self.resolved_why,
             "applied": self.applied,
+            **{
+                k: getattr(self, k)
+                for k in ("page", "rects", "strokes", "mark", "artifact", "origin")
+                if getattr(self, k) is not None
+            },
         }
 
     @classmethod
@@ -92,6 +104,12 @@ class Annotation:
             placement=d.get("placement"),
             resolved_why=d.get("resolved_why"),
             applied=d.get("applied") if isinstance(d.get("applied"), dict) else None,
+            page=d.get("page") if isinstance(d.get("page"), int) else None,
+            rects=d.get("rects") if isinstance(d.get("rects"), list) else None,
+            strokes=d.get("strokes") if isinstance(d.get("strokes"), list) else None,
+            mark=d.get("mark") or None,
+            artifact=d.get("artifact") or None,
+            origin=d.get("origin") if isinstance(d.get("origin"), dict) else None,
         )
 
 

@@ -26,14 +26,13 @@ def test_an_agent_that_has_not_said_who_it_is_is_refused_rather_than_guessed_at(
 
 
 def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tmp_path: Path) -> None:
-    """`loom annotate` and `loom note` recorded such a write as `agent` while `loom new` and `loom session say` refused it; now all of them ask, and the refusal names what the app goes by."""
+    """`loom annotate` recorded such a write as `agent` while `loom new` and `loom session say` refused it; now all of them ask, and the refusal names what the app goes by."""
     q = demo(tmp_path)
     log = q / ".loom/annotations" / "log.jsonl"
     before = log.read_text()
     for act in (
         ["annotate", "dm-0002", "A finding.", "--type", "note"],
         ["annotate", "dm-0002", "A finding.", "--type", "note", "--dry-run"],
-        ["note", "Worth keeping.", "--on", "dm-0002"],
         ["session", "say", "Said."],
         ["new", "lemma"],
         ["since"],
@@ -64,7 +63,6 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
     for name in ("Claude", "Claude Haiku 5.5", "A. Author"):
         for act in (
             ["annotate", "dm-0002", "A finding.", "--type", "note"],
-            ["note", "Worth keeping.", "--on", "dm-0002"],
             ["session", "say", "Said."],
             ["session", "new", "--name", "A sitting"],
             ["since"],
@@ -84,10 +82,9 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
         ):
             refused(*act, "--as", name, cwd=q, env=marked, code=2, match=f"{name} does not say it is an agent")
     refused(
-        "note",
-        "Worth keeping.",
-        "--on",
+        "annotate",
         "dm-0002",
+        "Worth keeping.",
         "--as",
         "Claude",
         cwd=q,

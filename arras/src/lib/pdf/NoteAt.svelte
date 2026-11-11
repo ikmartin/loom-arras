@@ -7,12 +7,9 @@
 	import { onMount } from 'svelte';
 	import { write, type WriteResult } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
-	import NoSession from '$lib/sessions/NoSession.svelte';
-	import { writable } from '$lib/sessions/sessions.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
 	import { colorOf } from '$lib/review/annotationTypes';
 	import type { Look } from '$lib/manifest/types';
-	import { quote } from '$lib/notes';
 
 	let {
 		citekey = '',
@@ -56,8 +53,6 @@
 	let said = $state('');
 	/** A quote loom could not find: the offer is to annotate the whole place instead. */
 	let unanchored = $state(false);
-	// An annotation names no session; quoting writes a note, which needs an open session selected (plan 0.13.1).
-	const why = $derived(writable(store.manifest));
 	const types = $derived(store.manifest?.annotation_types ?? []);
 	const chosen = $derived(types.find((t) => t.id === type));
 	/** Loom refuses an annotation of a type that stays open without words saying what is to be done. */
@@ -120,23 +115,6 @@
 		onwritten?.({ id });
 	}
 
-	/** A note in place of an annotation: the place quoted, what was typed as its words, no type (plan 0.22.8). */
-	async function quoting(): Promise<void> {
-		if (why || busy) return;
-		busy = true;
-		said = '';
-		const place = target
-			? { target, ...(text ? { quote: text } : {}) }
-			: { target: citekey, page, ...(rects ? { rects } : { quote: text }) };
-		const refused = await quote({ ...place, body: message.trim() || undefined });
-		busy = false;
-		if (refused) {
-			said = refused;
-			return;
-		}
-		onwritten?.({ id: '' });
-	}
-
 	function keys(e: KeyboardEvent): void {
 		if (e.key === 'Escape') {
 			e.preventDefault();
@@ -173,7 +151,6 @@
 		<button type="button" class="k" class:on={type === ''} aria-pressed={type === ''} data-type="" onclick={() => (type = '')}>No type</button>
 	</div>
 	<div class="foot">
-		<button type="button" class="as-link quote" disabled={!!why || busy} title="A note quoting this place, with no type: an agent reads it with loom since" data-testid="note-quote-it" onclick={quoting}>quote it</button>
 		<button type="submit" class="go" disabled={busy || wordless} title={wordless ? `${chosen?.name} stays open until resolved, so it needs words` : undefined} data-testid="note-submit">{busy ? 'writing…' : 'Annotate'}</button>
 	</div>
 	{#if said}
@@ -182,7 +159,6 @@
 			{#if unanchored}<button type="button" class="as-link" data-testid="note-whole" onclick={(e) => submit(e as unknown as SubmitEvent, true)}>annotate the whole of {name || target}</button>{/if}
 		</p>
 	{/if}
-	<NoSession />
 </form>
 
 <style>
@@ -284,7 +260,7 @@
 	.k.on { background: var(--k-wash); }
 	.foot {
 		display: flex;
-		justify-content: space-between;
+		justify-content: flex-end;
 		align-items: center;
 		gap: 9.6px;
 		flex-wrap: wrap;

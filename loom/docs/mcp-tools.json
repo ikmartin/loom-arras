@@ -152,7 +152,7 @@
    "read_only_hint": false
   },
   "command": "loom annotate",
-  "description": "Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.\n\nAn annotation carries its author, its time and the version of the text it was written on, and belongs to no session. A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it); it lands in the same log as every other annotation, and `loom status --reading` lists it.",
+  "description": "Write an annotation on TARGET: a key, an equation's qualified key, a master path, a cited work, or a project PDF; a MESSAGE of `-` is read from stdin.\n\nAn annotation carries its author, its time and the version of the text it was written on, and belongs to no session. One on a cited work with no --page is on the whole work. One on a page of a PDF -- a cited work by citekey or identifier, or a project PDF by its path -- names the page with --page and the place with --quote (words on it), --box (a rectangle) or --stroke (ink), drawn with a --mark tool where it is not on words; `loom status --reading` lists those on cited works.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -161,7 +161,7 @@
      "type": "boolean"
     },
     "box": {
-     "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
+     "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. With --edit, where a drawn one stands now.",
      "type": "string"
     },
     "color": {
@@ -199,6 +199,18 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
+    "mark": {
+     "description": "Draw it on the PDF page with this tool: a pin or words on the page in the --box, a box or an oval round it, ink or an arrow along each --stroke.",
+     "enum": [
+      "pin",
+      "ink",
+      "text",
+      "box",
+      "oval",
+      "arrow"
+     ],
+     "type": "string"
+    },
     "message": {
      "type": "string"
     },
@@ -208,7 +220,7 @@
      "type": "integer"
     },
     "page": {
-     "description": "A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
+     "description": "Page N of a PDF: a cited work (TARGET a citekey or a work identifier) or a project PDF by its path; with --quote, --box or --stroke.",
      "type": "integer"
     },
     "payload": {
@@ -235,6 +247,13 @@
     "resolve": {
      "description": "Mark annotation ID resolved, with the message as why.",
      "type": "string"
+    },
+    "stroke": {
+     "description": "A line of ink or an arrow on the page, in points from its top left; repeat for more lines. With --edit, its lines now.",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
     },
     "style": {
      "description": "How it is drawn on words, over its type's.",
@@ -518,7 +537,7 @@
    "read_only_hint": true
   },
   "command": "loom here",
-  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
+  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1226,100 +1245,6 @@
    "type": "object"
   },
   "name": "loom_new"
- },
- {
-  "annotations": {
-   "destructive_hint": false,
-   "idempotent_hint": false,
-   "open_world_hint": false,
-   "read_only_hint": false
-  },
-  "command": "loom note",
-  "description": "Write a note on THING, quoting words there or naming a region, or keep one.\n\nA note has no kind, severity or resolution: it says what someone wants kept beside a thing, and a quote is a note with the words it quotes. It fades from view after 14 days unless it is kept or something durable links to it -- an annotation, a message, the research state, a kept note -- and is never deleted. An agent reads a person's notes with `loom since`.",
-  "inputSchema": {
-   "additionalProperties": false,
-   "properties": {
-    "box": {
-     "description": "A region of the page or image, in points from its top left.",
-     "type": "string"
-    },
-    "color": {
-     "description": "The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's.",
-     "enum": [
-      "none",
-      "yellow",
-      "green",
-      "blue",
-      "pink",
-      "purple"
-     ],
-     "type": "string"
-    },
-    "edit": {
-     "description": "Say TEXT in note ID instead. An agent changes only its own.",
-     "type": "string"
-    },
-    "erase": {
-     "description": "Erase note ID. The log keeps it. An agent erases only its own.",
-     "type": "string"
-    },
-    "json": {
-     "description": "Print the report as one JSON object.",
-     "type": "boolean"
-    },
-    "keep": {
-     "description": "Keep note ID, so it never fades.",
-     "type": "string"
-    },
-    "mark": {
-     "description": "Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades.",
-     "enum": [
-      "highlight",
-      "underline",
-      "strike",
-      "pin",
-      "ink",
-      "text",
-      "box",
-      "oval",
-      "arrow"
-     ],
-     "type": "string"
-    },
-    "on": {
-     "description": "What it is on: a key, a document, a cited work's citekey (the whole work, or one page of it with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session.",
-     "type": "string"
-    },
-    "page": {
-     "description": "The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work.",
-     "type": "integer"
-    },
-    "quote": {
-     "description": "The words it quotes there.",
-     "type": "string"
-    },
-    "restore": {
-     "description": "Put erased note ID back.",
-     "type": "string"
-    },
-    "session": {
-     "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
-     "type": "string"
-    },
-    "stroke": {
-     "description": "A line of ink or an arrow, in points from the page's top left; repeat for more lines.",
-     "items": {
-      "type": "string"
-     },
-     "type": "array"
-    },
-    "text": {
-     "type": "string"
-    }
-   },
-   "type": "object"
-  },
-  "name": "loom_note"
  },
  {
   "annotations": {

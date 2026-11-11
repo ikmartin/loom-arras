@@ -172,6 +172,12 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         in_reply_to=event.get("reply_to"),
         payload=event.get("payload"),
         placement=event.get("placement"),
+        page=event["page"] if isinstance(event.get("page"), int) and not isinstance(event.get("page"), bool) else None,
+        rects=event["rects"] if isinstance(event.get("rects"), list) else None,
+        strokes=event["strokes"] if isinstance(event.get("strokes"), list) else None,
+        mark=str(event["mark"]) if event.get("mark") else None,
+        artifact=str(event["artifact"]) if event.get("artifact") else None,
+        origin=dict(event["origin"]) if isinstance(event.get("origin"), dict) else None,
     )
 
 
@@ -230,6 +236,10 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
         if kind == "edited":
             for f in ("body", "payload", "placement"):
                 if f in event:
+                    setattr(ann, f, event[f])
+            # moved or redrawn on its page: strokes carry their rectangle with them
+            for f in ("rects", "strokes"):
+                if isinstance(event.get(f), list):
                     setattr(ann, f, event[f])
             # restyled or retyped: the type it now has, the look set on it, and the look it is drawn with once its type is gone
             if "type" in event:

@@ -5,7 +5,7 @@
 // One capture-phase listener for the whole viewer, so no renderer decides for itself and a link the router would otherwise follow is answered before it does.
 
 import { goto } from '$app/navigation';
-import type { Manifest, Note } from '$lib/manifest/types';
+import type { Manifest } from '$lib/manifest/types';
 import { pdf } from '$lib/pdf.svelte';
 import { sessionView } from '$lib/sessions/sessions.svelte';
 import { isWorkLink, locate, parseWorkLink, resultPlace } from '$lib/worklink';
@@ -64,8 +64,6 @@ export function itemForQuilt(m: Manifest, body: string): Item | null {
 	if (!key) return null;
 	const note = m.annotations[key];
 	if (note) return noteItem(m, threadOf(m, note.id), note.target);
-	const noted = m.notes?.[key];
-	if (noted) return notedItem(m, noted);
 	if ((m.sessions ?? []).some((s) => s.id === key) || m.threads[key]) return { kind: 'session', id: key };
 	if (key === 'state' && m.research_state) return { kind: 'page', id: 'state' };
 	if (isDocument(m, key)) return { kind: 'document', id: key, ...(place ? { anchor: anchorId(place) } : {}) };
@@ -112,16 +110,6 @@ export function paperAt(m: Manifest, key: string): Item | null {
 	return at ? { kind: 'work', id: at.citekey, place: { page: at.page, result: at.result } } : null;
 }
 
-/** Where a note is read (plan 0.22.8): what it is on, at its page or its key; a message's or a session's opens the transcript. */
-function notedItem(m: Manifest, n: Note): Item | null {
-	const t = n.target;
-	if (t.file) return { kind: 'file', id: t.file, ...(n.page ? { anchor: `page=${n.page}` } : {}), ...(n.mark ? { note: n.id } : {}) };
-	if (t.citekey) return n.page ? { kind: 'work', id: t.citekey, place: { page: n.page, ...(n.mark ? { annot: n.id } : {}) } } : { kind: 'work', id: t.citekey, view: 'info' };
-	if (t.message) return { kind: 'session', id: t.message.session };
-	if (t.session) return { kind: 'session', id: t.session };
-	return t.key ? itemForQuilt(m, t.key) : null;
-}
-
 /** The note a reply answers, and so on up: a box opens on a thread, by the note that began it. */
 function threadOf(m: Manifest, id: string): string {
 	const seen = new Set<string>();
@@ -135,10 +123,11 @@ function threadOf(m: Manifest, id: string): string {
 	return at;
 }
 
-/** Where an annotation is read: its target, with the annotation to open there. A box round an equation is filed under the region's key (`KEY#label`), and is read in the node that holds it. */
-function noteItem(m: Manifest, id: string, target: { key: string; page?: number | null }): Item | null {
+/** Where an annotation is read: its target, with the annotation to open there. One on a project PDF opens the file at its page; one on a cited work its page, or the work's Info for one on the whole work. A box round an equation is filed under the region's key (`KEY#label`), and is read in the node that holds it. */
+function noteItem(m: Manifest, id: string, target: { key: string; page?: number | null; file?: string | null }): Item | null {
+	if (target.file) return { kind: 'file', id: target.file, ...(target.page ? { anchor: `page=${target.page}` } : {}), note: id };
 	const work = Object.values(m.references).find((r) => r.work === target.key || r.works?.includes(target.key));
-	if (work) return { kind: 'work', id: work.citekey, place: { page: target.page ?? 1, annot: id } };
+	if (work) return target.page ? { kind: 'work', id: work.citekey, place: { page: target.page, annot: id } } : { kind: 'work', id: work.citekey, view: 'info' };
 	if (isDocument(m, target.key)) return { kind: 'document', id: target.key, note: id };
 	// a note on a cited result is on loom's record of it, so it opens there rather than on the paper
 	const key = m.regions?.[target.key]?.container ?? target.key;

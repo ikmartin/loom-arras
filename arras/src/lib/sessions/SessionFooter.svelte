@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The column's footer (plan 0.13.3 S5–S8): the session notes, quotes and questions to an agent go into, pinned outside the column's scroll so a reader never goes looking for it, and the only thing that says so, since reading a session's transcript chooses nothing. It carries only the state — a dot, "writing in" and the session's name — and opens the picker; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
+	// The column's footer (plan 0.13.3 S5–S8): the session a write that names one goes into, pinned outside the column's scroll so a reader never goes looking for it, and the only thing that says so, since reading a session's transcript chooses nothing. It carries only the state — a dot, "writing in" and the session's name — and opens the picker; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
 	//
 	// Its tone is `writable()`'s answer, which concerns those writes only: annotations, review decisions and incorporating a pull name no session, so an amber footer never means nothing can be written.
 	import Popover from '$lib/components/Popover.svelte';

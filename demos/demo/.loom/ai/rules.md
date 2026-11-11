@@ -116,7 +116,6 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom lint`
   - `loom mcp`
   - `loom new`
-  - `loom note`
   - `loom search`
   - `loom serve`
   - `loom session list`

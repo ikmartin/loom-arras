@@ -104,11 +104,10 @@ def build_threads(root: Path, result: ScanResult | None = None) -> dict[str, Any
 
 
 def last_active(root: Path, sid: str, manifest: dict[str, Any]) -> str:
-    """When session `sid` was last written in: the newest of its logged commands, the notes written in it, and its transcript's last message; '' when nothing was. Read from the manifest as built, and the transcript's end."""
+    """When session `sid` was last written in: the newest of its logged commands and its transcript's last message; '' when nothing was. Read from the manifest as built, and the transcript's end."""
     from loom.mailbox import last_event
 
     times = [e["time"] for e in (manifest.get("threads", {}).get(sid) or {}).get("log", [])]
-    times += [n.get("when") or "" for n in (manifest.get("notes") or {}).values() if n.get("session") == sid]
     said = last_event(root, sid)
     if said is not None:
         times.append(said.when)

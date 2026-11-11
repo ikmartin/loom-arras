@@ -72,10 +72,10 @@
 		onlink?: (e: { page: number }) => void;
 		/** The reader moved the paper by their own hand, as opposed to its being sent somewhere; `away` once the page it was last sent to has left the view. */
 		onmoved?: (e: { away: boolean }) => void;
-		/** The notes drawn on the pages, by the page each is on. */
+		/** The marks drawn on the pages, by the page each is on. */
 		marks?: PageMark[];
 		selected?: string;
-		/** Annotations in the PDF that a note stands for, by reference, on every page. */
+		/** Annotations in the PDF that one of loom's stands for, by reference, on every page. */
 		hide?: string[];
 		ondraw?: ComponentProps<typeof PdfPage>['ondraw'];
 		onpick?: ComponentProps<typeof PdfPage>['onpick'];
@@ -99,7 +99,7 @@
 		return Math.min(3, Math.max(0.5, (columnWidth - PAGE_GUTTER) / w));
 	});
 
-	/** Where the text of the paper runs, in points, from every result and note the sidecar places: the margins either side are paper, not reading. */
+	/** Where the text of the paper runs, in points, from every result and annotation the sidecar places: the margins either side are paper, not reading. */
 	const textBlock = $derived.by(() => {
 		let x0 = Infinity;
 		let x1 = -Infinity;

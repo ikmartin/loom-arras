@@ -27,6 +27,7 @@ CAPABILITIES = [
     "edit",
     "delete",
     "restore",
+    "annotations-take",
     "suggestion-apply",
     "library-verify",
     "library-discard",
@@ -66,12 +67,6 @@ CAPABILITIES = [
     "file-tick",
     "history-record",
     "history-restore",
-    "note",
-    "note-keep",
-    "note-change",
-    "note-erase",
-    "note-restore",
-    "notes-take",
     "pdf-save",
 ]
 
@@ -318,12 +313,7 @@ def _scan(root: Path) -> ScanResult:
 RECORD_WRITES = (
     "annotate",
     "file-tick",
-    "note",
-    "note-keep",
-    "note-change",
-    "note-erase",
-    "note-restore",
-    "notes-take",
+    "annotations-take",
     "changes-keep",
     "history-record",
     "reply",
@@ -377,79 +367,6 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
     if not isinstance(value, str):
         raise ApiError("bad-field", f"{name} must be a string")
     return value
-
-
-def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """The notes' endpoints: `note` writes one, a quote or a mark among them; `note-keep` keeps one so it never fades; `note-change`, `note-erase` and `note-restore` change, erase and restore one; `notes-take` writes a PDF's own annotations as marks.
-
-    Every write but `note-keep` and a note with no mark may name no session: a mark is a person's on the page they are reading, and asks for none (P14). The viewer's `write` gate names one for the writes that must have it.
-    """
-    from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _writer
-    from loom.notes import NoteRefused, change, erase, keep, restore, take_in, write
-
-    which = _str(body, "session")
-    mark = _str(body, "mark")
-    if not which and (endpoint == "note-keep" or (endpoint == "note" and not mark)):
-        raise ApiError("no-session", "a write must name the session it belongs to")
-    try:
-        sid, kind, name = _writer(root, which, _str(body, "author"), sniff=False, dry_run=not which)
-    except NotFoundError as exc:
-        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
-    except (EnvError, ContentError) as exc:
-        raise ApiError("refused", str(exc)) from exc
-    sid = sid if which else ""
-    who = "agent" if kind == "agent" else "person"
-    try:
-        if endpoint == "note-keep":
-            note = keep(root, _str(body, "note", required=True) or "", name)
-            return {"ok": True, "result": f"kept {note.id}", "note": note.id}
-        if endpoint == "note-change":
-            note = change(
-                root,
-                _str(body, "note", required=True) or "",
-                name,
-                who,
-                body=_str(body, "body") if isinstance(body.get("body"), str) else None,
-                rects=body.get("rects"),
-                strokes=body.get("strokes"),
-                color=body["color"] if isinstance(body.get("color"), str) else None,
-            )
-            return {"ok": True, "result": f"changed {note.id}", "note": note.id}
-        if endpoint == "note-erase":
-            note = erase(root, _str(body, "note", required=True) or "", name, who)
-            return {"ok": True, "result": f"erased {note.id}", "note": note.id}
-        if endpoint == "note-restore":
-            note = restore(root, _str(body, "note", required=True) or "", name, who)
-            return {"ok": True, "result": f"restored {note.id}", "note": note.id}
-        if endpoint == "notes-take":
-            items = body.get("items")
-            if not isinstance(items, list):
-                raise ApiError("missing-field", "items is the list of annotations to take in")
-            took = take_in(
-                _scan(root), _str(body, "target", required=True) or "", items, author=name, author_kind=who, session=sid
-            )
-            return {"ok": True, "result": f"took in {took['taken']}", **took}
-        page = body.get("page")
-        if page is not None and (not isinstance(page, int) or page < 1):
-            raise ApiError("bad-field", "page must be a positive integer")
-        note = write(
-            _scan(root),
-            _str(body, "target", required=True) or "",
-            author=name,
-            author_kind=who,
-            session=sid,
-            body=_str(body, "body") or "",
-            quote=_str(body, "quote"),
-            page=page,
-            rects=body.get("rects"),
-            mark=mark,
-            strokes=body.get("strokes"),
-            color=_str(body, "color"),
-        )
-    except NoteRefused as exc:
-        raise ApiError(exc.code, exc.message, status=exc.status) from exc
-    return {"ok": True, "result": f"noted {note.id}", "note": note.id}
 
 
 def _pdf_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -745,8 +662,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _file_tick(root, body)
     if endpoint in ("history-record", "history-restore"):
         return _history(root, endpoint, body)
-    if endpoint in ("note", "note-keep", "note-change", "note-erase", "note-restore", "notes-take"):
-        return _note(root, endpoint, body)
+    if endpoint == "annotations-take":
+        return _take(root, body)
     if endpoint == "pdf-save":
         return _pdf_save(root, body)
     if endpoint in ("library-verify", "library-discard"):
@@ -1213,7 +1130,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 
     # An annotation belongs to no session, so a `session` sent with one is ignored.
     try:
-        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
+        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's terminal every annotation the author wrote in their own browser was recorded `author: "agent"` until this stopped sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
         writer = _annotator(root, _str(body, "author"), sniff=False)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
@@ -1232,14 +1149,22 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             # a type of "" or null takes the type off; absent leaves it as it is
             type_given = ("" if body["type"] is None else _str(body, "type")) if "type" in body else None
             return edit_annotation(
-                result, _str(body, "annotation", required=True) or "", writer, False, type_given, _look(body), **fields
+                result,
+                _str(body, "annotation", required=True) or "",
+                writer,
+                False,
+                type_given,
+                _look(body),
+                _geometry(body, "rects"),
+                _geometry(body, "strokes"),
+                **fields,
             )
         if endpoint == "annotate":
-            # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
+            # an annotation on a PDF page carries the page and its rectangles or strokes (plan 0.13 item 2)
             page = body.get("page")
             if page is not None and (not isinstance(page, int) or page < 1):
                 raise ApiError("bad-field", "page must be a positive integer")
-            rects = [[float(v) for v in r] for r in body.get("rects") or []] or None
+            rects = _geometry(body, "rects")
             return _one_comment(
                 result,
                 writer,
@@ -1255,6 +1180,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 rects=rects,
                 in_doc=_str(body, "in"),
                 look=_look(body),
+                strokes=_geometry(body, "strokes"),
+                mark=_str(body, "mark"),
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":
@@ -1299,6 +1226,35 @@ def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, s
     except (ContentError, EnvError) as exc:  # the text is in; only the record of it failed, and the person is told so
         return f"{said}, but it could not be resolved as applied: {exc}"
     return "; ".join(x for x in (said, kept.said()) if x)
+
+
+def _geometry(body: dict[str, Any], name: str) -> list[list[float]] | None:
+    """`rects` or `strokes` as a write gives them, each a list of numbers; refused when it is not."""
+    from loom.records.marks import MarkRefused, clean_rects, clean_strokes
+
+    try:
+        return (clean_rects if name == "rects" else clean_strokes)(body.get(name))
+    except MarkRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+
+
+def _take(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`annotations-take`: a PDF's own annotations written as annotations on it, what is here already left alone (`marks.take_in`)."""
+    from loom.cli._common import ContentError, EnvError
+    from loom.cli.review import _annotator
+    from loom.records.marks import MarkRefused, take_in
+
+    items = body.get("items")
+    if not isinstance(items, list):
+        raise ApiError("missing-field", "items is the list of annotations to take in")
+    try:
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+        took = take_in(_scan(root), _str(body, "target", required=True) or "", items, writer)
+    except MarkRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+    except (EnvError, ContentError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    return {"ok": True, "result": f"took in {took['taken']}", **took}
 
 
 def _look(body: dict[str, Any]) -> dict[str, Any]:

@@ -45,21 +45,13 @@ class Since:
     stale: list[dict[str, Any]] = field(default_factory=list)
     state: list[dict[str, Any]] = field(default_factory=list)
     said: list[dict[str, Any]] = field(default_factory=list)
-    notes: list[dict[str, Any]] = field(default_factory=list)
     ticks: list[dict[str, Any]] = field(default_factory=list)
     marker: Marker | None = None
 
     @property
     def empty(self) -> bool:
         return not (
-            self.annotations
-            or self.acts
-            or self.accepted
-            or self.stale
-            or self.state
-            or self.said
-            or self.notes
-            or self.ticks
+            self.annotations or self.acts or self.accepted or self.stale or self.state or self.said or self.ticks
         )
 
     def to_json(self) -> dict[str, Any]:
@@ -74,8 +66,6 @@ class Since:
             "stale": self.stale,
             "state": self.state,
             "said": self.said,
-            # `notes` is a report's own field, so a person's notes are reported as what they `noted`
-            "noted": self.notes,
             "ticks": self.ticks,
         }
 
@@ -213,7 +203,6 @@ def since(result: ScanResult, name: str) -> Since:
     _acceptances(result, window, new, out, states, stale)
     current = _state(result, window, new, out)
     _said(root, new, out)
-    _notes(root, new, out)
     _ticks(result, new, out)
     out.marker = Marker(when=now, seen=marks, stale=stale, state=current)
     return out
@@ -366,17 +355,6 @@ def _said(root: Path, new: Any, out: Since) -> None:
             out.said.append(
                 {"session": s.id, "seq": e.seq, "by": e.who, "when": e.when, "body": e.body, "carried": len(e.changed)}
             )
-
-
-def _notes(root: Path, new: Any, out: Since) -> None:
-    """What a person quoted or noted since, each with what it is on and its link; a note keeps its words, so the agent reads the quote itself."""
-    from loom.notes import load
-
-    for n in load(root).values():
-        if n.author_kind == "agent" or n.erased or not new(n.when, f"note:{n.id}"):
-            continue
-        row = {**n.to_dict(), "link": f"[](quilt:{n.id})"}
-        out.notes.append(row)
 
 
 def _ticks(result: ScanResult, new: Any, out: Since) -> None:

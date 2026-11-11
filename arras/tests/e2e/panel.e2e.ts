@@ -51,8 +51,8 @@ test("the picker chooses where notes go, and nothing about which annotations the
 	await page.keyboard.press('Escape');
 });
 
-test('an annotation needs no session, and quoting, which writes a note, names its refusal', async ({ page }) => {
-	await writes(page, ['annotate', 'note']);
+test('an annotation needs no session, and the footer says in its own tone when nothing is selected', async ({ page }) => {
+	await writes(page, ['annotate']);
 	await page.goto('/node/sy-0002');
 	// a selection on the node offers to annotate it, as on a paper's page
 	const words = pane(page, 0).locator('.fragment .env[data-id="sy-0002"] p[data-src]').first();
@@ -61,18 +61,13 @@ test('an annotation needs no session, and quoting, which writes a note, names it
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Say which orbit.');
 	await expect(page.getByTestId('note-submit')).toBeEnabled();
-	const open = page.getByTestId('note-quote-it');
-	await expect(open).toBeDisabled();
-	// the sentence `writable()` returns, beside the control it refuses, for as long as the refusal holds
-	await expect(page.getByTestId('no-session-tip')).toHaveText('No session selected: either select a session or start a new session.');
-	// and the footer carries only the state: refused, in its own tone, without the sentence
+	await expect(page.getByTestId('note-quote-it')).toHaveCount(0);
+	// the footer carries only the state: refused, in its own tone, without the sentence
 	const footer = page.getByTestId('session-footer');
 	await expect(footer).toHaveAttribute('aria-label', /^not writing in a session/);
 	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await expect(page.locator('.footer.refused')).toHaveCount(1);
 	await pickSession(page, REFEREE);
-	await expect(open).toBeEnabled();
-	await expect(page.getByTestId('no-session-tip')).toHaveCount(0);
 	await expect(footer).toHaveAttribute('aria-label', 'writing in referee');
 	await expect(page.locator('.footer.refused')).toHaveCount(0);
 });

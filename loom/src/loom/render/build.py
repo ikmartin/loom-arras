@@ -118,7 +118,13 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                         for rid, r in results.items()
                     ),
                     sorted(
-                        [a["id"], a["target"].get("page"), a.get("basis"), a.get("quote"), drawn.get(a["id"])]
+                        [
+                            a["id"],
+                            a["target"].get("page") or 0,
+                            a.get("basis") or "",
+                            a.get("quote") or "",
+                            drawn.get(a["id"]) or a.get("rects") or [],
+                        ]
                         for a in notes
                     ),
                 ]
@@ -147,6 +153,11 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         for a in notes:
             page = int(a["target"].get("page") or 0)
             if not page:
+                continue
+            if a.get("basis") is None and a.get("rects"):
+                # drawn on the page with its own place, which the record holds
+                marks[a["id"]] = a["rects"]
+                table.boxes_of(page)  # for the page table
                 continue
             if a.get("basis") == "box":
                 if a["id"] in drawn:
@@ -527,9 +538,6 @@ def build(
     from loom.scan.quilt import reviewer_identity
 
     attach_files(result, manifest, files)
-    from loom.notes import published as published_notes
-
-    manifest["notes"] = published_notes(result)
     from loom.render.threads import last_active
 
     for s in manifest.get("sessions", []):

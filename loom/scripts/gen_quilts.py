@@ -64,7 +64,7 @@ class Gen:
     def run(self, *args: str, expect: int = 0, agent: bool = False) -> str:
         from loom.cli import main
 
-        if agent and args[0] in ("annotate", "note") and "--as" not in args:
+        if agent and args[0] == "annotate" and "--as" not in args:
             args = (
                 *args,
                 "--as",
@@ -422,54 +422,16 @@ def build_synthetic(dest: Path) -> None:
         f"\\begin{{definition}}[Orbit pair]\\label{{{fresh}-ai}}\nAn \\emph{{orbit pair}} is an orbit with two points.\n\\end{{definition}}\n\n\\section{{Results}}",
     )
 
-    # Notes, quotes among them (plan 0.22.8): one old enough to have faded, the author's quotes of a theorem and of a Markdown file, one of them kept, and an agent's note on its session; then the author's look at the open files, and an edit after it, which Review's Changes shows.
-    g.at("2026-08-20T09:00:00Z")
-    g.run("note", "--on", "notes/intro.md", "--quote", "Notes on the widgets", "--session", referee, "--as", AUTHOR)
+    # A box drawn on a page of a PDF the viewer shows (plan 0.28): an annotation on the project file, by its path.
     g.at("2026-09-16T11:30:00Z")
     g.run(
-        "note",
-        "--on",
-        "sy-0003",
-        "--quote",
-        "Let $(X,\\sigma)$ be a finite widget.",
-        "--session",
-        referee,
-        "--as",
-        AUTHOR,
-    )
-    kept = g.run(
-        "note",
-        "--on",
-        "notes/intro.md",
-        "--quote",
-        "A widget is fixed by its locus",
-        "--session",
-        referee,
-        "--as",
-        AUTHOR,
-    ).split()[1]
-    g.run("note", "--keep", kept, "--as", AUTHOR)
-    g.run(
-        "note",
-        "the parity count, to check against the paper",
-        "--on",
-        referee,
-        "--session",
-        referee,
-        "--as",
-        "Referee Agent",
-        agent=True,
-    )
-    # a mark on a page of a PDF the viewer shows (plan 0.28), which asks for no session
-    g.run(
-        "note",
-        "the figure's corner",
-        "--on",
+        "annotate",
         "drafting/figures/fig.pdf",
+        "the figure's corner",
         "--page",
         "1",
         "--box",
-        "4,4,20,12",
+        "4,4,24,16",
         "--mark",
         "box",
         "--as",

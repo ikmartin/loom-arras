@@ -291,74 +291,67 @@ def with_paper(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
     return serve(q), q
 
 
-def marked(s: ServeSession, q: Path) -> str:
-    """A box on the served PDF, over the wire and with no session; its id."""
+def drawn(s: ServeSession, q: Path) -> str:
+    """A box on the served PDF, over the wire; its id."""
     done = succeeds(
-        s, "note", {"target": "notes/paper.pdf", "page": 1, "rects": [[10, 10, 60, 60]], "mark": "box", "author": WHO}
+        s,
+        "annotate",
+        {"target": "notes/paper.pdf", "page": 1, "rects": [[10, 10, 60, 60]], "mark": "box", "author": WHO},
     )
-    return str(done["note"])
+    return str(done["result"].split()[0])
 
 
-@case("note-change")
-def _note_change(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+def test_an_annotation_on_a_pdf_is_written_and_redrawn_over_the_wire(serve: Serve, tmp_path: Path) -> None:
+    """A project PDF by its path with its page and place, a tool and its strokes; an edit moves or redraws it, and an agent edits only its own."""
     s, q = with_paper(serve, tmp_path)
-    nid = marked(s, q)
-    succeeds(s, "note-change", {"note": nid, "body": "says this now", "rects": [[20, 20, 70, 70]], "author": WHO})
-    from loom.notes import load
-
-    assert load(q)[nid].body == "says this now" and load(q)[nid].rects == [[20, 20, 70, 70]]
-    succeeds(s, "note-change", {"note": nid, "color": "blue", "author": WHO})
-    assert load(q)[nid].color == "blue" and load(q)[nid].body == "says this now"
-    succeeds(s, "note-change", {"note": nid, "color": "", "author": WHO})
-    assert load(q)[nid].color is None
-    refuses(s, "note-change", {"note": nid, "color": "teal", "author": WHO}, 400, "bad-field", "one of yellow")
-    refuses(
-        s, "note-change", {"note": "n-2026-01-01-810dgx", "body": "x", "author": WHO}, 404, "no-such-note", "no note"
+    ann = drawn(s, q)
+    made = the(log(q), lambda e: e.get("id") == ann, "the box")
+    assert (made["target"], made["page"], made["rects"], made["mark"]) == (
+        "notes/paper.pdf",
+        1,
+        [[10, 10, 60, 60]],
+        "box",
     )
+    succeeds(s, "edit", {"annotation": ann, "message": "says this now", "rects": [[20, 20, 70, 70]], "author": WHO})
+    edited = log(q)[-1]
+    assert (edited["body"], edited["rects"]) == ("says this now", [[20, 20, 70, 70]])
+    ink = succeeds(
+        s,
+        "annotate",
+        {"target": "notes/paper.pdf", "page": 1, "strokes": [[1, 2, 30, 40]], "mark": "ink", "author": WHO},
+    )["result"].split()[0]
+    succeeds(s, "edit", {"annotation": ink, "strokes": [[5, 5, 9, 9]], "author": WHO})
+    assert (log(q)[-1]["strokes"], log(q)[-1]["rects"]) == ([[5, 5, 9, 9]], [[5, 5, 9, 9]])
+    refuses(s, "edit", {"annotation": ann, "strokes": "x", "author": WHO}, 400, "bad-field", "strokes")
     refuses(
         s,
-        "note-change",
-        {"note": nid, "body": "x", "author": "Reading Agent"},
-        403,
-        "not-yours",
-        "changes only its own",
+        "annotate",
+        {"target": "notes/paper.pdf", "page": 1, "mark": "pin", "rects": [[1, 1, 9, 9]], "author": WHO},
+        400,
+        "bad-request",
+        "says something",
     )
+    # the person's "ask for an overview" is a whole-work annotation with nothing loom needs to know of it
+    whole = succeeds(s, "annotate", {"target": "Calloway14", "message": "Read this paper through.", "author": WHO})
+    assert (
+        the(log(q), lambda e: e.get("body") == "Read this paper through.", "whole")["target"] == "doi:10.4171/demo/14-1"
+    )
+    assert whole["ok"]
 
 
-@case("note-erase")
-def _note_erase(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q = with_paper(serve, tmp_path)
-    nid = marked(s, q)
-    succeeds(s, "note-erase", {"note": nid, "author": WHO})
-    from loom.notes import load
-
-    assert load(q)[nid].erased
-    refuses(s, "note-erase", {"note": "n-2026-01-01-810dgx", "author": WHO}, 404, "no-such-note", "no note")
-
-
-@case("note-restore")
-def _note_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q = with_paper(serve, tmp_path)
-    nid = marked(s, q)
-    succeeds(s, "note-erase", {"note": nid, "author": WHO})
-    succeeds(s, "note-restore", {"note": nid, "author": WHO})
-    from loom.notes import load
-
-    assert load(q)[nid].erased is None
-    refuses(s, "note-restore", {"note": "n-2026-01-01-810dgx", "author": WHO}, 404, "no-such-note", "no note")
-
-
-@case("notes-take")
-def _notes_take(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("annotations-take")
+def _annotations_take(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q = with_paper(serve, tmp_path)
     items = [
         {"page": 1, "mark": "pin", "rects": [[50, 50, 66, 66]], "body": "a sticky note"},
         {"page": 1, "mark": "pin"},
     ]
-    done = succeeds(s, "notes-take", {"target": "notes/paper.pdf", "items": items, "author": WHO})
+    done = succeeds(s, "annotations-take", {"target": "notes/paper.pdf", "items": items, "author": WHO})
     assert (done["taken"], done["already"], done["skipped"]) == (1, 0, 1)
-    refuses(s, "notes-take", {"target": "dm-0003", "items": items, "author": WHO}, 400, "not-a-pdf", "not a PDF")
-    refuses(s, "notes-take", {"target": "notes/paper.pdf", "author": WHO}, 400, "missing-field", "items")
+    again = succeeds(s, "annotations-take", {"target": "notes/paper.pdf", "items": items, "author": WHO})
+    assert (again["taken"], again["already"]) == (0, 1)
+    refuses(s, "annotations-take", {"target": "dm-0003", "items": items, "author": WHO}, 400, "not-a-pdf", "not a PDF")
+    refuses(s, "annotations-take", {"target": "notes/paper.pdf", "author": WHO}, 400, "missing-field", "items")
 
 
 @case("pdf-save")
@@ -937,42 +930,6 @@ def _open(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     succeeds(s, "open", {"file": "deck.apkg"})
     assert len(launched) == 2
     refuses(s, "open", {"file": "README.md"}, 400, "not-openable", "never opens a file that may run code")
-
-
-@case("note")
-def _note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q, sid = on_demo(serve, tmp_path)
-    said = succeeds(s, "note", {"target": "dm-0003", "quote": "finite", "session": sid, "author": WHO})
-    from loom.notes import load
-
-    assert load(q)[said["note"]].target == {"key": "dm-0003"}
-    # a cited work with no page is the whole work, which "Ask an agent" writes on
-    whole = succeeds(
-        s, "note", {"target": "Calloway14", "body": "Read this paper through.", "session": sid, "author": WHO}
-    )
-    assert load(q)[whole["note"]].target["citekey"] == "Calloway14" and load(q)[whole["note"]].page is None
-    refuses(s, "note", {"target": "dm-0003", "quote": "x"}, 400, "no-session", "name the session")
-    refuses(
-        s,
-        "note",
-        {"target": "dm-9999", "quote": "x", "session": sid, "author": WHO},
-        404,
-        "no-such-thing",
-        "names nothing",
-    )
-
-
-@case("note-keep")
-def _note_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q, sid = on_demo(serve, tmp_path)
-    nid = succeeds(s, "note", {"target": "dm-0003", "quote": "finite", "session": sid, "author": WHO})["note"]
-    succeeds(s, "note-keep", {"note": nid, "session": sid, "author": WHO})
-    from loom.notes import load
-
-    assert load(q)[nid].kept
-    refuses(
-        s, "note-keep", {"note": "n-2000-01-01-gk2svb", "session": sid, "author": WHO}, 404, "no-such-note", "no note"
-    )
 
 
 @case("changes-keep")

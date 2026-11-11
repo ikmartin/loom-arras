@@ -68,11 +68,11 @@
 		onsized?: (e: { page: number; width: number; height: number }) => void;
 		/** The reader followed a link inside the paper to another of its pages; a link out of it opens in a new tab and is not reported. */
 		onlink?: (e: { page: number }) => void;
-		/** The notes drawn on this page. */
+		/** The marks drawn on this page: annotations that record their own place. */
 		marks?: PageMark[];
 		/** The mark being looked at, which can be moved. */
 		selected?: string;
-		/** Annotations in the PDF that a note now stands for, by their reference: left off the canvas, so nothing is drawn twice. */
+		/** Annotations in the PDF that one of loom's now stands for, by their reference: left off the canvas, so nothing is drawn twice. */
 		hide?: string[];
 		/** The reader drew a mark with a tool that takes the pointer. */
 		ondraw?: (e: Drawn & { page: number }) => void;
@@ -161,7 +161,7 @@
 			if (!ctx) return;
 			ctx.scale(ratio, ratio);
 			const t1 = performance.now();
-			// an annotation a note stands for stays out of the drawing, through the document's annotation storage, which no page saves
+			// a PDF annotation one of loom's stands for stays out of the drawing, through the document's annotation storage, which no page saves
 			for (const id of hide) doc.annotationStorage.setValue(id, { noView: true });
 			const task = p.render({ canvasContext: ctx, viewport, canvas, ...(hide.length ? { annotationMode: lib.AnnotationMode.ENABLE_STORAGE } : {}) }) as unknown as Cancellable;
 			running = task;

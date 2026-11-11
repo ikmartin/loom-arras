@@ -26,6 +26,7 @@ from loom.records.annotations import (
 from loom.records.ids import ANNOTATION
 from loom.records.ledger import AcceptRow, append_rows
 from loom.records.log import append, append_new
+from loom.records.marks import MARKS
 from loom.records.selectors import find_quote, make_selector
 from loom.records.snapshots import snapshots_dir, write_snapshot
 from loom.records.store import Records
@@ -403,29 +404,6 @@ def _annotator(root: Path, author: str | None, *, sniff: bool = True) -> tuple[s
     return ("agent" if is_agent(declared) else "human"), name
 
 
-def _writer(
-    root: Path, session: str | None, author: str | None, *, sniff: bool = True, dry_run: bool = False
-) -> tuple[str, str, str]:
-    """(session id, author kind, author name) for a note, which still belongs to a session; an annotation takes `_annotator`.
-
-    Writing with nothing active opens a session; a dry run names the active one, or "a new session", and opens none.
-    """
-    from loom.cli._common import find_session
-    from loom.sessions import ensure_active
-
-    kind, name = _annotator(root, author, sniff=sniff)
-    if session:
-        s = find_session(root, session)
-    elif dry_run:
-        from loom.sessions import active, sessions
-
-        here = sessions(root).get(active(root) or "")
-        return (here.id if here else "a new session"), kind, name
-    else:
-        s = ensure_active(root, name)
-    return s.id, kind, name
-
-
 def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | None:
     """The hash of `key`'s current text, frozen so a note written against it can always be shown; None for what is not a key (a work's page).
 
@@ -483,12 +461,14 @@ def _one_comment(
     in_doc: str | None = None,
     *,
     look: dict[str, Any] | None = None,
+    strokes: list[list[float]] | None = None,
+    mark: str | None = None,
     applied: bool = False,
     dry_run: bool = False,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records.
 
-    `page` with `quote` or `rects` makes this a note on a page of a cited work (plan 0.13 item 2): the target is then a citekey or a work identifier, and the event records the identifier, the artifact's hash, and a page anchor beside the usual text triple. Everything else about the event is as it is for a key.
+    The target is a key; a cited work, whole or with `page` one of its pages; or a project PDF with its `page`. Text or a box on a cited work's page is anchored through the work's store (plan 0.13 item 2); anything drawn with a `mark`, or along `strokes`, and anything on a project PDF, records its page, place and the PDF's hash (`records/marks.py`). Everything else about the event is as it is for a key.
     """
     root = result.quilt.root
     records = Records(root, result.quilt.history_dir).records
@@ -557,7 +537,18 @@ def _one_comment(
     if not (message or "").strip() and _opens(root, type_id):
         raise EnvError(NO_MESSAGE)
     styled = {"type": type_id, "look": own, "drawn": drawn}
-    work = _work_target(result, target)
+    from loom.records.marks import project_pdf
+
+    pdf_path = project_pdf(result, target)
+    work = None if pdf_path else _work_target(result, target)
+    if pdf_path is not None or (work is not None and (mark or strokes)):
+        return _on_pdf_page(
+            result, base, records, date, target, message, quote, styled, page, rects, strokes, mark, dry_run=dry_run
+        )
+    if mark or strokes:
+        raise EnvError("--mark and --stroke draw on a page of a PDF: a project PDF's path, or a cited work's citekey")
+    if work is not None and page is None and not quote and not rects:
+        return _on_work(result, base, records, date, work, message, styled, dry_run=dry_run)
     if work is not None or page is not None or rects:
         return _note_on_page(
             result, base, records, date, target, work, message, quote, styled, page, rects, dry_run=dry_run
@@ -664,10 +655,10 @@ def _not_a_work(result: ScanResult, target: str) -> EnvError:
         resolve_key(result, target)
     except EnvError:
         return EnvError(
-            f"--page is for a page of a cited work, and {target} names none: give a citekey from the bibliography "
-            "or an identifier one of its entries states (doi:…, arXiv:…)"
+            f"--page is for a page of a PDF, and {target} names none: give a citekey from the bibliography, "
+            "an identifier one of its entries states (doi:…, arXiv:…), or a project PDF's path"
         )
-    return EnvError(f"--page is for a page of a cited work, and {target} is a key in this quilt")
+    return EnvError(f"--page is for a page of a PDF, and {target} is a key in this quilt")
 
 
 def _note_on_page(
@@ -696,8 +687,6 @@ def _note_on_page(
     citekey, wid = work
     if page is None:
         raise EnvError(f"{citekey} is a cited work: say which page with --page N, and what on it with --quote or --box")
-    if quote and rects:
-        raise EnvError("give --quote for text on the page or --box for a rectangle on it, not both")
     if not quote and not rects:
         raise EnvError("a note on a page needs --quote (text on it) or --box (x0,y0,x1,y1 in points, origin top left)")
     home = work_dir(result.quilt.root, result.bib[citekey])
@@ -736,6 +725,79 @@ def _note_on_page(
     return said + (f"\nopen: {where}" if where else "")
 
 
+def _on_work(
+    result: ScanResult,
+    base: dict[str, Any],
+    records: list[Any],
+    date: str,
+    work: tuple[str, Any],
+    message: str | None,
+    styled: dict[str, Any],
+    *,
+    dry_run: bool = False,
+) -> str:
+    """An annotation on a cited work as a whole: the work's identifier as its target, and no anchor."""
+    citekey, wid = work
+    ann_id = _append_new(
+        result.quilt.root,
+        {**base, "event": "created", "target": str(wid), "anchor": None, **styled, "body": message or ""},
+        records,
+        date,
+        dry_run,
+    )
+    return f"{ann_id}  {citekey}  {styled['type'] or 'untyped'}  ({base['author']})"
+
+
+def _on_pdf_page(
+    result: ScanResult,
+    base: dict[str, Any],
+    records: list[Any],
+    date: str,
+    target: str,
+    message: str | None,
+    quote: str | None,
+    styled: dict[str, Any],
+    page: int | None,
+    rects: list[list[float]] | None,
+    strokes: list[list[float]] | None,
+    mark: str | None,
+    *,
+    dry_run: bool = False,
+) -> str:
+    """An annotation on a page of a project PDF, or one drawn with a tool on a cited work's page: its page, place, strokes, tool and the PDF's hash, with the words it quotes."""
+    from loom.records.marks import MarkRefused, artifact_of, clean_rects, clean_strokes, pdf_target, placed
+
+    on, pdf = pdf_target(result, target)
+    if pdf is None:
+        raise ContentError(
+            f"{target} has no readable copy on this machine; loom library update {target} --online fetches one, "
+            f"or loom library add FILE --for {target} files yours"
+        )
+    try:
+        rects = clean_rects(rects)
+        strokes = clean_strokes(strokes)
+        here = placed(pdf, page, mark, (quote or "").strip() or None, rects, strokes, (message or "").strip())
+    except MarkRefused as exc:
+        raise (ContentError if exc.code == "not-on-page" else EnvError)(exc.message) from exc
+    event: dict[str, Any] = {
+        **base,
+        "event": "created",
+        "target": on,
+        "page": page,
+        "rects": here,
+        "artifact": artifact_of(pdf),
+        "anchor": {"exact": quote.strip(), "prefix": "", "suffix": ""} if quote and quote.strip() else None,
+        **styled,
+        "body": message or "",
+    }
+    for k, v in (("strokes", strokes), ("mark", mark)):
+        if v:
+            event[k] = v
+    ann_id = _append_new(result.quilt.root, event, records, date, dry_run)
+    what = mark or ("ink" if strokes else "words" if quote else "box")
+    return f"{ann_id}  {target} p.{page} ({what})  {styled['type'] or 'untyped'}  ({base['author']})"
+
+
 def delete_annotation(
     root: Path, ann_id: str, writer: tuple[str, str], *, dry_run: bool = False
 ) -> tuple[str, list[dict[str, Any]]]:
@@ -767,7 +829,7 @@ def delete_annotation(
 VERB_CARRIES: dict[str, tuple[str, ...]] = {
     "reply": (),
     "resolve": (),
-    "edit": ("type", "color", "style", "weight", "opacity", "payload", "placement"),
+    "edit": ("type", "color", "style", "weight", "opacity", "payload", "placement", "box", "stroke"),
     "delete": (),
 }
 _VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "delete": "a deletion"}
@@ -797,13 +859,20 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
 
 
 def check_edit(
-    body: str | None, type_given: str | None, look: dict[str, Any], payload: str | None, placement: str | None
+    body: str | None,
+    type_given: str | None,
+    look: dict[str, Any],
+    payload: str | None,
+    placement: str | None,
+    geometry: bool = False,
 ) -> None:
     """An edit must change something, and an edit to an empty body says nothing -- `--delete` is how one is taken back."""
     if body is not None and not body.strip():
         raise EnvError("an edit to an empty body says nothing; give the new text, or delete it with --delete")
-    if body is None and type_given is None and not look and payload is None and placement is None:
-        raise EnvError("--edit with nothing to change; give a new body, --type, a look, --payload or --placement")
+    if body is None and type_given is None and not look and payload is None and placement is None and not geometry:
+        raise EnvError(
+            "--edit with nothing to change; give a new body, --type, a look, --payload, --placement, --box or --stroke"
+        )
 
 
 def edit_annotation(
@@ -814,9 +883,11 @@ def edit_annotation(
     /,
     type_given: str | None = None,
     look: dict[str, Any] | None = None,
+    rects: Any = None,
+    strokes: Any = None,
     **fields: str | None,
 ) -> str:
-    """Supersede an annotation's body, its type, its look or its payload; the history stays in the log and one current body is shown.
+    """Supersede an annotation's body, its type, its look, its payload or, on a PDF page, where a drawn one stands; the history stays in the log and one current body is shown.
 
     This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement. `type_given` of '' takes the type off.
     """
@@ -839,6 +910,15 @@ def edit_annotation(
         restyled = {"look": own, "drawn": drawn_look(t, own)}
         if type_given is not None:
             restyled["type"] = t.id if t else None
+    if rects or strokes:
+        from loom.records.marks import MarkRefused, regeometry
+
+        try:
+            restyled.update(regeometry(ann, rects, strokes))
+        except MarkRefused as exc:
+            raise EnvError(exc.message) from exc
+    if fields.get("body") is not None and ann.mark in ("pin", "text") and not str(fields["body"]).strip():
+        raise EnvError(f"a {ann.mark} says something; delete it instead")
     akind, aid = writer
     event: dict[str, Any] = {"event": "edited", "id": ann_id, "when": stamp(), "author": aid, "kind": akind}
     version = _version(result, found[1].target_key, dry_run=dry_run)
@@ -865,11 +945,15 @@ BATCH_KEYS = (
     "placement",
     "page",
     "box",
+    "stroke",
+    "mark",
     "in",
 )
 BATCH_VERBS = ("reply", "resolve", "edit", "delete")
 #: The fields an edit or a deletion is checked for, by their batch key and their flag's name.
-_LOSABLE = ("quote", "type", "color", "style", "weight", "opacity", "payload", "placement", "page", "box", "in")
+_LOSABLE = (
+    "quote", "type", "color", "style", "weight", "opacity", "payload", "placement", "page", "box", "stroke", "mark", "in",
+)  # fmt: skip
 #: The look's fields, by their batch key and their flag's name.
 LOOK_KEYS = ("color", "style", "weight", "opacity")
 
@@ -892,8 +976,17 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
     if item.get("delete"):
         return delete_annotation(root, str(item["delete"]), writer, dry_run=dry_run)[0]
     look = {k: item[k] for k in LOOK_KEYS if item.get(k) is not None}
+    rects = _rects(str(item["box"])) if item.get("box") else None
+    strokes = _strokes(str(item["stroke"])) if item.get("stroke") else None
     if item.get("edit"):
-        check_edit(item.get("message"), item.get("type"), look, item.get("payload"), item.get("placement"))
+        check_edit(
+            item.get("message"),
+            item.get("type"),
+            look,
+            item.get("payload"),
+            item.get("placement"),
+            bool(rects or strokes),
+        )
         return edit_annotation(
             result,
             str(item["edit"]),
@@ -901,6 +994,8 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
             dry_run,
             item.get("type"),
             look,
+            rects,
+            strokes,
             body=item.get("message"),
             payload=item.get("payload"),
             placement=item.get("placement"),
@@ -917,11 +1012,25 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
         item.get("payload"),
         item.get("placement"),
         page=int(item["page"]) if item.get("page") is not None else None,
-        rects=_rects(str(item["box"])) if item.get("box") else None,
+        rects=rects,
         in_doc=str(item["in"]) if item.get("in") else None,
         look=look,
+        strokes=strokes,
+        mark=str(item["mark"]) if item.get("mark") else None,
         dry_run=dry_run,
     )
+
+
+def _strokes(given: str | tuple[str, ...]) -> list[list[float]]:
+    """`x,y,x,y…` per stroke, as `--stroke` repeats or a batch line separates them with ';', in points from the page's top left."""
+    parts = [given] if isinstance(given, str) else list(given)
+    out: list[list[float]] = []
+    for part in (q for p in parts for q in p.split(";")):
+        try:
+            out.append([float(n) for n in part.split(",") if n.strip()])
+        except ValueError as exc:
+            raise EnvError(f"--stroke wants x,y,x,y… in points, got {part!r}") from exc
+    return out
 
 
 def _rects(box: str) -> list[list[float]]:
@@ -952,14 +1061,27 @@ def _rects(box: str) -> list[list[float]]:
     type=int,
     default=None,
     metavar="N",
-    help="A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
+    help="Page N of a PDF: a cited work (TARGET a citekey or a work identifier) or a project PDF by its path; with --quote, --box or --stroke.",
 )
 @click.option(
     "--box",
     "box",
     default=None,
     metavar="X0,Y0,X1,Y1",
-    help="Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
+    help="Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. With --edit, where a drawn one stands now.",
+)
+@click.option(
+    "--stroke",
+    "strokes",
+    multiple=True,
+    metavar="X,Y,X,Y,…",
+    help="A line of ink or an arrow on the page, in points from its top left; repeat for more lines. With --edit, its lines now.",
+)
+@click.option(
+    "--mark",
+    type=click.Choice(MARKS),
+    default=None,
+    help="Draw it on the PDF page with this tool: a pin or words on the page in the --box, a box or an oval round it, ink or an arrow along each --stroke.",
 )
 @click.option(
     "--type",
@@ -1043,6 +1165,8 @@ def annotate(
     quote: str | None,
     page: int | None,
     box: str | None,
+    strokes: tuple[str, ...],
+    mark: str | None,
     type_given: str | None,
     color: str | None,
     style: str | None,
@@ -1063,9 +1187,9 @@ def annotate(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.
+    """Write an annotation on TARGET: a key, an equation's qualified key, a master path, a cited work, or a project PDF; a MESSAGE of `-` is read from stdin.
 
-    An annotation carries its author, its time and the version of the text it was written on, and belongs to no session. A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it); it lands in the same log as every other annotation, and `loom status --reading` lists it.
+    An annotation carries its author, its time and the version of the text it was written on, and belongs to no session. One on a cited work with no --page is on the whole work. One on a page of a PDF -- a cited work by citekey or identifier, or a project PDF by its path -- names the page with --page and the place with --quote (words on it), --box (a rectangle) or --stroke (ink), drawn with a --mark tool where it is not on words; `loom status --reading` lists those on cited works.
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -1087,11 +1211,19 @@ def annotate(
     }
     if edit or delete_id:
         given = {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **look}
-        refuse_lost("edit" if edit else "delete", edit or delete_id, {**given, "page": page, "box": box, "in": in_doc})
+        refuse_lost(
+            "edit" if edit else "delete",
+            edit or delete_id,
+            {**given, "page": page, "box": box, "stroke": strokes, "mark": mark, "in": in_doc},
+        )
+    if quote and box and not edit:
+        raise EnvError("give --quote for words on the page or --box for a rectangle on it, not both")
     if delete_id and (message or "").strip():
         raise EnvError("a deletion says nothing, since nothing said with it is kept: give the id alone")
     if not batch:
-        _check_named(result, target, reply or resolve or edit or delete_id, in_doc, page is not None or bool(box))
+        _check_named(
+            result, target, reply or resolve or edit or delete_id, in_doc, page is not None or bool(box or strokes)
+        )
         if (
             not (reply or resolve or edit or delete_id)
             and not (message or "").strip()
@@ -1123,10 +1255,20 @@ def annotate(
     if delete_id:
         done(delete_annotation(root, delete_id, writer, dry_run=dry_run)[0])
     elif edit:
-        check_edit(message, type_given, look, payload, placement)
+        check_edit(message, type_given, look, payload, placement, bool(box or strokes))
         done(
             edit_annotation(
-                result, edit, writer, dry_run, type_given, look, body=message, payload=payload, placement=placement
+                result,
+                edit,
+                writer,
+                dry_run,
+                type_given,
+                look,
+                _rects(box) if box else None,
+                _strokes(strokes) if strokes else None,
+                body=message,
+                payload=payload,
+                placement=placement,
             )
         )
     else:
@@ -1147,6 +1289,8 @@ def annotate(
                 rects=_rects(box) if box else None,
                 in_doc=in_doc,
                 look=look,
+                strokes=_strokes(strokes) if strokes else None,
+                mark=mark,
                 applied=applied,
                 dry_run=dry_run,
             )
@@ -1195,7 +1339,9 @@ def _check_named(result: ScanResult, target: str | None, ann_id: str | None, in_
         return
     if not target:
         raise EnvError("TARGET is required")
-    if _work_target(result, target) is None:
+    from loom.records.marks import project_pdf
+
+    if project_pdf(result, target) is None and _work_target(result, target) is None:
         if on_page:
             raise _not_a_work(result, target)
         resolve_key(result, target)
@@ -1237,13 +1383,14 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     reading: list[dict[str, Any]] = []
     for res in records.resolved(result):
         a = res.annotation
-        if a.anchor is not None:
+        if a.anchor is not None or res.work:
             reading.append(
                 {
                     "work": res.work,
                     "target": a.target_key,
-                    "page": a.anchor.page,
-                    "basis": a.anchor.basis,
+                    # a whole work has no page, and one drawn on a page records its own
+                    "page": a.anchor.page if a.anchor else a.page,
+                    "basis": a.anchor.basis if a.anchor else (a.mark or ("box" if a.rects else None)),
                     "id": a.id,
                     "type": a.type,
                     "status": a.status,
@@ -1357,7 +1504,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         "undigested": undigested,
         "retired": retired,
         # a sort that keeps the log's order on one page, since an id says nothing of when
-        "reading": sorted(reading, key=lambda r: (r["work"], r["page"])),
+        "reading": sorted(reading, key=lambda r: (r["work"], r["page"] or 0)),
     }
 
 
@@ -1955,7 +2102,9 @@ def _reading_report(payload: dict[str, Any]) -> Report:
     for work in sorted(by_work, key=natural):
         rows = []
         for r in by_work[work]:
-            where = f"p.{r['page']}" + (" (box)" if r["basis"] == "box" else "")
+            where = (f"p.{r['page']}" if r["page"] else "the whole work") + (
+                f" ({r['basis']})" if r["basis"] not in (None, "text") else ""
+            )
             state = r["status"] + (", detached" if r["detached"] else "") + ("" if r["recorded"] else ", unrecorded")
             first = r["body"].strip().splitlines()[0] if r["body"].strip() else ""
             rows.append(

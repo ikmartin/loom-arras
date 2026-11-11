@@ -19,7 +19,7 @@ from loom.cli._common import EnvError
 from loom.history.ledger import append_entry, load_history
 from loom.history.steps import FreezePlan, refuse_interrupted, write_step
 from loom.locks import locked
-from loom.paths import ANNOTATION_LOG, NOTE_LOG
+from loom.paths import ANNOTATION_LOG
 from loom.sessions import INDEX, set_active
 from tests.helpers import ok
 from tests.unit._quilts import demo, new_session
@@ -156,29 +156,11 @@ def test_parallel_replies_and_new_annotations_draw_from_one_counter(tmp_path: Pa
     assert len(ids) == 4 == len(set(ids)), ids
 
 
-def test_parallel_note_gives_every_note_its_own_id(tmp_path: Path) -> None:
-    q = demo(tmp_path)
-    new_session(q)
-    all_ok(racing(q, (["note", f"race {i}", "--on", "dm-0002", "--as", AGENT] for i in range(N))))
-    made = {str(e["id"]): str(e["body"]) for e in events(q / NOTE_LOG) if e.get("event") == "noted"}
-    assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
-
-
 def test_parallel_session_new_gives_every_session_its_own_id(tmp_path: Path) -> None:
     q = demo(tmp_path)
     all_ok(racing(q, (["session", "new", "--name", f"race {i}", "--no-use", "--as", AGENT] for i in range(N))))
     made = {str(e["id"]): str(e["title"]) for e in events(q / INDEX) if "race" in str(e.get("title"))}
     assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
-
-
-def test_writers_with_nothing_active_all_land_in_the_one_session_the_first_opens(tmp_path: Path) -> None:
-    q = demo(tmp_path)
-    set_active(q, None)
-    before = len(events(q / INDEX))
-    all_ok(racing(q, (["note", f"race {i}", "--on", "dm-0002", "--as", AGENT] for i in range(N))))
-    opened = [e for e in events(q / INDEX)[before:] if e["event"] == "created"]
-    wrote = [e for e in events(q / NOTE_LOG) if "race " in str(e.get("body"))]
-    assert len(opened) == 1 and {e["session"] for e in wrote} == {opened[0]["id"]}, (opened, wrote)
 
 
 def test_annotating_with_nothing_active_opens_no_session(tmp_path: Path) -> None:

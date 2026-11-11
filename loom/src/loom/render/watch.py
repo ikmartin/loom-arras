@@ -22,7 +22,6 @@ from loom.paths import (
     COPIES,
     DIGESTS,
     LOOM,
-    NOTE_LOG,
     RETIRED,
     REVIEW_DECISIONS,
     REVIEW_OBSERVATIONS,
@@ -114,7 +113,7 @@ def snapshot(root: Path, shown: Shown | None = None) -> dict[Path, float]:
 
 
 #: The records loom's own commands append to, looked at between full scans: an agent's annotation is drawn within a fraction of a second rather than on the next scan.
-FAST = (ANNOTATION_LOG, NOTE_LOG, f"{SESSIONS}/index.jsonl")
+FAST = (ANNOTATION_LOG, f"{SESSIONS}/index.jsonl")
 #: How often the fast lane looks.
 FAST_INTERVAL = 0.2
 

@@ -37,7 +37,6 @@ def looked(q: Path) -> None:
 KIND: dict[str, str] = {
     "accept": "report",
     "annotate": "report",
-    "note": "report",
     "changes": "report",
     "build": "report",
     "check": "report",
@@ -114,18 +113,13 @@ CASES: dict[str, list[Case]] = {
             why="an annotation that does not exist",
         ),
         Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
-    ],
-    "note": [
-        Case(("Which orbits?", "--on", "dm-0002", "--quote", "orbit", "--as", "Tester")),
-        Case(("--on", "README.md", "--quote", "demo", "--as", "Tester")),
-        Case(("x", "--on", "dm-9999", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
+        Case(("Calloway14", "Worth an overview.", "--as", "Tester"), why="a cited work as a whole"),
         Case(
-            ("--keep", "n-2000-01-01-gk2svb", "--as", "Tester"),
+            ("dm-0002", "x", "--mark", "pin", "--as", "Tester"),
             exit=2,
             unchanged=True,
-            why="a note that does not exist",
+            why="a tool draws on a page of a PDF",
         ),
-        Case(("--on", "dm-0002", "--as", "Tester"), exit=2, unchanged=True, why="a note that quotes and says nothing"),
     ],
     "changes": [
         Case((), setup=author, unchanged=True, why="no look yet"),

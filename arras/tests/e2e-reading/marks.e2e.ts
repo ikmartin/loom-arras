@@ -1,7 +1,7 @@
-// Marking a PDF under `loom serve` (plan 0.28): a mark drawn at once and there after a reload, on a cited work's page and on a project's PDF; comments, erasing and undo; the drawing tools; a saved copy read back; annotations taken in; page edits into a new file.
+// Marking a PDF under `loom serve` (plan 0.28): a mark is an annotation on the page, drawn at once and there after a reload, on a cited work's page and on a project's PDF; comments, deleting and undo; the drawing tools; a saved copy read back; annotations taken in; page edits into a new file.
 import { expect, test, type Served } from '../served';
 import type { Page } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as lib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -23,11 +23,34 @@ const withPaper = {
 	}
 };
 
-function notes(served: Served): Record<string, { mark?: string; body: string; rects?: number[][]; strokes?: number[][]; session: string; quote?: string; page?: number; color?: string; origin?: { by?: string } }> {
-	return JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).notes ?? {};
+interface Ann {
+	id: string;
+	mark: string | null;
+	style: string;
+	color: string;
+	body: string;
+	rects: number[][] | null;
+	strokes: number[][] | null;
+	quote: string | null;
+	page: number | null;
+	on: string;
+	origin: { by?: string } | null;
 }
 
-const marksOf = (served: Served) => Object.values(notes(served)).filter((n) => n.mark);
+/** The published annotations, by id, with what a mark is read by. */
+function annotations(served: Served): Record<string, Ann> {
+	type Raw = { id: string; mark?: string | null; look?: { style: string; color: string }; body_html?: string; rects?: number[][] | null; strokes?: number[][] | null; quote?: string | null; target: { key: string; page?: number | null; file?: string | null; work?: string | null }; origin?: { by?: string } | null };
+	const all = JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8')).annotations as Record<string, Raw>;
+	return Object.fromEntries(
+		Object.values(all ?? {}).map((a) => [
+			a.id,
+			{ id: a.id, mark: a.mark ?? null, style: a.look?.style ?? '', color: a.look?.color ?? '', body: (a.body_html ?? '').replace(/<[^>]*>/g, '').trim(), rects: a.rects ?? null, strokes: a.strokes ?? null, quote: a.quote ?? null, page: a.target.page ?? null, on: a.target.file ?? a.target.work ?? a.target.key, origin: a.origin ?? null }
+		])
+	);
+}
+
+/** The annotations on the pages of the PDF `on`, a project file's path or a citekey. */
+const marksOf = (served: Served, on = FILE) => Object.values(annotations(served)).filter((a) => a.on === on && a.page !== null);
 
 async function openPaper(page: Page, url: string, n = 1): Promise<void> {
 	await page.goto(url);
@@ -49,7 +72,7 @@ async function selectWords(page: Page, n: number, phrase: string): Promise<void>
 }
 
 const marks = (page: Page, kind?: string) => page.locator(kind ? `[data-testid^="page-mark-"][data-kind="${kind}"]` : '[data-testid^="page-mark-"]');
-const published = (served: Served, count: number) => expect.poll(() => marksOf(served).length).toBe(count);
+const published = (served: Served, count: number, on = FILE) => expect.poll(() => marksOf(served, on).length).toBe(count);
 
 /** Press and drag across a page, from and to fractions of its size. */
 async function drag(page: Page, n: number, from: [number, number], to: [number, number]): Promise<void> {
@@ -80,45 +103,46 @@ test.afterEach(({}, info) => {
 	expect(info.annotations.filter((a) => a.type === 'pageerror')).toEqual([]);
 });
 
-test('a highlight from the selection needs no session, is drawn at once, and is there after a reload', async ({ page, served }) => {
+test("a highlight from the selection on a cited work's page needs no session, is drawn at once, and after a reload is an annotation on its words drawn in its look", async ({ page, served }) => {
+	const before = marksOf(served, 'Bellamy19').map((a) => a.id);
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
 	await selectWords(page, 2, 'order');
 	await page.getByTestId('highlight-offer').click();
 	await expect(marks(page, 'highlight')).toHaveCount(1);
-	await published(served, 1);
-	const [mark] = marksOf(served);
-	expect(mark).toMatchObject({ mark: 'highlight', session: '', page: 2 });
-	expect(mark.rects!.length).toBeGreaterThan(0);
+	await expect.poll(() => marksOf(served, 'Bellamy19').filter((a) => !before.includes(a.id)).length).toBe(1);
+	const mark = marksOf(served, 'Bellamy19').find((a) => !before.includes(a.id))!;
+	// on words, so its look's style draws it and no tool did
+	expect(mark).toMatchObject({ mark: null, style: 'highlight', page: 2 });
 	expect(mark.quote).toBeTruthy();
+	expect(served.log().find((e) => e.event === 'created' && e.id === mark.id)).not.toHaveProperty('session');
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
-	await expect(marks(page, 'highlight')).toHaveCount(1);
-	expect(existsSync(join(served.root, '.loom/annotations/notes.jsonl'))).toBe(true);
+	await expect(page.locator(`button.mark.annotation.ann-highlight[data-annotation~="${mark.id}"]`).first()).toBeVisible();
 });
 
 test.describe('on a project PDF', () => {
 	test.use(withPaper);
 
-	test('a comment is written on a mark, erased, and undone, and the file is not touched', async ({ page, served }) => {
+	test('a comment is written on a mark, which is deleted and put back by undo, and the file is not touched', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
 		await selectWords(page, 1, 'Cycle');
 		await page.getByTestId('highlight-offer').click();
 		await published(served, 1);
-		const id = Object.keys(notes(served))[0];
+		const id = marksOf(served)[0].id;
 		await clickMark(page, `page-mark-${id}`);
 		await page.getByTestId('mark-comment').fill('the title says it');
 		await page.getByTestId('mark-done').click();
-		await expect.poll(() => notes(served)[id]?.body).toBe('the title says it');
+		await expect.poll(() => annotations(served)[id]?.body).toBe('the title says it');
 		await page.reload();
 		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count()).toBeGreaterThan(10);
 		await clickMark(page, `page-mark-${id}`);
 		await expect(page.getByTestId('mark-card-body')).toContainText('the title says it');
 		await page.getByTestId('mark-erase').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(0);
-		await expect.poll(() => id in notes(served)).toBe(false);
+		await expect.poll(() => id in annotations(served)).toBe(false);
 		await page.getByTestId('markup-toggle').click();
 		await page.getByTestId('mark-undo').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(1);
-		await expect.poll(() => id in notes(served)).toBe(true);
+		await expect.poll(() => id in annotations(served)).toBe(true);
 		expect(readFileSync(join(served.root, FILE)).equals(readFileSync(ARDEN))).toBe(true);
 	});
 
@@ -182,37 +206,37 @@ test.describe('on a project PDF', () => {
 		await inkPause.evaluate((restore) => void restore());
 		await expect(marks(page, 'ink')).toHaveCount(1);
 		await published(served, 6);
-		const ink = marksOf(served).find((n) => n.mark === 'ink')!;
+		const ink = marksOf(served).find((a) => a.mark === 'ink')!;
 		expect(ink.strokes).toHaveLength(2);
 
 		// a press inside a shape looks at it; dragging moves it and the record follows
-		const box = Object.entries(notes(served)).find(([, n]) => n.mark === 'box')!;
-		const [x0, y0] = box[1].rects![0];
-		await clickMark(page, `page-mark-${box[0]}`);
+		const box = marksOf(served).find((a) => a.mark === 'box')!;
+		const [x0, y0] = box.rects![0];
+		await clickMark(page, `page-mark-${box.id}`);
 		await expect(page.getByTestId('mark-grab')).toBeVisible();
 		const grab = (await page.getByTestId('mark-grab').boundingBox())!;
 		await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(grab.x + grab.width / 2 + 30, grab.y + grab.height / 2 + 20, { steps: 4 });
 		await page.mouse.up();
-		await expect.poll(() => notes(served)[box[0]].rects![0][0]).toBeGreaterThan(x0 + 5);
-		expect(notes(served)[box[0]].rects![0][1]).toBeGreaterThan(y0 + 5);
-		const moved = notes(served)[box[0]].rects![0];
+		await expect.poll(() => annotations(served)[box.id].rects![0][0]).toBeGreaterThan(x0 + 5);
+		expect(annotations(served)[box.id].rects![0][1]).toBeGreaterThan(y0 + 5);
+		const moved = annotations(served)[box.id].rects![0];
 		const handle = (await page.getByTestId('mark-handle-se').boundingBox())!;
 		await page.mouse.move(handle.x + 4, handle.y + 4);
 		await page.mouse.down();
 		await page.mouse.move(handle.x + 44, handle.y + 34, { steps: 4 });
 		await page.mouse.up();
-		await expect.poll(() => notes(served)[box[0]].rects![0][2]).toBeGreaterThan(moved[2] + 5);
+		await expect.poll(() => annotations(served)[box.id].rects![0][2]).toBeGreaterThan(moved[2] + 5);
 		// and the keyboard takes it back, then takes it off the page
 		await page.getByTestId('mark-done').click();
 		await page.keyboard.press('ControlOrMeta+z');
-		await expect.poll(() => notes(served)[box[0]].rects![0][2]).toBeCloseTo(moved[2], 0);
-		await clickMark(page, `page-mark-${box[0]}`);
+		await expect.poll(() => annotations(served)[box.id].rects![0][2]).toBeCloseTo(moved[2], 0);
+		await clickMark(page, `page-mark-${box.id}`);
 		await page.getByTestId('mark-done').focus();
 		await page.locator('body').evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('Delete');
-		await expect(page.getByTestId(`page-mark-${box[0]}`)).toHaveCount(0);
+		await expect(page.getByTestId(`page-mark-${box.id}`)).toHaveCount(0);
 	});
 
 	test('a saved copy holds the marks as a PDF reader finds them, and its original bytes', async ({ page, served }) => {
@@ -220,11 +244,11 @@ test.describe('on a project PDF', () => {
 		await selectWords(page, 1, 'Cycle');
 		await page.getByTestId('highlight-offer').click();
 		await published(served, 1);
-		const id = Object.keys(notes(served))[0];
+		const id = marksOf(served)[0].id;
 		await clickMark(page, `page-mark-${id}`);
 		await page.getByTestId('mark-comment').fill('in the copy');
 		await page.getByTestId('mark-done').click();
-		await expect.poll(() => notes(served)[id]?.body).toBe('in the copy');
+		await expect.poll(() => annotations(served)[id]?.body).toBe('in the copy');
 		await page.getByTestId('markup-toggle').click();
 		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
 		expect(saved.suggestedFilename()).toBe('paper-annotated.pdf');
@@ -233,7 +257,7 @@ test.describe('on a project PDF', () => {
 		expect(Buffer.from(bytes.subarray(0, original.length)).equals(original)).toBe(true);
 		const { items } = await readAnnotations(await open(bytes));
 		expect(items).toHaveLength(1);
-		expect(items[0]).toMatchObject({ mark: 'highlight', body: 'in the copy', page: 1 });
+		expect(items[0]).toMatchObject({ style: 'highlight', body: 'in the copy', page: 1 });
 		await expect(page.getByTestId('mark-said')).toContainText('Saved a copy with 1 annotation');
 	});
 
@@ -243,16 +267,16 @@ test.describe('on a project PDF', () => {
 		await selectWords(page, 1, 'Cycle');
 		await page.locator('.tray').getByTestId('swatch-green').click();
 		await published(served, 1);
-		const id = Object.keys(notes(served))[0];
-		expect(notes(served)[id].color).toBe('green');
+		const id = marksOf(served)[0].id;
+		expect(annotations(served)[id].color).toBe('green');
 		const band = page.getByTestId(`mark-band-${id}`).locator('rect').first();
 		const fill = () => band.evaluate((r) => getComputedStyle(r).fill);
 		await expect.poll(fill).toBe('rgb(160, 232, 140)');
 
 		await clickMark(page, `page-mark-${id}`);
 		await page.getByTestId('mark-card').getByTestId('swatch-pink').click();
-		await expect.poll(fill).toBe('rgb(255, 166, 208)');
-		await expect.poll(() => notes(served)[id]?.color).toBe('pink');
+		await expect.poll(fill).toBe('rgb(255, 174, 220)');
+		await expect.poll(() => annotations(served)[id]?.color).toBe('pink');
 		await page.getByTestId('mark-done').click();
 
 		// changing one mark leaves the colour in the hand, and that is what the next mark is drawn in
@@ -260,19 +284,19 @@ test.describe('on a project PDF', () => {
 		const held = page.getByTestId('mark-colors');
 		await expect(held.getByTestId('swatch-green')).toHaveAttribute('aria-pressed', 'true');
 		await page.getByTestId('mark-undo').click();
-		await expect.poll(() => notes(served)[id]?.color).toBe('green');
+		await expect.poll(() => annotations(served)[id]?.color).toBe('green');
 		await held.getByTestId('swatch-blue').click();
 		await page.getByTestId('tool-rect').click();
 		await drag(page, 1, [0.2, 0.6], [0.5, 0.75]);
 		await published(served, 2);
-		const box = marksOf(served).find((n) => n.mark === 'box');
+		const box = marksOf(served).find((a) => a.mark === 'box');
 		expect(box?.color).toBe('blue');
 		await expect.poll(() => page.locator('.k-box .shape').first().evaluate((s) => getComputedStyle(s).stroke)).toBe('rgb(26, 111, 196)');
 		await page.getByTestId('tool-rect').click();
 
 		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
 		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));
-		expect(items.find((i) => i.mark === 'highlight')?.color).toBe('green');
+		expect(items.find((i) => i.style === 'highlight')?.color).toBe('green');
 		expect(items.find((i) => i.mark === 'ink')?.color).toBe('blue');
 
 		await page.reload();
@@ -293,7 +317,7 @@ test.describe('on a project PDF', () => {
 		await page.getByTestId('mark-take-file').setInputFiles(file);
 		await expect(page.getByTestId('mark-said')).toContainText('Took in 2');
 		await expect(marks(page)).toHaveCount(2);
-		const taken = marksOf(served).find((n) => n.mark === 'highlight')!;
+		const taken = marksOf(served).find((a) => a.style === 'highlight' && !a.mark)!;
 		expect(taken).toMatchObject({ body: 'from elsewhere', origin: { by: 'A Reader' } });
 		expect(taken.quote).toContain('Cycle spaces');
 		await page.getByTestId('mark-take-file').setInputFiles(file);
@@ -343,7 +367,7 @@ test.describe('a PDF that already holds annotations', () => {
 		}
 	});
 
-	test('its comment can be read, and once taken in the note stands for it', async ({ page, served }) => {
+	test('its comment can be read, and once taken in an annotation stands for it', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
 		const held = page.locator('[data-testid^="pdf-annotation-"]');
 		await expect(held).toHaveCount(1);
@@ -368,7 +392,7 @@ test.describe('where no publisher takes writes', () => {
 	test.use({
 		prepareQuilt: async ({}, use) => {
 			await use(({ loom }) => {
-				loom(['note', '--on', 'Bellamy19', '--page', '2', '--box', '50,50,100,60', '--mark', 'box', '--as', 'A Person']);
+				loom(['annotate', 'Bellamy19', '--page', '2', '--box', '50,50,100,60', '--mark', 'box', '--as', 'A Person']);
 			});
 		}
 	});

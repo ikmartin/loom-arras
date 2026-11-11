@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 #: What a reader takes in the order it was written, since an id says nothing of when (`records/ids.py`). Everything else is sorted, so that a build is reproducible.
-WRITTEN_IN_ORDER = ("annotations", "notes", "threads")
+WRITTEN_IN_ORDER = ("annotations", "threads")
 
 
 def _sorted(value: Any) -> Any:

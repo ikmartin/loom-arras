@@ -37,7 +37,6 @@
       "Bash(loom lint*)",
       "Bash(loom mcp*)",
       "Bash(loom new*)",
-      "Bash(loom note*)",
       "Bash(loom search*)",
       "Bash(loom serve*)",
       "Bash(loom session list*)",

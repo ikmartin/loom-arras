@@ -89,6 +89,7 @@
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-ecnav2",
    "in": null,
    "in_reply_to": null,
@@ -98,14 +99,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "finite widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
@@ -125,6 +131,7 @@
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-hwtkaw",
    "in": null,
    "in_reply_to": null,
@@ -134,14 +141,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
    "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
    "placement": "replace",
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "resolved",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
@@ -161,6 +173,7 @@
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-6sn46y",
    "in": null,
    "in_reply_to": null,
@@ -170,14 +183,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": null,
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
     "key": "drafting/main.tex",
     "page": null,
@@ -197,6 +215,7 @@
    "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
@@ -206,14 +225,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": null,
    "recorded": true,
+   "rects": null,
    "resolved_why": "Cited.",
    "status": "resolved",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
@@ -233,6 +257,7 @@
    "body_html": "<p>The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-hqnbz4",
    "in": null,
    "in_reply_to": null,
@@ -242,14 +267,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": null,
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
@@ -269,6 +299,7 @@
    "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-bns3an",
    "in": null,
    "in_reply_to": null,
@@ -278,14 +309,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "one or two points",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
@@ -305,6 +341,7 @@
    "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-xgtcve",
    "in": "drafting/talk.tex",
    "in_reply_to": null,
@@ -314,14 +351,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "Every orbit of a widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
@@ -341,6 +383,7 @@
    "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-hwnav1",
    "in": null,
    "in_reply_to": "a-2026-09-16-ecnav2",
@@ -350,14 +393,19 @@
     "style": "underline",
     "weight": 1
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "finite widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
@@ -377,6 +425,7 @@
    "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-16-gahrrs",
    "in": null,
    "in_reply_to": "a-2026-09-16-hwtkaw",
@@ -386,14 +435,19 @@
     "style": "underline",
     "weight": 1
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
@@ -413,6 +467,7 @@
    "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
+   "hides": null,
    "id": "a-2026-09-16-a91hwf",
    "in": null,
    "in_reply_to": null,
@@ -422,20 +477,74 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": null,
    "payload_html": null,
    "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
     "key": "sy-0001",
     "page": null,
     "work": null
    },
    "type": "question"
+  },
+  "a-2026-09-16-pmjbhz": {
+   "anchored": true,
+   "applied": null,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "basis": null,
+   "body_html": "<p>the figure's corner</p>",
+   "created": "2026-09-16T11:30:00Z",
+   "detached": false,
+   "hides": null,
+   "id": "a-2026-09-16-pmjbhz",
+   "in": null,
+   "in_reply_to": null,
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
+   "mark": "box",
+   "origin": null,
+   "payload": null,
+   "payload_html": null,
+   "placement": null,
+   "quote": null,
+   "recorded": true,
+   "rects": [
+    [
+     4.0,
+     4.0,
+     24.0,
+     16.0
+    ]
+   ],
+   "resolved_why": null,
+   "status": "open",
+   "strokes": null,
+   "target": {
+    "file": "drafting/figures/fig.pdf",
+    "hash": "",
+    "key": "drafting/figures/fig.pdf",
+    "page": 1,
+    "work": null
+   },
+   "type": null
   },
   "a-2026-09-17-rvgxnv": {
    "anchored": true,
@@ -455,6 +564,7 @@
    },
    "created": "2026-09-17T09:00:00Z",
    "detached": false,
+   "hides": null,
    "id": "a-2026-09-17-rvgxnv",
    "in": null,
    "in_reply_to": null,
@@ -464,14 +574,19 @@
     "style": "highlight",
     "weight": 2
    },
+   "mark": null,
+   "origin": null,
    "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
    "payload_html": "<p data-src=\"payload/a-2026-09-17-rvgxnv:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
    "placement": "replace",
    "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
@@ -485,7 +600,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "89cd8345b47602de6b3a791e6bda5a09be2e3c2f17806fca795993fb6046e8e9",
+   "hash": "11433b89be62da41588039bfe3cc673ac64f5188fe57727f7b0328058941e6ba",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -500,7 +615,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "ddab5bb90b59a2cbd9d14c8b5c992773cefd48a6da06356c8170a30eb69e82b1",
+   "hash": "708c256bfa4373af447f107c33402a9525001dae9b64d8bf93f6d0b91eb63ff4",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -515,7 +630,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "a5a905caa4ed000a395a530f2a30df0c303e05319898a73bb3df24c9d3d1f624",
+   "hash": "d8c5d52067c4237778890a63413251f65e6de0b8596a2699e9083607aefb5aa7",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -7481,98 +7596,6 @@
    "tags": [],
    "taxon": "Definition",
    "title": "Orbit pair"
-  }
- },
- "notes": {
-  "n-2026-08-20-h6g96a": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": true,
-   "id": "n-2026-08-20-h6g96a",
-   "quote": "Notes on the widgets",
-   "session": "s-2026-09-16-p9z37z",
-   "target": {
-    "file": "notes/intro.md"
-   },
-   "when": "2026-08-20T09:00:00Z"
-  },
-  "n-2026-09-16-91x7ga": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-91x7ga",
-   "quote": "Let $(X,\\sigma)$ be a finite widget.",
-   "session": "s-2026-09-16-p9z37z",
-   "target": {
-    "key": "sy-0003"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-1t8s9z": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-1t8s9z",
-   "kept": "2026-09-16T11:30:00Z",
-   "quote": "A widget is fixed by its locus",
-   "session": "s-2026-09-16-p9z37z",
-   "target": {
-    "file": "notes/intro.md"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-41e22x": {
-   "author": {
-    "id": "Referee Agent",
-    "kind": "agent"
-   },
-   "body": "the parity count, to check against the paper",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-41e22x",
-   "session": "s-2026-09-16-p9z37z",
-   "target": {
-    "session": "s-2026-09-16-p9z37z"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-vzj43s": {
-   "artifact": "4631633d64d450f0e82b56d66dd9a41efcc5919df13107656a81627aa0d13239",
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "the figure's corner",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-vzj43s",
-   "mark": "box",
-   "page": 1,
-   "rects": [
-    [
-     4.0,
-     4.0,
-     24.0,
-     16.0
-    ]
-   ],
-   "session": "",
-   "target": {
-    "file": "drafting/figures/fig.pdf"
-   },
-   "when": "2026-09-16T11:30:00Z"
   }
  },
  "publisher": {
