@@ -22,6 +22,8 @@ STYLES = ("underline", "highlight", "strike")
 ID = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
 WEIGHTS = (1, 10)
 OPACITIES = (0, 100)
+#: How an annotation with no type is drawn when nothing is set on it: a thin grey underline.
+UNTYPED = {"color": "grey", "style": "underline", "weight": 1, "opacity": 100}
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,22 @@ class Types:
         """A type by its id or its name, either in any case."""
         g = given.strip().lower()
         return next((t for t in self.types if g in (t.id, t.name.lower())), None)
+
+
+def type_named(types: Types, given: str | None) -> AnnotationType | None:
+    """The type `given` names by id or name; None for no type. Refused, naming the quilt's types, when it names none."""
+    if given is None or not given.strip():
+        return None
+    t = types.find(given)
+    if t is None:
+        listed = ", ".join(f"{x.id} ({x.name})" for x in types.types) or "none"
+        raise ValueError(f"no type {given!r} in this quilt; its types are {listed}, and an annotation may have none")
+    return t
+
+
+def drawn_look(t: AnnotationType | None, own: dict[str, Any]) -> dict[str, Any]:
+    """The whole look an annotation is drawn with: its type's, or the untyped one, under what is set on it."""
+    return {**(t.look.to_dict() if t else UNTYPED), **own}
 
 
 def default_text() -> str:

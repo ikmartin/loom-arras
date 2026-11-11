@@ -28,7 +28,6 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "annotations": { "a-2026-09-16-xgtcve": { ... } },
   "annotation_types": [ { "id": "revision", ... } ],
   "threads": { "2026-09-16T14-02-referee": { ... } },
-  "reference_notes": [ ... ],
   "diagnostics": [ ... ],
   "tags": { "localization": ["rl-0004", "rl-0012"] },
   "taxa": { "Lemma": {"style": "plain", "slug": "lemma", "count": 14} },
@@ -43,7 +42,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 }
 ```
 
-**[decided]** `annotation_types` is the quilt's annotation types in its file's order (`.loom/annotation-types.toml`, else the defaults): each `{id, name, look: {color, style, weight, opacity}, open, notes, instructions}`. `color` is one of grey, brown, red, orange, yellow, green, blue, purple, pink; `style` is underline, highlight or strike; `weight` is whole pixels and `opacity` percent. `open` says an annotation of the type stays open until resolved; `notes` that it is listed in Notes. A viewer offers these types and draws an annotation in its own look; it never decides what to show by a type's id.
+**[decided]** `annotation_types` is the quilt's annotation types in its file's order (`.loom/annotation-types.toml`, else the defaults): each `{id, name, look: {color, style, weight, opacity}, open, notes, instructions, modes}`, `modes` naming the modes whose text names the type. `color` is one of grey, brown, red, orange, yellow, green, blue, purple, pink; `style` is underline, highlight or strike; `weight` is whole pixels and `opacity` percent. `open` says an annotation of the type stays open until resolved; `notes` that it is listed in Notes. A viewer offers these types and draws an annotation in its own look; it never decides what to show by a type's id.
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`. `corpus.directory` is the name of the directory the project is, its root's own name (`relloc` for a quilt at `~/quilts/relloc`), whatever `name` says; a viewer names what `files` lists a view of by it. Optional and additive.
 
@@ -58,8 +57,6 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 **[decided]** **Config** (plan 0.23) is what the quilt's configuration holds and what follows from it, for a viewer's Settings: `{"editable", "read_only", "quilt", "library", "lint", "agents", "sync", "warnings"}`. `quilt` is `{"name", "main", "home", "prefix", "engine", "history", "research_state"}`, `library` `{"online", "contact"}`, and `lint` `{"disable", "codes"}`, `codes` being every diagnostic code that can be silenced. `agents` is `{"deny", "protected", "layer", "variant", "stale", "command", "clients"}`: the deny list as loom accepted it; what is always protected, as the orientation names it; whether the quilt has an agent layer; how its agents reach loom, `"mcp"`, `"shell"` or null; whether Claude Code's permission file lags the list (`loom:agent-permissions-stale`); and per agent app with a file in the quilt, `{"key", "label", "file", "set_up", "command"}`. `sync` is `{"paired": true, "directory", "workspace", "branch", "documents"}` or `{"paired": false, "command"}`. `editable` and `read_only` are the `table.key` names a viewer may change through `settings-save` and the ones it shows only (`write-api.md`). `warnings` are the configuration's own. Each `command` is what a person runs for what the viewer cannot do, given here because a viewer names no command of its own; empty when there is nothing to run. Optional and additive: a viewer that finds no `config` shows its own preferences alone.
 
 **[decided]** **Pages** (plan 0.21.3) are a reading loom keeps for one thing, which a person edits and an agent writes through the publisher, never a source. Each is `{"path", "hash", "body_html", "by": {"kind": "agent"|"person", "id"}, "when", "edited_since", "links": {"broken": [{"href", "why"}], "moved": [{"href", "key"}]}}`: `hash` the exact text's, `body_html` its Markdown rendered as a transcript message's (§10.1), `by` and `when` the last write through the publisher (absent when there was none), `edited_since` true when the text has changed since that write, `broken` the links that name nothing now and `moved` the linked results whose text has changed since the write. `research_state`, at the top level, is the quilt's; a work's is `references[CK].overview` (§13). Both are optional, and absent until one is written.
-
-**[decided]** `reference_notes` lists works an agent proposed citing and a person accepted: `{"work": "…the work the suggestion named", "for": ["rl-0004"], "claim": "…the argument for citing it", "identifier": {"verified": false}, "accepted": {"when": "…", "who": "…"}, "from": {"session": "s-…", "annotation": "a-…"}}`. **[decided]** `work` is the work and `claim` is what the agent said it supports, in that order and not the other way round: a note whose `work` held the argument could never become a bibliography entry, which is the one thing the breadcrumb exists for (DR-170). It is a **breadcrumb and never a second source of identity truth**: `identifier.verified` is false until a person confirms it in the bibliography, and nothing here enters `references`, the bibliography, or any closure. A viewer shows them on the keys in `for`. Optional, like every other section.
 
 **[decided]** Beside `manifest.json` and `fragments/`, a publisher may write **`source/<key>.tex`**: one file per key holding that key's own source text before macro expansion, which a viewer fetches lazily for a verbatim view. It is beside the manifest rather than inside it because the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks. Optional: a viewer that finds nothing there shows the rendered form and no toggle.
 
@@ -184,10 +181,7 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
     ]
   },
   "reviews": {
-    "latest_current": {"author": {"kind": "agent", "id": "Referee Agent"},
-                       "date": "2026-09-16T14:31:08Z"},
-    "latest_any": {"author": {"kind": "person", "id": "Tom Graber"}, "date": "2026-09-10T09:00:00Z"},
-    "open": {"objection": 2, "suggestion": 0, "question": 1, "ok": 0},
+    "open": {"revision": 2, "question": 1},
     "detached": 2
   },
   "uses": ["rl-0002", "Man12-thm-4.1"],
@@ -284,7 +278,8 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
   "in": null,
   "basis": null,
-  "kind": "objection",
+  "type": "revision",
+  "look": {"color": "red", "style": "highlight", "weight": 2, "opacity": 65},
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
   "status": "open",
   "in_reply_to": null,
@@ -292,7 +287,6 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "detached": false,
   "recorded": true,
   "quote": "the inclusion is open by the rigidity lemma",
-  "severity": "major",
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
   "placement": "after",
@@ -310,7 +304,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** `in` is the document a claim about a node is read in, as a master path, or null for the node wherever it appears (plan 0.15, decision 9). It is published where the history's moves have taken the document, not as the record wrote it, so a viewer draws the annotation on the document as it is now; a document that is gone is published as written, and the annotation is `detached`. A `target.key` that is a master path is published the same way (DR-297-ikmartin). A viewer draws an annotation that names a document in that document only, lists it on the node's own page with the document named, and shows it in no other document; the publisher bakes its mark into that document's fragment alone. An annotation whose document no longer holds the node is `detached`.
 
-**[decided]** `kind` is one of five — `objection`, `suggestion`, `question`, `citation`, `note`. The first four **await an answer** and are what an open count counts; `note` records rather than ask, and is where "this checks out" goes (DR-204; plan 0.15, decision 2).
+**[decided]** `type` is the id of one of `annotation_types` (§1), or null: a type is a label an annotation may carry, and one the quilt no longer lists is published as null. `look` is the whole look to draw it with, its type's under what was set on the annotation itself, or, its type gone, the look it last had. An annotation is **open**, and counted by `reviews.open` under its type, only while its type stays open until resolved; an untyped annotation, or one of a type that only informs, asks nothing (plan 0.30, decisions 4–6).
 
 ## 9.1 Sessions
 
@@ -330,7 +324,7 @@ The **id** is minted once and is the address; the **title** is the author's and 
 
 **[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
 
-**[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text a suggestion proposes, and `placement` says where it goes: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them; on a suggestion with no quote, they are of the key's body, its own text inside its environment's head (`\begin`, title, `\label`, leading `\uses`) and before its `\end`. An empty payload with `replace` deletes the quoted words. On a citation, `payload` is the work proposed. A viewer never applies a payload; the author does. `payload_html` is the payload as the publisher's converter renders it (the dialect, without element ids), read in the context of the result the annotation is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where there is no payload or the converter refused it, and a viewer then renders the TeX as prose.
+**[decided]** `payload` is text an annotation proposes, and `placement` says where it goes: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them; on a suggestion with no quote, they are of the key's body, its own text inside its environment's head (`\begin`, title, `\label`, leading `\uses`) and before its `\end`. An empty payload with `replace` deletes the quoted words. A viewer never applies a payload; the author does. `payload_html` is the payload as the publisher's converter renders it (the dialect, without element ids), read in the context of the result the annotation is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where there is no payload or the converter refused it, and a viewer then renders the TeX as prose.
 
 **[decided]** An open suggestion carrying a payload has a `change`, its key as it would read with the suggestion taken, rendered at build so a static host shows it too:
 - `{"state": "ready", "fragment", "diff", "moved"}`: `fragment` is the key with the payload in place, its changed words marked as Review marks them; `diff` is the patch that takes it, as `loom suggestion` prints it; both are paths under the build directory. `moved` is true when the key has changed since the suggestion was written, though the words it quotes still stand.

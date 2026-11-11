@@ -42,7 +42,7 @@ export interface Corpus {
   directory?: string;
 }
 
-/** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no kind or severity. */
+/** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no type. */
 export interface Note {
   id: string;
   when: string;
@@ -337,8 +337,7 @@ export interface Acceptance {
 }
 
 export interface Reviews {
-  latest_current: { author: Author; date: string } | null;
-  latest_any: { author: Author; date: string } | null;
+  /** Open annotations by type id. */
   open: Record<string, number>;
   detached: number;
 }
@@ -425,6 +424,8 @@ export interface AnnotationType {
   open: boolean;
   notes: boolean;
   instructions: string;
+  /** The modes whose text names this type. */
+  modes?: string[];
 }
 
 export interface Annotation {
@@ -437,7 +438,10 @@ export interface Annotation {
   in?: string | null;
   /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
   basis?: "text" | "box" | null;
-  kind: string;
+  /** The id of one of the quilt's `annotation_types`, or null for an untyped annotation. A type deleted since leaves an id no type has. */
+  type: string | null;
+  /** The whole look to draw it with, whatever its type now says. */
+  look: Look;
   body_html: string;
   status: "open" | "resolved" | (string & {});
   in_reply_to: string | null;
@@ -448,9 +452,7 @@ export interface Annotation {
   quote?: string;
   /** Why it was withdrawn, when it was. The only record of why a finding should not have stood. */
   discard_reason?: string | null;
-  /** How bad the fault is, not how strongly it is felt: `major` | `moderate` | `minor`. */
-  severity?: string | null;
-  /** Text a suggestion proposes, which the author applies; '' with `replace` deletes the quoted words. On a citation, the work. */
+  /** Replacement text the annotation proposes, which the author applies; '' with `replace` deletes the quoted words. */
   payload?: string | null;
   /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
   payload_html?: string | null;
@@ -472,16 +474,6 @@ export interface Attachment {
   kind: string;
   path?: string;
   count?: number;
-}
-
-/** A work an agent proposed citing and a person accepted: a breadcrumb, never a second source of identity truth. */
-export interface ReferenceNote {
-  work: string;
-  for?: string[];
-  claim?: string | null;
-  identifier?: { verified: boolean; id?: string };
-  accepted?: { when: string; who: string };
-  from?: { session: string; annotation: string };
 }
 
 /** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */
@@ -726,7 +718,6 @@ export interface Manifest {
   threads: Record<string, Thread>;
   /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
   sessions?: SessionRow[];
-  reference_notes?: ReferenceNote[];
   diagnostics: Diagnostic[];
   tags: Record<string, string[]>;
   taxa: Record<string, Taxon>;

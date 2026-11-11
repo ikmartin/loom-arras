@@ -68,8 +68,8 @@ def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
 
 
 def written(q: Path, sid: str, target: str, body: str) -> str:
-    """One note written into `sid` by `loom annotate`; its id."""
-    return ok("annotate", target, body, "--session", sid, "--as", WHO, cwd=q).stdout.split()[0]
+    """One question written into `sid` by `loom annotate`, a type that stays open so it can be resolved; its id."""
+    return ok("annotate", target, body, "--type", "question", "--session", sid, "--as", WHO, cwd=q).stdout.split()[0]
 
 
 def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:

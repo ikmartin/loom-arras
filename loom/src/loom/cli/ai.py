@@ -16,7 +16,6 @@ from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.cli.review import STATUSES
 from loom.paths import AI, COPIES, DIGESTS
-from loom.records.annotations import KINDS, SEVERITIES
 
 if TYPE_CHECKING:
     from loom.ai.clients import Client, ClientReport
@@ -558,10 +557,7 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 @click.option(
     "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
 )
-@click.option(
-    "--severity", "f_severity", type=click.Choice(SEVERITIES), default=None, help="Only annotations of this severity."
-)
-@click.option("--kind", "f_kind", type=click.Choice(KINDS), default=None, help="Only annotations of this kind.")
+@click.option("--type", "f_type", default=None, metavar="TYPE", help="Only annotations of this type, by id or name.")
 @click.option("--status", "f_status", type=click.Choice(STATUSES), default=None, help="Only annotations in this state.")
 @click.option(
     "--all", "f_all", is_flag=True, help="Include withdrawn annotations, with the reason they were withdrawn."
@@ -570,14 +566,13 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 @quilt_option
 def ai_annotations(
     session: str | None,
-    f_severity: str | None,
-    f_kind: str | None,
+    f_type: str | None,
     f_status: str | None,
     f_all: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.
+    """List a session's annotations: id, target, type, status and the quoted text; `--json` carries each one whole.
 
     An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
@@ -588,6 +583,15 @@ def ai_annotations(
     root = result.quilt.root
     found = find_session(root, session)
     rel = found.id
+    type_id = None
+    if f_type is not None:
+        from loom.records.types import load_types, type_named
+
+        try:
+            named = type_named(load_types(root), f_type)
+        except ValueError as exc:
+            raise EnvError(f"--type {f_type}: {exc}") from exc
+        type_id = named.id if named else None
     rows = [
         {
             "id": a.annotation.id,
@@ -595,8 +599,7 @@ def ai_annotations(
             # a note on a page of a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
             "work": a.work or None,
             "page": a.annotation.anchor.page if a.annotation.anchor else None,
-            "kind": a.annotation.kind,
-            "severity": a.annotation.severity,
+            "type": a.annotation.type,
             "status": a.annotation.status,
             "reply_to": a.annotation.in_reply_to,
             "detached": a.detached,
@@ -618,8 +621,7 @@ def ai_annotations(
         r
         for r in rows
         if (f_all or not r["discarded"])
-        and (not f_severity or r["severity"] == f_severity)
-        and (not f_kind or r["kind"] == f_kind)
+        and (not type_id or r["type"] == type_id)
         and (not f_status or r["status"] == f_status)
     ]
     proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
@@ -640,7 +642,6 @@ def ai_annotations(
             lines += [f"      {line}" for line in pr.get("edit") or []]
     cells = []
     for r in rows:
-        sev = f" {r['severity']}" if r["severity"] else ""
         shown = "withdrawn" if r["status"] == "discarded" else r["status"]
         mark = "" if shown == "open" or r["discarded"] else f" ({shown})"
         quote = f"\u201c{r['quote']}\u201d" if r["quote"] else ""
@@ -648,7 +649,7 @@ def ai_annotations(
         withdrawn = f"withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
         rest = "; ".join(x for x in (quote, withdrawn) if x)
         who = r["author"]["id"] if isinstance(r["author"], dict) else ""
-        cells.append((str(r["id"]), str(where), f"{r['kind']}{sev}{mark}", f"by {who}", rest))
+        cells.append((str(r["id"]), str(where), f"{r['type'] or 'untyped'}{mark}", f"by {who}", rest))
     items = [Item(line) for line in table(cells)]  # aligned, so the columns read down (T2)
     verdict = f"{rel}: " + (
         counted(len(rows), "annotation") if rows else "no annotations" if hidden else "no annotations yet"

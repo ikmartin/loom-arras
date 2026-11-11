@@ -84,7 +84,7 @@ def test_a_post_needs_words_or_something_attached(tmp_path: Path) -> None:
     q, sid = quilt(tmp_path)
     with pytest.raises(ValueError):
         post(q, sid, "  ", "A. Author")
-    post(q, sid, "", "A. Author", changed=[{"id": "a-2026-09-16-ecnav2", "kind": "note"}])
+    post(q, sid, "", "A. Author", changed=[{"id": "a-2026-09-16-ecnav2", "type": "note"}])
     assert read_events(q, sid)[0].changed[0]["id"] == "a-2026-09-16-ecnav2"
 
 

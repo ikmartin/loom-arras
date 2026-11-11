@@ -21,7 +21,6 @@ DIRS = ("build", ".loom", "digests", "annotations", "ai", "nodes", "retired")
 PREFIXES = tuple(f"{d}/" for d in ("build", ".loom", "digests", "annotations", "ai", "retired"))
 #: loom's record files, by name.
 RECORDS = {
-    "reference-notes.jsonl",
     "state.toml",
     "serve.json",
     "review-decisions.json",

@@ -1,22 +1,12 @@
-// Suggestions read from the manifest: the open ones split by what they are (text to put in, or prose to weigh), the document each is on in the person's words, and who wrote it. Model facts in, display facts out.
+// Suggestions read from the manifest: the open annotations carrying text to put in, whatever their type, the document each is on in the person's words, and who wrote it. Model facts in, display facts out.
 import { isAgentDocument } from '$lib/manifest/documents';
 import type { Annotation, Manifest } from '$lib/manifest/types';
 
 const file = (p: string) => p.split('/').pop() ?? p;
 
-/** Every open suggestion: neither a reply nor withdrawn nor resolved. */
-function open(m: Pick<Manifest, 'annotations'>): Annotation[] {
-	return Object.values(m.annotations ?? {}).filter((a) => a.kind === 'suggestion' && !a.in_reply_to && !a.discarded && a.status === 'open');
-}
-
-/** The open suggestions carrying text to put in (an empty payload deletes the words it quotes), newest first: what Review counts. */
+/** The open annotations carrying text to put in (an empty payload deletes the words it quotes), whatever their type, newest first: neither a reply nor withdrawn nor resolved. What Review counts. */
 export function toApply(m: Pick<Manifest, 'annotations'>): Annotation[] {
-	return newest(open(m).filter((a) => a.payload !== null && a.payload !== undefined));
-}
-
-/** The open suggestions in prose alone, newest first: weighed and resolved or dismissed, never applied, and not counted. */
-export function toConsider(m: Pick<Manifest, 'annotations'>): Annotation[] {
-	return newest(open(m).filter((a) => a.payload === null || a.payload === undefined));
+	return newest(Object.values(m.annotations ?? {}).filter((a) => a.payload !== null && a.payload !== undefined && !a.in_reply_to && !a.discarded && a.status === 'open'));
 }
 
 const newest = (as: Annotation[]) => as.sort((a, b) => (b.created ?? '').localeCompare(a.created ?? ''));

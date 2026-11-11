@@ -18,7 +18,7 @@ def q(tmp_path: Path) -> Path:
 
 
 def comment(q: Path, *args: str) -> str:
-    r = ok("annotate", *args, "--kind", "note", *WHO, cwd=q)
+    r = ok("annotate", *args, "--type", "note", *WHO, cwd=q)
     return r.output.split()[0]
 
 
@@ -103,7 +103,7 @@ def test_a_note_whose_version_is_gone_is_not_pinned_to_the_new_text(q: Path) -> 
         "target": "dm-0002",
         "against": "sha256:" + "0" * 64,
         "anchor": {"exact": "one or two points", "prefix": "", "suffix": ""},
-        "annotation_kind": "note",
+        "type": "note",
         "body": "About a version nobody kept.",
     }
     append(q, lost)

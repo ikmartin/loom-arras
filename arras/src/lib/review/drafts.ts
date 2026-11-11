@@ -5,7 +5,8 @@ export type Verb = 'reply' | 'edit' | 'discard';
 export interface Draft {
 	verb: Verb;
 	text: string;
-	severity: string;
+	/** The type an edit sets, '' for none. */
+	type: string;
 	/** Whether the form stands open. A form closed by a press elsewhere keeps its text for when it is opened again. */
 	open: boolean;
 	/** Whether the cursor was in the text, and where, so a box made again takes it back. */

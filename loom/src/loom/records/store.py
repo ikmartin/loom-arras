@@ -18,7 +18,7 @@ from typing import Any
 
 from loom.clock import today
 from loom.paths import ANNOTATION_LOG, LINKS, NOTE_LOG, REVIEW_OBSERVATIONS
-from loom.records.annotations import ASKING, Annotation, Record, load_records
+from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
@@ -58,8 +58,7 @@ class KeyState:
     row: AcceptRow | None = None
     fresh: bool = True
     causes: list[Cause] = field(default_factory=list)
-    latest_current: Annotation | None = None
-    latest_any: Annotation | None = None
+    #: Open annotations on the key, by type id: only a type that stays open until resolved opens one.
     open: dict[str, int] = field(default_factory=dict)
     detached: int = 0
     previous_key_match: str | None = None
@@ -131,6 +130,20 @@ class Records:
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
         self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
+
+    def opens(self, a: Annotation) -> bool:
+        """Whether `a` is of a type that stays open until resolved; an untyped annotation, or one whose type the quilt no longer lists, only informs."""
+        t = self.types.get(a.type)
+        return bool(t and t.open)
+
+    def look(self, a: Annotation) -> dict[str, Any]:
+        """The whole look `a` is drawn with: its type's under what is set on it, or, its type gone, the look it was last drawn with."""
+        from loom.records.types import drawn_look
+
+        t = self.types.get(a.type)
+        if t is None and a.drawn:
+            return dict(a.drawn)
+        return drawn_look(t, a.own_look)
 
     # ---- text helpers --------------------------------------------------------
 
@@ -389,16 +402,11 @@ class Records:
             ks = states.get(a.target_key)
             if ks is None or res.record.discarded:
                 continue
-            # what awaits an answer, which is what a count is for: a note or a confirmation records rather than asks
-            if a.in_reply_to is None and a.status == "open" and a.kind in ASKING:
-                ks.open[a.kind] = ks.open.get(a.kind, 0) + 1
+            # what awaits an answer, which is what a count is for: an untyped annotation, or one of a type that only informs, asks nothing
+            if a.in_reply_to is None and a.status == "open" and self.opens(a):
+                ks.open[str(a.type)] = ks.open.get(str(a.type), 0) + 1
             if res.detached:
                 ks.detached += 1
-            if a.target_hash == current.get(a.target_key):
-                if ks.latest_current is None or a.created > ks.latest_current.created:
-                    ks.latest_current = a
-            if ks.latest_any is None or a.created > ks.latest_any.created:
-                ks.latest_any = a
 
     def _previous_key_matches(self, result: ScanResult, states: dict[str, KeyState], current: dict[str, str]) -> None:
         by_hash: dict[str, list[str]] = {}
@@ -590,10 +598,13 @@ class Records:
             for _line, said in repeated(self.root, rel, events):
                 diags.append(Diagnostic("warning", "loom:repeated-id", f"{rel}: {said}", [], subject="record"))
         detached: dict[str, list[str]] = {}
+        opening: set[str] = set()
         for res in self.resolved(result):
             # one resolved or withdrawn needs nothing more, so the finding counts the open ones its fix acts on
             if res.detached and not res.record.discarded and res.annotation.status == "open":
                 detached.setdefault(res.target, []).append(res.annotation.id)
+                if self.opens(res.annotation):
+                    opening.add(res.annotation.id)
         for key, ids in sorted(detached.items()):
             diags.append(
                 Diagnostic(
@@ -602,8 +613,12 @@ class Records:
                     f"{len(ids)} annotation(s) on {key} no longer match its text",
                     [],
                     [key],
-                    # resolved once its point is met, or written again on the text as it is now
-                    fixes=[Fix("resolve it if its point is met", f'loom annotate --resolve {i} "…"') for i in ids],
+                    # one that stays open is resolved once its point is met; one that only informs has nothing to resolve
+                    fixes=[
+                        Fix("resolve it if its point is met", f'loom annotate --resolve {i} "…"')
+                        for i in ids
+                        if i in opening
+                    ],
                 )
             )
         diags.extend(self._gone_documents(result, states))
@@ -715,7 +730,10 @@ class Records:
         derived = self.derived(result, states)
         manifest["reviewer"] = {"name": self.reviewer, "source": self.reviewer_source}
         # the quilt's annotation types, in its file's order: what a viewer offers and how an untouched annotation of each is drawn
-        manifest["annotation_types"] = [t.to_dict() for t in self.types.types]
+        from loom.ai.orient import modes_using
+
+        using = modes_using(self.root)
+        manifest["annotation_types"] = [{**t.to_dict(), "modes": using.get(t.id, [])} for t in self.types.types]
         for author in sorted({row.author for row in self.rows if row.author}):
             # One ledger/source snapshot for every perspective; summaries never observe or write.
             other = copy.copy(self)
@@ -778,8 +796,6 @@ class Records:
                     acc["causes"] = causes
                 entry["acceptance"] = acc
             entry["reviews"] = {
-                "latest_current": _fact(ks.latest_current),
-                "latest_any": _fact(ks.latest_any),
                 "open": dict(ks.open),
                 "detached": ks.detached,
             }
@@ -809,7 +825,9 @@ class Records:
                 # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9); where the history's moves have taken it, so a viewer draws it on the document as it is now
                 "in": res.in_doc,
                 "basis": a.anchor.basis if a.anchor else None,
-                "kind": a.kind,
+                # its type, while the quilt lists it: an annotation whose type was deleted reads as untyped, looking as it did
+                "type": a.type if self.types.get(a.type) else None,
+                "look": self.look(a),
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
@@ -817,7 +835,6 @@ class Records:
                 "detached": res.detached,
                 "recorded": res.recorded,
                 "quote": a.selector.exact if a.selector else None,
-                "severity": a.severity,
                 "payload": a.payload,
                 "placement": a.placement,
                 "discard_reason": a.discard_reason,

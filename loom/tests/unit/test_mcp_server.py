@@ -83,7 +83,7 @@ def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> N
 
     async def body(client: Any) -> None:
         r = await client.call_tool(
-            "loom_annotate", {"target": "dm-0002", "message": "Which orbits?", "kind": "question"}
+            "loom_annotate", {"target": "dm-0002", "message": "Which orbits?", "type": "question"}
         )
         assert not r.is_error and f"({AGENT})" in r.content[0].text, r.content[0].text
 
@@ -92,7 +92,7 @@ def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> N
     assert f'"author": "{AGENT}"' in log and '"kind": "agent"' in log
     runs = [ln for p in (q / ".loom" / "sessions").glob("*/run.log") for ln in p.read_text().splitlines()]
     mine = [ln for ln in runs if "(over MCP)" in ln]
-    assert len(mine) == 1 and "loom annotate --kind question --as 'Test Agent' dm-0002 'Which orbits?'" in mine[0]
+    assert len(mine) == 1 and "loom annotate --type question --as 'Test Agent' dm-0002 'Which orbits?'" in mine[0]
     assert not [ln for ln in runs if "annotate" in ln and "(over MCP)" not in ln and "Which orbits" in ln]
 
 

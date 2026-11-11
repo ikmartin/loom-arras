@@ -164,8 +164,7 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 | `--master` `DOC` | Keys this document reaches. |
 | `--in-order` | With --master: the document's keys in the order it prints them, sections and an agent document's own among them, each with its state. |
 | `--tag` | Keys carrying this tag. |
-| `--severity` | Keys carrying an annotation of this severity. |
-| `--kind` `objection|suggestion|question|citation|note` | Keys carrying an annotation of this kind. |
+| `--type` `TYPE` | Keys carrying an annotation of this type, by id or name. |
 | `--status` | Keys carrying an annotation in this state. |
 | `--detached` | Keys whose annotations no longer find their quoted text. |
 | `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
@@ -241,14 +240,17 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--quote` | Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page. |
 | `--page` `N` | A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box. |
 | `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. |
-| `--kind` `objection|suggestion|question|citation|note` | What the annotation is; any unambiguous prefix. Default note. |
+| `--type` `TYPE` | The annotation's type, by id or name, from the quilt's annotation types; default none. With --edit, '' takes it off. |
+| `--color` | Its colour, over its type's. |
+| `--style` | How it is drawn on words, over its type's. |
+| `--weight` | An underline's or a strike's thickness, in whole pixels. |
+| `--opacity` | Its opacity, in percent. |
 | `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
 | `--as` `NAME` | Who is writing; an agent names itself, with Agent or AI in the name. |
 | `--reply` `ID` | Answer annotation ID; the message is the reply. |
 | `--resolve` `ID` | Mark annotation ID resolved, with the message as why. |
-| `--edit` `ID` | Restate an annotation: a new body, --severity, --payload or --placement; never its anchor. |
+| `--edit` `ID` | Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor. |
 | `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
-| `--severity` | How bad the fault is, not how keen you are. |
 | `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin. |
 | `--placement` | Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment. |
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
@@ -591,9 +593,9 @@ Re-reads every verified result's anchor against the page or source it names; nev
 
 `loom library discard [OPTIONS] ID...`
 
-Discard a proposed result, or reject a citation suggestion, with a reason.
+Discard a proposed result, with a reason.
 
-`loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. A rejected suggestion is resolved with the reason on the resolve event and records nothing. Nothing is deleted: the log keeps it and `loom library why` reports it.
+`loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. Nothing is deleted: the log keeps it and `loom library why` reports it.
 
 | option | description |
 |---|---|
@@ -781,9 +783,9 @@ Each step is a no-op where its work is done, so a second run does only what is n
 
 `loom library verify [OPTIONS] ID...`
 
-Record that a result's transcription is faithful, or accept a citation suggestion.
+Record that a result's transcription is faithful.
 
-A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in .loom/reference-notes.jsonl and resolves it; your bibliography is never touched.
+A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded.
 
 | option | description |
 |---|---|
@@ -802,7 +804,7 @@ A result id promotes a proposal into the digest, or re-verifies one already ther
 
 Show where a result came from, what state it is in and who changed it, then its relations to other results.
 
-Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.
+Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked.
 
 | option | description |
 |---|---|
@@ -1014,15 +1016,14 @@ Set up the agent layer and read what an agent works from: its orientation, its d
 
 `loom ai annotations [OPTIONS]`
 
-List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.
+List a session's annotations: id, target, type, status and the quoted text; `--json` carries each one whole.
 
 An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
 
 | option | description |
 |---|---|
 | `--session` `SESSION` | The session to report on. |
-| `--severity` | Only annotations of this severity. |
-| `--kind` | Only annotations of this kind. |
+| `--type` `TYPE` | Only annotations of this type, by id or name. |
 | `--status` | Only annotations in this state. |
 | `--all` | Include withdrawn annotations, with the reason they were withdrawn. |
 | `--json` | Print the annotations as JSON. |
@@ -1309,7 +1310,7 @@ Keep loom's own files current, and documents live.
 
 `loom upgrade [OPTIONS]`
 
-Refresh .loom/.gitignore and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones.
+Refresh .loom/.gitignore, write .loom/annotation-types.toml where a quilt has none, and, where .loom/ai/ exists, its orientation.md and README.md, unedited mode files, the permission and MCP client files and their lines in the root .gitignore; report edited ones.
 
 | option | description |
 |---|---|

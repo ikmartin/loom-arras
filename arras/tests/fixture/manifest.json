@@ -9,6 +9,13 @@
     "style": "highlight",
     "weight": 2
    },
+   "modes": [
+    "audit",
+    "referee",
+    "review",
+    "simplify",
+    "ingest"
+   ],
    "name": "Revision",
    "notes": false,
    "open": true
@@ -22,6 +29,15 @@
     "style": "highlight",
     "weight": 2
    },
+   "modes": [
+    "audit",
+    "referee",
+    "review",
+    "simplify",
+    "flow",
+    "draft",
+    "ingest"
+   ],
    "name": "Suggestion",
    "notes": false,
    "open": true
@@ -35,6 +51,10 @@
     "style": "highlight",
     "weight": 2
    },
+   "modes": [
+    "audit",
+    "referee"
+   ],
    "name": "Question",
    "notes": false,
    "open": true
@@ -48,6 +68,9 @@
     "style": "highlight",
     "weight": 2
    },
+   "modes": [
+    "ingest"
+   ],
    "name": "Note",
    "notes": true,
    "open": false
@@ -71,7 +94,12 @@
    "id": "a-2026-09-16-ecnav2",
    "in": null,
    "in_reply_to": null,
-   "kind": "objection",
+   "look": {
+    "color": "red",
+    "opacity": 65,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -79,14 +107,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": "major",
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": "revision"
   },
   "a-2026-09-16-hwtkaw": {
    "anchored": true,
@@ -105,7 +133,12 @@
    "id": "a-2026-09-16-hwtkaw",
    "in": null,
    "in_reply_to": null,
-   "kind": "suggestion",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
    "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
    "placement": "replace",
@@ -113,14 +146,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": "minor",
    "status": "resolved",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
   "a-2026-09-16-6sn46y": {
    "anchored": false,
@@ -139,7 +172,12 @@
    "id": "a-2026-09-16-6sn46y",
    "in": null,
    "in_reply_to": null,
-   "kind": "suggestion",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -147,14 +185,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": "moderate",
    "status": "open",
    "target": {
     "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
     "key": "drafting/main.tex",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
   "a-2026-09-16-tc3rcf": {
    "anchored": false,
@@ -165,7 +203,7 @@
     "label": "agent"
    },
    "basis": null,
-   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
+   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
@@ -173,22 +211,27 @@
    "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
-   "kind": "citation",
-   "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-tc3rcf:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "payload": null,
+   "payload_html": null,
    "placement": null,
    "quote": null,
    "recorded": true,
-   "resolved_why": "accepted",
+   "resolved_why": "Cited.",
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "resolved",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
   "a-2026-09-16-hqnbz4": {
    "anchored": false,
@@ -199,7 +242,7 @@
     "label": "agent"
    },
    "basis": null,
-   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
+   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
@@ -207,22 +250,27 @@
    "id": "a-2026-09-16-hqnbz4",
    "in": null,
    "in_reply_to": null,
-   "kind": "citation",
-   "payload": "any standard text on group actions",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-hqnbz4:0:34\">any standard text on group actions</p>",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "payload": null,
+   "payload_html": null,
    "placement": null,
    "quote": null,
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
   "a-2026-09-16-bns3an": {
    "anchored": true,
@@ -241,7 +289,12 @@
    "id": "a-2026-09-16-bns3an",
    "in": null,
    "in_reply_to": null,
-   "kind": "question",
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -249,14 +302,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "question"
   },
   "a-2026-09-16-xgtcve": {
    "anchored": true,
@@ -275,7 +328,12 @@
    "id": "a-2026-09-16-xgtcve",
    "in": "drafting/talk.tex",
    "in_reply_to": null,
-   "kind": "suggestion",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -283,14 +341,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
   "a-2026-09-16-hwnav1": {
    "anchored": true,
@@ -309,7 +367,12 @@
    "id": "a-2026-09-16-hwnav1",
    "in": null,
    "in_reply_to": "a-2026-09-16-ecnav2",
-   "kind": "question",
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -317,14 +380,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": null
   },
   "a-2026-09-16-gahrrs": {
    "anchored": true,
@@ -343,7 +406,12 @@
    "id": "a-2026-09-16-gahrrs",
    "in": null,
    "in_reply_to": "a-2026-09-16-hwtkaw",
-   "kind": "question",
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -351,14 +419,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
     "work": null
-   }
+   },
+   "type": null
   },
   "a-2026-09-16-a91hwf": {
    "anchored": false,
@@ -377,7 +445,12 @@
    "id": "a-2026-09-16-a91hwf",
    "in": null,
    "in_reply_to": null,
-   "kind": "question",
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -385,14 +458,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
     "key": "sy-0001",
     "page": null,
     "work": null
-   }
+   },
+   "type": "question"
   },
   "a-2026-09-16-pmjbhz": {
    "anchored": false,
@@ -411,7 +484,12 @@
    "id": "a-2026-09-16-pmjbhz",
    "in": null,
    "in_reply_to": null,
-   "kind": "note",
+   "look": {
+    "color": "grey",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": null,
    "payload_html": null,
    "placement": null,
@@ -419,14 +497,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-15-fk1w66",
-   "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
     "key": "sy-000A",
     "page": null,
     "work": null
-   }
+   },
+   "type": "note"
   },
   "a-2026-09-17-rvgxnv": {
    "anchored": true,
@@ -451,7 +529,12 @@
    "id": "a-2026-09-17-rvgxnv",
    "in": null,
    "in_reply_to": null,
-   "kind": "suggestion",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
    "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
    "payload_html": "<p data-src=\"payload/a-2026-09-17-rvgxnv:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
    "placement": "replace",
@@ -459,14 +542,14 @@
    "recorded": true,
    "resolved_why": null,
    "run": "s-2026-09-16-p9z37z",
-   "severity": "minor",
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   }
  },
  "canon": [
@@ -474,7 +557,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "72e9dd18932fd513b521f047b30dc86e6a4d7dfd95d7d17f092fae359cb7b5e8",
+   "hash": "9f881f4812fddb2b2bda1d5e70b5869916c64e5420707729a709c530c307501f",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -489,7 +572,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "c486f8d77cb52f590a9b7cb4619f070d21879c4d1ec5a98a3b2e03151d774c91",
+   "hash": "68fa452432ee9c78417a33ed18fe7657b95a0f50bf103baa98a11c6f8d415fbd",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -504,7 +587,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "40066a1a4a72c34aa9f7c6b231372f2de4d6832650030b6b956b7460cce6d300",
+   "hash": "ce9a31f192111aac94c6db001f8709ab9dbc7f69e7d33c443bf7209df61e2687",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -2993,8 +3076,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3019,8 +3100,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3050,8 +3129,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3082,8 +3159,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3108,8 +3183,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3134,8 +3207,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3247,14 +3318,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 1,
-    "latest_any": {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": null,
     "open": {
      "question": 1
     }
@@ -3284,8 +3347,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3404,24 +3465,9 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-17T09:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-17T09:00:00Z"
-    },
     "open": {
-     "citation": 1,
      "question": 1,
-     "suggestion": 2
+     "suggestion": 3
     }
    },
    "src": [
@@ -3454,8 +3500,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3485,8 +3529,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3540,8 +3582,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3582,22 +3622,8 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
     "open": {
-     "objection": 1
+     "revision": 1
     }
    },
    "src": [
@@ -3626,8 +3652,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3680,20 +3704,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
     "open": {}
    },
    "src": [
@@ -3728,8 +3738,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3850,8 +3858,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3887,8 +3893,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3916,8 +3920,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3946,8 +3948,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3973,8 +3973,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4001,8 +3999,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4030,8 +4026,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4062,8 +4056,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4094,8 +4086,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4124,8 +4114,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4154,8 +4142,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4187,8 +4173,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4220,8 +4204,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4250,8 +4232,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4279,8 +4259,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4315,8 +4293,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4349,8 +4325,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4383,8 +4357,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4413,8 +4385,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4448,8 +4418,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4480,8 +4448,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4512,8 +4478,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4545,8 +4509,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4575,8 +4537,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4605,8 +4565,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4637,8 +4595,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4669,8 +4625,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4699,8 +4653,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4727,8 +4679,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4757,8 +4707,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4789,8 +4737,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4819,8 +4765,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4846,8 +4790,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4873,8 +4815,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4903,8 +4843,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4934,8 +4872,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4964,8 +4900,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4995,8 +4929,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -5027,8 +4959,6 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -5053,8 +4983,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -7729,26 +7657,6 @@
   "documents": true,
   "review": true
  },
- "reference_notes": [
-  {
-   "accepted": {
-    "when": "2026-09-16T09:00:00Z",
-    "who": "The synthetic quilt"
-   },
-   "claim": "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
-   "for": [
-    "sy-0003"
-   ],
-   "from": {
-    "annotation": "a-2026-09-16-tc3rcf",
-    "session": "s-2026-09-16-p9z37z"
-   },
-   "identifier": {
-    "verified": false
-   },
-   "work": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999"
-  }
- ],
  "references": {
   "Har77": {
    "artifacts": {
@@ -8466,7 +8374,7 @@
    "log": [
     {
      "annotation": "a-2026-09-16-pmjbhz",
-     "command": "loom annotate sy-000A --kind note",
+     "command": "loom annotate sy-000A --type note",
      "names": [
       {
        "key": "sy-000A"
@@ -8502,7 +8410,7 @@
    "log": [
     {
      "annotation": "a-2026-09-16-ecnav2",
-     "command": "loom annotate sy-0003 --quote --kind objection",
+     "command": "loom annotate sy-0003 --quote --type revision",
      "names": [
       {
        "key": "sy-0003"
@@ -8512,7 +8420,7 @@
     },
     {
      "annotation": "a-2026-09-16-hwtkaw",
-     "command": "loom annotate sy-0004 --quote --kind suggestion",
+     "command": "loom annotate sy-0004 --quote --type suggestion",
      "names": [
       {
        "key": "sy-0004"
@@ -8522,7 +8430,7 @@
     },
     {
      "annotation": "a-2026-09-16-6sn46y",
-     "command": "loom annotate drafting/main.tex --kind suggestion",
+     "command": "loom annotate drafting/main.tex --type suggestion",
      "names": [
       {
        "path": "drafting/main.tex"
@@ -8532,7 +8440,7 @@
     },
     {
      "annotation": "a-2026-09-16-tc3rcf",
-     "command": "loom annotate sy-0003 --kind citation",
+     "command": "loom annotate sy-0003 --type suggestion",
      "names": [
       {
        "key": "sy-0003"
@@ -8542,7 +8450,7 @@
     },
     {
      "annotation": "a-2026-09-16-hqnbz4",
-     "command": "loom annotate sy-0002 --kind citation",
+     "command": "loom annotate sy-0002 --type suggestion",
      "names": [
       {
        "key": "sy-0002"
@@ -8552,7 +8460,7 @@
     },
     {
      "annotation": "a-2026-09-16-bns3an",
-     "command": "loom annotate sy-0002 --quote --kind question",
+     "command": "loom annotate sy-0002 --quote --type question",
      "names": [
       {
        "key": "sy-0002"
@@ -8562,7 +8470,7 @@
     },
     {
      "annotation": "a-2026-09-16-xgtcve",
-     "command": "loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex",
+     "command": "loom annotate sy-0002 --quote --type suggestion --in drafting/talk.tex",
      "names": [
       {
        "key": "sy-0002"
@@ -8572,6 +8480,11 @@
       }
      ],
      "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "annotation": "a-2026-09-16-tc3rcf",
+     "command": "loom annotate --resolve a-2026-09-16-tc3rcf",
+     "time": "2026-09-16T09:00:00Z"
     },
     {
      "command": "loom write state",
@@ -8594,7 +8507,7 @@
     },
     {
      "annotation": "a-2026-09-16-a91hwf",
-     "command": "loom annotate sy-0001 --quote --kind question",
+     "command": "loom annotate sy-0001 --quote --type question",
      "names": [
       {
        "key": "sy-0001"
@@ -8640,7 +8553,7 @@
     },
     {
      "annotation": "a-2026-09-17-rvgxnv",
-     "command": "loom annotate sy-0002 --quote --kind suggestion",
+     "command": "loom annotate sy-0002 --quote --type suggestion",
      "names": [
       {
        "key": "sy-0002"

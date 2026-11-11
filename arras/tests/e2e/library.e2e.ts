@@ -8,7 +8,7 @@ async function infoTab(page: Page): Promise<void> {
 	await page.getByTestId('tab-info').click();
 }
 
-/** A node lists no annotations; its first mark opens the objection whose body the tests below put a link in. */
+/** A node lists no annotations; its first mark opens the revision whose body the tests below put a link in. */
 async function openFirstMark(page: Page): Promise<void> {
 	await page.locator('[data-pane] .fragment mark.annotation').first().click();
 	await expect(page.locator('[data-testid="comment-expanded"] article.box').first()).toBeVisible();

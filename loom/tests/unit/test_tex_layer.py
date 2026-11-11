@@ -172,7 +172,7 @@ def test_with_names_a_file_first_and_then_a_suggestion(tmp_path: Path) -> None:
     assert "Traceback" not in missing.output
 
     c = ok(
-        "annotate", "dm-0002", "Tighten it", "--kind", "suggestion", "--quote", "one or two points",
+        "annotate", "dm-0002", "Tighten it", "--type", "suggestion", "--quote", "one or two points",
         "--payload", "at most two points", "--placement", "replace", "--as", "Tom", cwd=d,
     )  # fmt: skip
     ann = c.stdout.split()[0]

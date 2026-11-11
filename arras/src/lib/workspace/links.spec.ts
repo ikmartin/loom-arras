@@ -22,12 +22,13 @@ const m = {
 	regions: { 'sy-0003#eq:fix': { container: 'sy-0003', label: 'eq:fix', numbers: { 'drafting/main.tex': { number: '4' } } } },
 	references: { Kre99: { citekey: 'Kre99', work: 'arXiv:math/9810166v2', works: ['arXiv:math/9810166v2'] } },
 	annotations: {
-		'a-2026-09-16-ecnav2': { id: 'a-2026-09-16-ecnav2', kind: 'objection', target: { key: 'sy-0003' } },
-		'a-2026-09-16-tc3rcf': { id: 'a-2026-09-16-tc3rcf', kind: 'note', target: { key: 'drafting/main.tex' } },
-		'a-2026-09-17-qe0ph7': { id: 'a-2026-09-17-qe0ph7', kind: 'question', target: { key: 'arXiv:math/9810166v2', page: 2 } },
-		'a-2026-09-23-srw667': { id: 'a-2026-09-23-srw667', kind: 'objection', target: { key: 'sy-0003#eq:fix' } },
-		'a-2026-09-23-qq96rn': { id: 'a-2026-09-23-qq96rn', kind: 'question', target: { key: 'sy-0003#eq:fix' }, in_reply_to: 'a-2026-09-23-srw667' }
+		'a-2026-09-16-ecnav2': { id: 'a-2026-09-16-ecnav2', type: 'revision', target: { key: 'sy-0003' } },
+		'a-2026-09-16-tc3rcf': { id: 'a-2026-09-16-tc3rcf', type: 'note', target: { key: 'drafting/main.tex' } },
+		'a-2026-09-17-qe0ph7': { id: 'a-2026-09-17-qe0ph7', type: 'question', target: { key: 'arXiv:math/9810166v2', page: 2 } },
+		'a-2026-09-23-srw667': { id: 'a-2026-09-23-srw667', type: 'revision', target: { key: 'sy-0003#eq:fix' } },
+		'a-2026-09-23-qq96rn': { id: 'a-2026-09-23-qq96rn', type: 'question', target: { key: 'sy-0003#eq:fix' }, in_reply_to: 'a-2026-09-23-srw667' }
 	},
+	annotation_types: [{ id: 'revision', name: 'Revision' }, { id: 'question', name: 'Question' }],
 	sessions: [{ id: 's-2026-09-16-p9z37z', title: 'referee' }],
 	threads: {},
 	research_state: { path: 'research-state.md', hash: 'sha256:0', body_html: '<p>Goals.</p>', edited_since: false, links: { broken: [], moved: [] } }
@@ -63,7 +64,9 @@ describe('an empty link', () => {
 		expect(linkName(m, 'quilt:sy-0003#eq:fix')).toBe('(4) in Theorem 2.1');
 		expect(linkName(m, 'quilt:drafting/main.tex')).toBe('main.tex');
 		expect(linkName(m, 'quilt:drafting/main.tex#sy-0003')).toBe('Theorem 2.1');
-		expect(linkName(m, 'quilt:a-2026-09-16-ecnav2')).toBe('objection on Theorem 2.1');
+		expect(linkName(m, 'quilt:a-2026-09-16-ecnav2')).toBe('Revision on Theorem 2.1');
+		// a type the quilt no longer has names it as an annotation
+		expect(linkName(m, 'quilt:a-2026-09-16-tc3rcf')).toBe('annotation on main.tex');
 		expect(linkName(m, 'quilt:a-2026-09-23-qq96rn')).toBe('reply on (4) in Theorem 2.1'); // not `question on`, which reads as a new one
 		expect(linkName(m, 'quilt:s-2026-09-16-p9z37z')).toBe('referee');
 		expect(linkName(m, 'quilt:state')).toBe('the research state');

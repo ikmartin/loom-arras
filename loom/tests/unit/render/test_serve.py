@@ -132,12 +132,10 @@ def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
     (q / "drafting" / "nodes").mkdir(parents=True)
     (q / "config.toml").write_text('[quilt]\nname = "q"\n', encoding="utf-8")
     (q / ".loom/annotations" / "log.jsonl").write_text('{"event": "created"}\n', encoding="utf-8")
-    (q / ".loom/reference-notes.jsonl").write_text('{"work": "doi:10/x"}\n', encoding="utf-8")
     (q / "drafting" / "nodes" / "n.tex").write_text("\\begin{lemma}\\end{lemma}\n", encoding="utf-8")
 
     watched = {p.relative_to(q).as_posix() for p in snapshot(q)}
     assert ".loom/annotations/log.jsonl" in watched
-    assert ".loom/reference-notes.jsonl" in watched
     assert {"config.toml", "drafting/nodes/n.tex"} <= watched
 
 

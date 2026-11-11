@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 from loom.records.store import Records
-from loom.records.suggestions import SUGGESTION, Unplaced, is_taken, patch, place
+from loom.records.suggestions import Unplaced, is_taken, patch, place
 from loom.render.convert import Converter
 from loom.render.fragments import FragmentRenderer
 from loom.scan.scan import ScanResult
@@ -65,7 +65,7 @@ def attach_changes(
             continue
         for ann in record.annotations:
             entry = entries.get(ann.id)
-            if entry is None or ann.kind != SUGGESTION or ann.payload is None or ann.status != "open":
+            if entry is None or ann.payload is None or ann.status != "open":
                 continue
             if is_taken(result, ann):
                 entry["change"] = {"state": "taken"}

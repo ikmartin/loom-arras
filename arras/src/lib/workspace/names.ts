@@ -83,7 +83,8 @@ export function keyName(m: Named, key: string): string {
 
 /** What a link names, for a `quilt:` or `cited:` link written with no text of its own (plan 0.14): the name a reader uses, which stays right when the document is renumbered. */
 interface Linked extends Named {
-	annotations: Record<string, { kind: string; target: { key: string }; in_reply_to?: string | null }>;
+	annotations: Record<string, { type?: string | null; target: { key: string }; in_reply_to?: string | null }>;
+	annotation_types?: { id: string; name: string }[];
 	sessions?: { id: string; title: string }[];
 	canon?: { path: string }[];
 	files?: { path: string; kind: string }[];
@@ -94,7 +95,7 @@ interface Linked extends Named {
 /**
  * The viewer's name for what `href` names.
  *
- * An annotation is its kind on what it is about (`objection on Theorem 2.1`), a reply `reply on …` as What it did names it, a session its title, `quilt:state` the research state, a document its file, a project file its file name, any other key as `keyName` has it; a work its citekey, with the page when one is named. A key the manifest does not know is shown as itself.
+ * An annotation is its type's name on what it is about (`Revision on Theorem 2.1`), `annotation on …` when it has no type the quilt still has, a reply `reply on …` as What it did names it, a session its title, `quilt:state` the research state, a document its file, a project file its file name, any other key as `keyName` has it; a work its citekey, with the page when one is named. A key the manifest does not know is shown as itself.
  */
 export function linkName(m: Linked, href: string): string {
 	if (href.startsWith('cited:')) {
@@ -109,7 +110,7 @@ export function linkName(m: Linked, href: string): string {
 	const key = cut < 0 ? body : body.slice(0, cut);
 	const place = cut < 0 ? '' : body.slice(cut + 1);
 	const note = m.annotations[key];
-	if (note) return `${note.in_reply_to ? 'reply' : note.kind} on ${keyName(m, note.target.key)}`;
+	if (note) return `${note.in_reply_to ? 'reply' : ((note.type && m.annotation_types?.find((t) => t.id === note.type)?.name) || 'annotation')} on ${keyName(m, note.target.key)}`;
 	const session = (m.sessions ?? []).find((s) => s.id === key);
 	if (session) return session.title;
 	if (key === 'state' && m.research_state) return 'the research state';

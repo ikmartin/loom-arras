@@ -288,7 +288,9 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
         where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
         mine = " · to your annotation" if c.get("yours") else ""
         now = f" · now {c['status']}" if c.get("status") else ""
-        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}{mine}{now}")
+        lines.append(
+            f"  {c.get('id', '')}  {c.get('type') or 'untyped'} · {where} · {c.get('act', '')} by {who}{mine}{now}"
+        )
         if c.get("quote"):
             lines.append(f'      on "{c["quote"]}"')
         if c.get("body"):
@@ -328,7 +330,7 @@ def annotation_row(root: Path, a: Any) -> dict[str, Any]:
     """
     row: dict[str, Any] = {
         "id": a.id,
-        "kind": a.kind,
+        "type": a.type,
         "target": a.target_key,
         "work": work_of(root, a),
         "page": a.anchor.page if a.anchor else None,
@@ -338,7 +340,7 @@ def annotation_row(root: Path, a: Any) -> dict[str, Any]:
     }
     if a.selector is not None and a.selector.exact:
         row["quote"] = a.selector.exact
-    for field in ("severity", "payload", "placement"):
+    for field in ("payload", "placement"):
         if getattr(a, field):
             row[field] = getattr(a, field)
     return row

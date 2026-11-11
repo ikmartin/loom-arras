@@ -6,7 +6,6 @@ export type Card =
 	| { kind: 'pull'; id: 'pull'; pull: IncomingReview; label: string }
 	| { kind: 'copy'; id: string; copy: AdoptionReview; suggestions: Annotation[] }
 	| { kind: 'suggestion'; id: string; annotation: Annotation }
-	| { kind: 'citation'; id: string; annotation: Annotation }
 	| { kind: 'results'; id: string; citekey: string; count: number };
 
 type Read = Pick<Manifest, 'nodes' | 'keys' | 'masters'> & Partial<Pick<Manifest, 'regions' | 'annotations' | 'contributions' | 'incoming' | 'references'>>;
@@ -21,11 +20,6 @@ export function pullLabel(m: Pick<Manifest, 'contributions' | 'incoming'>): stri
 	return m.contributions?.find((c) => c.kind === 'workspace')?.label ?? `Pull from ${m.incoming?.workspace}`;
 }
 
-/** The open citation suggestions: neither a reply nor withdrawn nor resolved. */
-function citations(m: Pick<Manifest, 'annotations'>): Annotation[] {
-	return Object.values(m.annotations ?? {}).filter((a) => a.kind === 'citation' && !a.in_reply_to && !a.discarded && a.status === 'open');
-}
-
 /** Each work with results proposed and how many, by key. */
 export function resultsOf(m: Pick<Manifest, 'references'>): { citekey: string; count: number }[] {
 	return Object.entries(m.references ?? {})
@@ -35,7 +29,7 @@ export function resultsOf(m: Pick<Manifest, 'references'>): { citekey: string; c
 }
 
 /**
- * Everything to decide, in the order the page lists it: the fetched pull, the agents' copies, then suggestions with text and citations, newest first, then the works with results proposed.
+ * Everything to decide, in the order the page lists it: the fetched pull, the agents' copies, then suggestions with text, newest first, then the works with results proposed.
  *
  * Parameters
  * ----------
@@ -55,11 +49,11 @@ export function cardsOf(m: Read): Card[] {
 		if (held) held.push(a);
 		else own.push(a);
 	}
-	const notes = [...own, ...citations(m as Manifest)].sort((a, b) => (b.created ?? '').localeCompare(a.created ?? '') || a.id.localeCompare(b.id));
+	const notes = own.sort((a, b) => (b.created ?? '').localeCompare(a.created ?? '') || a.id.localeCompare(b.id));
 	return [
 		...(m.incoming ? [{ kind: 'pull' as const, id: 'pull' as const, pull: m.incoming, label: pullLabel(m as Manifest) }] : []),
 		...copies.map((copy) => ({ kind: 'copy' as const, id: copy.copy, copy, suggestions: onCopy.get(copy.copy) ?? [] })),
-		...notes.map((annotation): Card => (annotation.kind === 'citation' ? { kind: 'citation', id: annotation.id, annotation } : { kind: 'suggestion', id: annotation.id, annotation })),
+		...notes.map((annotation): Card => ({ kind: 'suggestion', id: annotation.id, annotation })),
 		...resultsOf(m as Manifest).map((w) => ({ kind: 'results' as const, id: w.citekey, ...w }))
 	];
 }

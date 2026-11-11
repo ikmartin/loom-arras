@@ -49,8 +49,8 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
             "session": sid,
             "target": "dm-0003",
             "message": "Written from the viewer.",
-            "kind": "objection",
-            "severity": "minor",
+            "type": "revision",
+            "look": {"color": "green"},
             "author": "A Reader",
         },
     )
@@ -58,7 +58,7 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
     mine = [e for e in log(d) if e.get("body") == "Written from the viewer."]
     assert len(mine) == 1
     assert mine[0]["kind"] == "human" and mine[0]["author"] == "A Reader"
-    assert mine[0]["severity"] == "minor"
+    assert (mine[0]["type"], mine[0]["look"], mine[0]["drawn"]["color"]) == ("revision", {"color": "green"}, "green")
 
     # and it can be answered, restated and withdrawn over the same surface
     ann = mine[0]["id"]
@@ -106,49 +106,6 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
     # nobody to sign it: the quilt names no author and the browser gave none
     status, body = post(s.url + "_api/annotate", {"session": sid, "target": "dm-0003", "message": "unsigned"})
     assert status == 400 and body["error"]["code"] == "refused" and "no author name" in body["error"]["message"], body
-
-
-@pytest.mark.parametrize("decision", ["accept", "reject", "sideways"])
-def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, decision: str) -> None:  # type: ignore[no-untyped-def]
-    """Accepting files a breadcrumb for the work and closes the finding; rejecting closes it with the reason on the resolve event and files nothing; any other decision is refused and changes nothing."""
-    s, d = session
-    sid = open_session(d)
-    status, made = post(
-        s.url + "_api/annotate",
-        {
-            "session": sid,
-            "target": "dm-0003",
-            "message": "Cite Manolache, Prop 3.2.",
-            "kind": "citation",
-            "payload": "C. Manolache, Virtual pull-backs, J. Algebraic Geom. 21 (2012)",
-            "author": "R",
-        },
-    )
-    assert status == 200, made
-    ann = [e for e in log(d) if e.get("body") == "Cite Manolache, Prop 3.2."][0]["id"]
-    notes = d / ".loom/reference-notes.jsonl"
-    before = notes.read_text() if notes.exists() else ""
-
-    status, body = post(
-        s.url + "_api/library-cite",
-        {"session": sid, "annotation": ann, "decision": decision, "why": "already cited", "author": "R"},
-    )
-    after = notes.read_text() if notes.exists() else ""
-    resolved = [e for e in log(d) if e.get("id") == ann and e["event"] == "resolved"]
-    if decision == "sideways":
-        assert status == 400 and body["error"]["code"] == "bad-field", body
-        assert after == before and resolved == []
-        return
-    assert status == 200, body
-    assert len(resolved) == 1, resolved  # the same suggestion is not answered twice
-    if decision == "accept":
-        added = [json.loads(x) for x in after[len(before) :].splitlines() if x.strip()]
-        assert len(added) == 1
-        assert added[0]["for"] == ["dm-0003"]
-        assert added[0]["identifier"] == {"verified": False}  # a breadcrumb, never a second source of identity truth
-    else:
-        assert after == before  # nothing is filed for a work nobody wanted
-        assert "already cited" in json.dumps(resolved[0])
 
 
 def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  # type: ignore[no-untyped-def]
@@ -253,7 +210,7 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
     save_author("Wren Halloway")
     monkeypatch.setenv("AI_AGENT", "1")
     said = handle(
-        q, "annotate", {"session": open_session(q), "target": "dm-0003", "message": "from the browser", "kind": "note"}
+        q, "annotate", {"session": open_session(q), "target": "dm-0003", "message": "from the browser", "type": "note"}
     )
     assert said["ok"], said
     written = log(q)[-1]
@@ -265,7 +222,7 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
             "session": open_session(q),
             "target": "dm-0003",
             "message": "from an agent",
-            "kind": "note",
+            "type": "note",
             "author": "Referee (Agent)",
         },
     )
@@ -316,9 +273,9 @@ def index(q: Path, sid: str) -> list[dict[str, Any]]:
     return [e for e in map(json.loads, filter(None, lines)) if e.get("id") == sid]
 
 
-def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.", kind: str = "note") -> str:
-    """Write one annotation on dm-0003 over the wire, a note unless `kind` says otherwise; its id."""
-    succeeds(s, "annotate", {"session": sid, "target": "dm-0003", "message": body, "kind": kind, "author": WHO})
+def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.", type_id: str = "note") -> str:
+    """Write one annotation on dm-0003 over the wire, a note unless `type_id` says otherwise; its id."""
+    succeeds(s, "annotate", {"session": sid, "target": "dm-0003", "message": body, "type": type_id, "author": WHO})
     return the(log(q), lambda e: e.get("body") == body and e["event"] == "created", body)["id"]  # type: ignore[no-any-return]
 
 
@@ -468,7 +425,9 @@ def _reply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 @case("resolve")
 def _resolve(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
-    ann = noted(s, q, sid)
+    note = noted(s, q, sid)
+    refuses(s, "resolve", {"session": sid, "annotation": note, "author": WHO}, 400, "bad-request", "nothing to resolve")
+    ann = noted(s, q, sid, "A question to answer.", type_id="question")
     said = succeeds(s, "resolve", {"session": sid, "annotation": ann, "message": "Fixed.", "author": WHO})
     assert said["result"] == f"resolved {ann}"
     # the undo is another event, and puts it back
@@ -492,10 +451,17 @@ def _resolve(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 @case("edit")
 def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
-    ann = noted(s, q, sid, kind="objection")  # a kind a severity grades
-    succeeds(s, "edit", {"session": sid, "annotation": ann, "message": "Restated.", "severity": "minor", "author": WHO})
+    ann = noted(s, q, sid, type_id="revision")
+    succeeds(s, "edit", {"session": sid, "annotation": ann, "message": "Restated.", "author": WHO})
     edited = events(q, ann)[-1]
-    assert (edited["event"], edited["body"], edited["severity"]) == ("edited", "Restated.", "minor"), edited
+    assert (edited["event"], edited["body"]) == ("edited", "Restated."), edited
+    # restyled and retyped: a null type takes it off, and the look set on it stays
+    succeeds(s, "edit", {"session": sid, "annotation": ann, "type": None, "look": {"style": "strike"}, "author": WHO})
+    edited = events(q, ann)[-1]
+    assert (edited["type"], edited["look"], edited["drawn"]["style"]) == (None, {"style": "strike"}, "strike"), edited
+    refuses(
+        s, "edit", {"session": sid, "annotation": ann, "look": "red", "author": WHO}, 400, "bad-field", "look must be"
+    )
     missing = "a-1999-01-01-ekn992"
     refuses(
         s,
@@ -524,46 +490,6 @@ def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         ("discarded", "", True),
     ]
     refuses(s, "discard", {"annotation": ann, "author": WHO}, 400, "no-session", "must name the session")
-
-
-@case("library-cite")
-def _library_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q, sid = on_demo(serve, tmp_path)
-    plain = noted(s, q, sid, "Not a citation.")
-    refuses(
-        s, "library-cite", {"session": sid, "annotation": plain, "decision": "accept", "author": WHO},
-        400, "refused", "not a citation suggestion",
-    )  # fmt: skip
-    work = "C. Manolache, Virtual pull-backs, J. Algebraic Geom. 21 (2012)"
-    succeeds(
-        s,
-        "annotate",
-        {
-            "session": sid,
-            "target": "dm-0003",
-            "message": "Cite Manolache.",
-            "kind": "citation",
-            "payload": work,
-            "author": WHO,
-        },
-    )
-    ann = the(log(q), lambda e: e.get("body") == "Cite Manolache." and e["event"] == "created", "suggestion")["id"]
-    said = succeeds(s, "library-cite", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
-    assert said["result"].startswith(f"accepted {ann}")
-    crumb = json.loads((q / ".loom/reference-notes.jsonl").read_text().splitlines()[-1])
-    # the payload names the work and the body argues for it, as `loom library verify` records it
-    assert (crumb["work"], crumb["claim"], crumb["for"]) == (work, "Cite Manolache.", ["dm-0003"]), crumb
-    assert crumb["accepted"]["who"] == WHO, crumb
-    assert crumb["from"] == {"session": sid, "annotation": ann}, crumb
-    missing = "a-1999-01-01-ekn992"
-    refuses(
-        s,
-        "library-cite",
-        {"session": sid, "annotation": missing, "decision": "reject"},
-        404,
-        "no-such-annotation",
-        missing,
-    )
 
 
 def proposed(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path, str]:
@@ -1150,7 +1076,7 @@ def _history_record(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
 def _suggestion_apply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
     lemma = q / "drafting" / "nodes" / "dm-0002.tex"
-    body = {"session": sid, "target": "dm-0002", "message": "Tighten it", "kind": "suggestion", "author": WHO}
+    body = {"session": sid, "target": "dm-0002", "message": "Tighten it", "type": "suggestion", "author": WHO}
     succeeds(
         s, "annotate", {**body, "quote": "one or two points", "payload": "at most two points", "placement": "replace"}
     )

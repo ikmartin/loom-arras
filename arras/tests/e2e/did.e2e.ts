@@ -33,17 +33,16 @@ test('a command run again and again is one row, with how many times, and links w
 	await expect(page.getByTestId('did-ran')).not.toContainText('loom annotate sy-0003');
 });
 
-test('what it recorded is grouped by the block it is on, named as a reader names it, each with its kind by hue and where it stands', async ({ page }) => {
+test('what it recorded is grouped by the block it is on, named as a reader names it, each with its colour and where it stands', async ({ page }) => {
 	await page.goto(`/session/${REFEREE}?view=did`);
 	const made = page.locator('[id="ann-a-2026-09-16-ecnav2"]');
 	const group = page.getByTestId('did-group').filter({ has: made });
 	await expect(group.getByTestId('did-on')).toHaveAttribute('title', 'sy-0003');
 	await expect(group.getByTestId('did-on')).not.toHaveText('sy-0003');
-	// the kind is a dot in the objection's red, the word kept for a screen reader only (annotation study A2, A4)
+	// a dot in the annotation's own red, its type's name kept for a screen reader only (annotation study A2, A4)
 	const dot = made.getByTestId('did-kind');
-	await expect(dot).toHaveClass(/k-objection/);
-	await expect(dot).toHaveAttribute('aria-label', 'objection');
-	await expect(dot).toHaveCSS('background-color', 'rgb(163, 45, 45)');
+	await expect(dot).toHaveAttribute('aria-label', 'Revision');
+	await expect(dot).toHaveCSS('background-color', 'rgb(204, 28, 28)');
 	await expect(made.getByTestId('did-state')).toHaveText('open');
 	await expect(made.getByTestId('did-first')).toContainText('finite');
 	// an annotation the log names twice, made and then resolved, is one row, where it stands now

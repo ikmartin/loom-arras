@@ -7,7 +7,7 @@
    "read_only_hint": true
   },
   "command": "loom ai annotations",
-  "description": "List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.",
+  "description": "List a session's annotations: id, target, type, status and the quoted text; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -19,28 +19,8 @@
      "description": "Print the annotations as JSON.",
      "type": "boolean"
     },
-    "kind": {
-     "description": "Only annotations of this kind.",
-     "enum": [
-      "objection",
-      "suggestion",
-      "question",
-      "citation",
-      "note"
-     ],
-     "type": "string"
-    },
     "session": {
      "description": "The session to report on.",
-     "type": "string"
-    },
-    "severity": {
-     "description": "Only annotations of this severity.",
-     "enum": [
-      "major",
-      "moderate",
-      "minor"
-     ],
      "type": "string"
     },
     "status": {
@@ -49,6 +29,10 @@
       "open",
       "resolved"
      ],
+     "type": "string"
+    },
+    "type": {
+     "description": "Only annotations of this type, by id or name.",
      "type": "string"
     }
    },
@@ -180,6 +164,21 @@
      "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
      "type": "string"
     },
+    "color": {
+     "description": "Its colour, over its type's.",
+     "enum": [
+      "grey",
+      "brown",
+      "red",
+      "orange",
+      "yellow",
+      "green",
+      "blue",
+      "purple",
+      "pink"
+     ],
+     "type": "string"
+    },
     "discard": {
      "description": "Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
      "type": "string"
@@ -189,7 +188,7 @@
      "type": "boolean"
     },
     "edit": {
-     "description": "Restate an annotation: a new body, --severity, --payload or --placement; never its anchor.",
+     "description": "Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor.",
      "type": "string"
     },
     "in": {
@@ -200,12 +199,13 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
-    "kind": {
-     "description": "What the annotation is; any unambiguous prefix. Default note.",
-     "type": "string"
-    },
     "message": {
      "type": "string"
+    },
+    "opacity": {
+     "description": "Its opacity, in percent.",
+     "minimum": 0,
+     "type": "integer"
     },
     "page": {
      "description": "A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
@@ -240,21 +240,30 @@
      "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
      "type": "string"
     },
-    "severity": {
-     "description": "How bad the fault is, not how keen you are.",
+    "style": {
+     "description": "How it is drawn on words, over its type's.",
      "enum": [
-      "major",
-      "moderate",
-      "minor"
+      "underline",
+      "highlight",
+      "strike"
      ],
      "type": "string"
     },
     "target": {
      "type": "string"
     },
+    "type": {
+     "description": "The annotation's type, by id or name, from the quilt's annotation types; default none. With --edit, '' takes it off.",
+     "type": "string"
+    },
     "undo": {
      "description": "With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
      "type": "boolean"
+    },
+    "weight": {
+     "description": "An underline's or a strike's thickness, in whole pixels.",
+     "minimum": 1,
+     "type": "integer"
     }
    },
    "type": "object"
@@ -1079,7 +1088,7 @@
    "read_only_hint": true
   },
   "command": "loom library why",
-  "description": "Show where a result came from, what state it is in and who changed it, then its relations to other results.\n\nProvenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.",
+  "description": "Show where a result came from, what state it is in and who changed it, then its relations to other results.\n\nProvenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1591,10 +1600,6 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
-    "kind": {
-     "description": "Keys carrying an annotation of this kind.",
-     "type": "string"
-    },
     "loose": {
      "description": "Keys no live document reaches.",
      "type": "boolean"
@@ -1619,15 +1624,6 @@
      "description": "Log this call to the session.",
      "type": "string"
     },
-    "severity": {
-     "description": "Keys carrying an annotation of this severity.",
-     "enum": [
-      "major",
-      "moderate",
-      "minor"
-     ],
-     "type": "string"
-    },
     "stale": {
      "description": "Accepted keys whose text, closure or preamble moved since.",
      "type": "boolean"
@@ -1642,6 +1638,10 @@
     },
     "tag": {
      "description": "Keys carrying this tag.",
+     "type": "string"
+    },
+    "type": {
+     "description": "Keys carrying an annotation of this type, by id or name.",
      "type": "string"
     },
     "undigested": {

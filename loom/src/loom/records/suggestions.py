@@ -15,9 +15,6 @@ from loom.records.store import Records
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 
-#: An annotation kind whose payload is a change to the text; a citation's payload is the work it proposes.
-SUGGESTION = "suggestion"
-
 
 @dataclass(frozen=True)
 class Placed:
@@ -131,10 +128,6 @@ def place(result: ScanResult, ann: Annotation) -> Placed:
     """
     from loom.render.manifest import key_hash
 
-    if ann.kind != SUGGESTION:
-        raise Unplaced(
-            f"{ann.id} is a {ann.kind}, not a suggestion; only a suggestion's payload is a change to the text"
-        )
     if ann.payload is None:
         raise Unplaced(f"{ann.id} carries no payload")
     if ann.placement not in PLACEMENTS:
@@ -204,7 +197,7 @@ def is_taken(result: ScanResult, ann: Annotation) -> bool:
 
     A replacement is taken when its payload stands in the text and its quote no longer does but inside it; an insertion when its payload stands; a deletion when its quote is gone. Whitespace is compared normalised, as a quote is.
     """
-    if ann.kind != SUGGESTION or ann.payload is None or ann.placement not in PLACEMENTS:
+    if ann.payload is None or ann.placement not in PLACEMENTS:
         return False
     node = _node(result, ann.target_key)
     if node is None or node.file not in result.files:
@@ -238,14 +231,10 @@ def apply(result: ScanResult, ann: Annotation, actor: str | None) -> tuple[list[
     from loom.history.acts import APPLY, documents_reaching, keep_versions, write_file
     from loom.history.ledger import append_entry
 
-    if ann.kind != SUGGESTION or ann.in_reply_to:
-        raise ApplyRefused("not-a-suggestion", f"{ann.id} is no suggestion, so there is nothing of it to put in")
+    if ann.payload is None or ann.in_reply_to:
+        raise ApplyRefused("not-a-suggestion", f"{ann.id} carries no text, so there is nothing of it to put in")
     if ann.status != "open":
         raise ApplyRefused("not-open", f"It is {'withdrawn' if ann.status == 'discarded' else 'resolved'} already")
-    if ann.payload is None:
-        raise ApplyRefused(
-            "no-text", "It proposes no text to put in: resolve it once you have acted on it, or dismiss it"
-        )
     node = _node(result, ann.target_key)
     if node is not None and not any(result.document_role(d) == "person" for d in node.reached_by):
         copy = next((d for d in node.reached_by if result.document_role(d) == "agent"), None)

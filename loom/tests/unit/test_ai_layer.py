@@ -76,8 +76,22 @@ def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) ->
 def test_ai_annotations_refuses_a_filter_value_it_does_not_know(tmp_path: Path) -> None:
     q = bare(tmp_path)
     sid = ok("session", "new", "--name", "x", cwd=q).stdout.split()[0]
-    for flag, value in (("--kind", "objecton"), ("--severity", "huge"), ("--status", "discarded")):
-        refused("ai", "annotations", "--session", sid, flag, value, cwd=q, code=2, match=f"Invalid value for '{flag}'")
+    refused(
+        "ai",
+        "annotations",
+        "--session",
+        sid,
+        "--status",
+        "discarded",
+        cwd=q,
+        code=2,
+        match="Invalid value for '--status'",
+    )
+    # the quilt's types are not the command's to know, so an unknown one is refused by naming them
+    r = refused(
+        "ai", "annotations", "--session", sid, "--type", "objection", cwd=q, code=2, match="no type 'objection'"
+    )
+    assert "question (Question)" in flat(r.output)
 
 
 def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
@@ -246,20 +260,25 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
         "clarity",
     ):
         assert wanted in text, wanted
-    assert "--severity" in text and "--payload" in text
+    assert "{type:revision}" in text and "--payload" in text  # a type by placeholder, so a rename reaches the mode
     assert "[referee-review]" in text  # reused, not a new block: blocks are structures, modes are procedures
     assert "There is no compiled LaTeX or PDF pair" in text
 
     blocks = (q / ".loom/ai" / "rules.md").read_text()
     assert "a reply is for talking to the author" in blocks  # the edit-not-reply rule
-    assert "`citation` for a work" in blocks
+    assert "a work worth citing is a {type:suggestion} naming it" in blocks
 
 
 def test_ai_mode_prints_the_quilts_copy_and_refuses_what_loom_does_not_ship(tmp_path: Path) -> None:
     """`loom ai mode NAME` is how an agent reads a mode, so an author's edit holds; a mode loom no longer ships is refused even where its old file was left behind."""
     q = bare(tmp_path)
+    from loom.ai.orient import expand_types
+    from loom.records.types import load_types
+
     flow = q / ".loom/ai" / "modes" / "flow.md"
-    assert ok("ai", "mode", "flow", cwd=q).stdout == flow.read_text()
+    # printed with each type placeholder filled with the type's name in this quilt
+    assert "{type:suggestion}" in flow.read_text()
+    assert ok("ai", "mode", "flow", cwd=q).stdout == expand_types(flow.read_text(), load_types(q))
     flow.write_text(flow.read_text().replace("When it fits: ", "When it fits: (house) ", 1))
     assert "(house)" in ok("ai", "mode", "flow", cwd=q).stdout
     (q / ".loom/ai" / "modes" / "brainstorm.md").write_text("# Mode: brainstorm\n\nWhen it fits: never.\n")
@@ -356,7 +375,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
         "Say where finiteness is used.",
         "--quote",
         "with $X$ a finite set",
-        "--kind",
+        "--type",
         "suggestion",
         "--session",
         ref,
@@ -414,8 +433,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         "Closedness is asserted.",
         "--quote",
         "diagonal is closed",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -441,7 +460,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     assert "pipeline" not in t  # a report is a transcript message, not a file the build indexes
     assert [entry["command"] for entry in t["log"]][:2] == [
         "loom source dm-0003 --closure",
-        "loom annotate dm-0003/proof --quote --kind objection",
+        "loom annotate dm-0003/proof --quote --type revision",
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
     # a person writing in the same session is a participant in the same thread, which is the point of the split
@@ -466,7 +485,7 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         "annotate",
         "dm-0003",
         "Fine.",
-        "--kind",
+        "--type",
         "note",
         "--session",
         sid,
@@ -519,7 +538,6 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     # and the files those commands own, which a direct edit would otherwise reach
     for d in (".loom/digests", ".loom/annotations", ".loom/history", ".loom/ai", ".loom/retired", ".loom/since"):
         assert f"Edit(/{d}/**)" in denied_paths, d
-    assert "Edit(/.loom/reference-notes.jsonl)" in denied_paths
 
     q = bare(tmp_path)
     assert (q / ".claude" / "settings.json").read_text() == permissions_json(QuiltConfig())

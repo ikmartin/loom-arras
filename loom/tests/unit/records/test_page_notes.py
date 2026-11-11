@@ -30,7 +30,7 @@ def _note_on_page(q: Path, session: str, **fields: Any) -> None:
             "target": "doi:10.4171/demo/14-1",
             "against": "sha256:" + anchor["sha256"],
             "anchor": anchor,
-            "annotation_kind": fields.pop("kind", "question"),
+            "type": fields.pop("type", "question"),
             "body": fields.pop("body", "Is this the balanced case?"),
             **fields,
         },
@@ -47,8 +47,8 @@ def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     }  # fmt: skip
     _note_on_page(q, sid, id="a-2026-09-21-tt5by2", sha256="feed" * 16, anchor=text_anchor)
     box_anchor = {"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256="feed" * 16, kind="note", anchor=box_anchor)
-    ok("annotate", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--as", "A. Author", cwd=q)
+    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256="feed" * 16, type="note", anchor=box_anchor)
+    ok("annotate", "dm-0003", "on a key, as ever", "--type", "note", "--session", sid, "--as", "A. Author", cwd=q)
 
     records, problems = load_records(q)
     assert problems == []
@@ -91,7 +91,7 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     lost_anchor = {"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""}
     _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256=sha, anchor=lost_anchor)
     box_anchor = {"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-0axwnh", sha256="dead" * 16, kind="note", anchor=box_anchor)
+    _note_on_page(q, sid, id="a-2026-09-21-0axwnh", sha256="dead" * 16, type="note", anchor=box_anchor)
 
     by_id = {r.annotation.id: r for r in Records(q).resolved(open_scan(str(q)))}
     found = by_id["a-2026-09-21-tt5by2"]

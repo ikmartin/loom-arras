@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Manifest } from '$lib/manifest/types';
 import { notesWhere, noteWhere } from './notes';
 import { reviewLanding, sectionsOf } from './review/sections';
-import { toApply, toConsider } from './review/suggestions';
+import { toApply } from './review/suggestions';
 import { itemForQuilt } from './workspace/links';
 import { linkName } from './workspace/names';
 
@@ -18,10 +18,10 @@ const m = {
 	regions: {},
 	references: { Arden24: { citekey: 'Arden24', bib: { title: 'A work' }, artifacts: { pdf: true } } },
 	annotations: {
-		'a-2026-10-01-cvhc9q': { id: 'a-2026-10-01-cvhc9q', kind: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: 'Each orbit', placement: 'replace' },
-		'a-2026-10-01-7r1qv5': { id: 'a-2026-10-01-7r1qv5', kind: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: null },
-		'a-2026-10-01-t80mpe': { id: 'a-2026-10-01-t80mpe', kind: 'suggestion', target: { key: 'q-0001' }, status: 'resolved', in_reply_to: null },
-		'a-2026-10-01-5qj7dk': { id: 'a-2026-10-01-5qj7dk', kind: 'objection', target: { key: 'q-0001' }, status: 'open', in_reply_to: null }
+		'a-2026-10-01-cvhc9q': { id: 'a-2026-10-01-cvhc9q', type: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: 'Each orbit', placement: 'replace' },
+		'a-2026-10-01-7r1qv5': { id: 'a-2026-10-01-7r1qv5', type: 'suggestion', target: { key: 'q-0001' }, status: 'open', in_reply_to: null, payload: null },
+		'a-2026-10-01-t80mpe': { id: 'a-2026-10-01-t80mpe', type: 'suggestion', target: { key: 'q-0001' }, status: 'resolved', in_reply_to: null },
+		'a-2026-10-01-5qj7dk': { id: 'a-2026-10-01-5qj7dk', type: 'revision', target: { key: 'q-0001' }, status: 'open', in_reply_to: null }
 	},
 	sessions: [],
 	threads: {},
@@ -62,9 +62,8 @@ describe('Review as the meta view', () => {
 		// a count is what waits for the author: an open session waits for no one
 		expect(sections.find((s) => s.id === 'record')!.waits).toBe(0);
 		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'changes')!.href);
+		// one in prose alone is not counted
 		expect(toApply(m).map((a) => a.id)).toEqual(['a-2026-10-01-cvhc9q']);
-		// one in prose alone is weighed, not applied, and not counted
-		expect(toConsider(m).map((a) => a.id)).toEqual(['a-2026-10-01-7r1qv5']);
 		expect(sections.find((s) => s.id === 'proposed')!.waits).toBe(1);
 	});
 });

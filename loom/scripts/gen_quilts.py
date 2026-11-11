@@ -241,10 +241,8 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0003",
         "The hypothesis 'finite' is essential for the parity count; say so in the statement.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--quote",
         "finite widget",
         "--session",
@@ -255,10 +253,8 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0004",
         "Cite the orbit lemma by number here.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--quote",
         "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
         "--payload",
@@ -273,24 +269,20 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "drafting/main.tex",
         "The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--session",
         referee,
         agent=True,
     )
-    # Two citation suggestions: one the author accepts, which leaves a breadcrumb in reference-notes.jsonl, and one
-    # left open, so the viewer has both a decided suggestion and an undecided one to show.
+    # Two works worth citing, each a suggestion naming the work: one the author resolves, and one left open, so the viewer has both a settled suggestion and an open one to show.
     g.run(
         "annotate",
         "sy-0003",
-        "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
-        "--kind",
-        "citation",
-        "--payload",  # the work the suggestion names; the message argues for it
-        "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
+        "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: "
+        "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.",
+        "--type",
+        "suggestion",
         "--session",
         referee,
         agent=True,
@@ -298,11 +290,9 @@ def build_synthetic(dest: Path) -> None:
     g.run(
         "annotate",
         "sy-0002",
-        "The orbit decomposition is standard; a textbook reference would do.",
-        "--kind",
-        "citation",
-        "--payload",
-        "any standard text on group actions",
+        "The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.",
+        "--type",
+        "suggestion",
         "--session",
         referee,
         agent=True,
@@ -324,7 +314,7 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0002",
         "Is the orbit of a fixed point counted as one point or two?",
-        "--kind",
+        "--type",
         "question",
         "--quote",
         "one or two points",
@@ -336,7 +326,7 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0002",
         "For the slide, the fixed-point clause can go; the talk never uses it.",
-        "--kind",
+        "--type",
         "suggestion",
         "--quote",
         "Every orbit of a widget",
@@ -347,7 +337,7 @@ def build_synthetic(dest: Path) -> None:
     )
     objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
     g.at("2026-09-16T09:00:00Z")
-    g.run("library", "verify", cited, "--as", AUTHOR)
+    g.run("annotate", "--resolve", cited, "Cited.", "--as", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
     _say_report(
         g, referee, "Referee Agent", "Mode: referee, on sy-0003.", _synthetic_report(objection, suggestion, document)
@@ -369,7 +359,7 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0001",
         "Is the involution required to be a bijection, or does that follow?",
-        "--kind",
+        "--type",
         "question",
         "--quote",
         "an involution $\\sigma$ of $X$",
@@ -380,7 +370,7 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-000A",
         "Gadgets of odd order cannot exist.",
-        "--kind",
+        "--type",
         "note",
         "--session",
         quick,
@@ -505,10 +495,8 @@ def build_synthetic(dest: Path) -> None:
         "annotate",
         "sy-0002",
         "Say what the comparison shows.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--quote",
         "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
         "--payload",
@@ -613,7 +601,7 @@ def build_demo(dest: Path) -> None:
         "annotate",
         "dm-0003/proof",
         "Closedness only needs that the diagonal is closed; say where Hausdorff is used.",
-        "--kind",
+        "--type",
         "suggestion",
         "--quote",
         "diagonal is closed",
@@ -638,10 +626,8 @@ def build_demo(dest: Path) -> None:
         "annotate",
         "dm-0003",
         "The theorem assumes $X$ finite for the parity claim, but the closedness claim needs no finiteness; consider splitting the statement.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--payload",
         "Let $(X,\\sigma)$ be a widget. Then $\\Fix(\\sigma)$ is closed in every topology on $X$ for which $\\sigma$ is continuous and $X$ is Hausdorff; if moreover $X$ is finite, $\\Fix(\\sigma)$ is nonempty if and only if $|X|$ is odd.",
         "--placement",
@@ -653,10 +639,8 @@ def build_demo(dest: Path) -> None:
         "annotate",
         "dm-0003/proof",
         "Continuity of $(\\mathrm{id},\\sigma)$ into the product is used without being said; it follows from $\\sigma$ continuous, but say so.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--quote",
         "the preimage of the diagonal",
         "--session",
@@ -667,10 +651,8 @@ def build_demo(dest: Path) -> None:
         "annotate",
         "drafting/main.tex",
         "The setup section introduces $\\Fix$ twice, once in prose and once in the definition; keep the definition.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--session",
         run_dir,
         agent=True,
@@ -739,7 +721,7 @@ DEMO_WORKS = SOURCES / "demo-works"
 def build_showcase(dest: Path) -> None:
     """The showcase quilt: one invented paper, two invented cited works, and every record loom writes, so that a fresh clone opens the viewer on a quilt that has been lived in.
 
-    Read it as a tour rather than a fixture: the synthetic quilt exercises the source contract and this one exercises the *records* -- the reference layer, annotations of every kind, severity and state, a run, a landmark history, and the three faults a quilt can be left in. It is regenerated after a feature lands, so what it shows is what loom does today.
+    Read it as a tour rather than a fixture: the synthetic quilt exercises the source contract and this one exercises the *records* -- the reference layer, annotations of every type and state, a run, a landmark history, and the three faults a quilt can be left in. It is regenerated after a feature lands, so what it shows is what loom does today.
     """
     _copy_sources("showcase", dest)
     g = Gen(dest, SHOWCASE)
@@ -936,7 +918,7 @@ def build_showcase(dest: Path) -> None:
     for key in ("sh-0006", "sh-0007", "sh-0009"):
         g.run("accept", key, "--proofs", "--force")
 
-    # ---- A referee run: one annotation of every kind, severity and state the model has. ------------------
+    # ---- A referee run: one annotation of every default type and every state the model has. -------------
     g.at("2026-09-16T11:00:00Z")
     referee = g.run("session", "new", "--name", "referee-sh-0009").split()[0]
     g.run(
@@ -945,10 +927,8 @@ def build_showcase(dest: Path) -> None:
         "The rank formula is stated for the underlying graph's component count, but nothing in the statement says "
         "that a loop counts as an arrow and contributes to the rank. Arden is explicit about it on "
         "[page 2](cited:arxiv:2504.01234v1?page=2); say so here too.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--quote",
         "underlying graph has $c$ connected components",
         "--session",
@@ -962,10 +942,8 @@ def build_showcase(dest: Path) -> None:
         "sh-0009/proof",
         "The kernel--image count is right but compressed into one clause. A reader checking it has to supply the "
         "rank--nullity step and the saturation step themselves. A replacement is attached.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--quote",
         "the rank of the kernel is the rank of the source less the rank of the image",
         "--payload",
@@ -986,10 +964,8 @@ def build_showcase(dest: Path) -> None:
         "about the lattice, integrality is about the polytope's vertices, and Bellamy assumes the second "
         "([the balancing hypothesis](cited:doi:10.4171/showcase/19-2?quote=balanced%20at%20every%20vertex)). This is "
         "the gap Lemma~sh-000E is meant to close, and it is not closed.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--quote",
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
         "--session",
@@ -1003,7 +979,7 @@ def build_showcase(dest: Path) -> None:
         "sh-0006/proof",
         "Is the walk required to be a walk in the quiver, or only in the support? The two differ when an arrow of "
         "weight zero joins two arrows of the support.",
-        "--kind",
+        "--type",
         "question",
         "--quote",
         "we obtain an infinite walk inside $\\supp(w)$",
@@ -1017,10 +993,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-0004",
         "Worth naming the quotient here: it is the group the divergence map lands in, and it is used twice later.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--payload",
         "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
         "--placement",
@@ -1036,10 +1010,8 @@ def build_showcase(dest: Path) -> None:
         "drafting/main-atomic.tex",
         "The paper never says whether quivers are assumed connected. Convention~sh-0001 says finite and says nothing "
         "about connectedness, and the rank formula is the only place it would matter.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--session",
         referee,
         "--as",
@@ -1051,10 +1023,8 @@ def build_showcase(dest: Path) -> None:
         "sh-0200",
         "This section introduces the divergence map twice, once in prose and once as Definition sh-0003. Keep the "
         "definition.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--session",
         referee,
         "--as",
@@ -1066,10 +1036,8 @@ def build_showcase(dest: Path) -> None:
         "sh-0009#eq:rank",
         "The formula is right, and it is the one place the component count $c$ appears without being defined in the "
         "same breath.",
-        "--kind",
-        "objection",
-        "--severity",
-        "minor",
+        "--type",
+        "revision",
         "--session",
         referee,
         "--as",
@@ -1082,10 +1050,8 @@ def build_showcase(dest: Path) -> None:
         "The transcription drops Arden's hypothesis that the quiver is finite, which is in his standing assumptions "
         "and not in the proposition. It is harmless here and would not be in a quilt that cited him for an infinite "
         "quiver.",
-        "--kind",
-        "objection",
-        "--severity",
-        "moderate",
+        "--type",
+        "revision",
         "--quote",
         "whose underlying graph has $c$ connected components",
         "--session",
@@ -1098,7 +1064,7 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-0005",
         "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
-        "--kind",
+        "--type",
         "note",
         "--session",
         referee,
@@ -1109,11 +1075,10 @@ def build_showcase(dest: Path) -> None:
     g.run(
         "annotate",
         "sh-000F",
-        "The infinite case has a standard reference; cite it rather than pointing at a survey.",
-        "--kind",
-        "citation",
-        "--payload",
-        "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
+        "The infinite case has a standard reference; cite it rather than pointing at a survey: "
+        "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5.",
+        "--type",
+        "suggestion",
         "--session",
         referee,
         "--as",
@@ -1124,10 +1089,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-0008",
         "The remark asserts that no index creeps in, which is what Proposition sh-0007 says; the remark is redundant.",
-        "--kind",
-        "objection",
-        "--severity",
-        "minor",
+        "--type",
+        "revision",
         "--session",
         referee,
         "--as",
@@ -1138,10 +1101,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-000B",
         "Height is defined for every weighting but only used for balanced ones.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "minor",
         "--session",
         referee,
         "--as",
@@ -1153,10 +1114,8 @@ def build_showcase(dest: Path) -> None:
         "sh-0007/proof",
         "This proof uses that the target of the divergence map is torsion-free, which is true of $\\ZZ^{V}$ and is "
         "never said. One clause fixes it.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--quote",
         "a homomorphism into a torsion-free group",
         "--session",
@@ -1255,21 +1214,17 @@ def build_showcase(dest: Path) -> None:
     g.run("annotate", "--resolve", expand, "Taken, with the exact sequence written out.")
     g.run("annotate", "--resolve", walk, "The walk is a walk in the support, which is a subquiver.")
     g.run("annotate", "--resolve", walk, "--undo")
-    g.run(
-        "library",
-        "verify",
-        citation,
-    )
+    g.run("annotate", "--resolve", citation, "Cited.")
     g.run(
         "annotate",
         "sh-000A",
         "Does this need the quiver to be connected, or does the component count handle it?",
-        "--kind",
+        "--type",
         "question",
         "--quote",
         "A quiver whose underlying graph is a forest",
     )
-    g.run("annotate", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "note")
+    g.run("annotate", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--type", "note")
 
     # A second person, so the viewer has two comment sessions and not one.
     g.at("2026-09-17T09:00:00Z")
@@ -1277,10 +1232,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-000C",
         "I would split this: the polynomiality and the degree are two claims and only the first needs Bellamy.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--as",
         "Wren Halloway",
     )
@@ -1300,10 +1253,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-0002",
         "A quiver should be required to be connected.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--session",
         quick,
         agent=True,
@@ -1312,10 +1263,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "sh-0005",
         "The bouquet is not a quiver.",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--session",
         quick,
         agent=True,
@@ -1330,7 +1279,7 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "Bellamy19-prop-3.1",
         "This is the form we use; the balanced case is the one that matters here.",
-        "--kind",
+        "--type",
         "note",
         "--session",
         reading,
@@ -1339,7 +1288,7 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "Bellamy19-thm-3.2",
         "Does this need the weights to be integral, or only bounded?",
-        "--kind",
+        "--type",
         "question",
         "--session",
         reading,
@@ -1354,7 +1303,7 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         "--session",
         reading,
@@ -1367,7 +1316,7 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--box",
         "82,278,529,316",
-        "--kind",
+        "--type",
         "note",
         "--session",
         reading,
@@ -1401,7 +1350,7 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--quote",
         "the constraint matrix is an incidence matrix",
-        "--kind",
+        "--type",
         "note",
         "--session",
         reading,
@@ -1413,10 +1362,8 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "Bellamy19-thm-3.2",
         "Please verify the transcription of 3.2 against p.2: the digest says 'integral' where the page says 'bounded'.",
-        "--kind",
+        "--type",
         "suggestion",
-        "--severity",
-        "moderate",
         "--session",
         reading,
         "--as",

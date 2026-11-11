@@ -1,11 +1,11 @@
 <script lang="ts">
 	// The verbs an annotation offers, as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a suggestion whose text places offers take it, which writes it in, a version of the document kept first, and resolves it as applied; a suggestion with text offers leave it where another offers resolve; one whose key already reads as it taken offers resolve as applied, which records the key's hash; a citation offers take it and leave it in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
+	// An open annotation offers reply, edit and withdraw (the `discard` endpoint), and resolve only when its type stays open until resolved, since loom refuses to resolve one that only informs. One whose text places offers take it, which writes it in, a version of the document kept first, and resolves it as applied; one with text offers leave it in place of resolve; one whose key already reads as it taken offers resolve as applied, which records the key's hash. Edit restates the body and may change the type. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
-	import { decided } from './decisions.svelte';
+	import { staysOpen } from './annotationTypes';
 	import { drafts, type Verb } from './drafts';
 	import type { Annotation } from '$lib/manifest/types';
 
@@ -19,7 +19,7 @@
 	} = $props();
 
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
-	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'library-cite', 'suggestion-apply'];
+	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'suggestion-apply'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
@@ -29,11 +29,12 @@
 	let busy = $state(false);
 	let said = $state('');
 	let text = $state(kept?.text ?? '');
-	let severity = $state(kept?.severity ?? '');
+	/** The type an edit sets: an id of the quilt's types, or '' for none. */
+	let type = $state(kept?.type ?? untrack(() => annotation.type) ?? '');
 
 	$effect(() => {
 		const verb = open;
-		const now = { text, severity };
+		const now = { text, type };
 		const was = drafts.get(annotation.id);
 		if (verb) drafts.set(annotation.id, { verb, ...now, open: true, focused: was?.focused ?? false, caret: was?.caret ?? now.text.length });
 		else if (was) was.open = false;
@@ -76,8 +77,9 @@
 
 	const gone = $derived(annotation.status === 'discarded' || annotation.discarded);
 	const done = $derived(gone || annotation.status !== 'open');
-	const citation = $derived(annotation.kind === 'citation' && !compact);
-	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.discard || allowed['library-cite']);
+	const asks = $derived(staysOpen(store.manifest, annotation));
+	const types = $derived(store.manifest?.annotation_types ?? []);
+	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.discard);
 
 	function show(verb: Verb) {
 		if (open === verb) return (open = null);
@@ -85,7 +87,7 @@
 		const d = drafts.get(annotation.id);
 		const resume = d?.verb === verb;
 		text = resume ? d.text : verb === 'edit' ? stripped(annotation.body_html) : '';
-		severity = resume ? d.severity : verb === 'edit' ? (annotation.severity ?? '') : '';
+		type = resume ? d.type : (annotation.type ?? '');
 		said = '';
 		open = verb;
 	}
@@ -115,18 +117,16 @@
 	}
 
 	const reply = () => text.trim() && send('reply', { message: text.trim() });
-	const edit = () => text.trim() && send('edit', { message: text.trim(), severity: severity || undefined });
+	// the type travels only when it changed, so an annotation whose type the quilt has since deleted can still be restated
+	const edit = () => text.trim() && send('edit', { message: text.trim(), ...(type !== (annotation.type ?? '') ? { type } : {}) });
 	const discard = () => send('discard', { reason: text.trim() || undefined });
 	const resolve = () => send('resolve', {});
 	const applied = () => send('resolve', { applied: true });
 	const apply = () => send('suggestion-apply', {});
 	const taken = $derived(annotation.change?.state === 'taken');
-	const withText = $derived(annotation.kind === 'suggestion' && annotation.payload !== null && annotation.payload !== undefined);
-	const ready = $derived(annotation.kind === 'suggestion' && annotation.change?.state === 'ready');
+	const withText = $derived(annotation.payload !== null && annotation.payload !== undefined);
+	const ready = $derived(annotation.change?.state === 'ready');
 	const reopen = () => send(gone ? 'discard' : 'resolve', { undo: true });
-	const decide = async (decision: 'accept' | 'reject') => {
-		if (await send('library-cite', { decision })) decided[annotation.id] = decision === 'accept' ? 'taken' : 'left';
-	};
 </script>
 
 {#if any}
@@ -143,23 +143,19 @@
 				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-withdraw">withdraw</button>
 			{/if}
 		{:else}
-			{#if citation && allowed['library-cite']}
-				<button type="button" class="verb" onclick={() => decide('accept')} disabled={busy} title="Keep it as a reference note; nothing is written into the text" data-testid="verb-accept">take it</button>
-				<button type="button" class="verb" onclick={() => decide('reject')} disabled={busy} data-testid="verb-reject">leave it</button>
-			{/if}
 			{#if allowed.reply}
 				<button type="button" class="verb" onclick={() => show('reply')} aria-expanded={open === 'reply'} data-testid="verb-reply">reply</button>
 			{/if}
-			{#if !citation && allowed['suggestion-apply'] && ready}
+			{#if allowed['suggestion-apply'] && ready}
 				<button type="button" class="verb" onclick={apply} disabled={busy} title="Write its text into the file; a version of the document is kept first" data-testid="verb-apply">take it</button>
 			{/if}
-			{#if !citation && allowed.resolve && taken}
+			{#if asks && allowed.resolve && taken}
 				<button type="button" class="verb" onclick={applied} disabled={busy} title="The text now reads as this suggestion taken; its hash is recorded" data-testid="verb-applied">resolve as applied</button>
 			{/if}
-			{#if !citation && allowed.resolve}
+			{#if asks && allowed.resolve}
 				<button type="button" class="verb" onclick={resolve} disabled={busy} data-testid="verb-resolve">{withText ? 'leave it' : 'resolve'}</button>
 			{/if}
-			{#if !citation && allowed.edit}
+			{#if allowed.edit}
 				<button type="button" class="verb" onclick={() => show('edit')} aria-expanded={open === 'edit'} data-testid="verb-edit">edit</button>
 			{/if}
 			{#if allowed.discard}
@@ -186,12 +182,11 @@
 			<div class="row">
 				{#if open === 'edit' && !compact}
 					<span class="grow">
-						<label for="vs-{annotation.id}">severity</label>
-						<select id="vs-{annotation.id}" bind:value={severity} data-testid="verb-severity">
-							<option value="">none</option>
-							<option value="major">major</option>
-							<option value="moderate">moderate</option>
-							<option value="minor">minor</option>
+						<label for="vs-{annotation.id}">type</label>
+						<select id="vs-{annotation.id}" bind:value={type} data-testid="verb-type">
+							<option value="">No type</option>
+							{#each types as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
+							{#if annotation.type && !types.some((t) => t.id === annotation.type)}<option value={annotation.type}>{annotation.type}</option>{/if}
 						</select>
 					</span>
 				{/if}
@@ -293,6 +288,6 @@
 	}
 	.said {
 		margin: 0;
-		color: var(--ann-objection);
+		color: var(--state-incomplete);
 	}
 </style>

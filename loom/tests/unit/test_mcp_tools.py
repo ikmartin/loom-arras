@@ -48,7 +48,13 @@ def test_a_schema_says_types_choices_defaults_and_what_is_required() -> None:
     assert props["pages"]["type"] == "boolean" and "quilt" not in props
     assert "as" not in schema(SPECS["loom_annotate"])["properties"]  # the server supplies who is acting
     assert "batch" not in schema(SPECS["loom_annotate"])["properties"]  # it reads stdin, which a call has none of
-    assert schema(SPECS["loom_annotate"])["properties"]["severity"]["enum"] == ["major", "moderate", "minor"]
+    look = schema(SPECS["loom_annotate"])["properties"]
+    assert look["color"]["enum"] == ["grey", "brown", "red", "orange", "yellow", "green", "blue", "purple", "pink"]
+    assert look["style"]["enum"] == ["underline", "highlight", "strike"]
+    assert (look["weight"]["type"], look["weight"]["minimum"]) == ("integer", 1)
+    assert (
+        look["type"]["type"] == "string" and "enum" not in look["type"]
+    )  # the quilt's types, which the tree cannot know
     assert schema(SPECS["loom_id"])["properties"]["sections"]["default"] is True
 
 
@@ -57,8 +63,8 @@ def test_a_schema_says_types_choices_defaults_and_what_is_required() -> None:
     [
         (
             "loom_annotate",
-            {"target": "dm-0002", "message": "Which orbits?", "kind": "question"},
-            ["annotate", "--kind", "question", "--as", "Test Agent", "dm-0002", "Which orbits?"],
+            {"target": "dm-0002", "message": "Which orbits?", "type": "question"},
+            ["annotate", "--type", "question", "--as", "Test Agent", "dm-0002", "Which orbits?"],
         ),
         # a reply names no target: its message takes the target's place, as on the command line
         ("loom_annotate", {"reply": "a-1", "message": "Yes."}, ["annotate", "--reply", "a-1", "--as", "Test Agent", "Yes."]),

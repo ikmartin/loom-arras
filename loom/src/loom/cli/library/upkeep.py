@@ -14,7 +14,6 @@ import click
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, refuse_under_agent
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library import _works
-from loom.cli.library.decide import _short
 from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.paths import DIGESTS
 
@@ -34,7 +33,6 @@ def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
 
     With WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.
     """
-    from loom.records.store import Records
     from loom.refs.check import recorded_works
     from loom.refs.proposals import PROPOSED, load_results, state_of
 
@@ -54,27 +52,8 @@ def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
                     data={"work": ck, "taxon": r.taxon, "number": r.number, "page": r.anchor.page or None},
                 )
             )
-    citations: list[Item] = []
-    if not work:
-        for rec in Records(root).records:
-            if rec.discarded:
-                continue
-            for a in rec.annotations:
-                if a.kind != "citation" or a.status != "open" or a.in_reply_to is not None:
-                    continue
-                page = a.anchor.page if a.anchor is not None and a.anchor.page else None
-                said = _short(a.payload) if a.payload else "names no work, so it can only be discarded"
-                citations.append(
-                    Item(
-                        f"on {a.target_key}: {said}" + (f"  p.{page}" if page else ""),
-                        key=a.id,
-                        data={"on": a.target_key, "work": a.payload, "page": page, "session": rec.rel},
-                    )
-                )
-        citations.sort(key=lambda i: i.key or "")
-    total = len(proposals) + len(citations)
+    total = len(proposals)
     parts = [counted(len(proposals), "proposed result")] if proposals else []
-    parts += [counted(len(citations), "citation suggestion")] if citations else []
     nxt = "loom library verify ID, or loom library discard ID --why '…'"
     Report(
         f"waiting for review: {' and '.join(parts)}"
@@ -82,11 +61,9 @@ def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
         else f"nothing waits for review{f' in {scope[0]}' if work else ''}",
         groups=_works.present(
             Group("proposed results", proposals, next=nxt),
-            Group("citation suggestions", citations, next=nxt),
         ),
         data={
             "proposed": [{"id": i.key, **i.data} for i in proposals],
-            "citations": [{"id": i.key, **i.data} for i in citations],
         },
     ).emit(as_json)
 

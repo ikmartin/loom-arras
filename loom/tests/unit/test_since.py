@@ -35,14 +35,14 @@ def q(tmp_path: Path) -> Path:
 
 
 def test_a_first_look_reports_a_persons_annotations_whole_and_the_next_reports_nothing(q: Path) -> None:
-    ok("annotate", "dm-0003", "Is this sharp?", "--kind", "question", "--quote", "finite set", "--as", WHO, cwd=q)
+    ok("annotate", "dm-0003", "Is this sharp?", "--type", "question", "--quote", "finite set", "--as", WHO, cwd=q)
     ok("annotate", "dm-0004", "A gap here.", "--as", AGENT, cwd=q)
     mine = last_id(q)
     ok("annotate", "--reply", mine, "It is not; see dm-0004.", "--as", WHO, cwd=q)
     got = look(q)
     assert got["first"] is True and got["verdict"].startswith(f"your first look as {AGENT}, since the session opened")
     asked, answered = got["annotations"]
-    assert (asked["target"], asked["kind"], asked["quote"], asked["body"]) == (
+    assert (asked["target"], asked["type"], asked["quote"], asked["body"]) == (
         "dm-0003",
         "question",
         "finite set",
@@ -88,7 +88,7 @@ def test_a_record_of_the_markers_own_second_is_reported_once(q: Path) -> None:
 
 
 def test_what_a_person_settled_is_reported_with_whose_it_was(q: Path) -> None:
-    ok("annotate", "dm-0003", "A gap here.", "--as", AGENT, cwd=q)
+    ok("annotate", "dm-0003", "A gap here.", "--type", "revision", "--as", AGENT, cwd=q)
     gap = last_id(q)
     ok("annotate", "dm-0004", "And here.", "--as", AGENT, cwd=q)
     other = last_id(q)
@@ -96,7 +96,12 @@ def test_what_a_person_settled_is_reported_with_whose_it_was(q: Path) -> None:
     ok("annotate", "--resolve", gap, "Fixed in the source.", "--as", WHO, cwd=q)
     ok("annotate", "--discard", other, "Not a gap.", "--as", WHO, cwd=q)
     acts = {a["id"]: a for a in look(q)["acts"]}
-    assert (acts[gap]["act"], acts[gap]["yours"], acts[gap]["body"]) == ("resolved", True, "Fixed in the source.")
+    assert (acts[gap]["act"], acts[gap]["yours"], acts[gap]["body"], acts[gap]["type"]) == (
+        "resolved",
+        True,
+        "Fixed in the source.",
+        "revision",
+    )
     assert (acts[other]["act"], acts[other]["body"]) == ("discarded", "Not a gap.")
     # what a person wrote and withdrew in one window is no news at all
     ok("annotate", "dm-0002", "Never mind.", "--as", WHO, cwd=q)

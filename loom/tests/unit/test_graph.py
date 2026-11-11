@@ -65,7 +65,7 @@ def test_downstream_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Pa
     payload = json_of("downstream", "dm-0002", "--json", cwd=q)
     assert [r["key"] for r in payload["ledger"]] == ["dm-0002", "dm-0002/proof"]  # the statement and its proof
     (a,) = payload["annotations"]
-    assert a["message"] == "Which orbits?" and a["target"] == "dm-0002" and a["status"] == "open"
+    assert a["message"] == "Which orbits?" and a["target"] == "dm-0002" and a["status"] == "open" and a["type"] is None
 
     text = ok("downstream", "dm-0002", cwd=q).output
     assert "Which orbits?" in text

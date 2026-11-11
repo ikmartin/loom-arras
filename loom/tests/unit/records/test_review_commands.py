@@ -61,8 +61,8 @@ def test_demo_ships_two_accepted_one_stale_and_a_finished_session(tmp_path: Path
     assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "equation:eq:fix"
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {
         "suggestion": 1,
-        "objection": 1,
-    }  # the author's suggestion and the agent's objection
+        "revision": 1,
+    }  # the author's suggestion and the agent's revision
     assert s["keys"]["dm-0003"]["reviews"]["open"] == {"suggestion": 1}  # the agent's suggestion on the statement
     reports = [
         p for p in (d / ".loom" / "sessions").glob("*/inbox.jsonl") if "Mode: referee, on dm-0003." in p.read_text()
@@ -419,13 +419,19 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
         "Needs the rigidity lemma.",
         "--quote",
         "closedness",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         *AS,
         cwd=d,
     )
-    assert r.output.startswith("a-") and "dm-0003/proof  objection  (Markas Hecht)" in r.output
+    assert r.output.startswith("a-") and "dm-0003/proof  revision  (Markas Hecht)" in r.output
     a = events(d)[0]
+    # the type it names, nothing set on it, and the whole look it is drawn with should the type go
+    assert (a["type"], a["look"], a["drawn"]) == (
+        "revision",
+        {},
+        {"color": "red", "style": "highlight", "weight": 2, "opacity": 65},
+    )
     assert a["event"] == "created" and a["author"] == "Markas Hecht" and a["kind"] == "human"
     assert a["session"].startswith("s-")  # writing with nothing active opens a session rather than refusing
     assert a["against"].startswith("sha256:") and a["anchor"]["exact"] == "closedness"
@@ -446,12 +452,22 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
     refused("annotate", "dm-0003/proof", "x", "--quote", "the", *AS, cwd=d, code=2, match="ambiguous")
     # the quote lies in the proof, outside the statement's own text
     refused("annotate", "dm-0003", "x", "--quote", "closedness", *AS, cwd=d, code=2, match="quote not found in dm-0003")
-    r5 = ok("annotate", "dm-0003", "Read; fine.", "--kind", "note", *AS, cwd=d)
+    r5 = ok("annotate", "dm-0003", "Read; fine.", "--type", "note", *AS, cwd=d)
     assert "  note  " in r5.output
     s = status_json(d)
-    assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"objection": 1}
-    assert s["keys"]["dm-0003"]["reviews"]["latest_current"]["author"]["id"] == "Markas Hecht"
-    refused("annotate", "dm-0003", "x", "--kind", "bogus", *AS, cwd=d, code=2, match="kind must be one of")
+    assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"revision": 1}
+    assert s["keys"]["dm-0003"]["reviews"]["open"] == {}  # a note only informs, so it is never open
+    refused(
+        "annotate",
+        "dm-0003",
+        "x",
+        "--type",
+        "bogus",
+        *AS,
+        cwd=d,
+        code=2,
+        match="no type 'bogus' in this quilt; its types are",
+    )
 
 
 def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
@@ -464,6 +480,8 @@ def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
         "Domination is asserted.",
         "--quote",
         "diagonal is closed",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -475,7 +493,7 @@ def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
     assert "loom annotate dm-0003/proof" in (run_dir / "run.log").read_text()
     assert not (run_dir / "annotations.json").exists()  # one log, not a file per run
     first = events(d)[0]
-    # the author is who wrote it and the session is where it belongs; the two used to be one field (plan 0.13 §5)
+    # the author is who wrote it and the session is where it belongs: two fields (plan 0.13 §5)
     assert first["author"] == "agent" and first["kind"] == "agent"
     assert first["session"] == sid
     r2 = ok("annotate", "--reply", ann_id, "Agreed, will fix.", "--as", "Bob", cwd=d)
@@ -506,6 +524,8 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
         "Orbits may be empty.",
         "--quote",
         "Every orbit",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -535,10 +555,8 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "Orbits may be empty.",
         "--quote",
         "Every orbit",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--payload",
         "Every nonempty orbit...",
         "--placement",
@@ -550,7 +568,7 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         cwd=d,
         env=AGENT,
     )
-    assert "objection major" in r.output
+    assert "  revision  " in r.output
     ann = r.output.split()[0]
 
     e = ok(
@@ -571,9 +589,9 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     assert kinds == ["created", "edited"]  # appended; the first body is still on disk
 
     s = status_json(d)
-    assert s["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}  # one finding, not two
+    assert s["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}  # one finding, not two
     f = json_of("ai", "annotations", "--session", sid, "--json", cwd=d)["annotations"]
-    assert len(f) == 1 and f[0]["severity"] == "major"  # severity and the anchor survive an edit that names neither
+    assert len(f) == 1 and f[0]["type"] == "revision"  # the type and the anchor survive an edit that names neither
 
     refused(
         "annotate",
@@ -636,21 +654,31 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
     )
 
 
-def test_severity_and_placement_are_checked(tmp_path: Path) -> None:
+def test_the_look_and_placement_are_checked(tmp_path: Path) -> None:
     d = demo(tmp_path)
+    refused("annotate", "dm-0002", "x", "--color", "mauve", *AS, cwd=d, code=2, match="Invalid value for '--color'")
+    refused("annotate", "dm-0002", "x", "--weight", "11", *AS, cwd=d, code=2, match="Invalid value for '--weight'")
+    refused("annotate", "dm-0002", "x", "--opacity", "101", *AS, cwd=d, code=2, match="Invalid value for '--opacity'")
+    # a placement with nothing to place, and text with nowhere to go, whatever the type
+    refused("annotate", "dm-0002", "x", "--placement", "after", *AS, cwd=d, code=2, match="give --payload too")
     refused(
         "annotate",
         "dm-0002",
         "x",
-        "--severity",
-        "catastrophic",
+        "--quote",
+        "Every orbit",
+        "--payload",
+        "y",
         *AS,
         cwd=d,
         code=2,
-        match="Invalid value for '--severity'",
+        match="needs --placement",
     )
-    # a placement with nothing to place
-    refused("annotate", "dm-0002", "x", "--placement", "after", *AS, cwd=d, code=2, match="give --payload too")
+    # what is set on an annotation is drawn over its type's look
+    ok("annotate", "dm-0002", "x", "--type", "question", "--color", "green", "--style", "strike", *AS, cwd=d)
+    a = events(d)[-1]
+    assert (a["type"], a["look"]) == ("question", {"color": "green", "style": "strike"})
+    assert a["drawn"] == {"color": "green", "style": "strike", "weight": 2, "opacity": 60}
 
 
 def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
@@ -664,8 +692,8 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
         "Objection.",
         "--quote",
         "Every orbit",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -679,94 +707,31 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
         "Person.",
         "--quote",
         "one or two",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         mine,
         *AS,
         cwd=d,
     )
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
     ok("ai", "discard", sid, cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
     assert [e["event"] for e in events(d)][-1] == "discarded"  # an event, not a rewritten file
     ok("ai", "discard", "--by", "Markas Hecht", cwd=d)
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
     ok("ai", "discard", sid, "--undo", cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
     ok("ai", "discard", "--target", "dm-0002", "--undo", cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
     assert (
         ok("ai", "discard", "--before", "2000-01-01", cwd=d).stdout.strip() == "no matching records; nothing withdrawn"
     )
     # a word that is no date is refused, not compared as text: "yesterday" sorted after every date and discarded everything
     refused("ai", "discard", "--before", "yesterday", cwd=d, code=2, match="yesterday")
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
     st = status_json(d)
     assert len(st["runs"]) == 2 and ok("status", "--runs", cwd=d).output.splitlines()[0] == "2 sessions on record"
-
-
-def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
-    """An agent proposes a citation; the author accepts or rejects. Neither path touches refs.bib (DR-122)."""
-    d = demo(tmp_path)
-    sid, run_dir = session(d, "r1")
-    bib_before = (d / "drafting" / "refs.bib").read_text()
-
-    good = ok(
-        "annotate",
-        "dm-0002",
-        "Kreck 1999 proves this; cite it instead of arguing.",
-        "--quote",
-        "Every orbit",
-        "--kind",
-        "citation",
-        "--payload",
-        "K. Kreck, Surgery and duality, Ann. of Math. 149 (1999).",
-        "--session",
-        sid,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
-    first = good.output.split()[0]
-    bad = ok(
-        "annotate",
-        "dm-0003",
-        "Har77 might cover this.",
-        "--quote",
-        "with $X$ a finite set",
-        "--kind",
-        "citation",
-        "--session",
-        sid,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
-    second = bad.output.split()[0]
-
-    ok("library", "verify", first, *AS, cwd=d)
-    notes = [json.loads(ln) for ln in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if ln.strip()]
-    assert len(notes) == 1
-    assert notes[0]["for"] == ["dm-0002"] and notes[0]["identifier"] == {"verified": False}
-    assert notes[0]["from"]["annotation"] == first and "Kreck" in notes[0]["claim"]
-    assert set(notes[0]["from"]) == {"session", "annotation"} and notes[0]["from"]["session"].startswith("s-")
-
-    ok("library", "discard", second, "--why", "Har77 is about something else.", *AS, cwd=d)
-    still = [json.loads(ln) for ln in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if ln.strip()]
-    assert len(still) == 1  # rejecting records nothing; the reason rides on the resolve event
-
-    # both suggestions are resolved either way, so neither sits open forever
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
-    assert (d / "drafting" / "refs.bib").read_text() == bib_before  # the bibliography is the author's, always
-
-    listed = ok("library", cwd=d)
-    assert "accepted citations" in listed.output and "Kreck" in listed.output
-
-    plain = ok("annotate", "dm-0002", "Not a citation.", "--quote", "one or two", *AS, cwd=d)
-    refused("library", "verify", plain.output.split()[0], *AS, cwd=d, code=1, match="not a citation suggestion")
 
 
 def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
@@ -833,17 +798,17 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     d = demo(tmp_path)
     key, proof = "dm-0003", "dm-0003/proof"
     sid, run_dir = session(d, "2026-09-16T14-02-referee")
-    # Day 1: draft, never reviewed; a referee run leaves three objections
+    # Day 1: draft, never annotated; a referee run leaves three revisions
     s = status_json(d)
-    assert s["keys"][key]["state"] == "draft" and s["keys"][key]["reviews"]["latest_any"] is None
+    assert s["keys"][key]["state"] == "draft" and s["keys"][key]["reviews"]["annotations"] == []
     ok(
         "annotate",
         key,
         "The hypothesis 'finite' is not needed for closedness.",
         "--quote",
         "finite set",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -857,8 +822,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "Parity needs the orbit count.",
         "--quote",
         "disjoint union of orbits",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -872,8 +837,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "Diagonal argument needs Hausdorff stated.",
         "--quote",
         "diagonal is closed",
-        "--kind",
-        "objection",
+        "--type",
+        "revision",
         "--session",
         sid,
         "--as",
@@ -882,8 +847,8 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         env=AGENT,
     )
     s = status_json(d)
-    assert s["keys"][key]["reviews"]["open"] == {"objection": 1} and s["keys"][proof]["reviews"]["open"] == {
-        "objection": 2
+    assert s["keys"][key]["reviews"]["open"] == {"revision": 1} and s["keys"][proof]["reviews"]["open"] == {
+        "revision": 2
     }
     ok("build", cwd=d)
     frag = (d / ".loom/build" / "fragments" / "nodes" / "dm-0003.html").read_text()
@@ -902,7 +867,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "annotate",
         proof,
         "Read through; nothing to add.",
-        "--kind",
+        "--type",
         "note",
         "--session",
         sid,
@@ -912,8 +877,10 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         env=AGENT,
     )
     s = status_json(d)
-    assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "agent"
-    # Day 3: the author resolves the statement objection and accepts
+    # a note only informs: it is on the proof and opens nothing
+    assert [a["type"] for a in s["keys"][proof]["reviews"]["annotations"]].count("note") == 1
+    assert s["keys"][proof]["reviews"]["open"] == {"revision": 2}
+    # Day 3: the author resolves the statement's revision and accepts
     ann = next(e["id"] for e in events(d) if e["event"] == "created")
     ok("annotate", key, "--resolve", ann, "Finiteness is used for parity.", *AS, cwd=d)
     ok("accept", key, "--proofs", *AS, cwd=d)
@@ -969,13 +936,14 @@ def test_status_carries_the_title_beside_the_taxon(tmp_path: Path) -> None:
 
 def test_status_filters_by_what_the_annotations_say(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    ok("annotate", "dm-0002", "Which orbits?", "--kind", "objection", "--severity", "major", *AS, cwd=d)
-    ok("annotate", "dm-0003", "A thought", "--kind", "suggestion", *AS, cwd=d)
+    ok("annotate", "dm-0002", "Which orbits?", "--type", "revision", *AS, cwd=d)
+    ok("annotate", "dm-0003", "A thought", "--type", "suggestion", *AS, cwd=d)
 
-    major = json_of("status", "--severity", "major", "--json", cwd=d)["keys"]
-    assert list(major) == ["dm-0002"]
-    sugg = json_of("status", "--kind", "suggestion", "--json", cwd=d)["keys"]
+    revisions = json_of("status", "--type", "Revision", "--json", cwd=d)["keys"]  # a type by its name, in any case
+    assert list(revisions) == ["dm-0002"]
+    sugg = json_of("status", "--type", "suggestion", "--json", cwd=d)["keys"]
     assert list(sugg) == ["dm-0003"]
+    refused("status", "--type", "objection", cwd=d, code=2, match="no type 'objection' in this quilt; its types are")
     assert list(json_of("status", "--status", "resolved", "--json", cwd=d)["keys"]) == []
     assert list(json_of("status", "--detached", "--json", cwd=d)["keys"]) == []
 
@@ -989,10 +957,8 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
         "annotate",
         "dm-0002",
         "Wrong",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         "--session",
         run_name,
         "--as",
@@ -1025,14 +991,14 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
     assert gone["discard_reason"] == "I misread the hypothesis"
     assert "I misread the hypothesis" in ok("ai", "annotations", "--session", run_name, "--all", cwd=d).output
 
-    only_major = json_of("ai", "annotations", "--session", run_name, "--severity", "major", "--json", cwd=d)
-    assert [f["id"] for f in only_major["annotations"]] == [live[0]["id"]]
+    revisions = json_of("ai", "annotations", "--session", run_name, "--all", "--type", "revision", "--json", cwd=d)
+    assert [f["id"] for f in revisions["annotations"]] == [live[0]["id"]]
 
 
 BATCH = [
     pytest.param(
         [{"edit": "{ann}", "message": "Which orbits exactly?"},
-         {"target": "dm-0003", "message": "A second", "payload": "\\begin{lemma}\\end{lemma}"},
+         {"target": "dm-0003", "message": "A second", "quote": "finite set", "payload": "set", "placement": "replace"},
          {"resolve": "{ann}", "message": "fixed"}],
         0, None, [("edited", "Which orbits exactly?"), ("created", "A second"), ("resolved", "fixed")],
         id="every-verb-one-to-a-line",
@@ -1042,11 +1008,11 @@ BATCH = [
     pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
     pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
     pytest.param([{"edit": "{ann}", "message": "x", "quote": "Every orbit"}], 2, "--quote would be lost", [], id="an-edit-moves-no-anchor"),
-    pytest.param([{"discard": "{ann}", "message": "wrong", "severity": "minor"}], 2, "--severity would be lost", [], id="a-discard-carries-its-reason"),
+    pytest.param([{"discard": "{ann}", "message": "wrong", "color": "red"}], 2, "--color would be lost", [], id="a-discard-carries-its-reason"),
     pytest.param([{"edit": "{ann}", "placement": "after"}], 0, None, [("edited", None)], id="an-edit-carries-placement"),
     # every line is checked before any is written, so a failing line leaves nothing half done (the re-grade's K3)
     pytest.param(
-        [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"},
+        [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "type": "suggestion"},
          {"target": "dm-0002", "message": "two", "quote": "NOPE"},
          {"target": "dm-0002", "message": "three"}],
         2, "batch line 2", [],
@@ -1057,7 +1023,7 @@ BATCH = [
         2, "nothing was written", [],
         id="an-unknown-key-on-a-later-line",
     ),
-    pytest.param([{"target": "dm-0002", "kind": "objection"}], 2, "no message", [], id="an-empty-objection"),
+    pytest.param([{"target": "dm-0002", "type": "revision"}], 2, "needs words", [], id="an-empty-revision"),
 ]  # fmt: skip
 
 
@@ -1067,7 +1033,7 @@ def test_a_batch_carries_every_verb_and_refuses_line_by_line(
 ) -> None:
     """`comment --batch` reads one JSON object per line against an existing finding `{ann}`; `wrote` is the events it appends, in order."""
     d = demo(tmp_path)
-    ann = ok("annotate", "dm-0002", "Which orbits?", *AS, cwd=d).output.split()[0]
+    ann = ok("annotate", "dm-0002", "Which orbits?", "--type", "question", *AS, cwd=d).output.split()[0]
     stdin = "".join(json.dumps({k: v.replace("{ann}", ann) for k, v in line.items()}) + "\n" for line in lines)
     r = exits(code, "annotate", "--batch", *AS, cwd=d, stdin=stdin, match=match)
     if match == "unknown key(s) messsage":
@@ -1075,116 +1041,34 @@ def test_a_batch_carries_every_verb_and_refuses_line_by_line(
     assert [(e["event"], e.get("body")) for e in events(d)[1:]] == wrote
 
 
-def test_an_annotation_that_asks_needs_a_message_and_a_bare_note_does_not(tmp_path: Path) -> None:
-    """The re-grade: `annotate dm-0002 --kind objection` with no MESSAGE filed an empty objection, exit 0; a note with none is the record that the target was read and nothing was wrong."""
+def test_an_annotation_that_stays_open_needs_a_message_and_one_that_informs_does_not(tmp_path: Path) -> None:
+    """The re-grade: an annotation that asks something and says nothing was filed, exit 0; a note, or an untyped mark, with no words is the record that the target was read."""
     d = demo(tmp_path)
-    for kind in ("objection", "suggestion", "question", "citation"):
-        refused("annotate", "dm-0002", "--kind", kind, *AS, cwd=d, code=2, match="no message")
-        refused("annotate", "dm-0002", "  ", "--kind", kind, *AS, cwd=d, code=2, match="no message")
+    for type_given in ("revision", "Suggestion", "question"):
+        refused("annotate", "dm-0002", "--type", type_given, *AS, cwd=d, code=2, match="needs words")
+        refused("annotate", "dm-0002", "  ", "--type", type_given, *AS, cwd=d, code=2, match="needs words")
     assert events(d) == []
     ok("annotate", "dm-0002", *AS, cwd=d)
-    assert [e["annotation_kind"] for e in events(d)] == ["note"]
+    ok("annotate", "dm-0002", "--type", "note", *AS, cwd=d)
+    assert [e["type"] for e in events(d)] == [None, "note"]
 
 
-def test_a_clean_read_takes_no_severity(tmp_path: Path) -> None:
-    """`--severity` grades a fault; a note claims none, and the pair was once accepted and stored (H9)."""
+def test_a_type_is_named_by_its_id_or_its_name_and_one_the_quilt_lacks_is_refused(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    refused(
-        "annotate",
-        "dm-0002",
-        "Fine.",
-        "--kind",
-        "note",
-        "--severity",
-        "major",
-        *AS,
-        cwd=d,
-        code=2,
-        match="it belongs on objection or suggestion",
-    )
-    assert events(d) == []
-
-
-def test_a_kind_is_named_by_any_unambiguous_prefix_and_severity_only_grades_a_fault(tmp_path: Path) -> None:
-    """A kind is named by any prefix that names one kind, so `q` and `c` cost one letter each."""
-    from loom.records.annotations import full_kind
-
-    assert full_kind("c") == "citation"
-    assert full_kind("n") == "note"
-    assert full_kind("objection") == "objection"
-    assert full_kind("conf") is None, "confirmation is no kind: a clean read is a note"
-    assert full_kind("zzz") is None
-
-    d = demo(tmp_path)
-    ok("annotate", "dm-0002", "Fine.", "--kind", "n", *AS, cwd=d)
-    assert events(d)[-1]["annotation_kind"] == "note"
-    refused(
-        "annotate", "dm-0002", "Why?", "--kind", "question", "--severity", "major", *AS,
-        code=2, match="belongs on objection or suggestion", cwd=d,
-    )  # fmt: skip
-
-
-def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Path) -> None:
-    """`work` held the agent's prose and `claim` was empty, so the breadcrumb could never become a bibliography entry (H18)."""
-    d = demo(tmp_path)
-    bare = ok("annotate", "dm-0002", "Someone has surely proved this.", "--kind", "citation", *AS, cwd=d)
-    refused("library", "verify", bare.output.split()[0], *AS, cwd=d, code=1, match="proposes no work")
-
-    named = ok(
-        "annotate",
-        "dm-0002",
-        "The parity count is Kreschmer's; cite it rather than reproving it.",
-        "--kind",
-        "citation",
-        "--payload",
-        "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-        *AS,
-        cwd=d,
-    )
-    ok("library", "verify", named.output.split()[0], *AS, cwd=d)
-    note = json.loads((d / ".loom/reference-notes.jsonl").read_text().splitlines()[0])
-    assert note["work"].startswith("Kreschmer,")
-    assert note["claim"].startswith("The parity count")
-
-
-def test_the_cli_and_the_write_api_record_one_citation_the_same_way(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The write API filed the suggestion's body as the work and its quotation as the claim, where the CLI files the payload and the body; `decide_citation` now serves both (plan 0.18.5)."""
-    from loom.render.api import handle
-    from tests.unit._quilts import open_session
-
-    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-01-02T00:00:00Z")
-    notes, resolved = [], []
-    for surface in ("cli", "api"):
-        (tmp_path / surface).mkdir()
-        d = demo(tmp_path / surface)
-        made = ok(
-            "annotate", "dm-0002", "The parity count is Kreschmer's; cite it.", "--quote", "one or two",
-            "--kind", "citation", "--payload", "Kreschmer, Cycle groups, J. Alg. 1999", *AS, cwd=d,
-        )  # fmt: skip
-        ann = made.output.split()[0]
-        if surface == "cli":
-            ok("library", "verify", ann, *AS, cwd=d)
-        else:
-            handle(
-                d,
-                "library-cite",
-                {"session": open_session(d), "annotation": ann, "decision": "accept", "author": AS[1]},
-            )
-        notes.append([json.loads(x) for x in (d / ".loom/reference-notes.jsonl").read_text().splitlines() if x.strip()])
-        resolved.append([e for e in events(d) if e.get("id") == ann and e["event"] == "resolved"])
-    assert notes[0] == notes[1] and len(notes[0]) == 1, notes
-    assert notes[0][0]["work"].startswith("Kreschmer,") and notes[0][0]["claim"].startswith("The parity count")
-    assert len(resolved[0]) == len(resolved[1]) == 1
+    ok("annotate", "dm-0002", "Fine.", "--type", "NOTE", *AS, cwd=d)
+    ok("annotate", "dm-0002", "Why?", "--type", "Question", *AS, cwd=d)
+    assert [e["type"] for e in events(d)] == ["note", "question"]
+    r = refused("annotate", "dm-0002", "Why?", "--type", "objection", *AS, cwd=d, code=2, match="no type 'objection'")
+    assert "revision (Revision)" in flat(r.output)  # the refusal names the quilt's types
+    assert len(events(d)) == 2
 
 
 def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
     """The 0.14 study: an agent replied "a replacement is attached" with `--payload`, and the payload was dropped without a word."""
     d = demo(tmp_path)
-    ann = ok("annotate", "dm-0002", "A finding", *AS, cwd=d).output.split()[0]
+    ann = ok("annotate", "dm-0002", "A finding", "--type", "revision", *AS, cwd=d).output.split()[0]
     before = len(events(d))
-    for extra in (("--payload", "New sentence."), ("--severity", "minor"), ("--quote", "finite set")):
+    for extra in (("--payload", "New sentence."), ("--type", "note"), ("--color", "red"), ("--quote", "finite set")):
         for verb in ("--reply", "--resolve"):
             refused(
                 "annotate",
@@ -1207,8 +1091,8 @@ def test_an_edit_or_a_discard_refuses_what_it_cannot_carry(tmp_path: Path) -> No
     before = len(events(d))
     for verb, extra in (
         ("--edit", ("--quote", "one or two")),
-        ("--edit", ("--kind", "objection")),
         ("--edit", ("--page", "3")),
+        ("--discard", ("--type", "note")),
         ("--discard", ("--quote", "one or two")),
         ("--discard", ("--payload", "New sentence.")),
     ):
@@ -1242,7 +1126,7 @@ def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) ->
 
 def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    ann = ok("annotate", "dm-0002", "A finding", "--kind", "objection", *AS, cwd=d).output.split()[0]
+    ann = ok("annotate", "dm-0002", "A finding", "--type", "revision", *AS, cwd=d).output.split()[0]
     before = len(events(d))
 
     refused("annotate", "--reply", ann, *AS, cwd=d, code=2, match="a reply with no message")
@@ -1251,7 +1135,7 @@ def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     assert len(events(d)) == before  # none of them wrote
 
     # a field-only edit still stands, and a resolution needs no comment
-    ok("annotate", "--edit", ann, "--severity", "minor", *AS, cwd=d)
+    ok("annotate", "--edit", ann, "--color", "purple", *AS, cwd=d)
     ok("annotate", "--resolve", ann, *AS, cwd=d)
 
 
@@ -1262,10 +1146,8 @@ def test_a_finding_on_a_section_is_visible_where_the_author_looks(tmp_path: Path
         "annotate",
         "sy-0100",
         "Never defines the torus T that Results uses",
-        "--kind",
-        "objection",
-        "--severity",
-        "major",
+        "--type",
+        "revision",
         *AS,
         cwd=q,
     )
@@ -1273,12 +1155,12 @@ def test_a_finding_on_a_section_is_visible_where_the_author_looks(tmp_path: Path
     js = json_of("status", "--json", cwd=q)
     assert js["keys"]["sy-0100"]["kind"] == "section"
     assert js["keys"]["sy-0100"]["state"] == ""  # a section is a container, not a claim
-    assert js["keys"]["sy-0100"]["reviews"]["open"] == {"objection": 1}
+    assert js["keys"]["sy-0100"]["reviews"]["open"] == {"revision": 1}
 
     line = status_row(ok("status", cwd=q).output, "sy-0100")
-    assert "Introduction" in line and "1 open objection" in line
-    assert "1 open objection" in ok("status", "--explain", "sy-0100", cwd=q).output
-    assert list(json_of("status", "--severity", "major", "--json", cwd=q)["keys"]) == [
+    assert "Introduction" in line and "1 open revision" in line
+    assert "1 open revision" in ok("status", "--explain", "sy-0100", cwd=q).output
+    assert list(json_of("status", "--type", "revision", "--json", cwd=q)["keys"]) == [
         "sy-0003",
         "sy-0100",
     ]
@@ -1350,16 +1232,16 @@ def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
 def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> None:
     """Discarding always replayed an `undo`; resolving did not, so a resolution was the one state nothing could take back — and `--resolve` is the verb a run can apply to its own finding (DR-174)."""
     d = demo(tmp_path)
-    ann = ok("annotate", "dm-0002", "Which orbits?", "--kind", "objection", *AS, cwd=d).output.split()[0]
+    ann = ok("annotate", "dm-0002", "Which orbits?", "--type", "revision", *AS, cwd=d).output.split()[0]
 
     assert ok("annotate", "--resolve", ann, *AS, cwd=d).output.startswith("resolved")
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
     assert ok("annotate", "--resolve", ann, "--undo", *AS, cwd=d).output.startswith("reopened")
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
 
     assert ok("annotate", "--discard", ann, "raised in error", *AS, cwd=d).output.startswith("withdrew")
     assert ok("annotate", "--discard", ann, "--undo", *AS, cwd=d).output.startswith("reopened")
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
 
     # nothing was removed: every act is still in the log, undos included
     kinds = [e["event"] for e in events(d)]
@@ -1591,7 +1473,7 @@ def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(
         "annotate",
         "dm-0002",
         "A sharper statement.",
-        "--kind",
+        "--type",
         "suggestion",
         "--payload",
         payload,
@@ -1665,7 +1547,7 @@ def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_a
     key = "sy-000C-ai/proof"
 
     def filed(who: str, body: str, env: dict[str, str] | None = None) -> str:
-        return ok("annotate", key, body, "--kind", "question", "--as", who, cwd=q, env=env or {}).stdout.split()[0]
+        return ok("annotate", key, body, "--type", "question", "--as", who, cwd=q, env=env or {}).stdout.split()[0]
 
     referee = filed("Referee Agent", "Which definition?", AGENT)
     mine = filed("Markas Hecht", "Is this step needed?")
@@ -1728,15 +1610,26 @@ def test_accept_says_what_it_did_and_what_it_did_not(tmp_path: Path) -> None:
 
 
 def test_a_reply_and_an_edit_are_checked_as_a_new_annotation_is(tmp_path: Path) -> None:
-    """K3 (DR-334): a reply's `--kind` was stored as given, unchecked against the five kinds or their prefixes, and `--edit --severity` was accepted on a kind that takes none."""
+    """K3 (DR-334): a reply carries its text only, an edit's type is checked against the quilt's as a new annotation's is, and only a type that stays open is resolved."""
     d = demo(tmp_path)
-    note = ok("annotate", "dm-0002", "Read; fine.", "--kind", "note", *AS, cwd=d).output.split()[0]
+    note = ok("annotate", "dm-0002", "Read; fine.", "--type", "note", *AS, cwd=d).output.split()[0]
     before = len(events(d))
-    refused("annotate", "--reply", note, "Why?", "--kind", "bogus", *AS, cwd=d, code=2, match="kind must be one of")
-    refused("annotate", "--edit", note, "--severity", "major", *AS, cwd=d, code=2, match="claims none")
+    refused("annotate", "--reply", note, "Why?", "--type", "question", *AS, cwd=d, code=2, match="--type would be lost")
+    refused("annotate", "--edit", note, "--type", "bogus", *AS, cwd=d, code=2, match="no type 'bogus' in this quilt")
+    refused("annotate", "--edit", note, "--weight", "0", *AS, cwd=d, code=2, match="Invalid value for '--weight'")
+    refused("annotate", "--resolve", note, *AS, cwd=d, code=2, match="only informs, so there is nothing to resolve")
     assert len(events(d)) == before
-    ok("annotate", "--reply", note, "Which orbits?", "--kind", "obj", *AS, cwd=d)
-    assert events(d)[-1]["annotation_kind"] == "objection"
+    ok("annotate", "--reply", note, "Which orbits?", *AS, cwd=d)
+    assert "type" not in events(d)[-1]  # a reply is dialogue, with no type of its own
+
+    # retyped, it is drawn as its new type unless something is set on it, and then it can be resolved
+    ok("annotate", "--edit", note, "--type", "question", *AS, cwd=d)
+    assert (events(d)[-1]["type"], events(d)[-1]["drawn"]["color"]) == ("question", "blue")
+    ok("annotate", "--resolve", note, *AS, cwd=d)
+    # '' takes the type off and keeps what is set on it
+    ok("annotate", "--edit", note, "--type", "", "--color", "pink", *AS, cwd=d)
+    last = events(d)[-1]
+    assert (last["type"], last["look"], last["drawn"]["color"]) == (None, {"color": "pink"}, "pink")
 
 
 def test_cited_works_nothing_depends_on_are_one_line(tmp_path: Path) -> None:

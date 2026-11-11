@@ -13,6 +13,7 @@
 // consult, and in the viewer it would silently decide where work was filed.
 
 import type { Annotation, Manifest, SessionRow } from '$lib/manifest/types';
+import { staysOpen } from '$lib/review/annotationTypes';
 
 const KEY = 'arras.session-view';
 
@@ -138,15 +139,12 @@ export function findSessions(m: Manifest | null, find: string): { open: SessionR
 	return { open: all.open.filter(hit), closed: all.closed.filter(hit), closedCount: all.closed.length };
 }
 
-/** The kinds that await an answer; a note records rather than asks, so it never keeps a count open. */
-const ASKING = new Set(['objection', 'suggestion', 'question', 'citation']);
-
-/** What one session holds: how many of its annotations await an answer, who wrote in it, and how many arrived in the current round. */
+/** What one session holds: how many of its annotations of a type that stays open are unresolved, who wrote in it, and how many arrived in the current round. */
 export function summary(m: Manifest | null, id: string): { open: number; who: string[]; fresh: number } {
 	const rows = Object.values(m?.annotations ?? {}).filter((a) => a.run === id && !a.in_reply_to && !a.discarded);
 	const since = (m?.sessions ?? []).find((s) => s.id === id)?.opened ?? '';
 	return {
-		open: rows.filter((a) => a.status !== 'resolved' && ASKING.has(a.kind)).length,
+		open: rows.filter((a) => a.status !== 'resolved' && staysOpen(m, a)).length,
 		who: [...new Set(Object.values(m?.annotations ?? {}).filter((a) => a.run === id).map((a) => a.author.id))],
 		fresh: since ? Object.values(m?.annotations ?? {}).filter((a) => a.run === id && a.created >= since).length : 0
 	};

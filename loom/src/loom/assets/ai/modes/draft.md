@@ -15,6 +15,6 @@ Core: [could-not-do]. Optional: [worked-examples].
 ## Where changes go
 
 - **Into an agent document**, by default: `loom ai drafts` first, and if there is none to write in, make one — `loom draft DOC --ai NAME --as "…"`; a document of your own is a file you write where the quilt lets you. Each node you write takes the next free id with the suffix (`loom id --next`, then `-ai`).
-- **Into the author's text**, only when asked: one node is a suggestion carrying it, placed where it goes; several are an agent document.
+- **Into the author's text**, only when asked: one node is a {type:suggestion} carrying it as its payload, placed where it goes; several are an agent document.
 
 Never write a node file: `loom new TAXON "Title" --print` prints a skeleton in the quilt's environment names.

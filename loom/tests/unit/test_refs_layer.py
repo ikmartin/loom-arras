@@ -1490,7 +1490,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         *who,
         cwd=q,
@@ -1504,7 +1504,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "2",
         "--box",
         "82,278,529,316",
-        "--kind",
+        "--type",
         "note",
         *who,
         cwd=q,
@@ -1596,9 +1596,9 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "A. Author",
         "--quilt",
         str(q),
-        stdin='{"target":"Bellamy19","message":"batched","page":2,"box":"82,278,529,316","kind":"note"}\n',
+        stdin='{"target":"Bellamy19","message":"batched","page":2,"box":"82,278,529,316","type":"note"}\n',
     )
-    assert "(box)" in batched.output, batched.output
+    assert "(box)  note" in batched.output, batched.output
 
 
 @pytest.mark.poppler
@@ -1619,7 +1619,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
             "message": "so it is integral",
             "page": 2,
             "quote": text,
-            "kind": "note",
+            "type": "note",
             "author": "A. Author",
         },
     )
@@ -1638,7 +1638,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
             "message": "that display",
             "page": 2,
             "rects": [[82, 278, 529, 316]],
-            "kind": "note",
+            "type": "note",
             "author": "A. Author",
         },
     )
@@ -1661,7 +1661,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         *who,
         cwd=q,
@@ -1674,7 +1674,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         "2",
         "--box",
         "82,278,529,316",
-        "--kind",
+        "--type",
         "note",
         *who,
         cwd=q,
@@ -1767,7 +1767,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         "--session",
         sid,
@@ -1779,7 +1779,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "annotate",
         "sh-0003",
         "and one on a key, which has no work",
-        "--kind",
+        "--type",
         "note",
         "--session",
         sid,

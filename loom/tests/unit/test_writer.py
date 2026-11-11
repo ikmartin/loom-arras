@@ -31,8 +31,8 @@ def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tm
     log = q / ".loom/annotations" / "log.jsonl"
     before = log.read_text()
     for act in (
-        ["annotate", "dm-0002", "A finding.", "--kind", "note"],
-        ["annotate", "dm-0002", "A finding.", "--kind", "note", "--dry-run"],
+        ["annotate", "dm-0002", "A finding.", "--type", "note"],
+        ["annotate", "dm-0002", "A finding.", "--type", "note", "--dry-run"],
         ["note", "Worth keeping.", "--on", "dm-0002"],
         ["session", "say", "Said."],
         ["new", "lemma"],
@@ -45,7 +45,7 @@ def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tm
         "annotate",
         "dm-0002",
         "A finding.",
-        "--kind",
+        "--type",
         "note",
         "--as",
         "Claude Code Agent",
@@ -63,7 +63,7 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
     marked = {"CLAUDECODE": "1"}
     for name in ("Claude", "Claude Haiku 5.5", "A. Author"):
         for act in (
-            ["annotate", "dm-0002", "A finding.", "--kind", "note"],
+            ["annotate", "dm-0002", "A finding.", "--type", "note"],
             ["note", "Worth keeping.", "--on", "dm-0002"],
             ["session", "say", "Said."],
             ["session", "new", "--name", "A sitting"],
@@ -98,8 +98,8 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
     assert log.read_text() == before
     # the same name in a shell with no marker is a person's, and a name that says so is an agent's in either
     unmarked = {m: None for m in AGENT_MARKERS}
-    assert ok("annotate", "dm-0002", "Mine.", "--kind", "note", "--as", "A. Author", cwd=q, env=unmarked)
-    assert ok("annotate", "dm-0002", "Theirs.", "--kind", "note", "--as", "Claude Agent", cwd=q, env=marked)
+    assert ok("annotate", "dm-0002", "Mine.", "--type", "note", "--as", "A. Author", cwd=q, env=unmarked)
+    assert ok("annotate", "dm-0002", "Theirs.", "--type", "note", "--as", "Claude Agent", cwd=q, env=marked)
     kinds = {e["body"]: (e["author"], e["kind"]) for e in map(json.loads, log.read_text().splitlines()) if "body" in e}
     assert kinds["Mine."] == ("A. Author", "human") and kinds["Theirs."] == ("Claude Agent", "agent")
 

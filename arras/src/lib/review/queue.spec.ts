@@ -19,7 +19,7 @@ const m = {
 		c: { key: 'c', node: 'c', kind: 'statement' },
 		d: { key: 'd', node: 'd', kind: 'statement' },
 		e: { key: 'e', node: 'e', kind: 'statement' },
-		f: { key: 'f', node: 'f', kind: 'statement', acceptance: { author: 'X', date: '2026-11-01', fresh: true }, reviews: { open: { objection: 2, question: 0 } } }
+		f: { key: 'f', node: 'f', kind: 'statement', acceptance: { author: 'X', date: '2026-11-01', fresh: true }, reviews: { open: { revision: 2, question: 0 } } }
 	},
 	unresolved: [
 		row('a', 'earlier-change'),
@@ -28,7 +28,8 @@ const m = {
 		row('d', 'never-accepted', { refusal: 'It is marked incomplete.' }),
 		row('e', 'never-accepted')
 	],
-	diagnostics: [{ severity: 'warning', code: 'loom:missing-proof', message: '', locations: [], keys: ['d'] }]
+	diagnostics: [{ severity: 'warning', code: 'loom:missing-proof', message: '', locations: [], keys: ['d'] }],
+	annotation_types: [{ id: 'revision', name: 'Revision' }]
 } as unknown as Manifest;
 
 describe('blocks not freshly accepted', () => {
@@ -57,6 +58,6 @@ describe('blocks not freshly accepted', () => {
 	});
 
 	it('notes a statement owed a proof and the annotations open on it', () => {
-		expect([notesOf(m, 'd'), notesOf(m, 'f'), notesOf(m, 'e')]).toEqual([['no proof yet'], ['2 open objections'], []]);
+		expect([notesOf(m, 'd'), notesOf(m, 'f'), notesOf(m, 'e')]).toEqual([['no proof yet'], ['2 open revisions'], []]);
 	});
 });

@@ -100,7 +100,7 @@ def test_a_note_fades_after_two_weeks_unless_kept_or_linked(q: Path, monkeypatch
     kept = noted(q, "--on", "notes/a.md", "--quote", "orbit")
     linked = noted(q, "--on", "dm-0003", "--quote", "finite")
     ok("note", "--keep", kept["id"], "--as", "Tester", cwd=q)
-    ok("annotate", "dm-0003", f"see [](quilt:{linked['id']})", "--kind", "note", "--as", "Tester", cwd=q)
+    ok("annotate", "dm-0003", f"see [](quilt:{linked['id']})", "--type", "note", "--as", "Tester", cwd=q)
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-10-20T09:00:00Z")
     from tests.helpers import run
 

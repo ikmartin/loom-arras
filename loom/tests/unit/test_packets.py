@@ -33,10 +33,10 @@ def test_the_packet_is_what_the_person_marked_and_nothing_else(q: Path) -> None:
     from loom.mailbox import pending, post
 
     sid, session = sitting(q)
-    mine = comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
-    theirs = comment(q, sid, "dm-0002", "An agent's own note.", "--kind", "note", who="Referee Agent", agent=True)
+    mine = comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--type", "question")
+    theirs = comment(q, sid, "dm-0002", "An agent's own note.", "--type", "note", who="Referee Agent", agent=True)
     ok("annotate", "--reply", theirs, "Not here.", "--session", sid, "--as", "A. Author", cwd=q)
-    withdrawn = comment(q, sid, "dm-0002", "Never mind.", "--kind", "note")
+    withdrawn = comment(q, sid, "dm-0002", "Never mind.", "--type", "note")
     ok("annotate", "--discard", withdrawn, "--session", sid, "--as", "A. Author", cwd=q)
     rows = pending(q, session(), "A. Author")
     assert [r["id"] for r in rows][0] == mine
@@ -52,8 +52,8 @@ def test_a_message_carries_only_its_senders_notes(q: Path) -> None:
     from loom.mailbox import pending, read_events
 
     sid, session = sitting(q)
-    mine = comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
-    wrens = comment(q, sid, "dm-0002", "Split this.", "--kind", "suggestion", who="Wren Halloway")
+    mine = comment(q, sid, "dm-0003", "Which orbit?", "--type", "question")
+    wrens = comment(q, sid, "dm-0002", "Split this.", "--type", "suggestion", who="Wren Halloway")
     assert [r["id"] for r in pending(q, session(), "A. Author")] == [mine]
     ok("session", "say", "--session", sid, "--as", "A. Author", cwd=q)
     [sent] = read_events(q, sid)
@@ -76,22 +76,20 @@ def test_a_carried_annotation_is_whole(q: Path) -> None:
         long,
         "--quote",
         "finite set",
-        "--kind",
+        "--type",
         "suggestion",
         "--payload",
         "a finite set $X$",
         "--placement",
         "replace",
-        "--severity",
-        "minor",
     )
     [row] = pending(q, session(), "A. Author")
     assert row["body"] == long
-    assert (row["quote"], row["payload"], row["placement"], row["severity"]) == (
+    assert (row["quote"], row["payload"], row["placement"], row["type"]) == (
         "finite set",
         "a finite set $X$",
         "replace",
-        "minor",
+        "suggestion",
     )
 
 
@@ -106,7 +104,7 @@ def test_the_preview_is_the_text_the_agent_reads(q: Path) -> None:
         "Say which.",
         "--quote",
         "finite set",
-        "--kind",
+        "--type",
         "suggestion",
         "--payload",
         "a finite set",
@@ -125,17 +123,17 @@ def test_say_with_no_words_sends_the_packet_and_refuses_when_there_is_none(q: Pa
 
     sid, _ = sitting(q)
     refused("session", "say", "--session", sid, "--as", "A. Author", cwd=q, code=2, match="nothing to say")
-    comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
+    comment(q, sid, "dm-0003", "Which orbit?", "--type", "question")
     ok("session", "say", "--session", sid, "--as", "A. Author", cwd=q)
     [e] = read_events(q, sid)
-    assert e.body == "" and [c["kind"] for c in e.changed] == ["question"]
+    assert e.body == "" and [c["type"] for c in e.changed] == ["question"]
 
 
 def test_the_packet_is_carried_whole(q: Path) -> None:
     from loom.mailbox import read_events
 
     sid, _ = sitting(q)
-    comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
+    comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--type", "question")
     ok("session", "say", "Have a look.", "--session", sid, "--as", "A. Author", cwd=q)
     [c] = read_events(q, sid)[0].changed
-    assert (c["body"], c["quote"], c["kind"]) == ("Which orbit?", "finite set", "question")
+    assert (c["body"], c["quote"], c["type"]) == ("Which orbit?", "finite set", "question")

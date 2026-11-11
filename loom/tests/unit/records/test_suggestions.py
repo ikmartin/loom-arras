@@ -19,7 +19,7 @@ LEMMA = "drafting/nodes/dm-0002.tex"
 
 def suggest(q: Path, *args: str) -> str:
     """Write a suggestion on dm-0002, returning its id."""
-    out = ok("annotate", "dm-0002", "Tighten it", "--kind", "suggestion", *args, "--as", "Tom", cwd=q).stdout
+    out = ok("annotate", "dm-0002", "Tighten it", "--type", "suggestion", *args, "--as", "Tom", cwd=q).stdout
     return out.split()[0]
 
 
@@ -91,7 +91,7 @@ def test_an_empty_payload_deletes_the_quote(tmp_path: Path) -> None:
     result, ann = placed(q, a)
     assert "has one or two points.\n" in place(result, ann).taken
     refused(
-        "annotate", "dm-0002", "x", "--kind", "suggestion", "--quote", "Every orbit", "--payload", "", "--placement", "after", "--as", "Tom",
+        "annotate", "dm-0002", "x", "--type", "suggestion", "--quote", "Every orbit", "--payload", "", "--placement", "after", "--as", "Tom",
         cwd=q, code=2, match="empty --payload deletes the quoted words",
     )  # fmt: skip
 
@@ -99,7 +99,7 @@ def test_an_empty_payload_deletes_the_quote(tmp_path: Path) -> None:
 def test_a_suggestions_payload_needs_a_placement(tmp_path: Path) -> None:
     q = demo(tmp_path)
     refused(
-        "annotate", "dm-0002", "x", "--kind", "suggestion", "--quote", "Every orbit", "--payload", "Each orbit", "--as", "Tom",
+        "annotate", "dm-0002", "x", "--type", "suggestion", "--quote", "Every orbit", "--payload", "Each orbit", "--as", "Tom",
         cwd=q, code=2, match="needs --placement",
     )  # fmt: skip
 
@@ -140,11 +140,14 @@ def test_the_cli_prints_the_patch_and_says_when_it_is_taken(tmp_path: Path) -> N
     assert data["file"] == LEMMA and data["moved"] is False and data["diff"] == out
     edit(q / LEMMA, "one or two points", "at most two points")
     assert "already reads as" in ok("suggestion", a, cwd=q).stdout
-    # a note's payload is no change to the text
-    note = ok(
-        "annotate", "dm-0002", "See", "--quote", "Every orbit", "--payload", "x", "--as", "Tom", cwd=q
-    ).stdout.split()[0]
-    exits(1, "suggestion", note, cwd=q, match="not a suggestion")
+    # whatever its type, an annotation carrying text is a change to the text, and one carrying none is not
+    untyped = ok(
+        "annotate", "dm-0002", "See", "--quote", "Every orbit", "--payload", "Each orbit", "--placement", "replace",
+        "--as", "Tom", cwd=q,
+    ).stdout.split()[0]  # fmt: skip
+    assert "+Each orbit of a widget" in ok("suggestion", untyped, cwd=q).stdout
+    note = ok("annotate", "dm-0002", "See", "--quote", "Every orbit", "--as", "Tom", cwd=q).stdout.split()[0]
+    exits(1, "suggestion", note, cwd=q, match="carries no payload")
 
 
 def test_is_taken_for_each_placement(tmp_path: Path) -> None:
@@ -244,7 +247,7 @@ def test_apply_over_the_api_is_the_authors_and_says_why_it_cannot(tmp_path: Path
     assert (agent.value.code, agent.value.status) == ("author-only", 403)
     with pytest.raises(ApiError) as no_text:
         handle(q, "suggestion-apply", {**body, "annotation": prose})
-    assert no_text.value.code == "no-text" and "proposes no text" in no_text.value.message
+    assert no_text.value.code == "not-a-suggestion" and "carries no text" in no_text.value.message
     edit(q / LEMMA, "the one-point orbits", "the orbits of size one")
     with pytest.raises(ApiError) as unplaced:
         handle(q, "suggestion-apply", {**body, "annotation": lost})
@@ -270,7 +273,7 @@ def test_a_suggestion_on_an_agents_copy_is_not_applied_since_it_comes_in_with_th
         "annotate",
         "sy-0002-ai",
         "Shorter",
-        "--kind",
+        "--type",
         "suggestion",
         "--quote",
         "at most two points",

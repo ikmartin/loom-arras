@@ -1,4 +1,4 @@
-// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted, prose suggestions beneath; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggestion and a citation are decided in their cards. The acts are stubbed: e2e-write drives them against a running publisher.
+// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); an annotation carrying text to put in is decided in its card. The acts are stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, REFEREE, serve } from '../manifest';
 
@@ -6,9 +6,8 @@ const COPY = '.loom/copies/aidoc.tex';
 const TEXT = 'a-2026-09-17-rvgxnv';
 const PROSE = 'a-2026-09-16-6sn46y';
 const MINE = 'a-2026-09-16-xgtcve';
-const CITATION = 'a-2026-09-16-hqnbz4';
 
-const ACTS = ['suggestion-apply', 'resolve', 'discard', 'library-cite'];
+const ACTS = ['suggestion-apply', 'resolve'];
 
 /** A publisher serving the acts, writing in the referee session; what it was sent, by endpoint. */
 async function serving(page: Page): Promise<Record<string, Record<string, unknown>>> {
@@ -26,22 +25,23 @@ async function serving(page: Page): Promise<Record<string, Record<string, unknow
 const card = (page: Page, id: string) => page.locator(`[data-testid="proposed-card"][data-id="${id}"]`);
 const suggestion = (page: Page, id: string) => page.locator(`[data-testid="suggestion"][data-id="${id}"]`);
 
-test('everything to decide is a card, in order, and counted; prose suggestions are to consider, and are not', async ({ page }) => {
+test('everything to decide is a card, in order, and counted; an annotation in prose alone is not proposed here', async ({ page }) => {
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
-	await expect(page.getByTestId('proposed-summary')).toHaveText('3 to decide · 2 to consider');
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('2');
+	await expect(page.getByTestId('proposed-summary')).toHaveText('2 to decide');
 	const kinds = await page.getByTestId('proposed-card').evaluateAll((els) => els.map((e) => e.getAttribute('data-kind')));
-	expect(kinds).toEqual(['copy', 'suggestion', 'citation']);
+	expect(kinds).toEqual(['copy', 'suggestion']);
 	await expect(card(page, TEXT)).toHaveCount(1);
-	await expect(card(page, CITATION)).toHaveCount(1);
-	await expect(page.getByTestId('proposed-consider').getByTestId('suggestion')).toHaveCount(2);
-	// the lead says what taking each does, and promises no patch
+	await expect(suggestion(page, PROSE)).toHaveCount(0);
+	// the lead says what taking one does, and promises no patch
 	await expect(page.getByTestId('proposed')).toContainText('a version of the document kept first');
-	await expect(page.getByTestId('proposed')).toContainText('nothing is written into the text');
+	await expect(page.getByTestId('proposed')).not.toContainText('reference note');
 	await expect(page.getByTestId('proposed')).not.toContainText('the patch that takes it');
 });
 
 test('each names its document and who wrote it, its quote typeset rather than its LaTeX', async ({ page }) => {
+	// the person's own suggestion is in prose; given text to put in, it is proposed
+	await serve(page, (m) => (m.annotations[MINE].payload = 'Every orbit has one or two points.'));
 	await page.goto('/review/proposed');
 	const text = suggestion(page, TEXT);
 	await expect(text.getByTestId('suggestion-document')).toHaveText('in main.tex');
@@ -55,16 +55,9 @@ test('each names its document and who wrote it, its quote typeset rather than it
 	await expect(mine.getByTestId('suggestion-open')).toHaveAttribute('href', /^\/master\/drafting\/talk\?note=/);
 });
 
-test('a citation says what it claims and the work it proposes', async ({ page }) => {
-	await page.goto('/review/proposed');
-	const c = card(page, CITATION);
-	await expect(c).toContainText('a textbook reference would do');
-	await expect(c.getByTestId('citation-work')).toHaveText('Proposes citing: any standard text on group actions');
-});
-
 test('a static host offers no acts', async ({ page }) => {
 	await page.goto('/review/proposed');
-	for (const id of ['proposed-take', 'proposed-leave', 'suggestion-resolve', 'suggestion-dismiss']) await expect(page.getByTestId(id)).toHaveCount(0);
+	for (const id of ['proposed-take', 'proposed-leave']) await expect(page.getByTestId(id)).toHaveCount(0);
 	// reviewing a copy or a pull only reads, so it can still be opened
 	await expect(card(page, COPY).getByTestId('proposed-open')).toBeVisible();
 });
@@ -76,8 +69,6 @@ test('Take it sends the suggestion in the session written in, and says what it d
 	await c.getByTestId('proposed-take').click();
 	await expect(c.getByTestId('suggestion-said')).toHaveText('Applied the suggestion in main.tex; a version of main.tex is kept.');
 	expect(sent['suggestion-apply']).toMatchObject({ annotation: TEXT, session: REFEREE });
-	// a prose suggestion has nothing to take
-	await expect(suggestion(page, PROSE).getByTestId('proposed-take')).toHaveCount(0);
 });
 
 test('Leave it resolves a suggestion without applying it, and the bar offers it back', async ({ page }) => {
@@ -93,39 +84,12 @@ test('Leave it resolves a suggestion without applying it, and the bar offers it 
 	expect(sent.resolve).toMatchObject({ annotation: TEXT, undo: true });
 });
 
-test('a citation is taken and left through its own decision', async ({ page }) => {
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const c = card(page, CITATION);
-	await c.getByTestId('proposed-take').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('as a reference note');
-	expect(sent['library-cite']).toMatchObject({ annotation: CITATION, decision: 'accept', session: REFEREE });
-	await c.getByTestId('proposed-leave').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('Left the citation on');
-	expect(sent['library-cite']).toMatchObject({ annotation: CITATION, decision: 'reject' });
-});
-
-test('Resolve and Dismiss answer in the row; Dismiss asks why first, optionally', async ({ page }) => {
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const prose = suggestion(page, PROSE);
-	await prose.getByTestId('suggestion-resolve').click();
-	await expect(prose.getByTestId('suggestion-said')).toContainText('Resolved the suggestion on');
-	expect(sent.resolve).toMatchObject({ annotation: PROSE });
-	await prose.getByTestId('suggestion-dismiss').click();
-	expect(sent.discard).toBeUndefined();
-	await prose.getByTestId('suggestion-reason').fill('Already said in the introduction.');
-	await prose.getByTestId('suggestion-dismiss-go').click();
-	await expect(prose.getByTestId('suggestion-said')).toContainText('Dismissed the suggestion on');
-	expect(sent.discard).toMatchObject({ annotation: PROSE, reason: 'Already said in the introduction.' });
-});
-
 test('without a session nothing can be decided, and the page says so before anything is pressed', async ({ page }) => {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
 	await page.goto('/review/proposed');
 	await expect(page.getByTestId('proposed-no-session')).toBeVisible();
 	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeDisabled();
-	await expect(card(page, CITATION).getByTestId('proposed-leave')).toBeDisabled();
+	await expect(card(page, TEXT).getByTestId('proposed-leave')).toBeDisabled();
 });
 
 test("a copy's card says where it stands and opens its review at its own address, and comes back", async ({ page }) => {
@@ -151,7 +115,7 @@ test("suggestions on a copy are folded on its card and not counted, since they c
 	});
 	await page.goto('/review/proposed');
 	await expect(card(page, TEXT)).toHaveCount(0);
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('2');
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('1');
 	const fold = card(page, COPY).getByTestId('proposed-on-copy');
 	await expect(fold).toContainText('1 suggestion on it');
 	await fold.locator('summary').click();
@@ -178,7 +142,7 @@ test('a work with results proposed has a card that opens the queue at it', async
 		m.references.Kre99.results = { ...(m.references.Kre99.results ?? {}), 'Kre99-thm-9.9': { state: 'proposed', level: 1, class: 'anchored', page: 1, artifact: 'df039aa2ab80', origin: [{ act: 'proposed', by: 'run:2026-09-18T20-00', when: '2026-09-18T20:00:00Z' }], source_text: 'Every cycle group is generated by integral cycles.', statement: 'Every cycle group is generated by integral cycles.', page_text: 'Theorem 9.9. Every cycle group is generated by integral cycles.' } };
 	});
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('4');
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
 	const c = card(page, 'Kre99');
 	await expect(c).toHaveAttribute('data-kind', 'results');
 	await expect(c).toContainText('1 result an agent proposes');

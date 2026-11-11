@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The one selection chip: a selection stays a selection, and this offers the other things, **annotate** (the composer, with a kind) and **quote** (a note quoting the words, in one press, plan 0.22.8). Where an annotation cannot go -- a project file, a message -- it offers quote alone. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on its first button does. The caller shows it while a selection is offered and takes it down once the composer opens or the quote is written.
+	// The one selection chip: a selection stays a selection, and this offers the other things, **annotate** (the composer, with a type) and **quote** (a note quoting the words, in one press, plan 0.22.8). Where an annotation cannot go -- a project file, a message -- it offers quote alone. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on its first button does. The caller shows it while a selection is offered and takes it down once the composer opens or the quote is written.
 	import Swatches from '$lib/pdf/Swatches.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 

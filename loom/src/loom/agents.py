@@ -23,7 +23,6 @@ from loom.paths import (
     LOOKED,
     LOOM,
     LOOM_GITIGNORE,
-    REFERENCE_NOTES,
     RETIRED,
     REVIEW_DECISIONS,
     REVIEW_OBSERVATIONS,
@@ -49,7 +48,6 @@ LOOM_DIRS = (DIGESTS, ANNOTATIONS, AI, RETIRED, SINCE, LOOKED)
 #: Loom's record files under `.loom/`, each named for the same reason.
 LOOM_FILES = (
     LEDGER,
-    REFERENCE_NOTES,
     SERVE_JSON,
     REVIEW_DECISIONS,
     REVIEW_ORIGINS,

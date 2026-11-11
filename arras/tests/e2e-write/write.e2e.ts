@@ -3,7 +3,6 @@ import { expect, readOnly, test, type Served } from '../served';
 import { openPicker, pickSession } from '../picker';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { viewMenu } from '../workspace';
 
 /**
  * Select the quilt's newest open session, because a write names one (plan 0.13.1) and nothing is selected at rest; returns its id.
@@ -44,9 +43,8 @@ test('a comment written from a selection lands in the log as a person, anchored 
 	await expect(page.getByTestId('note-quote')).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('widget');
 	await page.getByTestId('note-body').fill('Does finiteness do any work in the closedness half?');
-	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204)
-	await page.getByTestId('note-kind').locator('[data-kind="objection"]').click();
-	await page.getByTestId('note-severity').locator('[data-severity="minor"]').click();
+	// a revision, one of the quilt's types, sent by its id
+	await page.getByTestId('note-type').locator('[data-type="revision"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
 
@@ -54,8 +52,8 @@ test('a comment written from a selection lands in the log as a person, anchored 
 	expect(mine).toHaveLength(1);
 	expect(mine[0].kind).toBe('human'); // written by a person, not by the run whose page it was
 	expect(mine[0].target).toBe('sy-0003');
-	expect(mine[0].annotation_kind).toBe('objection');
-	expect(mine[0].severity).toBe('minor');
+	expect(mine[0].type).toBe('revision');
+	expect(mine[0]).not.toHaveProperty('severity');
 	// anchored to the sentence, not to the node, and recorded as the source has it: the formula's own TeX
 	const exact = (mine[0].anchor as { exact: string }).exact;
 	expect(exact).toContain('finite widget');
@@ -175,54 +173,6 @@ test('an annotation written on the node\'s own page is filed with no document', 
 	expect(mine.in ?? null).toBeNull();
 });
 
-/** The served quilt's open citation suggestion on sy-0002, by the id the log gave it. */
-function citationOn(served: Served): string {
-	return served.log().find((e) => e.event === 'created' && e.target === 'sy-0002' && e.annotation_kind === 'citation')!.id as string;
-}
-
-/** Open the box of the annotation `id` from its mark on the node page. */
-async function boxOf(page: import('@playwright/test').Page, id: string) {
-	await page.locator(`[data-pane="0"] .fragment .annotation[data-annotation~="${id}"]`).first().click();
-	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-	await expect(box).toHaveCount(1);
-	return box;
-}
-
-test('a citation suggestion is accepted from its box, which then says so, and leaves a breadcrumb', async ({ page, served }) => {
-	const id = citationOn(served);
-	await page.goto('/node/sy-0002');
-	await intoASession(page, served);
-	const box = await boxOf(page, id);
-	await expect(box.getByTestId('work')).toBeVisible();
-	await box.getByTestId('verb-accept').click();
-	// the publisher resolves it and notes the work; the box re-read from the next manifest says so once and offers neither verb again
-	await expect(box.getByTestId('outcome')).toHaveText('· taken');
-	await expect(box.getByTestId('verb-accept')).toHaveCount(0);
-	await expect(box.getByTestId('verb-reject')).toHaveCount(0);
-	const written = readFileSync(join(served.root, '.loom/reference-notes.jsonl'), 'utf8');
-	expect(written).toContain('a textbook reference would do');
-	expect(written).toContain('"verified": false'); // never a second source of identity truth
-	expect(served.log().filter((e) => e.event === 'resolved' && e.id === id)).toHaveLength(1);
-	// the context's list still names it as a suggestion no longer open: nothing there decides it
-	await viewMenu(page);
-	await page.getByTestId('open-context').click();
-	await expect(page.getByTestId('context').getByTestId('refnote-open')).toHaveCount(0);
-});
-
-test('a citation suggestion is rejected from its box, which resolves it and notes no work', async ({ page, served }) => {
-	const id = citationOn(served);
-	await page.goto('/node/sy-0002');
-	await intoASession(page, served);
-	const box = await boxOf(page, id);
-	await box.getByTestId('verb-reject').click();
-	await expect(box.getByTestId('outcome')).toHaveText('· left');
-	await expect(box.getByTestId('verb-accept')).toHaveCount(0);
-	await expect(box.getByTestId('verb-reopen')).toBeVisible();
-	const resolved = served.log().filter((e) => e.event === 'resolved' && e.id === id);
-	expect(resolved).toHaveLength(1);
-	expect(existsSync(join(served.root, '.loom/reference-notes.jsonl')) ? readFileSync(join(served.root, '.loom/reference-notes.jsonl'), 'utf8') : '').not.toContain('a textbook reference would do');
-});
-
 /** Comments shown in place (`inline` beneath the block, `floating` at the mark), with the reply written inside the box that is showing them. */
 function inPlace(where: 'inline' | 'floating') {
 	return async ({ page, served }: { page: import('@playwright/test').Page; served: Served }) => {
@@ -334,7 +284,7 @@ test('a note lands in the session selected in the viewer, not in the one opened 
 test('an annotation is edited, discarded with a reason and put back, each an event in the log', async ({ page, served }) => {
 	// 15.3.4a: edit restates, discard withdraws, and undo is another event rather than the removal of one (DR-174)
 	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'inline' })));
-	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.annotation_kind === 'objection')!.id as string;
+	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.type === 'revision')!.id as string;
 	await page.goto('/node/sy-0003');
 	const sid = await intoASession(page, served);
 	const mark = page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first();

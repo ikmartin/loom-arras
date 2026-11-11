@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, the citations suggested for it, what was withdrawn on it, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
+	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, what was withdrawn on it, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
 	//
 	// **Laid out as its design is** (phase 5): the lists first — where the node is, where it came from, what it depends on and what uses it — each result named as a reader names it (`Theorem 3.1`, a proof as the proof of its result), the key kept as each link's title; the local graph last and small, one expand away.
 	//
@@ -14,7 +14,7 @@
 	import type { Annotation } from '$lib/manifest/types';
 	import Locator from '$lib/components/Locator.svelte';
 	import ClosurePanel from '$lib/review/ClosurePanel.svelte';
-	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
+	import { lookVars, typeName } from '$lib/review/annotationTypes';
 	import { versionLabel } from '$lib/badges';
 	import type { Item } from '../item';
 
@@ -180,13 +180,11 @@
 			<RailList label="detached annotations">
 				<ul class="plain" data-testid="detached-list">
 					{#each detached as a (a.id)}
-						<li class="ann-row"><span class="ann-dot k-{a.kind}" role="img" aria-label={a.kind} title={a.kind}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
+						<li class="ann-row"><span class="ann-dot" style={lookVars(a.look)} role="img" aria-label={typeName(m, a)} title={typeName(m, a)}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
 					{/each}
 				</ul>
 			</RailList>
 		{/if}
-
-		<ReferenceNotes forKey={key} />
 
 		{#if discarded.length}
 			<p class="discarded">
@@ -197,7 +195,7 @@
 			{#if showDiscarded}
 				<ul class="plain" data-testid="discarded-list">
 					{#each discarded as a (a.id)}
-						<li class="ann-row"><span class="ann-dot k-{a.kind}" role="img" aria-label={a.kind} title={a.kind}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
+						<li class="ann-row"><span class="ann-dot" style={lookVars(a.look)} role="img" aria-label={typeName(m, a)} title={typeName(m, a)}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
 					{/each}
 				</ul>
 			{/if}

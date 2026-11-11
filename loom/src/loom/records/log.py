@@ -15,7 +15,7 @@ from typing import Any
 from loom.anchors import Anchor, is_page_anchor
 from loom.locks import locked
 from loom.paths import ANNOTATION_LOG
-from loom.records.annotations import KINDS, Annotation, Record, next_id
+from loom.records.annotations import Annotation, Record, next_id
 from loom.records.ids import ANNOTATION
 from loom.records.selectors import Selector
 
@@ -74,8 +74,11 @@ def source_of(event: dict[str, Any]) -> str:
 ID = re.compile(rf"^{ANNOTATION}$")
 
 
-def _kind(given: Any) -> str:
-    return str(given or "objection")
+def _look(given: Any) -> dict[str, Any]:
+    """A look as an event carries it: a table of the four fields, any of them absent."""
+    return (
+        {k: given[k] for k in ("color", "style", "weight", "opacity") if k in given} if isinstance(given, dict) else {}
+    )
 
 
 def _annotation(event: dict[str, Any]) -> Annotation:
@@ -94,11 +97,12 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         in_doc=str(event["in"]) if event.get("in") else None,
         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
         anchor=Anchor.from_dict(anchor) if is_page_anchor(anchor) else None,
-        kind=_kind(event.get("annotation_kind")),
+        type=str(event["type"]) if event.get("type") else None,
+        own_look=_look(event.get("look")),
+        drawn=_look(event.get("drawn")),
         body=str(event.get("body", "")),
         status="open",
         in_reply_to=event.get("reply_to"),
-        severity=event.get("severity"),
         payload=event.get("payload"),
         placement=event.get("placement"),
     )
@@ -136,11 +140,9 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 problems.append(f"{LOG}:{n}: {kind} {event['id']!r} names no session")
                 continue
             ann = _annotation(event)
-            # Reported, not corrected. A kind loom does not know is still shown -- `kind` is an open string and a
-            # viewer renders one it has never heard of -- but a log line missing the column, or spelling it the way
-            # an older draft of the plan spelled it, produced a finding that silently claimed to be an objection.
-            if event.get("annotation_kind") not in KINDS:
-                problems.append(f"{LOG}:{n}: {event.get('annotation_kind')!r} is not one of {', '.join(KINDS)}")
+            # a type the quilt no longer lists is not a problem: the annotation keeps its look and reads as untyped
+            if event.get("type") is not None and not isinstance(event.get("type"), str):
+                problems.append(f"{LOG}:{n}: its type is not a type's id")
             if not ID.match(ann.id):
                 problems.append(f"{LOG}:{n}: {ann.id!r} is not an annotation id")
             if kind == "replied" and str(event.get("reply_to") or "") not in index:
@@ -173,9 +175,16 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             continue
         _src, ann = found
         if kind == "edited":
-            for f in ("body", "severity", "payload", "placement"):
+            for f in ("body", "payload", "placement"):
                 if f in event:
                     setattr(ann, f, event[f])
+            # restyled or retyped: the type it now has, the look set on it, and the look it is drawn with once its type is gone
+            if "type" in event:
+                ann.type = str(event["type"]) if event["type"] else None
+            if "look" in event:
+                ann.own_look = _look(event["look"])
+            if "drawn" in event:
+                ann.drawn = _look(event["drawn"])
             # a restated finding is about the text it was restated against
             if event.get("against"):
                 ann.target_hash = str(event["against"])

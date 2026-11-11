@@ -18,13 +18,9 @@ from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp, today
 from loom.paths import document_build
 from loom.records.annotations import (
-    GRADED,
-    KINDS,
     PLACEMENTS,
-    SEVERITIES,
     Annotation,
     find_annotation,
-    full_kind,
     next_id,
 )
 from loom.records.ids import ANNOTATION
@@ -33,6 +29,7 @@ from loom.records.log import append, append_new
 from loom.records.selectors import find_quote, make_selector
 from loom.records.snapshots import snapshots_dir, write_snapshot
 from loom.records.store import Records
+from loom.records.types import COLORS, STYLES, drawn_look, load_types, look_problem, type_named
 from loom.render.fragments import plain_title
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import normalize, sha256
@@ -438,9 +435,9 @@ def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | No
 
 def _applied_hash(result: ScanResult, ann: Annotation) -> str:
     """The hash of a suggestion's key once it reads as the suggestion taken; refused while it does not."""
-    from loom.records.suggestions import SUGGESTION, is_taken
+    from loom.records.suggestions import is_taken
 
-    if ann.kind != SUGGESTION or ann.payload is None:
+    if ann.payload is None:
         raise EnvError(
             f"{ann.id} is no suggestion carrying text, so nothing of it can be applied; resolve it without --applied"
         )
@@ -469,10 +466,9 @@ def _one_comment(
     target: str | None,
     message: str | None,
     quote: str | None,
-    kind: str | None,
+    type_given: str | None,
     reply: str | None,
     resolve: str | None,
-    severity: str | None = None,
     payload: str | None = None,
     placement: str | None = None,
     undo: bool = False,
@@ -480,6 +476,7 @@ def _one_comment(
     rects: list[list[float]] | None = None,
     in_doc: str | None = None,
     *,
+    look: dict[str, Any] | None = None,
     applied: bool = False,
     dry_run: bool = False,
 ) -> str:
@@ -502,7 +499,7 @@ def _one_comment(
         refuse_lost(
             "reply" if reply else "resolve",
             reply or resolve,
-            {"quote": quote, "severity": severity, "payload": payload, "placement": placement},
+            {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **(look or {})},
         )
 
     if resolve:
@@ -510,6 +507,10 @@ def _one_comment(
         if found is None:
             raise NotFoundError("annotation", f"no annotation {resolve}")
         _, parent = found
+        if not undo and not _opens(root, parent.type):
+            raise EnvError(
+                f"{resolve} only informs, so there is nothing to resolve: only an annotation whose type stays open until resolved is resolved"
+            )
         event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
         if undo:
             event["undo"] = True
@@ -525,10 +526,6 @@ def _one_comment(
         if found is None:
             raise NotFoundError("annotation", f"no annotation {reply}")
         _, parent = found
-        # a reply's kind is one of the five, by any prefix, as a new annotation's is (K3)
-        reply_kind = full_kind(kind) if kind else "question"
-        if reply_kind is None:
-            raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
         ann_id = _append_new(
             root,
             {
@@ -539,7 +536,6 @@ def _one_comment(
                 "against": _version(result, parent.target_key, dry_run=dry_run) or parent.target_hash,
                 "anchor": parent.selector.to_dict() if parent.selector else None,
                 "in": parent.in_doc,
-                "annotation_kind": reply_kind,
                 "body": message or "",
                 "reply_to": reply,
             },
@@ -551,12 +547,14 @@ def _one_comment(
 
     if not target:
         raise EnvError("TARGET is required")
-    if not (message or "").strip() and _asks(kind):
+    type_id, own, drawn = _type_and_look(root, type_given, look or {})
+    if not (message or "").strip() and _opens(root, type_id):
         raise EnvError(NO_MESSAGE)
+    styled = {"type": type_id, "look": own, "drawn": drawn}
     work = _work_target(result, target)
     if work is not None or page is not None or rects:
         return _note_on_page(
-            result, base, records, date, target, work, message, quote, kind, severity, page, rects, dry_run=dry_run
+            result, base, records, date, target, work, message, quote, styled, page, rects, dry_run=dry_run
         )
     key, text = _target_text(result, target)
     node_key = result.assembly.regions[key].container if key in result.assembly.regions else key
@@ -575,22 +573,12 @@ def _one_comment(
         if len(spans) > 1:
             raise EnvError(f"quote is ambiguous ({len(spans)} occurrences); give a longer quote")
         selector = make_selector(text, quote)
-    if kind is None:
-        kind = "note"
-    full = full_kind(kind)
-    if full is None:
-        raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
-    kind = full
-    if severity is not None and severity not in SEVERITIES:
-        raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
-    if severity is not None and kind not in GRADED:
-        raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
     if placement is not None and placement not in PLACEMENTS:
         raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
     if placement and payload is None:
         raise EnvError("--placement says where a payload goes; give --payload too")
-    # where a suggestion's text goes is what makes it a change loom can show in place and print as a patch
-    if kind == "suggestion" and payload is not None and placement is None:
+    # where proposed text goes is what makes it a change loom can show in place and print as a patch
+    if payload is not None and placement is None:
         raise EnvError(
             "a suggestion's --payload needs --placement: replace (exactly the quoted words), after or before them"
         )
@@ -605,9 +593,8 @@ def _one_comment(
             "against": _version(result, key, dry_run=dry_run) or key_hash(result, node_key),
             "anchor": selector.to_dict() if selector else None,
             "in": in_doc,
-            "annotation_kind": kind,
+            **styled,
             "body": message or "",
-            "severity": severity,
             "payload": payload,
             "placement": placement,
         },
@@ -615,16 +602,30 @@ def _one_comment(
         date,
         dry_run,
     )
-    sev = f" {severity}" if severity else ""
-    return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
+    return f"{ann_id}  {key}  {type_id or 'untyped'}  ({aid})"
 
 
-NO_MESSAGE = 'an objection, suggestion, question or citation with no message says nothing; give its text after the target: loom annotate TARGET "…"'
+NO_MESSAGE = 'an annotation of a type that stays open until resolved asks something, so it needs words; give them after the target: loom annotate TARGET "…"'
 
 
-def _asks(kind: str | None) -> bool:
-    """Whether an annotation of `kind` asks something, so needs words; a `note` with none records that the target was read and nothing was wrong."""
-    return (full_kind(kind) if kind else "note") != "note"
+def _opens(root: Path, type_id: str | None) -> bool:
+    """Whether an annotation of type `type_id` stays open until resolved; an untyped one, or one whose type is gone, only informs."""
+    t = load_types(root).get(type_id)
+    return bool(t and t.open)
+
+
+def _type_and_look(
+    root: Path, given: str | None, look: dict[str, Any]
+) -> tuple[str | None, dict[str, Any], dict[str, Any]]:
+    """(type id, the look set on the annotation, the whole look it is drawn with) for a new one, refused when the type is not the quilt's or the look cannot be drawn."""
+    try:
+        t = type_named(load_types(root), given)
+    except ValueError as exc:
+        raise EnvError(str(exc)) from exc
+    why = look_problem(look)
+    if why:
+        raise EnvError(f"--{why}")
+    return (t.id if t else None), look, drawn_look(t, look)
 
 
 def _work_target(result: ScanResult, target: str) -> tuple[str, Any] | None:
@@ -672,8 +673,7 @@ def _note_on_page(
     work: tuple[str, Any] | None,
     message: str | None,
     quote: str | None,
-    kind: str | None,
-    severity: str | None,
+    styled: dict[str, Any],
     page: int | None,
     rects: list[list[float]] | None,
     *,
@@ -705,16 +705,6 @@ def _note_on_page(
         raise ContentError(
             f"that text is not on {citekey} p.{page}: quote from `loom library read {citekey} {page}`, or draw a --box"
         )
-    if kind is None:
-        kind = "note"
-    full = full_kind(kind)
-    if full is None:
-        raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
-    kind = full
-    if severity is not None and severity not in SEVERITIES:
-        raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
-    if severity is not None and kind not in GRADED:
-        raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
     # Quads are recorded only for a box, where they are the anchor; for text they are derived at build time from
     # the offsets, as a result's are, so a record never carries two descriptions that could drift apart.
     recorded = placed.anchor.to_dict()
@@ -728,16 +718,14 @@ def _note_on_page(
             "target": str(wid),
             "against": "sha256:" + placed.anchor.sha256,
             "anchor": {**recorded, **placed.selector.to_dict()},
-            "annotation_kind": kind,
+            **styled,
             "body": message or "",
-            "severity": severity,
         },
         records,
         date,
         dry_run,
     )
-    sev = f" {severity}" if severity else ""
-    said = f"{ann_id}  {citekey} p.{page} ({placed.said})  {kind}{sev}  ({base['author']})"
+    said = f"{ann_id}  {citekey} p.{page} ({placed.said})  {styled['type'] or 'untyped'}  ({base['author']})"
     where = open_url(result.quilt.root, f"library/{citekey}?page={page}&annot={ann_id}")
     return said + (f"\nopen: {where}" if where else "")
 
@@ -778,7 +766,7 @@ def discard_annotation(
 VERB_CARRIES: dict[str, tuple[str, ...]] = {
     "reply": (),
     "resolve": (),
-    "edit": ("severity", "payload", "placement"),
+    "edit": ("type", "color", "style", "weight", "opacity", "payload", "placement"),
     "discard": (),
 }
 _VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "discard": "a discard"}
@@ -793,11 +781,13 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
     lost = [f"--{n}" for n, v in given.items() if v and n not in carried]
     if not lost:
         return
-    fixed = {"--quote", "--page", "--box", "--in", "--kind"}
+    fixed = {"--quote", "--page", "--box", "--in"}
     carries = ", ".join(f"--{n}" for n in carried)
     what = f"{_VERB_NOUN[verb]} carries " + (f"a new body, {carries} only" if carried else "its text only")
     if fixed & set(lost):
-        fix = "an annotation's anchor, kind and document are set when it is written; write a new annotation for different ones"
+        fix = (
+            "an annotation's anchor and document are set when it is written; write a new annotation for different ones"
+        )
     elif verb == "discard":
         fix = "give the reason as the message, and nothing else"
     else:
@@ -805,31 +795,49 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
     raise EnvError(f"{what}, so {', '.join(lost)} would be lost; {fix}")
 
 
-def check_edit(body: str | None, severity: str | None, payload: str | None, placement: str | None) -> None:
+def check_edit(
+    body: str | None, type_given: str | None, look: dict[str, Any], payload: str | None, placement: str | None
+) -> None:
     """An edit must change something, and an edit to an empty body says nothing -- `--discard` is how a finding is withdrawn."""
     if body is not None and not body.strip():
         raise EnvError("an edit to an empty body says nothing; give the new text, or withdraw it with --discard")
-    if body is None and severity is None and payload is None and placement is None:
-        raise EnvError("--edit with nothing to change; give a new body, --severity, --payload or --placement")
+    if body is None and type_given is None and not look and payload is None and placement is None:
+        raise EnvError("--edit with nothing to change; give a new body, --type, a look, --payload or --placement")
 
 
 def edit_annotation(
-    result: ScanResult, ann_id: str, writer: tuple[str, str, str], dry_run: bool = False, /, **fields: str | None
+    result: ScanResult,
+    ann_id: str,
+    writer: tuple[str, str, str],
+    dry_run: bool = False,
+    /,
+    type_given: str | None = None,
+    look: dict[str, Any] | None = None,
+    **fields: str | None,
 ) -> str:
-    """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
+    """Supersede an annotation's body, its type, its look or its payload; the history stays in the log and one current body is shown.
 
-    This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement.
+    This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement. `type_given` of '' takes the type off.
     """
     root = result.quilt.root
     found = find_annotation(Records(root).records, ann_id)
     if found is None:
         raise NotFoundError("annotation", f"no annotation {ann_id}")
-    kind = found[1].kind
-    if fields.get("severity") is not None and kind not in GRADED:
-        # what a new annotation of this kind is refused, an edit is refused too
-        raise EnvError(
-            f"--severity grades a fault, and {ann_id} is a {kind}, which claims none; it belongs on {' or '.join(GRADED)}"
-        )
+    ann = found[1]
+    restyled: dict[str, Any] = {}
+    if type_given is not None or look:
+        types = load_types(root)
+        try:
+            t = type_named(types, type_given) if type_given is not None else types.get(ann.type)
+        except ValueError as exc:
+            raise EnvError(str(exc)) from exc
+        why = look_problem(look or {})
+        if why:
+            raise EnvError(f"--{why}")
+        own = {**ann.own_look, **(look or {})}
+        restyled = {"look": own, "drawn": drawn_look(t, own)}
+        if type_given is not None:
+            restyled["type"] = t.id if t else None
     session, akind, aid = writer
     event: dict[str, Any] = {
         "event": "edited",
@@ -842,7 +850,7 @@ def edit_annotation(
     version = _version(result, found[1].target_key, dry_run=dry_run)
     if version:
         event["against"] = version
-    _append(root, {**event, **{k: v for k, v in fields.items() if v is not None}}, dry_run)
+    _append(root, {**event, **restyled, **{k: v for k, v in fields.items() if v is not None}}, dry_run)
     return f"edited {ann_id}"
 
 
@@ -850,12 +858,15 @@ BATCH_KEYS = (
     "target",
     "message",
     "quote",
-    "kind",
+    "type",
+    "color",
+    "style",
+    "weight",
+    "opacity",
     "reply",
     "resolve",
     "edit",
     "discard",
-    "severity",
     "payload",
     "placement",
     "page",
@@ -864,7 +875,9 @@ BATCH_KEYS = (
 )
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 #: The fields an edit or a discard is checked for, by their batch key and their flag's name.
-_LOSABLE = ("quote", "kind", "severity", "payload", "placement", "page", "box", "in")
+_LOSABLE = ("quote", "type", "color", "style", "weight", "opacity", "payload", "placement", "page", "box", "in")
+#: The look's fields, by their batch key and their flag's name.
+LOOK_KEYS = ("color", "style", "weight", "opacity")
 
 
 def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any], dry_run: bool = False) -> str:
@@ -884,15 +897,17 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
             refuse_lost(verb, str(item[verb]), {k: item.get(k) for k in _LOSABLE})
     if item.get("discard"):
         return discard_annotation(root, str(item["discard"]), writer, item.get("message"), dry_run=dry_run)
+    look = {k: item[k] for k in LOOK_KEYS if item.get(k) is not None}
     if item.get("edit"):
-        check_edit(item.get("message"), item.get("severity"), item.get("payload"), item.get("placement"))
+        check_edit(item.get("message"), item.get("type"), look, item.get("payload"), item.get("placement"))
         return edit_annotation(
             result,
             str(item["edit"]),
             writer,
             dry_run,
+            item.get("type"),
+            look,
             body=item.get("message"),
-            severity=item.get("severity"),
             payload=item.get("payload"),
             placement=item.get("placement"),
         )
@@ -902,15 +917,15 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
         item.get("target"),
         item.get("message"),
         item.get("quote"),
-        item.get("kind"),
+        item.get("type"),
         item.get("reply"),
         item.get("resolve"),
-        item.get("severity"),
         item.get("payload"),
         item.get("placement"),
         page=int(item["page"]) if item.get("page") is not None else None,
         rects=_rects(str(item["box"])) if item.get("box") else None,
         in_doc=str(item["in"]) if item.get("in") else None,
+        look=look,
         dry_run=dry_run,
     )
 
@@ -952,14 +967,24 @@ def _rects(box: str) -> list[list[float]]:
     metavar="X0,Y0,X1,Y1",
     help="Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
 )
-# Not a `click.Choice`: the choice would reject a prefix before `full_kind` could resolve one, which is the whole
-# point of accepting them — `confirmation` is long, and `--kind conf` should cost nothing (DR-204).
 @click.option(
-    "--kind",
+    "--type",
+    "type_given",
     default=None,
-    metavar="|".join(KINDS),
-    help="What the annotation is; any unambiguous prefix. Default note.",
+    metavar="TYPE",
+    help="The annotation's type, by id or name, from the quilt's annotation types; default none. With --edit, '' takes it off.",
 )
+@click.option("--color", type=click.Choice(list(COLORS)), default=None, help="Its colour, over its type's.")
+@click.option(
+    "--style", type=click.Choice(list(STYLES)), default=None, help="How it is drawn on words, over its type's."
+)
+@click.option(
+    "--weight",
+    type=click.IntRange(1, 10),
+    default=None,
+    help="An underline's or a strike's thickness, in whole pixels.",
+)
+@click.option("--opacity", type=click.IntRange(0, 100), default=None, help="Its opacity, in percent.")
 @click.option(
     "--session",
     "session",
@@ -980,7 +1005,7 @@ def _rects(box: str) -> list[list[float]]:
     "--edit",
     default=None,
     metavar="ID",
-    help="Restate an annotation: a new body, --severity, --payload or --placement; never its anchor.",
+    help="Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor.",
 )
 @click.option(
     "--discard",
@@ -988,9 +1013,6 @@ def _rects(box: str) -> list[list[float]]:
     default=None,
     metavar="ID",
     help="Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
-)
-@click.option(
-    "--severity", type=click.Choice(list(SEVERITIES)), default=None, help="How bad the fault is, not how keen you are."
 )
 @click.option(
     "--payload",
@@ -1034,14 +1056,17 @@ def annotate(
     quote: str | None,
     page: int | None,
     box: str | None,
-    kind: str | None,
+    type_given: str | None,
+    color: str | None,
+    style: str | None,
+    weight: int | None,
+    opacity: int | None,
     session: str | None,
     author: str | None,
     reply: str | None,
     resolve: str | None,
     edit: str | None,
     discard_id: str | None,
-    severity: str | None,
     payload: str | None,
     placement: str | None,
     in_doc: str | None,
@@ -1073,14 +1098,21 @@ def annotate(
     ]
     if len(verbs) > 1:
         raise EnvError(f"one verb per call; this one gives {' and '.join(verbs)}")
+    look: dict[str, Any] = {
+        k: v for k, v in (("color", color), ("style", style), ("weight", weight), ("opacity", opacity)) if v is not None
+    }
     if edit or discard_id:
-        given = {"quote": quote, "kind": kind, "severity": severity, "payload": payload, "placement": placement}
+        given = {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **look}
         refuse_lost(
             "edit" if edit else "discard", edit or discard_id, {**given, "page": page, "box": box, "in": in_doc}
         )
     if not batch:
         _check_named(result, target, reply or resolve or edit or discard_id, in_doc, page is not None or bool(box))
-        if not (reply or resolve or edit or discard_id) and not (message or "").strip() and _asks(kind):
+        if (
+            not (reply or resolve or edit or discard_id)
+            and not (message or "").strip()
+            and _given_opens(root, type_given)
+        ):
             raise EnvError(NO_MESSAGE)
     lines = _batch_lines(result, session, author) if batch else []
     writer = _writer(root, session, author, dry_run=dry_run)
@@ -1114,10 +1146,10 @@ def annotate(
             discard_annotation(root, discard_id, writer, message, undo, dry_run=dry_run), discard=discard_id, undo=undo
         )
     elif edit:
-        check_edit(message, severity, payload, placement)
+        check_edit(message, type_given, look, payload, placement)
         done(
             edit_annotation(
-                result, edit, writer, dry_run, body=message, severity=severity, payload=payload, placement=placement
+                result, edit, writer, dry_run, type_given, look, body=message, payload=payload, placement=placement
             ),
             edit=edit,
         )
@@ -1129,22 +1161,22 @@ def annotate(
                 target,
                 message,
                 quote,
-                kind,
+                type_given,
                 reply,
                 resolve,
-                severity,
                 payload,
                 placement,
                 undo,
                 page=page,
                 rects=_rects(box) if box else None,
                 in_doc=in_doc,
+                look=look,
                 applied=applied,
                 dry_run=dry_run,
             ),
             target=target,
             quote=quote,
-            kind=kind,
+            type=type_given,
             reply=reply,
             resolve=resolve,
             undo=undo,
@@ -1181,6 +1213,12 @@ def _batch_lines(result: ScanResult, session: str | None, author: str | None) ->
     return items
 
 
+def _given_opens(root: Path, given: str | None) -> bool:
+    """Whether the type a command names stays open until resolved; a type the quilt lacks is refused later, where it is written."""
+    t = load_types(root).find(given) if given else None
+    return bool(t and t.open)
+
+
 def _check_named(result: ScanResult, target: str | None, ann_id: str | None, in_doc: str | None, on_page: bool) -> None:
     """Refuse an annotation, a target or a document that names nothing, before any session is opened or logged to (K3)."""
     if ann_id:
@@ -1213,7 +1251,7 @@ def _annotated(written: list[str]) -> dict[str, Any]:
 
 
 _ANN = re.compile(ANNOTATION)
-_VERB_KEYS = ("target", "quote", "kind", "reply", "resolve", "edit", "discard", "page", "in")
+_VERB_KEYS = ("target", "quote", "type", "reply", "resolve", "edit", "discard", "page", "in")
 
 
 def _logged(said: str, **verb: Any) -> str:
@@ -1233,8 +1271,8 @@ def _logged(said: str, **verb: Any) -> str:
             parts.append(f"--page {verb['page']}")
         if verb.get("quote"):
             parts.append("--quote")
-        if verb.get("kind"):
-            parts.append(f"--kind {verb['kind']}")
+        if verb.get("type"):
+            parts.append(f"--type {verb['type']}")
         if verb.get("in"):
             parts.append(f"--in {verb['in']}")
     if verb.get("undo"):
@@ -1265,8 +1303,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
                         "page": a.anchor.page,
                         "basis": a.anchor.basis,
                         "id": a.id,
-                        "kind": a.kind,
-                        "severity": a.severity,
+                        "type": a.type,
                         "status": a.status,
                         "reply_to": a.in_reply_to,
                         "detached": res.detached,
@@ -1277,7 +1314,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
                 )
             continue
         live.setdefault(a.target_key, []).append(
-            {"id": a.id, "kind": a.kind, "severity": a.severity, "status": a.status, "detached": res.detached}
+            {"id": a.id, "type": a.type, "status": a.status, "detached": res.detached}
         )
     # each live agent document's own rows, apart from the author's: what waits in it is the agent's work and the author's to look at, never the author's to-do list
     agent_rows: dict[str, dict[str, Any]] = {m: {} for m in result.masters if result.document_role(m) == "agent"}
@@ -1301,18 +1338,6 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             "incomplete": list(n.incomplete),
             "reached_by": list(n.reached_by),
             "reviews": {
-                "latest_current": {
-                    "author": {"kind": ks.latest_current.author_kind, "id": ks.latest_current.author_id},
-                    "date": ks.latest_current.created,
-                }
-                if ks.latest_current
-                else None,
-                "latest_any": {
-                    "author": {"kind": ks.latest_any.author_kind, "id": ks.latest_any.author_id},
-                    "date": ks.latest_any.created,
-                }
-                if ks.latest_any
-                else None,
                 "open": dict(ks.open),
                 "detached": ks.detached,
                 "annotations": live.get(key, []),
@@ -1355,7 +1380,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             "fixes": conflict_fixes(result, history, key, list(n.conflict)),
             "incomplete": [],
             "reached_by": list(n.reached_by),
-            "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0, "annotations": []},
+            "reviews": {"open": {}, "detached": 0, "annotations": []},
             "previous_key_match": None,
             "closure": [key],
         }
@@ -1485,8 +1510,7 @@ def filter_keys(
     loose: bool = False,
     master: str | None = None,
     tag: str | None = None,
-    severity: str | None = None,
-    kind: str | None = None,
+    type_id: str | None = None,
     status: str | None = None,
     detached: bool = False,
     hide: set[str] | None = None,
@@ -1513,9 +1537,7 @@ def filter_keys(
             continue
         if tag and tag not in (n.directives.get("tags", "").replace(" ", "").split(",")):
             continue
-        if severity and not any(a["severity"] == severity for a in anns):
-            continue
-        if kind and not any(a["kind"] == kind for a in anns):
+        if type_id and not any(a["type"] == type_id for a in anns):
             continue
         if status and not any(a["status"] == status for a in anns):
             continue
@@ -1548,14 +1570,7 @@ def filter_keys(
 )
 @click.option("--tag", "f_tag", default=None, help="Keys carrying this tag.")
 @click.option(
-    "--severity",
-    "f_severity",
-    type=click.Choice(SEVERITIES),
-    default=None,
-    help="Keys carrying an annotation of this severity.",
-)
-@click.option(
-    "--kind", "f_kind", default=None, metavar="|".join(KINDS), help="Keys carrying an annotation of this kind."
+    "--type", "f_type", default=None, metavar="TYPE", help="Keys carrying an annotation of this type, by id or name."
 )
 @click.option(
     "--status",
@@ -1593,8 +1608,7 @@ def status(
     f_master: str | None,
     f_in_order: bool,
     f_tag: str | None,
-    f_severity: str | None,
-    f_kind: str | None,
+    f_type: str | None,
     f_status: str | None,
     f_detached: bool,
     f_digests: bool,
@@ -1611,7 +1625,7 @@ def status(
     if f_in_order and f_master is None:
         raise EnvError("--in-order lists one document's keys; name it with --master DOC")
     result = open_scan(quilt_path)
-    f_kind, f_master, f_tag = _check_filters(result, f_kind, f_master, f_tag)
+    f_type, f_master, f_tag = _check_filters(result, f_type, f_master, f_tag)
     if explain:
         explain = resolve_key(result, explain)
     records = Records(result.quilt.root)
@@ -1637,8 +1651,7 @@ def status(
         loose=f_loose,
         master=f_master,
         tag=f_tag,
-        severity=f_severity,
-        kind=f_kind,
+        type_id=f_type,
         status=f_status,
         detached=f_detached,
     )
@@ -1649,15 +1662,14 @@ def status(
             incomplete=f_incomplete,
             master=f_master,
             tag=f_tag,
-            severity=f_severity,
-            kind=f_kind,
+            type_id=f_type,
             status=f_status,
             detached=f_detached,
         )
         a["summary"] = agent_summary(a["keys"])
     payload["summary"] = summarise(result, payload["keys"])
     payload["unmatched"] = unmatched_cites(result)
-    filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_severity, f_kind, f_status, f_detached))
+    filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_type, f_status, f_detached))
     if f_in_order:
         assert f_master is not None
         out, payload["in_order"] = _in_order_report(result, records, f_master)
@@ -1765,16 +1777,18 @@ def _in_order_report(result: ScanResult, records: Records, master: str) -> tuple
 
 
 def _check_filters(
-    result: ScanResult, kind: str | None, master: str | None, tag: str | None
+    result: ScanResult, type_given: str | None, master: str | None, tag: str | None
 ) -> tuple[str | None, str | None, str | None]:
-    """`status`'s --kind, --master and --tag as the quilt names them, each refused by name when it names nothing (K3)."""
+    """`status`'s --type, --master and --tag as the quilt names them, each refused by name when it names nothing (K3)."""
     from loom.cli.nodes import document_named
 
-    if kind is not None:
-        full = full_kind(kind)
-        if full is None:
-            raise EnvError(f"--kind {kind}: an annotation's kind is one of {', '.join(KINDS)}")
-        kind = full
+    type_id = None
+    if type_given is not None:
+        try:
+            found = type_named(load_types(result.quilt.root), type_given)
+        except ValueError as exc:
+            raise EnvError(f"--type {type_given}: {exc}") from exc
+        type_id = found.id if found else None
     if master is not None:
         master = document_named(result, master.strip("/"))
     if tag is not None:
@@ -1784,7 +1798,7 @@ def _check_filters(
             raise NotFoundError(
                 "tag", f"--tag {tag}: no node carries it" + (f"; tags in use: {listed}" if tags else "")
             )
-    return kind, master, tag
+    return type_id, master, tag
 
 
 def unmatched_cites(result: ScanResult) -> list[dict[str, Any]]:
@@ -1825,14 +1839,11 @@ STATE_GROUPS = (
 
 
 def _facts(e: dict[str, Any]) -> list[str]:
-    """What a row says beside its state: its open findings, or who last reviewed it clean, and what has come loose."""
+    """What a row says beside its state: its open annotations by type, and what has come loose."""
     facts = []
     opened = {k: v for k, v in e["reviews"]["open"].items() if v}
     if opened:
         facts.append(", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
-    elif e["reviews"]["latest_current"]:
-        last = e["reviews"]["latest_current"]
-        facts.append(f"reviewed clean ({last['author']['id']}, {last['date'][:10]})")
     if e["reviews"]["detached"]:
         facts.append(f"{e['reviews']['detached']} detached")
     if e.get("previous_key_match"):
@@ -2027,7 +2038,9 @@ def _reading_report(payload: dict[str, Any]) -> Report:
             where = f"p.{r['page']}" + (" (box)" if r["basis"] == "box" else "")
             state = r["status"] + (", detached" if r["detached"] else "") + ("" if r["recorded"] else ", unrecorded")
             first = r["body"].strip().splitlines()[0] if r["body"].strip() else ""
-            rows.append(((where, r["kind"], state, first[:40] + ("…" if len(first) > 40 else "")), r["id"]))
+            rows.append(
+                ((where, r["type"] or "untyped", state, first[:40] + ("…" if len(first) > 40 else "")), r["id"])
+            )
         groups.append(Group(work, keyed(rows), limit=None))
     n = len(payload["reading"])
     return Report(

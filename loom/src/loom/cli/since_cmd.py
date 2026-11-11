@@ -72,7 +72,9 @@ def _lines(got: Any) -> list[str]:
     acts = []
     for a in got.acts:
         whose = "yours" if a.get("yours") else f"{a['of']}'s"
-        acts.append(f"  {a['id']}  {a['kind']} · {a['target']} · {whose} · {a['act']} by {a['by']} at {_at(a['when'])}")
+        acts.append(
+            f"  {a['id']}  {a.get('type') or 'untyped'} · {a['target']} · {whose} · {a['act']} by {a['by']} at {_at(a['when'])}"
+        )
         if a.get("body"):
             acts.append(f'      "{a["body"]}"')
     block("annotations settled", len(got.acts), acts)

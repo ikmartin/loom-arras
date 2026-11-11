@@ -60,7 +60,7 @@ def marked(q: Path) -> None:
     from tests.helpers import ok
 
     author(q)
-    ok("annotate", "dm-0003", "Is this right?", "--kind", "question", "--session", S1, cwd=q)
+    ok("annotate", "dm-0003", "Is this right?", "--type", "question", "--session", S1, cwd=q)
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -219,7 +219,7 @@ CASES: dict[str, list[Case]] = {
     ],
     "ai annotations": [
         Case(("--session", S2)),
-        Case(("--session", S2, "--kind", "objection", "--severity", "major", "--status", "open")),
+        Case(("--session", S2, "--type", "revision", "--status", "open")),
         Case(NOWHERE, exit=2, why="names no session"),
     ],
     "ai refresh": [

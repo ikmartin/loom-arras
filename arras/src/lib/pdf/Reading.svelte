@@ -24,6 +24,8 @@
 	import { MarkDesk } from './desk.svelte';
 	import MarkedDoc from './MarkedDoc.svelte';
 	import { mergeLines } from './marks';
+	import { colorOf, RGB, styleOf, typeOf } from '$lib/review/annotationTypes';
+	import type { Look } from '$lib/manifest/types';
 	import type { PdfView } from './view.svelte';
 	import type { Outgoing } from './portable';
 	import NoteAt from './NoteAt.svelte';
@@ -58,16 +60,16 @@
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
 	const desk = new MarkDesk(() => ({ on: citekey, owns: (n) => n.target.citekey === citekey, url, name: `${citekey}.pdf`, extras: annotationsToSave }));
 
-	/** A hue for each kind, as theme.css draws them in the light: an annotation in a saved copy says what kind of thing it is by the same colour. */
-	const HUES: Record<string, number[]> = { objection: [163, 45, 45], suggestion: [160, 122, 10], question: [24, 95, 165], citation: [107, 63, 160], note: [111, 109, 102] };
-
-	/** The open annotations on this work's pages, as a saved copy holds them. */
+	/** The open annotations on this work's pages, as a saved copy holds them: each in its own style and colour as theme.css draws them in the light, the band for a highlight and the line otherwise, with its type's name before its words. */
 	function annotationsToSave(): Outgoing[] {
 		const out: Outgoing[] = [];
 		for (const a of notes) {
 			const rects = spans?.marks?.[a.id];
 			if (!rects?.length || a.status !== 'open') continue;
-			out.push({ page: a.target.page ?? 0, kind: 'highlight', rects, body: `${a.kind}${a.severity ? ` (${a.severity})` : ''}: ${new DOMParser().parseFromString(a.body_html, 'text/html').body.textContent?.trim() ?? ''}`, by: a.author?.id ?? '', color: HUES[a.kind] ?? HUES.note });
+			const style = styleOf(a.look);
+			const named = typeOf(store.manifest, a)?.name;
+			const words = new DOMParser().parseFromString(a.body_html, 'text/html').body.textContent?.trim() ?? '';
+			out.push({ page: a.target.page ?? 0, kind: style, rects, body: named ? `${named}: ${words}` : words, by: a.author?.id ?? '', color: RGB[colorOf(a.look)][style === 'highlight' ? 'band' : 'line'] });
 		}
 		return out;
 	}
@@ -161,7 +163,7 @@
 	const holder = paneOf();
 	const hide = $derived(holder ? workspace.hidesNotes(holder.index) : false);
 
-	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean };
+	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean };
 	/** Every anchor's geometry, by the page it is on: the work's results, the annotations the selection shows -- stacked where they share a place, settled where every one of them is -- and the lit locator. The document view draws what belongs to each page it renders. */
 	const drawn = $derived.by<Drawn[]>(() => {
 		const out: Drawn[] = Object.entries(spans?.quads ?? {})
@@ -176,7 +178,7 @@
 			if (same) {
 				same.ids!.push(a.id);
 				same.settled = same.settled && a.status !== 'open';
-			} else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, kind: a.kind, severity: a.severity, settled: a.status !== 'open', basis: a.basis });
+			} else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, look: a.look, settled: a.status !== 'open', basis: a.basis });
 		}
 		out.push(...stacked.values());
 		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });

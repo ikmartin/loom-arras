@@ -63,8 +63,8 @@ test('one queue holds every waiting proposal, grouped by work, a result at a tim
 	await page.getByTestId('queue-work-Kre99').click();
 	await expect(card(page)).toHaveAttribute('data-id', 'Kre99-thm-9.9');
 	// Review counts them in the column
-	// each work with a proposal waiting is a thing to decide, beside the three the fixture holds
-	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /6 proposals to decide/);
+	// each work with a proposal waiting is a thing to decide, beside the two the fixture holds
+	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /5 proposals to decide/);
 });
 
 test('a card names the result as the paper does, and folds the id and the hash', async ({ page }) => {

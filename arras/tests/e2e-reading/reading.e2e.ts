@@ -75,7 +75,7 @@ async function intoASession(page: Page, served: Served): Promise<string> {
 
 /** A person's note on page 2 of Bellamy19 over `phrase`, written through the API into `session`; returns its id. */
 async function noteOnPage2(served: Served, session: string, phrase: string, body: string): Promise<string> {
-	const result = await served.api('annotate', { target: 'Bellamy19', page: 2, quote: phrase, message: body, kind: 'note', session });
+	const result = await served.api('annotate', { target: 'Bellamy19', page: 2, quote: phrase, message: body, type: 'note', session });
 	return result.split(/\s+/)[0];
 }
 
@@ -124,7 +124,7 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	await expect(page.getByTestId('note-quote')).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('incidence matrix');
 	await page.getByTestId('note-body').fill('So the vertices are integral.');
-	await expect(page.getByTestId('note-kind').locator('[aria-pressed="true"]')).toHaveAttribute('data-kind', 'note');
+	await expect(page.getByTestId('note-type').locator('[aria-pressed="true"]')).toHaveAttribute('data-type', '');
 	await page.getByTestId('note-submit').click();
 	await expect(form).toBeHidden();
 	const written = served.written('So the vertices are integral.');
@@ -134,14 +134,14 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	expect(anchor.page).toBe(2);
 	expect(String(anchor.exact)).toContain('incidence matrix');
 	expect(anchor).not.toHaveProperty('quads'); // derived at build time, never recorded for text
-	// and the mark appears once the publisher has rebuilt the sidecar: the underline a fragment draws, beneath each line, over the hue's 5% wash
+	// and the mark appears once the publisher has rebuilt the sidecar, drawn as a fragment draws one in the look loom gave it: with no type, a thin grey underline beneath each line and no band
 	const mark = page.getByTestId(`mark-${written.id}`).first();
 	await expect(mark).toBeVisible();
 	await expect(mark).toHaveClass(/annotation/);
-	await expect(mark).toHaveClass(/k-note/);
-	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
-	await expect(mark).toHaveCSS('border-bottom-width', '2px');
-	await expect(mark).toHaveCSS('border-bottom-color', 'rgb(111, 109, 102)');
+	await expect(mark).toHaveClass(/\bann-underline\b/);
+	await expect(mark).toHaveCSS('background-size', '100% 1px');
+	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/rgb\(136, 135, 128\)|color\(srgb 0\.533\d* 0\.529\d* 0\.50\d*\)/);
+	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/rgba\(0, 0, 0, 0\)|[ /,] ?0\)$/);
 	await expect(mark).toHaveCSS('border-top-width', '0px');
 });
 
@@ -170,7 +170,7 @@ test('a selection across a citation and a reference is quoted as they were writt
 	});
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Which digraph is this the median polytope of?');
-	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
+	await page.getByTestId('note-type').locator('[data-type="question"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toBeHidden();
 	const written = served.written('Which digraph is this the median polytope of?');
@@ -229,13 +229,13 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	const anchor = written.anchor as Record<string, unknown>;
 	expect(anchor.basis).toBe('box');
 	expect(anchor.quads).toHaveLength(1);
-	// a box anchor is an outline in the hue, not an underline
+	// a box anchor is an outline of its weight in its line's colour, not an underline: with no type, thin and grey
 	const mark = page.getByTestId(`mark-${written.id}`);
 	await expect(mark).toBeVisible();
 	await expect(mark).toHaveClass(/basis-box/);
-	await expect(mark).toHaveCSS('border-top-width', '2px');
-	await expect(mark).toHaveCSS('border-top-color', 'rgb(111, 109, 102)');
-	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
+	await expect(mark).toHaveCSS('border-top-width', '1px');
+	expect(await mark.evaluate((el) => getComputedStyle(el).borderTopColor)).toMatch(/rgb\(136, 135, 128\)|color\(srgb 0\.533\d* 0\.529\d* 0\.50\d*\)/);
+	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
 });
 
 test('a mark opens the box a fragment opens, Escape closes it, and its mark has nowhere to travel', async ({ page, served }) => {
@@ -352,6 +352,8 @@ test('a box shows the write it fired, without being closed and reopened', async 
 	await select(page, 'exchange inequalities');
 	await expect(page.getByTestId('note-at')).toBeVisible();
 	await page.getByTestId('note-body').fill('resolve me');
+	// a type that stays open until resolved, since only those offer resolve
+	await page.getByTestId('note-type').locator('[data-type="question"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toBeHidden();
 	const id = served.written('resolve me').id as string;

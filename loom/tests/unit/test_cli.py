@@ -29,8 +29,8 @@ def test_a_long_text_given_as_dash_is_read_from_stdin(tmp_path: Path) -> None:
     """A shell mangles LaTeX (relloc's agent wrote `y^\\prime` to get past the quoting), so every command that takes a long text reads `-` from stdin, as `session say` and `write` do; relloc's `a-2026-10-26-4d1z7x` is a reply whose text was the "-" itself."""
     q = demo(tmp_path)
     before = len(bodies(q))
-    ok("annotate", "dm-0002", "-", "--kind", "question", *AS, cwd=q, stdin=LATEX)
-    first = ok("annotate", "dm-0002", "Which orbits?", "--kind", "question", *AS, cwd=q).output.split()[0]
+    ok("annotate", "dm-0002", "-", "--type", "question", *AS, cwd=q, stdin=LATEX)
+    first = ok("annotate", "dm-0002", "Which orbits?", "--type", "question", *AS, cwd=q).output.split()[0]
     ok("annotate", "--reply", first, "-", *AS, cwd=q, stdin=LATEX)
     assert bodies(q)[before:] == [LATEX, "Which orbits?", LATEX]
     proposal = json_of(
@@ -45,7 +45,7 @@ def test_stdin_holds_one_text(tmp_path: Path) -> None:
     q = demo(tmp_path)
     before = bodies(q)
     refused(
-        "annotate", "dm-0002", "-", "--kind", "suggestion", "--payload", "-", *AS,
+        "annotate", "dm-0002", "-", "--type", "suggestion", "--payload", "-", *AS,
         cwd=q, code=2, match="MESSAGE and --payload are both -", stdin=LATEX,
     )  # fmt: skip
     refused("annotate", "--batch", "--payload", "-", *AS, cwd=q, code=2, match="--batch reads its lines from stdin")

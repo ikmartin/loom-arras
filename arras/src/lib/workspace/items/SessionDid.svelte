@@ -1,11 +1,12 @@
 <script lang="ts">
-	// What it did: a session's command log read as its record. **Recorded** groups the annotations it made or changed by the block they are on, each with its kind (the dot, which opens it), where it stands and its words on one line; **Ran** lists every other command once, with how many times and when last, and links what it names, a moved document under where it is now. **Every line, in order** keeps the log as it is, newest at the bottom, so nothing in it is hidden (V3). The kind is a dot in its hue, a reply's a ring.
+	// What it did: a session's command log read as its record. **Recorded** groups the annotations it made or changed by the block they are on, each with its colour (the dot, which opens it), where it stands and its words on one line; **Ran** lists every other command once, with how many times and when last, and links what it names, a moved document under where it is now. **Every line, in order** keeps the log as it is, newest at the bottom, so nothing in it is hidden (V3). The dot is in the annotation's own colour and named by its type, a reply's a ring.
 	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import { didOf, type Named } from '$lib/sessions/did';
 	import { when } from '$lib/sessions/when';
 	import { keyName } from '$lib/workspace/names';
+	import { lookVars, typeName } from '$lib/review/annotationTypes';
 	import type { Item } from '../item';
 	import { recordOf } from './session';
 
@@ -24,7 +25,7 @@
 		return keyName(m, key);
 	}
 	const standing = (a: Annotation) => (a.discarded ? 'withdrawn' : a.status);
-	const kindOf = (a: Annotation) => (a.in_reply_to ? `reply, ${a.kind}` : a.kind);
+	const kindOf = (a: Annotation) => (a.in_reply_to ? `reply, ${typeName(m, a)}` : typeName(m, a));
 	const named = (n: Named) => ('key' in n ? { href: `quilt:${n.key}`, text: keyName(m, n.key), title: n.key } : { href: `quilt:${n.path}`, text: n.path.split('/').pop() ?? n.path, title: n.path });
 
 	function clock(stamp: string): string {
@@ -46,7 +47,7 @@
 								{#each r.annotations as a (a.id)}
 									<!-- the row a mark's link travels back to -->
 									<li class="ann" id="ann-{a.id}">
-										<a class="go" href="quilt:{a.id}" title="{kindOf(a)}: open it where it is" data-testid="did-annotation"><span class="ann-dot k-{a.kind}" class:reply={!!a.in_reply_to} role="img" aria-label={kindOf(a)} data-testid="did-kind"></span></a>
+										<a class="go" href="quilt:{a.id}" title="{kindOf(a)}: open it where it is" data-testid="did-annotation"><span class="ann-dot" class:reply={!!a.in_reply_to} style={lookVars(a.look)} role="img" aria-label={kindOf(a)} data-testid="did-kind"></span></a>
 										<div class="first" data-testid="did-first"><Prose html={a.body_html} /></div>
 										<span class="state state-{standing(a)}" data-testid="did-state">{standing(a)}</span>
 									</li>

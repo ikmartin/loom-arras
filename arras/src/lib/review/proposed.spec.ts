@@ -15,9 +15,9 @@ function changed(over: (x: Manifest) => void): Manifest {
 }
 
 describe('what is proposed to the person', () => {
-	it('lists a copy, then suggestions with text and citations, one card each, prose left out', () => {
-		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy', 'suggestion', 'citation']);
-		expect(proposedCount(m)).toBe(3);
+	it('lists a copy, then annotations with text to put in, one card each, prose left out', () => {
+		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy', 'suggestion']);
+		expect(proposedCount(m)).toBe(2);
 		expect(adoptionsOf(m).map((a) => a.copy)).toEqual([COPY]);
 	});
 
@@ -38,7 +38,7 @@ describe('what is proposed to the person', () => {
 		expect(cards.some((c) => c.id === TEXT)).toBe(false);
 		const copy = cards[0];
 		expect(copy.kind === 'copy' && copy.suggestions.map((a) => a.id)).toEqual([TEXT]);
-		expect(proposedCount(x)).toBe(2);
+		expect(proposedCount(x)).toBe(1);
 	});
 
 	it('gives a suggestion on a copy with no card one of its own', () => {
@@ -60,7 +60,7 @@ describe('what is proposed to the person', () => {
 		});
 		expect(resultsOf(x)).toEqual([{ citekey: 'Kre99', count: 2 }]);
 		expect(cardsOf(x).at(-1)).toMatchObject({ kind: 'results', id: 'Kre99', count: 2 });
-		expect(proposedCount(x)).toBe(4);
+		expect(proposedCount(x)).toBe(3);
 	});
 });
 

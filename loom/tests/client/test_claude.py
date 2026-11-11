@@ -179,7 +179,7 @@ def test_a_claude_attached_over_mcp_hears_what_the_person_did_since_it_last_look
     gate(CLAUDE, "claude")
     q = quilt(tmp_path)
     ok("session", "new", "--name", "client check", "--as", "A. Author", cwd=q)
-    ok("annotate", "dm-0002", LEFT, "--kind", "question", "--as", "A. Author", cwd=q)
+    ok("annotate", "dm-0002", LEFT, "--type", "question", "--as", "A. Author", cwd=q)
     result, _ = turn(q, HEAR_SINCE)
     assert LEFT in str(result.get("result", "")), f"the reply does not quote the person's annotation: {result}"
     assert not result["permission_denials"], f"something was refused: {result}"

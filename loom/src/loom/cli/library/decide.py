@@ -16,7 +16,6 @@ from loom.cli._common import ContentError, EnvError, NotFoundError, refuse_under
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library import _works
 from loom.cli.report import Group, Item, Report, counted
-from loom.paths import REFERENCE_NOTES
 from loom.scan.scan import ScanResult
 
 _AS = "Who is deciding, when the user config and git do not say."
@@ -35,25 +34,18 @@ def _who(root: Path, declared: str | None) -> str:
 
 
 def _targets(result: ScanResult, ids: tuple[str, ...], decision: str) -> list[tuple[str, str, Any]]:
-    """Each ID as (`result` | `citation`, its id, the citekey or the suggestion), all resolved before anything is written.
+    """Each ID as (`result`, its id, the citekey), all resolved before anything is written; a result id that names nothing exits 2.
 
-    A result id that names nothing, or an annotation id that does, exits 2; a suggestion loom cannot act on (not a citation, no longer open, no work named) exits 1.
+    An annotation id is refused: a work worth citing is a suggestion on the text, resolved or deleted where it stands, and nothing about it is the library's to decide.
     """
-    from loom.refs.notes import find_citation
-
     out: list[tuple[str, str, Any]] = []
     for target in dict.fromkeys(ids):
         if _works.is_suggestion(target):
-            try:
-                _record, ann = find_citation(result.quilt.root, target, decision)
-            except LookupError as exc:
-                raise NotFoundError("annotation", str(exc)) from exc
-            except ValueError as exc:
-                raise ContentError(str(exc)) from exc
-            out.append(("citation", target, ann))
-        else:
-            ck, rid, _results = _works.find_result(result, target)
-            out.append(("result", rid, ck))
+            raise EnvError(
+                f"{target} is an annotation, not a result: a work worth citing is a suggestion on the text, resolved where it stands with `loom annotate --resolve {target}`"
+            )
+        ck, rid, _results = _works.find_result(result, target)
+        out.append(("result", rid, ck))
     return out
 
 
@@ -98,11 +90,10 @@ def verify(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Record that a result's transcription is faithful, or accept a citation suggestion.
+    """Record that a result's transcription is faithful.
 
-    A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in .loom/reference-notes.jsonl and resolves it; your bibliography is never touched.
+    A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded.
     """
-    from loom.refs.notes import decide_citation
     from loom.refs.proposals import PROPOSAL_ABBREV, verify_result
 
     refuse_under_agent(
@@ -118,18 +109,13 @@ def verify(
     result = open_scan(quilt_path)
     root = result.quilt.root
     targets = _targets(result, ids, "accept")
-    if (statement or local or taxon) and targets[0][0] == "citation":
-        raise EnvError("--statement, --local and --taxon correct a result; a citation suggestion takes none")
     who = _who(root, as_name)
     if dry_run:
         # the dry run is where both texts can be read without answering for them
         for kind, tid, what in targets:
             if kind == "result":
                 _show_both_texts(result, what, tid, statement)
-        items = [
-            Item(f"{what}: its transcription" if kind == "result" else f"file {_short(what.payload)}", key=tid)
-            for kind, tid, what in targets
-        ]
+        items = [Item(f"{what}: its transcription", key=tid) for _kind, tid, what in targets]
         Report(
             f"would verify {_counted(targets)}; nothing written",
             dry_run=True,
@@ -146,20 +132,15 @@ def verify(
     items = []
     declined: list[str] = []
     for kind, tid, what in targets:
-        if kind == "citation":
-            decide_citation(root, tid, "accept", None, who, None)
-            said = [f"accepted {tid}", f"recorded in {REFERENCE_NOTES}; your bibliography is unchanged"]
-            done.append({"kind": kind, "id": tid, "work": what.payload})
-        else:
-            _show_both_texts(result, what, tid, statement)
-            if not yes and not click.confirm(f"\nis the rendering of {tid} faithful to the page?", err=True):
-                declined.append(tid)  # a "no" is an answer, not a failure: nothing is recorded for it
-                continue
-            try:
-                said = verify_result(result, tid, statement, who, local=local, taxon=taxon)
-            except LookupError as exc:
-                raise ContentError(str(exc)) from exc
-            done.append({"kind": kind, "id": tid, "work": what})
+        _show_both_texts(result, what, tid, statement)
+        if not yes and not click.confirm(f"\nis the rendering of {tid} faithful to the page?", err=True):
+            declined.append(tid)  # a "no" is an answer, not a failure: nothing is recorded for it
+            continue
+        try:
+            said = verify_result(result, tid, statement, who, local=local, taxon=taxon)
+        except LookupError as exc:
+            raise ContentError(str(exc)) from exc
+        done.append({"kind": kind, "id": tid, "work": what})
         items.append(Item(said[0]))
         lines += said[1:]
     if not items:
@@ -200,11 +181,10 @@ def verify(
 def discard(
     ids: tuple[str, ...], why: str, as_name: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
 ) -> None:
-    """Discard a proposed result, or reject a citation suggestion, with a reason.
+    """Discard a proposed result, with a reason.
 
-    `loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. A rejected suggestion is resolved with the reason on the resolve event and records nothing. Nothing is deleted: the log keeps it and `loom library why` reports it.
+    `loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. Nothing is deleted: the log keeps it and `loom library why` reports it.
     """
-    from loom.refs.notes import decide_citation
     from loom.refs.proposals import DISCARDED, discard_refusal, discard_result, discarded_locals, load_results, state_of
 
     refuse_under_agent("loom library discard", "Discard in the digest view or in your own terminal.", as_name)
@@ -238,14 +218,11 @@ def discard(
         for kind, tid, what in targets
     ]
     if not dry_run:
-        for kind, tid, _what in targets:
-            if kind == "citation":
-                decide_citation(root, tid, "reject", why, who, None)
-            else:
-                try:
-                    discard_result(result, tid, why, who)
-                except LookupError as exc:
-                    raise ContentError(str(exc)) from exc
+        for _kind, tid, _what in targets:
+            try:
+                discard_result(result, tid, why, who)
+            except LookupError as exc:
+                raise ContentError(str(exc)) from exc
     one = len(targets) == 1
     verb = "would discard" if dry_run else "discarded"
     Report(

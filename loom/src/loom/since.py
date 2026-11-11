@@ -213,7 +213,7 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
             row = {
                 "id": aid,
                 "act": act,
-                "kind": a.kind,
+                "type": a.type,
                 "target": a.target_key,
                 "of": a.author_id,
                 "by": str(e.get("author", "")),

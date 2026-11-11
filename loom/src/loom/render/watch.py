@@ -23,7 +23,6 @@ from loom.paths import (
     DIGESTS,
     LOOM,
     NOTE_LOG,
-    REFERENCE_NOTES,
     RETIRED,
     REVIEW_DECISIONS,
     REVIEW_OBSERVATIONS,
@@ -46,7 +45,7 @@ SOURCES_ONLY = (f"{DIGESTS}/", f"{RETIRED}/", f"{COPIES}/")
 SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 #: What a change to records alone touches; see `scan_unread`.
 RECORDS = (f"{ANNOTATIONS}/", f"{SESSIONS}/")
-RECORD_FILES = (REFERENCE_NOTES, REVIEW_DECISIONS, REVIEW_ORIGINS)
+RECORD_FILES = (REVIEW_DECISIONS, REVIEW_ORIGINS)
 #: What the scan reads outside `.loom/`; a change to any other file there leaves the last scan standing.
 SCANNED = (".tex", ".sty", ".cls", ".bib")
 
@@ -115,7 +114,7 @@ def snapshot(root: Path, shown: Shown | None = None) -> dict[Path, float]:
 
 
 #: The records loom's own commands append to, looked at between full scans: an agent's annotation is drawn within a fraction of a second rather than on the next scan.
-FAST = (ANNOTATION_LOG, NOTE_LOG, REFERENCE_NOTES, f"{SESSIONS}/index.jsonl")
+FAST = (ANNOTATION_LOG, NOTE_LOG, f"{SESSIONS}/index.jsonl")
 #: How often the fast lane looks.
 FAST_INTERVAL = 0.2
 

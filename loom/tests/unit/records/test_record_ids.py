@@ -47,7 +47,7 @@ def _no_report(q: Path) -> None:
 def test_two_clones_merge_into_records_each_with_an_id_of_its_own(tmp_path: Path) -> None:
     """Each clone's first annotation of the day was `0001`; merged, a reply to it could not say which it meant, and nothing reported it."""
     one, two = _clones(tmp_path)
-    args = ("annotate", "dm-0002", "the same words in both clones", "--kind", "question", *AS)
+    args = ("annotate", "dm-0002", "the same words in both clones", "--type", "question", *AS)
     mine, theirs = (ok(*args, cwd=q).stdout.split()[0] for q in (one, two))
     assert mine != theirs
     _merge(one, two, ANNOTATION_LOG, 1)
@@ -242,7 +242,7 @@ def test_a_merged_log_reaches_the_manifest_in_the_order_it_was_written(
 ) -> None:
     """A merge puts one clone's lines after the other's, whatever the hour; the viewer's order is the hour's."""
     one, two = _clones(tmp_path)
-    args = ("annotate", "dm-0002", "words", "--kind", "question", *AS)
+    args = ("annotate", "dm-0002", "words", "--type", "question", *AS)
     # the earlier id sorts last and its line is merged last, so only the hour puts it first
     tokens = iter(["zzzzzz", "000000"])
     monkeypatch.setattr("loom.records.ids._token", lambda _prefix, _attempt: next(tokens))

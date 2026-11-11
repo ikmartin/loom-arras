@@ -236,8 +236,19 @@ def test_every_finding_names_what_resolves_it_and_the_command_works(tmp_path: Pa
     )
     (q / "drafting" / "nodes" / "stray.tex").write_text("\\begin{remark}\\label{dm-0099}\nStray.\n\\end{remark}\n")
     a = ok(
-        "annotate", "dm-0002", "Which orbits?", "--quote", "one-point orbits", "--as", "Tester", cwd=q
+        "annotate",
+        "dm-0002",
+        "Which orbits?",
+        "--quote",
+        "one-point orbits",
+        "--type",
+        "question",
+        "--as",
+        "Tester",
+        cwd=q,
     ).output.split()[0]
+    # an untyped mark only informs, so nothing resolves it and its detachment names no fix
+    ok("annotate", "dm-0002", "--quote", "one-point orbits", "--as", "Tester", cwd=q)
     edit(q / "drafting" / "nodes" / "dm-0002.tex", "the one-point orbits", "the orbits of one point")
     assert "add dm-0001 to the \\uses of dm-0003/proof" in _fixes(q, "loom:uses-missing")
     assert _fixes(q, "loom:unmatched-postnote") == ["loom library Calloway14"]

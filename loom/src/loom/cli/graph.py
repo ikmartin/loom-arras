@@ -208,8 +208,7 @@ def _downstream_records(result: ScanResult, key: str) -> tuple[list[dict[str, An
         {
             "id": a.id,
             "target": a.target_key,
-            "kind": a.kind,
-            "severity": a.severity,
+            "type": a.type,
             "status": a.status,
             "author": a.author_id,
             "created": a.created,
@@ -367,11 +366,10 @@ def downstream(id_: str, proofs: bool, as_json: bool, run_dir: str | None, quilt
 
 
 def _annotation_item(e: dict[str, Any]) -> Item:
-    """One annotation on the key or its proofs: its kind, grade and state, then the first line of what it says, its id last."""
-    sev = f" {e['severity']}" if e["severity"] else ""
+    """One annotation on the key or its proofs: its type and state, then the first line of what it says, its id last."""
     mark = "" if e["status"] == "open" else f", {e['status']}"
     loose = ", detached" if e["detached"] else ""
-    head = f"{e['kind']}{sev}{mark}{loose} on {e['target']}"
+    head = f"{e['type'] or 'untyped'}{mark}{loose} on {e['target']}"
     first = (e["message"] or "").strip().splitlines()
     room = WIDTH - 6 - len(head) - len(e["id"])
     said = (

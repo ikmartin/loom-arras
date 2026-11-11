@@ -27,7 +27,6 @@ CAPABILITIES = [
     "edit",
     "discard",
     "suggestion-apply",
-    "library-cite",
     "library-verify",
     "library-discard",
     "library-update",
@@ -330,7 +329,6 @@ RECORD_WRITES = (
     "resolve",
     "edit",
     "discard",
-    "library-cite",
     "session-new",
     "session-use",
     "session-rename",
@@ -749,8 +747,6 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _note(root, endpoint, body)
     if endpoint == "pdf-save":
         return _pdf_save(root, body)
-    if endpoint == "library-cite":
-        return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):
         return {"ok": True, "result": _library(root, endpoint, body)}
     if endpoint == "library-update":
@@ -1181,7 +1177,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
-    needs = {"annotate": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
+    needs = {"annotate": ("target",), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
     for field in needs:
         _str(body, field, required=True)
 
@@ -1213,8 +1209,12 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return _apply(root, result, _str(body, "annotation", required=True) or "", writer)
         if endpoint == "edit":
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
-            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
-            return edit_annotation(result, _str(body, "annotation", required=True) or "", writer, **fields)
+            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("payload", "placement")}}
+            # a type of "" or null takes the type off; absent leaves it as it is
+            type_given = ("" if body["type"] is None else _str(body, "type")) if "type" in body else None
+            return edit_annotation(
+                result, _str(body, "annotation", required=True) or "", writer, False, type_given, _look(body), **fields
+            )
         if endpoint == "annotate":
             # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
             page = body.get("page")
@@ -1225,17 +1225,17 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 result,
                 writer,
                 _str(body, "target", required=True),
-                _str(body, "message", required=True),
+                _str(body, "message"),
                 _str(body, "quote"),
-                _str(body, "kind"),
+                _str(body, "type"),
                 None,
                 None,
-                _str(body, "severity"),
                 _str(body, "payload"),
                 _str(body, "placement"),
                 page=page,
                 rects=rects,
                 in_doc=_str(body, "in"),
+                look=_look(body),
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":
@@ -1282,35 +1282,14 @@ def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, s
     return "; ".join(x for x in (said, kept.said()) if x)
 
 
-def _library_cite(root: Path, body: dict[str, Any]) -> str:
-    """Accept or reject a citation an agent suggested, through `decide_citation` as `loom library verify|discard` do."""
-    from loom.cli._common import ContentError, EnvError, NotFoundError, is_agent
-    from loom.cli.review import _writer
-    from loom.refs.notes import DECISIONS, decide_citation, find_citation
-
-    if is_agent(_str(body, "author") or ""):
-        raise ApiError(
-            "author-only", "An agent suggests a citation; only the author accepts or rejects one", status=403
-        )
-    decision = _str(body, "decision", required=True)
-    if decision not in DECISIONS:
-        raise ApiError("bad-field", "decision must be accept or reject")
-    ann_id = _str(body, "annotation", required=True) or ""
-    which = _str(body, "session")
-    if not which:
-        raise ApiError("no-session", "a write must name the session it belongs to")
-    try:
-        # the suggestion first: one that names nothing is the caller's mistake whoever is asking
-        find_citation(root, ann_id, decision)
-        session, _kind, who = _writer(root, which, _str(body, "author"), sniff=False)
-        decide_citation(root, ann_id, decision, _str(body, "why"), who, session)
-    except LookupError as exc:
-        raise ApiError("no-such-annotation", str(exc), status=404) from exc
-    except NotFoundError as exc:
-        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
-    except (EnvError, ContentError, ValueError) as exc:
-        raise ApiError("refused", str(exc)) from exc
-    return f"{decision}ed {ann_id}; resolved {ann_id}"
+def _look(body: dict[str, Any]) -> dict[str, Any]:
+    """The look a write sets, as `look: {color, style, weight, opacity}` with any field left out; refused when it is not a table."""
+    look = body.get("look")
+    if look is None:
+        return {}
+    if not isinstance(look, dict):
+        raise ApiError("bad-field", "look must be an object of color, style, weight and opacity")
+    return {k: look[k] for k in ("color", "style", "weight", "opacity") if k in look}
 
 
 def _accept_keys(body: dict[str, Any]) -> list[str]:

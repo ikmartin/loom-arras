@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import re
 from importlib import resources
 from pathlib import Path
 
-from loom.paths import AI
+from loom.paths import AI, ANNOTATION_TYPES
 from loom.records.store import Records
+from loom.records.types import Types, load_types
 from loom.render.threads import SESSION_FILES
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
 
 STATIC = ("orientation.md", "rules.md", "formatting.md")
+#: A type named in the standing documents and the modes: `{type:revision}`, filled with the type's name when it is printed, so a rename reaches every mode. An article before it and the word `annotation` after it are part of the match, so a type the quilt no longer lists reads as an untyped annotation.
+PLACEHOLDER = re.compile(r"(?:\b([Aa])n? )?\{type:([a-z][a-z0-9-]*)\}( annotations?\b)?")
 #: How much of a session's chat `orient --session` prints: enough to pick the conversation up, not its history.
 TAIL = 20
 
@@ -24,20 +28,74 @@ def static_text(root: Path) -> str:
     from loom.ai.layout import tracked_docs
 
     shipped = tracked_docs()  # as `ai init` writes them: the rules with their list of allowed commands filled in
+    types = load_types(root)
     out: list[str] = []
     for name in STATIC:
         p = root / AI / name
         text = p.read_text(encoding="utf-8") if p.is_file() else shipped[f"{AI}/{name}"]
-        out.append(text.rstrip("\n"))
+        out.append(expand_types(text, types).rstrip("\n"))
+        if name == "rules.md":
+            out.append(types_text(types).rstrip("\n"))
     return "\n\n---\n\n".join(out) + "\n"
 
 
+def expand_types(text: str, types: Types) -> str:
+    """`text` with each `{type:ID}` filled with that type's name, and an article before it agreeing; a type the quilt no longer lists reads as an untyped annotation."""
+
+    def fill(m: re.Match[str]) -> str:
+        article, tid, noun = m.group(1), m.group(2), m.group(3) or ""
+        t = types.get(tid)
+        if t is None:
+            said = "untyped annotation" + ("s" if noun.endswith("s") else "")
+            return f"{'A' if article == 'A' else 'a'}n {said}" if article else said
+        if not article:
+            return t.name + noun
+        an = "n" if t.name[:1].lower() in "aeiou" else ""
+        return f"{article}{an} {t.name}{noun}"
+
+    return PLACEHOLDER.sub(fill, text)
+
+
+def types_text(types: Types) -> str:
+    """The quilt's annotation types as the orientation prints them, after the rules: each with its id for `--type`, whether it stays open, and its instructions."""
+    lines = [
+        "# Annotation types",
+        "",
+        f"This quilt's types, from `{types.source or ANNOTATION_TYPES + ' (the defaults: the file is missing)'}`. Pass a type's id as `--type`; leave an annotation untyped when no type's instructions fit.",
+    ]
+    for t in types.types:
+        stays = "stays open until resolved" if t.open else "only informs"
+        listed = ", listed in Notes" if t.notes else ""
+        lines += ["", f"## {t.name} (`--type {t.id}`): {stays}{listed}", ""]
+        lines.append(t.instructions or "No instructions: use it when the person asks for it.")
+    return "\n".join(lines) + "\n"
+
+
+def modes_using(root: Path) -> dict[str, list[str]]:
+    """Which modes name each type, by type id, read from the placeholders in the quilt's mode files (else the shipped ones)."""
+    from loom.ai.layout import MODES
+
+    out: dict[str, list[str]] = {}
+    for name in MODES:
+        p = root / AI / "modes" / f"{name}.md"
+        text = (
+            p.read_text(encoding="utf-8")
+            if p.is_file()
+            else resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")
+        )
+        for tid in dict.fromkeys(m.group(2) for m in PLACEHOLDER.finditer(text)):
+            out.setdefault(tid, []).append(name)
+    return out
+
+
 def mode_text(root: Path, name: str) -> str:
-    """Mode `name`'s file, the quilt's own copy where it has one, else the shipped one; `name` is one of `MODES`."""
+    """Mode `name`'s file, the quilt's own copy where it has one, else the shipped one, with its types named as the quilt names them; `name` is one of `MODES`."""
     p = root / AI / "modes" / f"{name}.md"
     if p.is_file():
-        return p.read_text(encoding="utf-8")
-    return resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")
+        text = p.read_text(encoding="utf-8")
+    else:
+        text = resources.files("loom").joinpath("assets", "ai", "modes", f"{name}.md").read_text(encoding="utf-8")
+    return expand_types(text, load_types(root))
 
 
 def fits(root: Path, name: str) -> str:
@@ -83,7 +141,8 @@ def instructions(root: Path, name: str) -> str:
     )
     bridge = (
         "When the person points at something without naming it, loom_here says what they are looking at in the "
-        "viewer; loom_since says what they did since you last looked, so call it when a conversation starts."
+        "viewer; loom_since says what they did since you last looked, so call it when a conversation starts. "
+        "The quilt's annotation types, and when to use each, are in loom_ai_orient."
     )
     return opening + "\n" + bridge + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
 

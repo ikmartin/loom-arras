@@ -139,7 +139,7 @@ def test_parallel_annotate_gives_every_annotation_its_own_id(tmp_path: Path) -> 
     """Measured before the lock: duplicate ids in ten trials of twelve, and a reply to such an id cannot say which it means."""
     q = demo(tmp_path)
     sid = new_session(q)
-    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--kind", "question", "--as", AGENT] for i in range(N))))
+    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "question", "--as", AGENT] for i in range(N))))
     made = {str(e["id"]): str(e["body"]) for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))}
     assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
     listed = json.loads(ok("ai", "annotations", "--session", sid, "--json", cwd=q).stdout)["annotations"]
@@ -149,8 +149,8 @@ def test_parallel_annotate_gives_every_annotation_its_own_id(tmp_path: Path) -> 
 def test_parallel_replies_and_new_annotations_draw_from_one_counter(tmp_path: Path) -> None:
     q = demo(tmp_path)
     new_session(q)
-    parent = ok("annotate", "dm-0002", "the question", "--kind", "question", "--as", AGENT, cwd=q).stdout.split()[0]
-    calls = [["annotate", "dm-0002", f"race {i}", "--kind", "note", "--as", AGENT] for i in range(2)]
+    parent = ok("annotate", "dm-0002", "the question", "--type", "question", "--as", AGENT, cwd=q).stdout.split()[0]
+    calls = [["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(2)]
     calls += [["annotate", "--reply", parent, f"race {i}", "--as", AGENT] for i in range(2, 4)]
     all_ok(racing(q, calls))
     ids = [str(e["id"]) for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
@@ -176,7 +176,7 @@ def test_writers_with_nothing_active_all_land_in_the_one_session_the_first_opens
     q = demo(tmp_path)
     set_active(q, None)
     before = len(events(q / INDEX))
-    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--kind", "note", "--as", AGENT] for i in range(N))))
+    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(N))))
     opened = [e for e in events(q / INDEX)[before:] if e["event"] == "created"]
     wrote = [e for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
     assert len(opened) == 1 and {e["session"] for e in wrote} == {opened[0]["id"]}, (opened, wrote)

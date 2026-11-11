@@ -10,7 +10,7 @@ test.describe('naming', () => {
 		const links = page.getByTestId('message-1').locator('a');
 		await expect(links.nth(0)).toHaveText('Theorem 2.1');
 		await expect(links.nth(1)).toHaveText('the parity theorem');
-		await expect(links.nth(2)).toHaveText('objection on Theorem 2.1');
+		await expect(links.nth(2)).toHaveText('Revision on Theorem 2.1');
 		await expect(links.nth(3)).toHaveText('main.tex');
 	});
 });
