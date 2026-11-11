@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
       - run: pipx install .
       - run: loom --version
-      - name: doctor fails without TeX, names what is missing, and finds the vendored bundle at loom's interface
+      - name: doctor fails without TeX, names what is missing, and finds the vendored bundle
         run: |
           loom doctor || true
           set +e
@@ -46,12 +46,11 @@ jobs:
           status=$?
           set -e
           test "$status" -eq 2
-          iface=$(sed -n 's/^INTERFACE_VERSION = \([0-9]*\)$/\1/p' src/loom/version.py)
-          jq -e --argjson iface "$iface" '
+          jq -e '
             .ok == false
             and (.failing | index("latexmk")) != null
             and any(.items[]; .name == "latexmk" and .status == "fail" and .path == null)
-            and any(.items[]; .name == "arras bundle" and .status == "ok" and .source == "vendored" and .interface == $iface)
+            and any(.items[]; .name == "arras bundle" and .status == "ok" and .source == "vendored")
           ' "$RUNNER_TEMP/doctor.json"
       - name: loom serve starts on the demo quilt and serves the viewer and the build
         working-directory: ${{ runner.temp }}
@@ -81,7 +80,7 @@ jobs:
       - name: git for the checkout, python3 for scripts/verify, poppler for pdftotext, curl for uv
         run: apt-get update && apt-get install -y git python3 poppler-utils curl
       - name: what the TeX tier loads that the medium scheme lacks
-        # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex); a "File `x.sty' not found" here names the package to add
+        # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex), make4ht, tex4ht and luaxml (a document's HTML), enumitem and float (the census); a "File `x.sty' not found" here names the package to add
         # named mirrors rather than mirror.ctan.org's redirect, which can pick a mirror that does not serve texlive.tlpdb; tlmgr refuses a mirror older than the image's own TeX Live, and any one mirror can lag it for a day, so the first that is not behind is used
         run: |
           ok=""
@@ -94,7 +93,7 @@ jobs:
             if tlmgr option repository "$m" && tlmgr update --self; then ok=1; break; fi
           done
           test -n "$ok"
-          tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
+          tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic make4ht tex4ht luaxml enumitem float
       - uses: actions/checkout@v4
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"

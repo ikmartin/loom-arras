@@ -1,0 +1,279 @@
+<!DOCTYPE html> 
+<html lang='en-US' xml:lang='en-US'> 
+<head>      <title></title> 
+<meta charset='utf-8' /> 
+<meta content='TeX4ht (https://tug.org/tex4ht/)' name='generator' /> 
+<meta content='width=device-width,initial-scale=1' name='viewport' /> 
+<link href='main-atomic.css' rel='stylesheet' type='text/css' /> 
+<meta content='main-atomic.tex' name='src' /> 
+<script>window.MathJax = { tex: { tags: "ams", }, }; </script> 
+<script async='async' id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js' type='text/javascript'></script>  
+</head><body>
+  <div class='maketitle'>
+  <h2 class='titleHead'>
+BALANCED FLOWS ON FINITE QUIVERS
+</h2>
+  <div class='authors'><span class='author'>
+<span class='cmr-9'>THE LOOM SHOWCASE</span>
+</span></div>
+<div class='submaketitle'>
+</div>
+  </div>
+         <div class='abstract'>
+       <!-- l. 31 --><p class='indent'>    <span class='title'>
+       <span class='cmcsc-10x-x-90'>A<span class='small-caps'>bstract</span>.</span> </span><span class='cmr-9'>We compute the rank of the lattice of balanced weightings
+       of a finite quiver, show that it is a saturated sublattice of the weighting
+       lattice,  and  count  its  bounded  members.  Nothing  here  is  true  by
+       accident: the quiver is a showcase.</span></p></div>
+  <!-- loom-file nodes/sh-0100.tex -->
+  <h3 class='sectionHead' id='introduction'><span class='titlemark'>1. </span> <a id='x1-10001'></a>Introduction</h3>
+<!-- l. 3 --><p class='noindent'>A quiver carries two lattices: the weightings of its arrows, and the balanced
+weightings, those that neither create nor destroy anything at a vertex. This paper
+is about the second. Our main result, Theorem   <span class='loom-ref' data-label='sh-0009'>3.1</span>, computes its rank from the
+combinatorics of the underlying graph alone, and Theorem   <span class='loom-ref' data-label='sh-000C'>3.4</span> counts the
+balanced weightings of bounded height.
+</p><!-- l. 5 --><p class='indent'>  The cycle lattice of a quiver is classical, and we follow <span class='cite'>[<a href='#XArden24'>1</a>, Proposition 2.1]</span>
+throughout; the counting argument of Section   <span class='loom-ref' data-label='sh-0300'>3</span> is an adaptation of the
+median-order technique of <span class='cite'>[<a href='#XBellamy19'>2</a>, Theorem 2.3]</span>. We also use the exchange bound of
+<span class='cite'>[<a href='#XArden24'>1</a>, Lemma 5.9]</span>, which the digest of that paper does not carry. The extension
+criterion <span class='cite'>[<a href='#XArden24'>1</a>, Theorem 5.1]</span> appears only in the second arXiv version of that paper.
+The survey <span class='cite'>[<a href='#XCortez07'>3</a>]</span> lists what is known for infinite quivers, none of which we
+use.
+</p><!-- l. 7 --><p class='indent'>  <!-- loom-file nodes/sh-0001.tex --></p><div class='loom-node' data-env='convention' data-file='nodes/sh-0001.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-1001r1'></a>
+<span class='cmbx-10x-x-109'>Convention 1.1.</span>  </span> Every quiver in this paper is finite: both <span class='mathjax-inline'>\(V(\quiv )\)</span> and <span class='mathjax-inline'>\(A(\quiv )\)</span> are finite
+                                                                     
+
+                                                                     
+sets, and loops and parallel arrows are allowed, a loop counting as one arrow
+and contributing no divergence. All lattices are free abelian groups of finite
+rank, written additively.
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <!-- loom-file-end --> <!-- loom-file-end --> <!-- loom-file nodes/sh-0200.tex -->
+  <h3 class='sectionHead' id='weightings-and-the-divergence-map'><span class='titlemark'>2. </span> <a id='x1-20002'></a>Weightings and the divergence map</h3>
+<!-- l. 3 --><p class='noindent'><!-- loom-file nodes/sh-0002.tex --></p><div class='loom-node' data-env='definition' data-file='nodes/sh-0002.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2001r1'></a>
+<span class='cmbx-10x-x-109'>Definition 2.1 </span>(Quiver)<span class='cmbx-10x-x-109'>.</span>  </span> A <span class='cmti-10x-x-109'>quiver </span><span class='mathjax-inline'>\(\quiv \)</span> is a quadruple <span class='mathjax-inline'>\((V, A, s, t)\)</span> with <span class='mathjax-inline'>\(V\)</span> and <span class='mathjax-inline'>\(A\)</span> finite sets
+and <span class='mathjax-inline'>\(s, t \colon A \to V\)</span> the source and target maps. A <span class='cmti-10x-x-109'>weighting </span>of <span class='mathjax-inline'>\(\quiv \)</span> is a function <span class='mathjax-inline'>\(w \colon A \to \ZZ \)</span>, and the
+weightings form a lattice <span class='mathjax-inline'>\(W(\quiv ) \cong \ZZ ^{A}\)</span> under pointwise addition.
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<!-- l. 5 --><p class='indent'>  <!-- loom-file nodes/sh-0003.tex --></p><div class='loom-node' data-env='definition' data-file='nodes/sh-0003.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2002r2'></a>
+<span class='cmbx-10x-x-109'>Definition 2.2 </span>(Divergence)<span class='cmbx-10x-x-109'>.</span>  </span> The <span class='cmti-10x-x-109'>divergence </span>of a weighting <span class='mathjax-inline'>\(w\)</span> at a vertex <span class='mathjax-inline'>\(v\)</span> is </p><div class='mathjax-env mathjax-equation'>\begin{equation}\label {eq:divergence} (\bd w)(v) \;=\; \sum _{a \colon t(a) = v} w(a) \;-\; \sum _{a \colon s(a) = v} w(a), \end{equation}</div><a id='x1-2003r1'></a> the
+weight arriving at <span class='mathjax-inline'>\(v\)</span> less the weight leaving it. The resulting homomorphism <span class='mathjax-inline'>\(\bd \colon W(\quiv ) \to \ZZ ^{V}\)</span> is the
+<span class='cmti-10x-x-109'>divergence map</span>.
+  </div>
+<!-- l. 7 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<!-- l. 7 --><p class='indent'>  <!-- loom-file nodes/sh-0004.tex --></p><div class='loom-node' data-env='definition' data-file='nodes/sh-0004.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2004r3'></a>
+<span class='cmbx-10x-x-109'>Definition 2.3 </span>(Balanced weighting)<span class='cmbx-10x-x-109'>.</span>  </span> A weighting <span class='mathjax-inline'>\(w\)</span> is <span class='cmti-10x-x-109'>balanced </span>if <span class='mathjax-inline'>\(\bd w = 0\)</span>, and the
+balanced weightings form the sublattice </p><div class='mathjax-env mathjax-equation'>\begin{equation}\label {eq:cycle-lattice} \Zcyc (\quiv ) \;=\; \ker \bd \;\subseteq \; W(\quiv ), \end{equation}</div><a id='x1-2005r2'></a> which we call the <span class='cmti-10x-x-109'>cycle lattice </span>of
+<span class='mathjax-inline'>\(\quiv \)</span>.
+  </div>
+<!-- l. 7 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+                                                                     
+
+                                                                     
+<!-- l. 9 --><p class='indent'>  <!-- loom-file nodes/sh-0005.tex --></p><div class='loom-node' data-env='example' data-file='nodes/sh-0005.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2006r4'></a>
+<span class='cmbx-10x-x-109'>Example 2.4.</span>  </span> For the quiver with one vertex and <span class='mathjax-inline'>\(n\)</span> loops, every weighting
+is balanced and <span class='mathjax-inline'>\(\Zcyc (\quiv ) = \ZZ ^{n}\)</span>. For a single arrow between two distinct vertices, only the
+zero weighting is balanced.
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<div class='center'>
+<!-- l. 11 --><p class='noindent'>
+</p><!-- l. 12 --><p class='noindent'> <img alt='PIC' height='44' src='figures/quiver-.png' width='85' /></p></div>
+<!-- l. 15 --><p class='indent'>  <!-- loom-file nodes/sh-0006.tex --></p><div class='loom-node' data-env='lemma' data-file='nodes/sh-0006.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2007r5'></a>
+<span class='cmbx-10x-x-109'>Lemma 2.5 </span>(Support)<span class='cmbx-10x-x-109'>.</span>  </span> <span class='cmti-10x-x-109'>Let </span><span class='mathjax-inline'>\(w\) </span><span class='cmti-10x-x-109'>be a balanced weighting with </span><span class='mathjax-inline'>\(w \geq 0\) </span><span class='cmti-10x-x-109'>and </span><span class='mathjax-inline'>\(w \neq 0\)</span><span class='cmti-10x-x-109'>. Then the
+support </span><span class='mathjax-inline'>\(\supp (w)\) </span><span class='cmti-10x-x-109'>contains a directed cycle of </span><span class='mathjax-inline'>\(\quiv \)</span><span class='cmti-10x-x-109'>.</span>
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <div class='loom-node' data-env='proof' data-file='nodes/sh-0006.tex' data-line='4'>
+  <div class='proof'>
+<!-- l. 5 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>Proof.</span> </span> Pick <span class='mathjax-inline'>\(a_{0}\)</span> with <span class='mathjax-inline'>\(w(a_{0}) &gt; 0\)</span>. Since <span class='mathjax-inline'>\((\bd w)(t(a_{0})) = 0\)</span> and the arrow <span class='mathjax-inline'>\(a_{0}\)</span> contributes positively to that
+sum, some arrow <span class='mathjax-inline'>\(a_{1}\)</span> with <span class='mathjax-inline'>\(s(a_{1}) = t(a_{0})\)</span> has <span class='mathjax-inline'>\(w(a_{1}) &gt; 0\)</span>. Repeating, we obtain an infinite walk inside
+<span class='mathjax-inline'>\(\supp (w)\)</span>, which is a finite set by Convention   <span class='loom-ref' data-label='sh-0001'>1.1</span>, so some vertex repeats and the
+walk contains a directed cycle. <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+  </div><!-- loom-file-end -->
+<!-- l. 17 --><p class='indent'>  <!-- loom-file nodes/sh-0007.tex --></p><div class='loom-node' data-env='proposition' data-file='nodes/sh-0007.tex' data-line='1'>
+  <div class='newtheorem'>
+                                                                     
+
+                                                                     
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2008r6'></a>
+<span class='cmbx-10x-x-109'>Proposition 2.6 </span>(Saturation)<span class='cmbx-10x-x-109'>.</span>  </span> <span class='mathjax-inline'>\(\Zcyc (\quiv )\) </span><span class='cmti-10x-x-109'>is a saturated sublattice of </span><span class='mathjax-inline'>\(W(\quiv )\)</span><span class='cmti-10x-x-109'>: if </span><span class='mathjax-inline'>\(n w \in \Zcyc (\quiv )\) </span><span class='cmti-10x-x-109'>for some </span><span class='mathjax-inline'>\(w \in W(\quiv )\)
+</span><span class='cmti-10x-x-109'>and some integer </span><span class='mathjax-inline'>\(n \neq 0\)</span><span class='cmti-10x-x-109'>, then </span><span class='mathjax-inline'>\(w \in \Zcyc (\quiv )\)</span><span class='cmti-10x-x-109'>.</span>
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <div class='loom-node' data-env='proof' data-file='nodes/sh-0007.tex' data-line='4'>
+  <div class='proof'>
+<!-- l. 4 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>First proof.</span> </span>  The  divergence  map  is  a  homomorphism  into  <span class='mathjax-inline'>\(\ZZ ^{V}\)</span>,  which  is
+torsion-free, so <span class='mathjax-inline'>\(\bd (n w) = n \, \bd w = 0\)</span> forces <span class='mathjax-inline'>\(\bd w = 0\)</span>. <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+  </div><!-- loom-file-end --><!-- loom-file nodes/sh-0010.tex --><div class='loom-node' data-env='proof' data-file='nodes/sh-0010.tex' data-line='1'>
+  <div class='proof'>
+<!-- l. 1 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>Second proof of Proposition   </span><span class='loom-ref' data-label='sh-0007'><span class='cmti-10x-x-109'>2.6</span></span><span class='cmti-10x-x-109'>.</span> </span>    The  quotient  <span class='mathjax-inline'>\(W(\quiv ) / \Zcyc (\quiv )\)</span>  embeds  in  <span class='mathjax-inline'>\(\ZZ ^{V}\)</span>  by  the
+first  isomorphism  theorem,  hence  is  torsion-free,  and  a  sublattice  with
+torsion-free  quotient  is  saturated.  The  cycle  lattice  is  the  kernel  of
+Definition   <span class='loom-ref' data-label='sh-0004'>2.3</span>, so nothing else is needed. <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+  </div><!-- loom-file-end -->
+<!-- l. 20 --><p class='indent'>  <!-- loom-file nodes/sh-0008.tex --></p><div class='loom-node' data-env='remark' data-file='nodes/sh-0008.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-2009r7'></a>
+<span class='cmti-10x-x-109'>Remark </span>2.7<span class='cmti-10x-x-109'>.</span>  </span> Saturation is what makes the rank in Theorem   <span class='loom-ref' data-label='sh-0009'>3.1</span> an honest
+dimension count: over <span class='mathjax-inline'>\(\RR \)</span> the same kernel has the same rank, and no index
+creeps in.
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <!-- loom-file-end --> <!-- loom-file-end --> <!-- loom-file nodes/sh-0300.tex -->
+                                                                     
+
+                                                                     
+  <h3 class='sectionHead' id='the-rank-of-the-cycle-lattice'><span class='titlemark'>3. </span> <a id='x1-30003'></a>The rank of the cycle lattice</h3>
+<!-- l. 3 --><p class='noindent'><!-- loom-file nodes/sh-0009.tex --></p><div class='loom-node' data-env='theorem' data-file='nodes/sh-0009.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-3001r1'></a>
+<span class='cmbx-10x-x-109'>Theorem 3.1 </span>(Rank)<span class='cmbx-10x-x-109'>.</span>  </span> <span class='cmti-10x-x-109'>Let </span><span class='mathjax-inline'>\(\quiv \) </span><span class='cmti-10x-x-109'>be a quiver whose underlying graph has </span><span class='mathjax-inline'>\(c\) </span><span class='cmti-10x-x-109'>connected
+components. Then </span></p><div class='mathjax-env mathjax-equation'>\begin{equation}\label {eq:rank} \rank \Zcyc (\quiv ) \;=\; |A(\quiv )| - |V(\quiv )| + c. \end{equation}</div><a id='x1-3002r3'></a>
+  </div>
+<!-- l. 6 --><p class='indent'>  </p></div> <div class='loom-node' data-env='proof' data-file='nodes/sh-0009.tex' data-line='7'>
+  <div class='proof'>
+<!-- l. 8 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>Proof.</span> </span> The image of <span class='mathjax-inline'>\(\bd \)</span> is the set of integer vectors summing to zero on each
+component, a sublattice of <span class='mathjax-inline'>\(\ZZ ^{V}\)</span> of rank <span class='mathjax-inline'>\(|V(\quiv )| - c\)</span>; this is <span class='cite'>[<a href='#XArden24'>1</a>, Proposition 2.1]</span>. Since <span class='mathjax-inline'>\(\Zcyc (\quiv ) = \ker \bd \)</span> is
+saturated by Proposition    <span class='loom-ref' data-label='sh-0007'>2.6</span>, the rank of the kernel is the rank of the
+source less the rank of the image, which gives (  <span class='loom-ref' data-label='eq:rank'>3</span>). <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+  </div><!-- loom-file-end -->
+<!-- l. 5 --><p class='indent'>  <!-- loom-file nodes/sh-000A.tex --></p><div class='loom-node' data-env='corollary' data-file='nodes/sh-000A.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-3003r2'></a>
+<span class='cmbx-10x-x-109'>Corollary 3.2 </span>(Trees)<span class='cmbx-10x-x-109'>.</span>  </span> <span class='cmti-10x-x-109'>A quiver whose underlying graph is a forest has </span><span class='mathjax-inline'>\(\Zcyc (\quiv ) = 0\)</span><span class='cmti-10x-x-109'>.</span>
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <div class='loom-node' data-env='proof' data-file='nodes/sh-000A.tex' data-line='4'>
+  <div class='proof'>
+<!-- l. 5 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>Proof.</span> </span>  A  forest  on  <span class='mathjax-inline'>\(|V(\quiv )|\)</span>  vertices  with  <span class='mathjax-inline'>\(c\)</span>  components  has  exactly  <span class='mathjax-inline'>\(|V(\quiv )| - c\)</span>  edges,  so
+Theorem   <span class='loom-ref' data-label='sh-0009'>3.1</span> and (  <span class='loom-ref' data-label='eq:rank'>3</span>) give rank zero, and a saturated sublattice of rank
+zero is trivial. <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+                                                                     
+
+                                                                     
+  </div><!-- loom-file-end -->
+<!-- l. 7 --><p class='indent'>  <!-- loom-file nodes/sh-0301.tex -->
+</p>
+<!-- l. 1 --><p class='noindent'><span class='subsectionHead' id='bounded-balanced-weightings'><span class='titlemark'>3.1. </span> <a id='x1-40003.1'></a><span class='cmbx-10x-x-109'>Bounded balanced weightings.</span></span>
+  <!-- loom-file nodes/sh-000B.tex --></p><div class='loom-node' data-env='definition' data-file='nodes/sh-000B.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-4001r3'></a>
+<span class='cmbx-10x-x-109'>Definition 3.3 </span>(Height)<span class='cmbx-10x-x-109'>.</span>  </span> The <span class='cmti-10x-x-109'>height </span>of a weighting <span class='mathjax-inline'>\(w\)</span> is <span class='mathjax-inline'>\(\|w\| = \max _{a \in A(\quiv )} |w(a)|\)</span>, and <span class='mathjax-inline'>\(N_{\quiv }(k)\)</span> denotes the
+number of balanced weightings of height at most <span class='mathjax-inline'>\(k\)</span>.
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<!-- l. 5 --><p class='indent'>  <!-- loom-file nodes/sh-000C.tex --></p><div class='loom-node' data-env='theorem' data-file='nodes/sh-000C.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-4002r4'></a>
+<span class='cmbx-10x-x-109'>Theorem 3.4 </span>(Counting)<span class='cmbx-10x-x-109'>.</span>  </span> <span class='cmti-10x-x-109'>For every quiver </span><span class='mathjax-inline'>\(\quiv \) </span><span class='cmti-10x-x-109'>there is a polynomial </span><span class='mathjax-inline'>\(P_{\quiv }\) </span><span class='cmti-10x-x-109'>of
+degree </span><span class='mathjax-inline'>\(\rank \Zcyc (\quiv )\) </span><span class='cmti-10x-x-109'>with </span><span class='mathjax-inline'>\(N_{\quiv }(k) = P_{\quiv }(k)\) </span><span class='cmti-10x-x-109'>for all </span><span class='mathjax-inline'>\(k \geq 0\)</span><span class='cmti-10x-x-109'>.</span>
+</p>
+  </div>
+<!-- l. 3 --><p class='indent'>  </p></div> <div class='loom-node' data-env='proof' data-file='nodes/sh-000C.tex' data-line='4'>
+  <div class='proof'>
+<!-- l. 5 --><p class='indent'>  <span class='head'>
+<span class='cmti-10x-x-109'>Proof.</span> </span> The balanced weightings of height at most <span class='mathjax-inline'>\(k\)</span> are the lattice points of
+the dilate <span class='mathjax-inline'>\(k \Pi \)</span> of the polytope <span class='mathjax-inline'>\(\Pi = \Zcyc (\quiv ) \otimes \RR \cap [-1,1]^{A}\)</span>, which is a rational polytope of dimension <span class='mathjax-inline'>\(\rank \Zcyc (\quiv )\)</span> by
+Theorem   <span class='loom-ref' data-label='sh-0009'>3.1</span>. Ehrhart’s theorem in the form of <span class='cite'>[<a href='#XBellamy19'>2</a>, Theorem 3.2]</span> applies,
+since <span class='mathjax-inline'>\(\Pi \)</span> has integral vertices by the saturation of Proposition   <span class='loom-ref' data-label='sh-0007'>2.6</span>. <span class='qed'><span class='msam-10x-x-109'>□</span></span>
+</p>
+  </div>
+  </div><!-- loom-file-end -->
+<!-- l. 7 --><p class='indent'>  <!-- loom-file nodes/sh-000D.tex --></p><div class='loom-node' data-env='caveat' data-file='nodes/sh-000D.tex' data-line='1'>
+<!-- l. 1 --><p class='noindent'><span class='cmbx-10x-x-109'>Caveat. </span><span class='cmti-10x-x-109'>The polytope </span><span class='mathjax-inline'>\(\Pi \) </span><span class='cmti-10x-x-109'>need not have integral vertices when parallel arrows are
+weighted with different signs; the proof above quietly assumes it does, and
+Section   </span><span class='loom-ref' data-label='sh-0400'><span class='cmti-10x-x-109'>4</span></span> <span class='cmti-10x-x-109'>records what is needed.</span>
+                                                                     
+
+                                                                     
+</p>
+  </div> <!-- loom-file-end --> <!-- loom-file-end --> <!-- loom-file-end --> <!-- loom-file nodes/sh-0400.tex -->
+  <h3 class='sectionHead' id='what-is-left'><span class='titlemark'>4. </span> <a id='x1-50004'></a>What is left</h3>
+<!-- l. 3 --><p class='noindent'><!-- loom-file nodes/sh-000E.tex --></p><div class='loom-node' data-env='lemma' data-file='nodes/sh-000E.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-5001r1'></a>
+<span class='cmbx-10x-x-109'>Lemma 4.1 </span>(Integrality)<span class='cmbx-10x-x-109'>.</span>  </span>  <span class='cmti-10x-x-109'>The polytope </span><span class='mathjax-inline'>\(\Pi \) </span><span class='cmti-10x-x-109'>of Theorem    </span><span class='loom-ref' data-label='sh-000C'><span class='cmti-10x-x-109'>3.4</span></span> <span class='cmti-10x-x-109'>has integral
+vertices.</span>
+</p>
+  </div>
+<!-- l. 4 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<!-- l. 5 --><p class='indent'>  <!-- loom-file nodes/sh-000F.tex --></p><div class='loom-node' data-env='remark' data-file='nodes/sh-000F.tex' data-line='1'>
+  <div class='newtheorem'>
+<!-- l. 1 --><p class='noindent'><span class='head'>
+<a id='x1-5002r2'></a>
+<span class='cmti-10x-x-109'>Remark </span>4.2<span class='cmti-10x-x-109'>.</span>  </span> Every statement above is about a finite quiver. For an infinite
+quiver with finite valence the cycle lattice is still saturated, but its rank is
+no longer given by (  <span class='loom-ref' data-label='eq:rank'>3</span>); see <span class='cite'>[<a href='#XCortez07'>3</a>]</span>.
+</p>
+  </div>
+<!-- l. 5 --><p class='indent'>  </p></div> <!-- loom-file-end -->
+<!-- l. 8 --><p class='indent'>  <!-- loom-file main-atomic.bbl -->
+</p>
+  <h3 class='sectionHead' id='references'><a id='x1-6000'></a>References</h3>
+<!-- l. 8 --><p class='noindent'>
+  </p><div class='thebibliography'>
+  <p class='bibitem'><span class='biblabel'>
+<span class='cmr-9'>1. </span><span class='bibsp'><span class='cmr-9'>   </span></span></span><a id='XArden24'></a><span class='cmr-9'>Elspeth Arden, </span><span class='cmti-9'>Cycle spaces of finite quivers</span><span class='cmr-9'>, J. Invented Combin. (2024).</span>
+  </p>
+  <p class='bibitem'><span class='biblabel'>
+<span class='cmr-9'>2. </span><span class='bibsp'><span class='cmr-9'>   </span></span></span><a id='XBellamy19'></a><span class='cmr-9'>Rosalind Bellamy, </span><span class='cmti-9'>Median orders on weighted digraphs</span><span class='cmr-9'>, Ann. Fict. Math. </span><span class='cmbx-9'>19 </span><span class='cmr-9'>(2019),
+  203–241.</span>
+  </p>
+  <p class='bibitem'><span class='biblabel'>
+<span class='cmr-9'>3. </span><span class='bibsp'><span class='cmr-9'>   </span></span></span><a id='XCortez07'></a><span class='cmr-9'>Hilario Cortez, </span><span class='cmti-9'>Flows on infinite quivers: a survey</span><span class='cmr-9'>, Bull. Imag. Soc. (2007), 1–44.</span>
+</p>
+  </div>
+                                                                     
+
+                                                                     
+<!-- l. 8 --><p class='noindent'><!-- loom-file-end --><!-- loom-file-end -->
+</p>
+   
+</body> 
+</html>

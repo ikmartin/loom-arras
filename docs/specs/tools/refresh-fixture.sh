@@ -17,8 +17,10 @@ printf '[author]\nname = "The synthetic quilt"\n' > "$EMPTY/.config/loom/config.
 TEXBIN=$(dirname "$(command -v latexmk)")
 POPPLER=$(dirname "$(command -v pdftotext)")
 run() { env -i PATH="$TEXBIN:$POPPLER:/usr/bin:/bin:$LOOM/.venv/bin" HOME="$EMPTY" TEXMFHOME="$EMPTY" TEXMFLOCAL="$EMPTY" TEXMFVAR="$EMPTY/var" TEXMFCONFIG="$EMPTY/config" LOOM_FIXED_TIME="$LOOM_FIXED_TIME" "$@"; }
-run "$LOOM/.venv/bin/loom" compile drafting/main.tex --quilt "$Q"
-run "$LOOM/.venv/bin/loom" compile drafting/talk.tex --quilt "$Q"
+run "$LOOM/.venv/bin/loom" compile drafting/main.tex --html --quilt "$Q"
+run "$LOOM/.venv/bin/loom" compile drafting/talk.tex --html --quilt "$Q"
+# the agent's copy is a document like any other, and `loom serve` compiles it too
+run "$LOOM/.venv/bin/loom" compile .loom/copies/aidoc.tex --html --quilt "$Q"
 run "$LOOM/.venv/bin/loom" build --quilt "$Q" || true   # exit 1 is expected: the synthetic quilt carries four intentional errors
 rm -rf "$OUT"
 mkdir -p "$OUT"
@@ -31,11 +33,10 @@ cp -R "$Q/.loom/build/fragments" "$OUT/fragments"
 [ -d "$Q/.loom/build/files" ] && cp -R "$Q/.loom/build/files" "$OUT/files"
 [ -d "$Q/.loom/build/changes" ] && cp -R "$Q/.loom/build/changes" "$OUT/changes"
 VERSION=$(cd "$LOOM" && .venv/bin/loom --version | awk '{print $2}')
-IFACE=$(python3 -c "import json;print(json.load(open('$OUT/manifest.json'))['interface_version'])")
-printf 'interface %s\nloom %s\ngenerated %s\n' "$IFACE" "$VERSION" "$LOOM_FIXED_TIME" > "$OUT/VERSION"
+printf 'loom %s\ngenerated %s\n' "$VERSION" "$LOOM_FIXED_TIME" > "$OUT/VERSION"
 for dest in "$LOOM/tests/fixture" "$WS/arras/tests/fixture"; do
   rm -rf "$dest"; mkdir -p "$dest"; cp -R "$OUT"/. "$dest"/
 done
 python3 "$HERE/validate-dialect.py" "$OUT/fragments"
-echo "fixture refreshed: $(find "$OUT/fragments" -name '*.html' | wc -l | tr -d ' ') fragments, interface $IFACE, loom $VERSION"
+echo "fixture refreshed: $(find "$OUT/fragments" -name '*.html' | wc -l | tr -d ' ') fragments, loom $VERSION"
 rm -rf "$TMP" "$EMPTY"

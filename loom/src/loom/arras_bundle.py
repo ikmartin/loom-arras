@@ -22,7 +22,7 @@ BUILD_INPUTS = (
     "arras/vite.config.ts",
 )
 #: What `scripts/vendor_arras.py` writes into `VERSION`.
-STAMP = re.compile(r"arras (\S+) interface (\d+) vendored \S+")
+STAMP = re.compile(r"arras (\S+) vendored \S+")
 
 
 @dataclass(frozen=True)
@@ -76,10 +76,10 @@ def find_bundle() -> BundleInfo | None:
     return None
 
 
-def parse_stamp(version: str) -> tuple[str, int] | None:
-    """The arras commit and interface version a `VERSION` line names; None when it is not a vendoring stamp."""
+def parse_stamp(version: str) -> str | None:
+    """The arras commit a `VERSION` line names; None when it is not a vendoring stamp."""
     m = STAMP.fullmatch(version.strip())
-    return (m.group(1), int(m.group(2))) if m else None
+    return m.group(1) if m else None
 
 
 def checkout_of(bundle: Path) -> Path | None:

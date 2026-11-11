@@ -41,7 +41,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:uses-unused": ("info", False),
     "loom:see-redundant": ("info", False),
     "loom:dependency-cycle": ("warning", False),
-    "loom:converter-fallback": ("info", False),
+    "loom:snippet-failed": ("warning", False),
     "loom:closure-failed": ("error", False),
     "loom:atomize-target-exists": ("error", True),
     "loom:import-outside-tree": ("warning", False),

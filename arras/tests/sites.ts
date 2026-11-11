@@ -24,7 +24,7 @@ export function results(name: string): string {
 export const patient = { timeout: 300000, expect: { timeout: 120000 }, maxFailures: 10 };
 
 /** Each statically served config's base port, read by `scripts/verify`, which claims a slot on 4175, so that one stays out of this table; the write and reading suites take a free port per server instead. */
-const PORTS = { e2e: 4173, shots: 4174, minimal: 4176, 'shots-minimal': 4177 };
+const PORTS = { e2e: 4173, shots: 4174 };
 
 /** The webServer and baseURL of a config that serves the app statically: a copy of the build with `fixture` staged into it, under `scratch(name)`, served by scripts/serve-static.mjs on the config's port shifted by the slot. */
 export function site(name: keyof typeof PORTS, fixture: string) {

@@ -61,6 +61,11 @@ export function documentLabel(masters: readonly { path: string }[], path: string
 	return masters.some((x) => x.path !== path && file(x.path) === file(path)) ? path : file(path);
 }
 
+/** A document's compiled PDF as its tab names it: the document's label and `PDF`, never the file name, which an author's own PDF beside the document may have. */
+export function pdfName(masters: readonly { path: string }[], path: string): string {
+	return `${documentLabel(masters, path)} · PDF`;
+}
+
 /**
  * Any key a session or a context names, as a reader would: a document by its file, a result by `nodeName`, an unlabelled proof as the proof of its result, an equation by its number in its result, a cited work's identifier by its citekey; anything else as itself.
  *

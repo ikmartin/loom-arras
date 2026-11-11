@@ -1,6 +1,6 @@
 // What a reader selected in a fragment, as loom will look for it in the source: the words as they are, each formula as its TeX between `$`s, and each citation or reference as the command it was written as, which is the form loom's quote matching reads (records/selectors.py). The chrome a fragment carries — the gutter's id and state, a comment count, MathJax's hidden copy — is not text of the result and is left out.
 
-const SKIP = '.node-margin, button, .comment-slot, mjx-assistive-mml, .env-label';
+const SKIP = '.node-margin, button, .comment-slot, mjx-assistive-mml, .env-label, .qed';
 /** A citation or reference the renderer drew from a command, carrying the command as written. */
 const COMMAND = '.cite[data-tex], a.ref[data-tex]';
 
@@ -57,9 +57,10 @@ export function quoteOf(range: Range): string {
 			return;
 		}
 		if (el.matches(COMMAND)) {
+			// one command drawn as several elements carries one offset; one with none is quoted wherever it stands
 			const at = el.dataset.at ?? '';
-			if (!quoted.has(at)) out.push(el.dataset.tex ?? '');
-			quoted.add(at);
+			if (!at || !quoted.has(at)) out.push(el.dataset.tex ?? '');
+			if (at) quoted.add(at);
 			return;
 		}
 		for (const c of el.childNodes) walk(c);

@@ -35,7 +35,7 @@ test('an HTML file runs in a frame of its own origin: its links open in the view
 		.toContain('A gadget is a widget with a handle');
 	// a `quilt:` link in it opens beside the page, as any link in the viewer does
 	await frame.getByRole('link', { name: 'the first lemma' }).click();
-	await expect(page.getByTestId('pane-1').getByTestId('item-tab').first()).toContainText('sy-0002');
+	await expect(page.getByTestId('pane-1').getByTestId('item-tab').first()).toContainText('Lemma 1.2');
 	await expect(page).toHaveURL(/\/file\/notes\/page\.html/);
 });
 

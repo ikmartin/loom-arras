@@ -278,7 +278,8 @@ async function watchTypesetting(page: Page): Promise<void> {
 	});
 }
 
-const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
+// a document shown as its source (the beamer talk, whose page lost its frames' statements) has nothing to typeset
+const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container, [data-pane="0"] .fragment pre.source') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 
 test.describe('coming back to a document', () => {
 	// leaving a document destroyed it, and coming back drew and typeset it from nothing: a second and more on a whole paper (plan 0.19.2)
@@ -656,7 +657,8 @@ test.describe('the toolbar', () => {
 		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show all annotationse', 'show settled annotationss', 'annotations off in this panea']);
 		await expect(menu.getByTestId('toggle-settled')).toHaveAttribute('aria-keyshortcuts', 's');
 		await expect(menu.getByTestId('toggle-hide-notes')).toHaveAttribute('aria-keyshortcuts', 'a');
-		await expect(menu.getByTestId('open-pdf')).toHaveText('open the PDF');
+		// its compiled PDF opens from its row in the tree, not from here
+		await expect(menu.getByTestId('open-pdf')).toHaveCount(0);
 		// a mode inside it is on: the dot on view says so, and the menu closed on the choice
 		await expect(page.getByTestId('toolbar-view-on')).toHaveCount(0);
 		await page.getByTestId('toggle-settled').click();

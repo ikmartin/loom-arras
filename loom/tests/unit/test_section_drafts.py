@@ -175,7 +175,9 @@ def test_close_keeps_snapshot_frees_scope_and_reopen_checks_overlap(quilt):
     assert a in scan(quilt).masters
 
 
+@pytest.mark.tex
 def test_saved_context_stays_readable_until_refresh(quilt):
+    """A section draft is made by TeX in its saved context: a reference out of it names the saved paper, which stays readable until the draft is refreshed."""
     from loom.drafts import copy_states
     from loom.render.build import build
     from loom.section_drafts import pinned_scan

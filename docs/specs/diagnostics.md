@@ -1,6 +1,6 @@
 # Diagnostics
 
-A diagnostic is a structured report of something wrong or notable in a corpus. Publishers emit them into the manifest; viewers render them on a problems page, as badges on the keys they concern, and in header counts. Interface version 1.
+A diagnostic is a structured report of something wrong or notable in a corpus. Publishers emit them into the manifest; viewers render them on a problems page, as badges on the keys they concern, and in header counts.
 
 ## 1. Schema
 
@@ -74,7 +74,7 @@ Arras displays this diagnostic on the block with a link to its row in a working-
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.
 - `loom:see-redundant` (info): a `% !LOOM see:` item that names the node it is written in, or that repeats a relation already declared on that node.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
-- `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
+- `loom:snippet-failed` (warning): TeX refused a text no compile makes (a node no document reaches, a digest's statement, a landmark's, a preview) or a diagram, which shows as its source; naming the text's opening words, where it stands, and TeX's first complaint. Not raised where TeX does not run (`--no-compile`, no `make4ht`).
 - `loom:closure-failed` (error): a key's closure document did not compile; first LaTeX error attached; `loom check --closures` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks.
 - `loom:atomize-target-exists` (error, fixed): atomize would overwrite a file.
 - `loom:import-outside-tree` (warning): import found a file outside the paper directory and did not copy it.
@@ -107,7 +107,6 @@ References and digests:
 
 Interface:
 
-- `arras:interface-version` (error, fixed): emitted by the viewer when the manifest's version is not accepted.
 - `arras:manifest-unreadable` (error, fixed): emitted by the viewer when `manifest.json` is not valid JSON.
 
 Both are listed here so the codes are reserved, and both are in the **viewer's** namespace rather than a publisher's: a diagnostic a viewer raises about a manifest is the viewer speaking, and naming it `loom:` said that loom had complained about something loom never saw.
@@ -134,4 +133,4 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 
 ## 4. Adding a code
 
-**[decided]** A new loom code is added here with a severity and a one-line meaning before it is emitted. A new reserved code requires an interface version discussion, since every viewer may give it an affordance.
+**[decided]** A new loom code is added here with a severity and a one-line meaning before it is emitted. A new reserved code is added on both sides at once, since the viewer may give it an affordance.

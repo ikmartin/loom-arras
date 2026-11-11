@@ -26,7 +26,7 @@ describe('Problems', () => {
 
 	it('titles a problem by what is wrong, two codes that say one thing as one group, and an unknown code by its message', () => {
 		expect(titleOf(d('dangling-link'))).toBe('A reference points nowhere');
-		expect([titleOf(d('x:converter-fallback', { severity: 'info' })), titleOf(d('x:converter-fallback', { severity: 'warning' }))]).toEqual(['Drawn as a picture', 'Could not be drawn']);
+		expect(titleOf(d('x:snippet-failed', { severity: 'warning' }))).toBe('TeX could not make a text, shown as its source');
 		expect(titleOf(d('zzz:made-up', { message: 'Something new.' }))).toBe('Something new.');
 		const groups = groupProblems([d('zzz:made-up', { severity: 'info' }), d('loom:duplicate-label'), d('duplicate-id'), d('duplicate-id'), d('dangling-link', { severity: 'warning' })]);
 		expect(groups.map((g) => [g.title, g.items.length, g.codes])).toEqual([

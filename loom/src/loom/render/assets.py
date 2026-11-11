@@ -1,4 +1,4 @@
-"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images are copied; everything lands content-addressed under .loom/build/svg/."""
+"""Graphics for fragments: PDF figures become SVG (pdftocairo, else dvisvgm --pdf), raster images and the pictures TeX drew are copied; everything lands content-addressed under .loom/build/svg/."""
 
 from __future__ import annotations
 
@@ -60,3 +60,12 @@ def publish_graphic(root: Path, name: str, svg_dir: Path, base: str = "") -> tup
         if proc.returncode == 0 and out.exists():
             return f"svg/{out.name}", None
     return None, f"could not convert {name} to SVG (pdftocairo or dvisvgm --pdf needed)"
+
+
+def publish_picture(picture: Path, svg_dir: Path) -> str:
+    """A picture TeX drew, copied under `.loom/build/svg/` by its content: the path a fragment names it by."""
+    svg_dir.mkdir(parents=True, exist_ok=True)
+    out = svg_dir / f"{_digest(picture)}{picture.suffix.lower()}"
+    if not out.exists():
+        shutil.copy(picture, out)
+    return f"svg/{out.name}"

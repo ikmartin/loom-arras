@@ -15,7 +15,7 @@ PERSON, COPY, WORK = "person", "copy", "work"
 #: A digest's diagnostics that digesting it again does not mend: about the work or its rendering, or faithful to the paper (a cycle among its proofs).
 NOT_MENDED = frozenset(
     {
-        "loom:converter-fallback",
+        "loom:snippet-failed",
         "loom:dependency-cycle",
         "loom:missing-package",
         "loom:unverified-locators",

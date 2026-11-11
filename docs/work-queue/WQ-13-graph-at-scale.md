@@ -12,7 +12,7 @@ The ACGS fixture is the largest real graph available and the client-side force l
 
 ## Rough design
 
-The publisher computes a layout and the manifest gains **optional** layout hints — optional so the interface version does not change and a viewer without them falls back to computing its own. The viewer prefers hints when present.
+The publisher computes a layout and the manifest gains layout hints, and the viewer computes its own for a node without them. The viewer prefers hints when present.
 
 Distinguish from [[WQ-05]]: that decides *what* is drawn (results, or papers contracted); this decides *where the coordinates come from*. A corpus large enough to need one usually needs both.
 

@@ -1,0 +1,330 @@
+"""TeX tier: a document's HTML made by TeX4ht (plan 0.29.2): it runs nothing a quilt carries, numbers every row of a display as amsmath does, stamps where each node begins and which label each reference prints, keeps the last good page when a run makes none, and nothing a document writes with `\\HCode` survives the normaliser."""
+
+from __future__ import annotations
+
+import html
+import re
+import shutil
+import subprocess
+import unicodedata
+from pathlib import Path
+
+import pytest
+
+from loom.render.normalise import normalise
+from loom.tex.runner import compile_document
+from loom.tex.tex4ht import compile_html
+
+DOC = r"""\documentclass{article}
+\usepackage{amsmath,amsthm}
+\numberwithin{equation}{section}
+\newtheorem{lemma}[equation]{Lemma}
+\begin{document}
+\section{One}
+\begin{lemma}\label{l1}First.\end{lemma}
+\begin{align}
+a&=b\label{r1}\\
+c&=d\nonumber\\
+e&=f\label{r3}
+\end{align}
+\begin{lemma}\label{l2}Second.\end{lemma}
+\input{part}
+See \ref{l1}, \ref{l2}, \eqref{r1} and \eqref{r3}.%s
+\end{document}
+"""
+PART = "Text of the part.\n\\begin{lemma}\\label{l3}Third.\\end{lemma}\n"
+
+
+def _quilt(q: Path, extra: str = "") -> Path:
+    q.mkdir(parents=True, exist_ok=True)
+    (q / "main.tex").write_text(DOC % extra, encoding="utf-8")
+    (q / "part.tex").write_text(PART, encoding="utf-8")
+    return q
+
+
+def _html(q: Path, **kw):  # type: ignore[no-untyped-def]
+    pdf = compile_document(q, "", "main.tex", q / ".loom/build/main")
+    assert pdf.pdf is not None, pdf.first_error
+    return compile_html(
+        q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma", "proof"], seed=q / ".loom/build/main", **kw
+    )
+
+
+@pytest.mark.tex
+def test_every_row_and_every_reference_numbers_as_the_pdf_does_and_each_node_is_stamped(tmp_path: Path) -> None:
+    q = _quilt(tmp_path / "q")
+    res = _html(q)
+    assert res.html is not None and res.passes == 1, res.first_error
+    n = normalise(res.html.read_text(encoding="utf-8"))
+    heads = re.findall(r"Lemma (\d+\.\d+)", n.html)
+    assert heads == ["1.1", "1.4", "1.5"], heads  # two numbered rows between the first two
+    refs = dict(re.findall(r'<a class="ref" data-label="([^"]+)" data-made="">\(?([\d.]+)\)?</a>', n.html))
+    assert refs == {"l1": "1.1", "l2": "1.4", "r1": "1.2", "r3": "1.3"}, refs
+    nodes = re.findall(r'<div class="node" data-env="lemma" data-file="([^"]*)" data-line="(\d+)">', n.html)
+    assert nodes == [("", "7"), ("", "13"), ("part.tex", "2")], nodes
+
+
+@pytest.mark.tex
+def test_nothing_a_quilt_carries_for_tex4ht_runs(tmp_path: Path) -> None:
+    """A `.mk4` build file and a `.make4ht` configuration are Lua programs, and `tex4ht.env` names commands; the run removes all three from its copy."""
+    marker = tmp_path / "ran"
+    q = _quilt(tmp_path / "q")
+    lua = f'os.execute("touch {marker}")\n'
+    (q / "main.mk4").write_text(lua, encoding="utf-8")
+    (q / ".make4ht").write_text(lua, encoding="utf-8")
+    (q / "tex4ht.env").write_text(f"G.svg\nGtouch {marker}\n", encoding="utf-8")
+    res = _html(q)
+    assert res.html is not None, res.first_error
+    assert not marker.exists()
+
+
+@pytest.mark.tex
+def test_html_a_document_writes_for_itself_is_neutralised(tmp_path: Path) -> None:
+    # guarded as a document that writes HTML for itself is, since `\HCode` exists only under TeX4ht
+    hostile = r"\ifdefined\HCode\HCode{<script>window.loomHostile=1</script><img src=x onerror=alert(2)><a href=javascript:alert(3)>go</a>}\fi"
+    q = _quilt(tmp_path / "q", hostile)
+    res = _html(q)
+    assert res.html is not None, res.first_error
+    raw = res.html.read_text(encoding="utf-8")
+    assert "<script>window.loomHostile" in raw  # TeX4ht writes what it is told
+    n = normalise(raw)
+    assert "script" in n.dropped
+    for gone in ("<script", "loomHostile", "onerror", "javascript:"):
+        assert gone not in n.html
+
+
+@pytest.mark.tex
+def test_a_run_that_makes_no_page_leaves_the_last_good_one(tmp_path: Path) -> None:
+    q = _quilt(tmp_path / "q")
+    good = _html(q)
+    assert good.html is not None
+    page = good.html.read_text(encoding="utf-8")
+    (q / "main.tex").write_text("\\documentclass{article}\\begin{document}\\input{nowhere}\n", encoding="utf-8")
+    bad = compile_html(q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma"], timeout=120)
+    assert bad.html is None and not bad.ok
+    assert (q / ".loom/build/main/html/main.html").read_text(encoding="utf-8") == page
+
+
+#: A footnote sits at the foot of the PDF's page and at its mark on the page; the PDF's end-of-proof box has no text.
+FOOTNOTE = "inner note"
+
+
+def _plain(fragment: str) -> str:
+    """A fragment's text as a reader reads it, each display set apart as one mark: MathJax typesets it, so its words are not compared."""
+    t = re.sub(r'<div class="math display"[^>]*>.*?</div>', "⟦DISPLAY⟧", fragment, flags=re.S)
+    t = re.sub(r"<(?:/p|/li|/dd|/dt|/div|/h\d|br|/tr|/td|/figcaption)[^>]*>", " ", t)
+    return html.unescape(re.sub(r"<[^>]+>", "", t))
+
+
+def _features(text: str) -> dict[str, str]:
+    return {
+        m.group(1): part[m.end() :]
+        for part in re.split(r"(?=\bF\d\db?\b)", text)
+        if (m := re.match(r"(F\d\db?)\b", part))
+    }
+
+
+def _squash(s: str) -> str:
+    s = unicodedata.normalize("NFKC", s)
+    for a, b in {
+        "“": "''",
+        "”": "''",
+        "‘": "'",
+        "’": "'",
+        "``": "''",
+        "–": "-",
+        "—": "-",
+        "--": "-",
+        "\\(": "",
+        "\\)": "",
+        "$": "",
+        "□": "",
+    }.items():
+        s = s.replace(a, b)
+    return re.sub(r"\s+", "", re.sub(r"\.\s*\.\s*\.", "…", s))
+
+
+def census_score(pdf_text: str, fragment: str) -> tuple[set[str], set[str]]:
+    """The census's features whose words the fragment shows as the PDF prints them (`pdftotext -layout`), and the rest.
+
+    A display is judged by what follows it; two neighbours holding the same characters between them are both right, since a table set beside a feature's tag comes out of `pdftotext` in the order of its lines.
+    """
+    lines = [ln for ln in pdf_text.split("\n") if not re.fullmatch(r"\s*\d+\s*", ln) and FOOTNOTE not in ln]
+    pdf = "\n".join(lines).replace("TEX", "TeX").replace("LATEX", "LaTeX").replace("LATeX", "LaTeX")
+    expect, got = _features(pdf), _features(_plain(fragment.replace(FOOTNOTE, "")))
+    said: dict[str, tuple[str, str]] = {}
+    for k in sorted(expect):
+        e, g = _squash(expect[k]), _squash(got.get(k, "∅"))
+        if "⟦DISPLAY⟧" in g:
+            after = g.rsplit("⟦DISPLAY⟧", 1)[1]
+            e, g = (e[len(e) - len(after) :] if after else ""), after
+        said[k] = (e, g)
+    right = {k for k, (e, g) in said.items() if e == g}
+    keys = sorted(said)
+    for a, b in zip(keys, keys[1:], strict=False):
+        if not {a, b} <= right and sorted(said[a][0] + said[b][0]) == sorted(said[a][1] + said[b][1]):
+            right |= {a, b}
+    return right, set(said) - right
+
+
+@pytest.mark.tex
+def test_the_census_reads_on_the_page_as_the_pdf_prints_it(tmp_path: Path) -> None:
+    """Forty-two features a translator of LaTeX gets wrong (macros, counters, conditionals, lists, references, floats, tables, footnotes), each read in the fragment against the compiled PDF's words: at most two may differ, and today those are a footnote shown at its mark with its number twice, and a custom item label TeX4ht drops."""
+    if shutil.which("pdftotext") is None:
+        pytest.skip("no pdftotext to read the PDF with")
+    q = tmp_path / "q"
+    q.mkdir()
+    shutil.copy(Path(__file__).with_name("census.tex"), q / "census.tex")
+    pdf = compile_document(q, "", "census.tex", q / ".loom/build/census")
+    assert pdf.pdf is not None, pdf.first_error
+    res = compile_html(
+        q,
+        "",
+        "census.tex",
+        q / ".loom/build/census/html",
+        envs=["theorem", "defn", "proof"],
+        seed=q / ".loom/build/census",
+    )
+    assert res.html is not None, res.first_error
+    text = subprocess.run(
+        ["pdftotext", "-layout", str(pdf.pdf), "-"], capture_output=True, text=True, check=True
+    ).stdout
+    right, wrong = census_score(text, normalise(res.html.read_text(encoding="utf-8")).html)
+    assert len(right) + len(wrong) >= 42 and len(wrong) <= 2, sorted(wrong)
+
+
+UNBALANCED = r"""\documentclass{article}
+\usepackage{amsmath,amsthm}
+\numberwithin{equation}{section}
+\newtheorem{lemma}[equation]{Lemma}
+\begin{document}
+\section{One}
+\begin{lemma}\label{l1}First.\end{lemma}
+\begin{equation}\label{bad}
+\begin{aligned} a &= \lambda^{c}d^n}\langle e\rangle^{f, \end{aligned}
+\end{equation}
+\begin{lemma}\label{l2}Second.\end{lemma}
+See \ref{l2}.
+\end{document}
+"""
+
+
+XR = r"""\documentclass{amsart}
+\usepackage{amsthm}
+\usepackage{xr-hyper}
+\usepackage{hyperref}
+\externaldocument[o-]{other}
+\newtheorem{lemma}{Lemma}
+\begin{document}
+\begin{lemma}\label{l1}By Theorem~\ref{o-thm:a} of the other paper.\end{lemma}
+\end{document}
+"""
+
+
+@pytest.mark.tex
+def test_a_document_reading_another_s_labels_through_xr_makes_html_with_their_numbers(tmp_path: Path) -> None:
+    """relloc's `examples.tex`: TeX4ht cannot read an external aux pdflatex wrote, so loom reads its labels, prefixed as xr prefixes them, into the run's own aux, and blanks xr on the stage."""
+    q = tmp_path / "q"
+    q.mkdir()
+    (q / "main.tex").write_text(XR, encoding="utf-8")
+    (q / "other.aux").write_text("\\relax\n\\newlabel{thm:a}{{2.3}{5}{Main}{theorem.2.3}{}}\n", encoding="utf-8")
+    pdf = compile_document(q, "", "main.tex", q / ".loom/build/main")
+    assert pdf.pdf is not None, pdf.first_error
+    res = compile_html(q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma"], seed=q / ".loom/build/main")
+    assert res.html is not None and res.ok, res.first_error
+    n = normalise(res.html.read_text(encoding="utf-8"))
+    assert re.search(r'data-label="o-thm:a" data-made="">(?:<span[^>]*>)?2\.3<', n.html), n.html
+    # the quilt's own file is untouched: only the stage was blanked
+    assert "\\externaldocument[o-]{other}" in (q / "main.tex").read_text(encoding="utf-8")
+
+
+@pytest.mark.tex
+def test_a_display_whose_braces_do_not_balance_is_shown_as_written_and_the_rest_still_reads(tmp_path: Path) -> None:
+    """3waveZKnew's case: an extra `}` a later missing one cancels, which pdflatex sets and TeX4ht's MathJax mode cannot read as one argument, so one display used to cost the whole document its page."""
+    q = tmp_path / "q"
+    q.mkdir()
+    (q / "main.tex").write_text(UNBALANCED, encoding="utf-8")
+    res = compile_html(q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma", "proof"])
+    assert res.html is not None, res.first_error
+    assert [(r.file, r.line) for r in res.repaired] == [("main.tex", 8)]
+    displays = {str(i): r.tex for i, r in enumerate(res.repaired)}
+    n = normalise(res.html.read_text(encoding="utf-8"), displays)
+    assert "\\lambda^{c}d^n}\\langle e\\rangle^{f," in html.unescape(n.html)
+    # the display still stepped the counter it shares with the lemmas
+    assert re.findall(r"Lemma (\d+\.\d+)", n.html) == ["1.1", "1.3"]
+    assert re.findall(r'data-label="l2" data-made="">([\d.]+)</a>', n.html) == ["1.3"]
+    on_disk = (q / ".loom/build/main/html/repaired.json").read_text(encoding="utf-8")
+    assert '"line": 8' in on_disk
+
+
+@pytest.mark.tex
+def test_loom_compile_html_says_how_much_of_the_page_it_places(tmp_path: Path) -> None:
+    """`loom compile --html` writes the page and the fragment rebuilt from it beside the PDF, and counts the nodes stamped against the scan's and the blocks placed in their files, the part's among them."""
+    from tests.helpers import json_of
+
+    q = _quilt(tmp_path / "q")
+    (q / "config.toml").write_text('[quilt]\nname = "q"\nprefix = "qq"\nmain = "main.tex"\n', encoding="utf-8")
+    data = json_of("compile", "main.tex", "--html", "--json", cwd=q)
+    made = data["html"]
+    assert made["made"] and made["outdir"] == ".loom/build/main/html/", made
+    assert (q / ".loom/build/main/html/main.html").is_file() and (q / ".loom/build/main/html/fragment.html").is_file()
+    assert made["nodes"] == made["nodes_in_document"] == 3, made
+    # the part's paragraph, and the master's after the part ends; a block of one word is too short to count
+    assert made["blocks"] == made["exact"] == 2 and not made["unplaced"], made
+
+
+@pytest.mark.tex
+def test_a_document_is_read_from_its_html_and_an_edit_since_is_made_again_by_tex(
+    tmp_path: Path,
+) -> None:
+    """The synthetic quilt's document, compiled with `--html` and built: its sections, inclusions, proofs, references and equation anchors are the dialect's around TeX's content, every block it places carries its offsets, and the whole validates; after an edit the page stays, with the edited statement made again by TeX and the lines after it where they now stand."""
+    from tests.helpers import exits, ok
+
+    repo = Path(__file__).resolve().parents[3]
+    q = tmp_path / "q"
+    shutil.copytree(repo / "loom/tests/quilts/synthetic", q)
+    ok("compile", "drafting/main.tex", "--html", cwd=q)
+    exits(1, "build", cwd=q)  # the synthetic quilt carries its intentional errors
+    frag = (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")
+    assert 'data-from="tex"' in frag
+    assert re.findall(r'<section id="([^"]+)"', frag) == ["sy-0100", "sy-0200", "sy-0201", "sy-0300"]
+    assert 'class="included" data-key="drafting/nodes/sy-0002.tex" data-file="drafting/nodes/sy-0002.tex"' in frag
+    assert re.search(r'<details class="env env-proof"[^>]*data-of="sy-0002"', frag)
+    # a reference to an equation names the anchor the equation carries
+    eq = re.search(r'<a class="ref ref-eq" data-target="([^"]+)"[^>]*href="#([^"]+)"', frag)
+    assert eq is not None and f'id="{eq.group(2)}"' in frag
+    assert len(re.findall(r'<p data-src="drafting/[^"]+:\d+:\d+"', frag)) >= 10
+    # every picture is one the build publishes under svg/: the one TeX drew, and an included graphic
+    pictures = re.findall(r'<img src="([^"]+)"', frag)
+    assert len(pictures) == 2 and all(s.startswith("svg/") and (q / ".loom/build" / s).is_file() for s in pictures), (
+        pictures
+    )
+    # a block's span takes in the citation it ends with, so the citation finds its command, and through its postnote its target
+    node = (q / ".loom/build/fragments/nodes/sy-000A.html").read_text(encoding="utf-8")
+    assert 'data-postnote="Theorem 2.1" data-target="Kre99-thm-2.1"' in node
+    # the paper formats set the title and heads by the document's class
+    assert re.match(r'<h1 [^>]*data-documentclass="amsart"', frag)
+    # each formula as the source writes it, which is what a quote copies, and not as TeX4ht writes it back
+    sources = "".join(p.read_text(encoding="utf-8") for p in (q / "drafting").rglob("*.tex"))
+    formulas = [html.unescape(f) for f in re.findall(r'<span class="math inline">\\\((.*?)\\\)</span>', frag)]
+    assert formulas and all(f"${f}$" in sources or f"\\({f}\\)" in sources for f in formulas), [
+        f for f in formulas if f"${f}$" not in sources and f"\\({f}\\)" not in sources
+    ]
+    validator = repo / "docs/specs/tools/validate-dialect.py"
+    checked = subprocess.run(
+        ["python3", str(validator), str(q / ".loom/build/fragments")], capture_output=True, text=True
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    # an edit since the compile, two lines added above the statement and its title changed: the page stays, the statement is made again
+    node = q / "drafting/nodes/sy-0002.tex"
+    text = node.read_text(encoding="utf-8").replace("[Orbits]", "[Orbit classes]", 1)
+    node.write_text("% added\n% lines\n" + text, encoding="utf-8")
+    exits(1, "build", cwd=q)
+    frag = (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")
+    assert 'data-from="tex"' in frag
+    lemma = (q / ".loom/build/fragments/nodes/sy-0002.html").read_text(encoding="utf-8")
+    assert '<span class="title">(Orbit classes)</span>' in lemma and "<pre" not in lemma
+    # its proof, unchanged but two lines down, is the page's, with offsets into the file as it now stands
+    shown = re.search(r'<details class="env env-proof"[^>]*data-src="drafting/nodes/sy-0002.tex:(\d+):(\d+)"', lemma)
+    now = node.read_text(encoding="utf-8")
+    assert shown is not None and now[int(shown.group(1)) :].startswith("\\begin{proof}")

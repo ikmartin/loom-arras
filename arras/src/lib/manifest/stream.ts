@@ -1,10 +1,11 @@
 // The publisher's word that a new manifest exists, where it offers one: the viewer fetches it at once, and its poll only stands by. Detected like the write API, never assumed, so a corpus on a static host polls as it always has.
 //
-// The stream says nothing of what changed, so what the viewer does with a new manifest is what it does after a poll (spec README, viewer obligation 3).
+// The stream says nothing of what changed in the manifest, so what the viewer does with a new one is what it does after a poll (spec README, viewer obligation 3). It also says how each document's compile stands, which no manifest carries.
 
 import { base } from '$app/paths';
 import { capabilities } from '$lib/write';
 import { store } from './client.svelte';
+import { compiles } from './compiles.svelte';
 
 /** How often to poll while the stream is open, as a net under it; while it is down, the poll is what tells. */
 const NET = 5000;
@@ -19,6 +20,7 @@ export async function listen(): Promise<void> {
 	if (!caps?.stream || source) return;
 	source = new EventSource(base + '/_api/stream');
 	source.addEventListener('manifest', () => void store.refresh());
+	source.addEventListener('compiles', (e) => compiles.take((e as MessageEvent<string>).data));
 	source.onopen = () => store.pace(NET);
 	// the browser reconnects by itself; until it does, the poll is back at its own pace
 	source.onerror = () => store.pace(UNASSISTED);

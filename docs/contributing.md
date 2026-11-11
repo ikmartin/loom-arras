@@ -23,7 +23,7 @@ The workspace's documents and loom are GPL-3.0-or-later; arras AGPL-3.0-or-later
 `scripts/verify` is the one verification command, and CI runs it and nothing else, one lane per workflow (`loom.yml`, `arras.yml`, `docs.yml`). It ends by printing the branch's latest CI runs; read them.
 
 - `scripts/verify` (`fast`): while working. loom's ruff, format check, mypy and unit tier; arras's svelte-check and vitest; the docs lane.
-- `scripts/verify full`: before a commit. Adds loom's TeX tier, an arras build, the four Playwright suites and the two figure scripts.
+- `scripts/verify full`: before a commit. Adds loom's TeX tier, an arras build, the three Playwright suites and the figure script.
 - `scripts/verify paper`: the paper tier, by hand, with `LOOM_PAPER_FIXTURES` naming a directory holding `0805.2065/` and `1709.09864/`. Never in CI.
 - `scripts/verify client`: the real-client tier, by hand, after a change to what loom generates for an agent client. It runs Claude Code against the generated settings and spends on the account of whoever runs it, so it never runs in CI.
 - `--only loom|arras|docs`: one lane, when a change touches one codebase or only documents.
@@ -36,7 +36,7 @@ The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/
 - loom's tests run loom through `loom/tests/helpers.py`, in process with exceptions let through, so a crash surfaces as a traceback. A test asserts one exit code (`ok`, `exits`, `refused`), never a set of them.
 - The fake TeX toolchain (`loom/tests/fake_latex/fake_tex.py`) exists only in the directory `loom/tests/conftest.py` makes per session, never on the real PATH. Look up every external tool on PATH so a test can substitute it.
 - Every LaTeX compile in a test runs isolated: empty HOME, TEXMFHOME, TEXMFLOCAL, TEXMFVAR and TEXMFCONFIG, no TEXINPUTS, the quilt root as cwd. A test never passes because of a file elsewhere on the machine.
-- Fixture quilts are written from `loom/tests/quilts/sources/` by loom's own commands under a fixed clock (`uv run python scripts/gen_quilts.py all` in `loom/`); `test_the_checked_in_quilt_is_what_the_generator_writes` compares them byte for byte. Never edit one by hand.
+- Fixture quilts are written from `loom/tests/quilts/sources/` by loom's own commands under a fixed clock (`uv run python scripts/gen_quilts.py all` in `loom/`); `test_the_checked_in_quilt_is_what_the_generator_writes` compares them byte for byte. Never edit one by hand. The viewer's served suites run no TeX, so the pages TeX makes of the synthetic and showcase quilts' documents are kept in `arras/tests/pages/` (`uv run python scripts/gen_pages.py` in `loom/`, which needs TeX Live); a change to those quilts' documents, or to how loom configures TeX4ht, makes them again, and a page left behind is read as edited since.
 - `test_never_modifies_author_files` runs every command on every fixture quilt and fails if an author file's hash changes.
 - Every diagnostic code is in `docs/specs/diagnostics.md` before loom emits it, and some test emits it. `test_all_emitted_codes_are_known` checks only that the fixtures' codes are in loom's table, not that every code is emitted.
 - CI sees only committed files, so `loom/tests/unit/test_tracked.py` fails on a shipped file under `loom/src`, `loom/tests/quilts` or `arras/src` that is untracked or ignored.
@@ -52,7 +52,7 @@ The construction principles C1–C5 (`docs/design/principles.md`) govern how the
 - C2, vertical slices: work runs end to end, source to arras page, not one layer at a time.
 - C3, the fixture is the contract's executable form: a change to loom's output regenerates it (`docs/specs/tools/refresh-fixture.sh`); a change to the interface changes it first.
 - C4, author files are sacred: the test comes before the command that touches a file.
-- C5, two codebases sharing nothing but `docs/specs/`.
+- C5, one tool in two languages: loom and its viewer each have their own build and tests, the viewer ships inside loom, and `docs/specs/` changes with the code on either side.
 
 ## Rules for every change
 

@@ -18,7 +18,6 @@ from typing import Any
 
 import pytest
 
-from loom.version import INTERFACE_VERSION
 from tests.helpers import PATIENCE, edit, exits, json_of, ok, run, the
 
 FAKE_GIT = """import sys
@@ -38,8 +37,8 @@ if "-bbox-layout" in sys.argv:
 REAL_GIT = shutil.which("git")
 
 
-def stamp(commit: str = "abc1234", interface: int = INTERFACE_VERSION) -> str:
-    return f"arras {commit} interface {interface} vendored 2026-09-24T00:00:00Z\n"
+def stamp(commit: str = "abc1234") -> str:
+    return f"arras {commit} vendored 2026-09-24T00:00:00Z\n"
 
 
 def bundle(d: Path, version: str | None = None) -> Path:
@@ -130,7 +129,20 @@ def quilt(box: Box) -> Path:
 
 
 REQUIRED = ["latexmk", "pdflatex", "dvisvgm"]
-OPTIONAL = ["latex", "xelatex", "lualatex", "bibtex", "biber", "kpsewhich", "pdftotext", "pdfinfo", "pdftocairo", "git"]
+OPTIONAL = [
+    "latex",
+    "xelatex",
+    "lualatex",
+    "bibtex",
+    "biber",
+    "kpsewhich",
+    "make4ht",
+    "extractbb",
+    "pdftotext",
+    "pdfinfo",
+    "pdftocairo",
+    "git",
+]
 
 
 def test_every_tool_found_on_the_shim_is_ok(box: Box) -> None:
@@ -281,10 +293,6 @@ def env_unversioned(box: Box) -> None:
     box.mp.setenv("LOOM_ARRAS_BUNDLE", str(bundle(box.tmp / "dev-build")))
 
 
-def env_other_interface(box: Box) -> None:
-    box.mp.setenv("LOOM_ARRAS_BUNDLE", str(bundle(box.tmp / "old", stamp(interface=INTERFACE_VERSION + 1))))
-
-
 def vendored(box: Box) -> None:
     vendored_at(box, bundle(box.tmp / "site-packages" / "loom" / "assets" / "arras", stamp()))
 
@@ -307,16 +315,8 @@ BUNDLES: list[tuple[str, Case, str, str | None, str, str]] = [
         env_unversioned,
         "warn",
         "LOOM_ARRAS_BUNDLE",
-        "the viewer LOOM_ARRAS_BUNDLE names, unversioned: its interface",
+        "the viewer LOOM_ARRAS_BUNDLE names, unversioned: its stamp",
         "vendor_arras.py",
-    ),
-    (
-        "interface",
-        env_other_interface,
-        "fail",
-        "LOOM_ARRAS_BUNDLE",
-        f"the viewer LOOM_ARRAS_BUNDLE names, interface {INTERFACE_VERSION + 1}",
-        "one release",
     ),
     ("vendored", vendored, "ok", "vendored", "the viewer loom ships, built from arras abc1234", ""),
     ("none", none, "fail", None, "not found: loom serve refuses", "reinstall loom"),
@@ -341,9 +341,7 @@ def test_the_bundle_from_each_source(
     assert got["detail"].startswith(detail), got
     assert remedy in got["remedy"], got
     if source is None:
-        assert got["path"] is None and got["interface"] is None
-    if status == "ok":
-        assert got["interface"] == INTERFACE_VERSION
+        assert got["path"] is None
 
 
 def test_an_invalid_loom_arras_bundle_is_a_refusal_not_a_fallback(box: Box) -> None:
@@ -610,7 +608,6 @@ def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
     assert set(data) - envelope == {
         "python",
         "loom",
-        "interface_version",
         "quilt",
         "ok",
         "failing",
@@ -654,7 +651,7 @@ def test_the_text_report_lines_up(box: Box) -> None:
     # what is fine is counted on one line a section, naming each check; what is not is listed, aligned, its fix beneath (T2)
     fine = [int(m.group(1)) for ln in lines if (m := re.match(r"^  ok    (\d+) checks?: ", ln))]
     checks = [m for ln in lines if (m := re.match(r"^  (?:warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
-    assert len(fine) == 2 and sum(fine) + len(checks) == 15 + 7, lines  # the machine's items and the quilt's
+    assert len(fine) == 2 and sum(fine) + len(checks) == 17 + 7, lines  # the machine's items and the quilt's
     assert len({m.end() for m in checks}) == 1, "the details do not start in one column"
     at = lines.index(next(ln for ln in lines if ln.startswith("  warn  pdfinfo")))
     assert lines[at + 1] == f"    fix: {item(doctor(box), 'pdfinfo')['remedy']}"  # beneath the item it fixes

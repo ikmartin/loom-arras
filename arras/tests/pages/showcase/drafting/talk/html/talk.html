@@ -1,0 +1,237 @@
+<!DOCTYPE html> 
+<html lang='en-US' xml:lang='en-US'> 
+<head>      <title></title> 
+<meta charset='utf-8' /> 
+<meta content='TeX4ht (https://tug.org/tex4ht/)' name='generator' /> 
+<meta content='width=device-width,initial-scale=1' name='viewport' /> 
+<link href='talk.css' rel='stylesheet' type='text/css' /> 
+<meta content='talk.tex' name='src' /> 
+<script>window.MathJax = { tex: { tags: "ams", }, }; </script> 
+<script async='async' id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js' type='text/javascript'></script>  
+</head><body>
+                                                           
+                                                           
+<div class='slide'> <div class='titlepage'><a id='sl1'></a><p class='links'><a href='#bookmark' target='tex4ht-menu'>toc</a></p>
+                        <h1 class='title'><span class='cmss-12x-x-120'>Balanced
+                          flows,
+                            in
+                          twenty
+                         minutes</span></h1>                         
+                            <div class='author'>The
+                           loom
+                         showcase</div>                         
+                             <div class='institute'></div>                             
+                         <div class='date'>September
+                            16,
+                           2026</div>
+                                                           
+</div>                                                            </div>
+                                                           
+<p><a id='x1-2r1'></a>
+<a id='Outline0.1'></a>
+                                                           
+                                                           
+</p><div class='slide'>  <span class='cmss-12x-x-120'>What
+  a
+  quiver
+  weighs</span>                                                                   <!-- l. 21 --><p class='noindent'><a id='sh-0011'></a>
+</p>
+<h2 class='frametitle'></h2><!-- loomffile nodes/sh00002.tex -->
+<a id='x1-3r1'></a>
+<div class='definition'>
+<span class='cmss-12'>Definition (Quiver)</span>                                                      <a id='sh-0002'></a>
+A
+<span class='cmssi-10x-x-109'>quiver</span>
+<!-- loomffile umsa.fd --><!-- loomffileeend --><!-- loomffile umsb.fd --><!-- loomffileeend --><!-- loomffile ot1mathkerncmss.fd --><!-- loomffileeend --><span class='mathjax-inline'>\(\beamer@setmathcolor \quiv \)</span>
+is
+a
+quadruple
+<span class='mathjax-inline'>\(\beamer@setmathcolor (V, A, s, t)\)</span>
+with
+<span class='mathjax-inline'>\(\beamer@setmathcolor V\)</span>
+and
+<span class='mathjax-inline'>\(\beamer@setmathcolor A\)</span>
+finite
+sets
+and
+<span class='mathjax-inline'>\(\beamer@setmathcolor s, t \colon A \to V\)</span>
+the
+source
+and
+target
+maps.
+A
+<span class='cmssi-10x-x-109'>weighting</span>
+of
+<span class='mathjax-inline'>\(\beamer@setmathcolor \quiv \)</span>
+is
+a
+function
+<span class='mathjax-inline'>\(\beamer@setmathcolor w \colon A \to \ZZ \)</span>,
+and
+the
+weightings
+form
+a
+lattice
+<span class='mathjax-inline'>\(\beamer@setmathcolor W(\quiv ) \cong \ZZ ^{A}\)</span>
+under
+pointwise
+addition.                                                                         
+</div></div>
+<!-- l. 3 --><p class='noindent'> <!-- loomffileeend -->                                                          </p>
+                                                           
+                                                           
+<div class='slide'>  <span class='cmss-12x-x-120'>The
+  one
+  lemma</span>                                                                   
+<h2 class='frametitle'></h2><!-- loomffile nodes/sh00401.tex -->
+<a id='x1-4r2'></a>
+<div class='block'>
+<span class='cmss-12'>Lemma (Support)</span>                                                        <a id='sh-0401'></a>
+<span class='cmssi-10x-x-109'>Let
+</span><span class='mathjax-inline'>\(\beamer@setmathcolor w\)
+</span><span class='cmssi-10x-x-109'>be
+a
+balanced
+weighting
+with
+</span><span class='mathjax-inline'>\(\beamer@setmathcolor w \geq 0\)
+</span><span class='cmssi-10x-x-109'>and
+</span><span class='mathjax-inline'>\(\beamer@setmathcolor w \neq 0\)</span><span class='cmssi-10x-x-109'>.
+Then
+</span><span class='mathjax-inline'>\(\beamer@setmathcolor \supp (w)\)
+</span><span class='cmssi-10x-x-109'>contains
+a
+directed
+cycle.</span>                                                                             
+</div></div>
+<!-- l. 3 --><p class='noindent'> </p><div class='loom-node' data-env='proof' data-file='nodes/sh-0401.tex' data-line='4'>
+<div class='block'>
+<span class='cmss-12'>Proof.</span>                                                                       
+Pick
+<span class='mathjax-inline'>\(\beamer@setmathcolor a_{0}\)</span>
+with
+<span class='mathjax-inline'>\(\beamer@setmathcolor w(a_{0}) &gt; 0\)</span>.
+Since
+<span class='mathjax-inline'>\(\beamer@setmathcolor (\bd w)(t(a_{0})) = 0\)</span>
+and
+the
+arrow
+<span class='mathjax-inline'>\(\beamer@setmathcolor a_{0}\)</span>
+contributes
+positively
+to
+that
+sum,
+some
+arrow
+<span class='mathjax-inline'>\(\beamer@setmathcolor a_{1}\)</span>
+with
+<span class='mathjax-inline'>\(\beamer@setmathcolor s(a_{1}) = t(a_{0})\)</span>
+has
+<span class='mathjax-inline'>\(\beamer@setmathcolor w(a_{1}) &gt; 0\)</span>.
+Repeating,
+we
+obtain
+an
+infinite
+walk
+inside
+<span class='mathjax-inline'>\(\beamer@setmathcolor \supp (w)\)</span>,
+which
+is
+finite,
+so
+some
+vertex
+repeats
+and
+the
+walk
+contains
+a
+directed
+cycle.                                                                            □
+</div></div>
+ <!-- loomffileeend -->                                                          
+                                                           
+                                                           
+<div class='slide'>  <span class='cmss-12x-x-120'>The
+  rank</span>                                                                      
+<h2 class='frametitle'></h2><!-- loomffile nodes/sh00009.tex -->
+<a id='x1-5r3'></a>
+<div class='theorem'>
+<span class='cmss-12'>Theorem (Rank)</span>                                                         <a id='sh-0009'></a>
+<span class='cmssi-10x-x-109'>Let </span><span class='mathjax-inline'>\(\beamer@setmathcolor \quiv \) </span><span class='cmssi-10x-x-109'>be a quiver whose underlying graph has </span><span class='mathjax-inline'>\(\beamer@setmathcolor c\) </span><span class='cmssi-10x-x-109'>connected components.
+Then </span><div class='mathjax-env mathjax-equation'>\begin{equation}\label {eq:rank} \rank \Zcyc (\quiv ) \;=\; |A(\quiv )| - |V(\quiv )| + c. \end{equation}</div><a id='x1-6r1'></a><a id='eq_rank'></a>                                                                             
+</div></div>
+<!-- l. 6 --><p class='noindent'> </p><div class='loom-node' data-env='proof' data-file='nodes/sh-0009.tex' data-line='7'>
+<div class='block'>
+<span class='cmss-12'>Proof.</span>                                                                       
+The
+image
+of
+<span class='mathjax-inline'>\(\beamer@setmathcolor \bd \)</span>
+is
+the
+set
+of
+integer
+vectors
+summing
+to
+zero
+on
+each
+component,
+a
+sublattice
+of
+<span class='mathjax-inline'>\(\beamer@setmathcolor \ZZ ^{V}\)</span>
+of
+rank
+<span class='mathjax-inline'>\(\beamer@setmathcolor |V(\quiv )| - c\)</span>;
+this
+is
+<span class='cite'>[<span class='cmssbx-10x-x-109'>?</span>,
+Proposition
+2.1]</span>.
+Since
+<span class='mathjax-inline'>\(\beamer@setmathcolor \Zcyc (\quiv ) = \ker \bd \)</span>
+is
+saturated
+by
+Proposition <a href='#sh-0007'><span class='loom-ref' data-label='sh-0007'><span class='cmssbx-10x-x-109'>??</span></span></a>,
+the
+rank
+of
+the
+kernel
+is
+the
+rank
+of
+the
+source
+less
+the
+rank
+of
+the
+image,
+which
+gives
+(<a href='#eq_rank'><span class='loom-ref' data-label='eq:rank'>1</span></a>).                                                                              □
+</div></div>
+ <!-- loomffileeend -->                                                          
+                                                           
+                                                           
+                                                           
+                                                           
+ 
+</body>  
+</html>
+                                                           
+
+

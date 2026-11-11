@@ -12,7 +12,7 @@ Publishing is the author's act and never an agent's — a standing rule in `AGEN
 
 ## Rough design
 
-Follow `loom/docs/RELEASE.md` to its last step, then the step it stops before. The checklist already requires the conformance fixture regenerated with both vendored snapshots equal, the arras bundle re-vendored from a named commit, `loom doctor` reporting that bundle and interface version 2, and the screenshots regenerated. [[WQ-16]] supplies the Overleaf result the release notes want.
+Follow `loom/docs/RELEASE.md` to its last step, then the step it stops before. The checklist already requires the conformance fixture regenerated with both vendored snapshots equal, the arras bundle re-vendored from a named commit, `loom doctor` reporting that bundle as current, and the screenshots regenerated. [[WQ-16]] supplies the Overleaf result the release notes want.
 
 The distribution is `loomtex` on PyPI; arras ships inside it as a vendored bundle, so end users need neither the arras repository nor Node.
 
