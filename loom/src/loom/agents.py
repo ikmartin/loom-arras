@@ -18,6 +18,7 @@ from loom.paths import (
     BUILD,
     COPIES,
     DIGESTS,
+    EDITS,
     LAST_SEEN,
     LEDGER,
     LOOKED,
@@ -44,7 +45,7 @@ AGENT_FILES = (ANNOTATION_TYPES,)
 #: The session index, a record inside an agent's place that only loom writes.
 SESSION_INDEX = f"{SESSIONS}/index.jsonl"
 #: Loom's record directories under `.loom/`, each named, since a Claude Code deny of `.loom/` would beat the places' allows; the history is the quilt's `[quilt] history` beside them.
-LOOM_DIRS = (DIGESTS, ANNOTATIONS, AI, RETIRED, SINCE, LOOKED)
+LOOM_DIRS = (DIGESTS, ANNOTATIONS, EDITS, AI, RETIRED, SINCE, LOOKED)
 #: Loom's record files under `.loom/`, each named for the same reason.
 LOOM_FILES = (
     LEDGER,

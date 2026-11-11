@@ -19,4 +19,4 @@ Core: [simplifications], [rejected], [meaning-drift-check]. Optional: [revised].
 
 ## Where changes go
 
-On the author's text, one {type:suggestion} per simplification, its quote exactly the old text and its payload the new. A merge-or-delete across results is an agent document of the passage (`.loom/ai/rules.md`, Proposed text or agent document).
+On the author's text, one suggested edit per simplification, its quote exactly the old text and `--with` the new. A merge-or-delete across results is an agent document of the passage (`.loom/ai/rules.md`, Proposed text or agent document).

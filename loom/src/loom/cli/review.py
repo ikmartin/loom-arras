@@ -18,8 +18,6 @@ from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp, today
 from loom.paths import document_build
 from loom.records.annotations import (
-    PLACEMENTS,
-    Annotation,
     find_annotation,
     next_id,
 )
@@ -417,22 +415,6 @@ def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | No
     return digest
 
 
-def _applied_hash(result: ScanResult, ann: Annotation) -> str:
-    """The hash of a suggestion's key once it reads as the suggestion taken; refused while it does not."""
-    from loom.records.suggestions import is_taken
-
-    if ann.payload is None:
-        raise EnvError(
-            f"{ann.id} is no suggestion carrying text, so nothing of it can be applied; resolve it without --applied"
-        )
-    if not is_taken(result, ann):
-        raise ContentError(
-            f"{ann.target_key} does not yet read as {ann.id} taken; `loom suggestion {ann.id}` prints the patch that takes it"
-        )
-    region = result.assembly.regions.get(ann.target_key)
-    return key_hash(result, region.container if region else ann.target_key)
-
-
 def _append(root: Path, event: dict[str, Any], dry_run: bool) -> None:
     """`records.log.append`, unless this is a dry run."""
     if not dry_run:
@@ -453,8 +435,6 @@ def _one_comment(
     type_given: str | None,
     reply: str | None,
     resolve: str | None,
-    payload: str | None = None,
-    placement: str | None = None,
     undo: bool = False,
     page: int | None = None,
     rects: list[list[float]] | None = None,
@@ -463,7 +443,6 @@ def _one_comment(
     look: dict[str, Any] | None = None,
     strokes: list[list[float]] | None = None,
     mark: str | None = None,
-    applied: bool = False,
     dry_run: bool = False,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records.
@@ -485,7 +464,7 @@ def _one_comment(
         refuse_lost(
             "reply" if reply else "resolve",
             reply or resolve,
-            {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **(look or {})},
+            {"quote": quote, "type": type_given, **(look or {})},
         )
 
     if resolve:
@@ -500,10 +479,8 @@ def _one_comment(
         event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
         if undo:
             event["undo"] = True
-        if applied:
-            event["applied"] = {"hash": _applied_hash(result, parent)}
         _append(root, event, dry_run)
-        return f"{'reopened' if undo else 'resolved as applied' if applied else 'resolved'} {resolve}"
+        return f"{'reopened' if undo else 'resolved'} {resolve}"
 
     if reply:
         if not (message or "").strip():
@@ -570,17 +547,6 @@ def _one_comment(
         if len(spans) > 1:
             raise EnvError(f"quote is ambiguous ({len(spans)} occurrences); give a longer quote")
         selector = make_selector(text, quote)
-    if placement is not None and placement not in PLACEMENTS:
-        raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
-    if placement and payload is None:
-        raise EnvError("--placement says where a payload goes; give --payload too")
-    # where proposed text goes is what makes it a change loom can show in place and print as a patch
-    if payload is not None and placement is None:
-        raise EnvError(
-            "a suggestion's --payload needs --placement: replace (exactly the quoted words), after or before them"
-        )
-    if payload == "" and placement != "replace":
-        raise EnvError("an empty --payload deletes the quoted words, so it goes with --placement replace")
     ann_id = _append_new(
         root,
         {
@@ -592,8 +558,6 @@ def _one_comment(
             "in": in_doc,
             **styled,
             "body": message or "",
-            "payload": payload,
-            "placement": placement,
         },
         records,
         date,
@@ -829,7 +793,7 @@ def delete_annotation(
 VERB_CARRIES: dict[str, tuple[str, ...]] = {
     "reply": (),
     "resolve": (),
-    "edit": ("type", "color", "style", "weight", "opacity", "payload", "placement", "box", "stroke"),
+    "edit": ("type", "color", "style", "weight", "opacity", "box", "stroke"),
     "delete": (),
 }
 _VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "delete": "a deletion"}
@@ -854,7 +818,7 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
     elif verb == "delete":
         fix = "give the id alone"
     else:
-        fix = f"write a suggestion of its own for text to paste in, or --edit {ann_id} to change the note itself"
+        fix = f"`loom suggest KEY --with …` proposes text to put in, and --edit {ann_id} changes the annotation itself"
     raise EnvError(f"{what}, so {', '.join(lost)} would be lost; {fix}")
 
 
@@ -862,17 +826,13 @@ def check_edit(
     body: str | None,
     type_given: str | None,
     look: dict[str, Any],
-    payload: str | None,
-    placement: str | None,
     geometry: bool = False,
 ) -> None:
     """An edit must change something, and an edit to an empty body says nothing -- `--delete` is how one is taken back."""
     if body is not None and not body.strip():
         raise EnvError("an edit to an empty body says nothing; give the new text, or delete it with --delete")
-    if body is None and type_given is None and not look and payload is None and placement is None and not geometry:
-        raise EnvError(
-            "--edit with nothing to change; give a new body, --type, a look, --payload, --placement, --box or --stroke"
-        )
+    if body is None and type_given is None and not look and not geometry:
+        raise EnvError("--edit with nothing to change; give a new body, --type, a look, --box or --stroke")
 
 
 def edit_annotation(
@@ -887,7 +847,7 @@ def edit_annotation(
     strokes: Any = None,
     **fields: str | None,
 ) -> str:
-    """Supersede an annotation's body, its type, its look, its payload or, on a PDF page, where a drawn one stands; the history stays in the log and one current body is shown.
+    """Supersede an annotation's body, its type, its look or, on a PDF page, where a drawn one stands; the history stays in the log and one current body is shown.
 
     This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement. `type_given` of '' takes the type off.
     """
@@ -941,8 +901,6 @@ BATCH_KEYS = (
     "resolve",
     "edit",
     "delete",
-    "payload",
-    "placement",
     "page",
     "box",
     "stroke",
@@ -952,7 +910,7 @@ BATCH_KEYS = (
 BATCH_VERBS = ("reply", "resolve", "edit", "delete")
 #: The fields an edit or a deletion is checked for, by their batch key and their flag's name.
 _LOSABLE = (
-    "quote", "type", "color", "style", "weight", "opacity", "payload", "placement", "page", "box", "stroke", "mark", "in",
+    "quote", "type", "color", "style", "weight", "opacity", "page", "box", "stroke", "mark", "in",
 )  # fmt: skip
 #: The look's fields, by their batch key and their flag's name.
 LOOK_KEYS = ("color", "style", "weight", "opacity")
@@ -979,14 +937,7 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
     rects = _rects(str(item["box"])) if item.get("box") else None
     strokes = _strokes(str(item["stroke"])) if item.get("stroke") else None
     if item.get("edit"):
-        check_edit(
-            item.get("message"),
-            item.get("type"),
-            look,
-            item.get("payload"),
-            item.get("placement"),
-            bool(rects or strokes),
-        )
+        check_edit(item.get("message"), item.get("type"), look, bool(rects or strokes))
         return edit_annotation(
             result,
             str(item["edit"]),
@@ -997,8 +948,6 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
             rects,
             strokes,
             body=item.get("message"),
-            payload=item.get("payload"),
-            placement=item.get("placement"),
         )
     return _one_comment(
         result,
@@ -1009,8 +958,6 @@ def _batch_line(result: ScanResult, writer: tuple[str, str], item: dict[str, Any
         item.get("type"),
         item.get("reply"),
         item.get("resolve"),
-        item.get("payload"),
-        item.get("placement"),
         page=int(item["page"]) if item.get("page") is not None else None,
         rects=rects,
         in_doc=str(item["in"]) if item.get("in") else None,
@@ -1114,7 +1061,7 @@ def _rects(box: str) -> list[list[float]]:
     "--edit",
     default=None,
     metavar="ID",
-    help="Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor.",
+    help="Restate an annotation: a new body, --type, a look, or where a drawn one stands; never its anchor.",
 )
 @click.option(
     "--delete",
@@ -1122,17 +1069,6 @@ def _rects(box: str) -> list[list[float]]:
     default=None,
     metavar="ID",
     help="Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked.",
-)
-@click.option(
-    "--payload",
-    default=None,
-    help="A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin.",
-)
-@click.option(
-    "--placement",
-    type=click.Choice(list(PLACEMENTS)),
-    default=None,
-    help="Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment.",
 )
 @click.option(
     "--in",
@@ -1145,11 +1081,6 @@ def _rects(box: str) -> list[list[float]]:
     "--undo",
     is_flag=True,
     help="With --resolve, open the annotation again: an undo is another event, never a removal.",
-)
-@click.option(
-    "--applied",
-    is_flag=True,
-    help="With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
 )
 @click.option(
     "--batch",
@@ -1177,11 +1108,8 @@ def annotate(
     resolve: str | None,
     edit: str | None,
     delete_id: str | None,
-    payload: str | None,
-    placement: str | None,
     in_doc: str | None,
     undo: bool,
-    applied: bool,
     batch: bool,
     dry_run: bool,
     as_json: bool,
@@ -1196,13 +1124,11 @@ def annotate(
     # Each of these names its annotation by id and takes no TARGET, so the one positional given is the body.
     if (reply or resolve or edit or delete_id) and message is None:
         message, target = target, None
-    if batch and "-" in (message, target, payload):
+    if batch and "-" in (message, target):
         raise EnvError("--batch reads its lines from stdin, so no text can be - beside it")
-    message, payload = from_stdin({"MESSAGE": message, "--payload": payload})
+    (message,) = from_stdin({"MESSAGE": message})
     if undo and not resolve:
         raise EnvError("--undo applies to --resolve")
-    if applied and (not resolve or undo):
-        raise EnvError("--applied says how a suggestion was resolved, so it goes with --resolve and not --undo")
     verbs = [f"--{n}" for n, v in (("reply", reply), ("resolve", resolve), ("edit", edit), ("delete", delete_id)) if v]
     if len(verbs) > 1:
         raise EnvError(f"one verb per call; this one gives {' and '.join(verbs)}")
@@ -1210,7 +1136,7 @@ def annotate(
         k: v for k, v in (("color", color), ("style", style), ("weight", weight), ("opacity", opacity)) if v is not None
     }
     if edit or delete_id:
-        given = {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **look}
+        given = {"quote": quote, "type": type_given, **look}
         refuse_lost(
             "edit" if edit else "delete",
             edit or delete_id,
@@ -1255,7 +1181,7 @@ def annotate(
     if delete_id:
         done(delete_annotation(root, delete_id, writer, dry_run=dry_run)[0])
     elif edit:
-        check_edit(message, type_given, look, payload, placement, bool(box or strokes))
+        check_edit(message, type_given, look, bool(box or strokes))
         done(
             edit_annotation(
                 result,
@@ -1267,8 +1193,6 @@ def annotate(
                 _rects(box) if box else None,
                 _strokes(strokes) if strokes else None,
                 body=message,
-                payload=payload,
-                placement=placement,
             )
         )
     else:
@@ -1282,8 +1206,6 @@ def annotate(
                 type_given,
                 reply,
                 resolve,
-                payload,
-                placement,
                 undo,
                 page=page,
                 rects=_rects(box) if box else None,
@@ -1291,7 +1213,6 @@ def annotate(
                 look=look,
                 strokes=_strokes(strokes) if strokes else None,
                 mark=mark,
-                applied=applied,
                 dry_run=dry_run,
             )
         )

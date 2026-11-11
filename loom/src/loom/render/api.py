@@ -29,6 +29,7 @@ CAPABILITIES = [
     "restore",
     "annotations-take",
     "suggestion-apply",
+    "suggestion-discard",
     "library-verify",
     "library-discard",
     "library-update",
@@ -314,6 +315,7 @@ RECORD_WRITES = (
     "annotate",
     "file-tick",
     "annotations-take",
+    "suggestion-discard",
     "changes-keep",
     "history-record",
     "reply",
@@ -664,6 +666,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _history(root, endpoint, body)
     if endpoint == "annotations-take":
         return _take(root, body)
+    if endpoint in ("suggestion-apply", "suggestion-discard"):
+        return _suggested(root, endpoint, body)
     if endpoint == "pdf-save":
         return _pdf_save(root, body)
     if endpoint in ("library-verify", "library-discard"):
@@ -1141,11 +1145,9 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         # `undo` opens a resolved annotation again by appending another event; the viewer offers it in place of the verb that fired, so a wrong click is one click back (DR-174).
         undo = bool(body.get("undo"))
         result = _scan(root)
-        if endpoint == "suggestion-apply":
-            return _apply(root, result, _str(body, "annotation", required=True) or "", writer)
         if endpoint == "edit":
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
-            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("payload", "placement")}}
+            fields = {"body": _str(body, "message")}
             # a type of "" or null takes the type off; absent leaves it as it is
             type_given = ("" if body["type"] is None else _str(body, "type")) if "type" in body else None
             return edit_annotation(
@@ -1174,8 +1176,6 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _str(body, "type"),
                 None,
                 None,
-                _str(body, "payload"),
-                _str(body, "placement"),
                 page=page,
                 rects=rects,
                 in_doc=_str(body, "in"),
@@ -1188,14 +1188,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return _one_comment(
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
-        applied = body.get("applied") is True
-        if applied and (endpoint != "resolve" or undo):
-            raise ApiError(
-                "bad-field", "applied says how a suggestion was resolved, so it goes with resolve and not undo"
-            )
-        return _one_comment(
-            result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo, applied=applied
-        )
+        return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except ContentError as exc:
@@ -1204,28 +1197,38 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, str]) -> str:
-    """`suggestion-apply`: write a suggestion's text into its file, as `loom suggestion apply ID`, then resolve it as applied against the file as written. The author's act, refused to a declared agent."""
-    from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _one_comment
-    from loom.records.annotations import find_annotation, load_records
-    from loom.records.suggestions import ApplyRefused, apply
+def _suggested(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`suggestion-apply` writes a suggested edit into its file, as `loom suggestion apply ID` does, and records it kept, the author's act refused to a declared agent; `suggestion-discard` discards one, or with `undo` opens it again, a person any edit and an agent its own."""
+    from loom.cli._common import ContentError, EnvError
+    from loom.cli.review import _annotator
+    from loom.records.edits import EditRefused, apply, discard, find, is_taken, keep
 
-    if writer[0] == "agent":
-        raise ApiError("author-only", "An agent suggests; only the author puts a suggestion into the text", status=403)
-    found = find_annotation(load_records(root)[0], annotation)
-    if found is None:
-        raise NotFoundError("annotation", f"no annotation {annotation}")
+    edit_id = _str(body, "edit", required=True) or ""
     try:
-        documents, kept = apply(result, found[1], writer[1])
-    except ApplyRefused as exc:
-        raise ApiError(exc.code, exc.message, status=409) from exc
-    said = f"applied the suggestion in {' and '.join(Path(d).name for d in documents) or found[1].target_key}"
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+    except (EnvError, ContentError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    edit = find(root, edit_id)
+    if edit is None:
+        raise ApiError("no-such-edit", f"no suggested edit {edit_id}", status=404)
     try:
-        _one_comment(_scan(root), writer, None, None, None, None, None, annotation, applied=True)
-    except (ContentError, EnvError) as exc:  # the text is in; only the record of it failed, and the person is told so
-        return f"{said}, but it could not be resolved as applied: {exc}"
-    return "; ".join(x for x in (said, kept.said()) if x)
+        if endpoint == "suggestion-discard":
+            return {"ok": True, "result": discard(root, edit, writer, _str(body, "why"), undo=bool(body.get("undo")))}
+        if writer[0] == "agent":
+            raise ApiError("author-only", "An agent suggests; only the author puts a suggested edit into the text", 403)
+        result = _scan(root)
+        if edit.status == "open" and is_taken(result, edit):
+            # taken by an edit of the source already: there is nothing to write, only the keeping to record
+            return {"ok": True, "result": keep(result, edit, writer)}
+        documents, kept = apply(result, edit, writer[1])
+        said = f"applied {edit.id} in {' and '.join(Path(d).name for d in documents) or edit.target_key}"
+        try:
+            said += "; " + keep(_scan(root), edit, writer)
+        except EditRefused as exc:  # the text is in; only the record of it failed, and the person is told so
+            return {"ok": True, "result": f"{said}, but it could not be recorded kept: {exc.message}"}
+        return {"ok": True, "result": "; ".join(x for x in (said, kept.said()) if x)}
+    except EditRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
 
 
 def _geometry(body: dict[str, Any], name: str) -> list[list[float]] | None:

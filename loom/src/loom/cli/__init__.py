@@ -35,7 +35,7 @@ from loom.cli.review import accept, annotate, status
 from loom.cli.serve_cmd import serve
 from loom.cli.session import session
 from loom.cli.since_cmd import since_command
-from loom.cli.suggestion import suggestion
+from loom.cli.suggestion import suggest_command, suggestion
 from loom.cli.sync import sync
 from loom.cli.upgrade import upgrade
 from loom.version import __version__
@@ -73,6 +73,7 @@ main.add_command(source)
 main.add_command(serve)
 main.add_command(accept)
 main.add_command(annotate)
+main.add_command(suggest_command)
 main.add_command(suggestion)
 main.add_command(status)
 main.add_command(ai)

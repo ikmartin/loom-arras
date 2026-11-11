@@ -549,10 +549,6 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "Every orbit",
         "--type",
         "revision",
-        "--payload",
-        "Every nonempty orbit...",
-        "--placement",
-        "replace",
         "--as",
         "agent",
         cwd=d,
@@ -641,26 +637,14 @@ def test_a_deletion_takes_no_message(tmp_path: Path) -> None:
     assert [e["id"] for e in events(d)] == [ann]
 
 
-def test_the_look_and_placement_are_checked(tmp_path: Path) -> None:
+def test_the_look_is_checked_and_an_annotation_carries_no_proposed_text(tmp_path: Path) -> None:
     d = demo(tmp_path)
     refused("annotate", "dm-0002", "x", "--color", "mauve", *AS, cwd=d, code=2, match="Invalid value for '--color'")
     refused("annotate", "dm-0002", "x", "--weight", "11", *AS, cwd=d, code=2, match="Invalid value for '--weight'")
     refused("annotate", "dm-0002", "x", "--opacity", "101", *AS, cwd=d, code=2, match="Invalid value for '--opacity'")
-    # a placement with nothing to place, and text with nowhere to go, whatever the type
-    refused("annotate", "dm-0002", "x", "--placement", "after", *AS, cwd=d, code=2, match="give --payload too")
-    refused(
-        "annotate",
-        "dm-0002",
-        "x",
-        "--quote",
-        "Every orbit",
-        "--payload",
-        "y",
-        *AS,
-        cwd=d,
-        code=2,
-        match="needs --placement",
-    )
+    # proposed text is a suggested edit of its own (`loom suggest`)
+    for flag in ("--payload", "--placement", "--applied"):
+        refused("annotate", "dm-0002", "x", flag, "y", *AS, cwd=d, code=2, match=f"No such option '{flag}'")
     # what is set on an annotation is drawn over its type's look
     ok("annotate", "dm-0002", "x", "--type", "question", "--color", "green", "--style", "strike", *AS, cwd=d)
     a = events(d)[-1]
@@ -959,7 +943,7 @@ def test_ai_annotations_lists_every_annotation_and_each_filter_narrows_it(tmp_pa
 BATCH = [
     pytest.param(
         [{"edit": "{ann}", "message": "Which orbits exactly?"},
-         {"target": "dm-0003", "message": "A second", "quote": "finite set", "payload": "set", "placement": "replace"},
+         {"target": "dm-0003", "message": "A second", "quote": "finite set"},
          {"resolve": "{ann}", "message": "fixed"}],
         0, None, [("edited", "Which orbits exactly?"), ("created", "A second"), ("resolved", "fixed")],
         id="every-verb-one-to-a-line",
@@ -970,7 +954,8 @@ BATCH = [
     pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
     pytest.param([{"edit": "{ann}", "message": "x", "quote": "Every orbit"}], 2, "--quote would be lost", [], id="an-edit-moves-no-anchor"),
     pytest.param([{"delete": "{ann}", "color": "red"}], 2, "--color would be lost", [], id="a-deletion-carries-nothing"),
-    pytest.param([{"edit": "{ann}", "placement": "after"}], 0, None, [("edited", None)], id="an-edit-carries-placement"),
+    pytest.param([{"edit": "{ann}", "color": "green"}], 0, None, [("edited", None)], id="an-edit-carries-a-look"),
+    pytest.param([{"target": "dm-0002", "message": "x", "payload": "y"}], 2, "unknown key(s) payload", [], id="no-payload"),
     # every line is checked before any is written, so a failing line leaves nothing half done (the re-grade's K3)
     pytest.param(
         [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "type": "suggestion"},
@@ -1031,11 +1016,11 @@ def test_a_type_is_named_by_its_id_or_its_name_and_one_the_quilt_lacks_is_refuse
 
 
 def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
-    """The 0.14 study: an agent replied "a replacement is attached" with `--payload`, and the payload was dropped without a word."""
+    """The 0.14 study: an agent replied "a replacement is attached" with proposed text, and the text was dropped without a word."""
     d = demo(tmp_path)
     ann = ok("annotate", "dm-0002", "A finding", "--type", "revision", *AS, cwd=d).output.split()[0]
     before = len(events(d))
-    for extra in (("--payload", "New sentence."), ("--type", "note"), ("--color", "red"), ("--quote", "finite set")):
+    for extra in (("--type", "note"), ("--color", "red"), ("--quote", "finite set")):
         for verb in ("--reply", "--resolve"):
             refused(
                 "annotate",
@@ -1061,17 +1046,17 @@ def test_an_edit_or_a_deletion_refuses_what_it_cannot_carry(tmp_path: Path) -> N
         ("--edit", ("--page", "3")),
         ("--delete", ("--type", "note")),
         ("--delete", ("--quote", "one or two")),
-        ("--delete", ("--payload", "New sentence.")),
+        ("--delete", ("--color", "red")),
     ):
         refused("annotate", verb, ann, "Restated.", *extra, *AS, cwd=d, code=2, match=f"{extra[0]} would be lost")
     refused("annotate", "--delete", ann, "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
     refused("annotate", "--edit", ann, "x", "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
     assert len(events(d)) == before
 
-    # --placement is one of the fields an edit restates, and an edit of it alone is a change
-    ok("annotate", "--edit", ann, "--placement", "after", *AS, cwd=d)
+    # a look is one of the fields an edit restates, and an edit of it alone is a change
+    ok("annotate", "--edit", ann, "--color", "green", *AS, cwd=d)
     [f] = json_of("ai", "annotations", "--json", cwd=d)["annotations"]
-    assert f["placement"] == "after" and f["quote"] == "Every orbit"
+    assert f["quote"] == "Every orbit" and events(d)[-1]["look"] == {"color": "green"}
 
 
 def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) -> None:
@@ -1428,29 +1413,26 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
 
 
 def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(tmp_path: Path) -> None:
-    """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; the publisher renders it beside the TeX."""
+    """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; the publisher renders a suggested edit's text beside the TeX."""
     d = demo(tmp_path)
-    payload = "\\begin{lemma}\\label{dm-0002-ai}\nEvery nonempty orbit has \\(1\\) or \\(2\\) points.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nBy definition.\n\\end{proof}"
-    r = ok(
-        "annotate",
+    proposed = "\\begin{lemma}\\label{dm-0002-ai}\nEvery nonempty orbit has \\(1\\) or \\(2\\) points.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nBy definition.\n\\end{proof}"
+    made = json_of(
+        "suggest",
         "dm-0002",
+        "--with",
+        proposed,
+        "--comment",
         "A sharper statement.",
-        "--type",
-        "suggestion",
-        "--payload",
-        payload,
-        "--placement",
-        "replace",
         "--as",
         "agent",
+        "--json",
         cwd=d,
         env=AGENT,
     )
-    ann = r.output.split()[0]
     ok("build", cwd=d)
-    entry = json.loads((d / ".loom/build/manifest.json").read_text())["annotations"][ann]
-    assert entry["payload"] == payload
-    html = entry["payload_html"]
+    entry = json.loads((d / ".loom/build/manifest.json").read_text())["suggested_edits"][made["edit"]]
+    assert entry["with"] == proposed
+    html = entry["with_html"]
     assert 'class="env env-lemma"' in html and "env-proof" in html
     assert "\\begin{" not in html and "\\uses" not in html and 'id="' not in html
 

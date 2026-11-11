@@ -45,4 +45,4 @@ Core: [summary], then one section per check above, by the paper's own numbers, a
 
 ## Where changes go
 
-Each correction is a {type:suggestion} on the digest node it concerns — a missing hypothesis as a payload placed where it goes, a missing edge as `\uses{…}` placed `before`, a wrong locator on the title's words — and a defect that matters is a {type:revision} saying how serious it is. A finding on a digest node says the **copy** is wrong, never the paper. Applying a correction is the author's.
+Each correction is a suggested edit on the digest node it concerns — a missing hypothesis placed where it goes, a missing edge as `\uses{…}` with `--before`, a wrong locator on the title's words — and a defect that matters is a {type:revision} saying how serious it is, which the edit that fixes it `--answers`. A finding on a digest node says the **copy** is wrong, never the paper. Keeping a correction is the author's.

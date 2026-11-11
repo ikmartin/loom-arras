@@ -250,7 +250,7 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
         "clarity",
     ):
         assert wanted in text, wanted
-    assert "{type:revision}" in text and "--payload" in text  # a type by placeholder, so a rename reaches the mode
+    assert "{type:revision}" in text and "--answers" in text  # a type by placeholder; a fix is an edit answering it
     assert "[referee-review]" in text  # reused, not a new block: blocks are structures, modes are procedures
     assert "There is no compiled LaTeX or PDF pair" in text
 
@@ -265,10 +265,11 @@ def test_ai_mode_prints_the_quilts_copy_and_refuses_what_loom_does_not_ship(tmp_
     from loom.ai.orient import expand_types
     from loom.records.types import load_types
 
-    flow = q / ".loom/ai" / "modes" / "flow.md"
     # printed with each type placeholder filled with the type's name in this quilt
-    assert "{type:suggestion}" in flow.read_text()
-    assert ok("ai", "mode", "flow", cwd=q).stdout == expand_types(flow.read_text(), load_types(q))
+    referee = q / ".loom/ai" / "modes" / "referee.md"
+    assert "{type:revision}" in referee.read_text()
+    assert ok("ai", "mode", "referee", cwd=q).stdout == expand_types(referee.read_text(), load_types(q))
+    flow = q / ".loom/ai" / "modes" / "flow.md"
     flow.write_text(flow.read_text().replace("When it fits: ", "When it fits: (house) ", 1))
     assert "(house)" in ok("ai", "mode", "flow", cwd=q).stdout
     (q / ".loom/ai" / "modes" / "brainstorm.md").write_text("# Mode: brainstorm\n\nWhen it fits: never.\n")

@@ -140,20 +140,13 @@ def test_an_edit_restates_the_fields_it_carries_and_repoints_against(tmp_path: P
         "type": "question",
         "look": {"color": "green"},
         "drawn": {"color": "green", "style": "highlight", "weight": 2, "opacity": 60},
-        "placement": {"page": 2},
         "against": "sha256:new",
     }
     write(tmp_path, created(against="sha256:old"), edited)
     records, problems = replay(tmp_path)
     a = records[0].annotations[0]
     assert problems == []
-    assert (a.body, a.type, a.own_look, a.placement, a.target_hash) == (
-        "Restated.",
-        "question",
-        {"color": "green"},
-        {"page": 2},
-        "sha256:new",
-    )
+    assert (a.body, a.type, a.own_look, a.target_hash) == ("Restated.", "question", {"color": "green"}, "sha256:new")
     assert a.drawn["color"] == "green"
     # an edit that carries only a body leaves everything else as the last edit set it
     write(

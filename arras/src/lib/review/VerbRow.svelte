@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The verbs an annotation offers, as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, edit and delete, and resolve only when its type stays open until resolved, since loom refuses to resolve one that only informs. One whose text places offers take it, which writes it in, a version of the document kept first, and resolves it as applied; one with text offers leave it in place of resolve; one whose key already reads as it taken offers resolve as applied, which records the key's hash. Edit restates the body and may change the type. Delete takes the annotation and its replies out of the log at once, and its undo stands in `DeletedBar`, since the box goes with them; loom refuses an agent's delete of what it did not write, and the refusal is shown here. A resolved one offers `reopen` and delete. A reply's own row (`compact`) is edit and delete.
+	// An open annotation offers reply, edit and delete, and resolve only when its type stays open until resolved, since loom refuses to resolve one that only informs. Edit restates the body and may change the type. Delete takes the annotation and its replies out of the log at once, and its undo stands in `DeletedBar`, since the box goes with them; loom refuses an agent's delete of what it did not write, and the refusal is shown here. A resolved one offers `reopen` and delete. A reply's own row (`compact`) is edit and delete.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
@@ -21,7 +21,7 @@
 	} = $props();
 
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
-	const ENDPOINTS = ['reply', 'edit', 'resolve', 'delete', 'suggestion-apply'];
+	const ENDPOINTS = ['reply', 'edit', 'resolve', 'delete'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
@@ -129,11 +129,6 @@
 		if (!said) drafts.delete(annotation.id);
 	}
 	const resolve = () => send('resolve', {});
-	const applied = () => send('resolve', { applied: true });
-	const apply = () => send('suggestion-apply', {});
-	const taken = $derived(annotation.change?.state === 'taken');
-	const withText = $derived(annotation.payload !== null && annotation.payload !== undefined);
-	const ready = $derived(annotation.change?.state === 'ready');
 	const reopen = () => send('resolve', { undo: true });
 </script>
 
@@ -151,14 +146,8 @@
 			{#if allowed.reply}
 				<button type="button" class="verb" onclick={() => show('reply')} aria-expanded={open === 'reply'} data-testid="verb-reply">reply</button>
 			{/if}
-			{#if allowed['suggestion-apply'] && ready}
-				<button type="button" class="verb" onclick={apply} disabled={busy} title="Write its text into the file; a version of the document is kept first" data-testid="verb-apply">take it</button>
-			{/if}
-			{#if asks && allowed.resolve && taken}
-				<button type="button" class="verb" onclick={applied} disabled={busy} title="The text now reads as this suggestion taken; its hash is recorded" data-testid="verb-applied">resolve as applied</button>
-			{/if}
 			{#if asks && allowed.resolve}
-				<button type="button" class="verb" onclick={resolve} disabled={busy} data-testid="verb-resolve">{withText ? 'leave it' : 'resolve'}</button>
+				<button type="button" class="verb" onclick={resolve} disabled={busy} data-testid="verb-resolve">resolve</button>
 			{/if}
 			{#if allowed.edit}
 				<button type="button" class="verb" onclick={() => show('edit')} aria-expanded={open === 'edit'} data-testid="verb-edit">edit</button>

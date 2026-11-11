@@ -32,11 +32,7 @@
    "modes": [
     "audit",
     "referee",
-    "review",
-    "simplify",
-    "flow",
-    "draft",
-    "ingest"
+    "review"
    ],
    "name": "Suggestion",
    "notes": false,
@@ -79,7 +75,6 @@
  "annotations": {
   "a-2026-09-16-ecnav2": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -101,9 +96,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "finite widget",
    "recorded": true,
    "rects": null,
@@ -121,7 +113,6 @@
   },
   "a-2026-09-16-hwtkaw": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -143,9 +134,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
-   "placement": "replace",
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
    "rects": null,
@@ -163,7 +151,6 @@
   },
   "a-2026-09-16-6sn46y": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -185,9 +172,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": null,
    "recorded": true,
    "rects": null,
@@ -205,7 +189,6 @@
   },
   "a-2026-09-16-tc3rcf": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -227,9 +210,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": null,
    "recorded": true,
    "rects": null,
@@ -247,7 +227,6 @@
   },
   "a-2026-09-16-hqnbz4": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -269,9 +248,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": null,
    "recorded": true,
    "rects": null,
@@ -289,7 +265,6 @@
   },
   "a-2026-09-16-bns3an": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -311,9 +286,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "one or two points",
    "recorded": true,
    "rects": null,
@@ -331,7 +303,6 @@
   },
   "a-2026-09-16-xgtcve": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -353,9 +324,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "Every orbit of a widget",
    "recorded": true,
    "rects": null,
@@ -373,7 +341,6 @@
   },
   "a-2026-09-16-hwnav1": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -395,9 +362,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "finite widget",
    "recorded": true,
    "rects": null,
@@ -415,7 +379,6 @@
   },
   "a-2026-09-16-gahrrs": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -437,9 +400,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
    "rects": null,
@@ -457,7 +417,6 @@
   },
   "a-2026-09-16-a91hwf": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -479,9 +438,6 @@
    },
    "mark": null,
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
    "recorded": true,
    "rects": null,
@@ -499,7 +455,6 @@
   },
   "a-2026-09-16-pmjbhz": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -521,9 +476,6 @@
    },
    "mark": "box",
    "origin": null,
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
    "quote": null,
    "recorded": true,
    "rects": [
@@ -545,54 +497,6 @@
     "work": null
    },
    "type": null
-  },
-  "a-2026-09-17-rvgxnv": {
-   "anchored": true,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
-   },
-   "basis": null,
-   "body_html": "<p>Say what the comparison shows.</p>",
-   "change": {
-    "diff": "fragments/suggestions/a-2026-09-17-rvgxnv.diff",
-    "fragment": "fragments/suggestions/a-2026-09-17-rvgxnv.html",
-    "moved": false,
-    "state": "ready"
-   },
-   "created": "2026-09-17T09:00:00Z",
-   "detached": false,
-   "hides": null,
-   "id": "a-2026-09-17-rvgxnv",
-   "in": null,
-   "in_reply_to": null,
-   "look": {
-    "color": "orange",
-    "opacity": 60,
-    "style": "highlight",
-    "weight": 2
-   },
-   "mark": null,
-   "origin": null,
-   "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "payload_html": "<p data-src=\"payload/a-2026-09-17-rvgxnv:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
-   "placement": "replace",
-   "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "recorded": true,
-   "rects": null,
-   "resolved_why": null,
-   "status": "open",
-   "strokes": null,
-   "target": {
-    "file": null,
-    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
-    "key": "sy-0002",
-    "page": null,
-    "work": null
-   },
-   "type": "suggestion"
   }
  },
  "canon": [
@@ -600,7 +504,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "11433b89be62da41588039bfe3cc673ac64f5188fe57727f7b0328058941e6ba",
+   "hash": "d18a0f0b319f4d7f9b2007457b0c990ce144b54ec78794b799ee644b057591ed",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -615,7 +519,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "708c256bfa4373af447f107c33402a9525001dae9b64d8bf93f6d0b91eb63ff4",
+   "hash": "1d27d629c77f37c406a84809d981cefa4522d818f6aa332b72600d1b674679f2",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -630,7 +534,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "d8c5d52067c4237778890a63413251f65e6de0b8596a2699e9083607aefb5aa7",
+   "hash": "281209d949a44f7a3ca322a4e0bbeed28db9364502c02f1367412186b039ed59",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -3510,7 +3414,7 @@
     "detached": 0,
     "open": {
      "question": 1,
-     "suggestion": 3
+     "suggestion": 2
     }
    },
    "src": [
@@ -8251,6 +8155,64 @@
     "label": "stale",
     "modifier": true
    }
+  }
+ },
+ "suggested_edits": {
+  "e-2026-09-16-r2hw0m": {
+   "answers": "a-2026-09-16-hwtkaw",
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "change": {
+    "diff": "fragments/edits/e-2026-09-16-r2hw0m.diff",
+    "fragment": "fragments/edits/e-2026-09-16-r2hw0m.html",
+    "moved": false,
+    "state": "ready"
+   },
+   "comment": null,
+   "comment_html": null,
+   "created": "2026-09-16T00:00:00Z",
+   "id": "e-2026-09-16-r2hw0m",
+   "placement": "replace",
+   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
+   "status": "open",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   },
+   "why": null,
+   "with": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
+   "with_html": "<p data-src=\"edit/e-2026-09-16-r2hw0m:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>"
+  },
+  "e-2026-09-17-zwvx4m": {
+   "answers": null,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "change": {
+    "diff": "fragments/edits/e-2026-09-17-zwvx4m.diff",
+    "fragment": "fragments/edits/e-2026-09-17-zwvx4m.html",
+    "moved": false,
+    "state": "ready"
+   },
+   "comment": "Say what the comparison shows.",
+   "comment_html": "<p>Say what the comparison shows.</p>",
+   "created": "2026-09-17T09:00:00Z",
+   "id": "e-2026-09-17-zwvx4m",
+   "placement": "replace",
+   "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   },
+   "why": null,
+   "with": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+   "with_html": "<p data-src=\"edit/e-2026-09-17-zwvx4m:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>"
   }
  },
  "tags": {

@@ -22,6 +22,8 @@ AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion", "write",
+        # a suggested edit, and discarding one of its own; keeping one is the author's
+        "suggest", "suggestion discard",
         # the bridge: where the person is looking in the viewer, and what they did since this agent last looked
         "here", "since",
         "ai annotations", "ai drafts", "ai refresh", "ai orient", "ai mode",
@@ -48,7 +50,7 @@ ACTS: dict[str, str] = {
     **dict.fromkeys(("build", "check", "compile", "id", "serve"), "derive"),
     **dict.fromkeys(
         (
-            "annotate", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
+            "annotate", "suggest", "suggestion discard", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
             "library propose", "library relate", "library update", "mcp",
         ),
         "write",

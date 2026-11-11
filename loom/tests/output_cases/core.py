@@ -50,13 +50,17 @@ KIND: dict[str, str] = {
     "search": "report",
     "serve": "running",
     "source": "raw",
+    "suggest": "report",
     "suggestion": "raw",
     "suggestion apply": "report",
+    "suggestion discard": "report",
     "status": "report",
     "upgrade": "report",
 }
 
 NOWHERE = (("FAKE_TEX_FAIL_MATCH", "closures/"),)
+#: The demo's open suggested edit, the clock being fixed.
+EDIT = "e-2026-09-16-r2hw0m"
 
 CASES: dict[str, list[Case]] = {
     "accept": [
@@ -78,18 +82,42 @@ CASES: dict[str, list[Case]] = {
         Case(("--all-live", "--yes", "--force"), setup=author, exit=1, why="an incomplete proof is in scope"),
         Case(("dm-0002",), setup=author, env=FAIL_TEX, exit=1, why="its document does not compile"),
     ],
+    "suggest": [
+        Case(("dm-0002", "--quote", "one or two points", "--with", "at most two points", "--as", "Tester")),
+        Case(
+            ("dm-0002", "--with", "\\uses{dm-0001}", "--before", "--as", "Tester"),
+            why="an edge, at the head of the body",
+        ),
+        Case(("dm-0002", "--with", "x", "--dry-run", "--as", "Tester"), unchanged=True),
+        Case(
+            ("dm-0002", "--quote", "no such words", "--with", "x", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="a quote not in the text",
+        ),
+        Case(("dm-9999", "--with", "x", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
+    ],
     "suggestion": [
-        Case(("a-2026-09-16-hwtkaw",), unchanged=True),
-        Case(("a-2026-09-16-ecnav2",), exit=1, unchanged=True, why="a suggestion that carries no text"),
-        Case(("a-2026-09-16-v37pth",), exit=2, unchanged=True, why="no such annotation"),
+        Case((), unchanged=True, why="the open edits"),
+        Case(("--status", "kept"), unchanged=True, why="none kept"),
+        Case((EDIT, "--json"), unchanged=True, why="its patch, in the report"),
+        Case(("e-2026-09-16-v37pth",), exit=2, unchanged=True, why="no such edit"),
     ],
     "suggestion apply": [
-        Case(("a-2026-09-16-hwtkaw", "--as", "Tester")),
+        Case((EDIT, "--as", "Tester")),
+        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
+        Case((EDIT, "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
+    ],
+    "suggestion discard": [
+        Case((EDIT, "--why", "not needed", "--as", "Tester")),
         Case(
-            ("a-2026-09-16-ecnav2", "--as", "Tester"), exit=1, unchanged=True, why="a suggestion that carries no text"
+            (EDIT, "--as", "Referee (Agent)"),
+            env=(("AI_AGENT", "1"),),
+            exit=2,
+            unchanged=True,
+            why="not the agent's own",
         ),
-        Case(("a-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such annotation"),
-        Case(("a-2026-09-16-hwtkaw", "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
+        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
     ],
     "annotate": [
         Case(("dm-0002", "Which orbits?", "--as", "Tester")),

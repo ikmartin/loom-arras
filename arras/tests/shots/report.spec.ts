@@ -34,8 +34,8 @@ test('a run reviewed', async ({ page }) => {
 	await shot(page, 'session-discussion', '/session/s-2026-09-16-p9z37z');
 });
 
-test('a node read three ways', async ({ page }) => {
-	// what a result rests on, what it says as written, and what an agent proposed for it
+test('a node read two ways', async ({ page }) => {
+	// what a result rests on, and what it says as written
 	await under(page);
 
 	// what it rests on stands in its context, beside it
@@ -53,16 +53,6 @@ test('a node read three ways', async ({ page }) => {
 	await expect(page.getByTestId('verbatim').first()).toBeVisible();
 	await still(page);
 	await page.screenshot({ path: `${OUT}/verbatim.png` });
-
-	// the fixture's suggestion is resolved, so settled annotations are shown before all are opened
-	await page.goto('/node/sy-0004');
-	await viewMenu(page);
-	await page.getByTestId('toggle-settled').click();
-	await viewMenu(page);
-	await page.getByTestId('toggle-annotations').click();
-	await expect(page.getByTestId('payload').first()).toBeVisible();
-	await settle(page);
-	await page.screenshot({ path: `${OUT}/payload.png` });
 });
 
 test('the graph coloured by taxon', async ({ page }) => {

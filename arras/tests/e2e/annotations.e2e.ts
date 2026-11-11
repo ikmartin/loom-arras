@@ -1,4 +1,4 @@
-// Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, what a suggestion proposes, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
+// Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, the suggested edit that answers one, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, prefs, settings, viewMenu } from '../workspace';
 import { pickSession } from '../picker';
@@ -515,143 +515,20 @@ test.describe('the box', () => {
 		await expect(quote).toHaveCSS('font-style', 'italic');
 	});
 
-	test("a proposal stands at a rule in the annotation's colour, headed by its placement word, rendered, with the verbatim one link away", async ({ page }) => {
-		// the fixture's suggestion is resolved, so it is reopened to be drawn
+	test('an annotation an open suggested edit answers says so in one line, linking to its card in Proposed Changes, and proposes nothing itself', async ({ page }) => {
+		// the fixture's e-2026-09-16-r2hw0m answers a-2026-09-16-hwtkaw, which is resolved, so it is reopened to be drawn
 		await serve(page, (m) => (m.annotations['a-2026-09-16-hwtkaw'].status = 'open'));
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
 		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-hwtkaw');
-		const pay = box.getByTestId('payload');
-		await expect(pay).toHaveAttribute('data-placement', 'replace');
-		await expect(pay.locator('.word')).toHaveText('replace');
-		expect(channels(await css(pay.locator('.word'), 'color'))).toMatchObject(ORANGE);
-		expect(channels(await css(pay, 'border-left-color'))).toMatchObject(ORANGE);
-		await expect(pay).toHaveCSS('border-left-width', '2px');
-		await expect(pay).not.toContainText('proposed in place of');
-		// rendered is what opens: the math typeset, the LaTeX that produced it off screen
-		await expect(pay.getByTestId('payload-rendered').locator('mjx-container')).not.toHaveCount(0);
-		await expect(pay.getByTestId('payload-rendered')).not.toContainText('\\ref');
-		await expect(pay.getByTestId('payload-verbatim')).toHaveCount(0);
-		const view = pay.getByTestId('payload-view');
-		await expect(view).toHaveText('· verbatim');
-		await view.click();
-		await expect(pay.getByTestId('payload-verbatim')).toContainText('\\ref{sy-0002}');
-		await expect(view).toHaveText('· rendered');
-	});
-
-	test('a proposed theorem and proof read as the document prints them, from the publisher, never as a typesetting error', async ({ page }) => {
-		const tex = '\\begin{theorem}\\label{sy-0004-ai}\nEvery orbit has \\(1\\) or \\(2\\) points.\n\\end{theorem}\n\\begin{proof}\nBy definition.\n\\end{proof}';
-		await serve(page, (m) => {
-			m.annotations['a-2026-09-16-hwtkaw'].status = 'open';
-			m.annotations['a-2026-09-16-hwtkaw'].payload = tex;
-			m.annotations['a-2026-09-16-hwtkaw'].payload_html =
-				'<div class="env env-theorem" data-taxon="Theorem" data-style="plain"><p class="env-label"><span class="taxon">Theorem</span></p><p>Every orbit has <span class="math inline">\\(1\\)</span> or <span class="math inline">\\(2\\)</span> points.</p></div><details class="env env-proof" open><summary class="env-label">Proof</summary><p>By definition.</p></details>';
-		});
-		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-hwtkaw');
-		const rendered = box.getByTestId('payload-rendered');
-		await expect(rendered.locator('.env-theorem .taxon')).toHaveText('Theorem');
-		await expect(rendered.locator('.env-proof')).toContainText('By definition.');
-		await expect(rendered.locator('mjx-container').first()).toBeAttached();
-		await expect(rendered.locator('mjx-merror')).toHaveCount(0);
-		await expect(rendered).not.toContainText('\\begin');
-		// the verbatim view is still the TeX as written
-		await box.getByTestId('payload-view').click();
-		await expect(box.getByTestId('payload-verbatim')).toHaveText(tex);
-	});
-
-	test('a verbatim proposal is one block: its lines kept, never a strip per line overlapping the one above, the switch beside the placement word', async ({ page }) => {
-		const long = ['if and only if \\(x\\) is in the image of \\(\\eta(U)\\colon\\mathcal Y^G(U)\\to \\mathcal Y(U)\\): indeed \\(\\mathcal Y^G\\) parameterizes group-theoretic sections', '  of \\(\\mathcal Y\\) \\cite[Lemma 4.1.2]{Kre99}.'].join('\n');
-		await serve(page, (m) => {
-			m.annotations['a-2026-09-16-hwtkaw'].status = 'open';
-			m.annotations['a-2026-09-16-hwtkaw'].payload = long;
-		});
-		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-hwtkaw');
-		const pay = box.getByTestId('payload');
-		await pay.getByTestId('payload-view').click();
-		const pre = pay.getByTestId('payload-verbatim');
-		await expect(pre).toBeVisible();
-		const drawn = await pre.evaluate((el) => {
-			const cs = getComputedStyle(el);
-			return { display: cs.display, boxes: el.getClientRects().length, line: parseFloat(cs.lineHeight), size: parseFloat(cs.fontSize), text: el.textContent };
-		});
-		expect(drawn.display).toBe('block');
-		expect(drawn.boxes).toBe(1);
-		expect(drawn.line).toBeGreaterThan(drawn.size * 1.3);
-		expect(drawn.text).toBe(long);
-		// the switch stays on the placement word's line, above the text, whichever way it is shown
-		const word = await pay.locator('.word').boundingBox();
-		const view = await pay.getByTestId('payload-view').boundingBox();
-		expect(Math.abs(view!.y - word!.y)).toBeLessThan(6);
-	});
-
-	test('a suggestion shows its key with it in place, its new words marked, and the patch that takes it', async ({ page }) => {
-		// the publisher renders both at build: the key with the payload in place of exactly the quoted words, and the patch `loom suggestion` prints
-		const id = 'a-2026-09-16-hwtkaw';
-		await serve(page, (m) => {
-			m.annotations[id].status = 'open';
-			m.annotations[id].change = { state: 'ready', fragment: 'fragments/suggestions/s.html', diff: 'fragments/suggestions/s.diff', moved: true };
-		});
-		await page.route('**/fragments/suggestions/s.html', (r) =>
-			r.fulfill({ contentType: 'text/html', body: '<div class="env env-proof"><p>By Lemma 1.2, <mark class="review-changed">\\(X\\) is the</mark> disjoint union of orbits of size one or two.</p></div>' })
-		);
-		await page.route('**/fragments/suggestions/s.diff', (r) =>
-			r.fulfill({
-				contentType: 'text/plain',
-				body: '--- a/nodes/sy-0003.tex\n+++ b/nodes/sy-0003.tex\n@@ -10 +10 @@\n-By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.\n+By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.\n'
-			})
-		);
-		const box = await openBox(page, '/node/sy-0004', id);
-		await box.getByTestId('payload-in-place').click();
-		await expect(box.getByTestId('payload-in-place').getAttribute('aria-pressed')).resolves.toBe('true');
-		await expect(box.getByTestId('payload-in-place-view').locator('mark.review-changed')).toBeVisible();
-		// the key changed since the suggestion was written, though the words it quotes still stand
-		await expect(box.getByTestId('payload-moved')).toBeVisible();
-		await box.getByTestId('payload-patch').click();
-		await expect(box.getByTestId('payload-patch-view')).toContainText('the set $X$ is a disjoint union');
-		await expect(box.getByTestId('payload-patch-view')).toContainText('$X$ is the disjoint union');
-		// the view shown, chosen again, gives the payload back
-		await box.getByTestId('payload-patch').click();
-		await expect(box.getByTestId('payload-rendered')).toBeVisible();
-	});
-
-	test('a suggestion with no place in the text says why, and one already taken offers resolve as applied', async ({ page }) => {
-		const id = 'a-2026-09-16-hwtkaw';
-		await serve(page, (m) => {
-			m.annotations[id].status = 'open';
-			m.annotations[id].change = { state: 'unplaced', why: 'the text a-2026-09-16-hwtkaw quotes no longer stands in sy-0004' };
-		});
-		let box = await openBox(page, '/node/sy-0004', id);
-		await expect(box.getByTestId('payload-unplaced')).toContainText('no longer stands');
-		await expect(box.getByTestId('payload-in-place')).toHaveCount(0);
-		await expect(box.getByTestId('payload-rendered')).toBeVisible();
-
-		await page.unroute('**/build/manifest.json');
-		await writes(page, ['resolve']);
-		let sent: Record<string, unknown> | null = null;
-		await page.route('**/_api/resolve', async (r) => {
-			sent = JSON.parse(r.request().postData() ?? '{}');
-			await r.fulfill({ json: { ok: true, result: `resolved as applied ${id}` } });
-		});
-		await serve(page, (m) => {
-			m.annotations[id].status = 'open';
-			m.annotations[id].change = { state: 'taken' };
-		});
-		await page.goto('/node/sy-0004');
-		await pickSession(page, REFEREE);
-		box = await openBox(page, '/node/sy-0004', id);
-		await expect(box.getByTestId('payload-taken')).toHaveText('The text now reads as this suggestion taken.');
-		await box.getByTestId('verb-applied').click();
-		await expect.poll(() => sent).toMatchObject({ annotation: id, applied: true });
-	});
-
-	test('a suggestion resolved as applied says so once', async ({ page }) => {
-		const id = 'a-2026-09-16-hwtkaw';
-		await serve(page, (m) => (m.annotations[id].applied = { hash: 'abc' }));
-		// settled, so drawn only while settled annotations are shown
-		await page.goto('/node/sy-0004');
-		await viewMenu(page);
-		await page.getByTestId('toggle-settled').click();
-		await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
-		const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-		await expect(box.getByTestId('outcome')).toHaveText(' · taken');
+		const line = box.getByTestId('box-edit');
+		await expect(line).toContainText('A suggested edit answers it');
+		await expect(line.locator('a')).toHaveAttribute('href', '/review/proposed#e-2026-09-16-r2hw0m');
+		await expect(box.getByTestId('payload')).toHaveCount(0);
+		await expect(box.getByTestId('verb-apply')).toHaveCount(0);
+		await expect(box.getByTestId('verb-resolve')).toHaveText('resolve');
+		// one no edit answers has no such line
+		const other = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
+		await expect(other.getByTestId('box-edit')).toHaveCount(0);
 	});
 
 	test('resolve is offered only where the type stays open until resolved; one that only informs, or none, has reply, edit and delete', async ({ page }) => {
@@ -748,9 +625,7 @@ test.describe('the box', () => {
 		expect(stripe).toMatchObject(ORANGE);
 		expect(stripe.a).toBeCloseTo(0.5, 1);
 		await expect(box.locator('.body').first()).toHaveCSS('color', 'rgb(95, 94, 90)'); // --ink-soft
-		// a suggestion with text, resolved without being taken
-		await expect(box.locator(':scope > .meta .who')).toContainText('· left');
-		await expect(box.locator(':scope > .meta .who')).not.toContainText('resolved');
+		await expect(box.getByTestId('outcome')).toHaveText(' · resolved');
 		const row = box.locator(':scope > .meta').getByTestId('verb-row');
 		await expect(row.getByTestId('verb-reopen')).toBeVisible();
 		await expect(row.locator('button')).toHaveText(['reopen', 'delete']);

@@ -1,14 +1,14 @@
 // Review › Proposed Changes read from the manifest: one card for each thing someone proposes that the person decides, and what a copy's card says of it. Model facts in, display facts out.
-import type { AdoptionReview, Annotation, IncomingReview, Manifest } from '$lib/manifest/types';
-import { documentOf, toApply } from './suggestions';
+import type { AdoptionReview, IncomingReview, Manifest, SuggestedEdit } from '$lib/manifest/types';
+import { documentOf, openEdits } from './suggestions';
 
 export type Card =
 	| { kind: 'pull'; id: 'pull'; pull: IncomingReview; label: string }
-	| { kind: 'copy'; id: string; copy: AdoptionReview; suggestions: Annotation[] }
-	| { kind: 'suggestion'; id: string; annotation: Annotation }
+	| { kind: 'copy'; id: string; copy: AdoptionReview; edits: SuggestedEdit[] }
+	| { kind: 'edit'; id: string; edit: SuggestedEdit }
 	| { kind: 'results'; id: string; citekey: string; count: number };
 
-type Read = Pick<Manifest, 'nodes' | 'keys' | 'masters'> & Partial<Pick<Manifest, 'regions' | 'annotations' | 'contributions' | 'incoming' | 'references'>>;
+type Read = Pick<Manifest, 'nodes' | 'keys' | 'masters'> & Partial<Pick<Manifest, 'regions' | 'suggested_edits' | 'contributions' | 'incoming' | 'references'>>;
 
 /** The agents' copies waiting to be taken in. */
 export function adoptionsOf(m: Pick<Manifest, 'contributions'>): AdoptionReview[] {
@@ -29,7 +29,7 @@ export function resultsOf(m: Pick<Manifest, 'references'>): { citekey: string; c
 }
 
 /**
- * Everything to decide, in the order the page lists it: the fetched pull, the agents' copies, then suggestions with text, newest first, then the works with results proposed.
+ * Everything to decide, in the order the page lists it: the fetched pull, the agents' copies, then the open suggested edits, newest first, then the works with results proposed.
  *
  * Parameters
  * ----------
@@ -38,22 +38,21 @@ export function resultsOf(m: Pick<Manifest, 'references'>): { citekey: string; c
  * Returns
  * -------
  * Card[]
- *     A suggestion on a copy with a card of its own is on that card, since it comes in with the copy; one on a copy with none has a card, saying so.
+ *     A suggested edit on a copy with a card of its own is on that card, since it comes in with the copy; one on a copy with none has a card, saying so.
  */
 export function cardsOf(m: Read): Card[] {
 	const copies = adoptionsOf(m as Manifest);
-	const onCopy = new Map<string, Annotation[]>(copies.map((c) => [c.copy, []]));
-	const own: Annotation[] = [];
-	for (const a of toApply(m as Manifest)) {
-		const held = onCopy.get(documentOf(m as Manifest, a)?.path ?? '');
-		if (held) held.push(a);
-		else own.push(a);
+	const onCopy = new Map<string, SuggestedEdit[]>(copies.map((c) => [c.copy, []]));
+	const own: SuggestedEdit[] = [];
+	for (const e of openEdits(m)) {
+		const held = onCopy.get(documentOf(m as Manifest, e)?.path ?? '');
+		if (held) held.push(e);
+		else own.push(e);
 	}
-	const notes = own.sort((a, b) => (b.created ?? '').localeCompare(a.created ?? '') || a.id.localeCompare(b.id));
 	return [
 		...(m.incoming ? [{ kind: 'pull' as const, id: 'pull' as const, pull: m.incoming, label: pullLabel(m as Manifest) }] : []),
-		...copies.map((copy) => ({ kind: 'copy' as const, id: copy.copy, copy, suggestions: onCopy.get(copy.copy) ?? [] })),
-		...notes.map((annotation): Card => ({ kind: 'suggestion', id: annotation.id, annotation })),
+		...copies.map((copy) => ({ kind: 'copy' as const, id: copy.copy, copy, edits: onCopy.get(copy.copy) ?? [] })),
+		...own.map((edit): Card => ({ kind: 'edit', id: edit.id, edit })),
 		...resultsOf(m as Manifest).map((w) => ({ kind: 'results' as const, id: w.citekey, ...w }))
 	];
 }

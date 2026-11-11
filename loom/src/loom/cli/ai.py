@@ -546,7 +546,7 @@ def ai_annotations(
 ) -> None:
     """List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.
     """
     from loom.cli._quilt import open_scan
     from loom.records.store import Records
@@ -580,8 +580,6 @@ def ai_annotations(
             "recorded": a.recorded,
             "quote": a.annotation.selector.exact if a.annotation.selector else None,
             "message": a.annotation.body,
-            "payload": a.annotation.payload,
-            "placement": a.annotation.placement,
             # who wrote it, so an agent tells the author's from its own: it answers the author's, and may edit its own
             "author": {"kind": a.annotation.author_kind, "id": a.annotation.author_id},
         }

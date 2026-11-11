@@ -1042,29 +1042,45 @@ def _history_record(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
     refuses(s, "history-record", agent, 403, "author-only", "only the author records")
 
 
+def filed(q: Path, *args: str, who: str = WHO) -> str:
+    """A suggested edit on dm-0002, as `loom suggest` files it; its id."""
+    from tests.helpers import json_of
+
+    return str(json_of("suggest", "dm-0002", *args, "--as", who, "--json", cwd=q)["edit"])
+
+
 @case("suggestion-apply")
 def _suggestion_apply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    s, q, sid = on_demo(serve, tmp_path)
+    s, q, _sid = on_demo(serve, tmp_path)
     lemma = q / "drafting" / "nodes" / "dm-0002.tex"
-    body = {"session": sid, "target": "dm-0002", "message": "Tighten it", "type": "suggestion", "author": WHO}
-    succeeds(
-        s, "annotate", {**body, "quote": "one or two points", "payload": "at most two points", "placement": "replace"}
+    edit = filed(q, "--quote", "one or two points", "--with", "at most two points")
+    refuses(s, "suggestion-apply", {"edit": edit, "author": "Claude Agent"}, 403, "author-only", "only the author")
+    said = succeeds(s, "suggestion-apply", {"edit": edit, "author": WHO})["result"]
+    assert said.startswith(f"applied {edit} in ") and f"kept {edit}" in said
+    assert "at most two points" in lemma.read_text()
+    kept = [json.loads(x) for x in (q / ".loom/edits" / "log.jsonl").read_text().splitlines() if edit in x][-1]
+    assert kept["event"] == "kept" and kept["hash"]
+    refuses(s, "suggestion-apply", {"edit": edit, "author": WHO}, 409, "not-open", "kept already")
+    refuses(s, "suggestion-apply", {"author": WHO}, 400, "missing-field", "edit is required")
+
+
+@case("suggestion-discard")
+def _suggestion_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, _sid = on_demo(serve, tmp_path)
+    edit = filed(q, "--quote", "Every orbit", "--with", "Each orbit", who="Referee Agent")
+    refuses(s, "suggestion-discard", {"edit": edit, "author": "Other Agent"}, 403, "not-yours", "discards only its own")
+    said = succeeds(s, "suggestion-discard", {"edit": edit, "why": "not needed", "author": WHO})["result"]
+    assert said == f"discarded {edit}"
+    assert (
+        succeeds(s, "suggestion-discard", {"edit": edit, "undo": True, "author": WHO})["result"] == f"reopened {edit}"
     )
-    ann = the(log(q), lambda e: e.get("payload") == "at most two points", "the suggestion")["id"]
     refuses(
         s,
-        "suggestion-apply",
-        {"session": sid, "annotation": ann, "author": "Claude Agent"},
-        403,
-        "author-only",
-        "only the author",
-    )
-    said = succeeds(s, "suggestion-apply", {"session": sid, "annotation": ann, "author": WHO})["result"]
-    assert said.startswith("applied the suggestion in ")
-    assert "at most two points" in lemma.read_text()
-    assert [e["event"] for e in events(q, ann)] == ["created", "resolved"] and events(q, ann)[1]["applied"]["hash"]
-    refuses(
-        s, "suggestion-apply", {"session": sid, "annotation": ann, "author": WHO}, 409, "not-open", "resolved already"
+        "suggestion-discard",
+        {"edit": "e-1999-01-01-ekn992", "author": WHO},
+        404,
+        "no-such-edit",
+        "no suggested edit",
     )
 
 

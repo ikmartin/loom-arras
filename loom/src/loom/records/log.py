@@ -170,8 +170,6 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         body=str(event.get("body", "")),
         status="open",
         in_reply_to=event.get("reply_to"),
-        payload=event.get("payload"),
-        placement=event.get("placement"),
         page=event["page"] if isinstance(event.get("page"), int) and not isinstance(event.get("page"), bool) else None,
         rects=event["rects"] if isinstance(event.get("rects"), list) else None,
         strokes=event["strokes"] if isinstance(event.get("strokes"), list) else None,
@@ -234,7 +232,7 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             continue
         _src, ann = found
         if kind == "edited":
-            for f in ("body", "payload", "placement"):
+            for f in ("body",):
                 if f in event:
                     setattr(ann, f, event[f])
             # moved or redrawn on its page: strokes carry their rectangle with them
@@ -256,7 +254,6 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             undo = bool(event.get("undo"))
             ann.status = "open" if undo else "resolved"
             ann.resolved_why = None if undo else (str(event.get("body") or "") or None)
-            ann.applied = None if undo or not isinstance(event.get("applied"), dict) else dict(event["applied"])
     out: list[Record] = []
     for src in order:
         out.append(Record(path=p, rel=src, annotations=by_source[src]))

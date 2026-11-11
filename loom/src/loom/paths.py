@@ -45,6 +45,9 @@ NODES = "nodes"
 #: The acceptance ledger, written only by `loom accept`.
 LEDGER = f"{LOOM}/state.toml"
 ANNOTATION_LOG = f"{ANNOTATIONS}/log.jsonl"
+#: Suggested edits, and what the person did with each: their own log (`records/edits.py`).
+EDITS = f"{LOOM}/edits"
+EDIT_LOG = f"{EDITS}/log.jsonl"
 #: The quilt's annotation types: presets a person picks from and an agent reads, written by `loom init` with the defaults.
 ANNOTATION_TYPES = f"{LOOM}/annotation-types.toml"
 #: The running server's address and token.

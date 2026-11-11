@@ -29,7 +29,7 @@ _DRY = "Say what would be written; write nothing."
 @quilt_option
 @_works.logged("review")
 def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
-    """List what waits for you to review: proposed results and open citation suggestions, one line each with its id.
+    """List what waits for you to review: proposed results, one line each with its id.
 
     With WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.
     """

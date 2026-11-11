@@ -163,24 +163,29 @@ def test_compile_failure_reports_first_error(tmp_path: Path, monkeypatch) -> Non
     assert "! LaTeX Error" in exits(1, "compile", cwd=d).output
 
 
-def test_with_names_a_file_first_and_then_a_suggestion(tmp_path: Path) -> None:
-    """`--with` gave a bare FileNotFoundError traceback (F15); a suggestion's payload is compiled in its quote's place, as `loom suggestion` prints it."""
+def test_with_names_a_file_first_and_then_a_suggested_edit(tmp_path: Path) -> None:
+    """`--with` gave a bare FileNotFoundError traceback (F15); a suggested edit's text is compiled in its quote's place, as `loom suggestion` prints it."""
     d = demo(tmp_path)
     missing = refused(
-        "compile", "dm-0002", "--with", "nope.tex", cwd=d, code=2, match="no such file, and no annotation has that id"
+        "compile",
+        "dm-0002",
+        "--with",
+        "nope.tex",
+        cwd=d,
+        code=2,
+        match="no such file, and no suggested edit has that id",
     )
     assert "Traceback" not in missing.output
 
     c = ok(
-        "annotate", "dm-0002", "Tighten it", "--type", "suggestion", "--quote", "one or two points",
-        "--payload", "at most two points", "--placement", "replace", "--as", "Tom", cwd=d,
+        "suggest", "dm-0002", "--quote", "one or two points", "--with", "at most two points", "--as", "Tom", cwd=d,
     )  # fmt: skip
     ann = c.stdout.split()[0]
     ok("compile", "dm-0002", "--with", ann, cwd=d)
     closure = (d / ".loom/build" / "closures" / "dm-0002.tex").read_text()
     assert "at most two points" in closure and "one or two points" not in closure
 
-    refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="is on dm-0002, not dm-0003")
+    refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="that edit is on dm-0002, not dm-0003")
 
 
 def test_a_readable_pdf_is_not_a_failure(tmp_path: Path) -> None:

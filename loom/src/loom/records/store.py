@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
-from loom.paths import ANNOTATION_LOG, LINKS, REVIEW_OBSERVATIONS
+from loom.paths import ANNOTATION_LOG, EDIT_LOG, LINKS, REVIEW_OBSERVATIONS
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
@@ -634,10 +634,15 @@ class Records:
         diags: list[Diagnostic] = []
         for p in self.problems:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid review record: {p}", []))
+        from loom.records.edits import replay as replay_edits
+
+        for p in replay_edits(self.root)[1]:
+            diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid suggested edit: {p}", []))
         for p in self.types.problems:
             diags.append(Diagnostic("warning", "loom:annotation-types", p, [], subject="record"))
         for rel, events in (
             (ANNOTATION_LOG, ("created", "replied")),
+            (EDIT_LOG, ("created",)),
             (SESSION_INDEX, ("created",)),
             (LINKS, ()),
         ):
@@ -891,11 +896,7 @@ class Records:
                 "mark": a.mark,
                 "origin": a.origin,
                 "hides": res.hides,
-                "payload": a.payload,
-                "placement": a.placement,
                 "resolved_why": a.resolved_why,
-                # a suggestion resolved as applied: the hash its key had once it was taken
-                "applied": a.applied,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

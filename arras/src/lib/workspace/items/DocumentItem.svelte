@@ -138,7 +138,7 @@
 		<div class="gutters-host"><div class="gutters"><div class="column">
 		{#if master.closed}<p>Closed agent document · saved {master.closed_at?.slice(0, 10)}. Its text and annotations are preserved.</p><DraftActions {master}/>{:else}<p>Paper context saved when this section draft was created or refreshed.</p>{/if}
 		<Fragment path={master.fragment} macroSet={master.macros ?? ''} standalone anchor={item.anchor ?? ''} jump={item.seq}/>
-		{#each master.closed_annotations ?? [] as a}<section id={a.id}><h3>{a.author.id} · {a.created}</h3><p>{typeName(m, a)} · {a.status}</p>{#if a.quote}<blockquote>{a.quote}</blockquote>{/if}<Prose html={a.body_html} macroSet={master.macros}/>{#if a.payload_html}<Prose html={a.payload_html} macroSet={master.macros}/>{/if}</section>{/each}
+		{#each master.closed_annotations ?? [] as a}<section id={a.id}><h3>{a.author.id} · {a.created}</h3><p>{typeName(m, a)} · {a.status}</p>{#if a.quote}<blockquote>{a.quote}</blockquote>{/if}<Prose html={a.body_html} macroSet={master.macros}/></section>{/each}
 		</div></div></div>
 	{:else if !m.masters.length}
 		<h1>Read</h1>

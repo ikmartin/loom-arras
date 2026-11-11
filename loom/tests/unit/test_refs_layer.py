@@ -1683,7 +1683,13 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     exits(1, "build", cwd=q)
     manifest = json.loads((q / ".loom/build" / "manifest.json").read_text())
     ref = manifest["references"]["Bellamy19"]
-    assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 2
+    assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 1
+    # open counts only what is of a type that stays open: the question, and not the note, which only informs
+    staying = {t["id"] for t in manifest["annotation_types"] if t["open"]}
+    on_work = [x for x in manifest["annotations"].values() if x["target"].get("work") == "Bellamy19"]
+    asking = [x for x in on_work if x["status"] == "open" and not x["in_reply_to"] and x["type"] in staying]
+    assert ref["reading"]["open"] == len(asking) and a in {x["id"] for x in asking}
+    assert b not in {x["id"] for x in asking}
     assert manifest["annotations"][a]["target"] == {
         "key": "doi:10.4171/showcase/19-2",
         "hash": manifest["annotations"][a]["target"]["hash"],

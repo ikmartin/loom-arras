@@ -280,7 +280,7 @@ def render(events: list[Event]) -> str:
 
 
 def render_changes(changed: list[dict[str, Any]]) -> str:
-    """The annotations a message carries, or `loom since` reports, as an agent reads them: one line each, then the words it is on, its body and what it proposes."""
+    """The annotations a message carries, or `loom since` reports, as an agent reads them: one line each, then the words it is on and its body."""
     lines: list[str] = []
     for c in changed:
         who = c.get("by", "")
@@ -295,8 +295,6 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
             lines.append(f'      on "{c["quote"]}"')
         if c.get("body"):
             lines.append(f'      "{c["body"]}"')
-        if c.get("payload"):
-            lines.append(f"      proposes ({c.get('placement') or 'replace'}): {c['payload']}")
     return "\n".join(lines)
 
 
@@ -324,7 +322,7 @@ def work_of(root: Path, annotation: Any) -> str | None:
 
 
 def annotation_row(root: Path, a: Any) -> dict[str, Any]:
-    """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on and what it proposes.
+    """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on.
 
     A page note's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
     """
@@ -340,9 +338,6 @@ def annotation_row(root: Path, a: Any) -> dict[str, Any]:
     }
     if a.selector is not None and a.selector.exact:
         row["quote"] = a.selector.exact
-    for field in ("payload", "placement"):
-        if getattr(a, field):
-            row[field] = getattr(a, field)
     return row
 
 

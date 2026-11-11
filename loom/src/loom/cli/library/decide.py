@@ -1,6 +1,6 @@
 """`loom library verify | discard | ignore` (plan 0.18.5): the author's decisions about what the library holds.
 
-`verify` and `discard` take result ids and citation suggestions' annotation ids alike, the id's shape saying which. All three are the author's and refuse an agent.
+`verify` and `discard` take result ids; an annotation id is refused by name. All three are the author's and refuse an agent.
 """
 
 from __future__ import annotations
@@ -299,19 +299,9 @@ def _ignore_key(result: ScanResult, work: str) -> str:
     return ck
 
 
-def _short(text: str | None, width: int = 60) -> str:
-    """A suggestion's work, cut at a word for a one-line item; the JSON keeps it whole."""
-    text = " ".join((text or "").split())
-    return text if len(text) <= width else text[:width].rsplit(" ", 1)[0] + "…"
-
-
 def _counted(targets: list[tuple[str, str, Any]]) -> str:
-    """`2 results and 1 citation suggestion`, from resolved targets."""
-    results = sum(1 for k, _, _ in targets if k == "result")
-    citations = len(targets) - results
-    parts = [counted(results, "result")] if results else []
-    parts += [counted(citations, "citation suggestion")] if citations else []
-    return " and ".join(parts)
+    """`2 results`, from resolved targets."""
+    return counted(len(targets), "result")
 
 
 #: The commands this module adds to `loom library`.

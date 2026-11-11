@@ -17,6 +17,6 @@ test('Review leads with the changes since the look, each file with its diff, and
 	await expect(page.getByTestId('change-keep')).toHaveCount(0);
 	await page.getByTestId('section-proposed').click();
 	await expect(page.getByTestId('proposed')).toBeVisible();
-	// a suggestion opens in the document that reads it, at its place, with it open there
-	await expect(page.getByTestId('suggestion-open').first()).toHaveAttribute('href', /^\/master\/drafting\/main\?note=a-[\d-]+/);
+	// a suggested edit opens in the document that reads it, at its place
+	await expect(page.getByTestId('suggestion-open').first()).toHaveAttribute('href', /^\/master\/drafting\/main#sy-0002$/);
 });

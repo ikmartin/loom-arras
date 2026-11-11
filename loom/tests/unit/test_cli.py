@@ -45,10 +45,11 @@ def test_stdin_holds_one_text(tmp_path: Path) -> None:
     q = demo(tmp_path)
     before = bodies(q)
     refused(
-        "annotate", "dm-0002", "-", "--type", "suggestion", "--payload", "-", *AS,
-        cwd=q, code=2, match="MESSAGE and --payload are both -", stdin=LATEX,
+        "library", "propose", "Calloway14", "--local", "rem-9.1", "--level", "1", "--page", "1",
+        "--source-text", "-", "--statement", "-", *AS,
+        cwd=q, code=2, match="--source-text and --statement are both -", stdin=LATEX,
     )  # fmt: skip
-    refused("annotate", "--batch", "--payload", "-", *AS, cwd=q, code=2, match="--batch reads its lines from stdin")
+    refused("annotate", "-", "--batch", *AS, cwd=q, code=2, match="--batch reads its lines from stdin")
     assert bodies(q) == before
 
 
@@ -84,4 +85,5 @@ def test_every_patch_loom_prints_applies_with_git_apply_as_it_stands(tmp_path: P
     _applies(q, ok("fork", "dm-0001", "--in", "drafting/main.tex", "--dry-run", cwd=q).stdout)
     (q / "drafting" / "extra.tex").write_text("\\begin{lemma}\nA.\n\\end{lemma}\n")
     _applies(q, ok("id", "drafting/extra.tex", cwd=q).stdout)
-    _applies(q, ok("suggestion", "a-2026-09-16-hwtkaw", cwd=q).stdout)
+    shipped = json_of("suggestion", "--json", cwd=q)["edits"][0]["id"]  # the demo's open suggested edit
+    _applies(q, ok("suggestion", shipped, cwd=q).stdout)

@@ -7,7 +7,7 @@
    "read_only_hint": true
   },
   "command": "loom ai annotations",
-  "description": "List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.",
+  "description": "List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -156,10 +156,6 @@
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "applied": {
-     "description": "With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
-     "type": "boolean"
-    },
     "box": {
      "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. With --edit, where a drawn one stands now.",
      "type": "string"
@@ -188,7 +184,7 @@
      "type": "boolean"
     },
     "edit": {
-     "description": "Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor.",
+     "description": "Restate an annotation: a new body, --type, a look, or where a drawn one stands; never its anchor.",
      "type": "string"
     },
     "in": {
@@ -222,19 +218,6 @@
     "page": {
      "description": "Page N of a PDF: a cited work (TARGET a citekey or a work identifier) or a project PDF by its path; with --quote, --box or --stroke.",
      "type": "integer"
-    },
-    "payload": {
-     "description": "A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin.",
-     "type": "string"
-    },
-    "placement": {
-     "description": "Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment.",
-     "enum": [
-      "replace",
-      "after",
-      "before"
-     ],
-     "type": "string"
     },
     "quote": {
      "description": "Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page.",
@@ -386,7 +369,7 @@
      "type": "string"
     },
     "with": {
-     "description": "Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
+     "description": "Substitute a unified diff, a .tex file, or a suggested edit's text (by its id) for KEY's text; the quilt is not touched.",
      "type": "string"
     }
    },
@@ -969,7 +952,7 @@
    "read_only_hint": true
   },
   "command": "loom library review",
-  "description": "List what waits for you to review: proposed results and open citation suggestions, one line each with its id.\n\nWith WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.",
+  "description": "List what waits for you to review: proposed results, one line each with its id.\n\nWith WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1425,7 +1408,7 @@
    "read_only_hint": false
   },
   "command": "loom since",
-  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, deleted or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
+  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on and what they propose; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1577,30 +1560,136 @@
  {
   "annotations": {
    "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom suggest",
+  "description": "File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.\n\nThe person keeps or discards it: `loom suggestion apply ID` writes it into the file and keeps it, `loom suggestion discard ID` leaves the text as it is. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\\uses{…}` is proposed.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "description": "Put the new text right after the quoted words, or at the end of the body.",
+     "type": "boolean"
+    },
+    "answers": {
+     "description": "The annotation it answers; keeping the edit resolves it.",
+     "type": "string"
+    },
+    "before": {
+     "description": "Put the new text right before the quoted words, or at the head of the body.",
+     "type": "boolean"
+    },
+    "comment": {
+     "description": "What to say beside it, in Markdown.",
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Say what would be filed, and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "key": {
+     "type": "string"
+    },
+    "quote": {
+     "description": "The words it replaces, once in the key's own text; without it, the key's body.",
+     "type": "string"
+    },
+    "with": {
+     "description": "The new text; '' deletes the quoted words, and - reads it from stdin.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "with"
+   ],
+   "type": "object"
+  },
+  "name": "loom_suggest"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
    "idempotent_hint": true,
    "open_world_hint": false,
    "read_only_hint": true
   },
   "command": "loom suggestion",
-  "description": "Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it; `loom suggestion apply ANNOTATION` does both, and is the author's.",
+  "description": "List suggested edits, or with EDIT print the patch that takes it: its new text in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `before` and `after` go right beside them; with no quote, of the key's body. `loom suggestion apply EDIT` writes it in and keeps it, and is the author's; `loom suggestion discard EDIT` discards it, which an agent may do to its own.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "annotation": {
-     "description": "The suggestion, by its id.",
+    "by": {
+     "description": "Only the edits NAME suggested.",
+     "type": "string"
+    },
+    "edit": {
+     "description": "A suggested edit, by its id, to print the patch that takes it; with none, the edits.",
      "type": "string"
     },
     "json": {
      "description": "Print the report as one JSON object.",
      "type": "boolean"
+    },
+    "status": {
+     "default": "open",
+     "description": "Only the edits in this state.",
+     "enum": [
+      "open",
+      "kept",
+      "discarded"
+     ],
+     "type": "string"
+    },
+    "target": {
+     "description": "Only the edits on KEY.",
+     "type": "string"
     }
    },
-   "required": [
-    "annotation"
-   ],
    "type": "object"
   },
   "name": "loom_suggestion"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom suggestion discard",
+  "description": "Discard suggested edit EDIT, leaving the text as it is; a person discards any edit, an agent only its own. --undo opens it again.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "edit_id": {
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "undo": {
+     "description": "Open a kept or discarded edit again.",
+     "type": "boolean"
+    },
+    "why": {
+     "description": "Why it is discarded, which the agent that suggested it reads.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "edit_id"
+   ],
+   "type": "object"
+  },
+  "name": "loom_suggestion_discard"
  },
  {
   "annotations": {

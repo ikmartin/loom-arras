@@ -249,15 +249,33 @@ An annotation carries its author, its time and the version of the text it was wr
 | `--as` `NAME` | Who is writing; an agent names itself, with Agent or AI in the name. |
 | `--reply` `ID` | Answer annotation ID; the message is the reply. |
 | `--resolve` `ID` | Mark annotation ID resolved, with the message as why. |
-| `--edit` `ID` | Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor. |
+| `--edit` `ID` | Restate an annotation: a new body, --type, a look, or where a drawn one stands; never its anchor. |
 | `--delete` `ID` | Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked. |
-| `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin. |
-| `--placement` | Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment. |
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
 | `--undo` | With --resolve, open the annotation again: an undo is another event, never a removal. |
-| `--applied` | With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--dry-run` | Say what would be written, and write nothing. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom suggest`
+
+`loom suggest [OPTIONS] KEY`
+
+File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.
+
+The person keeps or discards it: `loom suggestion apply ID` writes it into the file and keeps it, `loom suggestion discard ID` leaves the text as it is. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\uses{…}` is proposed.
+
+| option | description |
+|---|---|
+| `--with` `NEW` | The new text; '' deletes the quoted words, and - reads it from stdin. |
+| `--quote` `OLD` | The words it replaces, once in the key's own text; without it, the key's body. |
+| `--before` | Put the new text right before the quoted words, or at the head of the body. |
+| `--after` | Put the new text right after the quoted words, or at the end of the body. |
+| `--answers` `ID` | The annotation it answers; keeping the edit resolves it. |
+| `--comment` `TEXT` | What to say beside it, in Markdown. |
+| `--as` `NAME` | Who suggests it; an agent names itself, with Agent or AI in the name. |
+| `--dry-run` | Say what would be filed, and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -265,30 +283,47 @@ An annotation carries its author, its time and the version of the text it was wr
 
 `loom suggestion [OPTIONS]`
 
-`loom suggestion [OPTIONS] [ANNOTATION | apply ANNOTATION]`
+`loom suggestion [OPTIONS] [EDIT | apply EDIT | discard EDIT]`
 
 Run alone, `loom suggestion` is a command; its subcommands follow its options.
 
-Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now.
+List suggested edits, or with EDIT print the patch that takes it: its new text in place, against its key's text now.
 
-`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it; `loom suggestion apply ANNOTATION` does both, and is the author's.
+`replace` takes exactly the quoted words' place; `before` and `after` go right beside them; with no quote, of the key's body. `loom suggestion apply EDIT` writes it in and keeps it, and is the author's; `loom suggestion discard EDIT` discards it, which an agent may do to its own.
 
 | option | description |
 |---|---|
+| `--by` `NAME` | Only the edits NAME suggested. |
+| `--target` `KEY` | Only the edits on KEY. |
+| `--status` | Only the edits in this state. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom suggestion apply`
 
-`loom suggestion apply [OPTIONS] ANNOTATION`
+`loom suggestion apply [OPTIONS] EDIT`
 
-Write suggestion ANNOTATION into its file and resolve it as applied, keeping a version of each document it changes first.
+Write suggested edit EDIT into its file and keep it, keeping a version of each document it changes first.
 
-The author's act. Refused for a suggestion with no text to put in, one whose quote no longer stands once, one already resolved or withdrawn, and one on an agent's copy, whose changes come in with the copy.
+The author's act. Refused for an edit that is not open, one whose quote no longer stands once, and one on an agent's copy, whose changes come in with the copy. An edit whose key reads as it taken already is kept without writing. Keeping one that answers an open annotation resolves that annotation.
 
 | option | description |
 |---|---|
 | `--as` `NAME` | Who is applying it; default your [author] name. |
+| `--json` | Print the report as one JSON object. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom suggestion discard`
+
+`loom suggestion discard [OPTIONS] EDIT`
+
+Discard suggested edit EDIT, leaving the text as it is; a person discards any edit, an agent only its own. --undo opens it again.
+
+| option | description |
+|---|---|
+| `--why` | Why it is discarded, which the agent that suggested it reads. |
+| `--undo` | Open a kept or discarded edit again. |
+| `--as` `NAME` | Who is discarding it; an agent discards only its own. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -707,7 +742,7 @@ Assert a typed relation between two results, FROM and TO, with a reason; with --
 
 `loom library review [OPTIONS] [WORK]`
 
-List what waits for you to review: proposed results and open citation suggestions, one line each with its id.
+List what waits for you to review: proposed results, one line each with its id.
 
 With WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.
 
@@ -954,7 +989,7 @@ The viewer tab they touched last reports it to `loom serve`, which keeps it in m
 
 Report what people did since you last looked, and move your marker past it.
 
-People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, deleted or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
 
 | option | description |
 |---|---|
@@ -992,7 +1027,7 @@ Set up the agent layer and read what an agent works from: its orientation, its d
 
 List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.
 
 | option | description |
 |---|---|
@@ -1174,7 +1209,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | option | description |
 |---|---|
 | `--engine` | Override the document's engine. |
-| `--with` `FILE` | Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched. |
+| `--with` `FILE` | Substitute a unified diff, a .tex file, or a suggested edit's text (by its id) for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--session` `SESSION` | Log this call to the session. |
 | `--json` | Print the report as one JSON object. |

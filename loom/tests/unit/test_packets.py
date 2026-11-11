@@ -95,19 +95,10 @@ def test_a_carried_annotation_is_whole(q: Path) -> None:
         "finite set",
         "--type",
         "suggestion",
-        "--payload",
-        "a finite set $X$",
-        "--placement",
-        "replace",
     )
     [row] = pending(q, session(), "A. Author")
     assert row["body"] == long
-    assert (row["quote"], row["payload"], row["placement"], row["type"]) == (
-        "finite set",
-        "a finite set $X$",
-        "replace",
-        "suggestion",
-    )
+    assert (row["quote"], row["type"]) == ("finite set", "suggestion")
 
 
 def test_the_preview_is_the_text_the_agent_reads(q: Path) -> None:
@@ -122,13 +113,9 @@ def test_the_preview_is_the_text_the_agent_reads(q: Path) -> None:
         "finite set",
         "--type",
         "suggestion",
-        "--payload",
-        "a finite set",
-        "--placement",
-        "after",
     )
     preview = render_changes(pending(q, session(), "A. Author"))
-    assert 'on "finite set"' in preview and '"Say which."' in preview and "proposes (after): a finite set" in preview
+    assert 'on "finite set"' in preview and '"Say which."' in preview
     ok("session", "say", "--session", sid, "--as", "A. Author", cwd=q)
     said = render(read_events(q, sid))
     assert said.endswith(preview)

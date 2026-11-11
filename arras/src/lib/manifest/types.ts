@@ -426,18 +426,33 @@ export interface Annotation {
   anchored: boolean;
   detached: boolean;
   quote?: string;
-  /** Replacement text the annotation proposes, which the author applies; '' with `replace` deletes the quoted words. */
-  payload?: string | null;
-  /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
-  payload_html?: string | null;
-  /** Where the payload goes: `replace` takes exactly the quoted words' place, `after` and `before` go right beside them; with no quote, of the key's body. */
-  placement?: string | null;
-  /** An open suggestion's key as it would read with the suggestion taken: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why the payload has no place. */
-  change?: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string };
   /** Why it was resolved, when it was. */
   resolved_why?: string | null;
-  /** A suggestion resolved as applied: its key's hash once the suggestion was taken. */
-  applied?: { hash: string } | null;
+}
+
+/** A suggested edit (specs/manifest.md §9.2): words a writer proposes to put in place of a quote, beside it or for it, which the person keeps or discards. */
+export interface SuggestedEdit {
+  id: string;
+  author: Author;
+  created: string;
+  target: { key: string; hash: string };
+  /** The words it replaces, or stands beside; with none, the key's body. */
+  quote: string | null;
+  /** What it puts in; '' with `replace` deletes the quoted words. */
+  with: string;
+  /** `with` as the publisher's converter renders it in the context of its key; null when it could not be. */
+  with_html: string | null;
+  /** `replace` takes exactly the quote's place, `after` and `before` go right beside it. */
+  placement: string;
+  comment: string | null;
+  comment_html: string | null;
+  /** The annotation it answers, or null. */
+  answers: string | null;
+  status: 'open' | 'kept' | 'discarded';
+  /** Why it was discarded, when it was. */
+  why: string | null;
+  /** An open one's key as it would read with it kept: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why it has no place. Null once kept or discarded. */
+  change: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string } | null;
 }
 
 export interface Attachment {
@@ -684,6 +699,8 @@ export interface Manifest {
   inclusion: Record<string, InclusionNode>;
   states: States;
   annotations: Record<string, Annotation>;
+  /** Every suggested edit, by id (specs/manifest.md §9.2). */
+  suggested_edits?: Record<string, SuggestedEdit>;
   /** The quilt's annotation types, in its file's order (specs/manifest.md §1). */
   annotation_types?: AnnotationType[];
   threads: Record<string, Thread>;

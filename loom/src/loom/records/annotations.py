@@ -13,8 +13,6 @@ from loom.anchors import Anchor
 from loom.records.ids import draw
 from loom.records.selectors import Selector
 
-PLACEMENTS = ("replace", "after", "before")
-
 
 @dataclass
 class Annotation:
@@ -34,18 +32,10 @@ class Annotation:
     drawn: dict[str, Any] = field(default_factory=dict)
     anchor: Anchor | None = None  # the page anchor of a note on a cited work's page; None on a key (plan 0.13 item 2)
     in_reply_to: str | None = None
-    payload: str | None = (
-        None  # suggested text; loom shows it in place and prints it as a patch, and the author applies it
-    )
-    placement: str | None = (
-        None  # replace (exactly the quote) | after | before (beside it); with no quote, of the key's body (records/suggestions.py)
-    )
     #: The document this is read in, for a claim about a node that holds only there (plan 0.15, decision 9); None means the node wherever it appears.
     in_doc: str | None = None
     #: Why it was resolved, from the resolving event's body; replayed.
     resolved_why: str | None = None
-    #: A suggestion resolved as applied: `{hash}`, its key's text once the suggestion was taken.
-    applied: dict[str, Any] | None = None
     #: On a PDF page without a page anchor (`records/marks.py`): the page, its place and strokes in points from the page's top left, the drawing tool, the PDF's hash and where an import came from.
     page: int | None = None
     rects: list[list[float]] | None = None
@@ -69,10 +59,7 @@ class Annotation:
             "body": self.body,
             "status": self.status,
             "in_reply_to": self.in_reply_to,
-            "payload": self.payload,
-            "placement": self.placement,
             "resolved_why": self.resolved_why,
-            "applied": self.applied,
             **{
                 k: getattr(self, k)
                 for k in ("page", "rects", "strokes", "mark", "artifact", "origin")
@@ -100,10 +87,7 @@ class Annotation:
             body=str(d.get("body", "")),
             status=str(d.get("status", "open")),
             in_reply_to=d.get("in_reply_to"),
-            payload=d.get("payload"),
-            placement=d.get("placement"),
             resolved_why=d.get("resolved_why"),
-            applied=d.get("applied") if isinstance(d.get("applied"), dict) else None,
             page=d.get("page") if isinstance(d.get("page"), int) else None,
             rects=d.get("rects") if isinstance(d.get("rects"), list) else None,
             strokes=d.get("strokes") if isinstance(d.get("strokes"), list) else None,

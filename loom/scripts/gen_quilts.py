@@ -64,7 +64,7 @@ class Gen:
     def run(self, *args: str, expect: int = 0, agent: bool = False) -> str:
         from loom.cli import main
 
-        if agent and args[0] == "annotate" and "--as" not in args:
+        if agent and args[0] in ("annotate", "suggest") and "--as" not in args:
             args = (
                 *args,
                 "--as",
@@ -247,7 +247,7 @@ def build_synthetic(dest: Path) -> None:
         "finite widget",
         agent=True,
     )
-    g.run(
+    cite = g.run(
         "annotate",
         "sy-0004",
         "Cite the orbit lemma by number here.",
@@ -255,10 +255,17 @@ def build_synthetic(dest: Path) -> None:
         "suggestion",
         "--quote",
         "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
-        "--payload",
+        agent=True,
+    ).split()[0]
+    g.run(
+        "suggest",
+        "sy-0004",
+        "--quote",
+        "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
+        "--with",
         "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-        "--placement",
-        "replace",
+        "--answers",
+        cite,
         agent=True,
     )
     g.run(
@@ -438,23 +445,20 @@ def build_synthetic(dest: Path) -> None:
         AUTHOR,
     )
 
-    # The commands an agent runs again and again while it reads, which What it did gathers into a row each, and an open suggestion carrying text to put in, which Review › Suggestions applies.
+    # The commands an agent runs again and again while it reads, which What it did gathers into a row each, and an open suggested edit, which the author keeps or discards.
     g.at("2026-09-17T09:00:00Z")
     for _ in range(3):
         g.run("source", "sy-0002", "--session", referee, agent=True)
     g.run("deps", "sy-0003", "--session", referee, agent=True)
     g.run(
-        "annotate",
+        "suggest",
         "sy-0002",
-        "Say what the comparison shows.",
-        "--type",
-        "suggestion",
         "--quote",
         "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-        "--payload",
+        "--with",
         "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-        "--placement",
-        "replace",
+        "--comment",
+        "Say what the comparison shows.",
         agent=True,
     )
     g.at("2026-09-16T11:30:00Z")
@@ -572,16 +576,20 @@ def build_demo(dest: Path) -> None:
     g.at("2026-09-16T14:02:00Z")
     run_dir = g.run("session", "new", "--name", "referee-dm-0003").split()[0]
     g.at("2026-09-16T14:31:00Z")
-    g.run(
+    split = g.run(
         "annotate",
         "dm-0003",
         "The theorem assumes $X$ finite for the parity claim, but the closedness claim needs no finiteness; consider splitting the statement.",
         "--type",
         "suggestion",
-        "--payload",
+    ).split()[0]
+    g.run(
+        "suggest",
+        "dm-0003",
+        "--with",
         "Let $(X,\\sigma)$ be a widget. Then $\\Fix(\\sigma)$ is closed in every topology on $X$ for which $\\sigma$ is continuous and $X$ is Hausdorff; if moreover $X$ is finite, $\\Fix(\\sigma)$ is nonempty if and only if $|X|$ is odd.",
-        "--placement",
-        "replace",
+        "--answers",
+        split,
     )
     g.run(
         "annotate",
@@ -880,7 +888,7 @@ def build_showcase(dest: Path) -> None:
         "Referee (Agent)",
         agent=True,
     )
-    g.run(
+    expanded = g.run(
         "annotate",
         "sh-0009/proof",
         "The kernel--image count is right but compressed into one clause. A reader checking it has to supply the "
@@ -889,11 +897,20 @@ def build_showcase(dest: Path) -> None:
         "suggestion",
         "--quote",
         "the rank of the kernel is the rank of the source less the rank of the image",
-        "--payload",
+        "--as",
+        "Referee (Agent)",
+        agent=True,
+    ).split()[0]
+    g.run(
+        "suggest",
+        "sh-0009/proof",
+        "--quote",
+        "the rank of the kernel is the rank of the source less the rank of the image",
+        "--with",
         "the sequence $0 \\to \\Zcyc(\\quiv) \\to W(\\quiv) \\to \\operatorname{im} \\bd \\to 0$ is exact and "
         "$\\operatorname{im} \\bd$ is free, so it splits and the ranks add",
-        "--placement",
-        "replace",
+        "--answers",
+        expanded,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -926,16 +943,24 @@ def build_showcase(dest: Path) -> None:
         "Referee (Agent)",
         agent=True,
     )
-    g.run(
+    named = g.run(
         "annotate",
         "sh-0004",
         "Worth naming the quotient here: it is the group the divergence map lands in, and it is used twice later.",
         "--type",
         "suggestion",
-        "--payload",
+        "--as",
+        "Referee (Agent)",
+        agent=True,
+    ).split()[0]
+    g.run(
+        "suggest",
+        "sh-0004",
+        "--with",
         "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
-        "--placement",
-        "after",
+        "--after",
+        "--answers",
+        named,
         "--as",
         "Referee (Agent)",
         agent=True,

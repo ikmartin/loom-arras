@@ -41,6 +41,7 @@ class Since:
     first: bool
     annotations: list[dict[str, Any]] = field(default_factory=list)
     acts: list[dict[str, Any]] = field(default_factory=list)
+    edits: list[dict[str, Any]] = field(default_factory=list)
     accepted: list[dict[str, Any]] = field(default_factory=list)
     stale: list[dict[str, Any]] = field(default_factory=list)
     state: list[dict[str, Any]] = field(default_factory=list)
@@ -51,7 +52,14 @@ class Since:
     @property
     def empty(self) -> bool:
         return not (
-            self.annotations or self.acts or self.accepted or self.stale or self.state or self.said or self.ticks
+            self.annotations
+            or self.acts
+            or self.edits
+            or self.accepted
+            or self.stale
+            or self.state
+            or self.said
+            or self.ticks
         )
 
     def to_json(self) -> dict[str, Any]:
@@ -62,6 +70,7 @@ class Since:
             "to": self.marker.when if self.marker else self.start,
             "annotations": self.annotations,
             "acts": self.acts,
+            "edits": self.edits,
             "accepted": self.accepted,
             "stale": self.stale,
             "state": self.state,
@@ -200,12 +209,37 @@ def since(result: ScanResult, name: str) -> Since:
     stale = {k for k, ks in states.items() if ks.state == "accepted" and not ks.fresh}
     _annotations(root, name, new, out)
     _deleted(root, name, new, out)
+    _edits(root, name, new, out)
     _acceptances(result, window, new, out, states, stale)
     current = _state(result, window, new, out)
     _said(root, new, out)
     _ticks(result, new, out)
     out.marker = Marker(when=now, seen=marks, stale=stale, state=current)
     return out
+
+
+def _edits(root: Path, name: str, new: Any, out: Since) -> None:
+    """What a person did to `name`'s suggested edits since it last looked: kept, discarded or reopened, each once."""
+    from loom.records.edits import replay
+
+    for edit in replay(root)[0]:
+        if edit.author_id != name:
+            continue
+        for e in edit.acts:
+            when = str(e.get("when", ""))
+            if e.get("kind") == "agent" or not new(when, f"{e.get('event')}:{edit.id}:{when}"):
+                continue
+            out.edits.append(
+                {
+                    "id": edit.id,
+                    "act": str(e.get("event")),
+                    "target": edit.target_key,
+                    "by": str(e.get("author", "")),
+                    "when": when,
+                    "why": str(e.get("why") or ""),
+                    "answers": edit.answers,
+                }
+            )
 
 
 def _deleted(root: Path, name: str, new: Any, out: Since) -> None:
@@ -229,7 +263,7 @@ def _deleted(root: Path, name: str, new: Any, out: Since) -> None:
 
 
 def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
-    """A person's annotations and replies, whole, then what a person did to an annotation: resolved, applied or reopened."""
+    """A person's annotations and replies, whole, then what a person did to an annotation: resolved or reopened."""
     from loom.mailbox import annotation_row
     from loom.records.annotations import load_records
     from loom.records.log import log_path
@@ -267,7 +301,7 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
             out.annotations.append(row)
         elif kind == "resolved" and aid not in made:
             undo = bool(e.get("undo"))
-            act = "reopened" if undo else ("applied" if e.get("applied") else kind)
+            act = "reopened" if undo else kind
             row = {
                 "id": aid,
                 "act": act,
