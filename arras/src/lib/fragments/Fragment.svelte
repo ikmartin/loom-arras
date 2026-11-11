@@ -15,6 +15,7 @@
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
+	import { hold, type Hold } from './hold';
 	import { keep, take } from './kept';
 	import { parse, patch } from './patch';
 
@@ -241,24 +242,41 @@
 		if (!(await patched(root, placed, h))) draw(root, h);
 	}
 
-	/** Draw the markup whole: parsed, wired and typeset from nothing. */
+	/** The reader's place while markup already drawn is changed under them (`hold`): one at a time, the newest change's. */
+	let holding: Hold | null = null;
+	function holdPlace(root: HTMLElement): Hold {
+		holding?.release();
+		holding = hold(root);
+		return holding;
+	}
+	/** How long a place is still held once a change is typeset: long enough for the browser to draw the blocks put in near the screen at their real size. */
+	const SETTLE = 500;
+
+	/** Draw the markup whole: parsed, wired and typeset from nothing. Drawn again over markup already there, the reader's place is held. */
 	function draw(root: HTMLElement, h: string): void {
 		// a drawing waits for its own typesetting; markup already in place keeps the typesetting it has, so a new manifest alone never leaves it waiting
 		if (isolatedMacros) mathReady = false;
+		const held = placed !== null ? holdPlace(root) : null;
 		root.innerHTML = h;
 		placed = h;
 		tree = null;
-		void mount(root);
+		held?.again();
+		void mount(root).finally(() => held?.release(SETTLE));
 	}
 
-	/** Bring the drawn markup up to `after` by replacing only the blocks that changed (`patch`), then typeset and wire what was put in; false when it must be drawn whole. */
+	/** Bring the drawn markup up to `after` by replacing only the blocks that changed (`patch`), then typeset and wire what was put in, holding the reader's place; false when it must be drawn whole. */
 	async function patched(root: HTMLElement, before: string, after: string): Promise<boolean> {
 		if (isolatedMacros) return false;
+		const held = holdPlace(root);
 		const done = patch(root, (tree ??= parse(before)), after);
-		if (!done) return false;
+		if (!done) {
+			held.release();
+			return false;
+		}
 		const { put } = done;
 		placed = after;
 		tree = done.tree;
+		held.again();
 		const version = ++mountVersion;
 		for (const b of put) keepTex(b);
 		// what is placed in the blocks kept stays, as it does for a new manifest; the blocks put in are wired fresh
@@ -266,6 +284,7 @@
 		wiredKey = annotationKey();
 		pages(root);
 		counts();
+		held.again();
 		const { defaults, set } = macros(root);
 		for (const b of put) {
 			if (version !== mountVersion) return true;
@@ -273,6 +292,7 @@
 		}
 		onmounted?.(root);
 		counts();
+		held.release(SETTLE);
 		return true;
 	}
 
@@ -311,6 +331,7 @@
 
 	// The document is kept when the fragment goes, typeset, so coming back to it -- a tab, a narrow layout's other pane, reading after the graph -- is a re-wire rather than a fresh draw.
 	onDestroy(() => {
+		holding?.release();
 		const root = el;
 		if (!root || placed === null || !cacheable()) return;
 		inline?.destroy();

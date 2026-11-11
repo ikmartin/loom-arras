@@ -82,3 +82,44 @@ test('an edit keeps the blocks after it in its file, and moves their offsets', a
 	const [, b] = after.src!.split(':');
 	expect(Number(b) - Number(a), 'its offset moved by what the edit added').toBe(', never more'.length);
 });
+
+test('an annotation filed far above the reader leaves the text they are reading where it was', async ({ page, served }) => {
+	// a short window, so the document runs to several screens and what is far above the reader is skipped while off screen
+	await page.setViewportSize({ width: 1280, height: 360 });
+	await page.goto('/master/drafting/main');
+	await allTypeset(page);
+	const body = page.locator('[data-pane="0"] > .body');
+	// read down most of the way, a screen at a time, so each block above was drawn at its real size, as a reader leaves them; not to the very end, where a shorter document would be held in place by the end itself
+	await body.evaluate(async (el) => {
+		const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+		while (el.scrollTop < (el.scrollHeight - el.clientHeight) * 0.7) {
+			el.scrollTop += el.clientHeight * 0.8;
+			await frame();
+		}
+		await frame();
+	});
+	const quote = 'theory of gadgets is not touched';
+	// what makes this a test of the place: the paragraph the mark goes into is skipped, and a block put in for it starts at a placeholder size other than its own
+	const before = await body.evaluate((el, quote) => {
+		const p = [...el.querySelectorAll<HTMLElement>('p[data-src]')].find((e) => e.textContent!.includes(quote))!;
+		const style = getComputedStyle(p);
+		return { skipped: !p.querySelector('*')!.checkVisibility({ contentVisibilityAuto: true }), off: Math.abs(p.getBoundingClientRect().height - 3 * parseFloat(style.lineHeight)) };
+	}, quote);
+	expect(before.skipped, 'the paragraph annotated is skipped while off screen').toBe(true);
+	expect(before.off, 'how far its height is from the placeholder a new block starts at').toBeGreaterThan(4);
+	// what the reader sees at the pane's top, and where: the scroll offset itself moves whenever the place is kept as sizes above it change
+	const place = await body.evaluate((el) => {
+		const top = el.getBoundingClientRect().top;
+		const block = [...el.querySelectorAll<HTMLElement>('[data-src]')].filter((e) => !e.querySelector('[data-src]')).find((e) => e.getBoundingClientRect().bottom > top + 48)!;
+		return { src: block.dataset.src!, below: block.getBoundingClientRect().top - top };
+	});
+	const id = served.loom(['annotate', 'sy-0100', 'Which theory?', '--quote', quote]).split(/\s+/)[0];
+	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`)).toHaveCount(1);
+	await allTypeset(page);
+	await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+	const moved = await body.evaluate((el, place) => {
+		const block = el.querySelector<HTMLElement>(`[data-src="${CSS.escape(place.src)}"]`)!;
+		return block.getBoundingClientRect().top - el.getBoundingClientRect().top - place.below;
+	}, place);
+	expect(Math.abs(moved), 'how far the text at the pane top moved').toBeLessThanOrEqual(4);
+});
