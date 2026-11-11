@@ -211,10 +211,12 @@ def served(root: Path) -> dict[str, Any] | None:
     return state if isinstance(state, dict) else None
 
 
-def needs_compiling(result: Any, changed: Iterable[Path] | None, built: Callable[[str], Path]) -> list[str]:
-    """The documents a change reaches, or with `changed` None every document whose PDF is missing or older than what it reads.
+def needs_compiling(
+    result: Any, changed: Iterable[Path] | None, built: Callable[[str], Path], *, pages: bool = False
+) -> list[str]:
+    """The documents a change reaches, or with `changed` None every document whose PDF is missing or older than what it reads, and with `pages` every document with no page beside its PDF.
 
-    A document reaches its master, the files it inputs and its preamble's local styles; any other file it may read sits in its own directory or below (P12), so a changed file there of a kind TeX reads counts too. `built` names a document's compiled PDF.
+    A document reaches its master, the files it inputs and its preamble's local styles; any other file it may read sits in its own directory or below (P12), so a changed file there of a kind TeX reads counts too. `built` names a document's compiled PDF; its page is `html/<stem>.html` beside it, which a server asks for when TeX4ht is installed to make one.
     """
     root = result.quilt.root
     reads = {m: _reads(result, m) for m in result.masters}
@@ -222,7 +224,7 @@ def needs_compiling(result: Any, changed: Iterable[Path] | None, built: Callable
         out = []
         for m, files in reads.items():
             pdf = built(m)
-            if not pdf.exists():
+            if not pdf.exists() or (pages and not (pdf.parent / "html" / f"{Path(m).stem}.html").is_file()):
                 out.append(m)
                 continue
             made = pdf.stat().st_mtime

@@ -4,6 +4,18 @@ import { loadManifest, type Loaded } from './loader';
 import { untrack } from 'svelte';
 import type { AdoptionReview, Diagnostic, Macro, Manifest } from './types';
 
+/** A plain manifest as JSON with each adoption's choices left out, to tell a manifest that changed only in them; the choices are taken off and put back rather than copied, since a copy of every contribution costs more than the writing. */
+function contentOf(m: Manifest): string {
+	const adopts = (m.contributions ?? []).filter((c) => c.kind === 'adopt');
+	const choices = adopts.map((c) => c.choices);
+	for (const c of adopts) (c as { choices?: unknown }).choices = undefined;
+	try {
+		return JSON.stringify(m);
+	} finally {
+		adopts.forEach((c, i) => (c.choices = choices[i]));
+	}
+}
+
 class ManifestStore {
 	manifest = $state<Manifest | null>(null);
 	hash = $state<string>('');
@@ -35,6 +47,8 @@ class ManifestStore {
 
 	#running: Promise<void> | null = null;
 	#again = false;
+	/** The last manifest as text without its adoption choices (`contentOf`), kept from when it was a plain object: read back through the state's proxies, an 11 MB manifest took a quarter of a second to write out. */
+	#content = '';
 
 	/** Fetch the manifest if it changed. One fetch at a time: asked again while one is under way, it fetches once more after it, since what prompted the ask may be newer than the fetch in flight. */
 	refresh(): Promise<void> {
@@ -76,10 +90,11 @@ class ManifestStore {
 					}
 				}
 				// a manifest that differs only in adoption choices updates them in place, so the comparison it shows is not mounted again
-				const content = (m: Manifest) => JSON.stringify({ ...m, contributions: m.contributions?.map((c) => (c.kind === 'adopt' ? { ...c, choices: undefined } : c)) });
-				if (this.manifest && content(this.manifest) === content(loaded.manifest)) {
+				const content = contentOf(loaded.manifest);
+				if (this.manifest && content === this.#content) {
 					for (const c of loaded.manifest.contributions ?? []) if (c.kind === 'adopt') this.setAdoption(c.copy, c.fingerprint, c.choices);
 				} else this.manifest = loaded.manifest;
+				this.#content = content;
 				this.hash = loaded.hash;
 				this.problem = null;
 			}

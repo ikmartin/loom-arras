@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pytest
 
 from loom.render.review_compare import _changed
@@ -25,14 +27,24 @@ def test_changed_spans_are_character_ranges_of_the_differing_words(
     assert _changed(before, after) == (left, right)
 
 
-def test_a_whole_document_is_compared_in_well_under_a_second() -> None:
-    """An agent's copy against its document, every word and space of both: a matcher that indexed each single space took fourteen seconds on relloc's, on every build."""
-    import time
+def test_a_whole_document_is_matched_over_its_words_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An agent's copy against its document: the matcher is given the words and never the spaces between them, since one indexing each of a document's thousands of single spaces took fourteen seconds on relloc's, on every build."""
+    import difflib
 
+    given: list[tuple[int, int]] = []
+
+    class Seen(difflib.SequenceMatcher[str]):
+        def __init__(
+            self, isjunk: Callable[[str], bool] | None, a: list[str], b: list[str], autojunk: bool = True
+        ) -> None:
+            given.append((len(a), len(b)))
+            assert not any(not w.strip() for w in [*a, *b])
+            super().__init__(isjunk, a, b, autojunk)
+
+    monkeypatch.setattr(difflib, "SequenceMatcher", Seen)
     words = ["the" if i % 7 == 0 else f"w{i % 3000}" for i in range(12000)]
     before = " ".join(words)
     after = " ".join(words[:6000] + ["changed"] + words[6000:])
-    began = time.monotonic()
     left, right = _changed(before, after)
-    assert time.monotonic() - began < 2.0
+    assert given == [(12000, 12001)]
     assert right == [[after.index(" changed ") + 1, after.index(" changed ") + 8]] and left

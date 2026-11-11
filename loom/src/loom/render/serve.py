@@ -859,10 +859,14 @@ class ServeSession:
         with Progress("scanning") as progress:
             self.rebuild(progress=progress.told)
         if self.compiles is not None and self.last_report is not None:
+            import shutil
+
             from loom.render.compiles import needs_compiling
 
-            # what changed while no server watched: a document never compiled, or edited since its PDF
-            self.compiles.want(needs_compiling(self.last_report.result, None, self._built))
+            # what changed while no server watched: a document never compiled, edited since its PDF, or without the page its text is read from
+            self.compiles.want(
+                needs_compiling(self.last_report.result, None, self._built, pages=shutil.which("make4ht") is not None)
+            )
         errors = [d for d in self.last_report.diagnostics if d.severity == "error"] if self.last_report else []
         blocks = len(self.last_report.rendered) if self.last_report else 0
         # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered

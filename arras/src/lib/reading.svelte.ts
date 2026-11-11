@@ -89,7 +89,7 @@ const NODE_LINE = 0.35;
  * Parameters
  * ----------
  * root : HTMLElement
- *     The mounted document. Its results are re-read on each frame, so expanding an inclusion or a proof needs no notice.
+ *     The mounted document. Its results are read again after anything is added to it or taken out, so expanding an inclusion or a proof needs no notice.
  * scroller : HTMLElement | null
  *     What scrolls: the pane's body.
  *
@@ -101,10 +101,14 @@ const NODE_LINE = 0.35;
 export function followNodes(root: HTMLElement, scroller: HTMLElement | null): () => void {
   if (typeof window === "undefined") return () => {};
   let frame = 0;
+  // the results, read once and again only after the document changes: a query over a typeset paper of 300,000 elements costs 7 ms, every frame of a scroll
+  let results: NodeListOf<HTMLElement> | null = null;
+  const changed = new MutationObserver(() => (results = null));
+  changed.observe(root, { childList: true, subtree: true });
   const pick = () => {
     frame = 0;
     const line = scroller ? topOf(scroller) + scroller.clientHeight * NODE_LINE : window.innerHeight * NODE_LINE;
-    const results = root.querySelectorAll<HTMLElement>("div.env[data-key], details.env-proof[data-key]");
+    results ??= root.querySelectorAll<HTMLElement>("div.env[data-key], details.env-proof[data-key]");
     // tops increase in document order, so the last one above the line is found by bisection rather than by measuring every result on every frame
     let lo = 0;
     let hi = results.length - 1;
@@ -130,6 +134,7 @@ export function followNodes(root: HTMLElement, scroller: HTMLElement | null): ()
   window.addEventListener("resize", onScroll, { passive: true });
   return () => {
     if (frame) cancelAnimationFrame(frame);
+    changed.disconnect();
     on.removeEventListener("scroll", onScroll);
     window.removeEventListener("resize", onScroll);
     reading.node = "";
