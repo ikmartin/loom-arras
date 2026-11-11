@@ -216,7 +216,8 @@ def html_report(result: ScanResult, master: str, engine: str) -> dict[str, Any]:
     if res.html is None:
         out["said"] = f"no HTML: {res.first_error or 'make4ht made no page'}"
         return out
-    n = normalise(res.html.read_text(encoding="utf-8", errors="replace"))
+    displays = {str(i): r.tex for i, r in enumerate(res.repaired)}
+    n = normalise(res.html.read_text(encoding="utf-8", errors="replace"), displays)
     (build / "html" / "fragment.html").write_text(n.html, encoding="utf-8")
     files = result.files
     from loom.tex.align import rendered_words
@@ -244,11 +245,16 @@ def html_report(result: ScanResult, master: str, engine: str) -> dict[str, Any]:
         near=p.near,
         unplaced=[{"file": f, "line": ln, "words": w} for f, ln, w in p.unplaced],
         dropped=sorted(set(n.dropped)),
+        repaired=[{"file": r.file, "line": r.line} for r in res.repaired],
     )
     out["said"] = (
         f"its HTML is in {where} ({res.seconds:.1f}s): {n.nodes} of {counted(nodes, 'node')} stamped, "
         f"{p.exact} of {counted(p.blocks, 'block')} placed exactly, {p.near} nearly, {p.missed} not at all"
     )
+    if res.repaired:
+        # TeX4ht cannot read a display whose braces do not balance, though the PDF may set it, so the place is worth fixing
+        at = ", ".join(f"{r.file}:{r.line}" for r in res.repaired[:5])
+        out["said"] += f"; {counted(len(res.repaired), 'display')} shown as written, its braces unbalanced, at {at}"
     return out
 
 

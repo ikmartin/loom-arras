@@ -193,6 +193,41 @@ def test_the_census_reads_on_the_page_as_the_pdf_prints_it(tmp_path: Path) -> No
     assert len(right) + len(wrong) >= 42 and len(wrong) <= 2, sorted(wrong)
 
 
+UNBALANCED = r"""\documentclass{article}
+\usepackage{amsmath,amsthm}
+\numberwithin{equation}{section}
+\newtheorem{lemma}[equation]{Lemma}
+\begin{document}
+\section{One}
+\begin{lemma}\label{l1}First.\end{lemma}
+\begin{equation}\label{bad}
+\begin{aligned} a &= \lambda^{c}d^n}\langle e\rangle^{f, \end{aligned}
+\end{equation}
+\begin{lemma}\label{l2}Second.\end{lemma}
+See \ref{l2}.
+\end{document}
+"""
+
+
+@pytest.mark.tex
+def test_a_display_whose_braces_do_not_balance_is_shown_as_written_and_the_rest_still_reads(tmp_path: Path) -> None:
+    """3waveZKnew's case: an extra `}` a later missing one cancels, which pdflatex sets and TeX4ht's MathJax mode cannot read as one argument, so one display used to cost the whole document its page."""
+    q = tmp_path / "q"
+    q.mkdir()
+    (q / "main.tex").write_text(UNBALANCED, encoding="utf-8")
+    res = compile_html(q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma", "proof"])
+    assert res.html is not None, res.first_error
+    assert [(r.file, r.line) for r in res.repaired] == [("main.tex", 8)]
+    displays = {str(i): r.tex for i, r in enumerate(res.repaired)}
+    n = normalise(res.html.read_text(encoding="utf-8"), displays)
+    assert "\\lambda^{c}d^n}\\langle e\\rangle^{f," in html.unescape(n.html)
+    # the display still stepped the counter it shares with the lemmas
+    assert re.findall(r"Lemma (\d+\.\d+)", n.html) == ["1.1", "1.3"]
+    assert re.findall(r'data-label="l2" data-made="">([\d.]+)</a>', n.html) == ["1.3"]
+    on_disk = (q / ".loom/build/main/html/repaired.json").read_text(encoding="utf-8")
+    assert '"line": 8' in on_disk
+
+
 @pytest.mark.tex
 def test_loom_compile_html_says_how_much_of_the_page_it_places(tmp_path: Path) -> None:
     """`loom compile --html` writes the page and the fragment rebuilt from it beside the PDF, and counts the nodes stamped against the scan's and the blocks placed in their files, the part's among them."""

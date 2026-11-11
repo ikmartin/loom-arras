@@ -114,11 +114,13 @@ class _Formula:
     at: str
     depth: int = 1
     text: list[str] = field(default_factory=list)
+    repaired: str | None = None  # a placeholder's number: the TeX is the author's as written, held beside the page
 
 
 class _Rebuild(HTMLParser):
-    def __init__(self) -> None:
+    def __init__(self, displays: dict[str, str]) -> None:
         super().__init__(convert_charrefs=True)
+        self.displays = displays
         self.out: list[str] = []
         self.stack: list[str | None] = []  # what each open input element became: a tag, or None for one unwrapped
         self.skip = 0  # depth inside a dropped element
@@ -147,7 +149,9 @@ class _Rebuild(HTMLParser):
             (tag == "span" and cls[:1] == ["mathjax-inline"])
             or (tag == "div" and cls[:1] in (["mathjax-block"], ["mathjax-env"]))
         ):
-            self.formula = _Formula(tag == "div", f"{self.file}:{self.line or 0}")
+            self.formula = _Formula(
+                tag == "div", f"{self.file}:{self.line or 0}", repaired=dict(attrs).get("data-loom-display")
+            )
             return
         if self.skip or tag in DROPPED:
             if tag not in VOID:
@@ -175,7 +179,8 @@ class _Rebuild(HTMLParser):
         if (f := self.formula) is not None:
             f.depth -= 1
             if f.depth == 0:
-                tex = escape("".join(f.text).strip(), quote=False)
+                said = self.displays.get(f.repaired, "") if f.repaired is not None else "".join(f.text)
+                tex = escape(said.strip(), quote=False)
                 self.out.append(
                     f'<div class="math display" data-at="{f.at}">{tex}</div>'
                     if f.display
@@ -381,20 +386,22 @@ def _inline(tex: str) -> str:
     return f'<span class="math inline">\\({escape(tex, quote=False)}\\)</span>'
 
 
-def normalise(html: str) -> Normalised:
+def normalise(html: str, displays: dict[str, str] | None = None) -> Normalised:
     """Rebuild TeX4ht's page `html` as fragment markup.
 
     Parameters
     ----------
     html : str
         A whole page as TeX4ht wrote it.
+    displays : dict, optional
+        The TeX of each display the page holds as a placeholder, by its number (`tex4ht.repair_displays`).
 
     Returns
     -------
     Normalised
         The body rebuilt, the elements it dropped by name, and how many nodes loom's configuration stamped.
     """
-    p = _Rebuild()
+    p = _Rebuild(displays or {})
     p.feed(html)
     p.close()
     if p.math is not None:

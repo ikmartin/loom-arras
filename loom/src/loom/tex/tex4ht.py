@@ -5,6 +5,7 @@ The run is `make4ht`'s draft mode with loom's own configuration (`configuration`
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -24,6 +25,8 @@ CARRIED = re.compile(r"(?:\.mk4|\.make4ht|^tex4ht\.env|^\.tex4ht)$")
 ENGINE = {"pdflatex": [], "latex": [], "lualatex": ["-l"], "xelatex": ["-x"]}
 #: Figures TeX4ht's DVI route reads bounding boxes of from `.xbb` files, which `extractbb` writes beside them.
 FIGURES = (".pdf", ".png", ".jpg", ".jpeg")
+#: Beside a page, the displays it holds as placeholders, each `Repaired` as JSON, in the order of their numbers.
+REPAIRED = "repaired.json"
 #: What a run's output directory keeps: the page, its stylesheet and the pictures TeX4ht made.
 KEPT = (".html", ".css", ".svg", ".png", ".jpg", ".jpeg")
 
@@ -97,6 +100,7 @@ ROWS = r"""\ExplSyntaxOn
 STAMPS = r"""\def\loomnode#1{\ConfigureEnv{#1}{\ifvmode\IgnorePar\fi\EndP\HCode{<div class="loom-node" data-env="#1" data-file="\CurrentFilePath\CurrentFile" data-line="\the\inputlineno">}}{\ifvmode\IgnorePar\fi\EndP\HCode{</div>}}{}{}}
 \AddToHook{file/before}{\HCode{<!--loom-file \CurrentFilePath\CurrentFile-->}}
 \AddToHook{file/after}{\HCode{<!--loom-file-end-->}}
+\def\loomdisplay#1{\HCode{<div class="mathjax-env" data-loom-display="#1"></div>}}
 \makeatletter
 \AddToHook{begindocument/end}{%
 \let\loom@setref\@setref
@@ -105,6 +109,114 @@ STAMPS = r"""\def\loomnode#1{\ConfigureEnv{#1}{\ifvmode\IgnorePar\fi\EndP\HCode{
 """
 
 _ENV = re.compile(r"^[A-Za-z@*]+$")
+
+#: Displays TeX4ht's MathJax mode reads whole as one argument, which no TeX macro can do when their braces do not balance, though pdflatex, which never reads them so, may set them.
+DISPLAYS = (
+    "equation equation* align align* gather gather* multline multline* flalign flalign* alignat alignat* "
+    "eqnarray eqnarray* xalignat xxalignat displaymath"
+).split()
+_NUMBERED = frozenset("equation align gather multline flalign alignat eqnarray xalignat xxalignat".split())
+_DISPLAY = re.compile(
+    r"(?<!\\)\\begin\s*\{(" + "|".join(re.escape(d) for d in DISPLAYS) + r")\}|(?<!\\)\\\[|(?<!\\)\$\$"
+)
+_ROW = re.compile(r"\\begin\s*\{|\\end\s*\{|\\\\")
+
+
+@dataclass
+class Repaired:
+    """A display read as its author wrote it, because its braces do not balance: the file, quilt-relative, the line it begins on, and its TeX."""
+
+    file: str
+    line: int
+    tex: str
+
+
+def _blank_comments(text: str) -> str:
+    """`text` with every comment blanked to the end of its line, offsets kept."""
+    out = list(text)
+    i = 0
+    while i < len(out):
+        if out[i] == "\\":
+            i += 2
+            continue
+        if out[i] == "%":
+            while i < len(out) and out[i] != "\n":
+                out[i] = " "
+                i += 1
+        i += 1
+    return "".join(out)
+
+
+def _balanced(body: str) -> bool:
+    depth = 0
+    i = 0
+    while i < len(body):
+        c = body[i]
+        if c == "\\":
+            i += 2
+            continue
+        depth += (c == "{") - (c == "}")
+        if depth < 0:
+            return False
+        i += 1
+    return depth == 0
+
+
+def _steps(env: str, body: str) -> str:
+    """What a numbered display would have done to `equation` and its labels, row by row, for one loom reads as written."""
+    if env not in _NUMBERED:
+        return ""
+    rows: list[str] = []
+    if env in ("equation", "multline"):
+        rows = [body]
+    else:
+        depth, start = 0, 0
+        for m in _ROW.finditer(body):
+            if m.group(0).startswith("\\begin"):
+                depth += 1
+            elif m.group(0).startswith("\\end"):
+                depth -= 1
+            elif depth == 0:
+                rows.append(body[start : m.start()])
+                start = m.end()
+        rows.append(body[start:])
+        if not rows[-1].strip() and env != "eqnarray" and len(rows) > 1:
+            rows.pop()
+    out = []
+    for row in rows:
+        if re.search(r"\\(?:notag|nonumber|tag)(?![A-Za-z])", row):
+            continue
+        label = re.search(r"\\label\s*\{([^{}]*)\}", row)
+        out.append("\\refstepcounter{equation}" + (f"\\label{{{label.group(1)}}}" if label else ""))
+    return "".join(out)
+
+
+def repair_displays(text: str, first: int = 0) -> tuple[str, list[tuple[int, str]]]:
+    """`text` with each display whose braces do not balance replaced by `\\loomdisplay{N}`, numbered from `first`, and stepping `equation` as it would; with each one's line and TeX.
+
+    The replacement keeps the display's line breaks, so every later line keeps its number.
+    """
+    clean = _blank_comments(text)
+    out: list[str] = []
+    found: list[tuple[int, str]] = []
+    at = pos = 0
+    while (m := _DISPLAY.search(clean, pos)) is not None:
+        env = m.group(1)
+        closing = f"\\end{{{env}}}" if env else ("\\]" if m.group(0) == "\\[" else "$$")
+        close = clean.find(closing, m.end())
+        if close < 0:
+            break
+        end = close + len(closing)
+        if not _balanced(clean[m.end() : close]):
+            span = text[m.start() : end]
+            found.append((clean.count("\n", 0, m.start()) + 1, span))
+            out.append(text[at : m.start()])
+            steps = _steps(env, clean[m.end() : close]) if env else ""
+            out.append(f"\\loomdisplay{{{first + len(found) - 1}}}{steps}" + "\n" * span.count("\n"))
+            at = end
+        pos = end
+    out.append(text[at:])
+    return "".join(out), found
 
 
 def configuration(envs: list[str]) -> str:
@@ -125,6 +237,7 @@ class HtmlResult:
     errors: list[str] = field(default_factory=list)
     passes: int = 0
     seconds: float = 0.0
+    repaired: list[Repaired] = field(default_factory=list)
 
     @property
     def first_error(self) -> str:
@@ -180,6 +293,13 @@ def compile_html(
         for f in sorted(stage.rglob("*")):
             if f.is_file() and CARRIED.search(f.name):
                 f.unlink()
+        repaired: list[Repaired] = []
+        for f in sorted(stage.rglob("*.tex")):
+            text = f.read_text(encoding="utf-8", errors="replace")
+            fixed, found = repair_displays(text, len(repaired))
+            if found:
+                f.write_text(fixed, encoding="utf-8")
+                repaired += [Repaired(f.relative_to(stage).as_posix(), line, tex) for line, tex in found]
         for f in sorted(cwd.rglob("*")):
             if f.is_file() and f.suffix.lower() in FIGURES and shutil.which("extractbb"):
                 subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
@@ -257,6 +377,8 @@ def compile_html(
             for f in out.iterdir():
                 if f.is_file() and f.suffix.lower() in KEPT:
                     shutil.copy2(f, fresh / f.name)
+            # the displays the page holds as placeholders, which the normaliser fills with their TeX as written
+            (fresh / REPAIRED).write_text(json.dumps([vars(r) for r in repaired], ensure_ascii=False), encoding="utf-8")
             old = outdir.with_name(f".{outdir.name}.old")
             shutil.rmtree(old, ignore_errors=True)
             if outdir.exists():
@@ -265,19 +387,20 @@ def compile_html(
             shutil.rmtree(old, ignore_errors=True)
         made = outdir / f"{stem}.html" if page.is_file() else None
         return HtmlResult(
-            made is not None and code == 0, outdir, code, made, text, errors, passes, time.monotonic() - began
+            made is not None and code == 0, outdir, code, made, text, errors, passes, time.monotonic() - began, repaired
         )
 
 
 @dataclass
 class Placed:
-    """How a normalised fragment's blocks stand in the source: placed as an unbroken run of words, placed nearly, or not at all, with up to ten of the last for a report; a block of fewer than two words is too short to say and counts in none."""
+    """How a normalised fragment's blocks stand in the source: placed as an unbroken run of words, placed nearly, or not at all, with up to ten of the last for a report. A block of fewer than two words is too short to say and counts in none; one read from a `.bbl`, which BibTeX made, has no source and counts as `made`."""
 
     blocks: int = 0
     exact: int = 0
     near: int = 0
     unplaced: list[tuple[str, int, str]] = field(default_factory=list)
     missed: int = 0
+    made: int = 0
 
 
 def placed(
@@ -305,6 +428,9 @@ def placed(
         if len(words) < 2:
             continue
         rel = master if not b.file else posixpath.normpath(posixpath.join(base, b.file))
+        if rel.endswith(".bbl"):
+            out.made += 1
+            continue
         if rel not in sources:
             text = clean(rel)
             sources[rel] = (
