@@ -92,6 +92,8 @@ _SMALLCAPS = re.compile(r"^(?:ec-|t1-)?(?:cmcsc|lmcsc|small-caps|ptmrc|eccc|ecsc
 _LINE = re.compile(r"^\s*l\.\s*(\d+)\s*$")
 _FILE = re.compile(r"^\s*loom-file\s+(.*?)\s*$")
 _FILE_END = re.compile(r"^\s*loom-file-end\s*$")
+#: Where one text of a run of texts begins (`render.snippets`), or `end` after the last.
+_SNIPPET = re.compile(r"^\s*loomsnippet\s+(\d+|end)\s*$")
 _INLINE = re.compile(r"\\\((.*?)\\\)", re.S)
 #: The shapes a node's stamp has when loom's configuration wrote it; anything else is a document's own, and is emptied.
 _ENV = re.compile(r"[A-Za-z@*]+")
@@ -209,6 +211,9 @@ class _Rebuild(HTMLParser):
     def handle_comment(self, data: str) -> None:
         if (m := _LINE.match(data)) is not None:
             self.line = int(m.group(1))
+        elif (m := _SNIPPET.match(data)) is not None:
+            if self.body and not self.skip and self.formula is None:
+                self.out.append(f'<span class="loom-snippet" data-snippet="{m.group(1)}"></span>')
         elif _FILE_END.match(data):
             # back in the file that input this one, where it was
             if self.outer:

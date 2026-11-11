@@ -5,6 +5,7 @@ The run is `make4ht`'s draft mode with loom's own configuration (`configuration`
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -12,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,8 +36,6 @@ SOURCE_SUFFIXES = frozenset((".tex", ".sty", ".cls", ".clo", ".def", ".cfg", ".b
 
 def source_hashes(root: Path) -> dict[str, str]:
     """The sha256 of every source file under `root`, by its path relative to `root`."""
-    import hashlib
-
     return {
         f.relative_to(root).as_posix(): hashlib.sha256(f.read_bytes()).hexdigest()
         for f in sorted(root.rglob("*"))
@@ -237,10 +236,15 @@ def repair_displays(text: str, first: int = 0) -> tuple[str, list[tuple[int, str
     return "".join(out), found
 
 
-def configuration(envs: list[str]) -> str:
-    """The `.cfg` for a document whose nodes are the environments `envs`: MathJax mode, the row counting, and the stamps."""
+#: Where one text of a run of texts begins, between blocks; TeX4ht mangles a hyphen in a comment, so the name has none.
+SNIPPET = "\\def\\loomsnippet#1{\\par\\ifvmode\\IgnorePar\\fi\\EndP\\HCode{<!--loomsnippet #1-->}}\n"
+
+
+def configuration(envs: Sequence[str], *, snippets: bool = False) -> str:
+    """The `.cfg` for a document whose nodes are the environments `envs`: MathJax mode, the row counting, the stamps, and with `snippets` the mark each text of a run begins with."""
     nodes = "".join(f"\\loomnode{{{e}}}" for e in sorted(set(envs)) if _ENV.match(e))
-    return "\\Preamble{xhtml,mathjax}\n\\begin{document}\n" + ROWS + STAMPS + nodes + "\n\\EndPreamble\n"
+    marks = SNIPPET if snippets else ""
+    return "\\Preamble{xhtml,mathjax}\n\\begin{document}\n" + ROWS + STAMPS + marks + nodes + "\n\\EndPreamble\n"
 
 
 @dataclass
@@ -309,9 +313,6 @@ def compile_html(
         stage = stage_document(root, base, [tex], Path(tmp) / "src")
         cwd = stage / base
         read = source_hashes(stage)
-        for f in sorted(stage.rglob("*")):
-            if f.is_file() and CARRIED.search(f.name):
-                f.unlink()
         repaired: list[Repaired] = []
         for f in sorted(stage.rglob("*.tex")):
             text = f.read_text(encoding="utf-8", errors="replace")
@@ -319,60 +320,20 @@ def compile_html(
             if found:
                 f.write_text(fixed, encoding="utf-8")
                 repaired += [Repaired(f.relative_to(stage).as_posix(), line, tex) for line, tex in found]
-        for f in sorted(cwd.rglob("*")):
-            if f.is_file() and f.suffix.lower() in FIGURES and shutil.which("extractbb"):
-                subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
+        _prepare(stage, cwd, envs)
         name = os.path.relpath(stage / tex, cwd)
         if seed is not None:
             for suffix in (".aux", ".bbl", ".toc", ".out"):
                 if (seed / f"{stem}{suffix}").is_file():
                     shutil.copy2(seed / f"{stem}{suffix}", cwd / f"{stem}{suffix}")
-        (cwd / "loom-html.cfg").write_text(configuration(envs), encoding="utf-8")
-        (cwd / "loom-html.mk4").write_text(
-            "-- loom's build file: make4ht's defaults and nothing else\n", encoding="utf-8"
-        )
         home = Path(tmp) / "home"
-        home.mkdir()
-        env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
-        if "TEXMFHOME" not in os.environ:
-            env["TEXMFHOME"] = _texmfhome()
         out = Path(tmp) / "out"
-        cmd = [
-            exe,
-            *ENGINE.get(engine, []),
-            "-m",
-            "draft",
-            "-u",
-            "-c",
-            "loom-html.cfg",
-            "-e",
-            "loom-html.mk4",
-            "-d",
-            str(out),
-            name,
-            "mathjax",
-        ]
         aux = cwd / f"{stem}.aux"
         passes, code, said = 0, 0, ""
         while True:
             before = aux.read_bytes() if aux.is_file() else None
-            proc = subprocess.Popen(
-                cmd,
-                cwd=cwd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                errors="replace",
-                env=env,
-                start_new_session=True,
-            )
-            if started is not None:
-                started(proc)
-            try:
-                said, _ = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                stop_run(proc)
-                proc.communicate()
+            code, said = _pass(exe, cwd, name, out, home, engine, timeout, started)
+            if code == 124:
                 return HtmlResult(
                     False,
                     outdir,
@@ -382,7 +343,6 @@ def compile_html(
                     seconds=time.monotonic() - began,
                 )
             passes += 1
-            code = proc.returncode
             after = aux.read_bytes() if aux.is_file() else None
             if seed is not None or after == before or passes >= 3 or not (out / f"{stem}.html").is_file():
                 break
@@ -410,6 +370,129 @@ def compile_html(
         return HtmlResult(
             made is not None and code == 0, outdir, code, made, text, errors, passes, time.monotonic() - began, repaired
         )
+
+
+def _prepare(stage: Path, cwd: Path, envs: Sequence[str], *, snippets: bool = False) -> None:
+    """Make a staged copy ready for a run: what a quilt carries for TeX4ht removed, bounding boxes beside its figures, and loom's configuration and build file in `cwd`."""
+    for f in sorted(stage.rglob("*")):
+        if f.is_file() and CARRIED.search(f.name):
+            f.unlink()
+    if shutil.which("extractbb"):
+        for f in sorted(cwd.rglob("*")):
+            if f.is_file() and f.suffix.lower() in FIGURES:
+                subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
+    (cwd / "loom-html.cfg").write_text(configuration(envs, snippets=snippets), encoding="utf-8")
+    (cwd / "loom-html.mk4").write_text("-- loom's build file: make4ht's defaults and nothing else\n", encoding="utf-8")
+
+
+def _pass(
+    exe: str,
+    cwd: Path,
+    name: str,
+    out: Path,
+    home: Path,
+    engine: str,
+    timeout: int,
+    started: Callable[[subprocess.Popen[str]], None] | None = None,
+) -> tuple[int, str]:
+    """One make4ht pass over `name` in `cwd`, writing into `out`, with `home` its own: its exit code and what it said; 124 when it ran past `timeout` and was killed with everything it started."""
+    home.mkdir(exist_ok=True)
+    env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
+    if "TEXMFHOME" not in os.environ:
+        env["TEXMFHOME"] = _texmfhome()
+    cmd = [exe, *ENGINE.get(engine, []), "-m", "draft", "-u", "-c", "loom-html.cfg", "-e", "loom-html.mk4"]
+    proc = subprocess.Popen(
+        [*cmd, "-d", str(out), name, "mathjax"],
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        errors="replace",
+        env=env,
+        start_new_session=True,
+    )
+    if started is not None:
+        started(proc)
+    try:
+        said, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        stop_run(proc)
+        proc.communicate()
+        return 124, ""
+    return proc.returncode, said
+
+
+def make_html(
+    root: Path,
+    base: str,
+    name: str,
+    text: str,
+    *,
+    envs: Sequence[str] = (),
+    engine: str = "pdflatex",
+    aux: Path | None = None,
+    timeout: int = 600,
+    pictures: tuple[Path, str] | None = None,
+) -> tuple[str | None, str]:
+    """One TeX4ht pass over `text`, a document loom wrote, as `name.tex` in a copy of the document directory `base` outside the quilt.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    base : str
+        The directory the text's local files resolve in, quilt-relative.
+    name : str
+        The document's name, without `.tex`.
+    text : str
+        The whole document, preamble and body.
+    envs : sequence of str, default ()
+        The environments stamped as nodes; the configuration also defines `\\loomsnippet`.
+    engine : str, default 'pdflatex'
+    aux : Path, optional
+        An aux the run starts from, so references and citations print what that document prints.
+    timeout : int, default 600
+    pictures : (Path, str), optional
+        A directory each picture the page draws is kept in, under its content's hash, and the path the page names that directory by.
+
+    Returns
+    -------
+    (str or None, str)
+        The page, None when the run made none, and TeX's log.
+    """
+    exe = shutil.which("make4ht")
+    if exe is None:
+        return None, "make4ht is not installed"
+    with tempfile.TemporaryDirectory(prefix="loom-html-") as tmp:
+        stage = stage_document(root, base, [], Path(tmp) / "src")
+        cwd = stage / base
+        cwd.mkdir(parents=True, exist_ok=True)
+        _prepare(stage, cwd, envs, snippets=True)
+        (cwd / f"{name}.tex").write_text(text, encoding="utf-8")
+        if aux is not None and aux.is_file():
+            shutil.copy2(aux, cwd / f"{name}.aux")
+        out = Path(tmp) / "out"
+        code, said = _pass(exe, cwd, f"{name}.tex", out, Path(tmp) / "home", engine, timeout)
+        log = cwd / f"{name}.log"
+        told = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else said
+        if code == 124:
+            told += f"\n! make4ht timed out after {timeout}s\n"
+        page = out / f"{name}.html"
+        if not page.is_file():
+            return None, told
+        html = page.read_text(encoding="utf-8", errors="replace")
+        if pictures is not None:
+            where, named = pictures
+            for f in sorted(out.iterdir()):
+                if f.is_file() and f.suffix.lower() in KEPT and f.suffix.lower() not in (".html", ".css"):
+                    kept = where / f"{hashlib.sha256(f.read_bytes()).hexdigest()[:20]}{f.suffix.lower()}"
+                    if not kept.is_file():
+                        where.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, kept)
+                    html = re.sub(
+                        rf"""(\bsrc=['"]){re.escape(f.name)}(['"])""", rf"\g<1>{named}/{kept.name}\g<2>", html
+                    )
+        return html, told
 
 
 @dataclass
