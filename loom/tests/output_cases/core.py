@@ -105,6 +105,14 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "x", "--in", "nope.tex", "--as", "Tester"), exit=2, unchanged=True, why="no such document"),
         Case(("dm-0002", "x", "--session", "nope", "--as", "Tester"), exit=2, unchanged=True, why="no such session"),
         Case(("dm-0002", "Which orbits?", "--as", "Tester", "--dry-run"), unchanged=True),
+        Case(("--delete", "a-2026-09-16-tc3rcf", "--as", "Tester"), why="a person deletes an agent's annotation"),
+        Case(("--delete", "a-2026-09-16-tc3rcf", "--as", "Tester", "--dry-run"), unchanged=True),
+        Case(
+            ("--delete", "a-2000-01-01-w8gk02", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="an annotation that does not exist",
+        ),
         Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
     ],
     "note": [

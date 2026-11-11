@@ -1,5 +1,5 @@
 <script lang="ts">
-	// An annotation's box: a title line of its type's name, none for an untyped annotation, with the × when the box can be closed; the body; then any text it proposes, at a rule; then one meta line of author, date and the verbs. The stripe, the title and the rule take the annotation's own colour, and an anchored annotation's quote is its mark. A settled box (resolved or withdrawn) has its stripe at half strength, its body softened, and the outcome once on the meta line.
+	// An annotation's box: a title line of its type's name, none for an untyped annotation, with the × when the box can be closed; the body; then any text it proposes, at a rule; then one meta line of author, date and the verbs. The stripe, the title and the rule take the annotation's own colour, and an anchored annotation's quote is its mark. A settled (resolved) box has its stripe at half strength, its body softened, and the outcome once on the meta line.
 	import TexProse from '$lib/math/TexProse.svelte';
 	import TexHtml from '$lib/math/TexHtml.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
@@ -21,9 +21,8 @@
 	/** One word for where the proposed text would go; `proposed` when the annotation carries no placement. */
 	const word = $derived(annotation.placement === 'replace' || annotation.placement === 'after' || annotation.placement === 'before' ? annotation.placement : 'proposed');
 
-	/** What settled it, said once on the meta line, in the words of the verbs that settle it: `taken` (proposed text resolved as applied) or `left` (proposed text resolved without it), else `resolved` or `withdrawn`; '' while open. */
+	/** What settled it, said once on the meta line, in the words of the verbs that settle it: `taken` (proposed text resolved as applied) or `left` (proposed text resolved without it), else `resolved`; '' while open. */
 	function outcomeOf(a: Annotation): string {
-		if (a.discarded || a.status === 'discarded') return 'withdrawn';
 		if (a.applied) return 'taken';
 		if (a.status === 'resolved' && a.payload !== null && a.payload !== undefined) return 'left';
 		return a.status === 'open' ? '' : a.status;
@@ -115,7 +114,7 @@
 					<div class="body"><Prose html={r.body_html} /></div>
 					<div class="meta">
 						<span class="who"><span class="author" title={r.author.id}>{r.author.label ?? r.author.id}</span> · {shortDate(r.created)}</span>
-						<!-- A reply is an annotation with `in_reply_to` set, so withdrawing one is `discard` on its own id; nothing is deleted from the log. -->
+						<!-- A reply is an annotation with `in_reply_to` set, so deleting one is `delete` on its own id. -->
 						<VerbRow annotation={r} compact />
 					</div>
 				</article>

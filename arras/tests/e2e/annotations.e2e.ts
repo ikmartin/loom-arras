@@ -264,7 +264,7 @@ test.describe('marks', () => {
 });
 
 test.describe('marks and boxes', () => {
-	test('a node draws no annotation list: its marks open their boxes, show all opens every one that is drawn, in the flow, and the discarded are in its context', async ({ page }) => {
+	test('a node draws no annotation list: its marks open their boxes, and show all opens every one that is drawn, in the flow', async ({ page }) => {
 		// a mark opens its annotation as a floating box over the text; `show all annotations` opens every one; nothing below the node lists them again
 		await page.goto('/node/sy-0003');
 		// counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does not fail a test that is about marks and boxes agreeing; a settled one is not drawn and so not opened
@@ -274,7 +274,7 @@ test.describe('marks and boxes', () => {
 			const keys = Object.entries(m.keys)
 				.filter(([, k]: [string, any]) => k.node === 'sy-0003')
 				.map(([id]) => id);
-			return Object.values(m.annotations).filter((a: any) => keys.includes(a.target.key) && !a.in_reply_to && !a.discarded && a.status === 'open' && !a.in).length;
+			return Object.values(m.annotations).filter((a: any) => keys.includes(a.target.key) && !a.in_reply_to && a.status === 'open' && !a.in).length;
 		});
 		expect(open).toBeGreaterThan(0);
 		await expect(page.getByTestId('annotation-list')).toHaveCount(0);
@@ -299,24 +299,6 @@ test.describe('marks and boxes', () => {
 		// and with them closed, a single mark still floats
 		await marks.first().click();
 		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
-		// sy-000A's one annotation is discarded and belongs to a closed session, so two filters hide it and the reader must lift both; closing a session hides its annotations, which is what closing one is for
-		await page.goto('/node/sy-000A' + beside('/context/sy-000A'));
-		const context = pane(page, 1);
-		await expect(context.getByTestId('context')).toBeVisible();
-		await expect(context.getByTestId('show-discarded')).toHaveCount(0);
-		// the closed section unfolds, and the setting inside it is what admits their annotations
-		await openPicker(page);
-		await page.getByTestId('show-closed').click();
-		await page.getByTestId('closed-yes').click();
-		await page.keyboard.press('Escape');
-		// a quiet line in the context says how many were discarded, and lists them there as rows: a dot in the annotation's colour, named by its type, and a link to the annotation, not its box (annotation study A2)
-		await expect(context.getByTestId('show-discarded')).toHaveText('1 withdrawn — show');
-		await context.getByTestId('show-discarded').click();
-		const rows = context.getByTestId('discarded-list').locator('li');
-		await expect(rows).toHaveCount(1);
-		await expect(rows.first().locator('.ann-dot')).toHaveAttribute('aria-label', 'Note');
-		await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-pmjbhz');
-		await expect(context.getByTestId('discarded-list').locator('article.box')).toHaveCount(0);
 	});
 
 	test('floating, a mark opens a box clear of every edge and a second mark a second box; × closes one, Escape or a click away the rest, and hovering opens nothing', async ({ page }) => {
@@ -496,7 +478,7 @@ test.describe('the box', () => {
 		// a serving publisher writes a new manifest whenever the quilt changes, an agent's annotation among them, and the document re-draws its boxes: a reply kept only in the box was lost with it
 		let revision = 0;
 		let served = 0;
-		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['reply', 'resolve', 'edit', 'discard'] } }));
+		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['reply', 'resolve', 'edit', 'delete'] } }));
 		await serve(page, (m) => {
 			served += 1;
 			m.sessions[0].title = `A sitting, revision ${revision}`;
@@ -702,25 +684,25 @@ test.describe('the box', () => {
 		await expect(box.getByTestId('outcome')).toHaveText(' · taken');
 	});
 
-	test('resolve is offered only where the type stays open until resolved; one that only informs, or none, has reply, edit and withdraw', async ({ page }) => {
+	test('resolve is offered only where the type stays open until resolved; one that only informs, or none, has reply, edit and delete', async ({ page }) => {
 		await serve(page, (m) => {
 			m.annotations['a-2026-09-16-bns3an'].type = 'note';
 			m.annotations['a-2026-09-16-hqnbz4'].type = null;
 		});
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'discard']);
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
 		const asks = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
 		await expect(asks.getByTestId('verb-resolve')).toBeVisible();
 		for (const id of ['a-2026-09-16-bns3an', 'a-2026-09-16-hqnbz4']) {
 			const box = await openBox(page, '/node/sy-0002', id);
 			await expect(box.getByTestId('verb-reply')).toBeVisible();
 			await expect(box.getByTestId('verb-edit')).toBeVisible();
-			await expect(box.getByTestId('verb-discard')).toBeVisible();
+			await expect(box.getByTestId('verb-delete')).toBeVisible();
 			await expect(box.getByTestId('verb-resolve')).toHaveCount(0);
 		}
 	});
 
-	test('reply, edit and discard open inside the box beneath the meta line, and nothing pops over the text', async ({ page }) => {
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'discard']);
+	test('reply and edit open inside the box beneath the meta line, and nothing pops over the text', async ({ page }) => {
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
 		await prefs(page, { comments: 'inline' });
 		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
 		const meta = box.locator(':scope > .meta');
@@ -750,15 +732,40 @@ test.describe('the box', () => {
 		await expect(panel.getByTestId('verb-text')).toHaveValue(/parity count/);
 		await expect(panel.getByTestId('verb-type')).toHaveValue('revision');
 		await expect(panel.getByTestId('verb-type').locator('option')).toHaveText(['No type', 'Revision', 'Suggestion', 'Question', 'Note']);
-		// a withdrawal takes its reason in the same place
-		await row.getByTestId('verb-discard').click();
-		await expect(panel.getByTestId('verb-text')).toHaveAttribute('placeholder', /why/);
-		await expect(panel.getByTestId('verb-send')).toHaveText('withdraw');
 		await expect(page.getByTestId('verb-more')).toHaveCount(0);
 	});
 
-	test('a settled box: the stripe at half strength, the body softened, the outcome said once, and reopen its one verb', async ({ page }) => {
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'discard']);
+	test('delete asks nothing first: the box goes with the annotation, and Undo at the foot of the window puts back what loom took out', async ({ page }) => {
+		const removed = [{ event: 'created', id: 'a-2026-09-16-ecnav2' }, { event: 'replied', id: 'a-2026-09-16-hwnav1' }];
+		const sent: Record<string, Record<string, unknown>> = {};
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete', 'restore']);
+		await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
+		await page.route('**/_api/delete', (r) => ((sent.delete = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'deleted a-2026-09-16-ecnav2', removed } })));
+		await page.route('**/_api/restore', (r) => ((sent.restore = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'restored a-2026-09-16-ecnav2' } })));
+		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
+		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
+		await expect(box.getByTestId('verb-panel')).toHaveCount(0);
+		expect(sent.delete).toMatchObject({ annotation: 'a-2026-09-16-ecnav2', session: REFEREE });
+		const held = page.getByTestId('deleted');
+		await expect(held).toHaveCount(1);
+		await expect(held).toContainText('Deleted Revision on Theorem 2.1.');
+		await held.getByTestId('deleted-undo').click();
+		await expect(held).toHaveCount(0);
+		expect(sent.restore).toMatchObject({ events: removed, session: REFEREE });
+	});
+
+	test('a refused delete says why in the box, and holds nothing to undo', async ({ page }) => {
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
+		await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
+		await page.route('**/_api/delete', (r) => r.fulfill({ status: 400, json: { ok: false, error: { code: 'refused', message: 'an agent deletes only its own annotations' } } }));
+		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
+		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
+		await expect(box.getByTestId('verb-said')).toHaveText('an agent deletes only its own annotations');
+		await expect(page.getByTestId('deleted')).toHaveCount(0);
+	});
+
+	test('a settled box: the stripe at half strength, the body softened, the outcome said once, and reopen and delete its verbs', async ({ page }) => {
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
 		await page.goto('/node/sy-0004');
 		// a-2026-09-16-hwtkaw is resolved: its mark is drawn only once settled annotations are shown
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-hwtkaw"]');
@@ -777,7 +784,7 @@ test.describe('the box', () => {
 		await expect(box.locator(':scope > .meta .who')).not.toContainText('resolved');
 		const row = box.locator(':scope > .meta').getByTestId('verb-row');
 		await expect(row.getByTestId('verb-reopen')).toBeVisible();
-		await expect(row.locator('button')).toHaveCount(1);
+		await expect(row.locator('button')).toHaveText(['reopen', 'delete']);
 	});
 
 	test('travel is two-way: a double-click on a mark lands on its box, and one on the box lands on its mark', async ({ page }) => {
@@ -860,7 +867,7 @@ test.describe('writing', () => {
 
 	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {
 		// `resolve` is one click and opens no panel, so its refusal is shown in the box: the viewer's own when nothing is selected, the publisher's once the write reaches it
-		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['annotate', 'reply', 'resolve', 'edit', 'discard'], token: 't' } }));
+		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['annotate', 'reply', 'resolve', 'edit', 'delete'], token: 't' } }));
 		await page.route('**/_api/resolve', (route) =>
 			route.fulfill({
 				status: 400,
@@ -1053,7 +1060,7 @@ test.describe('the composer', () => {
 	});
 });
 
-// The settled control: a resolved or discarded annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
+// The settled control: a resolved annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
 test.describe('the settled control', () => {
 	const settledMark = (page: Page) => page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-hwtkaw"]');
 
@@ -1125,23 +1132,21 @@ test.describe('the settled control', () => {
 		expect((await drawn(settledMark(page))).band.a).toBe(0);
 	});
 
-	test('a link to a settled annotation turns it on and opens the box, a discarded one included', async ({ page }) => {
+	test('a link to a settled annotation turns it on and opens the box, one with no quote included', async ({ page }) => {
 		// a row in What it did or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn
-		// the discarded note on sy-000A belongs to the closed session; here it is the open one's, so only the settled control stands between the reader and it
-		await serve(page, (m) => (m.annotations['a-2026-09-16-pmjbhz'].run = REFEREE));
 		await page.goto(`/session/${REFEREE}?view=did`);
 		await page.locator('[data-testid="did-annotation"][href="quilt:a-2026-09-16-hwtkaw"]').click();
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('[data-pane="1"] article.box.settled[data-annotation-id="a-2026-09-16-hwtkaw"]')).toBeVisible();
-		// a discarded annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was discarded
-		await page.goto('/node/sy-000A');
-		const label = page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-pmjbhz"]');
+		// a resolved annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was resolved
+		await page.goto('/node/sy-0003');
+		const label = page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-tc3rcf"]');
 		await expect(label).toHaveCount(0);
 		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
 		await label.click();
-		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-pmjbhz"]');
+		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-tc3rcf"]');
 		await expect(box).toBeVisible();
-		await expect(box.getByTestId('outcome')).toHaveText('· withdrawn');
+		await expect(box.getByTestId('outcome')).toHaveText('· resolved');
 	});
 });

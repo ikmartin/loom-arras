@@ -443,15 +443,13 @@ export interface Annotation {
   /** The whole look to draw it with, whatever its type now says. */
   look: Look;
   body_html: string;
-  status: "open" | "resolved" | (string & {});
+  status: "open" | "resolved";
   in_reply_to: string | null;
   /** Whether the text this was written against can still be produced: the current text, or a version the publisher kept. */
   recorded?: boolean;
   anchored: boolean;
   detached: boolean;
   quote?: string;
-  /** Why it was withdrawn, when it was. The only record of why a finding should not have stood. */
-  discard_reason?: string | null;
   /** Replacement text the annotation proposes, which the author applies; '' with `replace` deletes the quoted words. */
   payload?: string | null;
   /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
@@ -466,7 +464,6 @@ export interface Annotation {
   applied?: { hash: string } | null;
   /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
   run: string;
-  discarded: boolean;
 }
 
 export interface Attachment {

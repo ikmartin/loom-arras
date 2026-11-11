@@ -89,9 +89,9 @@ export function resetComments(root: HTMLElement): void {
 	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
 }
 
-/** Whether an annotation is settled: resolved or discarded, so its mark is not drawn at rest. */
-export function settled(a: { status: string; discarded: boolean } | undefined): boolean {
-	return !!a && (a.discarded || a.status !== 'open');
+/** Whether an annotation is settled, that is resolved, so its mark is not drawn at rest. */
+export function settled(a: { status: string } | undefined): boolean {
+	return !!a && a.status !== 'open';
 }
 
 /** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or excluded by the session filter. */
@@ -228,7 +228,7 @@ export function wire(
 			}
 		}
 	}
-	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved or discarded and `hidden` for one the session filter excludes. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
+	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` for one the session filter excludes. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
 		// several annotations can share one phrase, and the mark lists them in no particular order

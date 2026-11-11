@@ -250,11 +250,11 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--reply` `ID` | Answer annotation ID; the message is the reply. |
 | `--resolve` `ID` | Mark annotation ID resolved, with the message as why. |
 | `--edit` `ID` | Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor. |
-| `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
+| `--delete` `ID` | Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked. |
 | `--payload` | A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin. |
 | `--placement` | Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment. |
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
-| `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
+| `--undo` | With --resolve, open the annotation again: an undo is another event, never a removal. |
 | `--applied` | With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--dry-run` | Say what would be written, and write nothing, not even a session. |
@@ -1025,7 +1025,6 @@ An agent re-reading its own annotations is the common case — a re-check resolv
 | `--session` `SESSION` | The session to report on. |
 | `--type` `TYPE` | Only annotations of this type, by id or name. |
 | `--status` | Only annotations in this state. |
-| `--all` | Include withdrawn annotations, with the reason they were withdrawn. |
 | `--json` | Print the annotations as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1042,23 +1041,23 @@ Close an agent document, retaining its text and annotations and releasing its sc
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-#### `loom ai discard`
+#### `loom ai delete`
 
-`loom ai discard [OPTIONS] SESSION`
+`loom ai delete [OPTIONS]`
 
-Withdraw a session's annotations, or those matching --before, --by or --target; --undo restores them.
+Delete the annotations matching every one of --by, --target, --before and --version, with their replies; this cannot be undone.
 
-Withdrawing appends an event like any other change, so a sitting's annotations can be withdrawn and restored without anything being rewritten or lost. A withdrawn session is closed, and a restored one opened again.
+Deleting removes them from the log rather than marking them, so nothing of them stays to be read; an agent whose annotation is deleted hears so once, from `loom since`. One annotation is deleted with `loom annotate --delete ID`.
 
 | option | description |
 |---|---|
-| `--before` `DATE` | Withdraw every record created before this date (YYYY-MM-DD). |
-| `--by` `NAME` | Withdraw every record with an annotation by NAME. |
-| `--target` `KEY` | Withdraw every record with an annotation on KEY. |
-| `--undo` | Restore the matching records instead. |
-| `--why` | Why they are withdrawn, which their listing shows; with --undo, why they are back. |
-| `--as` `NAME` | Who is withdrawing them; default your configured name. |
-| `--dry-run` | Say what would be withdrawn and write nothing. |
+| `--by` `NAME` | Annotations NAME wrote. |
+| `--target` `KEY` | Annotations on KEY. |
+| `--before` `DATE` | Annotations written before this date (YYYY-MM-DD). |
+| `--version` `HASH` | Annotations written on this version of their text: the hash `loom ai annotations --json` gives as `against`. |
+| `--yes` | Delete without asking, where nobody is at a terminal to answer. |
+| `--as` `NAME` | Who is deleting them; default your configured name. |
+| `--dry-run` | Say what would be deleted and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

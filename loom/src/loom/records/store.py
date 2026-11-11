@@ -400,7 +400,7 @@ class Records:
         for res in self.resolved(result):
             a = res.annotation
             ks = states.get(a.target_key)
-            if ks is None or res.record.discarded:
+            if ks is None:
                 continue
             # what awaits an answer, which is what a count is for: an untyped annotation, or one of a type that only informs, asks nothing
             if a.in_reply_to is None and a.status == "open" and self.opens(a):
@@ -600,8 +600,8 @@ class Records:
         detached: dict[str, list[str]] = {}
         opening: set[str] = set()
         for res in self.resolved(result):
-            # one resolved or withdrawn needs nothing more, so the finding counts the open ones its fix acts on
-            if res.detached and not res.record.discarded and res.annotation.status == "open":
+            # one resolved needs nothing more, so the finding counts the open ones its fix acts on
+            if res.detached and res.annotation.status == "open":
                 detached.setdefault(res.target, []).append(res.annotation.id)
                 if self.opens(res.annotation):
                     opening.add(res.annotation.id)
@@ -659,7 +659,7 @@ class Records:
                     rows.setdefault(c.id, []).append(key)
         for res in self.resolved(result):
             a = res.annotation
-            if res.record.discarded or not res.detached:
+            if not res.detached:
                 continue
             named = [a.in_doc] if a.in_doc else []
             if a.anchor is None and a.target_key not in result.nodes and is_document_path(result, a.target_key):
@@ -837,13 +837,11 @@ class Records:
                 "quote": a.selector.exact if a.selector else None,
                 "payload": a.payload,
                 "placement": a.placement,
-                "discard_reason": a.discard_reason,
                 "resolved_why": a.resolved_why,
                 # a suggestion resolved as applied: the hash its key had once it was taken
                 "applied": a.applied,
                 # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
                 "run": res.record.rel,
-                "discarded": res.record.discarded,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

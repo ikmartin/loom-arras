@@ -122,10 +122,10 @@
 		boxes?.refresh();
 	});
 
-	/** The annotations on this work's pages, top-level and undiscarded; a resolved one is drawn as settled. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and one the selection hides is not drawn. */
+	/** The annotations on this work's pages, top-level; a resolved one is drawn as settled. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and one the selection hides is not drawn. */
 	const notes = $derived(
 		Object.values(store.manifest?.annotations ?? {}).filter(
-			(a) => a.target.work === citekey && !a.discarded && a.in_reply_to === null && (a.target.page ?? 0) > 0
+			(a) => a.target.work === citekey && a.in_reply_to === null && (a.target.page ?? 0) > 0
 		)
 	);
 	/** The place the URL points at, mapped by loom into rectangles, while the URL carries it. */

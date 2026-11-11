@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, what was withdrawn on it, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
+	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, its detached annotations, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
 	//
 	// **Laid out as its design is** (phase 5): the lists first — where the node is, where it came from, what it depends on and what uses it — each result named as a reader names it (`Theorem 3.1`, a proof as the proof of its result), the key kept as each link's title; the local graph last and small, one expand away.
 	//
@@ -54,7 +54,7 @@
 	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	// `unreachable` is "in no document" in the system's words: the problems page's business, and an absence here (C2)
 	const diagnostics = $derived(m.diagnostics.filter((d) => d.keys.includes(key) && !/(^|:)unreachable$/.test(d.code)));
-	const detached = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.detached && !a.discarded));
+	const detached = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.detached));
 	const threads = $derived(Object.values(m.threads).filter((t) => t.targets.includes(key) && !t.discarded));
 	const closure = $derived(stmt?.closure.filter((k) => k !== key) ?? []);
 	let restsOpen = $state(false);
@@ -62,9 +62,6 @@
 	const versions = $derived(
 		[key, ...(node?.proofs ?? [])].map((k) => ({ key: k, label: versionLabel(m.keys[k]) })).filter((v) => v.label)
 	);
-	// Withdrawn annotations are drawn only under the settled control; they are listed here, folded, only when there are any, so a reader finds them without turning it on.
-	const discarded = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.discarded && a.in_reply_to === null));
-	let showDiscarded = $state(false);
 	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (A2); the box holds the rest. */
 	function preview(a: Annotation): string {
 		const text = a.body_html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || (a.quote ? `“${a.quote.trim()}”` : a.id);
@@ -186,21 +183,6 @@
 			</RailList>
 		{/if}
 
-		{#if discarded.length}
-			<p class="discarded">
-				<button type="button" class="as-link" aria-pressed={showDiscarded} data-testid="show-discarded" onclick={() => (showDiscarded = !showDiscarded)}
-					>{discarded.length} withdrawn — {showDiscarded ? 'hide' : 'show'}</button
-				>
-			</p>
-			{#if showDiscarded}
-				<ul class="plain" data-testid="discarded-list">
-					{#each discarded as a (a.id)}
-						<li class="ann-row"><span class="ann-dot" style={lookVars(a.look)} role="img" aria-label={typeName(m, a)} title={typeName(m, a)}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
-					{/each}
-				</ul>
-			{/if}
-		{/if}
-
 		{#if diagnostics.length}
 			<RailList label="diagnostics">
 				<Diagnostics items={diagnostics} />
@@ -239,10 +221,6 @@
 	.closure-open > summary {
 		cursor: pointer;
 		color: var(--ink-soft);
-	}
-	.discarded button {
-		color: var(--ink-faint);
-		font-size: 11px;
 	}
 	.ann-row {
 		display: flex;

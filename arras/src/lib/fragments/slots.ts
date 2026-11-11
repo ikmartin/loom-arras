@@ -7,7 +7,7 @@ import { settled, type CommentSlot } from './mount';
 import { on } from '$lib/annotations';
 import { ui } from '$lib/ui.svelte';
 
-/** The top-level annotations on exactly this key, in manifest order, settled ones included: a discarded annotation is settled like a resolved one, hidden at rest and drawn faintly by the settled control. A proof has an element of its own, so matching a node's proofs here as well would place the same annotation twice. */
+/** The top-level annotations on exactly this key, in manifest order, settled ones included: a resolved annotation is hidden at rest and drawn faintly by the settled control. A proof has an element of its own, so matching a node's proofs here as well would place the same annotation twice. */
 export function commentsOn(m: Manifest, key: string): Annotation[] {
 	return on(m, key);
 }

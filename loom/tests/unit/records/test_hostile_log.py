@@ -98,23 +98,17 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
     assert [a.id for r in records for a in r.annotations] == ["a-2026-09-18-fy08sq", "a-2026-09-18-612336"]
 
 
-def test_a_whole_source_discard_and_its_undo_replay_by_the_source_they_name(tmp_path: Path) -> None:
-    """A discard with no id names a whole record by `source`, which for a person's record carries the day it was written; its undo restores it."""
-    other = created(id="a-2026-09-18-612336", session="s-2026-09-18-w22p58")
-    discard: dict[str, object] = {"event": "discarded", "when": "x", "source": "s-2026-09-18-6e3sw2"}
-    write(tmp_path, created(), other, discard)
+def test_a_discarded_line_is_no_event_and_leaves_its_annotation_standing(tmp_path: Path) -> None:
+    """An annotation is deleted from the log rather than marked, so a `discarded` line is one loom did not write: reported, skipped, and the annotation it names still open."""
+    whole = {"event": "discarded", "when": "x", "source": "s-2026-09-18-6e3sw2"}
+    one = {"event": "discarded", "when": "x", "id": "a-2026-09-18-fy08sq", "body": "wrong"}
+    write(tmp_path, created(), whole, one)
     records, problems = replay(tmp_path)
-    assert problems == [] and {r.rel: r.discarded for r in records} == {
-        "s-2026-09-18-6e3sw2": True,
-        "s-2026-09-18-w22p58": False,
-    }
-    write(tmp_path, created(), other, discard, {**discard, "undo": True})
-    records, _ = replay(tmp_path)
-    assert not any(r.discarded for r in records)
-    # with no `source`, the event's own session names the record
-    write(tmp_path, created(), other, {"event": "discarded", "when": "x", "session": "s-2026-09-18-w22p58"})
-    records, _ = replay(tmp_path)
-    assert {r.rel: r.discarded for r in records} == {"s-2026-09-18-6e3sw2": False, "s-2026-09-18-w22p58": True}
+    assert problems == [
+        ".loom/annotations/log.jsonl:2: not a review event",
+        ".loom/annotations/log.jsonl:3: not a review event",
+    ]
+    assert [(a.id, a.status) for r in records for a in r.annotations] == [("a-2026-09-18-fy08sq", "open")]
 
 
 def test_an_edit_restates_the_fields_it_carries_and_repoints_against(tmp_path: Path) -> None:

@@ -281,8 +281,7 @@ test('a note lands in the session selected in the viewer, not in the one opened 
 	expect(mine.session).not.toBe(newer);
 });
 
-test('an annotation is edited, discarded with a reason and put back, each an event in the log', async ({ page, served }) => {
-	// 15.3.4a: edit restates, discard withdraws, and undo is another event rather than the removal of one (DR-174)
+test('an annotation is edited, then deleted, which takes its lines out of the log, and Undo puts the same lines back', async ({ page, served }) => {
 	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'inline' })));
 	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.type === 'revision')!.id as string;
 	await page.goto('/node/sy-0003');
@@ -305,27 +304,23 @@ test('an annotation is edited, discarded with a reason and put back, each an eve
 	expect(edited[0].session).toBe(sid);
 	expect(edited[0].kind).toBe('human');
 
-	await head.getByTestId('verb-discard').click();
-	await box.getByTestId('verb-text').fill('raised in error');
-	await box.getByTestId('verb-send').click();
-	await expect.poll(() => served.log().filter((e) => e.event === 'discarded' && e.id === id).length).toBe(1);
-	const discarded = served.log().filter((e) => e.event === 'discarded' && e.id === id)[0];
-	expect(discarded.body).toBe('raised in error');
-	expect(discarded.session).toBe(sid);
-	expect(discarded.undo).toBeUndefined();
-	// settled, the box says so once and offers reopen alone
-	await expect(head.getByTestId('outcome')).toHaveText('· withdrawn');
-	const undo = head.getByTestId('verb-reopen');
-	await expect(undo).toBeVisible();
-	await expect(head.getByTestId('verb-discard')).toHaveCount(0);
+	// the log as lines, in any order: a restore appends what it puts back
+	const lines = () => served.log().map((e) => JSON.stringify(e)).sort();
+	const before = lines();
+	await head.getByTestId('verb-delete').click();
+	// nothing of it is left in the log, and the box and its mark go with it
+	await expect.poll(() => served.log().filter((e) => e.id === id).length).toBe(0);
+	const gone = before.filter((l) => !lines().includes(l));
+	expect(gone.length).toBeGreaterThan(1); // its creation and its edit at least
+	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`)).toHaveCount(0);
+	const held = page.getByTestId('deleted');
+	await expect(held).toHaveCount(1);
 
-	await undo.click();
-	await expect.poll(() => served.log().filter((e) => e.event === 'discarded' && e.id === id).length).toBe(2);
-	const reopened = served.log().filter((e) => e.event === 'discarded' && e.id === id)[1];
-	expect(reopened.undo).toBe(true);
-	expect(reopened.session).toBe(sid);
-	await expect(head.getByTestId('verb-discard')).toBeVisible();
-	await expect(head.getByTestId('outcome')).toHaveCount(0);
+	await held.getByTestId('deleted-undo').click();
+	await expect(held).toHaveCount(0);
+	// the same lines, and the mark drawn again
+	await expect.poll(lines).toEqual(before);
+	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first()).toBeVisible();
 });
 
 test('deleting a session from the picker tombstones it in the index, and its annotations stay in the log', async ({ page, served }) => {

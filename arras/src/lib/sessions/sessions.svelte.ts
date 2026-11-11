@@ -141,7 +141,7 @@ export function findSessions(m: Manifest | null, find: string): { open: SessionR
 
 /** What one session holds: how many of its annotations of a type that stays open are unresolved, who wrote in it, and how many arrived in the current round. */
 export function summary(m: Manifest | null, id: string): { open: number; who: string[]; fresh: number } {
-	const rows = Object.values(m?.annotations ?? {}).filter((a) => a.run === id && !a.in_reply_to && !a.discarded);
+	const rows = Object.values(m?.annotations ?? {}).filter((a) => a.run === id && !a.in_reply_to);
 	const since = (m?.sessions ?? []).find((s) => s.id === id)?.opened ?? '';
 	return {
 		open: rows.filter((a) => a.status !== 'resolved' && staysOpen(m, a)).length,

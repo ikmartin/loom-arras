@@ -31,7 +31,7 @@ def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
     ok("annotate", "--resolve", first, "Settled.", *who, cwd=q)
     ok("annotate", "--resolve", first, "--undo", *who, cwd=q)
     ok("annotate", "--edit", first, "Which orbits?", *who, cwd=q)
-    ok("annotate", "--discard", reply, "Said elsewhere.", *who, cwd=q)
+    ok("annotate", "--delete", reply, *who, cwd=q)
     batch = "\n".join(
         json.dumps(x)
         for x in ({"target": "dm-0002", "message": "One.", "type": "note"}, {"reply": first, "message": "Two."})
@@ -44,7 +44,7 @@ def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
         f"loom annotate --resolve {first} → {first}",
         f"loom annotate --resolve {first} --undo → {first}",
         f"loom annotate --edit {first} → {first}",
-        f"loom annotate --discard {reply} → {reply}",
+        f"loom annotate --delete {reply} → {reply}",
     ]
     assert got[6].startswith("loom annotate dm-0002 --type note → a-") and got[7].startswith(
         f"loom annotate --reply {first} → a-"

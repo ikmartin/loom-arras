@@ -42,19 +42,14 @@ export function onAny(m: Manifest, keys: readonly string[]): Annotation[] {
 	return keys.flatMap((k) => on(m, k));
 }
 
-/** The undiscarded replies to one annotation. */
+/** The replies to one annotation. */
 export function repliesTo(m: Manifest, id: string): Annotation[] {
-	return (index(m).byParent.get(id) ?? []).filter((a) => !a.discarded);
+	return index(m).byParent.get(id) ?? [];
 }
 
-/** The open, undiscarded, top-level annotations on a key: what a reader is being asked to answer. */
-export function openOn(m: Manifest, key: string): Annotation[] {
-	return on(m, key).filter((a) => !a.discarded);
-}
-
-/** Whether an annotation is settled: resolved or discarded. The same test as `fragments/mount`'s, here so the index's callers need not import the wiring. */
+/** Whether an annotation is settled, that is resolved. The same test as `fragments/mount`'s, here so the index's callers need not import the wiring. */
 function isSettled(a: Annotation): boolean {
-	return a.discarded || a.status !== 'open';
+	return a.status !== 'open';
 }
 
 /** Whether any top-level annotation on these keys is settled, under the session being shown: what lets a rail offer the settled control on a node where nothing is drawn at rest. */

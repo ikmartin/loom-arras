@@ -61,8 +61,6 @@ def attach_changes(
 
     entries = manifest.get("annotations", {})
     for record in records.records:
-        if record.discarded:
-            continue
         for ann in record.annotations:
             entry = entries.get(ann.id)
             if entry is None or ann.payload is None or ann.status != "open":

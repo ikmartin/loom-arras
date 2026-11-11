@@ -89,8 +89,6 @@
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-ecnav2",
    "in": null,
    "in_reply_to": null,
@@ -128,8 +126,6 @@
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-hwtkaw",
    "in": null,
    "in_reply_to": null,
@@ -167,8 +163,6 @@
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-6sn46y",
    "in": null,
    "in_reply_to": null,
@@ -206,8 +200,6 @@
    "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
@@ -245,8 +237,6 @@
    "body_html": "<p>The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-hqnbz4",
    "in": null,
    "in_reply_to": null,
@@ -284,8 +274,6 @@
    "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-bns3an",
    "in": null,
    "in_reply_to": null,
@@ -323,8 +311,6 @@
    "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-xgtcve",
    "in": "drafting/talk.tex",
    "in_reply_to": null,
@@ -362,8 +348,6 @@
    "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-hwnav1",
    "in": null,
    "in_reply_to": "a-2026-09-16-ecnav2",
@@ -401,8 +385,6 @@
    "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-gahrrs",
    "in": null,
    "in_reply_to": "a-2026-09-16-hwtkaw",
@@ -440,8 +422,6 @@
    "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-16-a91hwf",
    "in": null,
    "in_reply_to": null,
@@ -467,45 +447,6 @@
    },
    "type": "question"
   },
-  "a-2026-09-16-pmjbhz": {
-   "anchored": false,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
-   },
-   "basis": null,
-   "body_html": "<p>Gadgets of odd order cannot exist.</p>",
-   "created": "2026-09-16T00:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": true,
-   "id": "a-2026-09-16-pmjbhz",
-   "in": null,
-   "in_reply_to": null,
-   "look": {
-    "color": "grey",
-    "opacity": 60,
-    "style": "highlight",
-    "weight": 2
-   },
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
-   "quote": null,
-   "recorded": true,
-   "resolved_why": null,
-   "run": "s-2026-09-15-fk1w66",
-   "status": "open",
-   "target": {
-    "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
-    "key": "sy-000A",
-    "page": null,
-    "work": null
-   },
-   "type": "note"
-  },
   "a-2026-09-17-rvgxnv": {
    "anchored": true,
    "applied": null,
@@ -524,8 +465,6 @@
    },
    "created": "2026-09-17T09:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
    "id": "a-2026-09-17-rvgxnv",
    "in": null,
    "in_reply_to": null,
@@ -557,7 +496,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "9f881f4812fddb2b2bda1d5e70b5869916c64e5420707729a709c530c307501f",
+   "hash": "b5f298145f424efccb280860ded591b5194952dd98be24b0590bdc524a5c5a57",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -572,7 +511,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "68fa452432ee9c78417a33ed18fe7657b95a0f50bf103baa98a11c6f8d415fbd",
+   "hash": "397e4c1bb5b6f71b820a30c11b2cddf55eb0d5d49e290847120005ea4df6bcfa",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -587,7 +526,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "ce9a31f192111aac94c6db001f8709ab9dbc7f69e7d33c443bf7209df61e2687",
+   "hash": "4b940e2f4799785817e011467559657eefcfeb65e537ad775ea9e3612f2c0e81",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -8360,13 +8299,7 @@
  },
  "threads": {
   "s-2026-09-15-fk1w66": {
-   "attachments": [
-    {
-     "count": 1,
-     "kind": "annotations",
-     "name": "annotations"
-    }
-   ],
+   "attachments": [],
    "created": "2026-09-15T10:00:00Z",
    "discarded": true,
    "id": "s-2026-09-15-fk1w66",
@@ -8383,16 +8316,9 @@
      "time": "2026-09-16T00:00:00Z"
     }
    ],
-   "participants": [
-    {
-     "id": "agent",
-     "kind": "agent"
-    }
-   ],
+   "participants": [],
    "path": ".loom/sessions/s-2026-09-15-fk1w66",
-   "targets": [
-    "sy-000A"
-   ],
+   "targets": [],
    "title": "quick"
   },
   "s-2026-09-16-p9z37z": {
@@ -8513,6 +8439,11 @@
        "key": "sy-0001"
       }
      ],
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "annotation": "a-2026-09-16-pmjbhz",
+     "command": "loom annotate --delete a-2026-09-16-pmjbhz",
      "time": "2026-09-16T00:00:00Z"
     },
     {

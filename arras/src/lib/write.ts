@@ -9,7 +9,7 @@ import { store } from '$lib/manifest/client.svelte';
 import { sessionView, writable } from '$lib/sessions/sessions.svelte';
 
 /** The endpoints that record work into a session, and therefore must name one. The session verbs carry their own subject and are not among them, and neither is `locate`, which reads. */
-const SESSIONED = new Set(['annotate', 'note', 'note-keep', 'reply', 'resolve', 'edit', 'discard', 'suggestion-apply', 'library-verify', 'library-discard']);
+const SESSIONED = new Set(['annotate', 'note', 'note-keep', 'reply', 'resolve', 'edit', 'delete', 'restore', 'suggestion-apply', 'library-verify', 'library-discard']);
 
 export interface Capabilities {
 	write_api: number;
@@ -72,6 +72,8 @@ export interface WriteResult {
 	result?: string;
 	/** `fields`, on a form's refusal, says why each field it refused was refused. */
 	error?: { code: string; message: string; fields?: Record<string, string> };
+	/** `delete`'s answer: the log events it took out, the annotation's and its replies', which `restore` puts back. */
+	removed?: Record<string, unknown>[];
 }
 
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused annotation is an answer a reader needs to see. */

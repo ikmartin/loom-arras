@@ -25,7 +25,8 @@ CAPABILITIES = [
     "reply",
     "resolve",
     "edit",
-    "discard",
+    "delete",
+    "restore",
     "suggestion-apply",
     "library-verify",
     "library-discard",
@@ -328,7 +329,8 @@ RECORD_WRITES = (
     "reply",
     "resolve",
     "edit",
-    "discard",
+    "delete",
+    "restore",
     "session-new",
     "session-use",
     "session-rename",
@@ -998,7 +1000,38 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         }
     if endpoint.startswith("session-"):
         return {"ok": True, "result": _session(root, endpoint, body)}
+    if endpoint in ("delete", "restore"):
+        return _delete(root, endpoint, body)
     return {"ok": True, "result": _review(root, endpoint, body)}
+
+
+def _delete(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Delete an annotation, answering with the events removed, or put back events a delete removed: the viewer's undo of a delete is the second."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError
+    from loom.cli.review import _writer, delete_annotation
+    from loom.records.log import EVENTS, restore
+
+    which = _str(body, "session")
+    if not which:
+        raise ApiError("no-session", "a write must name the session it belongs to")
+    try:
+        writer = _writer(root, which, _str(body, "author"), sniff=False)
+        if endpoint == "delete":
+            said, removed = delete_annotation(root, _str(body, "annotation", required=True) or "", writer)
+            return {"ok": True, "result": said, "removed": removed}
+        events = body.get("events")
+        if (
+            not isinstance(events, list)
+            or not events
+            or not all(isinstance(e, dict) and e.get("event") in EVENTS and e.get("id") for e in events)
+        ):
+            raise ApiError("bad-field", "events must be the events a delete answered with")
+        put = restore(root, events)
+        return {"ok": True, "result": f"restored {', '.join(put)}"}
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
+    except (EnvError, ContentError, ValueError) as exc:
+        raise ApiError("refused", str(exc)) from exc
 
 
 def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -1173,7 +1206,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
     from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _one_comment, _writer, discard_annotation, edit_annotation
+    from loom.cli.review import _one_comment, _writer, edit_annotation
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
@@ -1197,13 +1230,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("refused", str(exc)) from exc
 
     try:
-        # `undo` puts a withdrawn or resolved finding back by appending another event; the viewer offers it in place
-        # of the verb that fired, so a wrong click is one click back (DR-174).
+        # `undo` opens a resolved annotation again by appending another event; the viewer offers it in place of the verb that fired, so a wrong click is one click back (DR-174).
         undo = bool(body.get("undo"))
-        if endpoint == "discard":
-            return discard_annotation(
-                root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
-            )
         result = _scan(root)
         if endpoint == "suggestion-apply":
             return _apply(root, result, _str(body, "annotation", required=True) or "", writer)

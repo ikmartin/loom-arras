@@ -171,7 +171,7 @@
 	let wiredKey = '';
 	function annotationKey(): string {
 		return Object.values(store.manifest?.annotations ?? {})
-			.map((a) => `${a.id}:${a.status}:${a.discarded ? 1 : 0}:${a.detached ? 1 : 0}:${a.in ?? ''}:${a.body_html}`)
+			.map((a) => `${a.id}:${a.status}:${a.detached ? 1 : 0}:${a.in ?? ''}:${a.body_html}`)
 			.join('|');
 	}
 

@@ -1,4 +1,4 @@
-"""accept, comment, status, ai discard on the demo and synthetic quilts; the states, causes, facts, and a worked timeline."""
+"""accept, comment, status, ai delete on the demo and synthetic quilts; the states, causes, facts, and a worked timeline."""
 
 from __future__ import annotations
 
@@ -609,49 +609,51 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     )
 
 
-def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> None:
-    """Resolving claims the author addressed it. An agent that misread wants to say the opposite (blocks.md rule 7)."""
+def test_an_annotation_is_deleted_with_its_replies_and_an_agent_deletes_only_its_own(tmp_path: Path) -> None:
+    """Resolving claims the author addressed it; an agent that misread deletes what it raised instead (rules.md item 7), and nothing of it stays in the log."""
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
+    as_agent = ("--session", sid, "--as", "agent")
     made = ok(
-        "annotate",
-        "dm-0002",
-        "Orbits may be empty.",
-        "--quote",
-        "Every orbit",
-        "--session",
-        sid,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
+        "annotate", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--type", "revision", *as_agent,
+        cwd=d, env=AGENT,
+    )  # fmt: skip
     ann = made.output.split()[0]
+    reply = ok("annotate", "--reply", ann, "Are they?", *AS, cwd=d).output.split()[0]
+    ok("annotate", "--reply", reply, "No: I misread the definition.", *as_agent, cwd=d, env=AGENT)
+    mine = ok("annotate", "dm-0003", "Which set?", "--type", "question", *AS, cwd=d).output.split()[0]
+    theirs = ok(
+        "annotate", "dm-0003", "A gap.", "--type", "revision", "--as", "Other Agent", cwd=d, env=AGENT
+    ).output.split()[0]
 
-    gone = ok(
-        "annotate", "--discard", ann, "I misread the definition.", "--session", sid, "--as", "agent", cwd=d, env=AGENT
-    )
-    assert gone.output.strip() == f"withdrew {ann}"
+    # an agent deletes only what it wrote: neither the person's nor another agent's
+    for other in (mine, theirs):
+        r = refused("annotate", "--delete", other, *as_agent, cwd=d, env=AGENT, code=2, match="an agent deletes only")
+        assert "its own annotations" in flat(r.output)
+    before = events(d)
+    dry = ok("annotate", "--delete", ann, "--dry-run", *as_agent, cwd=d, env=AGENT).output
+    assert dry.startswith("dry run:") and f"delete {ann}" in dry
+    assert events(d) == before
 
+    gone = ok("annotate", "--delete", ann, *as_agent, cwd=d, env=AGENT)
+    assert gone.output.strip() == f"deleted {ann} and 2 replies to it"
+    assert not [e for e in events(d) if ann in (e.get("id"), e.get("reply_to")) or e.get("reply_to") == reply]
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
-    events_for = [e for e in events(d) if e.get("id") == ann]
-    assert [e["event"] for e in events_for] == ["created", "discarded"]
-    assert events_for[1]["body"] == "I misread the definition."  # the reason is kept, not thrown away
+    # nothing is left of it, so a second deletion finds nothing, and an agent deleting its own tells nobody
+    refused("annotate", "--delete", ann, *as_agent, cwd=d, env=AGENT, code=2, match=f"no annotation {ann}")
+    assert not (d / ".loom/since" / "deleted.jsonl").exists()
 
-    refused(
-        "annotate",
-        "--discard",
-        "a-nope-0001",
-        "x",
-        "--session",
-        sid,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-        code=2,
-        match="no annotation a-nope-0001",
-    )
+    # a person deletes anyone's
+    assert ok("annotate", "--delete", theirs, *AS, cwd=d).output.strip() == f"deleted {theirs}"
+    assert [e["id"] for e in events(d)] == [mine]
+
+
+def test_a_deletion_takes_no_message(tmp_path: Path) -> None:
+    """A deletion leaves nothing to carry a reason, so words given with it are refused rather than dropped without a word."""
+    d = demo(tmp_path)
+    ann = ok("annotate", "dm-0002", "A finding", "--type", "revision", *AS, cwd=d).output.split()[0]
+    refused("annotate", "--delete", ann, "I misread it.", *AS, cwd=d, code=2, match="give the id alone")
+    assert [e["id"] for e in events(d)] == [ann]
 
 
 def test_the_look_and_placement_are_checked(tmp_path: Path) -> None:
@@ -681,57 +683,44 @@ def test_the_look_and_placement_are_checked(tmp_path: Path) -> None:
     assert a["drawn"] == {"color": "green", "style": "strike", "weight": 2, "opacity": 60}
 
 
-def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
+def test_ai_delete_takes_what_every_filter_names_and_nothing_else(tmp_path: Path) -> None:
+    """`loom ai delete` is the person's bulk delete: every filter given must hold, replies go with what they answer, and with nobody at a terminal it asks for --yes."""
     d = demo(tmp_path)
-    # two sittings, because discarding one must not take the other with it
-    mine, _ = session(d, "the author's own")
-    sid, run_dir = session(d, "r1")
-    ok(
-        "annotate",
-        "dm-0002",
-        "Objection.",
-        "--quote",
-        "Every orbit",
-        "--type",
-        "revision",
-        "--session",
-        sid,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
-    ok(
-        "annotate",
-        "dm-0002",
-        "Person.",
-        "--quote",
-        "one or two",
-        "--type",
-        "revision",
-        "--session",
-        mine,
-        *AS,
-        cwd=d,
-    )
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
-    ok("ai", "discard", sid, cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
-    assert [e["event"] for e in events(d)][-1] == "discarded"  # an event, not a rewritten file
-    ok("ai", "discard", "--by", "Markas Hecht", cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
-    ok("ai", "discard", sid, "--undo", cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
-    ok("ai", "discard", "--target", "dm-0002", "--undo", cwd=d)
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
-    assert (
-        ok("ai", "discard", "--before", "2000-01-01", cwd=d).stdout.strip() == "no matching records; nothing withdrawn"
-    )
-    # a word that is no date is refused, not compared as text: "yesterday" sorted after every date and discarded everything
-    refused("ai", "discard", "--before", "yesterday", cwd=d, code=2, match="yesterday")
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 2}
-    st = status_json(d)
-    assert len(st["runs"]) == 2 and ok("status", "--runs", cwd=d).output.splitlines()[0] == "2 sessions on record"
+    sid, _ = session(d, "r1")
+    agents = ok(
+        "annotate", "dm-0002", "Objection.", "--quote", "Every orbit", "--type", "revision",
+        "--session", sid, "--as", "agent", cwd=d, env=AGENT,
+    ).output.split()[0]  # fmt: skip
+    ok("annotate", "--reply", agents, "Fair.", *AS, cwd=d)
+    person = ok(
+        "annotate", "dm-0002", "Person.", "--quote", "one or two", "--type", "revision", *AS, cwd=d
+    ).output.split()[0]
+    elsewhere = ok("annotate", "dm-0003", "Elsewhere.", "--type", "question", *AS, cwd=d).output.split()[0]
+    before = events(d)
+
+    refused("ai", "delete", *AS, cwd=d, code=2, match="give --by, --target, --before or --version")
+    # a word that is no date is refused, not compared as text, where it would sort after every date
+    refused("ai", "delete", "--before", "yesterday", "--yes", *AS, cwd=d, code=2, match="yesterday")
+    refused("ai", "delete", "--target", "dm-9999", "--yes", *AS, cwd=d, code=2, match="dm-9999")
+    refused("ai", "delete", "--by", "agent", *AS, cwd=d, code=2, match="--yes deletes them")
+    refused("ai", "delete", "--by", "agent", "--yes", "--as", "agent", cwd=d, env=AGENT, code=2, match="the author's")
+    assert events(d) == before
+
+    planned = json_of("ai", "delete", "--by", "Markas Hecht", "--target", "dm-0002", "--dry-run", "--json", cwd=d)
+    assert planned["deleted"] == [person] and events(d) == before
+    assert json_of("ai", "delete", "--before", "2000-01-01", "--yes", "--json", *AS, cwd=d)["deleted"] == []
+    assert events(d) == before
+
+    # both filters hold: the person's on dm-0002, not the person's on dm-0003
+    ok("ai", "delete", "--by", "Markas Hecht", "--target", "dm-0002", "--yes", *AS, cwd=d)
+    assert {e["id"] for e in events(d) if e["event"] == "created"} == {agents, elsewhere}
+    # by the version it was written on, with the reply that answers it
+    version = the(events(d), lambda e: e.get("id") == agents, "the agent's")["against"]
+    ok("ai", "delete", "--version", version, "--yes", *AS, cwd=d)
+    assert [e["id"] for e in events(d)] == [elsewhere]
+    # the agent hears of it once, from its next `loom since`
+    told = [json.loads(x) for x in (d / ".loom/since" / "deleted.jsonl").read_text().splitlines()]
+    assert [(x["to"], x["id"], x["type"], x["quote"]) for x in told] == [("agent", agents, "revision", "Every orbit")]
 
 
 def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
@@ -948,50 +937,23 @@ def test_status_filters_by_what_the_annotations_say(tmp_path: Path) -> None:
     assert list(json_of("status", "--detached", "--json", cwd=d)["keys"]) == []
 
 
-def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
-    """A withdrawn finding is not a live one (F20); the reason was typed into the log and shown nowhere."""
+def test_an_agent_lists_its_own_annotations_and_a_deleted_one_is_gone(tmp_path: Path) -> None:
+    """What `ai annotations` lists is what stands: a deleted annotation is in no listing, and there is nothing withdrawn to ask for."""
     d = demo(tmp_path)
     rel = ok("session", "new", "--name", "Referee", cwd=d).stdout.split()[0]
     run_name = rel.rsplit("/", 1)[-1]
-    ok(
-        "annotate",
-        "dm-0002",
-        "Wrong",
-        "--type",
-        "revision",
-        "--session",
-        run_name,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
-    ok("annotate", "dm-0003", "Also wrong", "--session", run_name, "--as", "agent", cwd=d, env=AGENT)
+    as_agent = ("--session", run_name, "--as", "agent")
+    ok("annotate", "dm-0002", "Wrong", "--type", "revision", *as_agent, cwd=d, env=AGENT)
+    ok("annotate", "dm-0003", "Also wrong", *as_agent, cwd=d, env=AGENT)
     live = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
-    assert len(live) == 2
     assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
+    assert not {"discarded", "discard_reason"} & set(live[0])
 
-    ok(
-        "annotate",
-        "--discard",
-        live[1]["id"],
-        "I misread the hypothesis",
-        "--session",
-        run_name,
-        "--as",
-        "agent",
-        cwd=d,
-        env=AGENT,
-    )
+    ok("annotate", "--delete", live[1]["id"], *as_agent, cwd=d, env=AGENT)
     after = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
-    assert [f["id"] for f in after] == [live[0]["id"]]  # the withdrawn one is out of the way
-
-    every = json_of("ai", "annotations", "--session", run_name, "--all", "--json", cwd=d)["annotations"]
-    gone = the(every, lambda f: f["discarded"], "discarded finding")
-    assert gone["discard_reason"] == "I misread the hypothesis"
-    assert "I misread the hypothesis" in ok("ai", "annotations", "--session", run_name, "--all", cwd=d).output
-
-    revisions = json_of("ai", "annotations", "--session", run_name, "--all", "--type", "revision", "--json", cwd=d)
+    assert [f["id"] for f in after] == [live[0]["id"]]
+    refused("ai", "annotations", "--session", run_name, "--all", cwd=d, code=2, match="No such option")
+    revisions = json_of("ai", "annotations", "--session", run_name, "--type", "revision", "--json", cwd=d)
     assert [f["id"] for f in revisions["annotations"]] == [live[0]["id"]]
 
 
@@ -1005,10 +967,10 @@ BATCH = [
     ),
     # a batch is written by a program that cannot see the result, so a misspelled key must not file an empty annotation
     pytest.param([{"target": "dm-0002", "messsage": "typo"}], 2, "unknown key(s) messsage", [], id="unknown-key"),
-    pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
+    pytest.param([{"edit": "{ann}", "delete": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
     pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
     pytest.param([{"edit": "{ann}", "message": "x", "quote": "Every orbit"}], 2, "--quote would be lost", [], id="an-edit-moves-no-anchor"),
-    pytest.param([{"discard": "{ann}", "message": "wrong", "color": "red"}], 2, "--color would be lost", [], id="a-discard-carries-its-reason"),
+    pytest.param([{"delete": "{ann}", "color": "red"}], 2, "--color would be lost", [], id="a-deletion-carries-nothing"),
     pytest.param([{"edit": "{ann}", "placement": "after"}], 0, None, [("edited", None)], id="an-edit-carries-placement"),
     # every line is checked before any is written, so a failing line leaves nothing half done (the re-grade's K3)
     pytest.param(
@@ -1024,20 +986,26 @@ BATCH = [
         id="an-unknown-key-on-a-later-line",
     ),
     pytest.param([{"target": "dm-0002", "type": "revision"}], 2, "needs words", [], id="an-empty-revision"),
+    pytest.param([{"target": "dm-0002", "message": "a second"}, {"delete": "{ann}"}], 0, None, None, id="a-deletion-takes-the-line"),
 ]  # fmt: skip
 
 
 @pytest.mark.parametrize(("lines", "code", "match", "wrote"), BATCH)
 def test_a_batch_carries_every_verb_and_refuses_line_by_line(
-    tmp_path: Path, lines: list[dict[str, str]], code: int, match: str | None, wrote: list[tuple[str, str]]
+    tmp_path: Path, lines: list[dict[str, str]], code: int, match: str | None, wrote: list[tuple[str, str]] | None
 ) -> None:
-    """`comment --batch` reads one JSON object per line against an existing finding `{ann}`; `wrote` is the events it appends, in order."""
+    """`comment --batch` reads one JSON object per line against an existing finding `{ann}`; `wrote` is the events it appends, in order, or None where `{ann}` is deleted and only the second annotation stands."""
     d = demo(tmp_path)
     ann = ok("annotate", "dm-0002", "Which orbits?", "--type", "question", *AS, cwd=d).output.split()[0]
     stdin = "".join(json.dumps({k: v.replace("{ann}", ann) for k, v in line.items()}) + "\n" for line in lines)
     r = exits(code, "annotate", "--batch", *AS, cwd=d, stdin=stdin, match=match)
     if match == "unknown key(s) messsage":
         assert "accepted:" in r.output, r.output  # the refusal names the keys a line may carry
+    if wrote is None:
+        assert f"deleted {ann}" in r.output and [(e["event"], e["body"]) for e in events(d)] == [
+            ("created", "a second")
+        ]
+        return
     assert [(e["event"], e.get("body")) for e in events(d)[1:]] == wrote
 
 
@@ -1084,25 +1052,26 @@ def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
     assert len(events(d)) == before
 
 
-def test_an_edit_or_a_discard_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
-    """`--edit ID --quote ..` exited 0 and wrote an edit with no anchor (the anchoring critique, 2026-10-03); a discard dropped everything but its reason, and two verbs in one call ran one."""
+def test_an_edit_or_a_deletion_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
+    """`--edit ID --quote ..` exited 0 and wrote an edit with no anchor (the anchoring critique, 2026-10-03); a deletion carries nothing beside its id, and two verbs in one call ran one."""
     d = demo(tmp_path)
     ann = ok("annotate", "dm-0002", "A finding", "--quote", "Every orbit", *AS, cwd=d).output.split()[0]
     before = len(events(d))
     for verb, extra in (
         ("--edit", ("--quote", "one or two")),
         ("--edit", ("--page", "3")),
-        ("--discard", ("--type", "note")),
-        ("--discard", ("--quote", "one or two")),
-        ("--discard", ("--payload", "New sentence.")),
+        ("--delete", ("--type", "note")),
+        ("--delete", ("--quote", "one or two")),
+        ("--delete", ("--payload", "New sentence.")),
     ):
         refused("annotate", verb, ann, "Restated.", *extra, *AS, cwd=d, code=2, match=f"{extra[0]} would be lost")
+    refused("annotate", "--delete", ann, "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
     refused("annotate", "--edit", ann, "x", "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
     assert len(events(d)) == before
 
     # --placement is one of the fields an edit restates, and an edit of it alone is a change
     ok("annotate", "--edit", ann, "--placement", "after", *AS, cwd=d)
-    [f] = json_of("ai", "annotations", "--all", "--json", cwd=d)["annotations"]
+    [f] = json_of("ai", "annotations", "--json", cwd=d)["annotations"]
     assert f["placement"] == "after" and f["quote"] == "Every orbit"
 
 
@@ -1230,7 +1199,7 @@ def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
 
 
 def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> None:
-    """Discarding always replayed an `undo`; resolving did not, so a resolution was the one state nothing could take back — and `--resolve` is the verb a run can apply to its own finding (DR-174)."""
+    """A resolution is taken back by appending its undo, so it is never the one state nothing can reverse — and `--resolve` is the verb a run can apply to its own finding (DR-174)."""
     d = demo(tmp_path)
     ann = ok("annotate", "dm-0002", "Which orbits?", "--type", "revision", *AS, cwd=d).output.split()[0]
 
@@ -1239,18 +1208,18 @@ def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> No
     assert ok("annotate", "--resolve", ann, "--undo", *AS, cwd=d).output.startswith("reopened")
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
 
-    assert ok("annotate", "--discard", ann, "raised in error", *AS, cwd=d).output.startswith("withdrew")
-    assert ok("annotate", "--discard", ann, "--undo", *AS, cwd=d).output.startswith("reopened")
-    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}
-
-    # nothing was removed: every act is still in the log, undos included
-    kinds = [e["event"] for e in events(d)]
-    assert kinds == ["created", "resolved", "resolved", "discarded", "discarded"]
-    assert [e.get("undo") for e in events(d)] == [None, None, True, None, True]
+    # nothing was removed: every act is still in the log, the undo included
+    assert [(e["event"], e.get("undo")) for e in events(d)] == [
+        ("created", None),
+        ("resolved", None),
+        ("resolved", True),
+    ]
 
     refused(
-        "annotate", "--undo", *AS, cwd=d, code=2, match="--undo applies to --resolve or --discard"
+        "annotate", "--undo", *AS, cwd=d, code=2, match="--undo applies to --resolve"
     )  # --undo needs a verb to undo
+    # a deletion is not undone from the command line: nothing of it is left to put back
+    refused("annotate", "--delete", ann, "--undo", *AS, cwd=d, code=2, match="--undo applies to --resolve")
 
 
 def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
@@ -1542,7 +1511,7 @@ def test_status_counts_each_agent_documents_work_apart_from_the_authors(tmp_path
 
 
 def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_accept(tmp_path: Path) -> None:
-    """Full privilege on an agent document (plan 0.21.2): an agent resolves, edits and discards another agent's annotation and the author's alike, and the author's acts still refuse it."""
+    """Full privilege on an agent document (plan 0.21.2): an agent resolves and edits another agent's annotation and the author's alike; it deletes only its own, there as anywhere, and the author's acts still refuse it."""
     q = synthetic(tmp_path)
     key = "sy-000C-ai/proof"
 
@@ -1563,17 +1532,17 @@ def test_an_agent_closes_any_annotation_on_an_agent_document_and_still_may_not_a
         cwd=q,
         env=AGENT,
     )
-    ok("annotate", "--discard", other, "Raised in error.", "--as", "Simplify Agent", cwd=q, env=AGENT)
+    refused(
+        "annotate", "--delete", other, "--as", "Simplify Agent", cwd=q, env=AGENT, code=2, match="deletes only its own"
+    )
     acts = {
         (e["event"], e["id"]): e["author"]
         for e in events(q)
-        if e["event"] in ("resolved", "edited", "discarded") and e.get("id") in (referee, mine, other)
+        if e["event"] in ("resolved", "edited") and e.get("id") in (referee, mine, other)
     }
-    assert acts == {
-        ("resolved", referee): "Simplify Agent",
-        ("edited", mine): "Simplify Agent",
-        ("discarded", other): "Simplify Agent",
-    }
+    assert acts == {("resolved", referee): "Simplify Agent", ("edited", mine): "Simplify Agent"}
+    ok("annotate", "--delete", other, "--as", "Referee Agent", cwd=q, env=AGENT)
+    assert other not in {e.get("id") for e in events(q)}
     refused("accept", "sy-0001", "--as", "Simplify Agent", cwd=q, env=AGENT, code=2, match="may not run")
 
 

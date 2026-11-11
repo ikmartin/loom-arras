@@ -4,9 +4,9 @@ import type { Annotation, Manifest } from '$lib/manifest/types';
 
 const file = (p: string) => p.split('/').pop() ?? p;
 
-/** The open annotations carrying text to put in (an empty payload deletes the words it quotes), whatever their type, newest first: neither a reply nor withdrawn nor resolved. What Review counts. */
+/** The open annotations carrying text to put in (an empty payload deletes the words it quotes), whatever their type, newest first: neither a reply nor resolved. What Review counts. */
 export function toApply(m: Pick<Manifest, 'annotations'>): Annotation[] {
-	return newest(Object.values(m.annotations ?? {}).filter((a) => a.payload !== null && a.payload !== undefined && !a.in_reply_to && !a.discarded && a.status === 'open'));
+	return newest(Object.values(m.annotations ?? {}).filter((a) => a.payload !== null && a.payload !== undefined && !a.in_reply_to && a.status === 'open'));
 }
 
 const newest = (as: Annotation[]) => as.sort((a, b) => (b.created ?? '').localeCompare(a.created ?? ''));

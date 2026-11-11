@@ -730,36 +730,31 @@ def _note_on_page(
     return said + (f"\nopen: {where}" if where else "")
 
 
-def discard_annotation(
-    root: Path,
-    ann_id: str,
-    writer: tuple[str, str, str],
-    reason: str | None,
-    undo: bool = False,
-    *,
-    dry_run: bool = False,
-) -> str:
-    """Withdraw one finding: it was raised in error and should not stand; with `undo`, put it back.
+def delete_annotation(
+    root: Path, ann_id: str, writer: tuple[str, str, str], *, dry_run: bool = False
+) -> tuple[str, list[dict[str, Any]]]:
+    """Delete one annotation, with its replies: removed from the log, not marked.
 
-    Distinct from resolving, which says the author addressed it, and from `loom ai discard`, which sets a whole run aside. Nothing is deleted, so the finding and its reason stay in the log, and an undo is another event rather than the removal of one.
+    An agent deletes only what it wrote; a person deletes any. A person deleting an agent's annotation leaves that agent a line its next `loom since` reports once (`since.note_deletion`). Returns what to say, and the events removed, which `records.log.restore` puts back.
     """
-    records = Records(root).records
-    if find_annotation(records, ann_id) is None:
+    from loom.records.log import delete
+    from loom.since import note_deletion
+
+    found = find_annotation(Records(root).records, ann_id)
+    if found is None:
         raise NotFoundError("annotation", f"no annotation {ann_id}")
-    session, akind, aid = writer
-    event: dict[str, Any] = {
-        "event": "discarded",
-        "id": ann_id,
-        "when": stamp(),
-        "author": aid,
-        "kind": akind,
-        "session": session,
-        "body": reason or "",
-    }
-    if undo:
-        event["undo"] = True
-    _append(root, event, dry_run)
-    return f"{'reopened' if undo else 'withdrew'} {ann_id}"
+    ann = found[1]
+    _session, akind, aid = writer
+    if akind == "agent" and not (ann.author_kind == "agent" and ann.author_id == aid):
+        raise EnvError(f"{ann_id} is {ann.author_id}'s, and an agent deletes only its own annotations")
+    if dry_run:
+        return f"deleted {ann_id}", []
+    removed = delete(root, [ann_id])
+    if akind != "agent":
+        note_deletion(root, removed, aid)
+    replies = sum(1 for e in removed if e.get("event") == "replied")
+    said = f"deleted {ann_id}" + (f" and {replies} repl{'y' if replies == 1 else 'ies'} to it" if replies else "")
+    return said, removed
 
 
 #: What each verb carries beside its message; anything else given with it is refused by `refuse_lost`.
@@ -767,9 +762,9 @@ VERB_CARRIES: dict[str, tuple[str, ...]] = {
     "reply": (),
     "resolve": (),
     "edit": ("type", "color", "style", "weight", "opacity", "payload", "placement"),
-    "discard": (),
+    "delete": (),
 }
-_VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "discard": "a discard"}
+_VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "delete": "a deletion"}
 
 
 def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
@@ -788,8 +783,8 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
         fix = (
             "an annotation's anchor and document are set when it is written; write a new annotation for different ones"
         )
-    elif verb == "discard":
-        fix = "give the reason as the message, and nothing else"
+    elif verb == "delete":
+        fix = "give the id alone"
     else:
         fix = f"write a suggestion of its own for text to paste in, or --edit {ann_id} to change the note itself"
     raise EnvError(f"{what}, so {', '.join(lost)} would be lost; {fix}")
@@ -798,9 +793,9 @@ def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
 def check_edit(
     body: str | None, type_given: str | None, look: dict[str, Any], payload: str | None, placement: str | None
 ) -> None:
-    """An edit must change something, and an edit to an empty body says nothing -- `--discard` is how a finding is withdrawn."""
+    """An edit must change something, and an edit to an empty body says nothing -- `--delete` is how one is taken back."""
     if body is not None and not body.strip():
-        raise EnvError("an edit to an empty body says nothing; give the new text, or withdraw it with --discard")
+        raise EnvError("an edit to an empty body says nothing; give the new text, or delete it with --delete")
     if body is None and type_given is None and not look and payload is None and placement is None:
         raise EnvError("--edit with nothing to change; give a new body, --type, a look, --payload or --placement")
 
@@ -866,15 +861,15 @@ BATCH_KEYS = (
     "reply",
     "resolve",
     "edit",
-    "discard",
+    "delete",
     "payload",
     "placement",
     "page",
     "box",
     "in",
 )
-BATCH_VERBS = ("reply", "resolve", "edit", "discard")
-#: The fields an edit or a discard is checked for, by their batch key and their flag's name.
+BATCH_VERBS = ("reply", "resolve", "edit", "delete")
+#: The fields an edit or a deletion is checked for, by their batch key and their flag's name.
 _LOSABLE = ("quote", "type", "color", "style", "weight", "opacity", "payload", "placement", "page", "box", "in")
 #: The look's fields, by their batch key and their flag's name.
 LOOK_KEYS = ("color", "style", "weight", "opacity")
@@ -892,11 +887,11 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
     if len(verbs) > 1:
         raise EnvError(f"one verb per line; this one gives {' and '.join(verbs)}")
     root = result.quilt.root
-    for verb in ("discard", "edit"):
+    for verb in ("delete", "edit"):
         if item.get(verb):
             refuse_lost(verb, str(item[verb]), {k: item.get(k) for k in _LOSABLE})
-    if item.get("discard"):
-        return discard_annotation(root, str(item["discard"]), writer, item.get("message"), dry_run=dry_run)
+    if item.get("delete"):
+        return delete_annotation(root, str(item["delete"]), writer, dry_run=dry_run)[0]
     look = {k: item[k] for k in LOOK_KEYS if item.get(k) is not None}
     if item.get("edit"):
         check_edit(item.get("message"), item.get("type"), look, item.get("payload"), item.get("placement"))
@@ -1008,11 +1003,11 @@ def _rects(box: str) -> list[list[float]]:
     help="Restate an annotation: a new body, --type, a look, --payload or --placement; never its anchor.",
 )
 @click.option(
-    "--discard",
-    "discard_id",
+    "--delete",
+    "delete_id",
     default=None,
     metavar="ID",
-    help="Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
+    help="Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked.",
 )
 @click.option(
     "--payload",
@@ -1035,7 +1030,7 @@ def _rects(box: str) -> list[list[float]]:
 @click.option(
     "--undo",
     is_flag=True,
-    help="With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+    help="With --resolve, open the annotation again: an undo is another event, never a removal.",
 )
 @click.option(
     "--applied",
@@ -1066,7 +1061,7 @@ def annotate(
     reply: str | None,
     resolve: str | None,
     edit: str | None,
-    discard_id: str | None,
+    delete_id: str | None,
     payload: str | None,
     placement: str | None,
     in_doc: str | None,
@@ -1084,32 +1079,30 @@ def annotate(
     result = open_scan(quilt_path)
     root = result.quilt.root
     # Each of these names its annotation by id and takes no TARGET, so the one positional given is the body.
-    if (reply or resolve or edit or discard_id) and message is None:
+    if (reply or resolve or edit or delete_id) and message is None:
         message, target = target, None
     if batch and "-" in (message, target, payload):
         raise EnvError("--batch reads its lines from stdin, so no text can be - beside it")
     message, payload = from_stdin({"MESSAGE": message, "--payload": payload})
-    if undo and not (discard_id or resolve):
-        raise EnvError("--undo applies to --resolve or --discard")
+    if undo and not resolve:
+        raise EnvError("--undo applies to --resolve")
     if applied and (not resolve or undo):
         raise EnvError("--applied says how a suggestion was resolved, so it goes with --resolve and not --undo")
-    verbs = [
-        f"--{n}" for n, v in (("reply", reply), ("resolve", resolve), ("edit", edit), ("discard", discard_id)) if v
-    ]
+    verbs = [f"--{n}" for n, v in (("reply", reply), ("resolve", resolve), ("edit", edit), ("delete", delete_id)) if v]
     if len(verbs) > 1:
         raise EnvError(f"one verb per call; this one gives {' and '.join(verbs)}")
     look: dict[str, Any] = {
         k: v for k, v in (("color", color), ("style", style), ("weight", weight), ("opacity", opacity)) if v is not None
     }
-    if edit or discard_id:
+    if edit or delete_id:
         given = {"quote": quote, "type": type_given, "payload": payload, "placement": placement, **look}
-        refuse_lost(
-            "edit" if edit else "discard", edit or discard_id, {**given, "page": page, "box": box, "in": in_doc}
-        )
+        refuse_lost("edit" if edit else "delete", edit or delete_id, {**given, "page": page, "box": box, "in": in_doc})
+    if delete_id and (message or "").strip():
+        raise EnvError("a deletion says nothing, since nothing said with it is kept: give the id alone")
     if not batch:
-        _check_named(result, target, reply or resolve or edit or discard_id, in_doc, page is not None or bool(box))
+        _check_named(result, target, reply or resolve or edit or delete_id, in_doc, page is not None or bool(box))
         if (
-            not (reply or resolve or edit or discard_id)
+            not (reply or resolve or edit or delete_id)
             and not (message or "").strip()
             and _given_opens(root, type_given)
         ):
@@ -1141,10 +1134,8 @@ def annotate(
             data=_annotated(written),
         ).emit(as_json)
         return
-    if discard_id:
-        done(
-            discard_annotation(root, discard_id, writer, message, undo, dry_run=dry_run), discard=discard_id, undo=undo
-        )
+    if delete_id:
+        done(delete_annotation(root, delete_id, writer, dry_run=dry_run)[0], delete=delete_id)
     elif edit:
         check_edit(message, type_given, look, payload, placement)
         done(
@@ -1236,7 +1227,13 @@ def _check_named(result: ScanResult, target: str | None, ann_id: str | None, in_
 
 
 #: How a dry run says each change it did not make.
-_WOULD = {"withdrew": "would withdraw", "resolved": "would resolve", "reopened": "would reopen", "edited": "would edit"}
+_WOULD = {
+    "withdrew": "would withdraw",
+    "resolved": "would resolve",
+    "reopened": "would reopen",
+    "edited": "would edit",
+    "deleted": "would delete",
+}
 
 
 def _would(said: str) -> str:
@@ -1251,16 +1248,16 @@ def _annotated(written: list[str]) -> dict[str, Any]:
 
 
 _ANN = re.compile(ANNOTATION)
-_VERB_KEYS = ("target", "quote", "type", "reply", "resolve", "edit", "discard", "page", "in")
+_VERB_KEYS = ("target", "quote", "type", "reply", "resolve", "edit", "delete", "page", "in")
 
 
 def _logged(said: str, **verb: Any) -> str:
     """The `run.log` line for one annotation: the verb as it was used, and the annotation it made or changed after `→`.
 
-    The id is read from what the command printed, which names it first for a new note or reply and last for a resolve, an edit or a discard -- the first id in the text either way.
+    The id is read from what the command printed, which names it first for a new note or reply and last for a resolve, an edit or a deletion -- the first id in the text either way.
     """
     parts = ["loom annotate"]
-    for flag in ("reply", "resolve", "edit", "discard"):
+    for flag in ("reply", "resolve", "edit", "delete"):
         if verb.get(flag):
             parts.append(f"--{flag} {verb[flag]}")
             break
@@ -1291,27 +1288,24 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     # they are additions to the text and open is their resting state. They are listed on their own, by work.
     reading: list[dict[str, Any]] = []
     for res in records.resolved(result):
-        if res.record.discarded:
-            continue
         a = res.annotation
         if a.anchor is not None:
-            if a.status != "discarded":
-                reading.append(
-                    {
-                        "work": res.work,
-                        "target": a.target_key,
-                        "page": a.anchor.page,
-                        "basis": a.anchor.basis,
-                        "id": a.id,
-                        "type": a.type,
-                        "status": a.status,
-                        "reply_to": a.in_reply_to,
-                        "detached": res.detached,
-                        "recorded": res.recorded,
-                        "quote": a.selector.exact if a.selector else "",
-                        "body": a.body,
-                    }
-                )
+            reading.append(
+                {
+                    "work": res.work,
+                    "target": a.target_key,
+                    "page": a.anchor.page,
+                    "basis": a.anchor.basis,
+                    "id": a.id,
+                    "type": a.type,
+                    "status": a.status,
+                    "reply_to": a.in_reply_to,
+                    "detached": res.detached,
+                    "recorded": res.recorded,
+                    "quote": a.selector.exact if a.selector else "",
+                    "body": a.body,
+                }
+            )
             continue
         live.setdefault(a.target_key, []).append(
             {"id": a.id, "type": a.type, "status": a.status, "detached": res.detached}
@@ -1387,7 +1381,6 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     runs = [
         {
             "path": r.rel,
-            "discarded": r.discarded,
             "annotations": len(r.annotations),
             "kind": "session",
         }
@@ -1705,7 +1698,7 @@ def status(
     elif f_runs:
         rows: list[tuple[tuple[str, ...], str]] = [
             (
-                (r["kind"], counted(r["annotations"], "annotation"), "discarded" if r["discarded"] else ""),
+                (r["kind"], counted(r["annotations"], "annotation"), ""),
                 r["path"],
             )
             for r in sorted(payload["runs"], key=lambda r: natural(r["path"]))

@@ -93,7 +93,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                     drawn[a.id] = a.anchor.quads
 
     for citekey, ref in manifest.get("references", {}).items():
-        notes = [a for a in published.values() if a["target"].get("work") == citekey and not a["discarded"]]
+        notes = [a for a in published.values() if a["target"].get("work") == citekey]
         ref["reading"] = {
             "total": len(notes),
             "open": sum(1 for a in notes if a["status"] == "open" and a["in_reply_to"] is None),
@@ -269,8 +269,6 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
     """
     out: dict[str, list[MarkEntry]] = {}
     for res in records.resolved(result):
-        if res.record.discarded:
-            continue
         # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
         if not res.recorded:
             continue

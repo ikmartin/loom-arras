@@ -390,7 +390,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     f = ok("ai", "annotations", "--session", "parity", cwd=q)
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
-    ok("ai", "discard", ref, cwd=q)
+    ok("session", "close", "parity", cwd=q)
     assert "Parity, revisited" not in ok("session", "list", cwd=q).output
     assert "Parity, revisited" in ok("session", "list", "--all", cwd=q).output
     refused("ai", "runs", cwd=q, code=2, match="No such command 'runs'")
@@ -627,7 +627,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "library drop",
         "library import",
         "session delete",
-        "ai discard",
+        "ai delete",
         "sync publish",
         "sync incorporate",
         "ai init",
@@ -665,18 +665,6 @@ def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
     assert "loom.sty" not in r["written"] and kept.read_text() == "% my own\n" and not (q / "loom.sty").exists()
 
 
-def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:
-    """T7: a session whose annotations were all withdrawn is not "no annotations yet"."""
-    q = demo(tmp_path)
-    sid = "s-2026-09-16-cd0j88"
-    before = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
-    assert before
-    ok("ai", "discard", sid, cwd=q)
-    said = ok("ai", "annotations", "--session", sid, cwd=q).stdout.splitlines()[0]
-    assert "no annotations yet" not in said
-    assert f"{len(before)} withdrawn" in said and "--all lists them" in said, said
-
-
 def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_printed(tmp_path: Path) -> None:
     """T3: `ai drafts` and `ai refresh` quote a document's name, so a name with a space survives a paste."""
     import shlex
@@ -701,17 +689,15 @@ def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_print
     assert run(*argv[1:], cwd=q).exit_code == 1  # the same conflict, not an unexpected argument
 
 
-def test_a_withdrawal_carries_its_reason_and_is_not_made_twice(tmp_path: Path) -> None:
-    """K2: `ai discard` took no `--why`, so every withdrawal read "no reason given"; T7: run twice, it said "withdrew" twice and recorded it twice."""
+def test_a_deletion_run_twice_deletes_once(tmp_path: Path) -> None:
+    """T7: run again, a bulk delete finds nothing left and says so, and writes nothing."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-cd0j88"
     log = q / ".loom/annotations" / "log.jsonl"
-    ok("ai", "discard", sid, "--why", "an early, mistaken pass", cwd=q)
+    first = json_of("ai", "delete", "--by", "The loom demo", "--yes", "--as", "The loom demo", "--json", cwd=q)
+    assert len(first["deleted"]) == 3
     lines = log.read_text()
-    again = ok("ai", "discard", sid, cwd=q)
-    assert again.stdout.startswith(f"already withdrawn: {sid}; nothing written") and log.read_text() == lines
-    listed = ok("ai", "annotations", "--session", sid, "--all", cwd=q).stdout
-    assert "withdrawn: an early, mistaken pass" in listed and "no reason given" not in listed, listed
+    again = ok("ai", "delete", "--by", "The loom demo", "--yes", "--as", "The loom demo", cwd=q)
+    assert again.stdout.startswith("no annotation matches; nothing deleted") and log.read_text() == lines
 
 
 def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: Path) -> None:

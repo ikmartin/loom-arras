@@ -266,7 +266,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ## 9. Annotations
 
-**[decided]** Every non-discarded annotation, plus discarded ones with `discarded: true` so the viewer can offer to show them.
+**[decided]** Every annotation in the log; a deleted one is not there.
 
 **[decided]** An annotation, a note and a session are keyed by `a-`, `n-` or `s-`, the day it was written as `YYYY-MM-DD`, `-`, and a token of lower-case letters and digits, as in `a-2026-11-05-k2m9xq`; a link between results is `link-` and a token. A viewer treats the token as opaque and takes no order from it, since clones of a quilt draw tokens apart. The entries of `annotations`, `notes` and `threads` are written oldest first, by the record's own `created` or `when`, and in the order they were written within one second; every other object in the manifest has its keys sorted.
 
@@ -290,9 +290,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
   "placement": "after",
-  "run": "s-2026-09-16-p9z37z",
-  "discarded": false,
-  "discard_reason": null
+  "run": "s-2026-09-16-p9z37z"
 }
 ```
 
@@ -322,8 +320,6 @@ The **id** is minted once and is the address; the **title** is the author's and 
 
 **[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version a note is written against, so this is a version lost outside loom, or a paper on file that is not the one the note was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
 
-**[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
-
 **[decided]** `payload` is text an annotation proposes, and `placement` says where it goes: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them; on a suggestion with no quote, they are of the key's body, its own text inside its environment's head (`\begin`, title, `\label`, leading `\uses`) and before its `\end`. An empty payload with `replace` deletes the quoted words. A viewer never applies a payload; the author does. `payload_html` is the payload as the publisher's converter renders it (the dialect, without element ids), read in the context of the result the annotation is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where there is no payload or the converter refused it, and a viewer then renders the TeX as prose.
 
 **[decided]** An open suggestion carrying a payload has a `change`, its key as it would read with the suggestion taken, rendered at build so a static host shows it too:
@@ -352,7 +348,7 @@ The **id** is minted once and is the address; the **title** is the author's and 
     {"name": "annotations", "kind": "annotations", "count": 3}
   ],
   "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]},
-          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-ecnav2"}],
+          {"time": "...", "command": "loom annotate rl-0004 --quote --type revision", "annotation": "a-2026-09-16-ecnav2"}],
   "discarded": false
 }
 ```

@@ -84,7 +84,7 @@ Mathematicians already know LaTeX, and every construct the tool needs is a label
 
 ### P2. Author data in the source, decisions in the ledger, records in logs loom owns, derived data never durable.
 
-Four kinds of information have four homes, and nothing fits in more than one. Consequence: `config.toml` has a handful of keys; the ledger records acceptances only; annotations, the history and sessions are append-only logs that only loom writes; `.loom/build/` can be deleted at any moment and regenerated.
+Four kinds of information have four homes, and nothing fits in more than one. Consequence: `config.toml` has a handful of keys; the ledger records acceptances only; the history and sessions are append-only logs that only loom writes, and the annotation log is appended too, rewritten only to delete an annotation, which removes it rather than marking it; `.loom/build/` can be deleted at any moment and regenerated.
 
 ### P3. States are computed, never stored.
 

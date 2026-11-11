@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A node (plan 0.13.3 N1–N3, phase 4): its statement and its proofs, and nothing else in the flow. The tab names it; Settings ▸ Show ids puts its id and state in the left gutter, as a document's are; its annotations are reached by their marks, which open their cards, and `show all annotations` among its controls opens every one. What the node is in, what it rests on, where its text came from, the citations suggested for it and what was discarded on it are its context, opened beside it.
+	// A node (plan 0.13.3 N1–N3, phase 4): its statement and its proofs, and nothing else in the flow. The tab names it; Settings ▸ Show ids puts its id and state in the left gutter, as a document's are; its annotations are reached by their marks, which open their cards, and `show all annotations` among its controls opens every one. What the node is in, what it rests on, where its text came from and its detached annotations are its context, opened beside it.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';

@@ -24,7 +24,6 @@
 		}
 		return keyName(m, key);
 	}
-	const standing = (a: Annotation) => (a.discarded ? 'withdrawn' : a.status);
 	const kindOf = (a: Annotation) => (a.in_reply_to ? `reply, ${typeName(m, a)}` : typeName(m, a));
 	const named = (n: Named) => ('key' in n ? { href: `quilt:${n.key}`, text: keyName(m, n.key), title: n.key } : { href: `quilt:${n.path}`, text: n.path.split('/').pop() ?? n.path, title: n.path });
 
@@ -49,7 +48,7 @@
 									<li class="ann" id="ann-{a.id}">
 										<a class="go" href="quilt:{a.id}" title="{kindOf(a)}: open it where it is" data-testid="did-annotation"><span class="ann-dot" class:reply={!!a.in_reply_to} style={lookVars(a.look)} role="img" aria-label={kindOf(a)} data-testid="did-kind"></span></a>
 										<div class="first" data-testid="did-first"><Prose html={a.body_html} /></div>
-										<span class="state state-{standing(a)}" data-testid="did-state">{standing(a)}</span>
+										<span class="state state-{a.status}" data-testid="did-state">{a.status}</span>
 									</li>
 								{/each}
 							</ul>

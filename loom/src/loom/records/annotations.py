@@ -40,12 +40,9 @@ class Annotation:
     placement: str | None = (
         None  # replace (exactly the quote) | after | before (beside it); with no quote, of the key's body (records/suggestions.py)
     )
-    discard_reason: str | None = (
-        None  # why it was withdrawn, from the discarding event's body; never typed, always replayed
-    )
     #: The document this is read in, for a claim about a node that holds only there (plan 0.15, decision 9); None means the node wherever it appears.
     in_doc: str | None = None
-    #: Why it was resolved, from the resolving event's body; replayed, like `discard_reason`.
+    #: Why it was resolved, from the resolving event's body; replayed.
     resolved_why: str | None = None
     #: A suggestion resolved as applied: `{hash}`, its key's text once the suggestion was taken.
     applied: dict[str, Any] | None = None
@@ -67,7 +64,6 @@ class Annotation:
             "in_reply_to": self.in_reply_to,
             "payload": self.payload,
             "placement": self.placement,
-            "discard_reason": self.discard_reason,
             "resolved_why": self.resolved_why,
             "applied": self.applied,
         }
@@ -94,7 +90,6 @@ class Annotation:
             in_reply_to=d.get("in_reply_to"),
             payload=d.get("payload"),
             placement=d.get("placement"),
-            discard_reason=d.get("discard_reason"),
             resolved_why=d.get("resolved_why"),
             applied=d.get("applied") if isinstance(d.get("applied"), dict) else None,
         )
@@ -106,9 +101,6 @@ class Record:
 
     path: Path  # the log the record was replayed from
     rel: str  # the grouping key: the session id
-    discarded: bool = False
-    #: Why the whole session's annotations were withdrawn, from the discarding event's body; replayed, never typed.
-    discard_reason: str | None = None
     annotations: list[Annotation] = field(default_factory=list)
 
 

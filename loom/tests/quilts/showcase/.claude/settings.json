@@ -80,7 +80,7 @@
       "Bash(loom accept*)",
       "Bash(loom adopt*)",
       "Bash(loom ai close*)",
-      "Bash(loom ai discard*)",
+      "Bash(loom ai delete*)",
       "Bash(loom ai init*)",
       "Bash(loom ai reopen*)",
       "Bash(loom atomize*)",

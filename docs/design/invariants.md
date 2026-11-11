@@ -211,13 +211,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Review records are appended, never rewritten
 
-**Rule.** Every review event is one line appended to `.loom/annotations/log.jsonl`, and an annotation's state is the replay of its events. The history ledger and a session's inbox are appended the same way (P2).
+**Rule.** Every review event is one line appended to `.loom/annotations/log.jsonl`, and an annotation's state is the replay of its events. The one rewrite is a deletion, which removes an annotation's events and its replies' under the log's lock, in place, so no append lands between its read and its write. The history ledger and a session's inbox are appended the same way (P2).
 
 **Why.** Records were files rewritten whole. When an agent resolved its own finding, the parent and the writer were two copies of one file and the second write clobbered the resolution, which is the case an agent hits on every re-check.
 
 **Guard.** `loom/tests/unit/records/test_review_commands.py::test_a_run_resolves_its_own_annotation`
 
 **Record.** DR-147 (the annotation log, 2026-09-18; a second DR-147 is about base paths)
+
+**Changed 2026-11-11** (plan 0.30, decision 7, approved by the author): deleting an annotation removes it from the log instead of appending a discard, since a record nobody can see is not worth keeping. The clobbering this invariant records cannot recur, because a deletion holds the same lock every append takes and rewrites the file in place.
 
 ### A re-check edits a finding; it does not reply to it
 

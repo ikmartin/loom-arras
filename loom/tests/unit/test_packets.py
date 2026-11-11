@@ -36,11 +36,11 @@ def test_the_packet_is_what_the_person_marked_and_nothing_else(q: Path) -> None:
     mine = comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--type", "question")
     theirs = comment(q, sid, "dm-0002", "An agent's own note.", "--type", "note", who="Referee Agent", agent=True)
     ok("annotate", "--reply", theirs, "Not here.", "--session", sid, "--as", "A. Author", cwd=q)
-    withdrawn = comment(q, sid, "dm-0002", "Never mind.", "--type", "note")
-    ok("annotate", "--discard", withdrawn, "--session", sid, "--as", "A. Author", cwd=q)
+    deleted = comment(q, sid, "dm-0002", "Never mind.", "--type", "note")
+    ok("annotate", "--delete", deleted, "--session", sid, "--as", "A. Author", cwd=q)
     rows = pending(q, session(), "A. Author")
     assert [r["id"] for r in rows][0] == mine
-    assert theirs not in [r["id"] for r in rows] and withdrawn not in [r["id"] for r in rows]
+    assert theirs not in [r["id"] for r in rows] and deleted not in [r["id"] for r in rows]
     assert [r["act"] for r in rows] == ["created", "replied"]
     # once a message has carried them, they are not carried again
     post(q, sid, "", "A. Author", changed=rows)

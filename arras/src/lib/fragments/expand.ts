@@ -35,7 +35,7 @@ export interface InlineComments {
 
 type Box = Component<{ annotation: Annotation; replies: Annotation[]; onclose?: () => void }>;
 
-/** The top-level annotations among `ids`, settled ones included; a reply is shown inside its parent, so a mark listing both opens the parent once. A discarded one is a settled one: its mark is inert until the settled control draws it, and then its box opens like a resolved one's. */
+/** The top-level annotations among `ids`, settled ones included; a reply is shown inside its parent, so a mark listing both opens the parent once. A settled one's mark is inert until the settled control draws it. */
 export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	const out: Annotation[] = [];
 	const seen = new Set<string>();
@@ -61,7 +61,7 @@ function idsOf(el: HTMLElement): string[] {
 	return (el.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
 }
 
-/** The mark in `root` that stands for any of `ids`, drawn or not, so annotations open before a re-wire can be opened again after it: a box whose annotation was just discarded from it stays open to offer the undo. */
+/** The mark in `root` that stands for any of `ids`, drawn or not, so annotations open before a re-wire can be opened again after it: a box whose annotation was just resolved from it stays open to offer the undo. */
 export function triggerFor(root: HTMLElement, ids: string[]): HTMLElement | null {
 	for (const el of triggers(root)) {
 		const has = idsOf(el);

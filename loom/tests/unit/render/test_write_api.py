@@ -60,18 +60,19 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
     assert mine[0]["kind"] == "human" and mine[0]["author"] == "A Reader"
     assert (mine[0]["type"], mine[0]["look"], mine[0]["drawn"]["color"]) == ("revision", {"color": "green"}, "green")
 
-    # and it can be answered, restated and withdrawn over the same surface
+    # and it can be answered, restated and deleted over the same surface
     ann = mine[0]["id"]
     for endpoint, extra in (
         ("reply", {"message": "Noted."}),
         ("edit", {"message": "Restated."}),
-        ("discard", {"reason": "mine"}),
+        ("delete", {}),
     ):
         status, body = post(
             s.url + f"_api/{endpoint}", {"session": sid, "annotation": ann, "author": "A Reader", **extra}
         )
         assert status == 200, (endpoint, body)
-    assert {e["event"] for e in log(d) if e.get("id") == ann} >= {"created", "edited", "discarded"}
+    assert [e["event"] for e in body["removed"]] == ["created", "replied", "edited"]  # the reply went with it
+    assert not [e for e in log(d) if ann in (e.get("id"), e.get("reply_to"))]
 
 
 def test_the_manifest_is_current_when_a_write_answers(session) -> None:  # type: ignore[no-untyped-def]
@@ -93,7 +94,7 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
     assert status == 400 and body["error"]["code"] == "missing-field", body
     status, body = post(s.url + "_api/annotate", {"session": sid, "target": "nope-9999", "message": "x", "author": "R"})
     assert status == 404 and body["error"] == {"code": "no-such-node", "message": "no such key: nope-9999"}, body
-    status, body = post(s.url + "_api/discard", {"session": sid, "annotation": "a-1999-01-01-ekn992", "author": "R"})
+    status, body = post(s.url + "_api/delete", {"session": sid, "annotation": "a-1999-01-01-ekn992", "author": "R"})
     assert status == 404 and body["error"] == {
         "code": "no-such-annotation",
         "message": "no annotation a-1999-01-01-ekn992",
@@ -473,23 +474,38 @@ def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     )
 
 
-@case("discard")
-def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("delete")
+def _delete(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
-    ann = noted(s, q, sid)
-    assert (
-        succeeds(s, "discard", {"session": sid, "annotation": ann, "reason": "mine", "author": WHO})["result"]
-        == f"withdrew {ann}"
+    mine = noted(s, q, sid)
+    # an agent deletes only its own annotations, whatever surface it posts through
+    refuses(
+        s,
+        "delete",
+        {"session": sid, "annotation": mine, "author": "Referee Agent"},
+        400,
+        "refused",
+        "deletes only its own annotations",
     )
-    assert (
-        succeeds(s, "discard", {"session": sid, "annotation": ann, "undo": True, "author": WHO})["result"]
-        == f"reopened {ann}"
-    )
-    assert [(e["event"], e.get("body"), e.get("undo")) for e in events(q, ann)[1:]] == [
-        ("discarded", "mine", None),
-        ("discarded", "", True),
-    ]
-    refuses(s, "discard", {"annotation": ann, "author": WHO}, 400, "no-session", "must name the session")
+    said = succeeds(s, "delete", {"session": sid, "annotation": mine, "author": WHO})
+    assert said["result"] == f"deleted {mine}" and [e["event"] for e in said["removed"]] == ["created"]
+    assert events(q, mine) == []
+    refuses(s, "delete", {"annotation": mine, "author": WHO}, 400, "no-session", "must name the session")
+
+
+@case("restore")
+def _restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, q, sid = on_demo(serve, tmp_path)
+    ann = noted(s, q, sid, "A question.", type_id="question")
+    succeeds(s, "reply", {"session": sid, "annotation": ann, "message": "Answered.", "author": WHO})
+    before = log(q)
+    removed = succeeds(s, "delete", {"session": sid, "annotation": ann, "author": WHO})["removed"]
+    # the viewer's undo of a delete: what it removed goes back, reply and all
+    said = succeeds(s, "restore", {"session": sid, "events": removed, "author": WHO})
+    assert said["result"].startswith(f"restored {ann}")
+    assert sorted(map(json.dumps, log(q))) == sorted(map(json.dumps, before))
+    refuses(s, "restore", {"session": sid, "events": removed, "author": WHO}, 400, "refused", "in the log already")
+    refuses(s, "restore", {"session": sid, "events": [{"event": "liked"}], "author": WHO}, 400, "bad-field", "events")
 
 
 def proposed(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path, str]:

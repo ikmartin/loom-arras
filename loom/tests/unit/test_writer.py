@@ -158,7 +158,7 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
         ["library", "drop", "--work", "Bellamy19", "--yes"],
         ["library", "verify", "a-0000-00-00-m2qyj6", "--as", "A. Author"],
         ["library", "import", str(q / ".loom/digests" / "Bellamy19.tex"), "--name", "Other20"],
-        ["ai", "discard", "--before", "2100-01-01"],
+        ["ai", "delete", "--before", "2100-01-01", "--yes"],
         ["session", "delete", "s-2026-09-16-p9z37z", "--purge", "--yes", "--as", "A. Author"],
         ["sync", "publish", "--push"],
         ["sync", "incorporate"],

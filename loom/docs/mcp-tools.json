@@ -11,10 +11,6 @@
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "all": {
-     "description": "Include withdrawn annotations, with the reason they were withdrawn.",
-     "type": "boolean"
-    },
     "json": {
      "description": "Print the annotations as JSON.",
      "type": "boolean"
@@ -179,8 +175,8 @@
      ],
      "type": "string"
     },
-    "discard": {
-     "description": "Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
+    "delete": {
+     "description": "Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked.",
      "type": "string"
     },
     "dry_run": {
@@ -257,7 +253,7 @@
      "type": "string"
     },
     "undo": {
-     "description": "With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+     "description": "With --resolve, open the annotation again: an undo is another event, never a removal.",
      "type": "boolean"
     },
     "weight": {

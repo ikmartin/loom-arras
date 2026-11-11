@@ -65,7 +65,6 @@ def session_thread(
     attachments: list[dict[str, Any]] = []
     discarded = session.state != "open"
     if record is not None:
-        discarded = discarded or record.discarded
         attachments.append({"name": "annotations", "kind": "annotations", "count": len(record.annotations)})
         for a in record.annotations:
             if a.target_key not in targets:

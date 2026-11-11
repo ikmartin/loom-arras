@@ -1,11 +1,13 @@
 <script lang="ts">
 	// The verbs an annotation offers, as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, edit and withdraw (the `discard` endpoint), and resolve only when its type stays open until resolved, since loom refuses to resolve one that only informs. One whose text places offers take it, which writes it in, a version of the document kept first, and resolves it as applied; one with text offers leave it in place of resolve; one whose key already reads as it taken offers resolve as applied, which records the key's hash. Edit restates the body and may change the type. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
+	// An open annotation offers reply, edit and delete, and resolve only when its type stays open until resolved, since loom refuses to resolve one that only informs. One whose text places offers take it, which writes it in, a version of the document kept first, and resolves it as applied; one with text offers leave it in place of resolve; one whose key already reads as it taken offers resolve as applied, which records the key's hash. Edit restates the body and may change the type. Delete takes the annotation and its replies out of the log at once, and its undo stands in `DeletedBar`, since the box goes with them; loom refuses an agent's delete of what it did not write, and the refusal is shown here. A resolved one offers `reopen` and delete. A reply's own row (`compact`) is edit and delete.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
 	import { staysOpen } from './annotationTypes';
+	import { deleteAnnotation } from './deleted.svelte';
+	import { linkName } from '$lib/workspace/names';
 	import { drafts, type Verb } from './drafts';
 	import type { Annotation } from '$lib/manifest/types';
 
@@ -14,12 +16,12 @@
 		compact = false
 	}: {
 		annotation: Annotation;
-		/** A reply's own row: edit and withdraw. */
+		/** A reply's own row: edit and delete. */
 		compact?: boolean;
 	} = $props();
 
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
-	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'suggestion-apply'];
+	const ENDPOINTS = ['reply', 'edit', 'resolve', 'delete', 'suggestion-apply'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
@@ -75,11 +77,10 @@
 		for (const v of ENDPOINTS) can(v).then((ok) => (allowed[v] = ok));
 	});
 
-	const gone = $derived(annotation.status === 'discarded' || annotation.discarded);
-	const done = $derived(gone || annotation.status !== 'open');
+	const done = $derived(annotation.status !== 'open');
 	const asks = $derived(staysOpen(store.manifest, annotation));
 	const types = $derived(store.manifest?.annotation_types ?? []);
-	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.discard);
+	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.delete);
 
 	function show(verb: Verb) {
 		if (open === verb) return (open = null);
@@ -119,28 +120,32 @@
 	const reply = () => text.trim() && send('reply', { message: text.trim() });
 	// the type travels only when it changed, so an annotation whose type the quilt has since deleted can still be restated
 	const edit = () => text.trim() && send('edit', { message: text.trim(), ...(type !== (annotation.type ?? '') ? { type } : {}) });
-	const discard = () => send('discard', { reason: text.trim() || undefined });
+	/** Delete at once: the undo is what guards it, not a question first. */
+	async function remove(): Promise<void> {
+		if (busy) return;
+		busy = true;
+		said = await deleteAnnotation(annotation.id, store.manifest ? linkName(store.manifest, `quilt:${annotation.id}`) : 'an annotation');
+		busy = false;
+		if (!said) drafts.delete(annotation.id);
+	}
 	const resolve = () => send('resolve', {});
 	const applied = () => send('resolve', { applied: true });
 	const apply = () => send('suggestion-apply', {});
 	const taken = $derived(annotation.change?.state === 'taken');
 	const withText = $derived(annotation.payload !== null && annotation.payload !== undefined);
 	const ready = $derived(annotation.change?.state === 'ready');
-	const reopen = () => send(gone ? 'discard' : 'resolve', { undo: true });
+	const reopen = () => send('resolve', { undo: true });
 </script>
 
 {#if any}
 	<span class="verbs" bind:this={row} data-testid="verb-row">
 		{#if done}
-			{#if allowed[gone ? 'discard' : 'resolve']}
+			{#if allowed.resolve}
 				<button type="button" class="verb" onclick={reopen} disabled={busy} data-testid="verb-reopen">reopen</button>
 			{/if}
 		{:else if compact}
 			{#if allowed.edit}
 				<button type="button" class="verb" onclick={() => show('edit')} aria-expanded={open === 'edit'} data-testid="verb-edit">edit</button>
-			{/if}
-			{#if allowed.discard}
-				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-withdraw">withdraw</button>
 			{/if}
 		{:else}
 			{#if allowed.reply}
@@ -158,9 +163,9 @@
 			{#if allowed.edit}
 				<button type="button" class="verb" onclick={() => show('edit')} aria-expanded={open === 'edit'} data-testid="verb-edit">edit</button>
 			{/if}
-			{#if allowed.discard}
-				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-discard">withdraw</button>
-			{/if}
+		{/if}
+		{#if allowed.delete}
+			<button type="button" class="verb" onclick={() => void remove()} disabled={busy} title="Take it and its replies out of the log; Undo puts them back" data-testid="verb-delete">delete</button>
 		{/if}
 	</span>
 	{#if said && !open}
@@ -172,11 +177,11 @@
 		<div class="compose" data-testid="verb-panel">
 			<textarea
 				id="vp-{annotation.id}"
-				rows={open === 'discard' ? 2 : 3}
+				rows={3}
 				bind:value={text}
 				use:track
-				aria-label={open === 'reply' ? 'your reply' : open === 'edit' ? 'restate the annotation' : 'why it should not have stood'}
-				placeholder={open === 'reply' ? 'reply' : open === 'discard' ? 'why, optionally — published as the reason' : ''}
+				aria-label={open === 'reply' ? 'your reply' : 'restate the annotation'}
+				placeholder={open === 'reply' ? 'reply' : ''}
 				data-testid="verb-text"
 			></textarea>
 			<div class="row">
@@ -193,10 +198,8 @@
 				<button type="button" class="verb" onclick={cancel} data-testid="verb-cancel">cancel</button>
 				{#if open === 'reply'}
 					<button type="button" class="verb do" disabled={busy || !text.trim()} onclick={reply} data-testid="verb-send">reply</button>
-				{:else if open === 'edit'}
-					<button type="button" class="verb do" disabled={busy || !text.trim()} onclick={edit} data-testid="verb-send">save</button>
 				{:else}
-					<button type="button" class="verb do" disabled={busy} onclick={discard} data-testid="verb-send">withdraw</button>
+					<button type="button" class="verb do" disabled={busy || !text.trim()} onclick={edit} data-testid="verb-send">save</button>
 				{/if}
 			</div>
 			{#if said}<p class="said" role="status" data-testid="verb-said">{said}</p>{/if}

@@ -29,6 +29,8 @@ SESSIONS = f"{LOOM}/sessions"
 COPIES = f"{LOOM}/copies"
 #: Where each agent last looked, which `loom since` reads.
 SINCE = f"{LOOM}/since"
+#: Annotations a person deleted, one line each for the agent that wrote it, until that agent's `loom since` has reported it; machine-local, like the markers beside it.
+DELETED = f"{SINCE}/deleted.jsonl"
 #: Each person's last look at the open files, which Review's Your Changes reads.
 LOOKED = f"{LOOM}/looked"
 #: The default of `[quilt] history`; code reads the setting, never this.

@@ -182,7 +182,7 @@ def build_synthetic(dest: Path) -> None:
     g.run("accept", "sy-0003", "--proofs", "--as", AUTHOR, "--force")
     g.run("accept", "sy-000F", "--proofs", "--as", AUTHOR, "--force")
 
-    # A first pass that was discarded; its one annotation is written with the rest, below.
+    # A first pass whose one annotation the author deletes; it is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
     (dest / AI).mkdir(parents=True)
     quick = g.run("session", "new", "--name", "quick").split()[0]
@@ -376,7 +376,9 @@ def build_synthetic(dest: Path) -> None:
         quick,
         agent=True,
     )
-    g.run("ai", "discard", quick)
+    # the author deletes the first pass's one annotation, which leaves its agent a line `loom since` says once
+    g.run("annotate", "--delete", _annotation_ids(dest, quick)[0], "--as", AUTHOR)
+    g.run("session", "close", quick, "--as", AUTHOR)
 
     # An agent's copy of the paper (plan 0.17.1), then the agent's edits in it, one of each kind a copy can differ from its source by: a node changed, a node changed here and again by the author below, a node written new under the author's next number, a node deleted, and a node moved unchanged.
     g.at("2026-09-16T10:00:00Z")
@@ -1163,14 +1165,12 @@ def build_showcase(dest: Path) -> None:
     )
     # the quilt's research state, which the referee leaves for whoever picks the work up (plan 0.21.3)
     g.run("write", "state", _showcase_state(), "--session", referee, "--as", "Referee (Agent)", agent=True)
-    # The run withdraws one finding of its own and restates another: a discard is not a resolution, and an
-    # edit is not a reply (DR-171, DR-174).
+    # The run deletes one finding of its own and restates another: a deletion is not a resolution, and an edit is not a reply (DR-171, DR-174).
     g.at("2026-09-16T11:40:00Z")
     g.run(
         "annotate",
-        "--discard",
+        "--delete",
         redundant,
-        "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
         "--session",
         referee,
         "--as",
@@ -1269,7 +1269,9 @@ def build_showcase(dest: Path) -> None:
         quick,
         agent=True,
     )
-    g.run("ai", "discard", quick)
+    # the author deletes the first pass's one annotation, which leaves its agent a line `loom since` says once
+    g.run("annotate", "--delete", _annotation_ids(dest, quick)[0], "--as", AUTHOR)
+    g.run("session", "close", quick, "--as", AUTHOR)
 
     # ---- A reading session: the author reads Bellamy, anchors to the page, and talks to an agent. ---------
     # Plan 0.13's reading layer, shown rather than described: an anchor into a filed PDF, a session shared with an agent, and a message in the session's transcript.

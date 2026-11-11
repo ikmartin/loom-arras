@@ -219,7 +219,7 @@ def _downstream_records(result: ScanResult, key: str) -> tuple[list[dict[str, An
         }
         for res in records.resolved(result)
         for a in [res.annotation]
-        if a.target_key in targets and not res.record.discarded
+        if a.target_key in targets
     ]
     return ledger, annotations
 

@@ -90,11 +90,8 @@ def test_a_record_of_the_markers_own_second_is_reported_once(q: Path) -> None:
 def test_what_a_person_settled_is_reported_with_whose_it_was(q: Path) -> None:
     ok("annotate", "dm-0003", "A gap here.", "--type", "revision", "--as", AGENT, cwd=q)
     gap = last_id(q)
-    ok("annotate", "dm-0004", "And here.", "--as", AGENT, cwd=q)
-    other = last_id(q)
     look(q)
     ok("annotate", "--resolve", gap, "Fixed in the source.", "--as", WHO, cwd=q)
-    ok("annotate", "--discard", other, "Not a gap.", "--as", WHO, cwd=q)
     acts = {a["id"]: a for a in look(q)["acts"]}
     assert (acts[gap]["act"], acts[gap]["yours"], acts[gap]["body"], acts[gap]["type"]) == (
         "resolved",
@@ -102,12 +99,43 @@ def test_what_a_person_settled_is_reported_with_whose_it_was(q: Path) -> None:
         "Fixed in the source.",
         "revision",
     )
-    assert (acts[other]["act"], acts[other]["body"]) == ("discarded", "Not a gap.")
-    # what a person wrote and withdrew in one window is no news at all
+    # what a person wrote and deleted in one window is no news at all
     ok("annotate", "dm-0002", "Never mind.", "--as", WHO, cwd=q)
-    ok("annotate", "--discard", last_id(q), "--as", WHO, cwd=q)
+    ok("annotate", "--delete", last_id(q), "--as", WHO, cwd=q)
     later = look(q)
     assert later["annotations"] == [] and later["acts"] == []
+
+
+def test_a_person_deleting_an_agents_annotation_is_said_to_that_agent_once(q: Path) -> None:
+    """Nothing of a deleted annotation stays in the log, so the agent learns of it from one line kept for it until its next look: its type, its place and its quoted words, so it does not raise it again."""
+    ok("annotate", "dm-0003", "A gap here.", "--type", "revision", "--quote", "finite set", "--as", AGENT, cwd=q)
+    gap = last_id(q)
+    ok("annotate", "dm-0004", "Mine.", "--as", "Other Agent", cwd=q)
+    theirs = last_id(q)
+    look(q)
+    ok("annotate", "--delete", gap, "--as", WHO, cwd=q)
+    ok("annotate", "--delete", theirs, "--as", WHO, cwd=q)
+    said = ok("since", "--as", AGENT, "--dry-run", cwd=q).stdout
+    assert gap in said and "deleted by A. Author" in said
+    got = look(q)
+    [act] = got["acts"]  # another agent's deletion is that agent's news
+    assert (act["id"], act["act"], act["type"], act["target"], act["body"], act["by"], act["yours"]) == (
+        gap,
+        "deleted",
+        "revision",
+        "dm-0003",
+        'on "finite set"',
+        WHO,
+        True,
+    )
+    # said once: the next look does not say it again, and the other agent's is still waiting for it
+    assert look(q)["acts"] == []
+    assert [a["id"] for a in look(q, who="Other Agent")["acts"]] == [theirs]
+    assert look(q, who="Other Agent")["acts"] == []
+    # an agent deleting its own leaves nothing to say
+    ok("annotate", "dm-0002", "Wrong.", "--as", AGENT, cwd=q)
+    ok("annotate", "--delete", last_id(q), "--as", AGENT, cwd=q)
+    assert look(q)["acts"] == []
 
 
 def test_an_acceptance_and_a_key_gone_stale_are_each_reported_once(q: Path) -> None:

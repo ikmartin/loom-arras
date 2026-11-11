@@ -11,6 +11,7 @@
 2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-hwtkaw → a-2026-09-16-gahrrs
 2026-09-16T00:00:00Z  loom annotate --resolve a-2026-09-16-hwtkaw → a-2026-09-16-hwtkaw
 2026-09-16T00:00:00Z  loom annotate sy-0001 --quote --type question → a-2026-09-16-a91hwf
+2026-09-16T00:00:00Z  loom annotate --delete a-2026-09-16-pmjbhz → a-2026-09-16-pmjbhz
 2026-09-17T09:00:00Z  loom source sy-0002
 2026-09-17T09:00:00Z  loom source sy-0002
 2026-09-17T09:00:00Z  loom source sy-0002

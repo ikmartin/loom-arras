@@ -66,7 +66,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 7. On a re-check, the event says what you found:
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
-   - you were wrong to raise it: `--discard`, since resolved would claim the author addressed something;
+   - you were wrong to raise it: `--delete ID`, which removes it and its replies; resolved would claim the author addressed something. You delete only what you wrote;
    - it has become a different fault: resolve this one and make a new one.
 
    `loom source KEY --at ID --diff` shows what changed since the finding was written.
