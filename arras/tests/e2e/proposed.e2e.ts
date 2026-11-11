@@ -1,6 +1,6 @@
 // Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); an annotation carrying text to put in is decided in its card. The acts are stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
-import { manifest, REFEREE, serve } from '../manifest';
+import { manifest, serve } from '../manifest';
 
 const COPY = '.loom/copies/aidoc.tex';
 const TEXT = 'a-2026-09-17-rvgxnv';
@@ -9,10 +9,9 @@ const MINE = 'a-2026-09-16-xgtcve';
 
 const ACTS = ['suggestion-apply', 'resolve'];
 
-/** A publisher serving the acts, writing in the referee session; what it was sent, by endpoint. */
+/** A publisher serving the acts; what it was sent, by endpoint. */
 async function serving(page: Page): Promise<Record<string, Record<string, unknown>>> {
 	const sent: Record<string, Record<string, unknown>> = {};
-	await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
 	for (const e of ACTS)
 		await page.route(`**/_api/${e}`, async (route) => {
@@ -62,13 +61,14 @@ test('a static host offers no acts', async ({ page }) => {
 	await expect(card(page, COPY).getByTestId('proposed-open')).toBeVisible();
 });
 
-test('Take it sends the suggestion in the session written in, and says what it did in the card', async ({ page }) => {
+test('Take it sends the suggestion, naming no session, and says what it did in the card', async ({ page }) => {
 	const sent = await serving(page);
 	await page.goto('/review/proposed');
 	const c = card(page, TEXT);
 	await c.getByTestId('proposed-take').click();
 	await expect(c.getByTestId('suggestion-said')).toHaveText('Applied the suggestion in main.tex; a version of main.tex is kept.');
-	expect(sent['suggestion-apply']).toMatchObject({ annotation: TEXT, session: REFEREE });
+	expect(sent['suggestion-apply']).toMatchObject({ annotation: TEXT });
+	expect(sent['suggestion-apply']).not.toHaveProperty('session');
 });
 
 test('Leave it resolves a suggestion without applying it, and the bar offers it back', async ({ page }) => {
@@ -84,12 +84,12 @@ test('Leave it resolves a suggestion without applying it, and the bar offers it 
 	expect(sent.resolve).toMatchObject({ annotation: TEXT, undo: true });
 });
 
-test('without a session nothing can be decided, and the page says so before anything is pressed', async ({ page }) => {
+test('a decision needs no session selected', async ({ page }) => {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('proposed-no-session')).toBeVisible();
-	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeDisabled();
-	await expect(card(page, TEXT).getByTestId('proposed-leave')).toBeDisabled();
+	await expect(page.getByTestId('proposed-no-session')).toHaveCount(0);
+	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeEnabled();
+	await expect(card(page, TEXT).getByTestId('proposed-leave')).toBeEnabled();
 });
 
 test("a copy's card says where it stands and opens its review at its own address, and comes back", async ({ page }) => {

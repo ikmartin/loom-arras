@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
 	//
-	// **The session selection governs the page.** What the panel is showing is what the page marks; an annotation the selection hides is not drawn. A settled one is drawn only while the settled control is on. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
+	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
 	//
 	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	//
@@ -9,7 +9,6 @@
 	import { artifactUrl, dataUrl } from '$lib/paths';
 	import { paperPlace } from './place.svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import { visible } from '$lib/sessions/sessions.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
@@ -122,7 +121,7 @@
 		boxes?.refresh();
 	});
 
-	/** The annotations on this work's pages, top-level; a resolved one is drawn as settled. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and one the selection hides is not drawn. */
+	/** The annotations on this work's pages, top-level; a resolved one is drawn as settled. */
 	const notes = $derived(
 		Object.values(store.manifest?.annotations ?? {}).filter(
 			(a) => a.target.work === citekey && a.in_reply_to === null && (a.target.page ?? 0) > 0
@@ -172,7 +171,7 @@
 		const stacked = new Map<string, Drawn>();
 		for (const a of notes) {
 			const rects = spans?.marks?.[a.id];
-			if (!rects || hide || !visible(store.manifest, a)) continue;
+			if (!rects || hide) continue;
 			const key = `${a.target.page}:` + rects.map((r) => r.map((v) => Math.round(v)).join(',')).join(';');
 			const same = stacked.get(key);
 			if (same) {

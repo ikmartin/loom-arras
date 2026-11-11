@@ -56,7 +56,7 @@
 	let said = $state('');
 	/** A quote loom could not find: the offer is to annotate the whole place instead. */
 	let unanchored = $state(false);
-	// An annotation is a write, so it needs an open session selected like any other (plan 0.13.1).
+	// An annotation names no session; quoting writes a note, which needs an open session selected (plan 0.13.1).
 	const why = $derived(writable(store.manifest));
 	const types = $derived(store.manifest?.annotation_types ?? []);
 	const chosen = $derived(types.find((t) => t.id === type));
@@ -97,7 +97,7 @@
 
 	async function submit(e: SubmitEvent, whole = false): Promise<void> {
 		e.preventDefault();
-		if (why || wordless || busy) return;
+		if (wordless || busy) return;
 		busy = true;
 		said = '';
 		// `in` goes with a place inside a document, never with the document itself as the place
@@ -174,7 +174,7 @@
 	</div>
 	<div class="foot">
 		<button type="button" class="as-link quote" disabled={!!why || busy} title="A note quoting this place, with no type: an agent reads it with loom since" data-testid="note-quote-it" onclick={quoting}>quote it</button>
-		<button type="submit" class="go" disabled={!!why || busy || wordless} title={wordless ? `${chosen?.name} stays open until resolved, so it needs words` : undefined} data-testid="note-submit">{busy ? 'writing…' : 'Annotate'}</button>
+		<button type="submit" class="go" disabled={busy || wordless} title={wordless ? `${chosen?.name} stays open until resolved, so it needs words` : undefined} data-testid="note-submit">{busy ? 'writing…' : 'Annotate'}</button>
 	</div>
 	{#if said}
 		<p class="said" role="status" data-testid="note-said">

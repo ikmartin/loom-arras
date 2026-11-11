@@ -82,7 +82,7 @@ def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
     assert link("dm-0003") == "[](quilt:dm-0003)"
     assert link("drafting/main.tex", "--at", "dm-0003") == "[](quilt:drafting/main.tex#dm-0003)"
     assert link("a-2026-09-16-tc3rcf") == "[](quilt:a-2026-09-16-tc3rcf)"
-    assert link("s-2026-09-16-cd0j88") == "[](quilt:s-2026-09-16-cd0j88)"
+    assert link("s-2026-09-16-p9z37z") == "[](quilt:s-2026-09-16-p9z37z)"
     assert (
         link("Calloway14", "--page", "2", "--quote", "a phrase")
         == "[](cited:doi:10.4171/demo/14-1?page=2&quote=a%20phrase)"
@@ -95,7 +95,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
     from loom.mailbox import read_events
 
     agent = {"AI_AGENT": "1"}
-    sid = "s-2026-09-16-cd0j88"
+    sid = "s-2026-09-16-p9z37z"
     bad = refused(
         "session",
         "say",
@@ -119,8 +119,6 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "As [](quilt:dm-9999) shows.",
         "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "Referee Agent",
         cwd=q,
@@ -135,8 +133,6 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "As [](quilt:dm-9999) shows.",
         "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q,

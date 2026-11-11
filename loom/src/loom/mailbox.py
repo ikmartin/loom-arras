@@ -347,9 +347,9 @@ def annotation_row(root: Path, a: Any) -> dict[str, Any]:
 
 
 def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
-    """The packet: what `who` wrote in this session since a message last carried any, carried by their next `loom session say` (plan 0.14).
+    """The packet: the annotations and replies `who` wrote since the session's round opened that no message of it has carried yet, carried by their next `loom session say` (plan 0.14).
 
-    Only the sender's own annotations and replies go, a person's: an agent's are its own, and sending them back would be telling it what it said. Each is carried whole (`annotation_row`), because the inbox is the record of what was sent.
+    An annotation belongs to no session, so the round's opening is what bounds the packet. Only a person's own go: an agent's are its own, and sending them back would be telling it what it said. Each is carried whole (`annotation_row`), because the inbox is the record of what was sent.
     """
     from loom.records.annotations import load_records
 
@@ -360,11 +360,8 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
     records, _ = load_records(root)
     out: list[dict[str, Any]] = []
     for record in records:
-        if record.rel != session.id:
-            continue
         for a in record.annotations:
-            if a.id in sent or a.created < since or a.status == "discarded" or a.author_kind != "person":
+            if a.id in sent or a.created < since or a.author_kind != "person" or a.author_id != who:
                 continue
-            if a.author_id == who:
-                out.append(annotation_row(root, a))
+            out.append(annotation_row(root, a))
     return out

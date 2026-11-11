@@ -245,8 +245,6 @@ def build_synthetic(dest: Path) -> None:
         "revision",
         "--quote",
         "finite widget",
-        "--session",
-        referee,
         agent=True,
     )
     g.run(
@@ -261,8 +259,6 @@ def build_synthetic(dest: Path) -> None:
         "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
         "--placement",
         "replace",
-        "--session",
-        referee,
         agent=True,
     )
     g.run(
@@ -271,8 +267,6 @@ def build_synthetic(dest: Path) -> None:
         "The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         agent=True,
     )
     # Two works worth citing, each a suggestion naming the work: one the author resolves, and one left open, so the viewer has both a settled suggestion and an open one to show.
@@ -283,8 +277,6 @@ def build_synthetic(dest: Path) -> None:
         "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         agent=True,
     )
     g.run(
@@ -293,8 +285,6 @@ def build_synthetic(dest: Path) -> None:
         "The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         agent=True,
     )
     # The agent's account of the run, said in the chat (plan 0.14).
@@ -335,7 +325,7 @@ def build_synthetic(dest: Path) -> None:
         "--as",
         AUTHOR,
     )
-    objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
+    objection, suggestion, document, cited, _open = _annotation_ids(dest, "agent")[:5]
     g.at("2026-09-16T09:00:00Z")
     g.run("annotate", "--resolve", cited, "Cited.", "--as", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
@@ -372,12 +362,10 @@ def build_synthetic(dest: Path) -> None:
         "Gadgets of odd order cannot exist.",
         "--type",
         "note",
-        "--session",
-        quick,
         agent=True,
     )
-    # the author deletes the first pass's one annotation, which leaves its agent a line `loom since` says once
-    g.run("annotate", "--delete", _annotation_ids(dest, quick)[0], "--as", AUTHOR)
+    # the author deletes the first pass's one annotation, the agent's latest, which leaves it a line `loom since` says once
+    g.run("annotate", "--delete", _annotation_ids(dest, "agent")[-1], "--as", AUTHOR)
     g.run("session", "close", quick, "--as", AUTHOR)
 
     # An agent's copy of the paper (plan 0.17.1), then the agent's edits in it, one of each kind a copy can differ from its source by: a node changed, a node changed here and again by the author below, a node written new under the author's next number, a node deleted, and a node moved unchanged.
@@ -505,8 +493,6 @@ def build_synthetic(dest: Path) -> None:
         "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
         "--placement",
         "replace",
-        "--session",
-        referee,
         agent=True,
     )
     g.at("2026-09-16T11:30:00Z")
@@ -578,8 +564,8 @@ Minor Revision. Nothing here is wrong; the proof is missing one sentence and the
 """
 
 
-def _annotation_ids(root: Path, session: str) -> list[str]:
-    """The ids a session created, read back out of the log so the generator can reply to and resolve them."""
+def _annotation_ids(root: Path, author: str) -> list[str]:
+    """The ids `author` created, in the log's order, read back out of the log so the generator can reply to and resolve them."""
     import json
 
     log = root / ANNOTATION_LOG
@@ -588,7 +574,7 @@ def _annotation_ids(root: Path, session: str) -> list[str]:
         if not line.strip():
             continue
         e = json.loads(line)
-        if e.get("event") == "created" and e.get("session") == session:
+        if e.get("event") == "created" and e.get("author") == author:
             out.append(e["id"])
     return out
 
@@ -634,8 +620,6 @@ def build_demo(dest: Path) -> None:
         "Let $(X,\\sigma)$ be a widget. Then $\\Fix(\\sigma)$ is closed in every topology on $X$ for which $\\sigma$ is continuous and $X$ is Hausdorff; if moreover $X$ is finite, $\\Fix(\\sigma)$ is nonempty if and only if $|X|$ is odd.",
         "--placement",
         "replace",
-        "--session",
-        run_dir,
     )
     g.run(
         "annotate",
@@ -645,8 +629,6 @@ def build_demo(dest: Path) -> None:
         "revision",
         "--quote",
         "the preimage of the diagonal",
-        "--session",
-        run_dir,
     )
     # A whole-document annotation: its target is the master's path, which loom has written since 0.6 and nothing showed.
     g.run(
@@ -655,8 +637,6 @@ def build_demo(dest: Path) -> None:
         "The setup section introduces $\\Fix$ twice, once in prose and once in the definition; keep the definition.",
         "--type",
         "suggestion",
-        "--session",
-        run_dir,
         agent=True,
     )
     # The agent's account of the run, said in the chat (plan 0.14).
@@ -671,8 +651,9 @@ def build_demo(dest: Path) -> None:
         "Referee Agent",
         agent=True,
     )
-    # in creation order: the statement suggestion, the proof objection, the whole-document point
-    suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
+    # in creation order: the statement suggestion and the proof objection, written as the author, then the agent's whole-document point
+    suggestion, objection = _annotation_ids(dest, "The loom demo")[1:3]
+    document = _annotation_ids(dest, "agent")[0]
     _say_report(
         g,
         run_dir,
@@ -933,8 +914,6 @@ def build_showcase(dest: Path) -> None:
         "revision",
         "--quote",
         "underlying graph has $c$ connected components",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -953,8 +932,6 @@ def build_showcase(dest: Path) -> None:
         "$\\operatorname{im} \\bd$ is free, so it splits and the ranks add",
         "--placement",
         "replace",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -970,8 +947,6 @@ def build_showcase(dest: Path) -> None:
         "revision",
         "--quote",
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -985,8 +960,6 @@ def build_showcase(dest: Path) -> None:
         "question",
         "--quote",
         "we obtain an infinite walk inside $\\supp(w)$",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1001,8 +974,6 @@ def build_showcase(dest: Path) -> None:
         "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
         "--placement",
         "after",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1014,8 +985,6 @@ def build_showcase(dest: Path) -> None:
         "about connectedness, and the rank formula is the only place it would matter.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1027,8 +996,6 @@ def build_showcase(dest: Path) -> None:
         "definition.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1040,8 +1007,6 @@ def build_showcase(dest: Path) -> None:
         "same breath.",
         "--type",
         "revision",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1056,8 +1021,6 @@ def build_showcase(dest: Path) -> None:
         "revision",
         "--quote",
         "whose underlying graph has $c$ connected components",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1068,8 +1031,6 @@ def build_showcase(dest: Path) -> None:
         "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
         "--type",
         "note",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1081,8 +1042,6 @@ def build_showcase(dest: Path) -> None:
         "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1093,8 +1052,6 @@ def build_showcase(dest: Path) -> None:
         "The remark asserts that no index creeps in, which is what Proposition sh-0007 says; the remark is redundant.",
         "--type",
         "revision",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1105,8 +1062,6 @@ def build_showcase(dest: Path) -> None:
         "Height is defined for every weighting but only used for balanced ones.",
         "--type",
         "suggestion",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1120,8 +1075,6 @@ def build_showcase(dest: Path) -> None:
         "revision",
         "--quote",
         "a homomorphism into a torsion-free group",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1141,7 +1094,7 @@ def build_showcase(dest: Path) -> None:
         redundant,
         height,
         torsion,
-    ) = _annotation_ids(dest, referee)[:14]
+    ) = _annotation_ids(dest, "Referee (Agent)")[:14]
     # The agent's account of the run, said in the chat (plan 0.14).
     g.run(
         "session",
@@ -1171,8 +1124,6 @@ def build_showcase(dest: Path) -> None:
         "annotate",
         "--delete",
         redundant,
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1183,8 +1134,6 @@ def build_showcase(dest: Path) -> None:
         height,
         "Height is defined for every weighting but only used for balanced ones, and $N_{\\quiv}(k)$ silently "
         "restricts to them. Say so in the definition rather than in the theorem that uses it.",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1204,8 +1153,6 @@ def build_showcase(dest: Path) -> None:
         "--reply",
         formula,
         "Then the convention is the right place, and this finding can stand until it is there.",
-        "--session",
-        referee,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1226,7 +1173,7 @@ def build_showcase(dest: Path) -> None:
     )
     g.run("annotate", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--type", "note")
 
-    # A second person, so the viewer has two comment sessions and not one.
+    # A second person, so the viewer has two people commenting and not one.
     g.at("2026-09-17T09:00:00Z")
     g.run(
         "annotate",
@@ -1255,8 +1202,6 @@ def build_showcase(dest: Path) -> None:
         "A quiver should be required to be connected.",
         "--type",
         "revision",
-        "--session",
-        quick,
         agent=True,
     )
     g.run(
@@ -1265,12 +1210,10 @@ def build_showcase(dest: Path) -> None:
         "The bouquet is not a quiver.",
         "--type",
         "revision",
-        "--session",
-        quick,
         agent=True,
     )
-    # the author deletes the first pass's one annotation, which leaves its agent a line `loom since` says once
-    g.run("annotate", "--delete", _annotation_ids(dest, quick)[0], "--as", AUTHOR)
+    # the author deletes the first pass's first annotation, which leaves its agent a line `loom since` says once
+    g.run("annotate", "--delete", _annotation_ids(dest, "agent")[0], "--as", AUTHOR)
     g.run("session", "close", quick, "--as", AUTHOR)
 
     # ---- A reading session: the author reads Bellamy, anchors to the page, and talks to an agent. ---------
@@ -1283,8 +1226,6 @@ def build_showcase(dest: Path) -> None:
         "This is the form we use; the balanced case is the one that matters here.",
         "--type",
         "note",
-        "--session",
-        reading,
     )
     g.run(
         "annotate",
@@ -1292,8 +1233,6 @@ def build_showcase(dest: Path) -> None:
         "Does this need the weights to be integral, or only bounded?",
         "--type",
         "question",
-        "--session",
-        reading,
     )
     # Notes on the page itself (plan 0.13 item 2): one anchored to text the reader selected, one to a box drawn
     # around the display, both recorded against the work by its identifier.
@@ -1307,8 +1246,6 @@ def build_showcase(dest: Path) -> None:
         "totally unimodular",
         "--type",
         "question",
-        "--session",
-        reading,
     )
     g.run(
         "annotate",
@@ -1320,8 +1257,6 @@ def build_showcase(dest: Path) -> None:
         "82,278,529,316",
         "--type",
         "note",
-        "--session",
-        reading,
     )
     # The message carries what changed since the last one -- the notes above -- in the same text `session next`
     # prints, so a parked agent needs no second call to learn what it is being asked about.
@@ -1354,8 +1289,6 @@ def build_showcase(dest: Path) -> None:
         "the constraint matrix is an incidence matrix",
         "--type",
         "note",
-        "--session",
-        reading,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1366,8 +1299,6 @@ def build_showcase(dest: Path) -> None:
         "Please verify the transcription of 3.2 against p.2: the digest says 'integral' where the page says 'bounded'.",
         "--type",
         "suggestion",
-        "--session",
-        reading,
         "--as",
         "Referee (Agent)",
         agent=True,
@@ -1399,7 +1330,7 @@ def build_showcase(dest: Path) -> None:
         "a living work with no fixed version; there is no document to file",
     )
 
-    # ---- A session closed when its work was done; its annotations stop being shown. -----------------------
+    # ---- A session closed when its work was done. ----------------------------------------------------------
     g.at("2026-09-17T11:30:00Z")
     g.run("session", "close", reading)
 

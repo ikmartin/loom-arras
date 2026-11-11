@@ -7,7 +7,7 @@ import { join } from 'node:path';
 async function intoASession(page: import('@playwright/test').Page, served: Served): Promise<string> {
 	const id = served.openSessions().at(-1)!;
 	await pickSession(page, id);
-	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^writing in /);
 	return id;
 }
 

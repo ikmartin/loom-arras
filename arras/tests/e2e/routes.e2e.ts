@@ -90,10 +90,10 @@ test('a session opens on its Chat, and reads also as what it did', async ({ page
 	// the agent's account of the run is in the transcript, and no date is a raw timestamp
 	await expect(chat).toContainText('hostile review of the parity theorem');
 	await expect(chat).not.toContainText(/\d{4}-\d{2}-\d{2}T/);
-	// what it did is the session's log, the comments it made among the commands, and no date raw
+	// what it did is the session's log, its commands and no date raw
 	await page.getByTestId('tab-did').click();
 	const did = page.getByTestId('session-did');
-	await expect(did.getByTestId('did-row').first()).toContainText('loom annotate sy-0003 --quote --type revision');
+	await expect(did.getByTestId('did-row').first()).toContainText('loom write state');
 	await expect(did.getByTestId('session-said')).toHaveCount(0);
 	await expect(did.getByTestId('report-step')).toHaveCount(0);
 	await expect(did).not.toContainText(/\d{4}-\d{2}-\d{2}T/);

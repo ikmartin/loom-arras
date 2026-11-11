@@ -7,12 +7,12 @@ import { join } from 'node:path';
 /**
  * Select the quilt's newest open session, because a write names one (plan 0.13.1) and nothing is selected at rest; returns its id.
  *
- * This is the setup the interface asks of a reader too: the composer is greyed until an open session is chosen, and nothing is opened behind their back.
+ * This is the setup the interface asks of a reader for a note, a quote or a question to an agent: nothing is opened behind their back.
  */
 async function intoASession(page: import('@playwright/test').Page, served: Served): Promise<string> {
 	const id = served.openSessions().at(-1)!;
 	await pickSession(page, id);
-	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^writing in /);
 	return id;
 }
 
@@ -264,28 +264,20 @@ async function noteOn(page: import('@playwright/test').Page, at: import('@playwr
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
 }
 
-test('a note lands in the session selected in the viewer, not in the one opened most recently', async ({ page, served }) => {
-	// plan 0.13.1 Part 6: the write names the reader's selection; the publisher's own pointer is not consulted
-	const [older] = served.openSessions();
-	await served.api('session-new', { title: 'later sitting' });
-	const newer = served.openSessions().at(-1)!;
-	expect(newer).not.toBe(older);
-	// the newer one is where a pointer would send it: the most recent, and the one `.loom/sessions/active` names
-	expect(readFileSync(join(served.root, '.loom/sessions/active'), 'utf8').trim()).toBe(newer);
+test('an annotation is written with no session selected, and names none', async ({ page, served }) => {
 	await page.goto('/node/sy-0003');
-	await pickSession(page, older);
-	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', 'annotations are written into referee');
+	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await noteOn(page, page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first(), 'Which sitting is this in?');
 	const mine = served.written('Which sitting is this in?');
-	expect(mine.session).toBe(older);
-	expect(mine.session).not.toBe(newer);
+	expect(mine.target).toBe('sy-0003');
+	expect(mine).not.toHaveProperty('session');
 });
 
 test('an annotation is edited, then deleted, which takes its lines out of the log, and Undo puts the same lines back', async ({ page, served }) => {
 	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'inline' })));
 	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.type === 'revision')!.id as string;
 	await page.goto('/node/sy-0003');
-	const sid = await intoASession(page, served);
+	await intoASession(page, served);
 	const mark = page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first();
 	await mark.click();
 	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
@@ -301,7 +293,7 @@ test('an annotation is edited, then deleted, which takes its lines out of the lo
 	const edited = served.log().filter((e) => e.event === 'edited' && e.id === id);
 	expect(edited).toHaveLength(1);
 	expect(edited[0].body).toBe(restated);
-	expect(edited[0].session).toBe(sid);
+	expect(edited[0]).not.toHaveProperty('session');
 	expect(edited[0].kind).toBe('human');
 
 	// the log as lines, in any order: a restore appends what it puts back
@@ -323,27 +315,24 @@ test('an annotation is edited, then deleted, which takes its lines out of the lo
 	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first()).toBeVisible();
 });
 
-test('deleting a session from the picker tombstones it in the index, and its annotations stay in the log', async ({ page, served }) => {
-	// session-delete (SessionFooter), through the confirmation that says how much is still open
+test('deleting a session from the picker tombstones it in the index, and no annotation goes with it', async ({ page, served }) => {
+	// session-delete (SessionFooter), through the confirmation that says what goes and what does not
 	await page.goto('/node/sy-0003');
 	const id = await intoASession(page, served);
-	const written = served.log().filter((e) => e.session === id);
+	const written = served.log();
 	expect(written.length).toBeGreaterThan(0);
 	await openPicker(page);
 	const row = page.getByTestId(`session-${id}`);
-	const n = Number(/^(\d+) open$/.exec((await row.locator('.count').textContent())!.trim())![1]);
-	expect(n).toBeGreaterThan(0);
 	await row.hover();
 	await page.getByTestId(`session-delete-${id}`).click();
 	const modal = page.getByTestId('delete-session');
-	// the count the modal warns of is the row's own
-	await expect(modal.getByTestId('delete-open')).toContainText(`${n} annotation${n === 1 ? ' is' : 's are'} still OPEN`);
+	await expect(modal.getByTestId('delete-says')).toContainText('Annotations belong to no session, so none goes with it');
 	await modal.getByTestId('delete-confirm').click();
 	await expect(modal).toHaveCount(0);
 	await expect.poll(() => sessionIndex(served).filter((e) => e.event === 'deleted' && e.id === id).length).toBe(1);
 	expect(served.openSessions()).not.toContain(id);
-	// a tombstone, not a purge: every line the session wrote is still there
-	expect(served.log().filter((e) => e.session === id)).toEqual(written);
+	// a tombstone, not a purge, and the annotation log is untouched
+	expect(served.log()).toEqual(written);
 	// and the viewer lets go of it: nothing is selected, and the picker no longer lists it
 	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await openPicker(page);

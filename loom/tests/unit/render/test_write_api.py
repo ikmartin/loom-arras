@@ -99,11 +99,6 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
         "code": "no-such-annotation",
         "message": "no annotation a-1999-01-01-ekn992",
     }, body
-    # a write that names no session at all is malformed, not something to file against whatever was last active
-    status, body = post(s.url + "_api/annotate", {"target": "dm-0003", "message": "orphan"})
-    assert status == 400 and body["error"]["code"] == "no-session", body
-    status, body = post(s.url + "_api/annotate", {"run": sid, "target": "dm-0003", "message": "orphan"})
-    assert status == 400 and body["error"]["code"] == "no-session", body  # a session is named `session`, nothing else
     # nobody to sign it: the quilt names no author and the browser gave none
     status, body = post(s.url + "_api/annotate", {"session": sid, "target": "dm-0003", "message": "unsigned"})
     assert status == 400 and body["error"]["code"] == "refused" and "no author name" in body["error"]["message"], body
@@ -402,7 +397,9 @@ def _pdf_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 def _annotate(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
     ann = noted(s, q, sid)
-    assert the(events(q, ann), lambda e: True, "event")["session"] == sid
+    assert "session" not in the(events(q, ann), lambda e: True, "event")  # a session sent with it is ignored
+    # an annotation belongs to no session, so a write that names none is written
+    succeeds(s, "annotate", {"target": "dm-0003", "message": "Named no session.", "type": "note", "author": WHO})
     refuses(
         s,
         "annotate",
@@ -419,7 +416,7 @@ def _reply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ann = noted(s, q, sid)
     succeeds(s, "reply", {"session": sid, "annotation": ann, "message": "Answered.", "author": WHO})
     reply = the(log(q), lambda e: e["event"] == "replied", "reply")
-    assert (reply["reply_to"], reply["body"], reply["session"]) == (ann, "Answered.", sid), reply
+    assert (reply["reply_to"], reply["body"], "session" in reply) == (ann, "Answered.", False), reply
     refuses(s, "reply", {"session": sid, "message": "to nothing"}, 400, "missing-field", "annotation is required")
 
 
@@ -490,7 +487,7 @@ def _delete(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     said = succeeds(s, "delete", {"session": sid, "annotation": mine, "author": WHO})
     assert said["result"] == f"deleted {mine}" and [e["event"] for e in said["removed"]] == ["created"]
     assert events(q, mine) == []
-    refuses(s, "delete", {"annotation": mine, "author": WHO}, 400, "no-session", "must name the session")
+    refuses(s, "delete", {"author": WHO}, 400, "missing-field", "annotation is required")
 
 
 @case("restore")

@@ -102,7 +102,7 @@ def apply_cmd(annotation: str, as_name: str | None, as_json: bool, quilt_path: s
 
     The author's act. Refused for a suggestion with no text to put in, one whose quote no longer stands once, one already resolved or withdrawn, and one on an agent's copy, whose changes come in with the copy.
     """
-    from loom.cli.review import _one_comment, _writer
+    from loom.cli.review import _annotator, _one_comment
     from loom.records.suggestions import ApplyRefused, apply
 
     refuse_under_agent(
@@ -112,9 +112,9 @@ def apply_cmd(annotation: str, as_name: str | None, as_json: bool, quilt_path: s
     result = open_scan(quilt_path)
     ann = _found(result, annotation)
     root = result.quilt.root
-    writer = _writer(root, None, as_name)
+    writer = _annotator(root, as_name)
     try:
-        documents, kept = apply(result, ann, writer[2])
+        documents, kept = apply(result, ann, writer[1])
     except ApplyRefused as exc:
         raise ContentError(exc.message) from exc
     _one_comment(open_scan(str(root)), writer, None, None, None, None, None, ann.id, applied=True)

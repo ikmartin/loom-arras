@@ -138,11 +138,10 @@ def test_a_new_node_never_overwrites_a_file_that_arrived_after_the_scan(
 def test_parallel_annotate_gives_every_annotation_its_own_id(tmp_path: Path) -> None:
     """Measured before the lock: duplicate ids in ten trials of twelve, and a reply to such an id cannot say which it means."""
     q = demo(tmp_path)
-    sid = new_session(q)
     all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "question", "--as", AGENT] for i in range(N))))
     made = {str(e["id"]): str(e["body"]) for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))}
     assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
-    listed = json.loads(ok("ai", "annotations", "--session", sid, "--json", cwd=q).stdout)["annotations"]
+    listed = json.loads(ok("ai", "annotations", "--by", AGENT, "--json", cwd=q).stdout)["annotations"]
     assert sorted(a["id"] for a in listed if "race " in str(a["message"])) == sorted(made)
 
 
@@ -176,10 +175,21 @@ def test_writers_with_nothing_active_all_land_in_the_one_session_the_first_opens
     q = demo(tmp_path)
     set_active(q, None)
     before = len(events(q / INDEX))
-    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(N))))
+    all_ok(racing(q, (["note", f"race {i}", "--on", "dm-0002", "--as", AGENT] for i in range(N))))
     opened = [e for e in events(q / INDEX)[before:] if e["event"] == "created"]
-    wrote = [e for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
+    wrote = [e for e in events(q / NOTE_LOG) if "race " in str(e.get("body"))]
     assert len(opened) == 1 and {e["session"] for e in wrote} == {opened[0]["id"]}, (opened, wrote)
+
+
+def test_annotating_with_nothing_active_opens_no_session(tmp_path: Path) -> None:
+    """An annotation belongs to no session, so racing writers open none and name none."""
+    q = demo(tmp_path)
+    set_active(q, None)
+    before = events(q / INDEX)
+    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(N))))
+    wrote = [e for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
+    assert len(wrote) == N and not [e for e in wrote if "session" in e]
+    assert events(q / INDEX) == before
 
 
 def test_parallel_links_each_get_an_id_and_none_is_lost(tmp_path: Path) -> None:

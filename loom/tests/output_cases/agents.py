@@ -10,7 +10,7 @@ from unittest import mock
 
 from tests.output_cases.base import Case, ai_copy, author
 
-S1, S2 = "s-2026-09-16-p9z37z", "s-2026-09-16-cd0j88"
+S1 = "s-2026-09-16-p9z37z"
 AGENT = ("--as", "Probe Agent")
 
 KIND: dict[str, str] = {
@@ -60,7 +60,7 @@ def marked(q: Path) -> None:
     from tests.helpers import ok
 
     author(q)
-    ok("annotate", "dm-0003", "Is this right?", "--type", "question", "--session", S1, cwd=q)
+    ok("annotate", "dm-0003", "Is this right?", "--type", "question", cwd=q)
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -225,9 +225,12 @@ CASES: dict[str, list[Case]] = {
         Case(("contribution.tex", "--dry-run"), setup=closed_copy, unchanged=True),
     ],
     "ai annotations": [
-        Case(("--session", S2)),
-        Case(("--session", S2, "--type", "revision", "--status", "open")),
-        Case(NOWHERE, exit=2, why="names no session"),
+        Case((), why="every annotation"),
+        Case(("--by", "The loom demo", "--type", "revision", "--status", "open")),
+        Case(("--target", "dm-0003/proof")),
+        Case(("--by", "Nobody"), why="nothing matches"),
+        Case(("--target", "dm-9999"), exit=2, unchanged=True, why="names no key"),
+        Case(NOWHERE, exit=2, unchanged=True, why="an annotation belongs to no session"),
     ],
     "ai refresh": [
         Case(("contribution.tex",), setup=ai_copy),

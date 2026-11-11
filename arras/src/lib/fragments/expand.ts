@@ -50,7 +50,7 @@ export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	return out;
 }
 
-/** Every mark in `root` that stands for an annotation, in document order; with `drawn`, only those a reader can see, since a settled mark with the settled control off, or one the session filter hides, is nothing to open at once. */
+/** Every mark in `root` that stands for an annotation, in document order; with `drawn`, only those a reader can see, since a settled mark with the settled control off, or one the pane hides, is nothing to open at once. */
 function triggers(root: HTMLElement, drawn = false): HTMLElement[] {
 	const all = [...root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation], button.mark[data-annotation]')];
 	return drawn ? all.filter((el) => !inert(el)) : all;

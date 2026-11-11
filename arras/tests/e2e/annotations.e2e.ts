@@ -1,8 +1,8 @@
 // Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, what a suggestion proposes, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, prefs, settings, viewMenu } from '../workspace';
-import { openPicker, pickSession } from '../picker';
-import { manifest, QUICK, REFEREE, serve } from '../manifest';
+import { pickSession } from '../picker';
+import { manifest, REFEREE, saying, serve } from '../manifest';
 
 /** A computed CSS colour's channels, in whichever form the browser serialises it: `rgb(r, g, b)`, `rgba(r, g, b, a)` or `color(srgb r g b / a)`. */
 function channels(colour: string): { r: number; g: number; b: number; a: number } {
@@ -189,30 +189,6 @@ test.describe('marks', () => {
 		expect(shown.band.a).toBeCloseTo(0.24, 2);
 		await m.click();
 		await expect(page.locator('aside.comment-slot.expanded article.box[data-annotation-id="a-2026-09-16-hwtkaw"]')).toHaveCount(1);
-	});
-
-	test('the session filter hides marks, not only counts', async ({ page }) => {
-		// the question is moved into the closed session, which the view hides at rest
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].run = QUICK));
-		await page.goto('/master/drafting/main');
-		const m = mark(page, 'a-2026-09-16-bns3an');
-		await expect(m).toHaveClass(/hidden/);
-		await expect(m).toContainText('one or two points');
-		expect((await drawn(m)).band.a).toBe(0);
-		await m.dispatchEvent('click');
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-		// the revision, in the open session, is drawn as before
-		await expect(mark(page, 'a-2026-09-16-ecnav2')).not.toHaveClass(/hidden/);
-		// admitting closed sessions draws it
-		await openPicker(page);
-		await page.getByTestId('show-closed').click();
-		await page.getByTestId('closed-yes').click();
-		await page.keyboard.press('Escape');
-		await expect(m).not.toHaveClass(/hidden/);
-		expect((await drawn(m)).band).toMatchObject(BLUE_BAND);
-		expect((await drawn(m)).band.a).toBeCloseTo(0.6, 2);
-		await m.click();
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(1);
 	});
 
 	test('a block mark is drawn in its look: a quote loom could not place marks its whole block, a list among them, underlined line by line', async ({ page }) => {
@@ -444,16 +420,10 @@ test.describe('marks and boxes', () => {
 		await expect(fragment).toHaveCSS('outline-style', 'none');
 	});
 
-	test('a document carries annotations of its own, and they are read beside it', async ({ page }) => {
-		// a remark about the whole paper is not drawn above its title; it is read in what the session did, beside the document
-		await page.goto('/master/drafting/main' + beside(`/session/${REFEREE}?view=did`));
+	test('an annotation on a whole document is not drawn above its title', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await expect(page.locator('.fragment').first()).toBeVisible();
 		await expect(page.getByTestId('document-annotations')).toHaveCount(0);
-		const did = page.getByTestId('session-did');
-		// found by its id rather than by being first; the list is compact rows, not boxes
-		const own = Object.values(manifest.annotations as Record<string, { id: string; body_html: string; target: { key: string } }>).find(
-			(a) => a.body_html.includes('which conventions it inherits') && a.target.key === 'drafting/main.tex'
-		)!;
-		await expect(did.locator(`[id="ann-${own.id}"]`)).toHaveCount(1);
 	});
 });
 
@@ -739,24 +709,23 @@ test.describe('the box', () => {
 		const removed = [{ event: 'created', id: 'a-2026-09-16-ecnav2' }, { event: 'replied', id: 'a-2026-09-16-hwnav1' }];
 		const sent: Record<string, Record<string, unknown>> = {};
 		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete', 'restore']);
-		await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
 		await page.route('**/_api/delete', (r) => ((sent.delete = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'deleted a-2026-09-16-ecnav2', removed } })));
 		await page.route('**/_api/restore', (r) => ((sent.restore = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'restored a-2026-09-16-ecnav2' } })));
 		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
 		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
 		await expect(box.getByTestId('verb-panel')).toHaveCount(0);
-		expect(sent.delete).toMatchObject({ annotation: 'a-2026-09-16-ecnav2', session: REFEREE });
+		expect(sent.delete).toMatchObject({ annotation: 'a-2026-09-16-ecnav2' });
+		expect(sent.delete).not.toHaveProperty('session');
 		const held = page.getByTestId('deleted');
 		await expect(held).toHaveCount(1);
 		await expect(held).toContainText('Deleted Revision on Theorem 2.1.');
 		await held.getByTestId('deleted-undo').click();
 		await expect(held).toHaveCount(0);
-		expect(sent.restore).toMatchObject({ events: removed, session: REFEREE });
+		expect(sent.restore).toMatchObject({ events: removed });
 	});
 
 	test('a refused delete says why in the box, and holds nothing to undo', async ({ page }) => {
 		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
-		await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
 		await page.route('**/_api/delete', (r) => r.fulfill({ status: 400, json: { ok: false, error: { code: 'refused', message: 'an agent deletes only its own annotations' } } }));
 		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
 		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
@@ -866,7 +835,7 @@ test.describe('writing', () => {
 	});
 
 	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {
-		// `resolve` is one click and opens no panel, so its refusal is shown in the box: the viewer's own when nothing is selected, the publisher's once the write reaches it
+		// `resolve` is one click and opens no panel, so its refusal is shown in the box; it names no session, so it reaches the publisher whatever is selected, and the publisher's refusal is what gets shown
 		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['annotate', 'reply', 'resolve', 'edit', 'delete'], token: 't' } }));
 		await page.route('**/_api/resolve', (route) =>
 			route.fulfill({
@@ -882,15 +851,10 @@ test.describe('writing', () => {
 		};
 		await openFirstMark();
 		const said = page.getByTestId('verb-said').first();
-		// with nothing selected the write never leaves the viewer, and the verb says which condition is unmet
-		await page.getByTestId('verb-resolve').first().click();
-		await expect(said).toContainText('No session selected');
-		// with one selected the request reaches the publisher, and its refusal is what gets shown
-		await pickSession(page, REFEREE);
-		await openFirstMark();
 		await page.getByTestId('verb-resolve').first().click();
 		await expect(said).toBeVisible();
 		await expect(said).toContainText('no author name');
+		await expect(said).not.toContainText('session');
 	});
 
 	test("words selected in an annotation's box are not the document's, and offer nothing to annotate", async ({ page }) => {
@@ -1133,9 +1097,10 @@ test.describe('the settled control', () => {
 	});
 
 	test('a link to a settled annotation turns it on and opens the box, one with no quote included', async ({ page }) => {
-		// a row in What it did or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn
-		await page.goto(`/session/${REFEREE}?view=did`);
-		await page.locator('[data-testid="did-annotation"][href="quilt:a-2026-09-16-hwtkaw"]').click();
+		// a message or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn
+		await saying(page, '<p>See <a href="quilt:a-2026-09-16-hwtkaw"></a>.</p>');
+		await page.goto(`/session/${REFEREE}`);
+		await page.getByTestId('message-1').locator('a[href="quilt:a-2026-09-16-hwtkaw"]').click();
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('[data-pane="1"] article.box.settled[data-annotation-id="a-2026-09-16-hwtkaw"]')).toBeVisible();
 		// a resolved annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was resolved

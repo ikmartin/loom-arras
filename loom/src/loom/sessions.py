@@ -1,6 +1,6 @@
-"""`.loom/sessions/`: where work belongs, as distinct from who did it (plan 0.13 §5).
+"""`.loom/sessions/`: stretches of work, each with its transcript and command log (plan 0.13 §5).
 
-A **session** is a stretch of work on the quilt -- a sitting, a review, a thread with an agent -- and it is what an annotation belongs to. An **author** is who wrote the thing. Loom conflated the two: an agent's annotation recorded the run directory as its author, so the log could say *who* only by naming a place, and a person and an agent working the same afternoon had no way to say they were doing one job.
+A **session** is a stretch of work on the quilt -- a sitting, a review, a thread with an agent -- and it holds what was said and run in it. An annotation belongs to no session: it carries its **author**, who wrote it, its time and the version of the text it was written on.
 
 Two facts are kept, and they are different kinds of fact. The **id** is `s-YYYY-MM-DD-<token>` (`records/ids.py`), is minted once and never changes, and is what a record, a URL and a directory name use. The **title** is what a person calls it, changes whenever they like, and is never an address.
 
@@ -200,7 +200,7 @@ def resume(root: Path, sid: str, who: str) -> None:
 
 
 def delete(root: Path, sid: str, who: str, why: str = "") -> None:
-    """Tombstone a session: it leaves the viewer, and the log keeps every annotation written in it."""
+    """Tombstone a session: it leaves the viewer, and its transcript and directory stay."""
     _event(root, "deleted", sid, who, **({"why": why} if why else {}))
 
 

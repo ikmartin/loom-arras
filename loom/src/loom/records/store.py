@@ -840,8 +840,6 @@ class Records:
                 "resolved_why": a.resolved_why,
                 # a suggestion resolved as applied: the hash its key had once it was taken
                 "applied": a.applied,
-                # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
-                "run": res.record.rel,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

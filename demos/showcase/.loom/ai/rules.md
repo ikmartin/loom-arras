@@ -22,7 +22,7 @@ How to work in a quilt, whatever you have been asked to do. `orientation.md` say
    - compute the small cases before giving an opinion;
    - search the digests before calling anything new or known;
    - offer an idea of your own in one sentence, and do not pursue it unless asked.
-10. **A dead end, a counterexample, or a decision about one result is a `note` annotation on what it concerns, written when it is found** — not only a line in a report, which nobody finds again from the result. A decision that governs the work as a whole is a line in the research state.
+10. **A dead end, a counterexample, or a decision about one result is a {type:note} annotation on what it concerns, written when it is found** — not only a line in a report, which nobody finds again from the result. A decision that governs the work as a whole is a line in the research state.
 
 ## Inputs
 
@@ -39,8 +39,8 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 | output | on an agent document | on the author's text |
 |---|---|---|
 | your report | the transcript | the transcript |
-| a change | made in the document, and listed in the report | a suggestion carrying it; changes that only work together, an agent document |
-| a fault you can fix | fixed, and listed in the report | a suggestion carrying the fix, graded with its severity; an objection where you have no fix to give |
+| a change | made in the document, and listed in the report | a {type:suggestion} carrying it as its payload; changes that only work together, an agent document |
+| a fault you can fix | fixed, and listed in the report | a {type:revision} carrying the fix as its payload, its message saying how serious the fault is; a {type:revision} alone where you have no fix to give |
 | what needs the author: a question, a choice that is theirs, a place they should look | an annotation | an annotation |
 | a trial | the script in your session's directory, cited by path; its inputs and exact outputs in the report | the same |
 | a decision that governs the work, a problem opened or closed, a convention fixed | a line in the research state, `loom write state - --base HASH` | the same |
@@ -49,7 +49,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 
 **On an agent document, annotate with intention**: an annotation there marks a place the author must look, never a change you have already made. Your report lists the changes.
 
-**Suggestion or agent document.** A suggestion is a change the author can take or refuse on its own: it lands at one place in one key, however long — a drop-in paragraph is a suggestion. A change that only makes sense with others, or that moves, merges, splits or reorders results, is an agent document of the passage it touches (`loom draft DOC --ai NAME --section ID`). The test: could the author take this one and refuse its neighbours?
+**Proposed text or agent document.** Proposed text is a change the author can take or refuse on its own: it lands at one place in one key, however long — a drop-in paragraph is proposed text, an annotation's payload. A change that only makes sense with others, or that moves, merges, splits or reorders results, is an agent document of the passage it touches (`loom draft DOC --ai NAME --section ID`). The test: could the author take this one and refuse its neighbours?
 
 **A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A work you read through that has no overview yet gets one from you before you move on, whatever brought you to it; `loom library read WORK` says when it has none. A `note` annotation stays the home of what concerns one result.
 
@@ -57,16 +57,16 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 
 ## Findings
 
-1. A finding about a key is an annotation: `loom annotate KEY "message" --quote "exact text" --kind KIND`. One finding per call. In a shell, `--batch` (JSON lines on stdin) takes many, and a message or a `--payload` given as `-` is read from stdin, which spares LaTeX the shell's quoting, one of them per call; over MCP there is no shell to quote for, and each finding is a call.
-2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer -- except a suggestion's that carries text, which is exactly the text it replaces, however long (item 6). If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. Quote what the reader sees -- prose and inline formulas, not a `\label`, an `\end{…}` or a macro of the quilt's own -- and know that a quote inside a displayed formula marks the whole display. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom library read CITEKEY N` — or a rectangle on it with `--box`.
+1. A finding about a key is an annotation: `loom annotate KEY "message" --quote "exact text" --type TYPE`. One finding per call. In a shell, `--batch` (JSON lines on stdin) takes many, and a message or a `--payload` given as `-` is read from stdin, which spares LaTeX the shell's quoting, one of them per call; over MCP there is no shell to quote for, and each finding is a call.
+2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer -- except an annotation's that carries proposed text, which is exactly the text it replaces, however long (item 6). If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. Quote what the reader sees -- prose and inline formulas, not a `\label`, an `\end{…}` or a macro of the quilt's own -- and know that a quote inside a displayed formula marks the whole display. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom library read CITEKEY N` — or a rectangle on it with `--box`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The report holds the reasoning and refers to the annotation by the id loom printed.
-4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation, an aside that asks nothing, or a record of what was tried. Any unambiguous prefix names one (`obj`, `sugg`, `n`).
-5. `--severity major|moderate|minor` grades the fault a finding names, not how strongly you feel about it: a grammar fault is minor because the fault is small. Only `objection` and `suggestion` take one, and only when something is actually wrong.
-6. On a suggestion, `--payload` carries text you are proposing -- a proof, a paragraph, a rewritten passage -- and `--placement` says where it goes, which it must: `replace` puts it in place of exactly the quoted words, and `after` or `before` puts it right beside them. To change a longer span, quote the whole span. With no `--quote`, it is about the key's body, inside its environment: `replace` swaps the body, `after` and `before` add to its end or its start. An empty `--payload ""` with `replace` deletes the quoted words. One change per suggestion: a second edit, elsewhere in the key, is a second suggestion, never a sentence in the message. The viewer shows the key with your suggestion in place and `loom suggestion ID` prints it as a patch; applying it is the author's.
+4. Types: the quilt's annotation types, and when to use each, are under Annotation types below; pass a type's id as `--type`. Use the type whose instructions fit, and leave an annotation untyped when none does. An annotation of a type that stays open until resolved asks the author something, so it needs a message; an untyped one, or one of a type that only informs, asks nothing.
+5. Say in the message how serious a fault is, by how bad the fault is and not by how strongly you feel about it: a grammar fault is small because the fault is small.
+6. With `--payload`, an annotation carries text you are proposing -- a proof, a paragraph, a rewritten passage -- and `--placement` says where it goes, which it must: `replace` puts it in place of exactly the quoted words, and `after` or `before` puts it right beside them. To change a longer span, quote the whole span. With no `--quote`, it is about the key's body, inside its environment: `replace` swaps the body, `after` and `before` add to its end or its start. An empty `--payload ""` with `replace` deletes the quoted words. One change per annotation: a second edit, elsewhere in the key, is a second annotation, never a sentence in the message. The viewer shows the key with your proposed text in place and `loom suggestion ID` prints it as a patch; applying it is the author's.
 7. On a re-check, the event says what you found:
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
-   - you were wrong to raise it: `--discard`, since resolved would claim the author addressed something;
+   - you were wrong to raise it: `--delete ID`, which removes it and its replies; resolved would claim the author addressed something. You delete only what you wrote;
    - it has become a different fault: resolve this one and make a new one.
 
    `loom source KEY --at ID --diff` shows what changed since the finding was written.
@@ -76,7 +76,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 
 Most work is not a mode. The author asks a question, thinks aloud, wants a calculation checked, or asks for something no mode covers — and a mode applied because one had to be applied fits the answer to the form instead of the other way round. Choose the blocks below that fit what was asked and compose them yourself: a question about whether a hypothesis is load-bearing wants `[hypothesis-ledger]` and nothing else; a claim you doubt wants `[counterexample]` and `[worked-examples]`. Where nothing in the catalogue fits, answer in plain prose; the blocks are for structure that exists, not structure imposed.
 
-Loom is still how anything durable is recorded. A fault you find while answering something else is an objection; wording you propose is a suggestion's payload; a work worth citing is a `citation`; a doubt is a `question` anchored where it is; something you read and found fine can be a `note` saying so. Say in your message what you recorded.
+Loom is still how anything durable is recorded. A fault you find while answering something else is a {type:revision}; wording you propose is a payload; a work worth citing is a {type:suggestion} naming it; a doubt is a {type:question} anchored where it is; something you read and found fine can be a {type:note} saying so. Say in your message what you recorded.
 
 ## Never
 
@@ -147,7 +147,7 @@ Write each block under a heading with its name in brackets, `## [name]`.
 - [gaps-and-ambiguities] List missing definitions, ambiguous statements, unproven claims, or circular references. For each, give the exact place where the issue arises. Each item is also an annotation.
 - [worked-examples] Run at least two concrete test cases that exercise non-trivial equations/algorithms. Show inputs, intermediate steps, and exact outputs.
 - [counterexample] Numerically test each equation on reasonable small test cases. Walk through nontrivial algebraic transformations line-by-line looking for symbolic manipulation error. State any theoretical or numerical counterexamples you found.
-- [referee-review] A structured critique with Major Issues, Minor Issues, Clarity/Exposition, and Reproducibility. Each item gets (a) the severity you gave its annotation, (b) location, (c) proposed fix, and (d) the annotation's id. The grades are the annotations' own; do not keep a second scale here.
+- [referee-review] A structured critique with Major Issues, Minor Issues, Clarity/Exposition, and Reproducibility. Each item gets (a) how serious its annotation says it is, (b) location, (c) proposed fix, and (d) the annotation's id. The seriousness is the annotations' own; do not keep a second scale here.
 - [referee-revised] The revised proof or derivation, listed: the edits made, or the suggestions filed, each by its id.
 - [decision] Final recommendation: Reject / Major Revision / Minor Revision / Accept, with a one-paragraph justification tied to the blocks above. It never touches the ledger, which is the author's.
 - [definition] Give formal definitions of all related mathematical concepts. Then include motivation, and history.

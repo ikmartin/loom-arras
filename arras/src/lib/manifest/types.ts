@@ -14,7 +14,7 @@ export type ColorClass =
   | (string & {});
 
 export interface Author {
-  /** Who wrote it; where it belongs is the annotation's session. */
+  /** Who wrote it. */
   kind: "agent" | "person" | (string & {});
   id: string;
   label?: string;
@@ -462,8 +462,6 @@ export interface Annotation {
   resolved_why?: string | null;
   /** A suggestion resolved as applied: its key's hash once the suggestion was taken. */
   applied?: { hash: string } | null;
-  /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
-  run: string;
 }
 
 export interface Attachment {
@@ -501,8 +499,8 @@ export interface Thread {
   participants: Author[];
   targets: string[];
   attachments: Attachment[];
-  /** The session's command log, a line each: what was run, the annotation it made when it made one, and the keys and files it names, a moved document under where it is now. */
-  log: { time: string; command: string; annotation?: string; names?: ({ key: string } | { path: string })[] }[];
+  /** The session's command log, a line each: what was run, and the keys and files it names, a moved document under where it is now. */
+  log: { time: string; command: string; names?: ({ key: string } | { path: string })[] }[];
   discarded: boolean;
 }
 

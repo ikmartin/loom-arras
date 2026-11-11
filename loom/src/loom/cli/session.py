@@ -26,7 +26,7 @@ from loom.sessions import (
 
 @click.group(name="session", cls=CommandGroup)
 def session() -> None:
-    """Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
+    """Open, name and write in sessions: a stretch of work, its transcript and its command log, and which one is current.
 
     A session has a stable id (`s-2026-09-20-k2m9xq`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
     """
@@ -219,7 +219,9 @@ def close_command(
 
 @session.command(name="delete")
 @click.argument("which")
-@click.option("--purge", is_flag=True, help="Really erase it, annotations and all. This cannot be undone.")
+@click.option(
+    "--purge", is_flag=True, help="Really erase it: its directory, transcript and index entry. This cannot be undone."
+)
 @click.option("--why", default=None, help="Why it was deleted; kept on the tombstone.")
 @AS_OPTION
 @click.option("--yes", "-y", is_flag=True, help="Skip the question --purge asks.")
@@ -236,13 +238,11 @@ def delete_command(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Remove a session from view, or with --purge erase it and everything written in it.
+    """Remove a session from view, or with --purge erase it: its directory, its transcript and its entry in the index.
 
-    A plain delete is a tombstone: the session stops being shown and every annotation made in it stays in the log. `--purge` is deliberately only here and never in the viewer: it rewrites the annotation log, and what it removes is gone.
+    A plain delete is a tombstone: the session stops being shown. Annotations belong to no session, so neither touches them; `loom ai delete` deletes annotations. `--purge` is deliberately only here and never in the viewer: what it removes is gone.
     """
     import sys
-
-    from loom.records.log import LOG, log_path
 
     quilt, who = _who(quilt_path, declared)
     root = quilt.root  # type: ignore[attr-defined]
@@ -261,24 +261,20 @@ def delete_command(
             "Erasing a session is the author's; an agent removes one from view with loom session delete, without --purge.",
             declared,
         )
-        kept, dropped = _without(root, s.id)
-        data = {"session": s.id, "title": s.title, "purged": True, "annotations": dropped}
+        data = {"session": s.id, "title": s.title, "purged": True}
         if dry_run:
-            Report(f"would erase {s.id} and {counted(dropped, 'annotation')} from {LOG}", dry_run=True, data=data).emit(
+            Report(f'would erase {s.id} "{s.title}", its directory and its transcript', dry_run=True, data=data).emit(
                 as_json
             )
             return
         if not yes:
             if not sys.stdin.isatty():
-                raise EnvError(
-                    f"--purge erases {counted(dropped, 'annotation')} and cannot be undone; pass --yes when you mean it"
-                )
+                raise EnvError(f"--purge erases {s.id} and cannot be undone; pass --yes when you mean it")
             click.echo(
-                f"--purge erases {s.id} and the {counted(dropped, 'annotation')} written in it or answering them. This cannot be undone.",
+                f"--purge erases {s.id}, its directory and its transcript. This cannot be undone.",
                 err=True,
             )
             click.confirm("erase it?", abort=True, err=True)
-        log_path(root).write_text("".join(kept), encoding="utf-8")
         _purge_index(root, s.id)
         if s.directory(root).is_dir():
             import shutil
@@ -286,57 +282,23 @@ def delete_command(
             shutil.rmtree(s.directory(root))
         if active(root) == s.id:
             set_active(root, None)
-        Report(f"erased {s.id} and {counted(dropped, 'annotation')} from {LOG}", data=data).emit(as_json)
+        Report(f'erased {s.id} "{s.title}", its directory and its transcript', data=data).emit(as_json)
         return
     data = {"session": s.id, "title": s.title, "purged": False}
     if dry_run:
-        Report(f'would delete {s.id} "{s.title}"; its annotations would stay in the log', dry_run=True, data=data).emit(
-            as_json
-        )
+        Report(f'would delete {s.id} "{s.title}"', dry_run=True, data=data).emit(as_json)
         return
     delete(root, s.id, who, why or "")
     if active(root) == s.id:
         set_active(root, None)
     Report(
-        f'deleted {s.id} "{s.title}"; its annotations stay in the log, and the viewer stops showing them',
+        f'deleted {s.id} "{s.title}"; the viewer stops showing it',
         data=data,
     ).emit(as_json)
 
 
-def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untyped-def]
-    """The annotation log's lines with one session's events removed, and how many annotations went with them.
-
-    Also removes any other session's event that names an erased annotation -- a reply to it, and so on down, or an edit, resolve or discard of it -- which would otherwise be left naming nothing and be reported as `loom:foreign-annotations` for good. A line that is not JSON is kept as it stands.
-    """
-    import json
-
-    from loom.records.log import log_path
-
-    p = log_path(root)
-    if not p.is_file():
-        return [], 0
-    kept: list[str] = []
-    erased: set[str] = set()
-    for line in p.read_text(encoding="utf-8").splitlines(keepends=True):
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            kept.append(line)
-            continue
-        if isinstance(event, dict) and (
-            str(event.get("session", "")) == sid
-            or str(event.get("reply_to") or "-") in erased
-            or (event.get("event") not in ("created", "replied") and str(event.get("id") or "-") in erased)
-        ):
-            if event.get("event") in ("created", "replied") and event.get("id"):
-                erased.add(str(event["id"]))
-            continue
-        kept.append(line)
-    return kept, len(erased)
-
-
 def _purge_index(root, sid: str) -> None:  # type: ignore[no-untyped-def]
-    """Drop one session's events from the index; the only place loom rewrites a log rather than appending to it."""
+    """Drop one session's events from the index, rewriting it."""
     import json
 
     p = index_path(root)
@@ -377,7 +339,7 @@ def say_command(
 ) -> None:
     """Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.
 
-    The transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
+    The transcript is what the author reads afterwards. A person's message carries the annotations they wrote since the session's round opened that no message of it has carried yet, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
     """
     from loom.mailbox import pending, post
 

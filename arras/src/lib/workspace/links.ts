@@ -204,7 +204,7 @@ export function soleSession(id: string): void {
  * Choosing a session is not a change of what is being read, so the focused pane, and with it the controls, stays with the item the reader was in.
  */
 export function openChat(id: string, m: Manifest | null, select = true): void {
-	if (select) sessionView.select(id, m);
+	if (select) sessionView.select(id);
 	if (!workspace.onScreen) return;
 	soleSession(id);
 	const item: Item = { kind: 'session', id };

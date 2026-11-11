@@ -1008,14 +1008,11 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 def _delete(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """Delete an annotation, answering with the events removed, or put back events a delete removed: the viewer's undo of a delete is the second."""
     from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _writer, delete_annotation
+    from loom.cli.review import _annotator, delete_annotation
     from loom.records.log import EVENTS, restore
 
-    which = _str(body, "session")
-    if not which:
-        raise ApiError("no-session", "a write must name the session it belongs to")
     try:
-        writer = _writer(root, which, _str(body, "author"), sniff=False)
+        writer = _annotator(root, _str(body, "author"), sniff=False)
         if endpoint == "delete":
             said, removed = delete_annotation(root, _str(body, "annotation", required=True) or "", writer)
             return {"ok": True, "result": said, "removed": removed}
@@ -1206,7 +1203,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
     from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _one_comment, _writer, edit_annotation
+    from loom.cli.review import _annotator, _one_comment, edit_annotation
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
@@ -1214,16 +1211,10 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     for field in needs:
         _str(body, field, required=True)
 
-    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so nothing here reads `.loom/active`, which narrows to `loom annotate`'s terminal default. A request naming none is malformed rather than something to paper over: falling back would file work wherever the pointer happened to point, which is the failure this replaced.
-    which = _str(body, "session")
-    if not which:
-        raise ApiError("no-session", "a write must name the session it belongs to")
-
+    # An annotation belongs to no session, so a `session` sent with one is ignored.
     try:
-        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's
-        # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
-        # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
-        writer = _writer(root, which, _str(body, "author"), sniff=False)
+        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
+        writer = _annotator(root, _str(body, "author"), sniff=False)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except (EnvError, ContentError) as exc:
@@ -1286,20 +1277,20 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, str, str]) -> str:
+def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, str]) -> str:
     """`suggestion-apply`: write a suggestion's text into its file, as `loom suggestion apply ID`, then resolve it as applied against the file as written. The author's act, refused to a declared agent."""
     from loom.cli._common import ContentError, EnvError, NotFoundError
     from loom.cli.review import _one_comment
     from loom.records.annotations import find_annotation, load_records
     from loom.records.suggestions import ApplyRefused, apply
 
-    if writer[1] == "agent":
+    if writer[0] == "agent":
         raise ApiError("author-only", "An agent suggests; only the author puts a suggestion into the text", status=403)
     found = find_annotation(load_records(root)[0], annotation)
     if found is None:
         raise NotFoundError("annotation", f"no annotation {annotation}")
     try:
-        documents, kept = apply(result, found[1], writer[2])
+        documents, kept = apply(result, found[1], writer[1])
     except ApplyRefused as exc:
         raise ApiError(exc.code, exc.message, status=409) from exc
     said = f"applied the suggestion in {' and '.join(Path(d).name for d in documents) or found[1].target_key}"

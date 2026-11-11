@@ -1,15 +1,11 @@
-// One selection and what it governs (plan 0.13.1). The three axes that decide whether an annotation is drawn — the view, the session's state, and whether closed ones are admitted — are independent, so they are tested as a grid rather than as a happy path.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { findSessions, grouped, hidden, selected, sessionView, visible, writable } from '$lib/sessions/sessions.svelte';
+// One selection and what it governs (plan 0.13.1): where a write that names a session goes. Annotations belong to no session, so it governs nothing they draw.
+import { beforeEach, describe, expect, it } from 'vitest';
+import { findSessions, grouped, selected, sessionView, writable } from '$lib/sessions/sessions.svelte';
 import { touched, when } from '$lib/sessions/when';
-import type { Annotation, Manifest, SessionRow } from '$lib/manifest/types';
+import type { Manifest, SessionRow } from '$lib/manifest/types';
 
 function session(id: string, state: string, title = id): SessionRow {
 	return { id, title, state, created: '2026-09-01T10:00:00Z', opened: '2026-09-01T10:00:00Z', rounds: 1, active: false };
-}
-
-function note(id: string, run: string): Annotation {
-	return { id, run, target: { key: 'n-1' }, kind: 'note', body: '', author: { id: 'a', kind: 'human' }, created: '2026-09-02T10:00:00Z', status: 'open' } as unknown as Annotation;
 }
 
 const m = {
@@ -19,43 +15,31 @@ const m = {
 
 beforeEach(() => {
 	sessionView.selected = null;
-	sessionView.view = 'all';
-	sessionView.showClosed = false;
 });
 
 describe('the selection', () => {
 	it('is one selection, shared by open and closed sessions', () => {
-		sessionView.select('s-open', m);
+		sessionView.select('s-open');
 		expect(selected(m)?.id).toBe('s-open');
 		// picking a closed one moves the same selection rather than keeping a second
-		sessionView.select('s-shut', m);
+		sessionView.select('s-shut');
 		expect(selected(m)?.id).toBe('s-shut');
 	});
 
 	it('keeps the selection when the selected row is picked again; clearing is how the author detaches', () => {
-		sessionView.select('s-open', m);
-		sessionView.select('s-open', m);
+		sessionView.select('s-open');
+		sessionView.select('s-open');
 		expect(sessionView.selected).toBe('s-open');
-		sessionView.view = 'current';
 		sessionView.clear();
 		expect(sessionView.selected).toBeNull();
-		expect(sessionView.view).toBe('all');
 	});
 
-	it('admits closed sessions when one is selected, so selected-and-hidden cannot arise', () => {
-		expect(sessionView.showClosed).toBe(false);
-		sessionView.select('s-shut', m);
-		expect(sessionView.showClosed).toBe(true);
-	});
-
-	it('clears, and widens the view, when the selected session goes', () => {
-		sessionView.select('s-open', m);
-		sessionView.view = 'current';
+	it('clears when the selected session goes', () => {
+		sessionView.select('s-open');
 		sessionView.dropped('s-other');
 		expect(sessionView.selected).toBe('s-open'); // a different session going leaves it alone
 		sessionView.dropped('s-open');
 		expect(sessionView.selected).toBeNull();
-		expect(sessionView.view).toBe('all'); // `current` with nothing selected has nothing to draw
 	});
 });
 
@@ -65,56 +49,18 @@ describe('whether a write is allowed', () => {
 	});
 
 	it('refuses a closed session with the other sentence', () => {
-		sessionView.select('s-shut', m);
+		sessionView.select('s-shut');
 		expect(writable(m)).toBe('Selected session is closed: either select an open session or reopen the closed session.');
 	});
 
 	it('allows it only with an open session selected', () => {
-		sessionView.select('s-open', m);
+		sessionView.select('s-open');
 		expect(writable(m)).toBe('');
 	});
 });
 
-describe('what the page draws', () => {
-	/** The sessions whose note `visible` draws, one note per session. */
-	const drawn = () => [note('a', 's-open'), note('b', 's-other'), note('c', 's-shut')].filter((n) => visible(m, n)).map((n) => n.run);
-
-	it('under `current`, only the selected session, whatever its state', () => {
-		sessionView.select('s-open', m);
-		sessionView.view = 'current';
-		expect(drawn()).toEqual(['s-open']);
-	});
-
-	it('under `current` with nothing selected, nothing at all', () => {
-		sessionView.view = 'current';
-		expect(drawn()).toEqual([]);
-	});
-
-	it('under `all`, every open session but no closed one', () => {
-		expect(drawn()).toEqual(['s-open', 's-other']);
-	});
-
-	it('under `all` with closed admitted, the closed ones too', () => {
-		sessionView.showClosed = true;
-		expect(drawn()).toEqual(['s-open', 's-other', 's-shut']);
-	});
-
-	it('counts what it is keeping off the page', () => {
-		expect(hidden(m, [note('a', 's-open'), note('c', 's-shut')])).toBe(1);
-	});
-
-	it('reads a stored view it no longer has as all', () => {
-		const kept = new Map<string, string>([['arras.session-view', JSON.stringify({ view: 'off' })]]);
-		vi.stubGlobal('localStorage', { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v) });
-		sessionView.load();
-		expect(sessionView.view).toBe('all');
-		vi.unstubAllGlobals();
-	});
-});
-
 describe('the list', () => {
-	it('separates open from closed and never filters by the view', () => {
-		sessionView.view = 'current';
+	it('separates open from closed, whatever is selected', () => {
 		sessionView.selected = 's-open';
 		const g = grouped(m);
 		expect(g.open.map((s) => s.id)).toEqual(['s-open', 's-other']);

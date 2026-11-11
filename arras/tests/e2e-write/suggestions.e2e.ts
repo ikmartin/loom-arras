@@ -21,7 +21,7 @@ test('Take it writes the suggestion into its file, keeps a version first, and re
 	await expect(page.getByTestId('history-tick').last()).toContainText('Before applying a suggestion');
 });
 
-test("a note written while another session's transcript is read lands in the session written in", async ({ page, served }) => {
+test("an annotation written while another session's transcript is read names no session, and the footer keeps where notes go", async ({ page, served }) => {
 	const [referee] = served.openSessions();
 	await served.api('session-new', { title: 'a side sitting' });
 	const side = served.openSessions().at(-1)!;
@@ -44,5 +44,5 @@ test("a note written while another session's transcript is read lands in the ses
 	await page.getByTestId('note-body').fill('Written while reading the side sitting.');
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
-	expect(served.written('Written while reading the side sitting.').session).toBe(referee);
+	expect(served.written('Written while reading the side sitting.')).not.toHaveProperty('session');
 });

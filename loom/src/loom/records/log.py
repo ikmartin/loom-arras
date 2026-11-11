@@ -132,8 +132,8 @@ def append_new(root: Path, event: dict[str, Any], date: str) -> str:
 
 
 def source_of(event: dict[str, Any]) -> str:
-    """Which record an event belongs to: its session, the manifest's grouping key (plan 0.13 §5); '' when it names none."""
-    return str(event.get("session") or "")
+    """Which record an event belongs to: its author's; '' when it names none. A `session` on an old line is ignored."""
+    return str(event.get("author") or "")
 
 
 #: What `loom annotate` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
@@ -176,7 +176,7 @@ def _annotation(event: dict[str, Any]) -> Annotation:
 
 
 def replay(root: Path) -> tuple[list[Record], list[str]]:
-    """Every annotation as it now stands, grouped into one Record per run and per author, plus one problem per bad line."""
+    """Every annotation as it now stands, grouped into one Record per author, plus one problem per bad line."""
     p = log_path(root)
     problems: list[str] = []
     order: list[str] = []
@@ -201,10 +201,6 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 problems.append(f"{LOG}:{n}: {kind} without an id")
                 continue
             src = source_of(event)
-            if not src:
-                # every writer names the session; a line that does not was written by something else
-                problems.append(f"{LOG}:{n}: {kind} {event['id']!r} names no session")
-                continue
             ann = _annotation(event)
             # a type the quilt no longer lists is not a problem: the annotation keeps its look and reads as untyped
             if event.get("type") is not None and not isinstance(event.get("type"), str):

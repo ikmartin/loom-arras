@@ -6,7 +6,6 @@ import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 import { travel } from '$lib/travel/travel';
-import { visible } from '$lib/sessions/sessions.svelte';
 import { lookProps, lookVars, styleOf, typeOf } from '$lib/review/annotationTypes';
 
 export interface WireOptions {
@@ -228,7 +227,7 @@ export function wire(
 			}
 		}
 	}
-	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` for one the session filter excludes. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
+	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` while the pane hides annotations. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
 		// several annotations can share one phrase, and the mark lists them in no particular order
@@ -249,7 +248,7 @@ export function wire(
 			}
 		}
 		if (judged.length > 0 && judged.every(settled)) want.add('settled');
-		if (judged.length > 0 && (opts.hide || !judged.some((a) => visible(manifest, a)))) want.add('hidden');
+		if (judged.length > 0 && opts.hide) want.add('hidden');
 		for (const c of [...mark.classList]) if (/^ann-(underline|highlight|strike)$|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
 		for (const c of want) if (!mark.classList.contains(c)) mark.classList.add(c);
 		set(mark, 'tabindex', inert(mark) ? '-1' : '0');

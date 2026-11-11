@@ -14,7 +14,7 @@ from tests.helpers import json_of, ok, the
 from tests.unit._quilts import demo
 
 
-def _note_on_page(q: Path, session: str, **fields: Any) -> None:
+def _note_on_page(q: Path, **fields: Any) -> None:
     """Append one `created` event for a note on a page of `Calloway14`, whose demo store is `doi/10.4171_demo_14-1`."""
     ann_id = fields.pop("id")
     anchor = {"kind": "pdf", "sha256": fields.pop("sha256"), "page": fields.pop("page", 2), **fields.pop("anchor", {})}
@@ -24,7 +24,6 @@ def _note_on_page(q: Path, session: str, **fields: Any) -> None:
             "when": "2026-09-21T10:00:00Z",
             "author": "A. Author",
             "kind": "human",
-            "session": session,
             "event": "created",
             "id": ann_id,
             "target": "doi:10.4171/demo/14-1",
@@ -41,14 +40,13 @@ def _note_on_page(q: Path, session: str, **fields: Any) -> None:
 def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     """The log's `anchor` is two shapes under one name: the text triple every annotation carries, and, on a note against a page, the page anchor beside it, told apart by `kind`. Reading one must keep the page fields, not drop them into the selector."""
     q = demo(tmp_path)
-    sid = ok("session", "new", "--name", "reading", cwd=q).stdout.split()[0]
     text_anchor = {
         "basis": "text", "start": 12, "end": 36, "exact": "balanced at every vertex", "prefix": "locus is ", "suffix": " of the",
     }  # fmt: skip
-    _note_on_page(q, sid, id="a-2026-09-21-tt5by2", sha256="feed" * 16, anchor=text_anchor)
+    _note_on_page(q, id="a-2026-09-21-tt5by2", sha256="feed" * 16, anchor=text_anchor)
     box_anchor = {"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256="feed" * 16, type="note", anchor=box_anchor)
-    ok("annotate", "dm-0003", "on a key, as ever", "--type", "note", "--session", sid, "--as", "A. Author", cwd=q)
+    _note_on_page(q, id="a-2026-09-21-g3x1z0", sha256="feed" * 16, type="note", anchor=box_anchor)
+    ok("annotate", "dm-0003", "on a key, as ever", "--type", "note", "--as", "A. Author", cwd=q)
 
     records, problems = load_records(q)
     assert problems == []
@@ -78,7 +76,6 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     (home / "sections.json").write_text(json.dumps({"sha256": sha, "pages": 2, "chars": 60, "sections": []}))
     (home / "pages").mkdir(exist_ok=True)
     (home / "pages" / "0002.txt").write_text("the fixed locus is balanced at every vertex of the widget\n")
-    sid = ok("session", "new", "--name", "reading", cwd=q).stdout.split()[0]
     found_anchor = {
         "basis": "text",
         "start": 19,
@@ -87,11 +84,11 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
         "prefix": "",
         "suffix": "",
     }
-    _note_on_page(q, sid, id="a-2026-09-21-tt5by2", sha256=sha, anchor=found_anchor)
+    _note_on_page(q, id="a-2026-09-21-tt5by2", sha256=sha, anchor=found_anchor)
     lost_anchor = {"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-g3x1z0", sha256=sha, anchor=lost_anchor)
+    _note_on_page(q, id="a-2026-09-21-g3x1z0", sha256=sha, anchor=lost_anchor)
     box_anchor = {"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""}
-    _note_on_page(q, sid, id="a-2026-09-21-0axwnh", sha256="dead" * 16, type="note", anchor=box_anchor)
+    _note_on_page(q, id="a-2026-09-21-0axwnh", sha256="dead" * 16, type="note", anchor=box_anchor)
 
     by_id = {r.annotation.id: r for r in Records(q).resolved(open_scan(str(q)))}
     found = by_id["a-2026-09-21-tt5by2"]
@@ -113,5 +110,5 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
         assert said in listed, f"{said!r} not in status --reading:\n{listed}"
     assert "a-2026-09-21" not in ok("status", cwd=q).output
     # and the agent's own list carries the citekey and the page, which is what it can act on
-    mine = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
+    mine = json_of("ai", "annotations", "--by", "A. Author", "--json", cwd=q)["annotations"]
     assert {(f["work"], f["page"]) for f in mine} == {("Calloway14", 2)}

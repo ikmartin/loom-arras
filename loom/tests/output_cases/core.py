@@ -226,7 +226,6 @@ CASES: dict[str, list[Case]] = {
         Case(("--explain", "dm-0003")),
         Case(("--explain", "dm-0002/proof"), setup=stale, why="a cause and its diff"),
         Case(("--reading",)),
-        Case(("--runs",)),
         Case(("--retired",)),
         Case(("--undigested",)),
         Case(("--unmatched-cites",)),

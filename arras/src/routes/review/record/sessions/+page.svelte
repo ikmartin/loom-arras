@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › The Record › Sessions: every session, open and closed, with how many of its annotations await an answer, who wrote in it and when it was last active, each opening its transcript. A new session is started here as in the picker, and Write here chooses an open one as where the person's writes go, which reading a transcript never does; renaming, closing, reopening and deleting are the picker's verbs (`sessions/actions.ts`).
+	// Review › The Record › Sessions: every session, open and closed, with when it was last active, each opening its transcript; annotations belong to no session, so none is counted here. A new session is started here as in the picker, and Write here chooses an open one as where the person's writes go, which reading a transcript never does; renaming, closing, reopening and deleting are the picker's verbs (`sessions/actions.ts`).
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { threadUrl } from '$lib/nav';
@@ -9,7 +9,7 @@
 	import DeleteSession from '$lib/sessions/DeleteSession.svelte';
 	import { closeSession, deleteSession, renameSession, reopenSession } from '$lib/sessions/actions';
 	import { openSession } from '$lib/sessions/new';
-	import { grouped, sessionView, summary, titleOf } from '$lib/sessions/sessions.svelte';
+	import { grouped, sessionView, titleOf } from '$lib/sessions/sessions.svelte';
 	import { when } from '$lib/sessions/when';
 	import type { SessionRow } from '$lib/manifest/types';
 
@@ -50,7 +50,7 @@
 		if (id) (naming = false), (fresh = '');
 	}
 	function writeHere(s: SessionRow): void {
-		sessionView.select(s.id, m);
+		sessionView.select(s.id);
 		said = { text: `Your writes go to “${titleOf(s)}”.`, refused: false };
 	}
 </script>
@@ -76,10 +76,9 @@
 		<Empty text="No sessions yet. An agent opens its own; you start one here or from the session footer." testid="sessions-none" />
 	{:else}
 		<table class="list" data-testid="sessions-table">
-			<thead><tr><th>Session</th><th>State</th><th title="Objections, questions, suggestions and citations not yet answered">Awaiting an answer</th><th>Wrote in it</th><th title="The newest command, annotation, note or message in it">Last active</th><th></th></tr></thead>
+			<thead><tr><th>Session</th><th>State</th><th title="The newest command, note or message in it">Last active</th><th></th></tr></thead>
 			<tbody>
 				{#each rows as s (s.id)}
-					{@const it = summary(m, s.id)}
 					{@const here = sessionView.selected === s.id}
 					<tr data-testid="session-row-{s.id}" class:here>
 						<td>
@@ -91,8 +90,6 @@
 							{/if}
 						</td>
 						<td>{s.state}</td>
-						<td data-testid="session-awaiting-{s.id}">{it.open || '—'}</td>
-						<td>{it.who.join(', ') || '—'}</td>
 						<td data-testid="session-last-{s.id}" title={s.last || s.opened || s.created}>{when(s.last || s.opened || s.created)}</td>
 						<td class="verbs">
 							{#if here}
@@ -119,7 +116,6 @@
 {#if doomed}
 	<DeleteSession
 		title={titleOf(doomed)}
-		open={summary(m, doomed.id).open}
 		onCancel={() => (doomed = null)}
 		onDelete={() => {
 			const id = doomed!.id;

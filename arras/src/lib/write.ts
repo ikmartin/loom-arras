@@ -8,8 +8,8 @@ import { base } from '$app/paths';
 import { store } from '$lib/manifest/client.svelte';
 import { sessionView, writable } from '$lib/sessions/sessions.svelte';
 
-/** The endpoints that record work into a session, and therefore must name one. The session verbs carry their own subject and are not among them, and neither is `locate`, which reads. */
-const SESSIONED = new Set(['annotate', 'note', 'note-keep', 'reply', 'resolve', 'edit', 'delete', 'restore', 'suggestion-apply', 'library-verify', 'library-discard']);
+/** The endpoints that record work into a session, and therefore must name one. An annotation belongs to no session, so its endpoints are not among them; nor are the session verbs, which carry their own subject, nor `locate`, which reads. */
+const SESSIONED = new Set(['note', 'note-keep', 'library-verify', 'library-discard']);
 
 export interface Capabilities {
 	write_api: number;

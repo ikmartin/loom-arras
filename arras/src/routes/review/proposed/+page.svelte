@@ -20,8 +20,6 @@
 	import { itemsOf, tally } from '$lib/review/contribution';
 	import { adoptionsOf, cardsOf, copySays, pullLabel, resultsOf } from '$lib/review/proposed';
 	import { documentOf, writerOf } from '$lib/review/suggestions';
-	import NoSession from '$lib/sessions/NoSession.svelte';
-	import { writable } from '$lib/sessions/sessions.svelte';
 	import { keyName } from '$lib/workspace/names';
 	import { bibText, surnames } from '$lib/works';
 	import { can, write } from '$lib/write';
@@ -55,9 +53,6 @@
 	const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1) + (t.endsWith('.') ? '' : '.');
 	const name = (a: Annotation) => keyName(m, a.target.key);
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-	// a decision is recorded in a session, so without one there is none to make, and the page says so before anything is pressed
-	const why = $derived(writable(m));
-	const decides = $derived(!!(served['suggestion-apply'] || served.resolve));
 	const file = (p: string) => p.split('/').pop()?.replace(/\.tex$/, '') ?? p;
 
 	/** Whether annotation `id` is still drawn, on the list or folded in a copy's card. */
@@ -111,12 +106,12 @@
 		{@render suggestionHead(a)}
 		<span class="acts">
 			{#if served['suggestion-apply'] && a.change?.state === 'ready' && !where?.copy}
-				<button type="button" class="btn small primary" disabled={!!busy || !!why} title={why || 'Write it into the file; a version of the document is kept first'} data-testid="proposed-take" onclick={() => void act(a, 'suggestion-apply', {})}>{busy === a.id ? 'Taking…' : 'Take it'}</button>
+				<button type="button" class="btn small primary" disabled={!!busy} title="Write it into the file; a version of the document is kept first" data-testid="proposed-take" onclick={() => void act(a, 'suggestion-apply', {})}>{busy === a.id ? 'Taking…' : 'Take it'}</button>
 			{/if}
 			{#if served.resolve && a.change?.state === 'taken'}
-				<button type="button" class="btn small" disabled={!!busy || !!why} title={why || 'The text reads as it taken; that is recorded'} data-testid="suggestion-applied" onclick={() => void act(a, 'resolve', { applied: true }, `Resolved the suggestion on ${name(a)} as applied`)}>Resolve as applied</button>
+				<button type="button" class="btn small" disabled={!!busy} title="The text reads as it taken; that is recorded" data-testid="suggestion-applied" onclick={() => void act(a, 'resolve', { applied: true }, `Resolved the suggestion on ${name(a)} as applied`)}>Resolve as applied</button>
 			{:else if served.resolve}
-				<button type="button" class="btn small" disabled={!!busy || !!why} title={why || "You won't take it; the text is left as it is"} data-testid="proposed-leave" onclick={() => void act(a, 'resolve', {}, `Left the suggestion on ${name(a)}`)}>Leave it</button>
+				<button type="button" class="btn small" disabled={!!busy} title="You won't take it; the text is left as it is" data-testid="proposed-leave" onclick={() => void act(a, 'resolve', {}, `Left the suggestion on ${name(a)}`)}>Leave it</button>
 			{/if}
 		</span>
 	</div>
@@ -154,7 +149,6 @@
 				{/snippet}
 			</ActionBar>
 			<p class="lead">What agents and collaborators propose. A copy or a pull is reviewed in one pass. A suggestion you take is written into its file, a version of the document kept first.</p>
-			{#if decides && why}<p class="lead" data-testid="proposed-no-session"><NoSession /></p>{/if}
 			<ul class="plain cards" data-testid="proposed-cards">
 				{#each cards as c (c.kind + c.id)}
 					<li class="card" data-testid="proposed-card" data-kind={c.kind} data-id={c.id}>

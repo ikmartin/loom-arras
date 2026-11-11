@@ -11,7 +11,6 @@
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
-	import { sessionView } from '$lib/sessions/sessions.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
@@ -193,12 +192,9 @@
 		onmounted?.(el);
 	});
 
-	// The session filter, the pane's hiding and the settled control govern the marks: a change of any re-wires the fragment, which puts `hidden` on every mark whose annotation is not drawn and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
+	// The pane's hiding and the settled control govern the marks: a change of either re-wires the fragment, which puts `hidden` on every mark while the pane hides annotations and remakes the label marks. The marks themselves are the fragment's and stay.
 	$effect(() => {
 		void hide;
-		void sessionView.view;
-		void sessionView.selected;
-		void sessionView.showClosed;
 		void ui.showSettled;
 		if (!el || wiredFor === null) return;
 		const root = el;

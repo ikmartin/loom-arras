@@ -75,23 +75,13 @@ def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) ->
 
 def test_ai_annotations_refuses_a_filter_value_it_does_not_know(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("session", "new", "--name", "x", cwd=q).stdout.split()[0]
-    refused(
-        "ai",
-        "annotations",
-        "--session",
-        sid,
-        "--status",
-        "discarded",
-        cwd=q,
-        code=2,
-        match="Invalid value for '--status'",
-    )
+    refused("ai", "annotations", "--status", "discarded", cwd=q, code=2, match="Invalid value for '--status'")
     # the quilt's types are not the command's to know, so an unknown one is refused by naming them
-    r = refused(
-        "ai", "annotations", "--session", sid, "--type", "objection", cwd=q, code=2, match="no type 'objection'"
-    )
+    r = refused("ai", "annotations", "--type", "objection", cwd=q, code=2, match="no type 'objection'")
     assert "question (Question)" in flat(r.output)
+    refused("ai", "annotations", "--target", "dm-9999", cwd=q, code=2, match="dm-9999 is no key of this quilt")
+    # an annotation belongs to no session, so there is no session to ask about
+    refused("ai", "annotations", "--session", "x", cwd=q, code=2, match="No such option '--session'")
 
 
 def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
@@ -364,7 +354,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     assert f"{other}  Ingest of Hartshorne" in listing
 
     # "Referee **of**…" and "Ingest **of**…": named, not guessed
-    refused("ai", "annotations", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
+    refused("ai", "orient", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
 
     ok("session", "rename", "parity", "--name", "Parity, revisited", cwd=q)
     assert "Parity, revisited" in ok("session", "list", cwd=q).output
@@ -377,17 +367,15 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
         "with $X$ a finite set",
         "--type",
         "suggestion",
-        "--session",
-        ref,
         "--as",
         "An Agent",
         cwd=q,
         env=FIXED,
     )
     # part of a title reaches the session, which is how a person addresses one
-    ok("ai", "annotations", "--session", "revisited", cwd=q)
+    ok("ai", "orient", "--session", "revisited", cwd=q)
 
-    f = ok("ai", "annotations", "--session", "parity", cwd=q)
+    f = ok("ai", "annotations", "--by", "An Agent", cwd=q)
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
     ok("session", "close", "parity", cwd=q)
@@ -435,8 +423,6 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         "diagonal is closed",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "An Agent",
         cwd=q,
@@ -448,7 +434,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     t = m["threads"][sid]
     assert t["kind"] == "session" and t["created"] == "2026-09-16T14:02:00Z"
-    assert t["targets"] == ["dm-0003/proof"] and t["discarded"] is False
+    # an annotation is no session's, so the thread neither counts it nor takes who or what from it
+    assert (t["targets"], t["participants"], t["discarded"]) == ([], [], False)
     # the conversation is not in the manifest, which every viewer polls; the build pages it beside it
     assert "messages" not in t
     page = json.loads((q / ".loom/build" / "transcripts" / sid / "1.json").read_text())
@@ -456,20 +443,11 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         ("Referee Agent", "<p>Refereed dm-0003; one objection.</p>")
     ]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
-    assert kinds == {"annotations": "annotations", "orbit-counts.py": "file"}  # reading leaves no file
+    assert kinds == {"orbit-counts.py": "file"}  # reading leaves no file
     assert "pipeline" not in t  # a report is a transcript message, not a file the build indexes
-    assert [entry["command"] for entry in t["log"]][:2] == [
-        "loom source dm-0003 --closure",
-        "loom annotate dm-0003/proof --quote --type revision",
-    ]
+    assert [entry["command"] for entry in t["log"]] == ["loom source dm-0003 --closure"]
+    assert all("run" not in a for a in m["annotations"].values())
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
-    # a person writing in the same session is a participant in the same thread, which is the point of the split
-    ok("annotate", "dm-0002", "Mine.", "--as", "Tom", "--session", sid, cwd=q, env=FIXED)
-    ok("build", cwd=q)
-    m2 = json.loads((q / ".loom/build" / "manifest.json").read_text())
-    again = m2["threads"][sid]
-    assert {"kind": "person", "id": "Tom"} in again["participants"]
-    assert {"kind": "agent", "id": "An Agent"} in again["participants"]
     # a .tex file in a session is not scanned: an id it repeats is no duplicate (test_lint_exit_codes is the control)
     (q / rel / "scratch.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     assert "duplicate-id" not in ok("lint", cwd=q).output
@@ -487,15 +465,13 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         "Fine.",
         "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q / "drafting" / "nodes",
         env=FIXED,
     )
     log = (q / rel / "run.log").read_text()
-    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate dm-0003" in log
+    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate" not in log
     assert (q / ".loom/annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
     assert not (q / "drafting" / "nodes" / ".loom/ai").exists()  # nothing landed relative to the shell's directory
 
@@ -642,15 +618,16 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
 
 
 def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> None:
-    """`ai annotations` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `library why` id by id."""
+    """`ai annotations --by NAME` shows the author's decision on each result NAME proposed, so an agent that reattaches need not ask `library why` id by id."""
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
-    runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", **{"as": "Reader Agent"})
     ok("library", "discard", f"{ck}-thm-1.1", "--why", "wrong theorem", "--as", "i", cwd=q)
-    out = ok("ai", "annotations", "--session", runname, cwd=q).output
+    out = ok("ai", "annotations", "--by", "Reader Agent", cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out
+    # with nobody named, the listing is of annotations alone
+    assert f"{ck}-thm-1.1" not in ok("ai", "annotations", cwd=q).output
 
 
 def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
@@ -703,10 +680,9 @@ def test_a_deletion_run_twice_deletes_once(tmp_path: Path) -> None:
 def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: Path) -> None:
     """An agent answers the author's annotations and may edit its own, so it must tell them apart; T2: the columns did not line up."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-cd0j88"
-    rows = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
-    assert rows and all(set(r["author"]) == {"kind", "id"} for r in rows), rows
-    text = ok("ai", "annotations", "--session", sid, cwd=q).stdout
+    rows = json_of("ai", "annotations", "--json", cwd=q)["annotations"]
+    assert {r["author"]["id"] for r in rows} == {"The loom demo", "agent"}, rows
+    text = ok("ai", "annotations", cwd=q).stdout
     lines = [ln for ln in text.splitlines() if ln.startswith("  a-")]
     assert lines and all(f"by {r['author']['id']}" in text for r in rows)
     assert len({ln.index(" by ") for ln in lines}) == 1, lines  # one column, whatever the row

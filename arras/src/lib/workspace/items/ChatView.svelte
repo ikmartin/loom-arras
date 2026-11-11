@@ -184,7 +184,7 @@
 	{#if row && writing?.id !== item.id}
 		<p class="writing" data-testid="chat-writing">
 			{writing ? `You are writing in “${titleOf(writing)}”.` : 'You are not writing in a session.'}
-			{#if row.state === 'open'}<button type="button" class="as-link" data-testid="chat-write-here" onclick={() => sessionView.select(item.id, m)}>Write here</button>{:else}This one is closed.{/if}
+			{#if row.state === 'open'}<button type="button" class="as-link" data-testid="chat-write-here" onclick={() => sessionView.select(item.id)}>Write here</button>{:else}This one is closed.{/if}
 		</p>
 	{/if}
 	<div class="log" bind:this={scroller} data-testid="chat-log">

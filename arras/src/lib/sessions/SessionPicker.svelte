@@ -3,9 +3,9 @@
 	//
 	// **One selection, and it is where writes land.** Open and closed sessions share it: there is a selected session, or none, and `select none` is the only way to have none.
 	//
-	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the workspace.
+	// **The find field narrows this list; nothing else does.** Annotations belong to no session, so nothing here governs which a page draws.
 	import { store } from '$lib/manifest/client.svelte';
-	import { findSessions, sessionView, summary, titleOf, type View } from './sessions.svelte';
+	import { findSessions, sessionView, titleOf } from './sessions.svelte';
 	import { closeSession, renameSession, reopenSession } from './actions';
 	import { touched, when } from './when';
 	import { openSession } from './new';
@@ -81,20 +81,9 @@
 		onpicked();
 	}
 
-	function closedShown(yes: boolean): void {
-		sessionView.showClosed = yes;
-		sessionView.save();
-	}
-
-	function scope(v: View): void {
-		sessionView.view = v;
-		sessionView.save();
-	}
-
 	/** Everything a row does not draw, for the pointer that lingers on it. */
 	function about(s: SessionRow): string {
-		const it = summary(m, s.id);
-		return [s.purpose, it.who.join(', '), touched(s.opened || s.created, s.state)]
+		return [s.purpose, touched(s.opened || s.created, s.state)]
 			.filter(Boolean)
 			.join(' · ');
 	}
@@ -127,7 +116,6 @@
 	{/if}
 
 	{#snippet row(s: SessionRow)}
-		{@const it = summary(m, s.id)}
 		{@const mine = sessionView.selected === s.id}
 		{@const shutAlready = s.state !== 'open'}
 		<li class:selected={mine} class:shut={shutAlready} title={about(s)}>
@@ -146,7 +134,6 @@
 				<button type="button" class="pick" aria-pressed={mine} data-testid="session-{s.id}" onclick={() => choose(s)}>
 					<span class="dot" aria-hidden="true"></span>
 					<span class="title">{titleOf(s)}</span>
-					{#if !shutAlready}<span class="count">{it.open ? `${it.open} open` : 'nothing open'}</span>{/if}
 					<span class="when">{when(s.opened || s.created)}</span>
 				</button>
 				{#if shutAlready}
@@ -174,33 +161,6 @@
 			{/if}
 		</li>
 	{/snippet}
-
-	<!-- whose annotations the page shows, in one place beside the session they are relative to: this session or all, and whether closed sessions count among all -->
-	<div class="settings" data-testid="session-settings">
-		<p class="setting">
-			<span>showing annotations from</span>
-			<span class="choice" role="group" aria-label="which annotations the page shows">
-				<button
-					type="button"
-					class:on={sessionView.view === 'current'}
-					aria-pressed={sessionView.view === 'current'}
-					disabled={!sessionView.selected}
-					title={sessionView.selected ? 'only the selected session' : 'Nothing is selected yet'}
-					data-testid="show-current"
-					onclick={() => scope('current')}>this session</button
-				><button type="button" class:on={sessionView.view === 'all'} aria-pressed={sessionView.view === 'all'} data-testid="show-all" onclick={() => scope('all')}>all</button>
-			</span>
-		</p>
-		{#if groups.closedCount}
-			<p class="setting">
-				<span>closed sessions' annotations</span>
-				<span class="choice" role="group" aria-label="display closed sessions">
-					<button type="button" class:on={!sessionView.showClosed} data-testid="closed-no" onclick={() => closedShown(false)}>no</button
-					><button type="button" class:on={sessionView.showClosed} data-testid="closed-yes" onclick={() => closedShown(true)}>yes</button>
-				</span>
-			</p>
-		{/if}
-	</div>
 
 	<p class="band">Writing into</p>
 	<ul class="rows" data-testid="session-list">
@@ -358,7 +318,6 @@
 	li.shut .title {
 		color: var(--ink-soft);
 	}
-	.count,
 	.when {
 		flex: none;
 		color: var(--ink-faint);
@@ -433,44 +392,6 @@
 	.chev.down {
 		transform: rotate(45deg);
 		margin-bottom: 3px;
-	}
-	.settings {
-		padding: 6px 0 4px;
-		border-bottom: 1px solid var(--rule);
-		margin-bottom: 4px;
-	}
-	.choice button:disabled {
-		color: var(--ink-faint);
-		cursor: not-allowed;
-	}
-	.setting {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		margin: 0 0 var(--gap-hair) 8px;
-		color: var(--ink-faint);
-		font-size: 11px;
-	}
-	.choice {
-		display: inline-flex;
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-pill);
-		overflow: hidden;
-	}
-	.choice button {
-		font: inherit;
-		color: var(--ink-soft);
-		background: var(--leaf);
-		border: 0;
-		padding: 0 7px;
-		cursor: pointer;
-	}
-	.choice button + button {
-		border-left: 1px solid var(--rule);
-	}
-	.choice button.on {
-		background: var(--link-wash);
-		color: var(--link);
 	}
 	.none-row {
 		margin: var(--gap-tight) 0 0;

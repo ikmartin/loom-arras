@@ -289,14 +289,13 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "quote": "the inclusion is open by the rigidity lemma",
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
-  "placement": "after",
-  "run": "s-2026-09-16-p9z37z"
+  "placement": "after"
 }
 ```
 
 `body_html` is the Markdown body rendered by the publisher as CommonMark with tables, raw HTML not passed through and alignment not carried, so a table is the dialect's (§2.12 of specs/dialect.md) and its cells hold inline markup and math.
 
-**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because viewers read it by that name.
+**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**. An annotation belongs to no session: it carries its author, its time (`created`) and the version of the text it was written on (`target.hash`), and a viewer groups annotations by those (plan 0.30, decision 8).
 
 **[decided]** `target.key` is a key in the corpus, or — for a note on a page of a cited work (DR-209) — the work's identifier as `references[].work` spells it; `target.work` is then the citekey and `target.page` the page, so a viewer needs no lookup to say where the note is, and `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record). Both are null on a note on a key. The rectangles are in the work's sidecar (§13) under `marks`; the body is here, with every other annotation.
 
@@ -316,7 +315,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ]
 ```
 
-The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10), the annotations and notes written in it, and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; a viewer's writes name their own (specs/write-api.md). A tombstoned session is not published at all.
+The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10), the notes written in it, and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; a viewer's writes name their own (specs/write-api.md). A tombstoned session is not published at all.
 
 **[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version a note is written against, so this is a version lost outside loom, or a paper on file that is not the one the note was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
 
@@ -328,8 +327,6 @@ The **id** is minted once and is the address; the **title** is the author's and 
 - `{"state": "unplaced", "why"}`: the payload has no place in the text now, said as the author is told: the quoted words no longer stand once, or there is no placement.
 
 `resolved_why` is the text given when the annotation was resolved, or null. `applied` is `{"hash"}` on a suggestion resolved as applied: the hash of its key's own text once the suggestion was taken; null otherwise.
-
-**[decided]** `run` is the id of the session the annotation belongs to, and is the key a viewer groups by.
 
 ## 10. Threads
 
@@ -344,11 +341,9 @@ The **id** is minted once and is the address; the **title** is the author's and 
   "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
   "targets": ["rl-0004", "rl-0004/proof"],
   "attachments": [
-    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-cd0j88/orbit-counts.py"},
-    {"name": "annotations", "kind": "annotations", "count": 3}
+    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-cd0j88/orbit-counts.py"}
   ],
-  "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]},
-          {"time": "...", "command": "loom annotate rl-0004 --quote --type revision", "annotation": "a-2026-09-16-ecnav2"}],
+  "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]}],
   "discarded": false
 }
 ```

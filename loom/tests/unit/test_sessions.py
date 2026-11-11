@@ -64,30 +64,23 @@ def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
     assert "loom id --next" in log and "loom new lemma" in log
 
 
-# --- `loom session delete --purge`: the one command that rewrites the annotation log ---------------------------------
+# --- `loom session delete --purge`: erases a session, and never an annotation ----------------------------------------
 
 
-def written(q: Path, sid: str, target: str, body: str) -> str:
-    """One question written into `sid` by `loom annotate`, a type that stays open so it can be resolved; its id."""
-    return ok("annotate", target, body, "--type", "question", "--session", sid, "--as", WHO, cwd=q).stdout.split()[0]
-
-
-def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
-    """The demo with two new sessions: `gone`, holding a note that was edited, and `stays`, holding a note of its own, a reply to gone's and a resolve of it; then a line that is not JSON. `gone` is active. Returns the quilt, the two ids, and gone's note."""
+def purgeable(tmp_path: Path) -> tuple[Path, str, str]:
+    """The demo with two new sessions, `gone` and `stays`, a transcript and a run.log in `gone`, and annotations written while `gone` was active, answered and resolved; then a line of the log that is not JSON. `gone` is active."""
     q = demo(tmp_path)
     gone = new_session(q, "false start", WHO)
     stays = new_session(q, "keeper", WHO)
-    ann = written(q, gone, "dm-0003", "Wrong from the start.")
-    ok("annotate", "--edit", ann, "Still wrong.", "--session", gone, "--as", WHO, cwd=q)
-    written(q, stays, "dm-0001", "A note worth keeping.")
-    ok("annotate", "--reply", ann, "An answer to it.", "--session", stays, "--as", WHO, cwd=q)
-    ok("annotate", "--resolve", ann, "Done.", "--session", stays, "--as", WHO, cwd=q)
+    set_active(q, gone)
+    ann = ok("annotate", "dm-0003", "Wrong from the start.", "--type", "question", "--as", WHO, cwd=q).stdout.split()[0]
+    ok("annotate", "--reply", ann, "An answer to it.", "--as", WHO, cwd=q)
+    ok("annotate", "--resolve", ann, "Done.", "--as", WHO, cwd=q)
+    ok("session", "say", "Looked at dm-0003.", "--session", gone, "--as", WHO, cwd=q)
     with (q / ".loom/annotations" / "log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write("not json, kept as it stands\n")
-    (q / ".loom" / "sessions" / gone).mkdir(parents=True, exist_ok=True)
     (q / ".loom" / "sessions" / gone / "run.log").write_text("x\n")
-    set_active(q, gone)
-    return q, gone, stays, ann
+    return q, gone, stays
 
 
 def records(q: Path) -> tuple[bytes, bytes, str | None]:
@@ -98,27 +91,13 @@ def records(q: Path) -> tuple[bytes, bytes, str | None]:
     )
 
 
-def test_purge_erases_a_session_what_was_written_in_it_and_what_answers_it_and_nothing_else(tmp_path: Path) -> None:
-    """The session's log events and index events go, with any other session's event that names one of its annotations, which would otherwise name nothing; every other line, unparsable ones included, is kept byte for byte. Its directory goes, and it stops being active."""
-    import json
-
-    from loom.records.log import replay
-
-    q, gone, stays, ann = purgeable(tmp_path)
-    before = (q / ".loom/annotations" / "log.jsonl").read_text().splitlines(keepends=True)
+def test_purge_erases_a_session_and_leaves_every_annotation(tmp_path: Path) -> None:
+    """A session's directory, transcript and index entry go and it stops being active; annotations are no session's, so the log is left byte for byte, its unparsable line included."""
+    q, gone, stays = purgeable(tmp_path)
+    log = (q / ".loom/annotations" / "log.jsonl").read_bytes()
     said = ok("session", "delete", gone, "--purge", "--yes", cwd=q)
-    # the note and the reply to it: the edit and the resolve are events on an annotation, not annotations
-    assert said.stdout.strip() == f"erased {gone} and 2 annotations from .loom/annotations/log.jsonl"
-    after = (q / ".loom/annotations" / "log.jsonl").read_text().splitlines(keepends=True)
-    events = [json.loads(x) for x in after if x.startswith("{")]
-    assert not [e for e in events if e.get("session") == gone or ann in (e.get("id"), e.get("reply_to"))]
-    # nothing else is touched: what is kept is the old log with the erased lines taken out, in order
-    assert [x for x in before if x in after] == after
-    assert "not json, kept as it stands\n" in after
-    assert [e["body"] for e in events if e.get("session") == stays] == ["A note worth keeping."]
-    assert len(after) == len(before) - 4
-    # the log no longer names anything it does not hold
-    assert [p for p in replay(q)[1] if "unknown annotation" in p] == []
+    assert said.stdout.strip() == f'erased {gone} "false start", its directory and its transcript'
+    assert (q / ".loom/annotations" / "log.jsonl").read_bytes() == log
     assert gone not in sessions(q, deleted=True) and stays in sessions(q)
     assert gone not in (q / ".loom" / "sessions" / "index.jsonl").read_text()
     assert not (q / ".loom" / "sessions" / gone).exists()
@@ -126,15 +105,15 @@ def test_purge_erases_a_session_what_was_written_in_it_and_what_answers_it_and_n
 
 
 def test_purge_leaves_another_active_session_active(tmp_path: Path) -> None:
-    q, gone, stays, _ = purgeable(tmp_path)
+    q, gone, stays = purgeable(tmp_path)
     set_active(q, stays)
     ok("session", "delete", gone, "--purge", "--yes", cwd=q)
     assert active(q) == stays
 
 
 def test_purge_refuses_without_a_yes_where_nobody_can_answer(tmp_path: Path) -> None:
-    """Off a terminal there is nobody to ask, so `--purge` without `--yes` refuses, counting what it would have erased, and changes nothing."""
-    q, gone, _, _ = purgeable(tmp_path)
+    """Off a terminal there is nobody to ask, so `--purge` without `--yes` refuses and changes nothing."""
+    q, gone, _ = purgeable(tmp_path)
     was = records(q)
     refused(
         "session",
@@ -143,20 +122,20 @@ def test_purge_refuses_without_a_yes_where_nobody_can_answer(tmp_path: Path) -> 
         "--purge",
         cwd=q,
         code=2,
-        match="erases 2 annotations and cannot be undone; pass --yes",
+        match=f"--purge erases {gone} and cannot be undone; pass --yes",
     )
     assert records(q) == was and (q / ".loom" / "sessions" / gone).is_dir()
 
 
 @pytest.mark.parametrize("answer", ["n", "y"])
 def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
-    """At a terminal `--purge` counts what it will erase and asks; anything but yes aborts and changes nothing."""
+    """At a terminal `--purge` says what it will erase and asks; anything but yes aborts and changes nothing."""
     import os
     import pty
     import subprocess
     import sys
 
-    q, gone, _, _ = purgeable(tmp_path)
+    q, gone, _ = purgeable(tmp_path)
     was = records(q)
     main, tty = pty.openpty()
     try:
@@ -173,13 +152,14 @@ def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
         os.close(main)
         os.close(tty)
     said = out.decode() + err.decode()
-    assert f"--purge erases {gone} and the 2 annotations" in said, said
+    assert f"--purge erases {gone}, its directory and its transcript" in said, said
     if answer == "n":
         assert proc.returncode == 1 and "Aborted" in said, said
         assert records(q) == was
     else:
         assert proc.returncode == 0 and f"erased {gone}" in said, said
         assert gone not in sessions(q, deleted=True)
+        assert records(q)[0] == was[0]  # the annotation log, untouched
 
 
 def test_one_resolver_names_an_ambiguous_session_and_writes_into_no_tombstone(tmp_path: Path) -> None:

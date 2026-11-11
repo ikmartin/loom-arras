@@ -1,4 +1,4 @@
-// Notes, a quote among them (plan 0.22.8): one gesture on anything shown writes a note with no type, filed in the session annotations land in, which an agent reads with `loom since`. A note fades after two weeks unless it is kept or something durable links to it; the publisher computes `faded`, and the viewer hides a faded note until the reader asks.
+// Notes, a quote among them (plan 0.22.8): one gesture on anything shown writes a note with no type, filed in the selected session, which an agent reads with `loom since`. A note fades after two weeks unless it is kept or something durable links to it; the publisher computes `faded`, and the viewer hides a faded note until the reader asks.
 
 import type { Manifest, Note } from '$lib/manifest/types';
 import { store } from '$lib/manifest/client.svelte';

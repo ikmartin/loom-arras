@@ -433,7 +433,7 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
         {"color": "red", "style": "highlight", "weight": 2, "opacity": 65},
     )
     assert a["event"] == "created" and a["author"] == "Markas Hecht" and a["kind"] == "human"
-    assert a["session"].startswith("s-")  # writing with nothing active opens a session rather than refusing
+    assert "session" not in a and not (d / ".loom/sessions").exists()  # writing opens no session
     assert a["against"].startswith("sha256:") and a["anchor"]["exact"] == "closedness"
     assert (
         len(a["anchor"]["prefix"]) <= 32 and len(a["anchor"]["suffix"]) <= 32 and a["anchor"]["prefix"].endswith("For ")
@@ -471,7 +471,7 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
 
 
 def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
-    """Who wrote a finding and which session it belongs to are two fields; a reply and a resolution each take their message as the one positional, and file it as the body rather than reading it as a target."""
+    """An annotation carries who wrote it, when, and the version it was written on, and belongs to no session; a reply and a resolution each take their message as the one positional, and file it as the body rather than reading it as a target."""
     d = demo(tmp_path)
     sid, run_dir = session(d, "2026-09-16T14-02-referee")
     r = ok(
@@ -482,20 +482,18 @@ def test_comment_run_author_log_reply_resolve(tmp_path: Path) -> None:
         "diagonal is closed",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
         env=AGENT,
     )
     ann_id = r.output.split()[0]
-    assert "loom annotate dm-0003/proof" in (run_dir / "run.log").read_text()
-    assert not (run_dir / "annotations.json").exists()  # one log, not a file per run
+    # nothing of it is the session's: no line in its command log, and no session on the event, however one is active
+    assert not (run_dir / "run.log").exists() or "loom annotate" not in (run_dir / "run.log").read_text()
     first = events(d)[0]
-    # the author is who wrote it and the session is where it belongs: two fields (plan 0.13 §5)
     assert first["author"] == "agent" and first["kind"] == "agent"
-    assert first["session"] == sid
+    assert "session" not in first and first["when"] and first["against"].startswith("sha256:")
+    refused("annotate", "dm-0003", "x", "--session", sid, *AS, cwd=d, code=2, match="No such option '--session'")
     r2 = ok("annotate", "--reply", ann_id, "Agreed, will fix.", "--as", "Bob", cwd=d)
     assert "reply to" in r2.output
     r3 = ok("annotate", "--resolve", ann_id, "Added the argument.", *AS, cwd=d)
@@ -517,7 +515,6 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
     which is the path that always worked. An append-only log cannot express the bug; this is what says so.
     """
     d = demo(tmp_path)
-    sid, run_dir = session(d, "r1")
     made = ok(
         "annotate",
         "dm-0002",
@@ -526,8 +523,6 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
         "Every orbit",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -536,9 +531,7 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
     ann = made.output.split()[0]
 
     # the run resolves the annotation it made itself, writing as the same run
-    got = ok(
-        "annotate", "--resolve", ann, "Fixed in the revision.", "--session", sid, "--as", "agent", cwd=d, env=AGENT
-    )
+    got = ok("annotate", "--resolve", ann, "Fixed in the revision.", "--as", "agent", cwd=d, env=AGENT)
     assert got.output.strip() == f"resolved {ann}"
 
     assert [e["event"] for e in events(d)] == ["created", "resolved"]
@@ -548,7 +541,6 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
 def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     """The log's point: a finding that still stands is restated, not replied to, so three passes leave one finding."""
     d = demo(tmp_path)
-    sid, run_dir = session(d, "r1")
     r = ok(
         "annotate",
         "dm-0002",
@@ -561,8 +553,6 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "Every nonempty orbit...",
         "--placement",
         "replace",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -576,8 +566,6 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "--edit",
         ann,
         "Still wrong, and the fix is smaller than I said.",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -590,7 +578,7 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
 
     s = status_json(d)
     assert s["keys"]["dm-0002"]["reviews"]["open"] == {"revision": 1}  # one finding, not two
-    f = json_of("ai", "annotations", "--session", sid, "--json", cwd=d)["annotations"]
+    f = json_of("ai", "annotations", "--by", "agent", "--json", cwd=d)["annotations"]
     assert len(f) == 1 and f[0]["type"] == "revision"  # the type and the anchor survive an edit that names neither
 
     refused(
@@ -598,8 +586,6 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "--edit",
         "a-nope-0001",
         "x",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -612,8 +598,7 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
 def test_an_annotation_is_deleted_with_its_replies_and_an_agent_deletes_only_its_own(tmp_path: Path) -> None:
     """Resolving claims the author addressed it; an agent that misread deletes what it raised instead (rules.md item 7), and nothing of it stays in the log."""
     d = demo(tmp_path)
-    sid, run_dir = session(d, "r1")
-    as_agent = ("--session", sid, "--as", "agent")
+    as_agent = ("--as", "agent")
     made = ok(
         "annotate", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--type", "revision", *as_agent,
         cwd=d, env=AGENT,
@@ -686,10 +671,9 @@ def test_the_look_and_placement_are_checked(tmp_path: Path) -> None:
 def test_ai_delete_takes_what_every_filter_names_and_nothing_else(tmp_path: Path) -> None:
     """`loom ai delete` is the person's bulk delete: every filter given must hold, replies go with what they answer, and with nobody at a terminal it asks for --yes."""
     d = demo(tmp_path)
-    sid, _ = session(d, "r1")
     agents = ok(
         "annotate", "dm-0002", "Objection.", "--quote", "Every orbit", "--type", "revision",
-        "--session", sid, "--as", "agent", cwd=d, env=AGENT,
+        "--as", "agent", cwd=d, env=AGENT,
     ).output.split()[0]  # fmt: skip
     ok("annotate", "--reply", agents, "Fair.", *AS, cwd=d)
     person = ok(
@@ -766,7 +750,6 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
         ["--undigested"],
         ["--unmatched-cites"],
         ["--retired"],
-        ["--runs"],
         ["--master", "drafting/main.tex"],
         ["--tag", "orbits"],
     ):
@@ -778,7 +761,7 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
     j = status_json(q)
     envelope = {"verdict", "ok", "exit", "groups", "notes"}
     assert set(j) - envelope == {
-        "summary", "keys", "agent_documents", "runs", "undigested", "retired", "digests", "reading", "unmatched",
+        "summary", "keys", "agent_documents", "undigested", "retired", "digests", "reading", "unmatched",
     }  # fmt: skip
     assert j["summary"]["incomplete"] == 1
 
@@ -786,7 +769,6 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
 def test_timeline_7_11(tmp_path: Path) -> None:
     d = demo(tmp_path)
     key, proof = "dm-0003", "dm-0003/proof"
-    sid, run_dir = session(d, "2026-09-16T14-02-referee")
     # Day 1: draft, never annotated; a referee run leaves three revisions
     s = status_json(d)
     assert s["keys"][key]["state"] == "draft" and s["keys"][key]["reviews"]["annotations"] == []
@@ -798,8 +780,6 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "finite set",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -813,8 +793,6 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "disjoint union of orbits",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -828,8 +806,6 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "diagonal is closed",
         "--type",
         "revision",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -858,8 +834,6 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "Read through; nothing to add.",
         "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -940,21 +914,46 @@ def test_status_filters_by_what_the_annotations_say(tmp_path: Path) -> None:
 def test_an_agent_lists_its_own_annotations_and_a_deleted_one_is_gone(tmp_path: Path) -> None:
     """What `ai annotations` lists is what stands: a deleted annotation is in no listing, and there is nothing withdrawn to ask for."""
     d = demo(tmp_path)
-    rel = ok("session", "new", "--name", "Referee", cwd=d).stdout.split()[0]
-    run_name = rel.rsplit("/", 1)[-1]
-    as_agent = ("--session", run_name, "--as", "agent")
+    as_agent = ("--as", "agent")
     ok("annotate", "dm-0002", "Wrong", "--type", "revision", *as_agent, cwd=d, env=AGENT)
     ok("annotate", "dm-0003", "Also wrong", *as_agent, cwd=d, env=AGENT)
-    live = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
+    live = json_of("ai", "annotations", "--by", "agent", "--json", cwd=d)["annotations"]
     assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
     assert not {"discarded", "discard_reason"} & set(live[0])
 
     ok("annotate", "--delete", live[1]["id"], *as_agent, cwd=d, env=AGENT)
-    after = json_of("ai", "annotations", "--session", run_name, "--json", cwd=d)["annotations"]
+    after = json_of("ai", "annotations", "--by", "agent", "--json", cwd=d)["annotations"]
     assert [f["id"] for f in after] == [live[0]["id"]]
-    refused("ai", "annotations", "--session", run_name, "--all", cwd=d, code=2, match="No such option")
-    revisions = json_of("ai", "annotations", "--session", run_name, "--type", "revision", "--json", cwd=d)
+    refused("ai", "annotations", "--all", cwd=d, code=2, match="No such option")
+    revisions = json_of("ai", "annotations", "--by", "agent", "--type", "revision", "--json", cwd=d)
     assert [f["id"] for f in revisions["annotations"]] == [live[0]["id"]]
+
+
+def test_ai_annotations_lists_every_annotation_and_each_filter_narrows_it(tmp_path: Path) -> None:
+    """With no filter every annotation in the quilt; `--by`, `--target`, `--type` and `--status` each narrow it, and together every one must hold."""
+    d = demo(tmp_path, clean=False)  # the shipped store, for a note on a page of a cited work
+    mine = ok("annotate", "dm-0002", "Which orbits?", "--type", "question", *AS, cwd=d).output.split()[0]
+    theirs = ok(
+        "annotate", "dm-0002", "Wrong.", "--type", "revision", "--as", "agent", cwd=d, env=AGENT
+    ).output.split()[0]
+    elsewhere = ok("annotate", "dm-0003", "Fine.", "--type", "note", *AS, cwd=d).output.split()[0]
+    ok("annotate", "--resolve", mine, "Answered.", *AS, cwd=d)
+
+    def listed(*flags: str) -> list[str]:
+        return [a["id"] for a in json_of("ai", "annotations", *flags, "--json", cwd=d)["annotations"]]
+
+    assert {mine, theirs, elsewhere} <= set(listed())
+    assert listed("--by", "Markas Hecht") == [mine, elsewhere]
+    assert sorted(listed("--target", "dm-0002")) == sorted([mine, theirs])
+    assert listed("--target", "dm-0002", "--status", "open") == [theirs]
+    assert listed("--by", "Markas Hecht", "--type", "Note") == [elsewhere]
+    assert listed("--by", "Nobody") == []
+    assert ok("ai", "annotations", "--by", "Nobody", cwd=d).stdout.startswith("no annotations match")
+    # a citekey reaches the notes on its pages, which carry the work's identifier as their target
+    page = ok(
+        "annotate", "Calloway14", "On page one.", "--page", "1", "--box", "72,72,300,120", *AS, cwd=d
+    ).output.split()[0]
+    assert listed("--target", "Calloway14") == [page]
 
 
 BATCH = [
@@ -1225,13 +1224,10 @@ def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> No
 def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
     """A comment on a region key with no quote -- a box drawn round an equation -- marks the display itself, so the reader can click it; nothing is put inside the formula."""
     d = synthetic(tmp_path)
-    sid, _ = session(d)
     ok(
         "annotate",
         "sy-0001#eq:fix",
         "The fixed locus wants a name.",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,
@@ -1268,8 +1264,6 @@ def test_an_annotation_may_name_the_document_it_is_read_in(tmp_path: Path) -> No
         and m["annotations"][reply]["in"] == "drafting/outline.tex"
     )
     assert m["annotations"][ann]["anchored"] is False and m["annotations"][ann]["detached"] is False
-    # the run.log says how it was written
-    assert "--in drafting/outline.tex" in "".join(p.read_text() for p in (d / ".loom" / "sessions").glob("*/run.log"))
     # a document that is no master, and a master that does not hold the node
     refused(
         "annotate",
@@ -1436,7 +1430,6 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
 def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(tmp_path: Path) -> None:
     """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; the publisher renders it beside the TeX."""
     d = demo(tmp_path)
-    sid, _ = session(d)
     payload = "\\begin{lemma}\\label{dm-0002-ai}\nEvery nonempty orbit has \\(1\\) or \\(2\\) points.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nBy definition.\n\\end{proof}"
     r = ok(
         "annotate",
@@ -1448,8 +1441,6 @@ def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(
         payload,
         "--placement",
         "replace",
-        "--session",
-        sid,
         "--as",
         "agent",
         cwd=d,

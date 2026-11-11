@@ -502,8 +502,8 @@ def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
     ).emit(as_json)
 
 
-def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
-    """Every digest proposal a run made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
+def proposals_by(root: Path, name: str) -> list[dict[str, Any]]:
+    """Every digest proposal `name` made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
     from loom.refs.proposals import DISCARDED, VERIFIED, edit_diff, load_results, read_events, state_of
 
     out: list[dict[str, Any]] = []
@@ -511,10 +511,7 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
         ck = path.name[: -len(".results.json")]
         reasons = {e.get("id"): e.get("reason", "") for e in read_events(root, ck) if e.get("event") == "discarded"}
         for rid, r in sorted(load_results(root, ck).items()):
-            if not any(
-                o.get("act") == "proposed" and run in (o.get("session"), Path(str(o.get("by", ""))).name)
-                for o in r.origin
-            ):
+            if not any(o.get("act") == "proposed" and o.get("by") == name for o in r.origin):
                 continue
             out.append(
                 {
@@ -532,30 +529,30 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 
 @ai.command(name="annotations")
 @click.option(
-    "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
+    "--by", "f_by", default=None, metavar="NAME", help="Only annotations NAME wrote; with it, NAME's proposals too."
 )
+@click.option("--target", "f_target", default=None, metavar="KEY", help="Only annotations on KEY.")
 @click.option("--type", "f_type", default=None, metavar="TYPE", help="Only annotations of this type, by id or name.")
 @click.option("--status", "f_status", type=click.Choice(STATUSES), default=None, help="Only annotations in this state.")
 @click.option("--json", "as_json", is_flag=True, help="Print the annotations as JSON.")
 @quilt_option
 def ai_annotations(
-    session: str | None,
+    f_by: str | None,
+    f_target: str | None,
     f_type: str | None,
     f_status: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """List a session's annotations: id, target, type, status and the quoted text; `--json` carries each one whole.
+    """List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
     from loom.cli._quilt import open_scan
     from loom.records.store import Records
 
     result = open_scan(quilt_path)
     root = result.quilt.root
-    found = find_session(root, session)
-    rel = found.id
     type_id = None
     if f_type is not None:
         from loom.records.types import load_types, type_named
@@ -565,6 +562,10 @@ def ai_annotations(
         except ValueError as exc:
             raise EnvError(f"--type {f_type}: {exc}") from exc
         type_id = named.id if named else None
+    resolved = Records(root, result.quilt.history_dir).resolved(result)
+    if f_target is not None and f_target not in result.nodes:
+        if not any(f_target in (a.annotation.target_key, a.work) for a in resolved):
+            raise NotFoundError("key", f"{f_target} is no key of this quilt and no annotation's target")
     rows = [
         {
             "id": a.annotation.id,
@@ -584,12 +585,13 @@ def ai_annotations(
             # who wrote it, so an agent tells the author's from its own: it answers the author's, and may edit its own
             "author": {"kind": a.annotation.author_kind, "id": a.annotation.author_id},
         }
-        for a in Records(root, result.quilt.history_dir).resolved(result)
-        if a.record.rel == rel or a.record.rel.startswith(f"{rel}/")
+        for a in resolved
+        if (f_by is None or a.annotation.author_id == f_by)
+        and (f_target is None or f_target in (a.annotation.target_key, a.work))
     ]
     rows = [r for r in rows if (not type_id or r["type"] == type_id) and (not f_status or r["status"] == f_status)]
-    proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
-    # what the author did with this run's proposals: a reattaching agent otherwise ran `library why` on each id it happened to know from the run's thread, which is how it learned the author's decisions three times over
+    proposals = proposals_by(root, f_by) if f_by else []
+    # what the author did with an agent's proposals: a reattaching agent otherwise ran `library why` on each id it happened to know, which is how it learned the author's decisions three times over
     lines: list[str] = []
     if proposals:
         lines += ["", f"proposals ({len(proposals)})"]
@@ -613,14 +615,17 @@ def ai_annotations(
         who = r["author"]["id"] if isinstance(r["author"], dict) else ""
         cells.append((str(r["id"]), str(where), f"{r['type'] or 'untyped'}{mark}", f"by {who}", rest))
     items = [Item(line) for line in table(cells)]  # aligned, so the columns read down (T2)
-    verdict = f"{rel}: " + (counted(len(rows), "annotation") if rows else "no annotations yet")
+    narrowed = any(x is not None for x in (f_by, f_target, f_type, f_status))
+    verdict = (
+        counted(len(rows), "annotation") if rows else ("no annotations match" if narrowed else "no annotations yet")
+    ) + (f" by {f_by}" if f_by else "")
     if proposals:
         verdict += f", {counted(len(proposals), 'proposal')}"
     Report(
         verdict,
         groups=[Group("annotations", items, limit=None)] if items else [],
         lines=lines,
-        data={"session": found.id, "annotations": rows, "proposals": proposals},
+        data={"annotations": rows, "proposals": proposals},
     ).emit(as_json)
 
 

@@ -49,13 +49,13 @@ To ask for one, write a {type:suggestion} on the thing concerned with your reaso
 - `loom search QUERY --json`: ids by title, alias, tag or citekey. When the author names a result by number — "Theorem 3.4" — resolve it here before reading anything.
 - `loom source KEY --closure`: a key's text and exactly the statements it rests on. A document's path instead prints it flattened. Read this, not the directories.
 - `loom library WORK`, `loom library search`, `loom library read WORK N`: the literature. Ask the digest before the paper, and quote only what `library read` printed.
-- `loom ai annotations --session SESSION`: what a session has annotated, who wrote each, and what the author decided about it.
+- `loom ai annotations --by NAME`: the annotations NAME wrote, your own among them, with what the author decided about each; `--target`, `--type` and `--status` narrow it.
 - `loom ai drafts`: each agent document and what has moved on the author's side since; `loom ai refresh DOC` brings that in.
 - Anything else: in a shell, `loom --help` and `loom COMMAND --help`, where commands marked `*` are yours and the rest refuse you; over MCP, your tools are those commands, each with its description.
 
 ## 5. Sessions and the transcript
 
-A session is a stretch of work, possibly shared with the author; writing lands in the active one, and `--session` names another. `loom session list` shows them; `loom session new --name "…"` opens one.
+A session is a stretch of work, possibly shared with the author, holding its transcript: what you say lands in the active one, and `--session` names another. An annotation belongs to no session; it carries its author, its time and the version of the text it was written on. `loom session list` shows them; `loom session new --name "…"` opens one.
 
 When the author points at something without naming it — "this", "here", "what I have selected" — `loom here` says what they are looking at in the viewer: the document, result or paper, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in. `loom since` says what people did since you last looked under your name: annotations and replies, what they resolved, applied or discarded, what they accepted and which accepted keys went stale, their edits to the research state, what they said in a transcript, and what they quoted. Run it at the start of a conversation, and whenever they say they have left you something.
 

@@ -28,17 +28,10 @@ test('a corpus that has everything', async ({ page }) => {
 });
 
 test('a run reviewed', async ({ page }) => {
-	// a session read on its own: what it did, beside the document it is about, and its Chat; and the link working, a finding opening its mark in the other pane
+	// a session read on its own: what it did, beside the document it is about, and its Chat
 	const beside = '/master/drafting/main?beside=' + encodeURIComponent('/session/s-2026-09-16-p9z37z?view=did');
 	await shot(page, 'session-did', beside);
 	await shot(page, 'session-discussion', '/session/s-2026-09-16-p9z37z');
-	await page.goto(beside);
-	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
-	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
-	await page.locator('[data-pane="1"]').getByTestId('did-annotation').first().click();
-	await expect(page.locator('[data-pane="0"]').getByTestId('comment-expanded').first()).toBeVisible();
-	await settle(page);
-	await page.screenshot({ path: `${OUT}/session-linked.png` });
 });
 
 test('a node read three ways', async ({ page }) => {

@@ -1,4 +1,4 @@
-// Where the reader is (plan 0.21.8): the focused pane's item, the block at its top, the words selected or the region of a page, the block under review, and the session annotations land in, reported to the publisher's `here` so that `loom here` can tell an agent what "this" is.
+// Where the reader is (plan 0.21.8): the focused pane's item, the block at its top, the words selected or the region of a page, the block under review, and the selected session, reported to the publisher's `here` so that `loom here` can tell an agent what "this" is.
 //
 // **The tab touched last wins.** Every tab reports when its place settles and again the moment it gains focus or comes back into view, and the publisher keeps only the last report. The publisher holds it in memory; nothing here or there writes it down.
 

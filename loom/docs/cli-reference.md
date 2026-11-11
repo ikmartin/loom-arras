@@ -160,7 +160,6 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 | `--unmatched-cites` | Located citations of a digested work that match no digest node. |
 | `--undigested` | Works cited with a locator and not digested. |
 | `--retired` | Keys accepted once and defined by no document now. |
-| `--runs` | Every session on record, with its annotations. |
 | `--master` `DOC` | Keys this document reaches. |
 | `--in-order` | With --master: the document's keys in the order it prints them, sections and an agent document's own among them, each with its state. |
 | `--tag` | Keys carrying this tag. |
@@ -233,7 +232,7 @@ Annotate, note, accept, keep or undo what changed, and see what rests on what.
 
 Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.
 
-A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
+An annotation carries its author, its time and the version of the text it was written on, and belongs to no session. A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it); it lands in the same log as every other annotation, and `loom status --reading` lists it.
 
 | option | description |
 |---|---|
@@ -245,7 +244,6 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--style` | How it is drawn on words, over its type's. |
 | `--weight` | An underline's or a strike's thickness, in whole pixels. |
 | `--opacity` | Its opacity, in percent. |
-| `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
 | `--as` `NAME` | Who is writing; an agent names itself, with Agent or AI in the name. |
 | `--reply` `ID` | Answer annotation ID; the message is the reply. |
 | `--resolve` `ID` | Mark annotation ID resolved, with the message as why. |
@@ -257,7 +255,7 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--undo` | With --resolve, open the annotation again: an undo is another event, never a removal. |
 | `--applied` | With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
-| `--dry-run` | Say what would be written, and write nothing, not even a session. |
+| `--dry-run` | Say what would be written, and write nothing. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -856,7 +854,7 @@ The preview is the dry run: without a terminal to confirm on, or with --json or 
 
 `loom session [OPTIONS] COMMAND [ARGS]...`
 
-Open, name and write in sessions: the stretch of work an annotation belongs to, and which one is current.
+Open, name and write in sessions: a stretch of work, its transcript and its command log, and which one is current.
 
 A session has a stable id (`s-2026-09-20-k2m9xq`) that never changes and is what records and URLs use, and a title you may change whenever you like. One is active at a time, for you and for any agent working in this quilt, so that a person and an agent at the same job land in the same place.
 
@@ -877,13 +875,13 @@ End a session's current round. With no WHICH, the active one, which then stops b
 
 `loom session delete [OPTIONS] WHICH`
 
-Remove a session from view, or with --purge erase it and everything written in it.
+Remove a session from view, or with --purge erase it: its directory, its transcript and its entry in the index.
 
-A plain delete is a tombstone: the session stops being shown and every annotation made in it stays in the log. `--purge` is deliberately only here and never in the viewer: it rewrites the annotation log, and what it removes is gone.
+A plain delete is a tombstone: the session stops being shown. Annotations belong to no session, so neither touches them; `loom ai delete` deletes annotations. `--purge` is deliberately only here and never in the viewer: what it removes is gone.
 
 | option | description |
 |---|---|
-| `--purge` | Really erase it, annotations and all. This cannot be undone. |
+| `--purge` | Really erase it: its directory, transcript and index entry. This cannot be undone. |
 | `--why` | Why it was deleted; kept on the tombstone. |
 | `--as` `NAME` | Who acts; an agent names itself, including Agent or AI. |
 | `--yes`, `-y` | Skip the question --purge asks. |
@@ -938,7 +936,7 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 
 Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.
 
-The transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
+The transcript is what the author reads afterwards. A person's message carries the annotations they wrote since the session's round opened that no message of it has carried yet, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.
 
 | option | description |
 |---|---|
@@ -980,7 +978,7 @@ The viewer tab they touched last reports it to `loom serve`, which keeps it in m
 
 Report what people did since you last looked, and move your marker past it.
 
-People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, deleted or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
 
 | option | description |
 |---|---|
@@ -1016,13 +1014,14 @@ Set up the agent layer and read what an agent works from: its orientation, its d
 
 `loom ai annotations [OPTIONS]`
 
-List a session's annotations: id, target, type, status and the quoted text; `--json` carries each one whole.
+List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
 
 | option | description |
 |---|---|
-| `--session` `SESSION` | The session to report on. |
+| `--by` `NAME` | Only annotations NAME wrote; with it, NAME's proposals too. |
+| `--target` `KEY` | Only annotations on KEY. |
 | `--type` `TYPE` | Only annotations of this type, by id or name. |
 | `--status` | Only annotations in this state. |
 | `--json` | Print the annotations as JSON. |

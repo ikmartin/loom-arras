@@ -51,6 +51,23 @@ def test_a_type_that_is_not_an_id_is_reported(tmp_path: Path) -> None:
     assert any("its type is not a type's id" in p for p in problems)
 
 
+def test_records_are_one_per_author_and_a_session_on_a_line_is_ignored(tmp_path: Path) -> None:
+    """An annotation belongs to no session: replay groups by who wrote it, whatever session an old line names."""
+    write(
+        tmp_path,
+        created(),
+        created(id="a-2026-09-18-612336", author="Wren Halloway", session="s-2026-09-18-w22p58"),
+        created(id="a-2026-09-18-by4q46", session="s-2026-09-18-w22p58"),
+        {k: v for k, v in created(id="a-2026-09-18-k6a9h1").items() if k != "session"},
+    )
+    records, problems = replay(tmp_path)
+    assert problems == []
+    assert [(r.rel, [a.id for a in r.annotations]) for r in records] == [
+        ("A Reader", ["a-2026-09-18-fy08sq", "a-2026-09-18-by4q46", "a-2026-09-18-k6a9h1"]),
+        ("Wren Halloway", ["a-2026-09-18-612336"]),
+    ]
+
+
 def test_an_id_that_is_a_path_is_reported(tmp_path: Path) -> None:
     """An id becomes a DOM id and a URL fragment, and would become a filename the first time anything stored one."""
     write(tmp_path, created(id="../../escape"))
@@ -79,7 +96,7 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
         json.dumps(["a", "list"]),
         json.dumps({"event": "liked", "id": "a-2026-09-18-fy08sq"}),
         json.dumps({k: v for k, v in created().items() if k != "id"}),
-        json.dumps(created(id="a-2026-09-18-by4q46", session="")),
+        json.dumps(created(id="a-2026-09-18-by4q46", session="")),  # a session on a line is ignored
         json.dumps({"event": "resolved", "when": "x"}),
         json.dumps({"event": "edited", "id": "a-1999-01-01-ekn992", "body": "x"}),
         json.dumps(created(id="a-2026-09-18-612336", body="Still here.")),
@@ -91,11 +108,14 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
         ".loom/annotations/log.jsonl:3: not a review event",
         ".loom/annotations/log.jsonl:4: not a review event",
         ".loom/annotations/log.jsonl:5: created without an id",
-        ".loom/annotations/log.jsonl:6: created 'a-2026-09-18-by4q46' names no session",
         ".loom/annotations/log.jsonl:7: resolved without an id",
         ".loom/annotations/log.jsonl:8: edited names unknown annotation a-1999-01-01-ekn992",
     ]
-    assert [a.id for r in records for a in r.annotations] == ["a-2026-09-18-fy08sq", "a-2026-09-18-612336"]
+    assert [a.id for r in records for a in r.annotations] == [
+        "a-2026-09-18-fy08sq",
+        "a-2026-09-18-by4q46",
+        "a-2026-09-18-612336",
+    ]
 
 
 def test_a_discarded_line_is_no_event_and_leaves_its_annotation_standing(tmp_path: Path) -> None:

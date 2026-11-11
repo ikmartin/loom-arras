@@ -1,6 +1,6 @@
 """What an annotation is, and the record one belongs to.
 
-Annotations are stored as events in `.loom/annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` writes them.
+Annotations are stored as events in `.loom/annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one author's annotations as they now stand, not a file. Only `loom annotate` writes them.
 """
 
 from __future__ import annotations
@@ -97,10 +97,10 @@ class Annotation:
 
 @dataclass
 class Record:
-    """One session's annotations, replayed from the log; `rel` is the session id."""
+    """One author's annotations, replayed from the log; `rel` is the author's name."""
 
     path: Path  # the log the record was replayed from
-    rel: str  # the grouping key: the session id
+    rel: str  # the grouping key: the author's name
     annotations: list[Annotation] = field(default_factory=list)
 
 

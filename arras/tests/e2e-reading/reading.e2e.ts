@@ -69,7 +69,7 @@ async function drawn(page: Page, n: number, { every = 300, after = 0 } = {}): Pr
 async function intoASession(page: Page, served: Served): Promise<string> {
 	const id = served.openSessions().at(-1)!;
 	await pickSession(page, id);
-	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^writing in /);
 	return id;
 }
 
@@ -262,31 +262,6 @@ test('inline is never offered on a page, and a note opens floating', async ({ pa
 	await opened(page, served);
 	await page.getByTestId(`mark-${id}`).click();
 	await expect(page.getByTestId('comment-expanded')).toHaveClass(/floating/);
-});
-
-test('the session selection governs the page: a note the view hides is not drawn, and nothing says so', async ({ page, served }) => {
-	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note the empty session hides');
-	await opened(page, served);
-	await expect(page.getByTestId(`mark-${id}`)).toBeVisible();
-	const before = await page.locator('[data-testid="pdf-page-2"] .mark.note').count();
-	// a fresh session, empty, made the active one; showing only it hides the note written above
-	await openPicker(page);
-	await page.getByTestId('session-new').click();
-	await page.getByTestId('session-new-title').fill('an empty sitting');
-	await page.getByTestId('session-new-title').press('Enter');
-	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
-	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting');
-	await openPicker(page);
-	await page.getByTestId('show-current').click();
-	await expect(page.getByTestId(`mark-${id}`)).toHaveCount(0);
-	expect(await page.locator('[data-testid="pdf-page-2"] .mark.note').count()).toBeLessThan(before);
-	// a hidden mark needs no notice: the scope is the picker's, said in a word in the footer, and the page draws what it admits
-	await expect(page.getByTestId('reading-hidden')).toHaveCount(0);
-	await expect(page.getByTestId('session-footer-scope')).toHaveText('· this session');
-	await page.getByTestId('show-all').click();
-	// `all` still hides the showcase's own notes, which sit in a closed session; what changes is that the one written above comes back
-	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note')).toHaveCount(before);
-	await expect(page.getByTestId(`mark-${id}`)).toBeVisible();
 });
 
 test('a locator in the URL is lit while the URL carries it, and a note is focused by its id', async ({ page, served }) => {

@@ -246,7 +246,7 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
     from loom.records.log import log_path
 
     records, _ = load_records(root)
-    by_id = {a.id: (a, r.rel) for r in records for a in r.annotations}
+    by_id = {a.id: a for r in records for a in r.annotations}
     try:
         lines = log_path(root).read_text(encoding="utf-8").splitlines()
     except OSError:
@@ -263,17 +263,17 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
         mark = aid if kind in ("created", "replied") else f"{kind}:{aid}:{when}"
         if not new(when, mark) or e.get("kind") == "agent" or aid not in by_id:
             continue
-        a, session = by_id[aid]
+        a = by_id[aid]
         if kind in ("created", "replied"):
             # what a person wrote and settled in one window is reported once, as it stands
             made.add(aid)
-            row = {**annotation_row(root, a), "when": when, "session": session}
+            row = {**annotation_row(root, a), "when": when}
             if a.status != "open":
                 row["status"] = a.status
             parent = by_id.get(str(a.in_reply_to or ""))
             if parent is not None:
-                row["to"] = parent[0].author_id
-            if parent is not None and parent[0].author_id == name:
+                row["to"] = parent.author_id
+            if parent is not None and parent.author_id == name:
                 row["yours"] = True
             out.annotations.append(row)
         elif kind == "resolved" and aid not in made:
