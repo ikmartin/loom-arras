@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
       - run: pipx install .
       - run: loom --version
-      - name: doctor fails without TeX, names what is missing, and finds the vendored bundle at loom's interface
+      - name: doctor fails without TeX, names what is missing, and finds the vendored bundle
         run: |
           loom doctor || true
           set +e
@@ -46,12 +46,11 @@ jobs:
           status=$?
           set -e
           test "$status" -eq 2
-          iface=$(sed -n 's/^INTERFACE_VERSION = \([0-9]*\)$/\1/p' src/loom/version.py)
-          jq -e --argjson iface "$iface" '
+          jq -e '
             .ok == false
             and (.failing | index("latexmk")) != null
             and any(.items[]; .name == "latexmk" and .status == "fail" and .path == null)
-            and any(.items[]; .name == "arras bundle" and .status == "ok" and .source == "vendored" and .interface == $iface)
+            and any(.items[]; .name == "arras bundle" and .status == "ok" and .source == "vendored")
           ' "$RUNNER_TEMP/doctor.json"
       - name: loom serve starts on the demo quilt and serves the viewer and the build
         working-directory: ${{ runner.temp }}

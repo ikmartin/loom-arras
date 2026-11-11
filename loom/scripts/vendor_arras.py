@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Replace src/loom/assets/arras with a built arras bundle and stamp VERSION.
 
-Usage: scripts/vendor_arras.py ../arras/build [--arras-dir ../arras] [--allow-dirty]. Refuses if arras's interface version (read from its src/lib/manifest/types.ts) differs from loom's INTERFACE_VERSION, so a loom clone never ships a viewer that misrenders its own manifests, and refuses when arras has uncommitted changes unless `--allow-dirty` is given, in which case VERSION names the commit with `-dirty`. Everything in the target but README.md is removed first, so no chunk of an earlier build survives. `scripts/checks/bundle.py` at the workspace root checks the result.
+Usage: scripts/vendor_arras.py ../arras/build [--arras-dir ../arras] [--allow-dirty]. Refuses when arras has uncommitted changes unless `--allow-dirty` is given, in which case VERSION names the commit with `-dirty`. Everything in the target but README.md is removed first, so no chunk of an earlier build survives. `scripts/checks/bundle.py` at the workspace root checks the result.
 """
 
 from __future__ import annotations
 
 import argparse
-import re
 import shutil
 import subprocess
 import sys
@@ -17,20 +16,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TARGET = HERE.parent / "src" / "loom" / "assets" / "arras"
 KEEP = {"README.md"}
-
-
-def loom_interface_version() -> int:
-    text = (HERE.parent / "src" / "loom" / "version.py").read_text(encoding="utf-8")
-    m = re.search(r"^INTERFACE_VERSION\s*=\s*(\d+)", text, re.M)
-    return int(m.group(1)) if m else 1
-
-
-def arras_interface_version(arras_dir: Path) -> int | None:
-    types = arras_dir / "src" / "lib" / "manifest" / "types.ts"
-    if not types.exists():
-        return None
-    m = re.search(r"INTERFACE_VERSION\s*=\s*(\d+)", types.read_text(encoding="utf-8"))
-    return int(m.group(1)) if m else None
 
 
 def arras_commit(arras_dir: Path) -> str:
@@ -70,10 +55,6 @@ def main(argv: list[str]) -> int:
     if not (build / "index.html").is_file():
         print(f"error: {build} has no index.html; run `npm run build` in arras first", file=sys.stderr)
         return 2
-    mine, theirs = loom_interface_version(), arras_interface_version(arras_dir)
-    if theirs is not None and theirs != mine:
-        print(f"error: arras produces interface version {theirs}, loom expects {mine}", file=sys.stderr)
-        return 2
     dirty = arras_dirty(arras_dir)
     if dirty and not args.allow_dirty:
         print(
@@ -88,7 +69,7 @@ def main(argv: list[str]) -> int:
         shutil.rmtree(child) if child.is_dir() else child.unlink()
     shutil.copytree(build, TARGET, dirs_exist_ok=True, ignore=shutil.ignore_patterns("build"))
     commit = arras_commit(arras_dir) + ("-dirty" if dirty else "")
-    stamp = f"arras {commit} interface {mine} vendored {datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+    stamp = f"arras {commit} vendored {datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
     (TARGET / "VERSION").write_text(stamp, encoding="utf-8")
     print(f"vendored {build} -> {TARGET}\n{stamp.strip()}")
     return 0

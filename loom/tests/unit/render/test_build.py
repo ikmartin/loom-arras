@@ -53,7 +53,6 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert (b / "fragments" / "digests" / "Calloway14.html").exists()
     m = json.loads((b / "manifest.json").read_text())
     for field in (
-        "interface_version",
         "publisher",
         "generated",
         "corpus",
@@ -74,7 +73,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
         "search",
     ):
         assert field in m, field
-    assert m["interface_version"] == 2 and m["publisher"]["name"] == "loom"
+    assert m["publisher"]["name"] == "loom"
     assert m["corpus"]["root_label"] == "Widgets and their fixed loci"
     master = m["masters"][0]
     assert (

@@ -1,6 +1,6 @@
 # Diagnostics
 
-A diagnostic is a structured report of something wrong or notable in a corpus. Publishers emit them into the manifest; viewers render them on a problems page, as badges on the keys they concern, and in header counts. Interface version 1.
+A diagnostic is a structured report of something wrong or notable in a corpus. Publishers emit them into the manifest; viewers render them on a problems page, as badges on the keys they concern, and in header counts.
 
 ## 1. Schema
 
@@ -107,7 +107,6 @@ References and digests:
 
 Interface:
 
-- `arras:interface-version` (error, fixed): emitted by the viewer when the manifest's version is not accepted.
 - `arras:manifest-unreadable` (error, fixed): emitted by the viewer when `manifest.json` is not valid JSON.
 
 Both are listed here so the codes are reserved, and both are in the **viewer's** namespace rather than a publisher's: a diagnostic a viewer raises about a manifest is the viewer speaking, and naming it `loom:` said that loom had complained about something loom never saw.
@@ -134,4 +133,4 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 
 ## 4. Adding a code
 
-**[decided]** A new loom code is added here with a severity and a one-line meaning before it is emitted. A new reserved code requires an interface version discussion, since every viewer may give it an affordance.
+**[decided]** A new loom code is added here with a severity and a one-line meaning before it is emitted. A new reserved code is added on both sides at once, since the viewer may give it an affordance.

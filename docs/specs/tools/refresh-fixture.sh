@@ -33,11 +33,10 @@ cp -R "$Q/.loom/build/fragments" "$OUT/fragments"
 [ -d "$Q/.loom/build/files" ] && cp -R "$Q/.loom/build/files" "$OUT/files"
 [ -d "$Q/.loom/build/changes" ] && cp -R "$Q/.loom/build/changes" "$OUT/changes"
 VERSION=$(cd "$LOOM" && .venv/bin/loom --version | awk '{print $2}')
-IFACE=$(python3 -c "import json;print(json.load(open('$OUT/manifest.json'))['interface_version'])")
-printf 'interface %s\nloom %s\ngenerated %s\n' "$IFACE" "$VERSION" "$LOOM_FIXED_TIME" > "$OUT/VERSION"
+printf 'loom %s\ngenerated %s\n' "$VERSION" "$LOOM_FIXED_TIME" > "$OUT/VERSION"
 for dest in "$LOOM/tests/fixture" "$WS/arras/tests/fixture"; do
   rm -rf "$dest"; mkdir -p "$dest"; cp -R "$OUT"/. "$dest"/
 done
 python3 "$HERE/validate-dialect.py" "$OUT/fragments"
-echo "fixture refreshed: $(find "$OUT/fragments" -name '*.html' | wc -l | tr -d ' ') fragments, interface $IFACE, loom $VERSION"
+echo "fixture refreshed: $(find "$OUT/fragments" -name '*.html' | wc -l | tr -d ' ') fragments, loom $VERSION"
 rm -rf "$TMP" "$EMPTY"

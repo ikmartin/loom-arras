@@ -26,7 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCOPE = ("docs", "AGENTS.md", "CLAUDE.md", "scripts", "loom/src", "loom/tests", "loom/scripts", "arras/src", "arras/tests", "arras/scripts")
-SKIP = re.compile(r"(^|/)(fixture|fixture-minimal|quilts|node_modules|_app|fake_latex)(/|$)|(^|/)\.loom/history/|^docs/(reports|plans|long-prompts)/|\.min\.")
+SKIP = re.compile(r"(^|/)(fixture|quilts|node_modules|_app|fake_latex)(/|$)|(^|/)\.loom/history/|^docs/(reports|plans|long-prompts)/|\.min\.")
 SUFFIXES = {".md", ".py", ".ts", ".js", ".mjs", ".svelte"}
 FIX = "join each pair onto one line (CLAUDE.md: prose is never hard-wrapped), then rerun scripts/checks/hardwrap.py"
 

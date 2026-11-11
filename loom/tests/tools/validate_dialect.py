@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate fragment HTML files against docs/specs/dialect.md (interface version 1).
+"""Validate fragment HTML files against docs/specs/dialect.md.
 
 Usage: validate-dialect.py FILE_OR_DIR... ; prints one line per problem and a summary; exit 1 if any fragment is invalid. Checks the envelope (no page shell, scripts, styles, iframes, forms, inline handlers), the element and class vocabulary, that block elements from source carry data-src, that inclusions carry data-key, and that no absolute URL appears outside a.url and img[src].
 """

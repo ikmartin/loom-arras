@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from loom.paths import AI, LOOM_GITIGNORE
-from loom.version import INTERFACE_VERSION, __version__
+from loom.version import __version__
 
 if TYPE_CHECKING:
     from loom.cli.report import Report as OutReport
@@ -114,7 +114,6 @@ TOOLS = [
 class Report:
     python: str
     loom: str
-    interface_version: int
     quilt: Path | None = None
     items: list[Item] = field(default_factory=list)
     strict: bool = False
@@ -136,7 +135,6 @@ class Report:
         return {
             "python": self.python,
             "loom": self.loom,
-            "interface_version": self.interface_version,
             "quilt": str(self.quilt) if self.quilt else None,
             "ok": self.exit_code == 0,
             "failing": self.failing,
@@ -191,14 +189,14 @@ class Report:
             self.summary(),
             ok=self.exit_code == 0,
             exit=self.exit_code,
-            lines=[f"loom {self.loom}, interface {self.interface_version}, python {self.python}"],
+            lines=[f"loom {self.loom}, python {self.python}"],
             groups=groups,
             data=data,
         )
 
 
 def _bundle_words(source: str, version: str) -> str:
-    """Which viewer `loom serve` serves, in words: where it comes from, the arras commit it was built from and when, and the interface it reads."""
+    """Which viewer `loom serve` serves, in words: where it comes from, and the arras commit it was built from and when."""
     from loom.arras_bundle import STAMP
 
     whose = _whose(source)
@@ -206,11 +204,7 @@ def _bundle_words(source: str, version: str) -> str:
     when = re.search(r"vendored (\d{4}-\d{2}-\d{2})", version)
     if m is None:
         return f"{whose}, {version}" if version else whose
-    return (
-        f"{whose}, built from arras {m.group(1)}"
-        + (f" on {when.group(1)}" if when else "")
-        + f", interface {m.group(2)}"
-    )
+    return f"{whose}, built from arras {m.group(1)}" + (f" on {when.group(1)}" if when else "")
 
 
 def _whose(source: str) -> str:
@@ -436,7 +430,6 @@ def check_bundle() -> Item:
     extra: dict[str, Any] = {
         "source": info.source if info else None,
         "path": str(info.path) if info else None,
-        "interface": stamp[1] if stamp else None,
     }
     item = Item("arras bundle", OK, REQUIRED, _bundle_words(info.source, info.version) if info else "", "", extra)
     bad_env = env_problem()
@@ -451,18 +444,14 @@ def check_bundle() -> Item:
         )
     elif stamp is None:
         item.status = WARN
-        item.detail += f": its interface cannot be compared with loom's {INTERFACE_VERSION}"
+        item.detail += ": its stamp names no arras commit, so whether it is current cannot be told"
         item.remedy = "use a bundle loom/scripts/vendor_arras.py stamped"
-    elif stamp[1] != INTERFACE_VERSION:
-        item.status = FAIL
-        item.detail = f"{_whose(info.source)}, interface {stamp[1]}, but loom writes interface {INTERFACE_VERSION}: the viewer misreads the manifest"
-        item.remedy = VENDOR if checkout else "install the loom and the arras of one release"
     elif checkout is not None:
-        why = staleness(checkout, stamp[0], PROBE_TIMEOUT)
+        why = staleness(checkout, stamp, PROBE_TIMEOUT)
         if why:
             item.status, item.detail = WARN, f"{_whose('vendored')}, {'; '.join(why)}"
             # vendor_arras.py refuses an arras with uncommitted changes
-            item.remedy = ("commit arras, then " if stamp[0].endswith("-dirty") else "") + VENDOR
+            item.remedy = ("commit arras, then " if stamp.endswith("-dirty") else "") + VENDOR
     return item
 
 
@@ -672,7 +661,7 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
     """
     from loom.scan.quilt import NoQuiltError, find_quilt
 
-    report = Report(sys.version.split()[0], __version__, INTERFACE_VERSION, strict=strict)
+    report = Report(sys.version.split()[0], __version__, strict=strict)
     quilt, bad_quilt = None, None
     try:
         quilt = find_quilt(Path(quilt_path).expanduser() if quilt_path else None)

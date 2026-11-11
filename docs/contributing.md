@@ -23,7 +23,7 @@ The workspace's documents and loom are GPL-3.0-or-later; arras AGPL-3.0-or-later
 `scripts/verify` is the one verification command, and CI runs it and nothing else, one lane per workflow (`loom.yml`, `arras.yml`, `docs.yml`). It ends by printing the branch's latest CI runs; read them.
 
 - `scripts/verify` (`fast`): while working. loom's ruff, format check, mypy and unit tier; arras's svelte-check and vitest; the docs lane.
-- `scripts/verify full`: before a commit. Adds loom's TeX tier, an arras build, the four Playwright suites and the two figure scripts.
+- `scripts/verify full`: before a commit. Adds loom's TeX tier, an arras build, the three Playwright suites and the figure script.
 - `scripts/verify paper`: the paper tier, by hand, with `LOOM_PAPER_FIXTURES` naming a directory holding `0805.2065/` and `1709.09864/`. Never in CI.
 - `scripts/verify client`: the real-client tier, by hand, after a change to what loom generates for an agent client. It runs Claude Code against the generated settings and spends on the account of whoever runs it, so it never runs in CI.
 - `--only loom|arras|docs`: one lane, when a change touches one codebase or only documents.

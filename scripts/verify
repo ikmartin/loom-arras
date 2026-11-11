@@ -13,7 +13,7 @@ Usage:
 
 CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (docs/contributing.md). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
 
-Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Those ports are the machine's, so a run takes the first slot no other run or server holds, and keeps it until it ends. Every deselection and skip lives here with its reason, never in a plan.
+Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its three Playwright suites and the figure script run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Those ports are the machine's, so a run takes the first slot no other run or server holds, and keeps it until it ends. Every deselection and skip lives here with its reason, never in a plan.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ LOOM_XDIST = ["-n", "auto", "--dist", "loadgroup"]
 # the one arras build of a run, which every Playwright suite copies; a slot gives the suites ports and scratch directories apart from a suite started by hand and from another worktree's run (arras/tests/sites.ts); `{slot}` is filled in by `in_slot`
 ARRAS_BUILD = ".tmp-e2e/slot-{slot}/bundle"
 ARRAS_SUITE_ENV = {"ARRAS_SLOT": "{slot}", "ARRAS_PREBUILT": str(ROOT / "arras" / ARRAS_BUILD)}
-# where the figure scripts write when verify runs them
+# where the figure script writes when verify runs it
 SHOTS_OUT = str(ROOT / "arras" / ".tmp-e2e" / "slot-{slot}" / "shots-out")
 #: The slots a run may take; slot 0 is a suite started by hand, and CI's fresh runner takes slot 1, where its workflow looks for the build.
 SLOTS = range(1, 60)
@@ -81,17 +81,15 @@ STEPS = [
         Step("arras", name, "arras", cmd, ("full",), env=ARRAS_SUITE_ENV, concurrent=True)
         for name, cmd in (
             ("e2e", ["npx", "playwright", "test"]),
-            ("minimal", ["npm", "run", "test:minimal"]),
             ("write", ["npm", "run", "test:write"]),
             ("reading", ["npm", "run", "test:reading"]),
         )
     ),
-    # the figure scripts, run to check they still run, into scratch rather than over the committed figures, which a re-run does not reproduce byte for byte; a stale script otherwise surfaces only at the next re-shoot
+    # the figure script, run to check it still runs, into scratch rather than over the committed figures, which a re-run does not reproduce byte for byte; a stale script otherwise surfaces only at the next re-shoot
     *(
         Step("arras", name, "arras", cmd, ("full",), env=ARRAS_SUITE_ENV | {"ARRAS_SHOTS_OUT": SHOTS_OUT}, concurrent=True)
         for name, cmd in (
             ("shots", ["npm", "run", "shots"]),
-            ("shots floor", ["npm", "run", "shots:floor"]),
         )
     ),
     Step(
@@ -136,13 +134,13 @@ def share_cores(chosen: list[Step]) -> list[Step]:
 
     Each takes every core by default, which on eight cores put eight pytest workers beside sixteen browsers and timed out the heaviest reading tests. Loom's pytest takes half the cores; each Playwright suite a share of the rest by its weight. A lane run alone keeps its defaults.
     """
-    # the figure scripts keep their one worker, so that a picture is taken with nothing else moving in its browser
+    # the figure script keeps its one worker, so that a picture is taken with nothing else moving in its browser
     suites = [s for s in chosen if s.concurrent and not s.name.startswith("shots")]
     pytest = [s for s in chosen if s.lane == "loom" and "pytest" in s.cmd]
     if not suites or not pytest:
         return chosen
     cores = os.cpu_count() or 4
-    weight = {"e2e": 2, "minimal": 1, "write": 1, "reading": 1}
+    weight = {"e2e": 2, "write": 1, "reading": 1}
     total = sum(weight.get(s.name, 1) for s in suites)
     out: list[Step] = []
     for s in chosen:

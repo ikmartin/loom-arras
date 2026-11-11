@@ -1,6 +1,6 @@
 # Write API
 
-The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit document-workspace steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`. Interface version 1; status: extended for source sync and pending review.
+The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit document-workspace steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`.
 
 **[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 

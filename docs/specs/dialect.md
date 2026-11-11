@@ -1,6 +1,6 @@
 # Dialect: the semantic HTML of fragments
 
-A fragment is an HTML file with no page shell. It carries structure through a fixed vocabulary of elements, classes, and `data-` attributes. Everything visual (layout, colour, fonts, math rendering) belongs to the viewer. Interface version 1.
+A fragment is an HTML file with no page shell. It carries structure through a fixed vocabulary of elements, classes, and `data-` attributes. Everything visual (layout, colour, fonts, math rendering) belongs to the viewer.
 
 ## 1. Envelope
 

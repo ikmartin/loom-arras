@@ -24,7 +24,7 @@ from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 from loom.scan.sections import starred_at
 from loom.tex.aux import AuxNumber
-from loom.version import INTERFACE_VERSION, __version__
+from loom.version import __version__
 
 STATE_LABELS = {
     "labels": {
@@ -283,7 +283,6 @@ def build_manifest(
     dm = result.default_master
     corpus_label = (master_title(result, dm) if dm else None) or root_name
     manifest: dict[str, Any] = {
-        "interface_version": INTERFACE_VERSION,
         "publisher": {"name": "loom", "version": __version__},
         "publishes": PUBLISHES,
         "generated": _stamp(),
@@ -509,7 +508,6 @@ def build_manifest(
             }
             manifest["macros"]["sets"].setdefault(ck, digest_macro_set(result, pf))
         # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
-        # Additive: the interface version is unchanged, as `relations` was in 0.2.
         wid = primary(bib) if bib else None
         # through `work_dir`, so the viewer looks where the document was actually filed: a paper that states no
         # identifier lives under its content hash, which its entry's synthetic identifier does not name
@@ -553,7 +551,7 @@ def build_manifest(
             manifest["references"][ck]["bibtex"] = entry_text(
                 ck, bib.type, {k: v for k, v in bib.fields.items() if k in ORDER}
             )
-        # the work's overview, a reading an agent or the person wrote (plan 0.21.3); additive, the interface version unchanged
+        # the work's overview, a reading an agent or the person wrote (plan 0.21.3)
         if bib is not None and ck not in tops:
             from loom.pages import overview_page
             from loom.pages import published as page_published

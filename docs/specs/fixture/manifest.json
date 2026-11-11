@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "abd8618123350f2211edf650a65b89b918f8818b4a38996293f36a0330854429",
+   "hash": "69fc51715f6e5b60369b9f4f75bc42a4e47b845aeae2a61be6128f9b425b8901",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "433edcc571559e1f13a75065447c665af1467cf3aa358441cb1f906175dc9425",
+   "hash": "ba138892d0d7b20b3246be738fa73d697119c2a1b3c0de2b1277076591637190",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "0ecc23bdb7a3f470fbaa73fedb3a4902a60031d7b182d9470e0c0085329ac41b",
+   "hash": "f5396b6bb2f1ed5a231846366d293f964139b568551ef837d90ed8935f9ba83c",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -2815,7 +2815,6 @@
    "key": "drafting/talk.tex"
   }
  },
- "interface_version": 2,
  "keys": {
   ".loom/copies/aidoc.tex#remark:2": {
    "closure": [
