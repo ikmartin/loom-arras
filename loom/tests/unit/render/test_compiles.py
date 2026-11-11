@@ -154,3 +154,21 @@ def test_on_starting_every_document_never_compiled_or_edited_since_is_asked_for(
     later = time.time() + 5
     os.utime(tmp_path / "paper/ch1.tex", (later, later))
     assert needs_compiling(result, None, built) == ["paper/main.tex"]
+
+
+def test_on_starting_with_tex4ht_a_document_with_no_page_is_asked_for(tmp_path: Path) -> None:
+    """A PDF made before TeX4ht read the document, or by `loom compile` without `--html`, leaves the document shown as its source until it is compiled again."""
+    result = _scan(tmp_path)
+    for f in ("paper/main.tex", "paper/ch1.tex", "paper/defs.sty", "notes.tex"):
+        (tmp_path / f).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / f).write_text("x", encoding="utf-8")
+    built = lambda m: tmp_path / ".loom/build" / m.removesuffix(".tex") / f"{Path(m).stem}.pdf"  # noqa: E731
+    for m in result.masters:
+        built(m).parent.mkdir(parents=True, exist_ok=True)
+        built(m).write_bytes(b"%PDF")
+    assert needs_compiling(result, None, built, pages=True) == ["paper/main.tex", "notes.tex"]
+    page = built("notes.tex").parent / "html" / "notes.html"
+    page.parent.mkdir()
+    page.write_text("<html></html>", encoding="utf-8")
+    assert needs_compiling(result, None, built, pages=True) == ["paper/main.tex"]
+    assert needs_compiling(result, None, built) == []

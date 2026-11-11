@@ -16,17 +16,19 @@ export interface Rejected {
 
 export type LoadResult = Loaded | Rejected;
 
-export async function hashText(text: string): Promise<string> {
+/** The hash a manifest is known by, of its text or of the bytes it came as; the bytes spare encoding an 11 MB text again. */
+export async function hashText(text: string | Uint8Array): Promise<string> {
+	const bytes = typeof text === 'string' ? new TextEncoder().encode(text) : text;
 	if (globalThis.crypto?.subtle) {
-		const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+		const buf = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
 		return 'sha256:' + Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 	}
 	let h = 0;
-	for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+	for (const b of bytes) h = (h * 31 + b) | 0;
 	return 'fnv:' + (h >>> 0).toString(16);
 }
 
-export async function parseManifest(text: string, etag: string | null = null): Promise<LoadResult> {
+export async function parseManifest(text: string, etag: string | null = null, bytes?: Uint8Array): Promise<LoadResult> {
 	let data: unknown;
 	try {
 		data = JSON.parse(text);
@@ -42,7 +44,7 @@ export async function parseManifest(text: string, etag: string | null = null): P
 			}
 		};
 	}
-	return { manifest: data as Manifest, hash: await hashText(text), etag };
+	return { manifest: data as Manifest, hash: await hashText(bytes ?? text), etag };
 }
 
 export async function loadManifest(url = dataUrl('manifest.json'), etag: string | null = null): Promise<LoadResult | 'unchanged'> {
@@ -61,5 +63,6 @@ export async function loadManifest(url = dataUrl('manifest.json'), etag: string 
 			}
 		};
 	}
-	return parseManifest(await res.text(), res.headers.get('ETag'));
+	const bytes = new Uint8Array(await res.arrayBuffer());
+	return parseManifest(new TextDecoder().decode(bytes), res.headers.get('ETag'), bytes);
 }
