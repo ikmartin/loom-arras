@@ -22,14 +22,15 @@ from typing import Any
 from loom.clock import stamp
 from loom.locks import locked
 from loom.paths import NOTE_LOG
+from loom.records.ids import NOTE, SESSION, draw
 
 #: A note's id, which reaches a URL fragment and a `quilt:` link.
-ID = re.compile(r"^n-\d{4}-\d{2}-\d{2}-\d+$")
+ID = re.compile(rf"^{NOTE}$")
 #: How long an unkept, unlinked note stays in view.
 FADE_DAYS = 14
-LINK = re.compile(r"quilt:(n-\d{4}-\d{2}-\d{2}-\d+)")
+LINK = re.compile(rf"quilt:({NOTE})")
 #: A transcript message as a target: its session and its number in that transcript.
-MESSAGE = re.compile(r"^(s-\d{4}-\d{2}-\d{2}-\d{4})#(\d+)$")
+MESSAGE = re.compile(rf"^({SESSION})#(\d+)$")
 #: How a note is drawn on a PDF page.
 MARKS = ("highlight", "underline", "strike", "pin", "ink", "text", "box", "oval", "arrow")
 #: The marks on a page's words, which a quote can place.
@@ -159,8 +160,7 @@ def load(root: Path) -> dict[str, Note]:
 
 
 def _next_id(root: Path, day: str) -> str:
-    taken = [int(i.rsplit("-", 1)[1]) for i in load(root) if i.startswith(f"n-{day}-")]
-    return f"n-{day}-{max(taken, default=0) + 1:04d}"
+    return draw(f"n-{day}-", load(root))
 
 
 #: A PDF's hash by its path, size and modification time: a mark is written and published far more often than a file changes, and a book takes a moment to hash.
@@ -781,12 +781,12 @@ def detached(result: Any, note: Note) -> bool:
 
 
 def published(result: Any) -> dict[str, dict[str, Any]]:
-    """Every note as the manifest carries it, with `faded` and `detached` computed now."""
+    """Every note as the manifest carries it, oldest first, with `faded` and `detached` computed now."""
     notes = load(result.quilt.root)
     links = linked(result, notes)
     now = stamp()
     out: dict[str, dict[str, Any]] = {}
-    for nid, n in notes.items():
+    for nid, n in sorted(notes.items(), key=lambda item: item[1].when):
         pdf = pdf_of(result, n.target)
         ref, sha = (n.origin or {}).get("ref"), (n.origin or {}).get("sha")
         hides = ref if ref and pdf is not None and pdf.is_file() and sha == artifact_of(pdf) else None

@@ -66,6 +66,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:main-not-found": ("warning", False),
     "loom:main-unset": ("info", False),
     "loom:foreign-annotations": ("warning", False),
+    "loom:repeated-id": ("warning", False),
     # the workbench and the record (docs/specs/diagnostics.md §3)
     "loom:superseded-file": ("info", False),
     "loom:history-missing": ("error", False),

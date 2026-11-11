@@ -156,10 +156,10 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
         ["library", "discard", "Bellamy19-prop-3.1", "--why", "no", "--as", "A. Author"],
         ["library", "ignore", "Bellamy19", "--why", "no", "--as", "A. Author"],
         ["library", "drop", "--work", "Bellamy19", "--yes"],
-        ["library", "verify", "a-0000-00-00-0000", "--as", "A. Author"],
+        ["library", "verify", "a-0000-00-00-m2qyj6", "--as", "A. Author"],
         ["library", "import", str(q / ".loom/digests" / "Bellamy19.tex"), "--name", "Other20"],
         ["ai", "discard", "--before", "2100-01-01"],
-        ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--as", "A. Author"],
+        ["session", "delete", "s-2026-09-16-p9z37z", "--purge", "--yes", "--as", "A. Author"],
         ["sync", "publish", "--push"],
         ["sync", "incorporate"],
     ]
@@ -176,7 +176,7 @@ def test_an_agent_may_remove_only_a_link_a_session_asserted(tmp_path: Path) -> N
     q = showcase(tmp_path)
     theirs = add_link(q, "Bellamy19-thm-2.3", "Bellamy19-thm-3.2", "depends-on", "the author's reading", "A. Author")
     mine = add_link(
-        q, "Bellamy19-thm-3.2", "Bellamy19-thm-2.3", "same-notion", "an agent's reading", "s-2026-09-16-0001"
+        q, "Bellamy19-thm-3.2", "Bellamy19-thm-2.3", "same-notion", "an agent's reading", "s-2026-09-16-p9z37z"
     )
     marked = {"AI_AGENT": "1"}
     undo = ("library", "relate", "--quilt", str(q), "--why", "a misreading", "--undo")

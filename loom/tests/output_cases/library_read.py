@@ -21,10 +21,10 @@ def proposed(q: Path) -> None:
 
 
 def related(q: Path) -> None:
-    """One relation, link-0001, between two of Calloway14's results, asserted by a person."""
+    """One relation, link-zhxqxj, between two of Calloway14's results, asserted by a person."""
     from tests.helpers import ok
 
-    ok("library", "relate", *RELATE, *AS, cwd=q)
+    ok("library", "relate", *RELATE, *AS, cwd=q, env={"LOOM_FIXED_TIME": "2026-01-02T00:00:00Z"})
 
 
 def cited_all(q: Path) -> None:
@@ -82,7 +82,7 @@ CASES: dict[str, list[Case]] = {
         Case(("Calloway14-setup",)),
         Case(("Calloway14-prop-3.2", "--depth", "2"), related, why="with a relation"),
         Case(("nope",), exit=2, unchanged=True, why="an unknown id"),
-        Case(("a-2026-01-01-0001",), exit=2, unchanged=True, why="an unknown annotation"),
+        Case(("a-2026-01-01-8w9qpv",), exit=2, unchanged=True, why="an unknown annotation"),
         Case(("Calloway14-prop-3.2", "--depth", "0"), exit=2, unchanged=True, why="a depth below one"),
     ],
     "library propose": [
@@ -107,10 +107,10 @@ CASES: dict[str, list[Case]] = {
         Case((*RELATE, *AS, "--dry-run"), unchanged=True),
         Case(("nope", *RELATE[1:], *AS), exit=2, unchanged=True, why="an unknown result"),
         Case((*RELATE[:3], "rhymes-with", *RELATE[4:], *AS), exit=2, unchanged=True, why="an unknown kind"),
-        Case(("--undo", "link-0001", "--why", "a misreading", *AS), related),
-        Case(("--undo", "link-0001", "--why", "a misreading", *AS, "--dry-run"), related, unchanged=True),
-        Case(("--undo", "link-0099", "--why", "w"), exit=2, unchanged=True, why="an unknown relation"),
-        Case((*RELATE, "--undo", "link-0001"), related, exit=2, unchanged=True, why="FROM TO and --undo"),
+        Case(("--undo", "link-zhxqxj", "--why", "a misreading", *AS), related),
+        Case(("--undo", "link-zhxqxj", "--why", "a misreading", *AS, "--dry-run"), related, unchanged=True),
+        Case(("--undo", "link-vkqc8k", "--why", "w"), exit=2, unchanged=True, why="an unknown relation"),
+        Case((*RELATE, "--undo", "link-zhxqxj"), related, exit=2, unchanged=True, why="FROM TO and --undo"),
         Case(("--why", "w"), exit=2, unchanged=True, why="neither FROM TO nor --undo"),
     ],
 }

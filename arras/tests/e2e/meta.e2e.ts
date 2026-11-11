@@ -35,14 +35,14 @@ test("a file's notes stand at its head, a faded one hidden until shown", async (
 });
 
 test("a session's notes read in its transcript, by time among its messages", async ({ page }) => {
-	await page.goto('/session/s-2026-09-16-0001');
+	await page.goto('/session/s-2026-09-16-p9z37z');
 	const transcript = page.getByTestId('transcript');
 	await expect(transcript.locator('[data-testid^="noted-"]')).toHaveCount(3);
-	await expect(transcript.getByTestId('noted-n-2026-09-16-0001')).toContainText('be a finite widget');
-	await expect(transcript.getByTestId('noted-n-2026-09-16-0003')).toContainText('the parity count');
+	await expect(transcript.getByTestId('noted-n-2026-09-16-91x7ga')).toContainText('be a finite widget');
+	await expect(transcript.getByTestId('noted-n-2026-09-16-41e22x')).toContainText('the parity count');
 	// the faded one is left out here as everywhere
-	await expect(transcript.getByTestId('noted-n-2026-08-20-0001')).toHaveCount(0);
+	await expect(transcript.getByTestId('noted-n-2026-08-20-h6g96a')).toHaveCount(0);
 	// a note's link opens what it is on
-	await transcript.getByTestId('noted-n-2026-09-16-0002').getByRole('link').click();
+	await transcript.getByTestId('noted-n-2026-09-16-1t8s9z').getByRole('link').click();
 	await expect(page.getByTestId('pane-1').getByTestId('item-tab').first()).toContainText('intro.md');
 });

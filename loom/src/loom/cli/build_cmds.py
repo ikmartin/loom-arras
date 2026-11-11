@@ -487,13 +487,14 @@ def text_at(result: ScanResult, key: str, ref: str) -> tuple[str, str]:
     """
     from loom.history.versions import read_version, version_at
     from loom.records.annotations import find_annotation, load_records
+    from loom.records.ids import ANNOTATION
     from loom.records.ledger import latest_rows
     from loom.records.snapshots import read_snapshot
     from loom.records.store import Records
     from loom.scan.hashing import normalize
 
     root, history_dir = result.quilt.root, result.quilt.history_dir
-    if re.fullmatch(r"a-\d{4}-\d{2}-\d{2}-\d+", ref):
+    if re.fullmatch(ANNOTATION, ref):
         found = find_annotation(load_records(root)[0], ref)
         if found is None:
             raise NotFoundError("annotation", f"no annotation {ref}")

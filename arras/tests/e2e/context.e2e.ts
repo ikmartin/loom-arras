@@ -99,7 +99,7 @@ test("a detached annotation is a row: a dot in the kind's hue and a link to it, 
 	await expect(rows.first()).not.toContainText('question');
 	await expect(rows.first().locator('.ann-dot')).toHaveClass(/k-question/);
 	await expect(rows.first().locator('.ann-dot')).toHaveAttribute('aria-label', 'question');
-	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-0010');
+	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-a91hwf');
 	await expect(rows.first().locator('a')).toHaveText(/\S/);
 });
 

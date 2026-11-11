@@ -27,6 +27,7 @@ from loom.records.annotations import (
     full_kind,
     next_id,
 )
+from loom.records.ids import ANNOTATION
 from loom.records.ledger import AcceptRow, append_rows
 from loom.records.log import append, append_new
 from loom.records.selectors import find_quote, make_selector
@@ -458,7 +459,7 @@ def _append(root: Path, event: dict[str, Any], dry_run: bool) -> None:
 
 
 def _append_new(root: Path, event: dict[str, Any], records: list[Any], date: str, dry_run: bool) -> str:
-    """`records.log.append_new`, and the id it drew; a dry run says the id it would draw and writes nothing."""
+    """`records.log.append_new`, and the id it drew; a dry run says an id of the kind it would draw and writes nothing."""
     return next_id(records, date) if dry_run else append_new(root, event, date)
 
 
@@ -1211,7 +1212,7 @@ def _annotated(written: list[str]) -> dict[str, Any]:
     return {"written": [{"id": m.group(0) if (m := _ANN.search(w)) else None, "said": w} for w in written]}
 
 
-_ANN = re.compile(r"a-\d{4}-\d{2}-\d{2}-\d+")
+_ANN = re.compile(ANNOTATION)
 _VERB_KEYS = ("target", "quote", "kind", "reply", "resolve", "edit", "discard", "page", "in")
 
 
@@ -1398,7 +1399,8 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         "runs": runs,
         "undigested": undigested,
         "retired": retired,
-        "reading": sorted(reading, key=lambda r: (r["work"], r["page"], r["id"])),
+        # a sort that keeps the log's order on one page, since an id says nothing of when
+        "reading": sorted(reading, key=lambda r: (r["work"], r["page"])),
     }
 
 

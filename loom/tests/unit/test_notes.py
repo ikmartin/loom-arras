@@ -132,7 +132,7 @@ def test_a_note_is_linked_by_its_id_and_opens_what_it_is_on(q: Path) -> None:
     result = open_scan(str(q))
     assert resolve(result, q, f"quilt:{n['id']}").kind == "note"
     with pytest.raises(LinkError, match="no note"):
-        resolve(result, q, "quilt:n-2026-01-01-0099")
+        resolve(result, q, "quilt:n-2026-01-01-c4yrbe")
     assert ok("link", n["id"], cwd=q).stdout.strip() == f"[](quilt:{n['id']})"
 
 

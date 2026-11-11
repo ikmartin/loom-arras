@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.anchors import Anchor
+from loom.records.ids import draw
 from loom.records.selectors import Selector
 
 #: What an annotation says (plan 0.15, decision 2). Four kinds ask something of the author; `note` remarks, and is where "this checks out" goes too, since agreement earns no kind of its own.
@@ -131,17 +132,8 @@ def load_records(root: Path) -> tuple[list[Record], list[str]]:
 
 
 def next_id(records: list[Record], date: str) -> str:
-    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (amended: the counter is not per file). What is written draws it under the log's lock (`log.append_new`); with no lock it is only a preview."""
-    n = 0
-    prefix = f"a-{date}-"
-    for record in records:
-        for a in record.annotations:
-            if a.id.startswith(prefix):
-                try:
-                    n = max(n, int(a.id[len(prefix) :]))
-                except ValueError:
-                    continue
-    return f"{prefix}{n + 1:04d}"
+    """A fresh `a-<date>-<token>`, none of the ids in `records`. What is written draws it under the log's lock (`log.append_new`); with no lock it is only an example."""
+    return draw(f"a-{date}-", {a.id for record in records for a in record.annotations})
 
 
 def find_annotation(records: list[Record], ann_id: str) -> tuple[Record, Annotation] | None:

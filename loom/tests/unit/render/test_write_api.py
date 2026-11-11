@@ -93,10 +93,10 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
     assert status == 400 and body["error"]["code"] == "missing-field", body
     status, body = post(s.url + "_api/annotate", {"session": sid, "target": "nope-9999", "message": "x", "author": "R"})
     assert status == 404 and body["error"] == {"code": "no-such-node", "message": "no such key: nope-9999"}, body
-    status, body = post(s.url + "_api/discard", {"session": sid, "annotation": "a-1999-01-01-0001", "author": "R"})
+    status, body = post(s.url + "_api/discard", {"session": sid, "annotation": "a-1999-01-01-ekn992", "author": "R"})
     assert status == 404 and body["error"] == {
         "code": "no-such-annotation",
-        "message": "no annotation a-1999-01-01-0001",
+        "message": "no annotation a-1999-01-01-ekn992",
     }, body
     # a write that names no session at all is malformed, not something to file against whatever was last active
     status, body = post(s.url + "_api/annotate", {"target": "dm-0003", "message": "orphan"})
@@ -359,7 +359,9 @@ def _note_change(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     succeeds(s, "note-change", {"note": nid, "color": "", "author": WHO})
     assert load(q)[nid].color is None
     refuses(s, "note-change", {"note": nid, "color": "teal", "author": WHO}, 400, "bad-field", "one of yellow")
-    refuses(s, "note-change", {"note": "n-2026-01-01-9999", "body": "x", "author": WHO}, 404, "no-such-note", "no note")
+    refuses(
+        s, "note-change", {"note": "n-2026-01-01-810dgx", "body": "x", "author": WHO}, 404, "no-such-note", "no note"
+    )
     refuses(
         s,
         "note-change",
@@ -378,7 +380,7 @@ def _note_erase(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.notes import load
 
     assert load(q)[nid].erased
-    refuses(s, "note-erase", {"note": "n-2026-01-01-9999", "author": WHO}, 404, "no-such-note", "no note")
+    refuses(s, "note-erase", {"note": "n-2026-01-01-810dgx", "author": WHO}, 404, "no-such-note", "no note")
 
 
 @case("note-restore")
@@ -390,7 +392,7 @@ def _note_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.notes import load
 
     assert load(q)[nid].erased is None
-    refuses(s, "note-restore", {"note": "n-2026-01-01-9999", "author": WHO}, 404, "no-such-note", "no note")
+    refuses(s, "note-restore", {"note": "n-2026-01-01-810dgx", "author": WHO}, 404, "no-such-note", "no note")
 
 
 @case("notes-take")
@@ -476,7 +478,7 @@ def _resolve(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         ("resolved", "Fixed.", None),
         ("resolved", "", True),
     ]
-    missing = "a-1999-01-01-0001"
+    missing = "a-1999-01-01-ekn992"
     refuses(
         s,
         "resolve",
@@ -494,7 +496,7 @@ def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     succeeds(s, "edit", {"session": sid, "annotation": ann, "message": "Restated.", "severity": "minor", "author": WHO})
     edited = events(q, ann)[-1]
     assert (edited["event"], edited["body"], edited["severity"]) == ("edited", "Restated.", "minor"), edited
-    missing = "a-1999-01-01-0001"
+    missing = "a-1999-01-01-ekn992"
     refuses(
         s,
         "edit",
@@ -553,7 +555,7 @@ def _library_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     assert (crumb["work"], crumb["claim"], crumb["for"]) == (work, "Cite Manolache.", ["dm-0003"]), crumb
     assert crumb["accepted"]["who"] == WHO, crumb
     assert crumb["from"] == {"session": sid, "annotation": ann}, crumb
-    missing = "a-1999-01-01-0001"
+    missing = "a-1999-01-01-ekn992"
     refuses(
         s,
         "library-cite",
@@ -656,7 +658,7 @@ def _session_delete(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
     assert index(q, sid)[-1] == {**index(q, sid)[-1], "event": "deleted", "why": "a false start"}
     assert sid not in sessions(q) and active(q) != sid
     assert events(q, ann), "a tombstone keeps what was written in the session"
-    refuses(s, "session-delete", {"session": "s-1999-01-01-0001"}, 404, "no-such-session", "s-1999-01-01-0001")
+    refuses(s, "session-delete", {"session": "s-1999-01-01-bfyfgz"}, 404, "no-such-session", "s-1999-01-01-bfyfgz")
 
 
 @case("session-new")
@@ -710,7 +712,7 @@ def _session_purpose(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
     # an empty purpose clears it
     succeeds(s, "session-purpose", {"session": sid})
     assert sessions(q)[sid].purpose == ""
-    refuses(s, "session-purpose", {"session": "s-1999-01-01-0001", "purpose": "x"}, 404, "no-such-session", "s-1999")
+    refuses(s, "session-purpose", {"session": "s-1999-01-01-bfyfgz", "purpose": "x"}, 404, "no-such-session", "s-1999")
 
 
 def git(root: Path, *args: str) -> str:
@@ -1030,7 +1032,7 @@ def _note_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 
     assert load(q)[nid].kept
     refuses(
-        s, "note-keep", {"note": "n-2000-01-01-0001", "session": sid, "author": WHO}, 404, "no-such-note", "no note"
+        s, "note-keep", {"note": "n-2000-01-01-gk2svb", "session": sid, "author": WHO}, 404, "no-such-note", "no note"
     )
 
 

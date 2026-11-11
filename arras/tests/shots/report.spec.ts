@@ -29,9 +29,9 @@ test('a corpus that has everything', async ({ page }) => {
 
 test('a run reviewed', async ({ page }) => {
 	// a session read on its own: what it did, beside the document it is about, and its Chat; and the link working, a finding opening its mark in the other pane
-	const beside = '/master/drafting/main?beside=' + encodeURIComponent('/session/s-2026-09-16-0001?view=did');
+	const beside = '/master/drafting/main?beside=' + encodeURIComponent('/session/s-2026-09-16-p9z37z?view=did');
 	await shot(page, 'session-did', beside);
-	await shot(page, 'session-discussion', '/session/s-2026-09-16-0001');
+	await shot(page, 'session-discussion', '/session/s-2026-09-16-p9z37z');
 	await page.goto(beside);
 	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
 	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));

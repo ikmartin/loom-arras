@@ -51,7 +51,7 @@ def test_the_research_state_is_the_one_address_read_without_a_command(quilt: Pat
     ("uri", "said"),
     [
         ("quilt:a-2026-01-01-1", "loom_ai_annotations"),
-        ("quilt:s-2026-01-01-0001", "loom_session_list"),
+        ("quilt:s-2026-01-01-wygcqp", "loom_session_list"),
         ("https://example.org", "the addresses `loom link` prints"),
         ("quilt:", "names no key"),
         ("cited:", "names no work"),

@@ -333,7 +333,7 @@ def downstream(id_: str, proofs: bool, as_json: bool, run_dir: str | None, quilt
     references = sorted(payload["references"], key=lambda e: (natural(e["file"]), e["line"]))
     inclusions = sorted(payload["inclusions"], key=lambda e: (natural(e["file"]), e["line"]))
     ledger = sorted(payload["ledger"], key=lambda e: (natural(e["key"]), e["date"]))
-    annotations = sorted(payload["annotations"], key=lambda e: natural(e["id"]))
+    annotations = sorted(payload["annotations"], key=lambda e: e["created"])
     groups = [
         Group(
             "dependents",

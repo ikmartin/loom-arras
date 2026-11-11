@@ -95,11 +95,11 @@ def test_a_note_whose_version_is_gone_is_not_pinned_to_the_new_text(q: Path) -> 
     # a note naming a version loom never kept, whose quote still reads in today's text
     lost = {
         "event": "created",
-        "id": "a-2026-01-01-0001",
+        "id": "a-2026-01-01-8w9qpv",
         "when": "2026-01-01T00:00:00Z",
         "author": "A. Author",
         "kind": "human",
-        "session": "s-2026-01-01-0001",
+        "session": "s-2026-01-01-wygcqp",
         "target": "dm-0002",
         "against": "sha256:" + "0" * 64,
         "anchor": {"exact": "one or two points", "prefix": "", "suffix": ""},

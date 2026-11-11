@@ -304,7 +304,7 @@ def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) 
     q = bare(tmp_path)
     r = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED)
     sid = r.stdout.split()[0]
-    assert sid == "s-2026-09-16-0001"  # the id is minted, never slugified from the title
+    assert sid == "s-2026-09-16-p9z37z"  # the id is minted, never slugified from the title
     index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
     assert '"title": "Referee of dm-0003"' in index and '"event": "created"' in index
     rel = f".loom/sessions/{sid}"
@@ -330,7 +330,7 @@ def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) 
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
     second = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED).stdout.split()[0]
-    assert second == "s-2026-09-16-0002"  # two sessions may share a title; the id is what distinguishes them
+    assert second == "s-2026-09-16-cd0j88"  # two sessions may share a title; the id is what distinguishes them
 
 
 def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -> None:
@@ -650,7 +650,7 @@ def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
 def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:
     """T7: a session whose annotations were all withdrawn is not "no annotations yet"."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
+    sid = "s-2026-09-16-cd0j88"
     before = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
     assert before
     ok("ai", "discard", sid, cwd=q)
@@ -686,7 +686,7 @@ def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_print
 def test_a_withdrawal_carries_its_reason_and_is_not_made_twice(tmp_path: Path) -> None:
     """K2: `ai discard` took no `--why`, so every withdrawal read "no reason given"; T7: run twice, it said "withdrew" twice and recorded it twice."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
+    sid = "s-2026-09-16-cd0j88"
     log = q / ".loom/annotations" / "log.jsonl"
     ok("ai", "discard", sid, "--why", "an early, mistaken pass", cwd=q)
     lines = log.read_text()
@@ -699,7 +699,7 @@ def test_a_withdrawal_carries_its_reason_and_is_not_made_twice(tmp_path: Path) -
 def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: Path) -> None:
     """An agent answers the author's annotations and may edit its own, so it must tell them apart; T2: the columns did not line up."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
+    sid = "s-2026-09-16-cd0j88"
     rows = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
     assert rows and all(set(r["author"]) == {"kind", "id"} for r in rows), rows
     text = ok("ai", "annotations", "--session", sid, cwd=q).stdout

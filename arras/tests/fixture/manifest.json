@@ -1,6 +1,6 @@
 {
  "annotations": {
-  "a-2026-09-16-0001": {
+  "a-2026-09-16-ecnav2": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -14,7 +14,7 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0001",
+   "id": "a-2026-09-16-ecnav2",
    "in": null,
    "in_reply_to": null,
    "kind": "objection",
@@ -24,7 +24,7 @@
    "quote": "finite widget",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": "major",
    "status": "open",
    "target": {
@@ -34,7 +34,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0002": {
+  "a-2026-09-16-hwtkaw": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -48,17 +48,17 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0002",
+   "id": "a-2026-09-16-hwtkaw",
    "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0002:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-hwtkaw:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
    "placement": "replace",
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": "minor",
    "status": "resolved",
    "target": {
@@ -68,7 +68,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0003": {
+  "a-2026-09-16-6sn46y": {
    "anchored": false,
    "applied": null,
    "author": {
@@ -82,7 +82,7 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0003",
+   "id": "a-2026-09-16-6sn46y",
    "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
@@ -92,7 +92,7 @@
    "quote": null,
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": "moderate",
    "status": "open",
    "target": {
@@ -102,7 +102,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0004": {
+  "a-2026-09-16-tc3rcf": {
    "anchored": false,
    "applied": null,
    "author": {
@@ -116,17 +116,17 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0004",
+   "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
    "kind": "citation",
    "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0004:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-tc3rcf:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
    "placement": null,
    "quote": null,
    "recorded": true,
    "resolved_why": "accepted",
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "resolved",
    "target": {
@@ -136,7 +136,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0005": {
+  "a-2026-09-16-hqnbz4": {
    "anchored": false,
    "applied": null,
    "author": {
@@ -150,17 +150,17 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0005",
+   "id": "a-2026-09-16-hqnbz4",
    "in": null,
    "in_reply_to": null,
    "kind": "citation",
    "payload": "any standard text on group actions",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0005:0:34\">any standard text on group actions</p>",
+   "payload_html": "<p data-src=\"payload/a-2026-09-16-hqnbz4:0:34\">any standard text on group actions</p>",
    "placement": null,
    "quote": null,
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -170,7 +170,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0006": {
+  "a-2026-09-16-bns3an": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -184,7 +184,7 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0006",
+   "id": "a-2026-09-16-bns3an",
    "in": null,
    "in_reply_to": null,
    "kind": "question",
@@ -194,7 +194,7 @@
    "quote": "one or two points",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -204,7 +204,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0007": {
+  "a-2026-09-16-xgtcve": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -218,7 +218,7 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0007",
+   "id": "a-2026-09-16-xgtcve",
    "in": "drafting/talk.tex",
    "in_reply_to": null,
    "kind": "suggestion",
@@ -228,7 +228,7 @@
    "quote": "Every orbit of a widget",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -238,7 +238,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0008": {
+  "a-2026-09-16-hwnav1": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -252,9 +252,9 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0008",
+   "id": "a-2026-09-16-hwnav1",
    "in": null,
-   "in_reply_to": "a-2026-09-16-0001",
+   "in_reply_to": "a-2026-09-16-ecnav2",
    "kind": "question",
    "payload": null,
    "payload_html": null,
@@ -262,7 +262,7 @@
    "quote": "finite widget",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -272,7 +272,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0009": {
+  "a-2026-09-16-gahrrs": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -286,9 +286,9 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0009",
+   "id": "a-2026-09-16-gahrrs",
    "in": null,
-   "in_reply_to": "a-2026-09-16-0002",
+   "in_reply_to": "a-2026-09-16-hwtkaw",
    "kind": "question",
    "payload": null,
    "payload_html": null,
@@ -296,7 +296,7 @@
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -306,7 +306,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0010": {
+  "a-2026-09-16-a91hwf": {
    "anchored": false,
    "applied": null,
    "author": {
@@ -320,7 +320,7 @@
    "detached": true,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0010",
+   "id": "a-2026-09-16-a91hwf",
    "in": null,
    "in_reply_to": null,
    "kind": "question",
@@ -330,7 +330,7 @@
    "quote": "an involution $\\sigma$ of $X$",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": null,
    "status": "open",
    "target": {
@@ -340,7 +340,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0011": {
+  "a-2026-09-16-pmjbhz": {
    "anchored": false,
    "applied": null,
    "author": {
@@ -354,7 +354,7 @@
    "detached": false,
    "discard_reason": null,
    "discarded": true,
-   "id": "a-2026-09-16-0011",
+   "id": "a-2026-09-16-pmjbhz",
    "in": null,
    "in_reply_to": null,
    "kind": "note",
@@ -364,7 +364,7 @@
    "quote": null,
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-15-0001",
+   "run": "s-2026-09-15-fk1w66",
    "severity": null,
    "status": "open",
    "target": {
@@ -374,7 +374,7 @@
     "work": null
    }
   },
-  "a-2026-09-17-0001": {
+  "a-2026-09-17-rvgxnv": {
    "anchored": true,
    "applied": null,
    "author": {
@@ -385,8 +385,8 @@
    "basis": null,
    "body_html": "<p>Say what the comparison shows.</p>",
    "change": {
-    "diff": "fragments/suggestions/a-2026-09-17-0001.diff",
-    "fragment": "fragments/suggestions/a-2026-09-17-0001.html",
+    "diff": "fragments/suggestions/a-2026-09-17-rvgxnv.diff",
+    "fragment": "fragments/suggestions/a-2026-09-17-rvgxnv.html",
     "moved": false,
     "state": "ready"
    },
@@ -394,17 +394,17 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-17-0001",
+   "id": "a-2026-09-17-rvgxnv",
    "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "payload_html": "<p data-src=\"payload/a-2026-09-17-0001:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
+   "payload_html": "<p data-src=\"payload/a-2026-09-17-rvgxnv:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
    "placement": "replace",
    "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
    "recorded": true,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
+   "run": "s-2026-09-16-p9z37z",
    "severity": "minor",
    "status": "open",
    "target": {
@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "3a4fa36f3379fb94182b29fe185bef618f6167c4432d02c0b547834687ac3e93",
+   "hash": "bb242cde3a45201ae7399509bd4f41b704478c5d5dee9bb264aa1ddd0ad7416f",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "7bd7cfc7621498ceaf40375cf2c81188bcf917255dfe0d5146adc0f826ecbc0b",
+   "hash": "0092aef254ff1a897048076e7657dac49b67ac52d4f9c6a54383070fa78f1b1d",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "c41c0bef4177698d07a7879b8d0e30c34c08b7a6d3b17329440debd63778be35",
+   "hash": "243c8db71bfa34e1e7238a92bfd3e6e4e57e64408e0858a5c5871d5605ee583c",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -583,6 +583,7 @@
     "loom:prefix-is-citekey",
     "loom:previous-key-match",
     "loom:reference-to-loose",
+    "loom:repeated-id",
     "loom:retired-ledger-key",
     "loom:see-redundant",
     "loom:superseded-file",
@@ -664,10 +665,10 @@
      "documents": [
       "drafting/main.tex"
      ],
-     "incoming": "fragments/incoming/abf23dca7b125c373388-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/ae9544453caa00f1a2cf-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0001",
-     "local": "fragments/incoming/abf23dca7b125c373388-local.html",
+     "local": "fragments/incoming/ae9544453caa00f1a2cf-local.html",
      "math_changed": true,
      "merged": "",
      "name": "Widget",
@@ -705,10 +706,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/447b4c20c19b8b5ed4e6-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/54c22b4cc6a1fd2a7061-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0002",
-     "local": "fragments/incoming/447b4c20c19b8b5ed4e6-local.html",
+     "local": "fragments/incoming/54c22b4cc6a1fd2a7061-local.html",
      "math_changed": true,
      "merged": "",
      "name": "Orbits",
@@ -725,10 +726,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/1eb6eb51c86f339cb249-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/83c94f5ad52e2a4ce97c-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0008",
-     "local": "fragments/incoming/1eb6eb51c86f339cb249-local.html",
+     "local": "fragments/incoming/83c94f5ad52e2a4ce97c-local.html",
      "math_changed": false,
      "merged": "",
      "name": "Gadget",
@@ -750,9 +751,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0202",
-     "local": "fragments/incoming/34c8e81cebf58d8b32ac-local.html",
+     "local": "fragments/incoming/7dfc5cd074f30cf85267-local.html",
      "math_changed": true,
      "merged": "",
      "name": null,
@@ -769,9 +770,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0202/proof",
-     "local": "fragments/incoming/5867f10407674ed391b7-local.html",
+     "local": "fragments/incoming/3f728bd4ec88e2716635-local.html",
      "math_changed": true,
      "merged": "",
      "name": null,
@@ -785,8 +786,8 @@
      "class": "new",
      "current": "",
      "documents": [],
-     "incoming": "fragments/incoming/d310d5b83e4557e79525-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/b3f8333d1d840f5d5935-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-999C",
      "local": null,
      "math_changed": true,
@@ -799,7 +800,7 @@
    ],
    "choices": {
     "document": false,
-    "fingerprint": "23d40bc1fcbb53ded531cd2ccd1552a2bbf7b5fbfb507edc6bc23c1ffec16d95",
+    "fingerprint": "a172faad290a4482b84e8b6430d31d82741176568296855ed58b3486c5a7c315",
     "invalidated": [],
     "kept": [],
     "keys": [],
@@ -811,13 +812,13 @@
    "document_comparison": {
     "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
     "incoming": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-incoming.html",
-    "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+    "incoming_macros": "adopt:a172faad290a4482b84e",
     "local": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-local.html",
     "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
    },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -144,10 +146,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -157,10 +156,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
-   "fingerprint": "23d40bc1fcbb53ded531cd2ccd1552a2bbf7b5fbfb507edc6bc23c1ffec16d95",
+   "fingerprint": "a172faad290a4482b84e8b6430d31d82741176568296855ed58b3486c5a7c315",
    "issues": [],
    "kind": "adopt",
    "label": "Incoming from agent document “aidoc”",
@@ -1663,7 +1664,7 @@
    "code": "loom:detached-annotation",
    "fixes": [
     {
-     "command": "loom annotate --resolve a-2026-09-16-0010 \"…\"",
+     "command": "loom annotate --resolve a-2026-09-16-a91hwf \"…\"",
      "label": "resolve it if its point is met"
     }
    ],
@@ -5091,7 +5092,7 @@
      "name": "Hom"
     }
    ],
-   "adopt:23d40bc1fcbb53ded531": [
+   "adopt:a172faad290a4482b84e": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",
@@ -7572,7 +7573,7 @@
   }
  },
  "notes": {
-  "n-2026-08-20-0001": {
+  "n-2026-08-20-h6g96a": {
    "author": {
     "id": "The synthetic quilt",
     "kind": "person"
@@ -7580,15 +7581,15 @@
    "body": "",
    "detached": false,
    "faded": true,
-   "id": "n-2026-08-20-0001",
+   "id": "n-2026-08-20-h6g96a",
    "quote": "Notes on the widgets",
-   "session": "s-2026-09-16-0001",
+   "session": "s-2026-09-16-p9z37z",
    "target": {
     "file": "notes/intro.md"
    },
    "when": "2026-08-20T09:00:00Z"
   },
-  "n-2026-09-16-0001": {
+  "n-2026-09-16-91x7ga": {
    "author": {
     "id": "The synthetic quilt",
     "kind": "person"
@@ -7596,15 +7597,15 @@
    "body": "",
    "detached": false,
    "faded": false,
-   "id": "n-2026-09-16-0001",
+   "id": "n-2026-09-16-91x7ga",
    "quote": "Let $(X,\\sigma)$ be a finite widget.",
-   "session": "s-2026-09-16-0001",
+   "session": "s-2026-09-16-p9z37z",
    "target": {
     "key": "sy-0003"
    },
    "when": "2026-09-16T11:30:00Z"
   },
-  "n-2026-09-16-0002": {
+  "n-2026-09-16-1t8s9z": {
    "author": {
     "id": "The synthetic quilt",
     "kind": "person"
@@ -7612,16 +7613,16 @@
    "body": "",
    "detached": false,
    "faded": false,
-   "id": "n-2026-09-16-0002",
+   "id": "n-2026-09-16-1t8s9z",
    "kept": "2026-09-16T11:30:00Z",
    "quote": "A widget is fixed by its locus",
-   "session": "s-2026-09-16-0001",
+   "session": "s-2026-09-16-p9z37z",
    "target": {
     "file": "notes/intro.md"
    },
    "when": "2026-09-16T11:30:00Z"
   },
-  "n-2026-09-16-0003": {
+  "n-2026-09-16-41e22x": {
    "author": {
     "id": "Referee Agent",
     "kind": "agent"
@@ -7629,14 +7630,14 @@
    "body": "the parity count, to check against the paper",
    "detached": false,
    "faded": false,
-   "id": "n-2026-09-16-0003",
-   "session": "s-2026-09-16-0001",
+   "id": "n-2026-09-16-41e22x",
+   "session": "s-2026-09-16-p9z37z",
    "target": {
-    "session": "s-2026-09-16-0001"
+    "session": "s-2026-09-16-p9z37z"
    },
    "when": "2026-09-16T11:30:00Z"
   },
-  "n-2026-09-16-0004": {
+  "n-2026-09-16-vzj43s": {
    "artifact": "4631633d64d450f0e82b56d66dd9a41efcc5919df13107656a81627aa0d13239",
    "author": {
     "id": "The synthetic quilt",
@@ -7645,7 +7646,7 @@
    "body": "the figure's corner",
    "detached": false,
    "faded": false,
-   "id": "n-2026-09-16-0004",
+   "id": "n-2026-09-16-vzj43s",
    "mark": "box",
    "page": 1,
    "rects": [
@@ -7684,8 +7685,8 @@
     "sy-0003"
    ],
    "from": {
-    "annotation": "a-2026-09-16-0004",
-    "session": "s-2026-09-16-0001"
+    "annotation": "a-2026-09-16-tc3rcf",
+    "session": "s-2026-09-16-p9z37z"
    },
    "identifier": {
     "verified": false
@@ -8260,14 +8261,14 @@
   },
   {
    "aliases": [],
-   "key": "s-2026-09-15-0001",
+   "key": "s-2026-09-15-fk1w66",
    "kind": "thread",
    "tags": [],
    "title": "quick"
   },
   {
    "aliases": [],
-   "key": "s-2026-09-16-0001",
+   "key": "s-2026-09-16-p9z37z",
    "kind": "thread",
    "tags": [],
    "title": "referee"
@@ -8277,7 +8278,7 @@
   {
    "active": false,
    "created": "2026-09-15T10:00:00Z",
-   "id": "s-2026-09-15-0001",
+   "id": "s-2026-09-15-fk1w66",
    "last": "2026-09-16T00:00:00Z",
    "opened": "2026-09-15T10:00:00Z",
    "purpose": "",
@@ -8289,7 +8290,7 @@
   {
    "active": true,
    "created": "2026-09-16T00:00:00Z",
-   "id": "s-2026-09-16-0001",
+   "id": "s-2026-09-16-p9z37z",
    "last": "2026-09-17T09:00:00Z",
    "opened": "2026-09-16T00:00:00Z",
    "purpose": "",
@@ -8395,7 +8396,7 @@
   }
  },
  "threads": {
-  "s-2026-09-15-0001": {
+  "s-2026-09-15-fk1w66": {
    "attachments": [
     {
      "count": 1,
@@ -8405,11 +8406,11 @@
    ],
    "created": "2026-09-15T10:00:00Z",
    "discarded": true,
-   "id": "s-2026-09-15-0001",
+   "id": "s-2026-09-15-fk1w66",
    "kind": "session",
    "log": [
     {
-     "annotation": "a-2026-09-16-0011",
+     "annotation": "a-2026-09-16-pmjbhz",
      "command": "loom annotate sy-000A --kind note",
      "names": [
       {
@@ -8425,13 +8426,13 @@
      "kind": "agent"
     }
    ],
-   "path": ".loom/sessions/s-2026-09-15-0001",
+   "path": ".loom/sessions/s-2026-09-15-fk1w66",
    "targets": [
     "sy-000A"
    ],
    "title": "quick"
   },
-  "s-2026-09-16-0001": {
+  "s-2026-09-16-p9z37z": {
    "attachments": [
     {
      "count": 11,
@@ -8441,11 +8442,11 @@
    ],
    "created": "2026-09-16T00:00:00Z",
    "discarded": false,
-   "id": "s-2026-09-16-0001",
+   "id": "s-2026-09-16-p9z37z",
    "kind": "session",
    "log": [
     {
-     "annotation": "a-2026-09-16-0001",
+     "annotation": "a-2026-09-16-ecnav2",
      "command": "loom annotate sy-0003 --quote --kind objection",
      "names": [
       {
@@ -8455,7 +8456,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0002",
+     "annotation": "a-2026-09-16-hwtkaw",
      "command": "loom annotate sy-0004 --quote --kind suggestion",
      "names": [
       {
@@ -8465,7 +8466,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0003",
+     "annotation": "a-2026-09-16-6sn46y",
      "command": "loom annotate drafting/main.tex --kind suggestion",
      "names": [
       {
@@ -8475,7 +8476,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0004",
+     "annotation": "a-2026-09-16-tc3rcf",
      "command": "loom annotate sy-0003 --kind citation",
      "names": [
       {
@@ -8485,7 +8486,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0005",
+     "annotation": "a-2026-09-16-hqnbz4",
      "command": "loom annotate sy-0002 --kind citation",
      "names": [
       {
@@ -8495,7 +8496,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0006",
+     "annotation": "a-2026-09-16-bns3an",
      "command": "loom annotate sy-0002 --quote --kind question",
      "names": [
       {
@@ -8505,7 +8506,7 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0007",
+     "annotation": "a-2026-09-16-xgtcve",
      "command": "loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex",
      "names": [
       {
@@ -8522,22 +8523,22 @@
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0008",
-     "command": "loom annotate --reply a-2026-09-16-0001",
+     "annotation": "a-2026-09-16-hwnav1",
+     "command": "loom annotate --reply a-2026-09-16-ecnav2",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0009",
-     "command": "loom annotate --reply a-2026-09-16-0002",
+     "annotation": "a-2026-09-16-gahrrs",
+     "command": "loom annotate --reply a-2026-09-16-hwtkaw",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0002",
-     "command": "loom annotate --resolve a-2026-09-16-0002",
+     "annotation": "a-2026-09-16-hwtkaw",
+     "command": "loom annotate --resolve a-2026-09-16-hwtkaw",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "annotation": "a-2026-09-16-0010",
+     "annotation": "a-2026-09-16-a91hwf",
      "command": "loom annotate sy-0001 --quote --kind question",
      "names": [
       {
@@ -8583,7 +8584,7 @@
      "time": "2026-09-17T09:00:00Z"
     },
     {
-     "annotation": "a-2026-09-17-0001",
+     "annotation": "a-2026-09-17-rvgxnv",
      "command": "loom annotate sy-0002 --quote --kind suggestion",
      "names": [
       {
@@ -8603,7 +8604,7 @@
      "kind": "person"
     }
    ],
-   "path": ".loom/sessions/s-2026-09-16-0001",
+   "path": ".loom/sessions/s-2026-09-16-p9z37z",
    "targets": [
     "sy-0003",
     "sy-0004",

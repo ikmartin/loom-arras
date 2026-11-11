@@ -19,7 +19,7 @@ describe('placeOf', () => {
 				current: { kind: 'document', id: 'drafting/main.tex', anchor: 'sec-2', view: 'text' },
 				beside: { kind: 'work', id: 'Bellamy19', place: { page: 3 } },
 				block: { src: 'nodes/sy-0003.tex:1:4', key: 'sy-0003' },
-				session: 's-2026-10-30-0001'
+				session: 's-2026-10-30-yx080j'
 			})
 		);
 		expect(got).toEqual({
@@ -27,7 +27,7 @@ describe('placeOf', () => {
 			item: { kind: 'document', id: 'drafting/main.tex' },
 			block: { src: 'nodes/sy-0003.tex:1:4', key: 'sy-0003' },
 			beside: { kind: 'work', id: 'Bellamy19', place: { page: 3 } },
-			session: 's-2026-10-30-0001'
+			session: 's-2026-10-30-yx080j'
 		});
 	});
 
