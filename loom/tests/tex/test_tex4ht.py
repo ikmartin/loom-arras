@@ -209,6 +209,35 @@ See \ref{l2}.
 """
 
 
+XR = r"""\documentclass{amsart}
+\usepackage{amsthm}
+\usepackage{xr-hyper}
+\usepackage{hyperref}
+\externaldocument[o-]{other}
+\newtheorem{lemma}{Lemma}
+\begin{document}
+\begin{lemma}\label{l1}By Theorem~\ref{o-thm:a} of the other paper.\end{lemma}
+\end{document}
+"""
+
+
+@pytest.mark.tex
+def test_a_document_reading_another_s_labels_through_xr_makes_html_with_their_numbers(tmp_path: Path) -> None:
+    """relloc's `examples.tex`: TeX4ht cannot read an external aux pdflatex wrote, so loom reads its labels, prefixed as xr prefixes them, into the run's own aux, and blanks xr on the stage."""
+    q = tmp_path / "q"
+    q.mkdir()
+    (q / "main.tex").write_text(XR, encoding="utf-8")
+    (q / "other.aux").write_text("\\relax\n\\newlabel{thm:a}{{2.3}{5}{Main}{theorem.2.3}{}}\n", encoding="utf-8")
+    pdf = compile_document(q, "", "main.tex", q / ".loom/build/main")
+    assert pdf.pdf is not None, pdf.first_error
+    res = compile_html(q, "", "main.tex", q / ".loom/build/main/html", envs=["lemma"], seed=q / ".loom/build/main")
+    assert res.html is not None and res.ok, res.first_error
+    n = normalise(res.html.read_text(encoding="utf-8"))
+    assert re.search(r'data-label="o-thm:a" data-made="">(?:<span[^>]*>)?2\.3<', n.html), n.html
+    # the quilt's own file is untouched: only the stage was blanked
+    assert "\\externaldocument[o-]{other}" in (q / "main.tex").read_text(encoding="utf-8")
+
+
 @pytest.mark.tex
 def test_a_display_whose_braces_do_not_balance_is_shown_as_written_and_the_rest_still_reads(tmp_path: Path) -> None:
     """3waveZKnew's case: an extra `}` a later missing one cancels, which pdflatex sets and TeX4ht's MathJax mode cannot read as one argument, so one display used to cost the whole document its page."""
@@ -245,10 +274,10 @@ def test_loom_compile_html_says_how_much_of_the_page_it_places(tmp_path: Path) -
 
 
 @pytest.mark.tex
-def test_a_document_is_read_from_its_html_while_that_is_current_and_from_the_translator_once_its_sources_change(
+def test_a_document_is_read_from_its_html_and_an_edit_since_is_made_again_by_tex(
     tmp_path: Path,
 ) -> None:
-    """The synthetic quilt's document, compiled with `--html` and built (plan 0.29.3): its sections, inclusions, proofs, references and equation anchors are the dialect's around TeX's content, every block it places carries its offsets, and the whole validates; an edit since the compile leaves it to the translator until the next one."""
+    """The synthetic quilt's document, compiled with `--html` and built: its sections, inclusions, proofs, references and equation anchors are the dialect's around TeX's content, every block it places carries its offsets, and the whole validates; after an edit the page stays, with the edited statement made again by TeX and the lines after it where they now stand."""
     from tests.helpers import exits, ok
 
     repo = Path(__file__).resolve().parents[3]
@@ -265,9 +294,11 @@ def test_a_document_is_read_from_its_html_while_that_is_current_and_from_the_tra
     eq = re.search(r'<a class="ref ref-eq" data-target="([^"]+)"[^>]*href="#([^"]+)"', frag)
     assert eq is not None and f'id="{eq.group(2)}"' in frag
     assert len(re.findall(r'<p data-src="drafting/[^"]+:\d+:\d+"', frag)) >= 10
-    # every picture is one the build holds: TeX4ht's beside its page, an included graphic published as the translator publishes it
+    # every picture is one the build publishes under svg/: the one TeX drew, and an included graphic
     pictures = re.findall(r'<img src="([^"]+)"', frag)
-    assert len(pictures) == 2 and all((q / ".loom/build" / s).is_file() for s in pictures), pictures
+    assert len(pictures) == 2 and all(s.startswith("svg/") and (q / ".loom/build" / s).is_file() for s in pictures), (
+        pictures
+    )
     # a block's span takes in the citation it ends with, so the citation finds its command, and through its postnote its target
     node = (q / ".loom/build/fragments/nodes/sy-000A.html").read_text(encoding="utf-8")
     assert 'data-postnote="Theorem 2.1" data-target="Kre99-thm-2.1"' in node
@@ -284,8 +315,16 @@ def test_a_document_is_read_from_its_html_while_that_is_current_and_from_the_tra
         ["python3", str(validator), str(q / ".loom/build/fragments")], capture_output=True, text=True
     )
     assert checked.returncode == 0, checked.stdout + checked.stderr
-    # an edit since the compile: the document goes back to the translator until it compiles again
+    # an edit since the compile, two lines added above the statement and its title changed: the page stays, the statement is made again
     node = q / "drafting/nodes/sy-0002.tex"
-    node.write_text(node.read_text(encoding="utf-8").replace("[Orbits]", "[Orbit classes]", 1), encoding="utf-8")
+    text = node.read_text(encoding="utf-8").replace("[Orbits]", "[Orbit classes]", 1)
+    node.write_text("% added\n% lines\n" + text, encoding="utf-8")
     exits(1, "build", cwd=q)
-    assert 'data-from="tex"' not in (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")
+    frag = (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")
+    assert 'data-from="tex"' in frag
+    lemma = (q / ".loom/build/fragments/nodes/sy-0002.html").read_text(encoding="utf-8")
+    assert '<span class="title">(Orbit classes)</span>' in lemma and "<pre" not in lemma
+    # its proof, unchanged but two lines down, is the page's, with offsets into the file as it now stands
+    shown = re.search(r'<details class="env env-proof"[^>]*data-src="drafting/nodes/sy-0002.tex:(\d+):(\d+)"', lemma)
+    now = node.read_text(encoding="utf-8")
+    assert shown is not None and now[int(shown.group(1)) :].startswith("\\begin{proof}")

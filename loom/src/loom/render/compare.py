@@ -156,7 +156,8 @@ def _cached(
     rel = f"{CACHE}/{h.hexdigest()[:32]}.html"
     path = root / BUILD / rel
     if not path.is_file():
-        write_atomic(path, _render(renderer, result, context, text, preamble, spans))
+        later = _render(renderer, result, context, text, preamble, spans)
+        renderer.previews.on_made(later, lambda html: write_atomic(path, html))
     return rel
 
 
@@ -188,7 +189,7 @@ def compare(result: ScanResult, left: str, right: str) -> dict[str, Any]:
         result=result,
         numbers={m: read_numbers(root, m) for m in result.masters},
         cite_labels={m: read_cite_labels(root, m) for m in result.masters},
-        svg_cache=root / BUILD / "cache" / "svg",
+        cache=root / BUILD / "cache",
         svg_out=root / BUILD / "svg",
     )
     renderer = FragmentRenderer(plan)
@@ -213,6 +214,7 @@ def compare(result: ScanResult, left: str, right: str) -> dict[str, Any]:
                 out["fragment"] = _cached(root, renderer, result, context, text, side.preamble, sp)
             entry[name] = out
         pairs.append(entry)
+    renderer.previews.make()
     return {
         "left": {"item": sides[0].item, "kind": sides[0].kind, "macros": sides[0].macros},
         "right": {"item": sides[1].item, "kind": sides[1].kind, "macros": sides[1].macros},

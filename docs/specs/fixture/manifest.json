@@ -53,7 +53,7 @@
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0002:0:79\">By Lemma <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" data-at=\"9\" href=\"#sy-0002\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.</p>",
+   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-a05f4bbdf79f9265f15e.tex:0:78\"> By Lemma   <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" href=\"#sy-0002\" data-at=\"9\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.\n  </p>",
    "placement": "replace",
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
@@ -121,7 +121,7 @@
    "in_reply_to": null,
    "kind": "citation",
    "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0004:0:67\">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</p>",
+   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-1db4b6410fd0643e6a93.tex:0:61\"> Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999\n  </p>",
    "placement": null,
    "quote": null,
    "recorded": true,
@@ -155,7 +155,7 @@
    "in_reply_to": null,
    "kind": "citation",
    "payload": "any standard text on group actions",
-   "payload_html": "<p data-src=\"payload/a-2026-09-16-0005:0:34\">any standard text on group actions</p>",
+   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-3ae1d1704d8e2f5bfc0c.tex:0:34\"> any standard text on group actions\n  </p>",
    "placement": null,
    "quote": null,
    "recorded": true,
@@ -399,7 +399,7 @@
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "payload_html": "<p data-src=\"payload/a-2026-09-17-0001:0:72\">the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" data-at=\"30\" href=\"#sy-0001-eq-fix\">(2)</a> in Definition <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" data-at=\"59\" href=\"#sy-0001\">1.1</a></p>",
+   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-644d3b364fdc0285142f.tex:0:72\"> the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" href=\"#sy-0001-eq-fix\" data-at=\"30\">(2)</a> in Definition   <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" href=\"#sy-0001\" data-at=\"59\">1.1</a></p>",
    "placement": "replace",
    "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
    "recorded": true,
@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "32936704f3242b499dde97558daae2db8e2362c0a53d3f95cb2b8fdc891db52a",
+   "hash": "abd8618123350f2211edf650a65b89b918f8818b4a38996293f36a0330854429",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "4a8285e9723bccb47de25057ab3407be7fe2f320f41096b1d79aedf7500f5b77",
+   "hash": "433edcc571559e1f13a75065447c665af1467cf3aa358441cb1f906175dc9425",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "610f7332b682a5a13be66a2de1aaa60d7a99cf16b0da1c381948e358cf22053a",
+   "hash": "0ecc23bdb7a3f470fbaa73fedb3a4902a60031d7b182d9470e0c0085329ac41b",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -544,7 +544,6 @@
     "loom:citekey-slug-collision",
     "loom:cites-proposed-node",
     "loom:closure-failed",
-    "loom:converter-fallback",
     "loom:dangling-ancestry",
     "loom:dependency-cycle",
     "loom:derived-id-in-person-document",
@@ -585,6 +584,7 @@
     "loom:reference-to-loose",
     "loom:retired-ledger-key",
     "loom:see-redundant",
+    "loom:snippet-failed",
     "loom:superseded-file",
     "loom:taxon-conflict",
     "loom:taxon-name-macro",
@@ -1551,81 +1551,6 @@
     }
    ],
    "message": "no master reaches drafting/nodes/sy-0009.tex",
-   "owner": "person",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    "sy-0100-ai"
-   ],
-   "locations": [
-    {
-     "file": ".loom/copies/aidoc.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in sy-0100-ai; rendered as SVG",
-   "owner": "copy",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    "sy-0100-ai"
-   ],
-   "locations": [
-    {
-     "file": ".loom/copies/aidoc.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in sy-0100-ai; rendered as SVG",
-   "owner": "copy",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    ".loom/history/0001-widgets-v1/widgets-v1.tex"
-   ],
-   "locations": [
-    {
-     "file": ".loom/history/0001-widgets-v1/widgets-v1.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in .loom/history/0001-widgets-v1/widgets-v1.tex; rendered as SVG",
-   "owner": "person",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    ".loom/history/0003-widgets-v2/widgets-v2.tex"
-   ],
-   "locations": [
-    {
-     "file": ".loom/history/0003-widgets-v2/widgets-v2.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in .loom/history/0003-widgets-v2/widgets-v2.tex; rendered as SVG",
-   "owner": "person",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    ".loom/history/0005-widgets-v3/widgets-v3.tex"
-   ],
-   "locations": [
-    {
-     "file": ".loom/history/0005-widgets-v3/widgets-v3.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in .loom/history/0005-widgets-v3/widgets-v3.tex; rendered as SVG",
    "owner": "person",
    "severity": "info"
   },
@@ -5442,12 +5367,14 @@
    "title": "Widgets, in twenty minutes"
   },
   {
+   "compiled": "2026-09-16T00:00:00Z",
    "copy_of": "drafting/main.tex",
    "default": false,
    "engine": "pdflatex",
    "fragment": "fragments/masters/.loom/copies/aidoc.html",
-   "numbering_known": false,
+   "numbering_known": true,
    "path": ".loom/copies/aidoc.tex",
+   "pdf": ".loom/copies/aidoc/aidoc.pdf",
    "scope": {
     "kind": "document"
    },
@@ -5839,7 +5766,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1.1",
+     "page": 1
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0100-ai"
    },
@@ -5938,7 +5870,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1.3",
+     "page": 1
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0100-ai"
    },
@@ -6033,7 +5970,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.1",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0200-ai"
    },
@@ -6120,7 +6062,12 @@
    "id": "sy-0004-ai",
    "incomplete": [],
    "kind": "proof",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0200-ai"
    },
@@ -6204,7 +6151,12 @@
    "id": "sy-0005-ai",
    "incomplete": [],
    "kind": "proof",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0200-ai"
    },
@@ -6293,7 +6245,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.2",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0201-ai"
    },
@@ -6386,7 +6343,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.3",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0201-ai"
    },
@@ -6486,7 +6448,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.4",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0201-ai"
    },
@@ -6609,7 +6576,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1.2",
+     "page": 1
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0100-ai"
    },
@@ -6697,7 +6669,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.2",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0300-ai"
    },
@@ -6787,7 +6764,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.5",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0300-ai"
    },
@@ -6877,7 +6859,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.6",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0300-ai"
    },
@@ -6967,7 +6954,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.8",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0300-ai"
    },
@@ -7052,7 +7044,12 @@
    "incomplete": [],
    "kind": "section",
    "level": 1,
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1",
+     "page": 1
+    }
+   },
    "parent": {},
    "proofs": [],
    "reached_by": [
@@ -7140,7 +7137,12 @@
    "incomplete": [],
    "kind": "section",
    "level": 1,
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
    "parent": {},
    "proofs": [],
    "reached_by": [
@@ -7226,7 +7228,12 @@
    "incomplete": [],
    "kind": "section",
    "level": 2,
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.1",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0200-ai"
    },
@@ -7363,7 +7370,12 @@
    "incomplete": [],
    "kind": "section",
    "level": 2,
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2.2",
+     "page": 2
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0200-ai"
    },
@@ -7522,7 +7534,12 @@
    "incomplete": [],
    "inline_proof": false,
    "kind": "environment",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1.4",
+     "page": 1
+    }
+   },
    "parent": {
     ".loom/copies/aidoc.tex": "sy-0100-ai"
    },
@@ -7792,7 +7809,11 @@
    "in": "statement",
    "key": "sy-0001-ai#eq:fix-ai",
    "label": "eq:fix-ai",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "2"
+    }
+   },
    "src": [
     1200,
     1200
@@ -7803,7 +7824,11 @@
    "in": "proof:sy-0002-ai/proof",
    "key": "sy-0002-ai/proof#eq:step-ai",
    "label": "eq:step-ai",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "3"
+    }
+   },
    "src": [
     1793,
     1793
@@ -7847,7 +7872,11 @@
    "in": "prose",
    "key": "sy-0100-ai#eq:prose-ai",
    "label": "eq:prose-ai",
-   "numbers": {},
+   "numbers": {
+    ".loom/copies/aidoc.tex": {
+     "number": "1"
+    }
+   },
    "src": [
     684,
     684

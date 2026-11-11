@@ -126,7 +126,7 @@ A browser blocks a cross-origin *response* and never the *request*, so any page 
 
 ## 5. Selection to quote
 
-**[decided]** The viewer computes the `quote` for an annotation from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses converted markup and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block annotation instead.
+**[decided]** The viewer computes the `quote` for an annotation from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses markup TeX made and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block annotation instead.
 
 
 | method | path | body | effect |

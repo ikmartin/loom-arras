@@ -15,7 +15,11 @@ from loom.render.serve import BUILD_URL, DEFAULT_PORT, ServeSession, locate_bund
 @click.command()
 @click.option("--port", default=DEFAULT_PORT, show_default=True, help="Port to listen on; fails if busy.")
 @click.option("--open", "open_browser", is_flag=True, help="Open the browser.")
-@click.option("--no-compile", is_flag=True, help="Compile nothing, neither after a change nor on starting.")
+@click.option(
+    "--no-compile",
+    is_flag=True,
+    help="Run no TeX: compile nothing, neither after a change nor on starting, and make no snippets.",
+)
 @quilt_option
 def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | None) -> None:
     """Serve the viewer for this quilt and keep it current: it republishes on every change until interrupted.

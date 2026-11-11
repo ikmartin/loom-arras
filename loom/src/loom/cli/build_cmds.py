@@ -102,7 +102,7 @@ def compile(  # noqa: A001
 ) -> None:
     """Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
-    Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which nothing reads yet: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.
+    Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which its fragments are cut from: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.
     """
     result = open_scan(quilt_path)
     root = result.quilt.root

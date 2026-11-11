@@ -278,7 +278,8 @@ async function watchTypesetting(page: Page): Promise<void> {
 	});
 }
 
-const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
+// a document shown as its source (the beamer talk, whose page lost its frames' statements) has nothing to typeset
+const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container, [data-pane="0"] .fragment pre.source') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 
 test.describe('coming back to a document', () => {
 	// leaving a document destroyed it, and coming back drew and typeset it from nothing: a second and more on a whole paper (plan 0.19.2)

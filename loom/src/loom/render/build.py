@@ -335,6 +335,7 @@ def build(
     force: bool = False,
     reuse: ScanResult | None = None,
     progress: Callable[[str, str, int, int | None], None] | None = None,
+    tex: bool = True,
 ) -> BuildReport:
     """Scan, read the records, render what changed and publish the build directory.
 
@@ -352,6 +353,8 @@ def build(
         A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone or a version kept, whose landmark is read again here.
     progress : callable, optional
         Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
+    tex : bool, default True
+        Whether TeX may run for text no compile makes (snippets, pictures); without it that text comes from the cache or shows as its source.
 
     Returns
     -------
@@ -381,19 +384,20 @@ def build(
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
     from loom.render.fromhtml import page_for
 
-    # each document's page as TeX made it, where one is current with its sources; the rest render as the translator renders them
+    # each document's page as TeX made it, where one is current with its sources; the rest show as their source
     pages = {m: page_for(result, m) for m in result.masters}
     plan = RenderPlan(
         result=result,
         numbers=numbers,
         cite_labels=cite_labels,
-        svg_cache=cache_dir / "svg",
+        cache=cache_dir,
         svg_out=build_dir / "svg",
         pages=pages,
+        tex=tex,
     )
     if force:
-        # a remembered SVG failure may have been the machine's, a package since installed; --force tries each once more
-        for failed in plan.svg_cache.glob("*.failed"):
+        # a text TeX refused may have been refused for the machine's sake, a package since installed; --force tries each once more
+        for failed in [*(cache_dir / "snippets").glob("*.failed"), *(cache_dir / "previews").glob("*.html")]:
             failed.unlink()
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
@@ -475,8 +479,10 @@ def build(
             canon_jobs.append((doc, rel, digest))
         fragments[f"canon:{doc.path}"] = rel
         canon_entries.append(canon_entry(doc, rel, digest))
-    # Rendered on a pool, assembled in order. The expensive part is waiting on LaTeX -- a diagram the converter cannot draw is compiled to SVG, twice through latex and once through dvisvgm, up to three times with different preambles -- and with sixteen real digests carrying 74 diagrams the first build of the study quilt took 454 seconds on one thread. Waiting on a subprocess releases the GIL, so threads overlap exactly that.
-    # Landmarks share the pool and are submitted first: each is one long job that compiles its own preamble's diagrams one after another, so started last it would run alone after every node had finished.
+    # What no compile makes, nodes no document reaches and digests, is made by TeX first, one batch per preamble, so the pool below only cuts fragments.
+    renderer.prepare([key for key, _kind, _rel, _digest in jobs])
+    # Rendered on a pool, assembled in order. The expensive part is waiting on TeX, a landmark's snippets or a page's diagrams, and waiting on a subprocess releases the GIL, so threads overlap exactly that.
+    # Landmarks share the pool and are submitted first: each is one long job, so started last it would run alone after every node had finished.
     from concurrent.futures import ThreadPoolExecutor
     from functools import partial
 
@@ -532,6 +538,8 @@ def build(
 
     attach_payloads(result, renderer, manifest)
     attach_changes(result, records, renderer, manifest, files)
+    # every preview asked for above, made by TeX together, one batch per preamble
+    renderer.previews.make()
     from loom.review_queue import rows_for
 
     manifest["unresolved"] = rows_for(result, manifest)

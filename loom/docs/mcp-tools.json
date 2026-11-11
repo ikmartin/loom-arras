@@ -269,12 +269,12 @@
    "read_only_hint": false
   },
   "command": "loom build",
-  "description": "Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nRendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.",
+  "description": "Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nA document is read from the HTML its compile made, and shows as its source until one has. Text no compile makes, a node no document reaches, a digest, a landmark, a comparison, is made by TeX as snippets. Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and makes again every text TeX refused before. Only errors are listed; `loom lint` lists every diagnostic.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
     "force": {
-     "description": "Render every block again, ignoring the cache and retrying remembered SVG failures.",
+     "description": "Render every block again, ignoring the cache and making again every text TeX refused.",
      "type": "boolean"
     },
     "json": {
@@ -287,6 +287,10 @@
       "type": "string"
      },
      "type": "array"
+    },
+    "no_compile": {
+     "description": "Run no TeX: text no compile makes comes from the cache, else shows as its source.",
+     "type": "boolean"
     }
    },
    "type": "object"
@@ -332,7 +336,7 @@
    "read_only_hint": false
   },
   "command": "loom compile",
-  "description": "Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which nothing reads yet: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.",
+  "description": "Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which its fragments are cut from: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {

@@ -1,14 +1,15 @@
-"""Fragments: one HTML file per node, per master, and per digest.
+"""Fragments: one HTML file per node, per master, and per digest, every one from HTML TeX made.
 
-A node fragment renders the node's own text with placeholders for child claimants; a master fragment renders the master's document with every inclusion expanded in place; a digest fragment renders the digest file as a document. All three come from one Converter with two `child_html` policies.
+A document is read from the page its compile made (`fromhtml`), and its nodes are cut from that page. Text no compile makes, a node no document reaches and a digest, is made by TeX as snippets under the preamble of the document that owns it (`snippets`), and shaped the same way. What TeX has not made, a document not yet compiled, a node its page lacks, a text TeX refused, is shown as its source (`sourceview`), never as an approximation.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import hashlib
-import html
 import json
+import os
+import posixpath
 import re
 import threading
 from bisect import bisect_right
@@ -19,88 +20,66 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from loom.paths import document_dir
-from loom.render.assets import publish_graphic
-from loom.render.convert import EQUATION_ENVS, Converter, RenderContext, esc, slug
-from loom.render.fallback import compile_svg, defer, fallback_figure
+from loom.paths import document_build
+from loom.render.assets import publish_picture
+from loom.render.mathset import EQUATION_ENVS
 from loom.scan.hashing import pair_hash
 from loom.scan.labels import plain_key
-from loom.scan.model import Diagnostic, Env, Location, Macro
+from loom.scan.model import Diagnostic, Env, Macro, SourceFile
 from loom.scan.nodes import NodeRec
+from loom.scan.preamble import PreambleClosure
 from loom.scan.scan import ScanResult
-from loom.scan.sections import starred_at
 from loom.scan.tokenize import read_args
 from loom.tex.aux import AuxNumber
 from loom.tex.bundle import _macro_block
+from loom.tex.runner import normalise_engine
 
 if TYPE_CHECKING:
-    from loom.render.fromhtml import DocumentHtml
-
-
-def _title_base(env: Env | None, node: NodeRec) -> int:
-    """Source offset of the node's title text, so inline spans in a title point into the file; the title may sit inside a brace group in the optional argument."""
-    if env is None or not env.optarg_span:
-        return node.start
-    off = env.optarg.find(node.title) if env.optarg and node.title else -1
-    return env.optarg_span[0] + (off if off >= 0 else 0)
+    from loom.render.fromhtml import DocumentHtml, Page
 
 
 @dataclass
 class RenderPlan:
     result: ScanResult
     numbers: dict[str, dict[str, AuxNumber]]  # per master
-    svg_cache: Path
-    svg_out: Path
+    cache: Path  # the build's cache directory, `.loom/build/cache`
+    svg_out: Path  # where pictures and graphics are published, `.loom/build/svg`
     cite_labels: dict[str, dict[str, str]] = field(default_factory=dict)  # per master: citekey -> printed label
     diagnostics: list[Diagnostic] = field(default_factory=list)
-    fallback_preamble: dict[str, str] = field(default_factory=dict)
     pages: dict[str, Any] = field(
         default_factory=dict
     )  # per master: its page as TeX made it, current with its sources, or None
+    tex: bool = True  # whether TeX may run for snippets and pictures; without it they come from the cache alone
 
 
-PREPARED: dict[str, str] = {}
+@dataclass
+class Owner:
+    """The document text is read in terms of: its file, the directory its names resolve in, its preamble closure, the numbers and citation labels its compile printed, its macros, its preamble as written (class included) for TeX to run under, its aux, and its engine."""
 
-#: xy, for a block that draws with it in a preamble that does not load it.
-XY = "\\usepackage[all]{xy}\n"
-XY_USED = re.compile(r"\\xymatrix|\\xy\b")
-XY_LOADED = re.compile(r"\\usepackage\s*(\[[^\]]*\])?\{[^}]*\bxy\b[^}]*\}|\\input\s*\{?xy\b")
+    key: str
+    base: str
+    closure: PreambleClosure | None
+    numbers: dict[str, AuxNumber]
+    cite_labels: dict[str, str]
+    macros: dict[str, Macro]
+    preamble: str
+    aux: Path | None = None
+    engine: str = "pdflatex"
 
 
-def prepare_preamble(text: str) -> str:
-    """A document's own preamble made safe for a standalone box: the class stripped, page-layout packages neutralised, title-matter gobbled, and what the class provided restored."""
-    text_in = text
-    if text_in not in PREPARED:
-        text = re.sub(r"\\documentclass(\[[^\]]*\])?\{[^}]*\}", "", text)
-        # page-layout packages have nothing to do in a snippet and microtype's protrusion breaks the box it is measured in
-        text = re.sub(r"\\usepackage(\[[^\]]*\])?\{(microtype|geometry|fancyhdr|titlesec|setspace|lineno)\}", "", text)
-        text = re.sub(r"^\s*%.*$", "", text, flags=re.M)
-        # \loomgobble, not \@gobble: a preamble that loads xypic with `\input xy` restores @ to a non-letter, and every fallback compile then dies on the gobbler
-        text = re.sub(
-            r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{",
-            r"\\loomgobble{",
-            text,
-        )
-        # \makeatletter for the author's own internals; standalone's preamble is not inside a package
-        # geometry and microtype may be loaded from an \input preamble; `pass` and no protrusion neutralise them in the standalone box
-        guard = (
-            "\\PassOptionsToPackage{pass}{geometry}\n"
-            "\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
-            "\\newcommand{\\loomgobble}[1]{}\n"
-        )
-        # the class is stripped, and with it what the class provided: amsart's amsmath (a preamble calling \numberwithin needs it) and the names a bibliography or a float caption uses
-        for pkg in ("amsmath", "amsthm"):
-            if not re.search(r"\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b" + pkg + r"\b[^}]*\}", text):
-                guard += f"\\usepackage{{{pkg}}}\n"
-        guard += (
-            "\\providecommand{\\bibname}{Bibliography}\n"
-            "\\providecommand{\\refname}{References}\n"
-            "\\providecommand{\\abstractname}{Abstract}\n"
-            "\\providecommand{\\figurename}{Figure}\n"
-            "\\providecommand{\\tablename}{Table}\n"
-        )
-        PREPARED[text_in] = guard + "\\makeatletter\n" + text + "\n\\makeatother\n"
-    return PREPARED[text_in]
+#: Where a document's body begins and ends.
+_BEGIN = re.compile(r"\\begin\s*\{document\}")
+_END = re.compile(r"\\end\s*\{document\}")
+_OPEN = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
+
+
+def bare_preamble(taxa: dict[str, Any]) -> str:
+    """A preamble for text no document owns: amsart, the AMS packages, and every theorem-like environment the quilt declares."""
+    lines = ["\\documentclass{amsart}", "\\usepackage{amsmath,amssymb,amsthm}"]
+    for env, t in sorted(taxa.items()):
+        if env != "proof" and re.fullmatch(r"[A-Za-z@*]+", env):
+            lines.append(f"\\newtheorem{{{env}}}{{{getattr(t, 'name', env)}}}")
+    return "\n".join(lines)
 
 
 class FragmentRenderer:
@@ -116,17 +95,22 @@ class FragmentRenderer:
         self.master_titles = {m: master_title(self.result, m) for m in self.result.masters}
         # a reference with no number prints its target's title; a title carrying TeX would print as source, so those keep the key
         self.titles = {k: n.title for k, n in self.asm.nodes.items() if n.title and not re.search(r"[\\$]", n.title)}
-        # Per thread: `loom build` renders on a pool, and a stack or a diagnostic list shared between renders made one
-        # thread's expansion of sections/results.tex look like a cycle to another thread rendering a different node.
+        # Per thread: `loom build` renders on a pool, and a diagnostic list shared between renders would mix them.
         self._local = threading.local()
         self._shaping = threading.Lock()
-        self._shaped: dict[str, DocumentHtml] = {}
+        self._shaped: dict[str, DocumentHtml | None] = {}
+        self._owners: dict[str, Owner] = {}
+        # what snippets made, by key: node fragments, a digest's document, a document's body
+        self._made: dict[str, str] = {}
+        self._made_digests: dict[str, str] = {}
+        self._made_masters: dict[str, str] = {}
+        self.previews = _Previews(self)
 
     @cached_property
     def salt(self) -> str:
         """What a rendering depends on beyond its own text and preamble: loom's version and rendering code, the numbering, and the labels, regions and titles a reference resolves against.
 
-        A cached preview is keyed on it (`review_compare._render`), so a renumbering, a label that moved or a converter change renders it again.
+        A cached preview is keyed on it (`review_compare._render`), so a renumbering, a label that moved or a change to loom renders it again.
         """
         from loom.render.keys import aux_bytes, code_hash
         from loom.version import __version__
@@ -148,17 +132,6 @@ class FragmentRenderer:
         return h.hexdigest()
 
     @property
-    def _expanding(self) -> list[str]:
-        """The files this thread's render is expanding, innermost last.
-
-        An inclusion cycle is already an error the scanner reports (`inclusion-cycle`); a file being expanded is not expanded again, so the document renders around the missing inclusion rather than recursing until Python stops it.
-        """
-        stack: list[str] | None = getattr(self._local, "expanding", None)
-        if stack is None:
-            stack = self._local.expanding = []
-        return stack
-
-    @property
     def _sink(self) -> list[Diagnostic]:
         """Where this thread's diagnostics go: the job's own list inside `collecting`, else the plan's."""
         sink: list[Diagnostic] | None = getattr(self._local, "sink", None)
@@ -174,137 +147,49 @@ class FragmentRenderer:
         finally:
             self._local.sink = None
 
-    # ---- contexts -----------------------------------------------------------
+    # ---- whose terms text is read in ----------------------------------------------
 
-    @property
-    def _master(self) -> str | None:
-        """The master this thread is rendering a document fragment for, or None while it renders a node's page."""
-        return getattr(self._local, "master", None)
-
-    def _numbers_for(self, node: NodeRec) -> dict[str, AuxNumber]:
-        """The numbers a node shows: the document's own inside a document fragment, else the default master's.
-
-        A document shows the numbers its own compile gave, and none when it has not been compiled; another document's numbers there would be plausible and wrong.
-        """
-        if (m := self._master) is not None:
-            return self.plan.numbers.get(m, {})
+    def owner_of(self, node: NodeRec) -> Owner:
+        """The document a node is read in terms of: itself for a document, the default one where it reaches the node, else the first that does, else the default one."""
         dm = self.result.default_master
-        if dm and dm in self.plan.numbers and (dm in node.reached_by or node.kind == "master"):
-            return self.plan.numbers[dm]
-        for m in node.reached_by:
-            if m in self.plan.numbers:
-                return self.plan.numbers[m]
-        return self.plan.numbers.get(dm, {}) if dm else {}
+        if node.kind == "master":
+            return self.owner(node.key)
+        if dm and dm in node.reached_by:
+            return self.owner(dm)
+        return self.owner(node.reached_by[0] if node.reached_by else dm)
 
-    def _cite_labels_for(self, node: NodeRec) -> dict[str, str]:
-        """The printed citation labels of the master whose numbers the node shows (see _numbers_for)."""
-        if (m := self._master) is not None:
-            return self.plan.cite_labels.get(m, {})
-        dm = self.result.default_master
-        if dm and dm in self.plan.cite_labels and (dm in node.reached_by or node.kind == "master"):
-            return self.plan.cite_labels[dm]
-        for m in node.reached_by:
-            if m in self.plan.cite_labels:
-                return self.plan.cite_labels[m]
-        return self.plan.cite_labels.get(dm, {}) if dm else {}
-
-    def _macros_for(self, node: NodeRec) -> dict[str, Macro]:
-        dm = self.result.default_master
-        closure = self.result.closures.get(dm) if dm else None
-        return closure.macros if closure else {}
-
-    def _fallback_preamble(self, master: str | None) -> str:
-        if master is None:
-            return ""
-        if master not in self.plan.fallback_preamble:
-            closure = self.result.closures.get(master)
-            # the master's own preamble only: it loads preamble.tex and the local .sty files itself when compiled from its own directory, and copying their text too would define every macro twice
-            first = closure.fragments[0] if closure and closure.fragments else None
-            self.plan.fallback_preamble[master] = prepare_preamble(
-                first.src.text[first.start : first.end] if first else ""
+    def owner(self, master: str | None) -> Owner:
+        """The document `master` as an `Owner`; with no document at all, the quilt's theorems under a bare preamble."""
+        key = master or ""
+        if key in self._owners:
+            return self._owners[key]
+        result = self.result
+        engine = normalise_engine(result.quilt.config.engine)
+        if not master or master not in result.files:
+            made = Owner("", "", None, {}, {}, {}, bare_preamble(result.taxa), None, engine)
+        else:
+            closure = result.closures.get(master)
+            src = result.files[master]
+            begin = _BEGIN.search(src.clean)
+            aux = result.quilt.root / document_build(master) / f"{Path(master).stem}.aux"
+            made = Owner(
+                master,
+                result.base_of(master),
+                closure,
+                self.plan.numbers.get(master, {}),
+                self.plan.cite_labels.get(master, {}),
+                dict(closure.macros) if closure else {},
+                src.text[: begin.start()] if begin else bare_preamble(result.taxa),
+                aux if aux.is_file() else None,
+                normalise_engine((closure.engine if closure else None) or result.quilt.config.engine),
             )
-        return self.plan.fallback_preamble[master]
+        self._owners[key] = made
+        return made
 
-    def _fallback_for_preamble(self, preamble_text: str, key: str, base: str = "") -> Callable[[str, str, str], str]:
-        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble, its local files read in `base`."""
-        preamble = prepare_preamble(preamble_text)
-        here = self.result.quilt.root / base
-
-        def render(latex: str, css: str, data_src: str) -> str:
-            sink = self._sink  # this thread's, read before the compile moves to the figure pool
-
-            def figure() -> str:
-                res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=here, scope=base)
-                if res.svg is None:
-                    sink.append(
-                        Diagnostic(
-                            "warning", "loom:converter-fallback", f"SVG fallback failed in {key}: {res.error}", []
-                        )
-                    )
-                return fallback_figure(latex, res, css, data_src)
-
-            return defer(figure)
-
-        return render
-
-    def _fallback(
-        self, master: str | None, file: str | None = None, key: str | None = None
-    ) -> Callable[[str, str, str], str]:
-        master = master or self.result.default_master  # a loose node (a digest's) borrows the default master's preamble
-        preamble = self._fallback_preamble(master)
-        block = ""
-        extra = ""
-        if file is not None and file in self.result.assembly.digest_files:
-            # a digest statement compiles inside its macro block, with the packages its header requires that the preamble lacks
-            from loom.scan.digests import loaded_packages, required_packages
-
-            closure = self.result.closures.get(master) if master else None
-            loaded = loaded_packages(closure) if closure else set()
-            extra = "".join(
-                f"\\usepackage{{{pkg}}}\n" for pkg in required_packages(self.result.assembly, file) if pkg not in loaded
-            )
-            block = "\n" + _macro_block(self.result, file) + "\n"
-        attempts = [preamble + extra + block] if extra else [preamble + block]
-        if extra:
-            attempts.append(
-                preamble + block
-            )  # a required package that clashes with the preamble is dropped before giving up
-        attempts.append("\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n" + block)
-
-        def render(latex: str, css: str, data_src: str) -> str:
-            sink = self._sink  # this thread's, read before the compile moves to the figure pool
-
-            def figure() -> str:
-                base = self.result.base_of(master) if master else ""
-                here = self.result.quilt.root / base
-                # a cited paper's xy diagram in a quilt whose preamble does not load xy compiles at the first attempt rather than failing at every one
-                tries = [XY + pre if XY_USED.search(latex) and not XY_LOADED.search(pre) else pre for pre in attempts]
-                res = compile_svg(latex, tries[0], self.plan.svg_cache, texinputs=here, scope=base)
-                errors = [res.error] if res.svg is None and res.error else []
-                for i, pre in enumerate(tries[1:], start=1):
-                    if res.svg is not None:
-                        break
-                    if i < len(tries) - 1 and "already defined" in (res.error or ""):
-                        continue  # dropping the added packages keeps the clash; only the minimal preamble avoids it
-                    res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=here, scope=base)
-                    if res.svg is None and res.error:
-                        errors.append(res.error)
-                if res.svg is None:
-                    res.error = " || ".join(f"attempt {i + 1}: {e}" for i, e in enumerate(errors))
-                    sink.append(
-                        Diagnostic(
-                            "warning",
-                            "loom:converter-fallback",
-                            f"SVG fallback failed in {key or file or '?'}: {res.error}",
-                            [],
-                            [key] if key else [],
-                        )
-                    )
-                return fallback_figure(latex, res, css, data_src)
-
-            return defer(figure)
-
-        return render
+    def envs(self, owner: Owner) -> list[str]:
+        """The environments a run stamps as nodes: the owner's theorem-like ones, else the quilt's, and proofs."""
+        taxa = owner.closure.taxa if owner.closure else self.result.taxa
+        return [*taxa, "proof"]
 
     def _cite_target(self, citekey: str, postnote: str | None) -> str | None:
         for e in self.result.edges.edges:
@@ -312,125 +197,13 @@ class FragmentRenderer:
                 return e.to
         return None
 
-    def _context(self, node: NodeRec, mode: str) -> RenderContext:
-        src = self.result.files[node.file]
-        child_at = {}
-        for ck in node.claimants:
-            c = self.asm.nodes[ck]
-            child_at[c.start] = (c.end, ck)
-        master = self.result.default_master if node.kind != "master" else node.key
-        if node.kind != "master" and node.reached_by and self.result.default_master not in node.reached_by:
-            master = node.reached_by[0]
-        ctx = RenderContext(
-            file=node.file,
-            text=src.text,
-            clean=src.clean,
-            key=node.key,
-            labels=self.asm.labels,
-            regions={k: r.container for k, r in self.asm.regions.items()},
-            equations=self.equations,
-            numbers=self._numbers_for(node),
-            cite_labels=self._cite_labels_for(node),
-            titles=self.titles,
-            macros=self._macros_for(node),
-            taxa=self.result.taxa,
-            child_at=child_at,
-            child_html=(lambda key: self._placeholder(key))
-            if mode == "node"
-            else (lambda key: self.render_node_html(key, "master")),
-            include_html=lambda arg: self._include_html(arg, node, mode),
-            fallback=self._fallback(master, node.file, node.key),
-            cite_target=self._cite_target,
-        )
-        return ctx
-
-    def _placeholder(self, key: str) -> str:
-        return f'<div class="include" data-key="{html.escape(key, quote=True)}"></div>'
-
-    def _node_base(self, node: NodeRec) -> str:
-        """The directory a node's names resolve against: the base of the first document that reaches it, else its own file's."""
-        return self.result.base_of(node.reached_by[0]) if node.reached_by else document_dir(node.file)
-
-    def _include_html(self, arg: str, node: NodeRec, mode: str) -> str:
-        root = self.result.quilt.root
-        base = self._node_base(node)
-        if arg.startswith("graphics:"):
-            rel, err = publish_graphic(root, arg[len("graphics:") :], self.plan.svg_out, base)
-            if rel is None:
-                self._sink.append(
-                    Diagnostic(
-                        "warning",
-                        "loom:converter-fallback",
-                        err or "graphic missing",
-                        [Location(node.file, 0)],
-                        [node.key],
-                    )
-                )
-                return f'<figure class="fallback failed" data-src="{node.file}:0:0" data-src-text="{html.escape(arg, quote=True)}"><pre>{esc(arg)}</pre></figure>'
-            return f'<figure data-src="{node.file}:0:0"><img src="{rel}"></figure>'
-        from loom.scan.expand import resolve_inclusion
-
-        rel, _ = resolve_inclusion(root, arg, base=base)
-        if rel is None or rel not in self.asm.nodes:
-            return ""
-        if rel in self._expanding:
-            # Named rather than dropped: a reader looking at the gap should be able to see what closed it, and the
-            # scanner's `inclusion-cycle` error says the same thing about the same file.
-            return (
-                f'<div class="include" data-key="{html.escape(rel, quote=True)}" '
-                f'data-cycle="{html.escape(" -> ".join([*self._expanding, rel]), quote=True)}"></div>'
-            )
-        container = self.asm.nodes[rel]
-        if mode == "node":
-            keys = [k for k in container.claimants if self.asm.nodes[k].kind in ("environment", "section")] or [rel]
-            return "".join(self._placeholder(k) for k in keys)
-        self._expanding.append(rel)
-        try:
-            inner = self.render_container_body(container, "master")
-        finally:
-            self._expanding.pop()
-        return f'<div class="included" data-key="{html.escape(rel, quote=True)}" data-file="{html.escape(rel, quote=True)}" data-src="{rel}:0:{len(self.result.files[rel].text)}">{inner}</div>'
-
-    # ---- rendering nodes ------------------------------------------------------
-
-    def render_node_html(self, key: str, mode: str) -> str:
-        """A node's HTML. In node mode a statement carries all its proofs; in master mode proofs are rendered where they sit, as claimants of the surrounding text."""
-        node = self.asm.nodes[key]
-        if node.kind == "environment":
-            out = self._environment_html(node, mode)
-            if mode == "node":
-                out += "".join(self._proof_html(self.asm.nodes[pk], mode) for pk in node.proofs)
-            return out
-        if node.kind == "proof":
-            return self._proof_html(node, mode)
-        if node.kind == "section":
-            return self._section_html(node, mode)
-        return self.render_container_body(node, mode)
-
-    def _env_of(self, node: NodeRec) -> Env | None:
-        return self.env_at.get((node.file, node.start))
-
-    def _label_html(self, node: NodeRec, ctx: RenderContext) -> str:
-        num = None
-        for lab in [node.id, *node.labels]:
-            if lab and lab in ctx.numbers:
-                num = ctx.numbers[lab].number
-                break
-        parts = [f'<span class="taxon">{esc(node.taxon or "")}</span>']
-        if num:
-            parts.append(f' <span class="number">{esc(num)}</span>')
-        if node.title:
-            conv = Converter(ctx)
-            env = self._env_of(node)
-            base = _title_base(env, node)
-            parts.append(f' <span class="title">({conv.inline_text(node.title, base)})</span>')
-        return "".join(parts)
-
     def _pair_attrs(self, node: NodeRec) -> list[str]:
         """`data-pair` and `data-hash`, what compare pairs a node by; none for a node whose key names no id.
 
         The pair is the key with its derived id made plain; the hash is `pair_hash` over the node's own text, the text the history versions.
         """
+        import html
+
         from loom.render.manifest import own_text
 
         head = self.result.nodes.get(node.key.split("/", 1)[0])
@@ -441,132 +214,364 @@ class FragmentRenderer:
             f'data-hash="{pair_hash(own_text(self.result, node))}"',
         ]
 
-    def _environment_html(self, node: NodeRec, mode: str) -> str:
-        ctx = self._context(node, mode)
-        env = self._env_of(node)
-        conv = Converter(ctx)
-        body = conv.render_range(env.body_start, env.body_end) if env else ""
-        self._sink.extend(ctx.diagnostics)
-        attrs = [f'class="env env-{slug(node.taxon or node.env or "env")}"']
-        attrs.append(f'id="{slug(node.key)}"')  # a real anchor target: without it no link into a document can land
-        if node.id:
-            attrs.append(f'data-id="{html.escape(node.id, quote=True)}"')
-        attrs.append(f'data-key="{html.escape(node.key, quote=True)}"')
-        attrs.append(f'data-taxon="{html.escape(node.taxon or "", quote=True)}"')
-        attrs.append(f'data-style="{html.escape(node.style or "plain", quote=True)}"')
-        attrs.append(f'data-src="{ctx.src(node.start, node.end)}"')
-        attrs.extend(self._pair_attrs(node))
-        if node.digest:
-            attrs.append(f'data-macros="{html.escape(node.digest, quote=True)}"')
-        label = self._label_html(node, ctx)
-        return f'<div {" ".join(attrs)}><p class="env-label">{label}</p>{body}</div>'
+    # ---- TeX for text no compile makes ---------------------------------------------
 
-    def _proof_html(self, node: NodeRec, mode: str) -> str:
-        ctx = self._context(node, mode)
-        env = self._env_of(node)
-        conv = Converter(ctx)
-        body = conv.render_range(env.body_start, env.body_end) if env else ""
-        self._sink.extend(ctx.diagnostics)
-        head = conv.inline_text(node.title, _title_base(env, node)) if node.title else "Proof"
-        attrs = ['class="env env-proof"', f'id="{slug(node.key)}"', f'data-key="{html.escape(node.key, quote=True)}"']
-        if node.id:
-            attrs.insert(1, f'data-id="{html.escape(node.id, quote=True)}"')
-        if node.of:
-            attrs.append(f'data-of="{html.escape(node.of, quote=True)}"')
-        attrs.append(f'data-src="{ctx.src(node.start, node.end)}"')
-        attrs.extend(self._pair_attrs(node))
-        return f'<details {" ".join(attrs)} open><summary class="env-label">{head}</summary>{body}</details>'
+    def pictures(self, owner: Owner, displays: list[str]) -> list[str | None]:
+        """Each display TeX draws as a picture under `owner`'s preamble, published under `svg/`: its path, or None where TeX drew none."""
+        from loom.render.snippets import render_snippets
 
-    def _section_html(self, node: NodeRec, mode: str) -> str:
-        ctx = self._context(node, mode)
-        src = self.result.files[node.file]
-        m = re.match(
-            r"\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\s*", src.clean[node.start :]
+        cache = self.plan.cache / "snippets"
+        made = render_snippets(
+            self.result.quilt.root,
+            owner.base,
+            owner.preamble,
+            displays,
+            cache,
+            engine=owner.engine,
+            math="svg",
+            tex=self.plan.tex,
         )
-        after = node.start + (m.end() if m else 0)
-        (short, title), spans, heading_end = read_args(src.clean, after, "om")
-        conv = Converter(ctx)
-        title_html = conv.inline_text(title or "", spans[1][0]) if title else ""
-        num = None
-        for lab in [] if starred_at(src.clean, node.start) else [node.id, *node.labels]:
-            if lab and lab in ctx.numbers:
-                num = ctx.numbers[lab].number
-                break
-        level = node.level if node.level is not None else 1
-        h = min(max(level, 1), 6)
-        number_html = f'<span class="number">{esc(num)}</span> ' if num else ""
-        body = conv.render_range(heading_end, node.end)
-        self._sink.extend(ctx.diagnostics)
-        ident = (
-            f'data-id="{html.escape(node.id, quote=True)}"'
-            if node.id
-            else f'data-key="{html.escape(node.key, quote=True)}"'
-        )
-        return f'<section id="{slug(node.key)}" {ident} data-level="{level}" data-src="{ctx.src(node.start, node.end)}"><h{h} data-src="{ctx.src(node.start, heading_end)}">{number_html}{title_html}</h{h}>{body}</section>'
+        out: list[str | None] = []
+        for display, s in zip(displays, made.made, strict=True):
+            m = re.search(r'<img src="([^"]+)"', s.html or "")
+            picture = cache / m.group(1) if m else None
+            if picture is not None and picture.is_file():
+                out.append(publish_picture(picture, self.plan.svg_out))
+                continue
+            self._refused(owner.key, display, s.error, s.cached)
+            out.append(None)
+        return out
 
-    def render_container_body(self, node: NodeRec, mode: str) -> str:
-        """The prose of a master or file container with its claimants; for masters, the document body only."""
-        ctx = self._context(node, mode)
-        src = self.result.files[node.file]
-        start = node.body_start
-        end_m = re.search(r"\\end\s*\{document\}", src.clean)
-        end = end_m.start() if end_m else len(src.clean)
-        if node.kind == "master":
-            bm = re.search(r"\\begin\s*\{document\}", src.clean)
-            start = bm.end() if bm else 0
-        conv = Converter(ctx)
-        body = conv.render_range(start, end)
-        self._sink.extend(ctx.diagnostics)
-        return body
+    def _refused(self, where: str, text: str, error: str, cached: bool) -> None:
+        """A warning for a text TeX refused, once, where the build made it: a machine that runs no TeX refuses nothing."""
+        if cached or not error or error.startswith(("TeX is not run", "make4ht is not", "TeX4ht made no page")):
+            return
+        first = " ".join(text.split())[:60]
+        self._sink.append(
+            Diagnostic(
+                "warning", "loom:snippet-failed", f"TeX could not make {first!r} in {where or 'the quilt'}: {error}", []
+            )
+        )
+
+    def snippet_page(
+        self,
+        owner: Owner,
+        regions: list[tuple[str, int, int]],
+        only: list[str],
+        *,
+        preamble: str | None = None,
+        files: dict[str, SourceFile] | None = None,
+        pairs: dict[str, str] | None = None,
+        labels: dict[str, str] | None = None,
+    ) -> DocumentHtml:
+        """`regions` of `files` (the scan's by default), each `(file, start, end)`, made by TeX in one batch under `owner`'s preamble (or `preamble`) and shaped as a page is; a region TeX refused stands as its source.
+
+        `only` names the nodes the regions hold, in order: a node region TeX refused is shown as that node's source, so the node still has its fragment.
+        """
+        from loom.render.fromhtml import DocumentHtml, Page
+        from loom.render.snippets import render_snippets
+        from loom.render.sourceview import source_block, source_env
+
+        files = files if files is not None else dict(self.result.files)
+        cache = self.plan.cache / "snippets"
+        texts = [files[f].text[a:b] for f, a, b in regions]
+        made = render_snippets(
+            self.result.quilt.root,
+            owner.base,
+            preamble if preamble is not None else owner.preamble,
+            texts,
+            cache,
+            envs=self.envs(owner),
+            engine=owner.engine,
+            aux=owner.aux,
+            tex=self.plan.tex,
+        )
+        envs = set(self.envs(owner))
+        pieces: list[str] = []
+        for (f, a, b), text, s in zip(regions, texts, made.made, strict=True):
+            line = files[f].text.count("\n", 0, a) + 1
+            named = posixpath.relpath(f, owner.base or ".")
+            if s.html is None:
+                self._refused(f, text, s.error, s.cached)
+                pieces.append(source_env(files[f], a, b, named, line, envs) or source_block(f, a, b, files[f].text))
+                continue
+            pieces.append(_lines_in(s.html, named, line))
+        page = Page("\n".join(pieces), {}, "", where=cache, normalised=True)
+        return DocumentHtml(self, owner, page, only=only, files=files, pairs=pairs, labels=labels)
+
+    def prepare(self, keys: list[str] | None = None) -> None:
+        """Make by TeX, before fragments are cut, what no compile makes among `keys` (default all): the nodes no document reaches, each in one batch under the default document's preamble, and each digest under its own.
+
+        Done once per build, ahead of the fragments that read it, so each preamble is paid for once rather than once per node.
+        """
+        result = self.result
+        wanted = set(keys) if keys is not None else None
+        digests = result.assembly.digest_files
+        loose = [
+            k
+            for k, n in result.nodes.items()
+            if n.kind in ("environment", "proof", "section")
+            and not n.reached_by
+            and n.file in result.files
+            and n.file not in digests
+            and (wanted is None or k in wanted)
+        ]
+        if loose:
+            owner = self.owner(result.default_master)
+            loose.sort(key=lambda k: (result.nodes[k].file, result.nodes[k].start))
+            regions = _outermost([(result.nodes[k].file, result.nodes[k].start, result.nodes[k].end) for k in loose])
+            doc = self.snippet_page(owner, regions, _within(result, regions))
+            self._made.update({k: _from_tex(_stamp_first(v, "node")) for k, v in doc.nodes.items()})
+        todo = []
+        for file in sorted(digests):
+            held = [k for k, n in result.nodes.items() if n.file == file and n.kind != "file"]
+            if wanted is None or file in wanted or set(held) & wanted:
+                todo.append(file)
+        # each digest is its own preamble, so its own run: a few at once, as a long list of texts runs a few at once
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+            list(pool.map(self._prepare_digest, todo))
+
+    def _prepare_digest(self, file: str) -> None:
+        """A digest as a document: its body after the macro block, cut into texts at its statements, made under the default document's preamble with the packages its header requires and its macro block."""
+        from loom.scan.digests import loaded_packages, required_packages
+
+        result = self.result
+        src = result.files[file]
+        end_block = re.search(r"^\s*%\s*!LOOM\s+end\s+macros\s*$", src.text, re.M)
+        start = end_block.end() if end_block else 0
+        owner = self.owner(result.default_master)
+        loaded = loaded_packages(owner.closure) if owner.closure else set()
+        extra = "".join(f"\\usepackage{{{p}}}\n" for p in required_packages(result.assembly, file) if p not in loaded)
+        preamble = owner.preamble.rstrip("\n") + "\n" + extra + _macro_block(result, file) + "\n"
+        nodes = sorted(
+            (k for k, n in result.nodes.items() if n.file == file and n.kind in ("environment", "proof", "section")),
+            key=lambda k: result.nodes[k].start,
+        )
+        regions = body_regions(result, file, start, len(src.text))
+        # its own preamble for its diagrams too, which draw with its macros
+        doc = self.snippet_page(dataclasses.replace(owner, preamble=preamble), regions, nodes)
+        self._made.update({k: _from_tex(_stamp_first(v, "node")) for k, v in doc.nodes.items()})
+        self._made_digests[file] = doc.master_html()
+
+    def prepare_document(self, master: str) -> None:
+        """A document no compile has made, made by TeX as snippets of its body: a section draft, read in its saved context."""
+        result = self.result
+        src = result.files[master]
+        begin, end = _BEGIN.search(src.clean), _END.search(src.clean)
+        regions = body_regions(result, master, begin.end() if begin else 0, end.start() if end else len(src.text))
+        nodes = sorted(
+            (
+                k
+                for k, n in result.nodes.items()
+                if master in n.reached_by and n.kind in ("environment", "proof", "section")
+            ),
+            key=lambda k: (result.nodes[k].file != master, result.nodes[k].file, result.nodes[k].start),
+        )
+        doc = self.snippet_page(self.owner(master), regions, nodes)
+        self._made_masters[master] = doc.master_html()
+        self._made.update({k: _from_tex(_stamp_first(v, "node")) for k, v in doc.nodes.items()})
 
     # ---- fragments -----------------------------------------------------------
 
     def _document_html(self, master: str) -> DocumentHtml | None:
-        """`master`'s page in the dialect's shape, made once per build and shared by its nodes; None without a current page."""
+        """`master`'s page in the dialect's shape, made once per build and shared by its nodes; None without a page, or with one that lost a node.
+
+        A page on which a statement or proof the document holds was neither stamped nor found by its words (beamer's frames, which TeX4ht sets as bare text) cannot say where that node is, so the document shows as its source, every node with its identity, rather than as a page that has lost some.
+        """
         from loom.render.fromhtml import DocumentHtml
 
-        page = self.plan.pages.get(master)
+        page: Page | None = self.plan.pages.get(master)
         if page is None:
             return None
         with self._shaping:
             if master not in self._shaped:
-                self._shaped[master] = DocumentHtml(self, master, page)
-            doc = self._shaped[master]
-            return doc if doc.complete else None
+                doc = DocumentHtml(self, self.owner(master), page)
+                self._shaped[master] = doc if doc.complete else None
+            return self._shaped[master]
 
     def node_fragment(self, key: str) -> str:
-        """A node's fragment: cut from the page TeX made of the default document, else of the first that reaches it, else the translator's."""
+        """A node's fragment: cut from the page of the default document, else of the first that reaches it; else made as a snippet; else its source."""
+        from loom.render.sourceview import source_node
+
         n = self.asm.nodes[key]
         for m in sorted(n.reached_by, key=lambda m: m != self.result.default_master):
             doc = self._document_html(m)
             if doc is not None and key in doc.nodes:
                 return _from_tex(_stamp_first(doc.nodes[key], "node"))
-        html_out = self.render_node_html(key, "node")
-        return _stamp_first(html_out, "node")
+        if key in self._made:
+            return self._made[key]
+        return _stamp_first(source_node(self, key), "node")
 
     def master_fragment(self, master: str) -> str:
-        node = self.asm.nodes[master]
+        """A document's fragment: its page, else the body snippets made of it, else its source."""
+        from loom.render.markup import esc
+        from loom.render.sourceview import source_body
+
         title = self.master_titles.get(master) or master
         head = f'<h1 data-src="{master}:0:0">{esc(title)}</h1>'
         doc = self._document_html(master)
         if doc is not None:
-            cls = _DOCUMENTCLASS.search(doc.result.files[master].clean) if master in doc.result.files else None
+            cls = _DOCUMENTCLASS.search(self.result.files[master].clean) if master in self.result.files else None
             if cls is not None:
                 head = head.replace("<h1 ", f'<h1 data-documentclass="{esc(cls.group(1).strip())}" ', 1)
             return _from_tex(_stamp_first(head + doc.master_html(), "master"))
-        self._local.master = master
-        try:
-            return _stamp_first(head + self.render_container_body(node, "master"), "master")
-        finally:
-            self._local.master = None
+        if master in self._made_masters:
+            return _from_tex(_stamp_first(head + self._made_masters[master], "master"))
+        src = self.result.files[master]
+        begin, end = _BEGIN.search(src.clean), _END.search(src.clean)
+        body = source_body(
+            self, master, begin.end() if begin else 0, end.start() if end else len(src.text), owner=self.owner(master)
+        )
+        return _stamp_first(head + body, "master")
 
     def digest_fragment(self, file: str) -> str:
-        """The digest file as a document, starting after its macro block: the block is loaded around every statement, never shown as text."""
-        node = self.asm.nodes[file]
-        m = re.search(r"^\s*%\s*!LOOM\s+end\s+macros\s*$", self.result.files[file].text, re.M)
-        if m and m.end() > node.body_start:
-            node = dataclasses.replace(node, body_start=m.end())
-        return _stamp_first(self.render_container_body(node, "master"), "digest")
+        """The digest file as a document, after its macro block, which is loaded around every statement and never shown: made by TeX, else its source."""
+        from loom.render.sourceview import source_body
+
+        if file not in self._made_digests:
+            self._prepare_digest(file)
+        made = self._made_digests.get(file)
+        if made is not None:
+            return _from_tex(_stamp_first(made, "digest"))
+        text = self.result.files[file].text
+        m = re.search(r"^\s*%\s*!LOOM\s+end\s+macros\s*$", text, re.M)
+        return _stamp_first(source_body(self, file, m.end() if m else 0, len(text)), "digest")
+
+
+def body_regions(result: ScanResult, file: str, start: int, end: int) -> list[tuple[str, int, int]]:
+    """`file[start:end]` cut into texts at each statement and proof standing at its top level, outside every environment: the statement, the proof, and the prose between, blank prose left out.
+
+    A statement inside a list or another environment stays in its prose, which TeX must read whole.
+    """
+    clean = result.files[file].clean
+    claims = sorted(
+        (n.start, n.end)
+        for n in result.nodes.values()
+        if n.file == file and n.kind in ("environment", "proof") and start <= n.start and n.end <= end
+    )
+    out: list[tuple[str, int, int]] = []
+    pos = start
+    for a, b in claims:
+        if a < pos or _depth(clean, start, a) != 0:
+            continue
+        if clean[pos:a].strip():
+            out.append((file, pos, a))
+        out.append((file, a, b))
+        pos = b
+    if clean[pos:end].strip():
+        out.append((file, pos, end))
+    return out
+
+
+def _depth(clean: str, start: int, at: int) -> int:
+    """How many environments other than `document` stand open at `at`, counted from `start`."""
+    depth = 0
+    for m in _OPEN.finditer(clean, start, at):
+        if m.group(2).strip() == "document":
+            continue
+        depth += 1 if m.group(1) == "begin" else -1
+    return max(depth, 0)
+
+
+def _outermost(regions: list[tuple[str, int, int]]) -> list[tuple[str, int, int]]:
+    """The regions no other region holds, in order."""
+    out: list[tuple[str, int, int]] = []
+    for f, a, b in sorted(regions, key=lambda r: (r[0], r[1], -r[2])):
+        if out and out[-1][0] == f and a >= out[-1][1] and b <= out[-1][2]:
+            continue
+        out.append((f, a, b))
+    return out
+
+
+def _within(result: ScanResult, regions: list[tuple[str, int, int]]) -> list[str]:
+    """Every node inside `regions`, in their order."""
+    out: list[tuple[int, int, str]] = []
+    for i, (f, a, b) in enumerate(regions):
+        for k, n in result.nodes.items():
+            if n.file == f and n.kind in ("environment", "proof", "section") and a <= n.start and n.end <= b:
+                out.append((i, n.start, k))
+    return [k for _, _, k in sorted(out)]
+
+
+_NODE_LINE = re.compile(r'data-file="" data-line="(\d+)"')
+
+
+def _lines_in(html: str, file: str, first: int) -> str:
+    """A text's HTML, whose lines count from its own first line and whose file TeX named '', as the lines of `file` from line `first`."""
+    named = html.replace('data-at=":', f'data-at="{file}:')
+    named = re.sub(
+        rf'(data-at="{re.escape(file)}:)(\d+)(")',
+        lambda m: f"{m.group(1)}{int(m.group(2)) + first - 1}{m.group(3)}",
+        named,
+    )
+    return _NODE_LINE.sub(lambda m: f'data-file="{file}" data-line="{int(m.group(1)) + first - 1}"', named)
+
+
+class _Previews:
+    """Texts made as snippets for a preview, asked for during a build and made together at `make`, one batch per preamble."""
+
+    def __init__(self, renderer: FragmentRenderer) -> None:
+        self.r = renderer
+        self.asked: list[Later] = []
+        self._lock = threading.Lock()
+
+    def ask(self, key: str, text: str, preamble: str | None, spans: list[list[int]]) -> Later:
+        """A preview of `text` drawn as `key`, read under `preamble` (None: the document's own), its `spans` marked as changed; made at `make`."""
+        later = Later(key, text, preamble, spans)
+        with self._lock:
+            self.asked.append(later)
+        return later
+
+    def on_made(self, later: Later, then: Callable[[str], None]) -> None:
+        """Hand `later`'s markup to `then` once it is made."""
+        later.then.append(then)
+
+    def make(self) -> None:
+        """Make every preview asked for and not yet made, and hand each to what waits on it."""
+        from loom.render.changes import preview_html
+
+        with self._lock:
+            pending = [p for p in self.asked if p.html is None]
+            self.asked = []
+        groups: dict[tuple[str, str], list[Later]] = {}
+        for p in pending:
+            owner = _preview_owner(self.r, p)
+            groups.setdefault((owner.key, owner.preamble if p.preamble is None else p.preamble), []).append(p)
+        for group in groups.values():
+            for p, made in zip(group, preview_html(self.r, group), strict=True):
+                p.html = made
+                for then in p.then:
+                    then(made)
+
+
+@dataclass
+class Later:
+    """A preview asked for: the key it is drawn as, its text, the preamble it is read under (a document's closure as recorded), the spans of it that changed; `html` once made."""
+
+    key: str
+    text: str
+    preamble: str | None
+    spans: list[list[int]]
+    html: str | None = None
+    then: list[Callable[[str], None]] = field(default_factory=list)
+
+
+def _preview_owner(r: FragmentRenderer, p: Later) -> Owner:
+    """The document a preview is read in: its key's own where its closure is the preamble, else another whose closure is, else its key's with the preamble as given.
+
+    The key's own comes first: an agent's copy shares its document's closure and was likely never compiled, so its aux would print no numbers.
+    """
+    result = r.result
+    node = result.nodes.get(result.dependencies.owners.get(p.key, p.key))
+    own = r.owner_of(node) if node is not None else r.owner(result.default_master)
+    for master in [own.key, *result.masters]:
+        closure = result.closures.get(master)
+        if closure is not None and closure.raw_text() == p.preamble:
+            p.preamble = None  # the document's own, which loads its local files itself
+            return r.owner(master)
+    return own
 
 
 def _equation_regions(result: ScanResult) -> set[str]:
@@ -600,8 +605,8 @@ _DOCUMENTCLASS = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
 
 
 def _from_tex(fragment: str) -> str:
-    """Mark a fragment made from the page TeX made: its blocks carry `data-src` where loom placed them, and only there."""
-    return re.sub(r"^(\s*<\w+)", r'\1 data-from="tex"', fragment, count=1)
+    """Mark a fragment made from HTML TeX made, on its first element: its blocks carry `data-src` where loom placed them, and only there."""
+    return re.sub(r"(<\w+)", r'\1 data-from="tex"', fragment, count=1)
 
 
 def _stamp_first(fragment: str, kind: str) -> str:

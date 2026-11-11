@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from functools import partial
 from typing import Any
 
 from loom.cli.review import _acceptance_master, _owned
@@ -65,7 +66,7 @@ def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str]
                 result=r,
                 numbers={m: read_numbers(root, m) for m in r.masters},
                 cite_labels={m: read_cite_labels(root, m) for m in r.masters},
-                svg_cache=root / BUILD / "cache" / "svg",
+                cache=root / BUILD / "cache",
                 svg_out=root / BUILD / "svg",
             )
         )
@@ -88,7 +89,8 @@ def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str]
             master = _acceptance_master(result, key)
             pre = result.closures[master].raw_text() if master in result.closures else ""
             path = f"incorporation-review/{token}-{len(items)}-{i}.html"
-            write_atomic(root / BUILD / path, _render(renderers[i], result, key, text, pre, spans[i]))
+            later = _render(renderers[i], result, key, text, pre, spans[i])
+            renderers[i].previews.on_made(later, partial(write_atomic, root / BUILD / path))
             sides.append({"path": path, "macros": to_mathjax(parse_macros(blank_comments(pre)))})
         dependencies = sorted(
             d
@@ -117,6 +119,8 @@ def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str]
                 "unavailable": _refusal(after, key),
             }
         )
+    for renderer in renderers:
+        renderer.previews.make()
     return {"token": token, "reviewer": reviewer, "items": items}
 
 

@@ -1,33 +1,39 @@
-"""A document's fragments from the HTML TeX made of it (plan 0.29.3): TeX decides what the document says, loom where each part came from and what it is.
+"""Fragments from the HTML TeX made (plan 0.29): TeX decides what the text says, loom where each part came from and what it is.
 
-`page_for` finds a document's page when it was made from the sources as they stand; until a compile lands, a document has none and the translator renders it. `DocumentHtml` gives the page the dialect's shape once per build. Each node TeX4ht stamped becomes the statement or proof the scan knows, wrapped as the dialect wraps it around TeX's own content; each heading whose words are a section's title opens that section; each reference names its target and each citation its key; each display is the source's, set as the translator sets one, numbered from the PDF's aux; and each block TeX read carries `data-src` where `tex.align` places its words. A node's own fragment is cut from its document's.
+`page_for` finds a document's page when it was made from the sources as they stand. `DocumentHtml` gives a page the dialect's shape once per build, and gives the same shape to texts made as snippets, whose lines name the files they stand in. Each node TeX4ht stamped becomes the statement or proof the scan knows, wrapped as the dialect wraps it around TeX's own content, its title the one TeX printed; each heading whose words are a section's title opens that section; each reference names its target and each citation its key; each display is the source's, set by `mathset` and numbered from the aux, and a diagram is a picture TeX draws; and each block TeX read carries `data-src` where `tex.align` places its words. A node's own fragment is cut from what holds it.
 """
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import html
 import json
 import posixpath
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loom.paths import document_build
-from loom.render.assets import publish_graphic
-from loom.render.convert import Converter, RenderContext, slug
+from loom.render.assets import publish_graphic, publish_picture
+from loom.render.markup import slug
+from loom.render.mathset import math_text, set_display
 from loom.render.normalise import normalise
+from loom.scan.envtree import norm_label
+from loom.scan.labels import plain_key
+from loom.scan.model import Macro, SourceFile
 from loom.scan.nodes import NodeRec
 from loom.scan.sections import starred_at
 from loom.scan.tokenize import read_args
 from loom.tex.align import Source, rendered_words, source_words
-from loom.tex.tex4ht import REPAIRED, SOURCE_SUFFIXES, SOURCES, definitions
+from loom.tex.aux import AuxNumber
+from loom.tex.tex4ht import REPAIRED, SOURCE_SUFFIXES, SOURCES, TEXTS, definitions
 
 if TYPE_CHECKING:
-    from loom.render.fragments import FragmentRenderer
+    from loom.render.fragments import FragmentRenderer, Owner
     from loom.scan.scan import ScanResult
 
 VOID = frozenset({"br", "hr", "img"})
@@ -38,15 +44,22 @@ _DISPLAY = re.compile(r"\\begin\s*\{([A-Za-z]+\*?)\}|\\\[")
 
 @dataclass
 class Page:
-    """A document's page as TeX4ht made it, current with its sources: the HTML, the displays it holds as placeholders, and a digest for the fragment cache."""
+    """HTML TeX4ht made: a document's page, or texts made as snippets; the displays it holds as placeholders, a digest for the fragment cache, the directory its pictures are named in, and whether it is normalised already, as snippets are.
+
+    A page made before its sources last changed carries, for each `.tex` file changed since, `lines`, the line each of its lines then is now (None for one changed or gone), and `edited`, the ranges of lines now that are new or changed, first and last.
+    """
 
     html: str
     displays: dict[str, str]
     digest: str
+    where: Path | None = None
+    normalised: bool = False
+    lines: dict[str, list[int | None]] | None = None
+    edited: dict[str, list[tuple[int, int]]] = field(default_factory=dict)
 
 
 def page_for(result: ScanResult, master: str) -> Page | None:
-    """`master`'s page when the files it reads are as they were when the page was made; None when there is none, or when one has changed since."""
+    """`master`'s page, None when it has none; made before the files it reads last changed, it says which lines changed since (`Page.lines`)."""
     root = result.quilt.root
     where = root / document_build(master) / "html"
     page = where / f"{Path(master).stem}.html"
@@ -60,15 +73,45 @@ def page_for(result: ScanResult, master: str) -> Page | None:
         return None
     exp = result.expansions.get(master)
     closure = result.closures.get(master)
-    for f in {master, *(exp.reached if exp else ()), *(closure.files if closure else ())}:
+    changed = []
+    for f in sorted({master, *(exp.reached if exp else ()), *(closure.files if closure else ())}):
         if Path(f).suffix.lower() not in SOURCE_SUFFIXES:
             continue
         current = root / f
         if f not in read or not current.is_file() or hashlib.sha256(current.read_bytes()).hexdigest() != read[f]:
-            return None
+            changed.append(f)
     text = page.read_text(encoding="utf-8", errors="replace")
     digest = hashlib.sha256(text.encode("utf-8") + said.read_bytes() + json.dumps(held).encode()).hexdigest()
-    return Page(text, {str(i): r.get("tex", "") for i, r in enumerate(held)}, digest)
+    made = Page(text, {str(i): r.get("tex", "") for i, r in enumerate(held)}, digest, where)
+    if not changed:
+        return made
+    try:
+        before: dict[str, str] = json.loads((where / TEXTS).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    made.lines = {}
+    for f in changed:
+        if Path(f).suffix.lower() != ".tex" or f not in result.files:
+            continue
+        now = result.files[f].text
+        made.lines[f], made.edited[f] = line_map(before.get(f, ""), now)
+    return made
+
+
+def line_map(before: str, now: str) -> tuple[list[int | None], list[tuple[int, int]]]:
+    """Where each line of `before` stands in `now`, None for one changed or gone; and the ranges of lines of `now`, first and last, that are new or changed, a deletion marking the line it left a gap before."""
+    old, new = before.split("\n"), now.split("\n")
+    lines: list[int | None] = [None] * len(old)
+    edited: list[tuple[int, int]] = []
+    for op, a, b, c, d in difflib.SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+        if op == "equal":
+            for k in range(b - a):
+                lines[a + k] = c + k + 1
+        elif d > c:
+            edited.append((c + 1, d))
+        else:
+            edited.append((max(1, c), max(1, c) + 1))
+    return lines, edited
 
 
 # ---- a small tree, enough to reshape what `normalise` wrote --------------------------------------------------------------
@@ -135,39 +178,98 @@ def text_of(node: El | str, *, made: bool = True) -> str:
     return "".join(text_of(k, made=made) for k in node.kids)
 
 
+#: An inline formula in a title as its source writes it, kept whole.
+_TITLE_MATH = re.compile(r"\$[^$]*\$|\\\((?:.|\n)*?\\\)")
+
+
+def inline_kids(text: str, numbers: Mapping[str, AuxNumber], macros: Mapping[str, Macro]) -> list[El | str]:
+    """A short text, a title, as plain words and formulas: what loom shows where TeX printed nothing of it, as on a node shown as its source."""
+    from loom.render.fragments import plain_text
+
+    out: list[El | str] = []
+    pos = 0
+    for m in _TITLE_MATH.finditer(text):
+        if m.start() > pos:
+            out.append(plain_text(text[pos : m.start()]))
+        inner = re.sub(r"^\$|\$$|^\\\(|\\\)$", "", m.group(0))
+        out.append(El("span", {"class": "math inline"}, ["\\(" + math_text(inner, numbers, macros) + "\\)"]))
+        pos = m.end()
+    if pos < len(text):
+        out.append(plain_text(text[pos:]))
+    return [k for k in out if not (isinstance(k, str) and not k)]
+
+
+def label_el(
+    n: NodeRec, numbers: Mapping[str, AuxNumber], title: list[El | str] | None, macros: Mapping[str, Macro]
+) -> El:
+    """A statement's `p.env-label`: its taxon, the number the aux gives it, and its title, as TeX printed it when `title` is given, else from its source."""
+    num = next((numbers[lab].number for lab in [n.id, *n.labels] if lab and lab in numbers), None)
+    kids: list[El | str] = [El("span", {"class": "taxon"}, [n.taxon or ""])]
+    if num:
+        kids += [" ", El("span", {"class": "number"}, [num])]
+    shown = title if title else (inline_kids(n.title, numbers, macros) if n.title else None)
+    if shown:
+        kids += [" ", El("span", {"class": "title"}, ["(", *shown, ")"])]
+    return El("p", {"class": "env-label"}, kids)
+
+
 # ---- the shape --------------------------------------------------------------------------------------------------------
 
 
 class DocumentHtml:
-    """One document's page in the dialect's shape, and each of its nodes' fragments cut from it.
+    """HTML TeX made, in the dialect's shape, and each of its nodes' fragments cut from it.
 
     Parameters
     ----------
     renderer : FragmentRenderer
-        The build's renderer, whose scan, numbers and contexts this reads.
-    master : str
-        The document.
+        The build's renderer, whose scan, labels and plan this reads.
+    owner : Owner
+        The document the HTML is read in terms of: its numbers, macros, preamble and directory.
     page : Page
-        Its page, current with its sources (`page_for`).
+        A document's page (`page_for`), or texts made as snippets, whose lines name the files they stand in.
+    only : list of str, optional
+        For snippets: the nodes the texts hold, in order; default every node the owner reaches.
+    files : mapping, optional
+        The sources the HTML names, by quilt-relative path; default the scan's.
+    pairs : dict, optional
+        For a landmark: each key its stamp versioned, by pair hash, so a statement no scan knows still pairs by its label.
+    labels : mapping, optional
+        What a reference's label names, by label; default the scan's. A landmark's name its own anchors.
     """
 
-    def __init__(self, renderer: FragmentRenderer, master: str, page: Page) -> None:
+    def __init__(
+        self,
+        renderer: FragmentRenderer,
+        owner: Owner,
+        page: Page,
+        *,
+        only: list[str] | None = None,
+        files: Mapping[str, SourceFile] | None = None,
+        pairs: dict[str, str] | None = None,
+        labels: Mapping[str, str] | None = None,
+    ) -> None:
         self.r = renderer
         self.result = renderer.result
-        self.master = master
-        self.base = self.result.base_of(master)
-        self.node = renderer.asm.nodes[master]
-        self.ctx = renderer._context(self.node, "master")
-        closure = self.result.closures.get(master)
+        self.owner = owner
+        self.master = owner.key
+        self.base = owner.base
+        self.page = page
+        self.files: Mapping[str, SourceFile] = files if files is not None else self.result.files
+        self.pairs = pairs
+        self.labels: Mapping[str, str] = labels if labels is not None else renderer.asm.labels
+        self._last_pair: list[str] = []
+        closure = owner.closure
         self.macros, self.environments = definitions(closure)
-        self.heads = frozenset(
-            w for t in (closure.taxa.values() if closure else ()) for w in rendered_words(t.name)
-        ) | {"proof"}
+        self.taxa = closure.taxa if closure else self.result.taxa
+        self.heads = frozenset(w for t in self.taxa.values() for w in rendered_words(t.name)) | {"proof"}
         self._sources: dict[str, tuple[Source, list[int]] | None] = {}
-        self._contexts: dict[str, RenderContext] = {}
+        self._only = only
         self.stamps: dict[tuple[str, int], str] = {}
-        for key, n in self.result.nodes.items():
-            if n.kind in ("environment", "proof") and master in n.reached_by and n.file in self.result.files:
+        for key in only if only is not None else self.result.nodes:
+            n = self.result.nodes[key]
+            if n.kind not in ("environment", "proof") or n.file not in self.files:
+                continue
+            if only is not None or self.master in n.reached_by:
                 self.stamps.setdefault((n.file, self._line(n.file, n.start)), key)
         self.stamped: set[str] = set()
         # the blocks around the one being shaped, innermost last: file, start and end (None when the block has no span)
@@ -176,28 +278,37 @@ class DocumentHtml:
         self._met: dict[tuple[str, int, str], int] = {}
         self._italic = False  # inside a statement set in italic, where upright text is the emphasized
         self._displays_taken: set[tuple[str, int]] = set()  # the source displays already given to one TeX4ht set
+        self._pictures: list[tuple[El, str]] = []  # each diagram's figure and the display TeX is to draw in it
+        self._heads: list[
+            tuple[str, int, int | None]
+        ] = []  # the statements around the one being shaped, whose heads read their own source
         self._next_section = 0
         self._section_list = self._section_nodes()
-        tree = parse(normalise(page.html, page.displays).html)
+        tree = parse(page.html if page.normalised else normalise(page.html, page.displays).html)
+        if page.lines is not None:
+            self._restale(tree)
+            self._remake(tree)
         self.body = self._sections(self._inclusions(self._shape(tree)))
         for k in self.body:
             for e in _walk(k) if isinstance(k, El) else ():
                 e.attrs.pop("data-head", None)  # what kind of heading TeX made, needed only to find the sections
+        self._draw()
+        self._adopt()
         self.nodes: dict[str, str] = {}
         self._collect(self.body)
-        #: every statement and proof the scan finds in the document is a node on the page; a page missing one (beamer's frames) is left to the translator
+        #: every statement and proof the scan finds in the document is a node on the page, stamped or found by its words; a page missing one (beamer's frames) is not read
         self.complete = set(self.stamps.values()) <= self.stamped
 
     # -- where things are --
     def _line(self, file: str, offset: int) -> int:
-        return self.result.files[file].text.count("\n", 0, offset) + 1
+        return self.files[file].text.count("\n", 0, offset) + 1
 
     def _rel(self, file: str) -> str:
         return self.master if not file else posixpath.normpath(posixpath.join(self.base, file))
 
     def _source(self, rel: str) -> tuple[Source, list[int]] | None:
         if rel not in self._sources:
-            src = self.result.files.get(rel)
+            src = self.files.get(rel)
             self._sources[rel] = (
                 (
                     Source(src.clean, self.macros, self.environments),
@@ -222,12 +333,75 @@ class DocumentHtml:
         file, _, line = at.rpartition(":")
         return self._rel(file), int(line) if line.isdigit() else 0
 
-    def _context_for(self, rel: str) -> RenderContext:
-        """The render context of the file `rel`, whose text a display's offsets index; the document's own for one with no node of its own."""
-        if rel not in self._contexts:
-            n = self.r.asm.nodes.get(rel)
-            self._contexts[rel] = self.r._context(n, "master") if n is not None and rel != self.master else self.ctx
-        return self._contexts[rel]
+    # -- a page made before its sources last changed --
+    def _now(self, rel: str, line: int) -> int | None:
+        """Where line `line` of `rel` as the page was made stands now; None for one changed or gone since."""
+        lines = (self.page.lines or {}).get(rel)
+        if lines is None:
+            return line
+        return lines[line - 1] if 0 < line <= len(lines) else None
+
+    def _restale(self, tree: El) -> None:
+        """Count a stale page's lines as its sources stand now: a block's from the nearest line before it that stands still, and a node whose own line changed is dropped, since what stands there now is made again (`_remake`)."""
+        for parent, el in list(_with_parents(tree)):
+            at = el.attrs.get("data-at")
+            if at is not None:
+                file, _, line = at.rpartition(":")
+                rel = self._rel(file)
+                if line.isdigit() and rel in (self.page.lines or {}):
+                    n = int(line)
+                    now = next((x for k in range(n, 0, -1) if (x := self._now(rel, k)) is not None), 1)
+                    el.attrs["data-at"] = f"{file}:{now}"
+            if el.tag == "div" and "node" in el.classes and parent is not None:
+                rel = self._rel(el.attrs.get("data-file", ""))
+                line = el.attrs.get("data-line", "")
+                if not line.isdigit() or rel not in (self.page.lines or {}):
+                    continue
+                moved = self._now(rel, int(line))
+                if moved is None:
+                    parent.kids.remove(el)
+                else:
+                    el.attrs["data-line"] = str(moved)
+
+    def _remake(self, tree: El) -> None:
+        """Each statement and proof the owner reaches whose lines changed since its page was made, made again as a snippet and set where it stands: in place of what the page had for it, else after the last block before it."""
+        from loom.render.fragments import _lines_in
+        from loom.render.snippets import render_snippets
+        from loom.render.sourceview import source_node
+
+        keys = [
+            k
+            for k, n in self.result.nodes.items()
+            if n.kind in ("environment", "proof")
+            and self.master in n.reached_by
+            and n.file in self.page.edited
+            and any(
+                a <= self._line(n.file, n.end) and self._line(n.file, n.start) <= b for a, b in self.page.edited[n.file]
+            )
+        ]
+        if not keys:
+            return
+        keys.sort(key=lambda k: (self.result.nodes[k].file, self.result.nodes[k].start))
+        nodes = [self.result.nodes[k] for k in keys]
+        made = render_snippets(
+            self.result.quilt.root,
+            self.owner.base,
+            self.owner.preamble,
+            [self.files[n.file].text[n.start : n.end] for n in nodes],
+            self.r.plan.cache / "snippets",
+            envs=self.r.envs(self.owner),
+            engine=self.owner.engine,
+            aux=self.owner.aux,
+            tex=self.r.plan.tex,
+        )
+        for n, s in zip(nodes, made.made, strict=True):
+            first = self._line(n.file, n.start)
+            if s.html is not None:
+                piece = _lines_in(s.html, posixpath.relpath(n.file, self.base or "."), first)
+            else:
+                self.r._refused(n.file, self.files[n.file].text[n.start : n.end], s.error, s.cached)
+                piece = source_node(self.r, n.key, proofs=False)
+            _set_in(tree, parse(piece).kids, n.file, first, self._rel)
 
     # -- reshaping --
     def _shape(self, el: El) -> list[El | str]:
@@ -241,6 +415,14 @@ class DocumentHtml:
             return [self._img(el)]
         place = self._place(el)
         at = self._at(el)
+        if at is None and "head" in cls and self._heads:
+            # a statement's head prints its title, whose source stands before the paragraph the head opens
+            self._where.append(self._heads[-1])
+            try:
+                kids = [k2 for k in el.kids for k2 in (self._shape(k) if isinstance(k, El) else [k])]
+            finally:
+                self._where.pop()
+            return [El(el.tag, dict(el.attrs), kids)]
         if at is not None:
             rel, line = at
             start, end = (int(x) for x in place.rsplit(":", 2)[1:]) if place else (self._offset(rel, line), None)
@@ -267,7 +449,24 @@ class DocumentHtml:
         attrs = {k: v for k, v in el.attrs.items() if k not in ("data-at", "data-made")}
         if place is not None:
             attrs["data-src"] = place
+        if self.pairs is not None and at is not None and _HEADING.fullmatch(el.tag):
+            # a landmark's heading has no section node; its label is its anchor, so a link into the page lands
+            label = self._heading_label(*at)
+            if label:
+                attrs["id"] = slug(label)
         return [El(el.tag, attrs, kids)]
+
+    def _heading_label(self, rel: str, line: int) -> str | None:
+        """The label of the sectioning command on or after `line`, set right after its title."""
+        src = self.files.get(rel)
+        if src is None:
+            return None
+        m = _SECTION.search(src.clean, self._offset(rel, line))
+        if m is None:
+            return None
+        _args, _spans, after = read_args(src.clean, m.end(), "om")
+        found = re.match(r"\s*\\label\s*\{([^}]*)\}", src.clean[after:])
+        return norm_label(found.group(1)) if found else None
 
     def _place(self, el: El) -> str | None:
         """`FILE:START:END` for a block whose words stand unbroken in its source, else None."""
@@ -282,16 +481,15 @@ class DocumentHtml:
         got = known[0].place(words, self._offset(rel, line), heads=self.heads)
         if got is None or not got.exact:
             return None
-        start, end = _edge_formulas(self.result.files[rel].clean, got.start, got.end, el)
+        start, end = _edge_formulas(self.files[rel].clean, got.start, got.end, el)
         return f"{rel}:{start}:{end}"
 
     def _img(self, el: El) -> El:
-        """A picture: one TeX4ht drew, addressed beside its page in the build; else the graphic the source includes there, published as the translator publishes it."""
+        """A picture: one TeX4ht drew, published under the build's `svg/`; else the graphic the source includes there."""
         src = el.attrs.get("src", "")
-        page = self.result.quilt.root / document_build(self.master) / "html"
-        build = self.r.plan.svg_out.parent
-        if src and (page / src).is_file() and page.is_relative_to(build):
-            return El("img", {"src": f"{page.relative_to(build).as_posix()}/{src}", "alt": ""}, [])
+        where = self.page.where
+        if src and where is not None and ".." not in src.split("/") and (where / src).is_file():
+            return El("img", {"src": publish_picture(where / src, self.r.plan.svg_out), "alt": ""}, [])
         m = self._command(_graphic_stem(src), _GRAPHICS, lambda m: [_graphic_stem(m.group(1))])
         if m is not None:
             rel, _err = publish_graphic(self.result.quilt.root, m.group(1).strip(), self.r.plan.svg_out, self.base)
@@ -303,16 +501,24 @@ class DocumentHtml:
         label = el.attrs.get("data-label", "")
         found = self._command(label, _REFS, lambda m: [m.group(2).strip()])
         command = found.group(0) if found is not None else f"\\ref{{{label}}}"
-        target = self.ctx.labels.get(label)
+        number = self.owner.numbers.get(label)
+        if number is not None and "".join(text_of(k) for k in kids).strip() in ("", "??"):
+            # a text made without its document's aux printed no number; the aux has it
+            kids = [number.number]
+        target = self.labels.get(label)
         if target is None:
             return El("a", {"class": "ref ref-dangling", "data-target": label, "data-tex": command}, kids)
-        eq = target in self.ctx.equations or command.startswith("\\eqref")
+        eq = target in self.r.equations or command.startswith("\\eqref")
         attrs = {
             "class": "ref ref-eq" if eq else "ref",
             "data-target": target,
             "data-tex": command,
             "href": "#" + slug(target),
         }
+        if found is not None and self._where:
+            # where the review panel finds the reference a changed dependency is cited by, as the scan's edge names it
+            attrs = {"id": f"cite-{slug(self._where[-1][0])}-{found.start()}-{slug(target)}", **attrs}
+            attrs["data-at"] = str(found.start())  # the command's offset, by which a quote takes it once
         return El("a", attrs, kids)
 
     def _command(
@@ -322,7 +528,7 @@ class DocumentHtml:
         if not self._where:
             return None
         rel, offset, end = self._where[-1]
-        src = self.result.files.get(rel)
+        src = self.files.get(rel)
         if src is None:
             return None
         seen = self._met.get((rel, offset, name), 0)
@@ -344,13 +550,13 @@ class DocumentHtml:
         else:
             # an item's line is where TeX4ht last said it was, at or before the list: the first list after it
             at = next((self._at(e) for e in _walk(el) if e is not el and "data-at" in e.attrs), None)
-            known = self.result.files.get(at[0]) if at is not None else None
+            known = self.files.get(at[0]) if at is not None else None
             if at is None or known is None:
                 return None
             rel = at[0]
             ahead = envs.search(known.clean, self._offset(rel, at[1]))
             upto = ahead.end() if ahead is not None else 0
-        src = self.result.files.get(rel)
+        src = self.files.get(rel)
         if src is None:
             return None
         opened = [m for m in envs.finditer(src.clean, 0, upto)]
@@ -361,36 +567,51 @@ class DocumentHtml:
         return f"{rel}:{m.start()}:{close.end()}" if close is not None else None
 
     def _math(self, el: El) -> El:
-        """A formula: a display as the translator sets the source's, numbered from the aux, else TeX4ht's TeX with its labels out and its references numbered."""
+        """A formula: a display set by `mathset` from the source's, numbered from the aux, else from TeX4ht's TeX; a diagram a figure TeX is to draw (`_draw`)."""
         tex = text_of(el)
+        numbers, macros = self.owner.numbers, self.owner.macros
         if "inline" in el.classes:
             inner = re.sub(r"^\s*\\\(|\\\)\s*$", "", tex)
             # TeX4ht writes a formula back with a space after each command; the source's own TeX is what a quote copies
             m = self._command(_spaceless(inner), _INLINE, lambda m: [_spaceless(m.group(1) or m.group(2) or "")])
             if m is not None:
                 inner = m.group(1) or m.group(2) or ""
-            return El("span", {"class": "math inline"}, ["\\(" + Converter(self.ctx).math_text(inner) + "\\)"])
+            return El("span", {"class": "math inline"}, ["\\(" + math_text(inner, numbers, macros) + "\\)"])
         at = self._at(el)
         found = self._display_source(at, tex) if at is not None else None
+        attrs: dict[str, str] = {}
         if found is not None:
             rel, start, end, env = found
-            conv = Converter(self._context_for(rel))
-            made = (
-                conv.display_env(env, start, end)
-                if env
-                else conv.display_block(self.result.files[rel].text[start + 2 : end - 2], start, end, None)
-            )
-            shaped = parse(made).kids
-            if shaped and isinstance(shaped[0], El):
-                display = shaped[0]
-                label = display.attrs.get("data-label")
-                target = self.ctx.labels.get(label) if label else None
-                if target is not None:
-                    # the anchor a reference to it names, `#sy-0100-eq-prose`, whichever node holds it
-                    display.attrs["id"] = slug(target)
-                return display
-        body = re.sub(r"^\s*\\begin\s*\{[^}]*\}|\\end\s*\{[^}]*\}\s*$|^\s*\\\[|\\\]\s*$", "", tex)
-        return El("div", {"class": "math display"}, ["\\[" + Converter(self.ctx).math_text(body) + "\\]"])
+            shown = set_display(self.files[rel].text[start:end], env, numbers, macros)
+            attrs["data-src"] = f"{rel}:{start}:{end}"
+        else:
+            rel = at[0] if at is not None else self.master
+            head = _DISPLAY.match(tex.strip())
+            shown = set_display(tex.strip(), head.group(1) if head is not None else None, numbers, macros)
+        if shown.label:
+            target = self.labels.get(shown.label)
+            # the anchor a reference to it names, `#sy-0100-eq-prose`, whichever node holds it
+            attrs["id"] = slug(target) if target is not None else slug(f"{rel}-{shown.label}")
+            attrs["data-label"] = shown.label
+            if shown.number:
+                attrs["data-number"] = shown.number
+        if shown.picture:
+            figure = El("figure", {"class": "diagram", **attrs}, [])
+            self._pictures.append((figure, shown.tex))
+            return figure
+        return El("div", {"class": "math display", **attrs}, [shown.tex])
+
+    def _draw(self) -> None:
+        """Every diagram met, drawn by TeX in one run under the owner's preamble; one TeX cannot draw shows its source."""
+        if not self._pictures:
+            return
+        drawn = self.r.pictures(self.owner, [tex for _, tex in self._pictures])
+        for (figure, tex), src in zip(self._pictures, drawn, strict=True):
+            if src is not None:
+                figure.kids = [El("img", {"src": src, "alt": ""}, [])]
+            else:
+                figure.attrs["class"] = "diagram failed"
+                figure.kids = [El("pre", {}, [tex])]
 
     def _cite(self, el: El, kids: list[El | str]) -> El:
         """A citation with its key, and its note and target read from the `\\cite` the block it stands in has for that key, at or after the block's line."""
@@ -398,11 +619,14 @@ class DocumentHtml:
         attrs = {"class": "cite", "data-citekey": key}
         m = self._command(key, _CITES, lambda m: [k.strip() for k in m.group(2).split(",")]) if key else None
         found = (
-            (m.group(0), re.sub(r"[\s~]+", " ", m.group(1)).strip() if m.group(1) else None) if m is not None else None
+            # the note as the scan reads it, ties and all, so it names the edge the scan made of it
+            (m.group(0), m.group(1).strip() if m.group(1) else None) if m is not None else None
         )
         if found is not None:
             command, note = found
             attrs["data-tex"] = command
+            if m is not None:
+                attrs["data-at"] = str(m.start())  # the command's offset, by which a quote takes it once
             if note:
                 attrs["data-postnote"] = note
                 target = self.r._cite_target(key, note)
@@ -432,8 +656,8 @@ class DocumentHtml:
                     j += 1
                 rel = self._rel(k.attrs.get("data-file", ""))
                 inner = self._inclusions(kids[i + 1 : j])
-                if j < len(kids) and rel in self.r.asm.nodes and rel in self.result.files:
-                    size = len(self.result.files[rel].text)
+                if j < len(kids) and rel in self.r.asm.nodes and rel in self.files:
+                    size = len(self.files[rel].text)
                     out.append(
                         El(
                             "div",
@@ -460,7 +684,7 @@ class DocumentHtml:
         TeX4ht dates a display by the paragraph it stands in, so two displays a short paragraph apart share a line, and only what they say tells them apart.
         """
         rel, line = at
-        src = self.result.files.get(rel)
+        src = self.files.get(rel)
         if src is None:
             return None
         head = _DISPLAY.match(tex.strip())
@@ -491,7 +715,7 @@ class DocumentHtml:
         return (rel, chosen[0], chosen[1], env)
 
     def _node(self, el: El) -> list[El | str]:
-        """A node TeX4ht stamped, as the statement or proof the scan knows; unwrapped when the scan knows none there."""
+        """A node TeX4ht stamped, as the statement or proof the scan knows; in a landmark, as the statement its label pairs; unwrapped when neither knows one there."""
         file, line = el.attrs.get("data-file", ""), el.attrs.get("data-line", "")
         rel = self._rel(file)
         key = next(
@@ -503,12 +727,19 @@ class DocumentHtml:
             None,
         )
         known = self.result.nodes.get(key) if key is not None else None
+        env = el.attrs.get("data-env", "")
+        taxon = self.taxa.get(env)
         # a statement in a plain style is set in italic, and a word emphasized in it upright
         italic, self._italic = (
             self._italic,
-            (known is not None and known.kind == "environment" and (known.style or "plain") == "plain"),
+            (known.kind == "environment" and (known.style or "plain") == "plain")
+            if known is not None
+            else (taxon is not None and (taxon.style or "plain") == "plain"),
         )
         inner: list[El | str] = []
+        heading = (known.file, known.start, known.end) if known is not None else None
+        if heading is not None:
+            self._heads.append(heading)
         try:
             for k in el.kids:
                 # TeX4ht's own wrapper of a theorem or a proof gives way to the dialect's
@@ -518,14 +749,24 @@ class DocumentHtml:
                     inner += self._shape(k) if isinstance(k, El) else [k]
         finally:
             self._italic = italic
+            if heading is not None:
+                self._heads.pop()
         if key is None:
+            if self.pairs is not None and line.isdigit():
+                return [self._landmark_env(env, rel, int(line), inner)]
             return inner
         self.stamped.add(key)
+        return [self._wrap(key, inner)]
+
+    def _wrap(self, key: str, inner: list[El | str]) -> El:
+        """`inner`, what TeX made of node `key`, wrapped as the dialect wraps the statement or proof it is, its head TeX's own."""
         n = self.result.nodes[key]
         head = _take_head(inner)
         src = f"{n.file}:{n.start}:{n.end}"
         if n.kind == "proof":
-            said = re.sub(r"[.:\s]+$", "", html.unescape(text_of(head))).strip() if head is not None else ""
+            said = (
+                re.sub(r"[.:\s]+$", "", html.unescape(text_of(head))).strip() if head is not None else (n.title or "")
+            )
             attrs = {"class": "env env-proof", "id": slug(key)}
             if n.id:
                 attrs["data-id"] = n.id
@@ -535,7 +776,8 @@ class DocumentHtml:
             attrs["data-src"] = src
             attrs.update(_pairs(self.r, n))
             attrs["open"] = ""
-            return [El("details", attrs, [El("summary", {"class": "env-label"}, [said or "Proof"]), *inner])]
+            _mark_qed(inner)
+            return El("details", attrs, [El("summary", {"class": "env-label"}, [said or "Proof"]), *inner])
         attrs = {"class": f"env env-{slug(n.taxon or n.env or 'env')}", "id": slug(key)}
         if n.id:
             attrs["data-id"] = n.id
@@ -543,12 +785,85 @@ class DocumentHtml:
         attrs.update(_pairs(self.r, n))
         if n.digest:
             attrs["data-macros"] = n.digest
-        label = parse(f'<p class="env-label">{self.r._label_html(n, self.r._context(n, "master"))}</p>').kids
-        return [El("div", attrs, [*label, *inner])]
+        title = _head_title(head) if n.title else None
+        return El("div", attrs, [label_el(n, self.owner.numbers, title, self.owner.macros), *inner])
+
+    def _adopt(self) -> None:
+        """Each statement or proof the owner reaches that TeX4ht did not stamp (beamer's frames hide them), found by where its words were placed: the first run of sibling blocks every one of which lies inside it, wrapped as the node; one with no such run is left as TeX printed it."""
+        missing = sorted(
+            set(self.stamps.values()) - self.stamped,
+            key=lambda k: (self.result.nodes[k].file, self.result.nodes[k].start),
+        )
+        root = El("root", {}, self.body)
+        for key in missing:
+            n = self.result.nodes[key]
+            for parent in [root, *(e for k in root.kids if isinstance(k, El) for e in _walk(k))]:
+                run = _inside(parent.kids, n.file, n.start, n.end)
+                if run is None:
+                    continue
+                a, b = run
+                parent.kids[a:b] = [self._wrap(key, parent.kids[a:b])]
+                self.stamped.add(key)
+                break
+        self.body = root.kids
+
+    def _landmark_env(self, env: str, rel: str, line: int, inner: list[El | str]) -> El:
+        """A statement or proof in a landmark, which no scan reads: wrapped as a node is but with no identity, paired by its first label, a proof by the statement before it, as the scan keys proofs."""
+        src = self.files.get(rel)
+        head = _take_head(inner)
+        start = end = 0
+        label: str | None = None
+        if src is not None:
+            opened = re.compile(r"\\begin\s*\{" + re.escape(env) + r"\}").search(src.clean, self._offset(rel, line))
+            if opened is not None:
+                start = opened.start()
+                closed = re.compile(r"\\end\s*\{" + re.escape(env) + r"\}").search(src.clean, opened.end())
+                end = closed.end() if closed is not None else len(src.clean)
+                found = re.search(r"\\label\s*\{([^}]*)\}", src.clean[start:end])
+                label = norm_label(found.group(1)) if found else None
+        attrs: dict[str, str] = {}
+        pairs = self.pairs or {}
+        if env == "proof":
+            attrs["class"] = "env env-proof"
+            if self._last_pair:
+                n = len(self._last_pair)
+                key = f"{self._last_pair[0]}/proof" + (f"/{n}" if n > 1 else "")
+                self._last_pair.append(key)
+                if key in pairs:
+                    attrs.update({"data-pair": key, "data-hash": pairs[key]})
+            if src is not None:
+                attrs["data-src"] = f"{rel}:{start}:{end}"
+            attrs["open"] = ""
+            said = re.sub(r"[.:\s]+$", "", html.unescape(text_of(head))).strip() if head is not None else ""
+            return El("details", attrs, [El("summary", {"class": "env-label"}, [said or "Proof"]), *inner])
+        taxon = self.taxa.get(env)
+        name = taxon.name if taxon else env.capitalize()
+        attrs["class"] = f"env env-{slug(name)}"
+        if label:
+            # an unclaimed statement carries no identity but still needs an anchor, or no link into a landmark can land
+            attrs["id"] = slug(label)
+        attrs.update({"data-taxon": name, "data-style": (taxon.style if taxon else None) or "plain"})
+        if src is not None:
+            attrs["data-src"] = f"{rel}:{start}:{end}"
+        if label is not None and plain_key(label) in pairs:
+            self._last_pair[:] = [plain_key(label)]
+            attrs.update({"data-pair": plain_key(label), "data-hash": pairs[plain_key(label)]})
+        number = self.owner.numbers.get(label) if label else None
+        kids: list[El | str] = [El("span", {"class": "taxon"}, [name])]
+        if number is not None:
+            kids += [" ", El("span", {"class": "number"}, [number.number])]
+        title = _head_title(head)
+        if title is None and head is None and src is not None and start < end:
+            # TeX printed no head, having refused the text: the title as the source gives it
+            (optarg,), _spans, _after = read_args(src.clean, src.clean.index("}", start) + 1, "o")
+            title = inline_kids(optarg, self.owner.numbers, self.owner.macros) if optarg else None
+        if title:
+            kids += [" ", El("span", {"class": "title"}, ["(", *title, ")"])]
+        return El("div", attrs, [El("p", {"class": "env-label"}, kids), *inner])
 
     # -- sections --
     def _sections(self, kids: list[El | str]) -> list[El | str]:
-        """The document's top level with each heading that opens one of the scan's sections wrapped with what follows it, to the next heading of its level or above."""
+        """The top level with each heading that opens one of the scan's sections wrapped with what follows it, to the next heading of its level or above."""
         sections = self._section_list
         out: list[El | str] = []
         open_: list[tuple[int, El]] = []
@@ -585,22 +900,32 @@ class DocumentHtml:
         return out
 
     def _section_nodes(self) -> list[tuple[str, list[str]]]:
+        """The sections the HTML may open, in order, each with its title's words: the owner's, or for snippets those the texts hold."""
+        if self._only is not None:
+            return [
+                (k, self._title_words(self.result.nodes[k]))
+                for k in self._only
+                if self.result.nodes[k].kind == "section" and self.result.nodes[k].file in self.files
+            ]
         exp = self.result.expansions.get(self.master)
         found = []
         for key, n in self.result.nodes.items():
-            if n.kind != "section" or self.master not in n.reached_by or n.file not in self.result.files:
+            if n.kind != "section" or self.master not in n.reached_by or n.file not in self.files:
                 continue
             at = exp.exp_offset(n.file, n.start) if exp is not None else None
             if at is None:
                 continue
-            clean = self.result.files[n.file].clean
-            m = _SECTION.match(clean, n.start)
-            (_short, title), _spans, _end = read_args(clean, m.end() if m else n.start, "om")
-            found.append((at, key, [w.text for w in source_words(title or "", self.macros, self.environments)]))
+            found.append((at, key, self._title_words(n)))
         return [(key, words) for _, key, words in sorted(found)]
 
+    def _title_words(self, n: NodeRec) -> list[str]:
+        clean = self.files[n.file].clean
+        m = _SECTION.match(clean, n.start)
+        (_short, title), _spans, _end = read_args(clean, m.end() if m else n.start, "om")
+        return [w.text for w in source_words(title or "", self.macros, self.environments)]
+
     def _section_el(self, n: NodeRec, heading: El) -> El:
-        clean = self.result.files[n.file].clean
+        clean = self.files[n.file].clean
         m = _SECTION.match(clean, n.start)
         _args, _spans, heading_end = read_args(clean, m.end() if m else n.start, "om")
         level = n.level if n.level is not None else 1
@@ -834,3 +1159,100 @@ def _pairs(renderer: FragmentRenderer, n: NodeRec) -> dict[str, str]:
         k, _, v = a.partition("=")
         out[k] = html.unescape(v.strip('"'))
     return out
+
+
+#: The tombstones amsthm's `\\qedsymbol` prints.
+_QED = re.compile("[\u25a1\u220e\u25a0]")
+
+
+def _mark_qed(kids: list[El | str]) -> bool:
+    """The last tombstone TeX printed in `kids`, a proof's, wrapped as `span.qed`: printed, never quoted, since the source has no such character."""
+    for i in range(len(kids) - 1, -1, -1):
+        k = kids[i]
+        if isinstance(k, El):
+            if "math" in k.classes or "qed" in k.classes:
+                continue
+            if _mark_qed(k.kids):
+                return True
+            continue
+        found = list(_QED.finditer(k))
+        if found:
+            m = found[-1]
+            kids[i : i + 1] = [
+                piece
+                for piece in (k[: m.start()], El("span", {"class": "qed"}, [m.group(0)]), k[m.end() :])
+                if not (isinstance(piece, str) and not piece)
+            ]
+            return True
+    return False
+
+
+def _inside(kids: list[El | str], file: str, start: int, end: int) -> tuple[int, int] | None:
+    """The first run of `kids` whose elements are all blocks placed inside `file[start:end]`, as a slice, space between them taken in; None when there is none."""
+    a: int | None = None
+    b = 0
+    for i, k in enumerate(kids):
+        if isinstance(k, str):
+            if not k.strip():
+                continue
+            if a is not None:
+                break
+            continue
+        f, _, rest = k.attrs.get("data-src", "").partition(":")
+        lo, _, hi = rest.partition(":")
+        within = f == file and lo.isdigit() and hi.isdigit() and start <= int(lo) and int(hi) <= end
+        if within and k.tag not in ("section", "div", "details") or within and "math" in k.classes:
+            a = i if a is None else a
+            b = i + 1
+        elif a is not None:
+            break
+    return (a, b) if a is not None else None
+
+
+def _with_parents(el: El, parent: El | None = None):  # type: ignore[no-untyped-def]
+    """Every element under `el`, `el` first, each with the element it stands in."""
+    yield parent, el
+    for k in list(el.kids):
+        if isinstance(k, El):
+            yield from _with_parents(k, el)
+
+
+def _set_in(tree: El, made: list[El | str], file: str, line: int, rel: Callable[[str], str]) -> None:
+    """`made` set in `tree` where a node of `file` beginning on `line` stands: in place of the node stamped there, else after the last block of `file` that begins before it, else at the end."""
+    last: tuple[El, El] | None = None
+    for parent, el in _with_parents(tree):
+        if parent is None:
+            continue
+        if el.tag == "div" and "node" in el.classes and rel(el.attrs.get("data-file", "")) == file:
+            stamped = el.attrs.get("data-line", "")
+            if stamped.isdigit() and abs(int(stamped) - line) <= 1:
+                i = parent.kids.index(el)
+                parent.kids[i : i + 1] = made
+                return
+        at = el.attrs.get("data-at", "")
+        f, _, n = at.rpartition(":")
+        if at and n.isdigit() and rel(f) == file and int(n) <= line:
+            last = (parent, el)
+    if last is None:
+        tree.kids += made
+        return
+    parent, el = last
+    i = parent.kids.index(el)
+    parent.kids[i + 1 : i + 1] = made
+
+
+def _head_title(head: El | None) -> list[El | str] | None:
+    """The title TeX printed in a statement's head, `Theorem 2.1 (Parity).`, without its parentheses: what stands between the head's first bold part and its last; None when it printed none."""
+    if head is None:
+        return None
+    kids = [k for k in head.kids if not (isinstance(k, str) and not k.strip())]
+    bold = [i for i, k in enumerate(kids) if isinstance(k, El) and k.tag == "strong"]
+    if len(bold) < 2:
+        return None
+    middle = list(kids[bold[0] + 1 : bold[-1]])
+    if not middle or not isinstance(middle[0], str) or not middle[0].lstrip().startswith("("):
+        return None
+    middle[0] = middle[0].lstrip()[1:]
+    if isinstance(middle[-1], str) and middle[-1].rstrip().endswith(")"):
+        middle[-1] = middle[-1].rstrip()[:-1]
+    return [k for k in middle if not (isinstance(k, str) and not k)]

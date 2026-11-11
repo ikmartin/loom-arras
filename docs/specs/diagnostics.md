@@ -74,7 +74,7 @@ Arras displays this diagnostic on the block with a link to its row in a working-
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.
 - `loom:see-redundant` (info): a `% !LOOM see:` item that names the node it is written in, or that repeats a relation already declared on that node.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
-- `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
+- `loom:snippet-failed` (warning): TeX refused a text no compile makes (a node no document reaches, a digest's statement, a landmark's, a preview) or a diagram, which shows as its source; naming the text's opening words, where it stands, and TeX's first complaint. Not raised where TeX does not run (`--no-compile`, no `make4ht`).
 - `loom:closure-failed` (error): a key's closure document did not compile; first LaTeX error attached; `loom check --closures` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks.
 - `loom:atomize-target-exists` (error, fixed): atomize would overwrite a file.
 - `loom:import-outside-tree` (warning): import found a file outside the paper directory and did not copy it.

@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 from loom.render.manifest import own_text
-from loom.render.review_compare import _changed, _render
+from loom.render.review_compare import _changed, _render_into
 from loom.scan.hashing import normalize
 from loom.scan.scan import ScanResult
 
@@ -42,7 +42,7 @@ def pair(
         if not text or key not in result.nodes:
             paths.append(None)
         else:
-            files[path] = _render(renderer, result, key, text, pre, spans)
+            _render_into(files, path, renderer, result, key, text, pre, spans)
             paths.append(path)
     return {"local": paths[0], "incoming": paths[1], "current": before, "proposed": after}
 

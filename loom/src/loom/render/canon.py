@@ -1,4 +1,4 @@
-"""Landmarks as fragments: a landmark is rendered as the document it is, with no node identity, no marks, and no numbers loom did not compile itself.
+"""Landmarks as fragments: a landmark is made by TeX as the document it is, with no node identity and no marks; never compiled itself, it prints its live document's numbers.
 
 A landmark's text lives in its step's directory, which the scan never enters, so nothing here goes through the assembly: the file is read on its own, its preamble closure is built from itself, and its labels anchor within the page.
 """
@@ -11,18 +11,19 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import Entry, History
-from loom.render.assets import publish_graphic
-from loom.render.convert import Converter, RenderContext, esc
-from loom.render.fragments import FragmentRenderer, plain_text
+from loom.paths import document_build
+from loom.render.fragments import FragmentRenderer, Owner, _from_tex, bare_preamble, plain_text
+from loom.render.markup import esc
 from loom.scan.digests import loaded_packages
 from loom.scan.envtree import norm_label
 from loom.scan.macros import compatibility_macros, declared_alphabets, package_macros, to_mathjax
-from loom.scan.model import Diagnostic, Location, SourceFile
-from loom.scan.preamble import PreambleClosure, build_closure, document_start
+from loom.scan.model import SourceFile
+from loom.scan.preamble import PreambleClosure, build_closure
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
 from loom.scan.source import read_source
 from loom.tex.aux import read_cite_labels, read_numbers
+from loom.tex.runner import normalise_engine
 
 _LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
 
@@ -115,84 +116,75 @@ def macro_set(doc: CanonDoc) -> list[dict[str, Any]]:
 
 
 class CanonRenderer:
-    """Renders landmarks with the FragmentRenderer's fallback machinery but none of its identity."""
+    """Makes landmarks by TeX as the documents they are, under their own preambles, with none of a node's identity: a statement pairs with the live one by its label."""
 
     def __init__(self, renderer: FragmentRenderer) -> None:
         self.renderer = renderer
         self.result = renderer.result
         self.root = renderer.result.quilt.root
 
-    def _context(self, doc: CanonDoc) -> RenderContext:
-        seen: set[str] = set()
-
-        def include(arg: str) -> str:
-            # a canonized document is flat; an \input that survives is one someone put there by hand, so inline the file if it exists and say so if it does not
-            if arg.startswith("graphics:"):
-                rel, err = publish_graphic(self.root, arg[len("graphics:") :], self.renderer.plan.svg_out, doc.base)
-                if rel is None:
-                    return f'<figure class="fallback failed" data-src="{doc.path}:0:0"><pre>{esc(arg)}</pre></figure>'
-                return f'<figure data-src="{doc.path}:0:0"><img src="{rel}"></figure>'
-            from loom.scan.expand import resolve_inclusion
-
-            rel, problem = resolve_inclusion(self.root, arg, base=doc.base)
-            if rel is None or rel in seen:
-                if problem != "system":
-                    ctx.diagnostics.append(
-                        Diagnostic(
-                            "error",
-                            "missing-include",
-                            f"\\input{{{arg}}} names no file",
-                            [Location(doc.path, 1)],
-                        )
-                    )
-                return ""
-            seen.add(rel)
-            child = read_source(self.root, rel)
-            sub = Converter(_child_context(ctx, child))
-            return f'<div class="included" data-file="{esc(rel)}">{sub.render_range(0, len(child.clean))}</div>'
-
-        ctx = RenderContext(
-            file=doc.path,
-            text=doc.src.text,
-            clean=doc.src.clean,
-            key=doc.path,
-            labels=doc.labels,
-            regions={},
-            # a landmark is never compiled: it reads its live document's numbers and citation labels, as the live text shows them
-            numbers=read_numbers(self.root, doc.path) or (read_numbers(self.root, doc.live) if doc.live else {}),
-            cite_labels=read_cite_labels(self.root, doc.path)
-            or (read_cite_labels(self.root, doc.live) if doc.live else {}),
-            macros=doc.closure.macros,
-            taxa=doc.closure.taxa,
-            child_at={},
-            child_html=lambda key: "",
-            include_html=include,
-            fallback=self.renderer._fallback_for_preamble(_preamble_for(doc.closure), doc.path, doc.base),
-            cite_target=self.renderer._cite_target,
-            pairs=doc.pairs,
+    def owner(self, doc: CanonDoc) -> Owner:
+        """The landmark as the document its text is read in: its own preamble and directory, and, as it is never compiled, its live document's numbers, citation labels and aux."""
+        root = self.root
+        begin = re.search(r"\\begin\s*\{document\}", doc.src.clean)
+        own = root / document_build(doc.path) / f"{Path(doc.path).stem}.aux"
+        live = root / document_build(doc.live) / f"{Path(doc.live).stem}.aux" if doc.live else None
+        return Owner(
+            doc.path,
+            doc.base,
+            doc.closure,
+            read_numbers(root, doc.path) or (read_numbers(root, doc.live) if doc.live else {}),
+            read_cite_labels(root, doc.path) or (read_cite_labels(root, doc.live) if doc.live else {}),
+            dict(doc.closure.macros),
+            doc.src.text[: begin.start()] if begin else bare_preamble(doc.closure.taxa),
+            own if own.is_file() else (live if live is not None and live.is_file() else None),
+            normalise_engine(doc.closure.engine or self.result.quilt.config.engine),
         )
-        return ctx
 
     def fragment(self, doc: CanonDoc) -> str:
-        ctx = self._context(doc)
-        body_start = document_start(doc.src)
-        start = 0
-        if body_start is not None:
-            m = re.search(r"\\begin\s*\{document\}", doc.src.clean)
-            start = m.end() if m else 0
+        """The landmark's fragment: its body cut at each statement and proof standing at its top level, made by TeX in one batch, and shaped as a page is."""
+        begin = re.search(r"\\begin\s*\{document\}", doc.src.clean)
         end_m = re.search(r"\\end\s*\{document\}", doc.src.clean)
+        start = begin.end() if begin else 0
         end = end_m.start() if end_m else len(doc.src.clean)
-        conv = Converter(ctx)
-        body = conv.render_range(start, end)
-        self.renderer._sink.extend(ctx.diagnostics)
+        names = {*doc.closure.taxa, "proof"}
+        regions = [(doc.path, a, b) for a, b in top_envs(doc.src.clean, start, end, names)]
+        made = self.renderer.snippet_page(
+            self.owner(doc), regions, [], files={doc.path: doc.src}, pairs=doc.pairs, labels=doc.labels
+        )
         head = f'<h1 data-src="{doc.path}:0:0">{esc(doc.title)}</h1>'
-        return _stamp(head + body, doc)
+        return _stamp(_from_tex(head + made.master_html()), doc)
 
 
-def _child_context(ctx: RenderContext, child: SourceFile) -> RenderContext:
-    import dataclasses
+_OPEN = re.compile(r"\\(begin|end)\s*\{([^}]*)\}")
 
-    return dataclasses.replace(ctx, file=child.path, text=child.text, clean=child.clean, key=child.path)
+
+def top_envs(clean: str, start: int, end: int, names: set[str]) -> list[tuple[int, int]]:
+    """`clean[start:end]` cut into spans: each environment named in `names` that stands outside every other environment, and the prose between, blank prose left out."""
+    out: list[tuple[int, int]] = []
+    pos = start
+    depth = 0
+    opened: int | None = None
+    for m in _OPEN.finditer(clean, start, end):
+        name = m.group(2).strip()
+        if name == "document":
+            continue
+        if m.group(1) == "begin":
+            if depth == 0 and name in names:
+                if clean[pos : m.start()].strip():
+                    out.append((pos, m.start()))
+                opened = m.start()
+            depth += 1
+        else:
+            depth = max(depth - 1, 0)
+            if depth == 0 and opened is not None:
+                out.append((opened, m.end()))
+                pos, opened = m.end(), None
+    if opened is not None:
+        pos = opened
+    if clean[pos:end].strip():
+        out.append((pos, end))
+    return out
 
 
 def _stamp(fragment: str, doc: CanonDoc) -> str:

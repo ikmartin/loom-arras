@@ -16,6 +16,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.clock import tex_date
+
 ENGINE_FLAGS = {
     "pdflatex": ["-pdf"],
     "lualatex": ["-lualatex"],
@@ -255,7 +257,7 @@ def compile_tex(
             stderr=subprocess.PIPE,
             text=True,
             errors="replace",
-            env=os.environ.copy(),
+            env={**os.environ, **tex_date()},
             start_new_session=True,
         )
         if started is not None:

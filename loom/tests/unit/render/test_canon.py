@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from loom.render.build import build
 from loom.scan.quilt import load_quilt
 from tests.helpers import exits, ok, templated, the
@@ -51,6 +53,7 @@ def manifest(q: Path) -> dict:
     return json.loads((q / ".loom/build" / "manifest.json").read_text())
 
 
+@pytest.mark.tex
 def test_a_landmark_is_a_fragment_without_identity(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("build", cwd=q, env=FIXED)
@@ -158,6 +161,7 @@ def test_the_history_publishes_every_step_and_each_landmark_its_live_draft(tmp_p
     assert all("in" not in c for c in manifest(q)["canon"])
 
 
+@pytest.mark.tex
 def test_a_landmark_never_compiled_reads_its_live_documents_numbers(tmp_path: Path) -> None:
     """A landmark has no `.aux` of its own, so it takes its numbers and citation labels from the live document it is a version of, as the live text shows them."""
     from loom.paths import document_build

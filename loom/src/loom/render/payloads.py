@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 
-import dataclasses
-import re
 from typing import Any
 
 from loom.records.store import Records
 from loom.records.suggestions import SUGGESTION, Unplaced, is_taken, patch, place
-from loom.render.convert import Converter
 from loom.render.fragments import FragmentRenderer
 from loom.scan.scan import ScanResult
-from loom.scan.source import blank_comments
 
 
 def attach_payloads(result: ScanResult, renderer: FragmentRenderer, manifest: dict[str, Any]) -> None:
-    """Give every annotation that proposes text its proposal rendered, in the context of the result it is on.
+    """Give every annotation that proposes text its proposal made by TeX, in the terms of the result it is on.
 
-    A proposal may be a whole theorem and its proof, which only the converter reads: the viewer's own prose renderer handles a sentence, and hands `\\begin{theorem}` to MathJax, which draws it as an error. An annotation on no result is read in the default document; a proposal the converter refuses keeps `payload_html` null and the viewer renders the TeX as prose.
+    A proposal may be a whole theorem and its proof, which only TeX reads: the viewer's own prose renderer handles a sentence, and hands `\\begin{theorem}` to MathJax, which draws it as an error. An annotation on no result is read in the default document; a proposal TeX refuses keeps `payload_html` null and the viewer renders the TeX as prose. Asked for here and made with the build's other previews (`FragmentRenderer.previews`).
     """
     for entry in manifest.get("annotations", {}).values():
         entry["payload_html"] = None
@@ -28,22 +24,12 @@ def attach_payloads(result: ScanResult, renderer: FragmentRenderer, manifest: di
         )
         if not payload or node is None:
             continue
-        context = dataclasses.replace(
-            renderer._context(node, "master"),
-            file=f"payload/{entry['id']}",
-            text=payload,
-            clean=blank_comments(payload),
-            child_at={},
-            include_html=lambda _arg: "",
-            highlight_spans=[],
-            diagnostics=[],
-        )
-        try:
-            markup = Converter(context).render_range(0, len(payload))
-        except Exception:  # noqa: BLE001 -- a proposal is an agent's text, and one it cannot read falls back to prose rather than failing the build
-            continue
-        # drawn inside the document it is about, whose anchors carry the same labels
-        entry["payload_html"] = re.sub(r'(?<=\s)id="[^"]*"', "", markup)
+        later = renderer.previews.ask(node.key, payload, None, [])
+
+        def took(html: str, entry: dict[str, Any] = entry) -> None:
+            entry["payload_html"] = None if html.startswith('<pre class="source"') else html
+
+        renderer.previews.on_made(later, took)
 
 
 def attach_changes(
@@ -57,7 +43,7 @@ def attach_changes(
 
     `{"state": "ready", "fragment", "diff", "moved"}` is the key rendered with the payload in place, its changed words marked as Review marks them, and the patch `loom suggestion` prints, both under `fragments/suggestions/`; `{"state": "taken"}` says the key already reads as the suggestion taken, so resolving it as applied is offered; `{"state": "unplaced", "why"}` says why the payload has no place. Rendered at build, so a static host shows it too.
     """
-    from loom.render.review_compare import _changed, _render
+    from loom.render.review_compare import _changed, _render_into
 
     entries = manifest.get("annotations", {})
     for record in records.records:
@@ -80,8 +66,15 @@ def attach_changes(
             _, spans = _changed(placed.own, placed.taken)
             fragment = f"fragments/suggestions/{ann.id}.html"
             diff = f"fragments/suggestions/{ann.id}.diff"
-            files[fragment] = _render(
-                renderer, result, placed.key, placed.taken, closure.raw_text() if closure else "", spans
+            _render_into(
+                files,
+                fragment,
+                renderer,
+                result,
+                placed.key,
+                placed.taken,
+                closure.raw_text() if closure else "",
+                spans,
             )
             files[diff] = patch(result, placed)
             entry["change"] = {"state": "ready", "fragment": fragment, "diff": diff, "moved": placed.moved}

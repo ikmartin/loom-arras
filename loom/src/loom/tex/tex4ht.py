@@ -17,6 +17,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.clock import tex_date
 from loom.scan.preamble import PreambleClosure
 from loom.tex.runner import stage_document, stop_run
 
@@ -30,6 +31,8 @@ FIGURES = (".pdf", ".png", ".jpg", ".jpeg")
 REPAIRED = "repaired.json"
 #: Beside a page, the hash of every source file the run read, by quilt-relative path.
 SOURCES = "sources.json"
+#: Beside a page, the text of every `.tex` file the run read, by quilt-relative path: what an edit since is measured against.
+TEXTS = "texts.json"
 #: The files a run's sources are, whose change makes its page stale; build products and pictures are not among them.
 SOURCE_SUFFIXES = frozenset((".tex", ".sty", ".cls", ".clo", ".def", ".cfg", ".bib", ".bst", ".bbx", ".cbx", ".ltx"))
 
@@ -236,14 +239,62 @@ def repair_displays(text: str, first: int = 0) -> tuple[str, list[tuple[int, str
     return "".join(out), found
 
 
+#: xr's package, and the external document it reads labels from, with xr's prefix in group 1 and its path in group 2.
+_XR = re.compile(r"\\usepackage\s*(?:\[[^\]]*\])?\s*\{\s*xr(?:-hyper)?\s*\}")
+_EXTERNAL = re.compile(r"\\externaldocument\s*(?:\[([^\]]*)\])?\s*\{([^}]*)\}")
+_NEWLABEL = re.compile(r"^\\newlabel\{([^}]*)\}(.*)$", re.M)
+
+
+def external_labels(text: str, here: Path) -> tuple[str, list[str]]:
+    """`text` with xr's package and each `\\externaldocument` blanked, and the labels each external document's aux defines, prefixed as xr prefixes them, as aux lines to read in their place.
+
+    TeX4ht cannot read an external aux written by pdflatex (`xr`'s and `xr-hyper`'s links break on it), while the run's own aux, read as the document's, takes the same lines without complaint. A relative path is read from `here`, the document's directory. Blanking keeps every line and offset where it was.
+    """
+    lines: list[str] = []
+    for m in _EXTERNAL.finditer(_blank_comments(text)):
+        name = m.group(2).strip()
+        aux = Path(name if name.endswith(".aux") else name + ".aux")
+        aux = aux if aux.is_absolute() else here / aux
+        if not aux.is_file():
+            continue
+        prefix = (m.group(1) or "").strip()
+        lines += [
+            f"\\newlabel{{{prefix}{n.group(1)}}}{n.group(2)}"
+            for n in _NEWLABEL.finditer(aux.read_text(encoding="utf-8", errors="replace"))
+        ]
+    blank = lambda m: re.sub(r"[^\n]", " ", m.group(0))  # noqa: E731
+    return _EXTERNAL.sub(blank, _XR.sub(blank, text)), lines
+
+
+def _read_externals(here: Path, files: list[Path], aux: Path) -> None:
+    """Blank xr in each of `files` and add the labels it would have read to `aux`, the run's own (`external_labels`); `here` is the document's directory in the quilt, which a relative path is read from, since the stage carries no aux."""
+    lines: list[str] = []
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if "externaldocument" not in text and "{xr" not in text:
+            continue
+        fixed, found = external_labels(text, here)
+        if fixed != text:
+            f.write_text(fixed, encoding="utf-8")
+        lines += found
+    if lines:
+        before = aux.read_text(encoding="utf-8", errors="replace") if aux.is_file() else "\\relax\n"
+        aux.write_text(before.rstrip("\n") + "\n" + "\n".join(lines) + "\n", encoding="utf-8")
+
+
 #: Where one text of a run of texts begins, between blocks; TeX4ht mangles a hyphen in a comment, so the name has none.
 SNIPPET = "\\def\\loomsnippet#1{\\par\\ifvmode\\IgnorePar\\fi\\EndP\\HCode{<!--loomsnippet #1-->}}\n"
 
 
-def configuration(envs: Sequence[str], *, snippets: bool = False) -> str:
-    """The `.cfg` for a document whose nodes are the environments `envs`: MathJax mode, the row counting, the stamps, and with `snippets` the mark each text of a run begins with."""
-    nodes = "".join(f"\\loomnode{{{e}}}" for e in sorted(set(envs)) if _ENV.match(e))
+def configuration(envs: Sequence[str], *, snippets: bool = False, math: str = "mathjax") -> str:
+    """The `.cfg` for a document whose nodes are the environments `envs`: MathJax mode, the row counting, the stamps, and with `snippets` the mark each text of a run begins with.
+
+    With `math` 'svg' TeX sets every formula itself and TeX4ht draws each display as a picture: the mode a diagram is drawn in, with the marks and nothing else.
+    """
     marks = SNIPPET if snippets else ""
+    if math == "svg":
+        return "\\Preamble{xhtml,svg}\n\\begin{document}\n" + marks + "\n\\EndPreamble\n"
+    nodes = "".join(f"\\loomnode{{{e}}}" for e in sorted(set(envs)) if _ENV.match(e))
     return "\\Preamble{xhtml,mathjax}\n\\begin{document}\n" + ROWS + STAMPS + marks + nodes + "\n\\EndPreamble\n"
 
 
@@ -313,6 +364,11 @@ def compile_html(
         stage = stage_document(root, base, [tex], Path(tmp) / "src")
         cwd = stage / base
         read = source_hashes(stage)
+        texts = {
+            f.relative_to(stage).as_posix(): f.read_text(encoding="utf-8", errors="replace")
+            for f in sorted(stage.rglob("*.tex"))
+            if f.is_file()
+        }
         repaired: list[Repaired] = []
         for f in sorted(stage.rglob("*.tex")):
             text = f.read_text(encoding="utf-8", errors="replace")
@@ -326,6 +382,7 @@ def compile_html(
             for suffix in (".aux", ".bbl", ".toc", ".out"):
                 if (seed / f"{stem}{suffix}").is_file():
                     shutil.copy2(seed / f"{stem}{suffix}", cwd / f"{stem}{suffix}")
+        _read_externals(root / base, sorted(stage.rglob("*.tex")), cwd / f"{stem}.aux")
         home = Path(tmp) / "home"
         out = Path(tmp) / "out"
         aux = cwd / f"{stem}.aux"
@@ -360,6 +417,7 @@ def compile_html(
             (fresh / REPAIRED).write_text(json.dumps([vars(r) for r in repaired], ensure_ascii=False), encoding="utf-8")
             # what the page was made from, so a publication can tell whether it still says what the sources do
             (fresh / SOURCES).write_text(json.dumps(read, sort_keys=True), encoding="utf-8")
+            (fresh / TEXTS).write_text(json.dumps(texts, sort_keys=True, ensure_ascii=False), encoding="utf-8")
             old = outdir.with_name(f".{outdir.name}.old")
             shutil.rmtree(old, ignore_errors=True)
             if outdir.exists():
@@ -372,7 +430,7 @@ def compile_html(
         )
 
 
-def _prepare(stage: Path, cwd: Path, envs: Sequence[str], *, snippets: bool = False) -> None:
+def _prepare(stage: Path, cwd: Path, envs: Sequence[str], *, snippets: bool = False, math: str = "mathjax") -> None:
     """Make a staged copy ready for a run: what a quilt carries for TeX4ht removed, bounding boxes beside its figures, and loom's configuration and build file in `cwd`."""
     for f in sorted(stage.rglob("*")):
         if f.is_file() and CARRIED.search(f.name):
@@ -381,7 +439,7 @@ def _prepare(stage: Path, cwd: Path, envs: Sequence[str], *, snippets: bool = Fa
         for f in sorted(cwd.rglob("*")):
             if f.is_file() and f.suffix.lower() in FIGURES:
                 subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
-    (cwd / "loom-html.cfg").write_text(configuration(envs, snippets=snippets), encoding="utf-8")
+    (cwd / "loom-html.cfg").write_text(configuration(envs, snippets=snippets, math=math), encoding="utf-8")
     (cwd / "loom-html.mk4").write_text("-- loom's build file: make4ht's defaults and nothing else\n", encoding="utf-8")
 
 
@@ -394,15 +452,16 @@ def _pass(
     engine: str,
     timeout: int,
     started: Callable[[subprocess.Popen[str]], None] | None = None,
+    math: str = "mathjax",
 ) -> tuple[int, str]:
-    """One make4ht pass over `name` in `cwd`, writing into `out`, with `home` its own: its exit code and what it said; 124 when it ran past `timeout` and was killed with everything it started."""
+    """One make4ht pass over `name` in `cwd`, writing into `out`, with `home` its own, formulas in `math` mode: its exit code and what it said; 124 when it ran past `timeout` and was killed with everything it started."""
     home.mkdir(exist_ok=True)
-    env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
+    env = {**os.environ, **tex_date(), "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
     if "TEXMFHOME" not in os.environ:
         env["TEXMFHOME"] = _texmfhome()
     cmd = [exe, *ENGINE.get(engine, []), "-m", "draft", "-u", "-c", "loom-html.cfg", "-e", "loom-html.mk4"]
     proc = subprocess.Popen(
-        [*cmd, "-d", str(out), name, "mathjax"],
+        [*cmd, "-d", str(out), name, math],
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -433,6 +492,7 @@ def make_html(
     aux: Path | None = None,
     timeout: int = 600,
     pictures: tuple[Path, str] | None = None,
+    math: str = "mathjax",
 ) -> tuple[str | None, str]:
     """One TeX4ht pass over `text`, a document loom wrote, as `name.tex` in a copy of the document directory `base` outside the quilt.
 
@@ -454,6 +514,8 @@ def make_html(
     timeout : int, default 600
     pictures : (Path, str), optional
         A directory each picture the page draws is kept in, under its content's hash, and the path the page names that directory by.
+    math : str, default 'mathjax'
+        'mathjax' leaves formulas as TeX for the viewer; 'svg' has TeX4ht draw each display as a picture (`configuration`).
 
     Returns
     -------
@@ -467,12 +529,13 @@ def make_html(
         stage = stage_document(root, base, [], Path(tmp) / "src")
         cwd = stage / base
         cwd.mkdir(parents=True, exist_ok=True)
-        _prepare(stage, cwd, envs, snippets=True)
+        _prepare(stage, cwd, envs, snippets=True, math=math)
         (cwd / f"{name}.tex").write_text(text, encoding="utf-8")
         if aux is not None and aux.is_file():
             shutil.copy2(aux, cwd / f"{name}.aux")
+        _read_externals(root / base, [cwd / f"{name}.tex"], cwd / f"{name}.aux")
         out = Path(tmp) / "out"
-        code, said = _pass(exe, cwd, f"{name}.tex", out, Path(tmp) / "home", engine, timeout)
+        code, said = _pass(exe, cwd, f"{name}.tex", out, Path(tmp) / "home", engine, timeout, math=math)
         log = cwd / f"{name}.log"
         told = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else said
         if code == 124:

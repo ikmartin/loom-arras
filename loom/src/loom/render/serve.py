@@ -670,9 +670,9 @@ class ServeSession:
                 from loom.cli.report import Progress
 
                 with Progress("rebuilding") as shown:
-                    report = build(self.quilt, reuse=reuse, progress=shown.told)
+                    report = build(self.quilt, reuse=reuse, progress=shown.told, tex=self.compile_masters)
             else:
-                report = build(self.quilt, reuse=reuse, progress=progress)
+                report = build(self.quilt, reuse=reuse, progress=progress, tex=self.compile_masters)
             self.last_report = report
             self.builds += 1
             self.published = seen

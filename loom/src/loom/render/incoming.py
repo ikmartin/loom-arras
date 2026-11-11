@@ -11,7 +11,7 @@ from typing import Any
 from loom.records.store import Records
 from loom.render.manifest import own_text
 from loom.render.prose_changes import attach_prose, document_body, pair
-from loom.render.review_compare import _changed, _render
+from loom.render.review_compare import _changed, _render_into
 from loom.scan.hashing import mathematical_hash, normalize
 from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
@@ -45,7 +45,7 @@ def _scan_tree(clone: Path, commit: str, config: bytes, home: Path, state: SyncS
 def _citation(result: ScanResult, dependent: str, target: str) -> str | None:
     if result.graph is None:
         return None
-    from loom.render.convert import slug
+    from loom.render.markup import slug
 
     edge = next(
         (
@@ -142,8 +142,8 @@ def attach_incoming(
             local_path = f"fragments/incoming/{digest}-local.html"
             incoming_path = f"fragments/incoming/{digest}-incoming.html"
             if local_node is not None:
-                files[local_path] = _render(renderer, result, key, local, local_preamble, local_spans)
-                files[incoming_path] = _render(renderer, result, key, after, incoming_preamble, incoming_spans)
+                _render_into(files, local_path, renderer, result, key, local, local_preamble, local_spans)
+                _render_into(files, incoming_path, renderer, result, key, after, incoming_preamble, incoming_spans)
             targets = {key} | {
                 target
                 for target, owner in incoming.dependencies.owners.items()
@@ -243,11 +243,20 @@ def attach_adoptions(
                 local_path = f"fragments/incoming/{digest}-local.html"
                 proposed_path = f"fragments/incoming/{digest}-proposal.html"
                 if local_node:
-                    files[local_path] = _render(
-                        renderer, result, key, before, current_pre.raw_text() if current_pre else "", left
+                    _render_into(
+                        files,
+                        local_path,
+                        renderer,
+                        result,
+                        key,
+                        before,
+                        current_pre.raw_text() if current_pre else "",
+                        left,
                     )
                 if proposed_node:
-                    files[proposed_path] = _render(
+                    _render_into(
+                        files,
+                        proposed_path,
                         renderer,
                         result,
                         proposed_node.key,

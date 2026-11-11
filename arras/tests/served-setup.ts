@@ -2,7 +2,7 @@
 
 import type { FullConfig } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ARRAS, LOOM, scratchDir, suiteOf, reviewerEnv } from './served';
 
@@ -27,9 +27,12 @@ export default function setup(config: FullConfig): void {
 		mkdirSync(dirname(to), { recursive: true });
 		copyFileSync(join(repo, file), to);
 	}
+	// the pages TeX made of the quilt's documents (loom/scripts/gen_pages.py), since the suites run no TeX: without them every document shows as its source
+	const pages = join(ARRAS, 'tests', 'pages', suite.quilt);
+	if (existsSync(pages)) cpSync(pages, join(dir, 'template', '.loom', 'build'), { recursive: true });
 	// built once here, so each served copy starts from a warm cache; the quilt's own errors make loom exit 1, which is not a failure to build
 	try {
-		execFileSync(LOOM, ['build', '--quilt', join(dir, 'template')], { cwd: ARRAS, stdio: 'pipe', env: reviewerEnv(suite, join(dir, 'config')) });
+		execFileSync(LOOM, ['build', '--no-compile', '--quilt', join(dir, 'template')], { cwd: ARRAS, stdio: 'pipe', env: reviewerEnv(suite, join(dir, 'config')) });
 	} catch (err) {
 		if ((err as { status?: number }).status !== 1) throw err;
 	}

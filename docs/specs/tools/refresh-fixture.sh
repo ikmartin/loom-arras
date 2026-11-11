@@ -19,6 +19,8 @@ POPPLER=$(dirname "$(command -v pdftotext)")
 run() { env -i PATH="$TEXBIN:$POPPLER:/usr/bin:/bin:$LOOM/.venv/bin" HOME="$EMPTY" TEXMFHOME="$EMPTY" TEXMFLOCAL="$EMPTY" TEXMFVAR="$EMPTY/var" TEXMFCONFIG="$EMPTY/config" LOOM_FIXED_TIME="$LOOM_FIXED_TIME" "$@"; }
 run "$LOOM/.venv/bin/loom" compile drafting/main.tex --html --quilt "$Q"
 run "$LOOM/.venv/bin/loom" compile drafting/talk.tex --html --quilt "$Q"
+# the agent's copy is a document like any other, and `loom serve` compiles it too
+run "$LOOM/.venv/bin/loom" compile .loom/copies/aidoc.tex --html --quilt "$Q"
 run "$LOOM/.venv/bin/loom" build --quilt "$Q" || true   # exit 1 is expected: the synthetic quilt carries four intentional errors
 rm -rf "$OUT"
 mkdir -p "$OUT"

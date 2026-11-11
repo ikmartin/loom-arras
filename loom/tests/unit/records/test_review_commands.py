@@ -130,11 +130,14 @@ def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
     assert any(cause.get("id") == "dm-0002" and not cause.get("via") for cause in state["acceptance"]["causes"])
 
 
+@pytest.mark.tex
 def test_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> None:
+    """A changed dependency's comparison is made by TeX with its changed words marked, and the reference that cites it on the document's page carries the anchor the review panel finds it by."""
     d = demo(tmp_path, clean=False)
     from loom.scan.quilt import save_author
 
     save_author("The loom demo")
+    ok("compile", "--html", cwd=d)
     ok("build", cwd=d)
     manifest = json.loads((d / ".loom/build" / "manifest.json").read_text())
     cause = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
@@ -1371,6 +1374,7 @@ def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> No
     )  # --undo needs a verb to undo
 
 
+@pytest.mark.tex
 def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
     """A comment on a region key with no quote -- a box drawn round an equation -- marks the display itself, so the reader can click it; nothing is put inside the formula."""
     d = synthetic(tmp_path)
@@ -1387,6 +1391,7 @@ def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
         env=AGENT,
     )
     ann = [e["id"] for e in events(d) if e["event"] == "created"][-1]
+    ok("compile", "--html", cwd=d)
     exits(1, "build", cwd=d)
     frag = (d / ".loom/build" / "fragments" / "nodes" / "sy-0001.html").read_text()
     display = next(ln for ln in frag.split("<div") if 'data-label="eq:fix"' in ln)
@@ -1582,8 +1587,9 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
     assert [e["in"] for e in events(d) if e.get("id") == ann] == ["drafting/main.tex"]
 
 
+@pytest.mark.tex
 def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(tmp_path: Path) -> None:
-    """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; the publisher renders it beside the TeX."""
+    """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; TeX makes it beside the TeX."""
     d = demo(tmp_path)
     sid, _ = session(d)
     payload = "\\begin{lemma}\\label{dm-0002-ai}\nEvery nonempty orbit has \\(1\\) or \\(2\\) points.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nBy definition.\n\\end{proof}"
