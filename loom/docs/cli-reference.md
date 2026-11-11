@@ -149,7 +149,7 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 
 List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
-Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
 
 | option | description |
 |---|---|
@@ -167,7 +167,7 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 | `--status` | Keys carrying an annotation in this state. |
 | `--detached` | Keys whose annotations no longer find their quoted text. |
 | `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
-| `--reading` | List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise. |
+| `--reading` | List the annotations on cited works, by work; they are in no row and count toward nothing otherwise. |
 | `--explain` `KEY` | Why KEY is in its state, with the diff of what moved. |
 | `--json` | Print the report as one JSON object. |
 | `--session` | Log this call to the session. |
@@ -989,7 +989,7 @@ The viewer tab they touched last reports it to `loom serve`, which keeps it in m
 
 Report what people did since you last looked, and move your marker past it.
 
-People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+People's annotations and replies, whole, with the words they are on; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
 
 | option | description |
 |---|---|

@@ -17,7 +17,7 @@ Most tools would make a weak model dangerous. Four properties of loom contain on
 - **The trust boundary is enforced, not requested.** `loom accept`, `loom library verify`, `loom adopt` and the other author's acts refuse any agent, by declared name and by the agent's shell markers (`docs/design/agents.md`), and the MCP server will not offer them as tools at all. A butler cannot sign the ledger however confused it gets, which is roughly what being a butler means.
 - **Loom checks much of what it is given.** An id resolves or it does not, a document compiles or it does not, and `loom library propose` refuses a quotation that is not on the page or in the source file it names. Where loom is the checker, a small model's mistakes are caught before they are stored, not by the author afterwards.
 - **Context comes in closures.** `loom source KEY --closure` prints exactly what a statement rests on. Small models degrade as context grows, and loom already does the narrowing they need.
-- **Notes fade** (not built yet; `docs/design/model.md`). A note fades unless it is kept or something durable links to it, so a small model's guesses can be fleeting by default and clear themselves away.
+- **Notes no longer fade** (plan 0.30: a note is an annotation of a type listed in Notes). A small model's guesses would have to be cleared away by the agent that wrote them, which deletes its own annotations, or by the person.
 
 ## Routing by the cost of checking
 
@@ -65,7 +65,7 @@ For the Explorer's "is this known?", a **fine-tuned embedding model** over diges
 - **Verifiable rewards.** Loom's exit codes, quotation checks, id resolution and compiles give reinforcement learning a reward signal for nothing, with the MCP tools as the action space and the fixture quilts as the environment.
 - **Ground truth by ablation.** Remove the `\uses` edges and `\ref`s from a fixture document, and the removed edges are the answers for job 3. The same trick serves job 1: describe a node in words and ask for its id.
 - **Extraction data at scale.** For any arXiv paper with both LaTeX source and a PDF, loom's mechanical digest extractor labels the PDF's page text with each result's statement and locator. That trains both halves of job 2, the label's page and region for locating and the statement for transcribing, with no hand labelling.
-- **Preference labels from real use.** Annotations are resolved or withdrawn, agent documents are adopted node by node, proposals are verified or discarded. Every record names its writer, so a butler's hit rate can be measured per kind of record, and the measurement is a training signal. This data is small for any one quilt, and because annotations are shared with coauthors, they must agree before their words are trained on.
+- **Preference labels from real use.** Annotations are resolved or deleted, agent documents are adopted node by node, proposals are verified or discarded. Every record names its writer, so a butler's hit rate can be measured per kind of record, and the measurement is a training signal. This data is small for any one quilt, and because annotations are shared with coauthors, they must agree before their words are trained on.
 - **Teacher trajectories.** A frontier agent working the fixtures produces examples of good tool use. Check that provider's terms on training other models; an open-weight teacher avoids the question.
 
 At four bits an 8B model is roughly 5 GB and runs on an ordinary Apple Silicon Mac; a 4-bit LoRA fine-tune (QLoRA) fits on one 24 GB GPU.

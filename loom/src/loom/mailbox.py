@@ -284,7 +284,7 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
     lines: list[str] = []
     for c in changed:
         who = c.get("by", "")
-        # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
+        # what a reader can act on: the citekey and the page for an annotation on a cited work, the key otherwise
         where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
         mine = " · to your annotation" if c.get("yours") else ""
         now = f" · now {c['status']}" if c.get("status") else ""
@@ -299,7 +299,7 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
 
 
 def work_of(root: Path, annotation: Any) -> str | None:
-    """The citekey a page note's target names, or None when the target is a key in the corpus.
+    """The citekey an annotation on a cited work names, or None when the target is a key in the corpus.
 
     The record stores the work's identifier, which is what two quilts agree on; every `loom library` command wants the citekey, which is what this machine calls it. Nothing mapped one to the other, so an agent given a changed-annotation block had an address it could not use.
     """
@@ -324,7 +324,7 @@ def work_of(root: Path, annotation: Any) -> str | None:
 def annotation_row(root: Path, a: Any) -> dict[str, Any]:
     """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on.
 
-    A page note's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
+    Such an annotation's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
     """
     row: dict[str, Any] = {
         "id": a.id,

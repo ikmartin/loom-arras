@@ -35,10 +35,11 @@ def test_the_defaults_are_four_types_with_their_looks() -> None:
     assert all(t.instructions and t.look.color in COLORS for t in types)
 
 
-def test_a_quilt_without_the_file_has_the_defaults_and_no_complaint(tmp_path: Path) -> None:
+def test_a_quilt_without_the_file_has_the_defaults_and_is_told_the_command_that_writes_it(tmp_path: Path) -> None:
+    """The plan's fallback: the defaults, with a diagnostic, which the publisher makes an info since nothing is lost (T3)."""
     got = load_types(tmp_path)
     assert [t.id for t in got.types] == ["revision", "suggestion", "question", "note"]
-    assert got.source is None and got.problems == []
+    assert got.source is None and len(got.problems) == 1 and "`loom upgrade`" in got.problems[0]
 
 
 def test_a_file_that_is_not_toml_loads_the_defaults_and_says_so(tmp_path: Path) -> None:

@@ -51,7 +51,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 
 **Proposed text or agent document.** Proposed text is a change the author can take or refuse on its own: it lands at one place in one key, however long — a drop-in paragraph is proposed text, a suggested edit. A change that only makes sense with others, or that moves, merges, splits or reorders results, is an agent document of the passage it touches (`loom draft DOC --ai NAME --section ID`). The test: could the author take this one and refuse its neighbours?
 
-**A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A work you read through that has no overview yet gets one from you before you move on, whatever brought you to it; `loom library read WORK` says when it has none. A `note` annotation stays the home of what concerns one result.
+**A page is a reading, never a source.** Write the research state so that someone starting a session tomorrow knows what the work is after and what is settled; keep it short, and replace what no longer holds rather than appending to it. A work's overview says what the paper proves and how, linking each result by its digest id; it is never cited as the paper. A work you read through that has no overview yet gets one from you before you move on, whatever brought you to it; `loom library read WORK` says when it has none. A {type:note} stays the home of what concerns one result.
 
 **Relations between results** go in `loom library relate FROM TO --kind … --why "…"`, where both ends find them, not in prose.
 
@@ -81,7 +81,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
 ## Never
 
 - Never write a file the quilt protects (`orientation.md` §2, and the list under Live state), and never delete anything outside `.loom/build/SESSION/`. Loom's own commands, such as `loom compile`, write where they write.
-- Never write `.loom/annotations/log.jsonl` by hand; `loom annotate` appends to it.
+- Never write `.loom/annotations/log.jsonl` or `.loom/edits/log.jsonl` by hand; `loom annotate` and `loom suggest` append to them.
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written, and refuses you; `orientation.md` §3 names the ones that make the author's claims:
 
   - `loom ai annotations`
@@ -149,7 +149,7 @@ Write each block under a heading with its name in brackets, `## [name]`.
 - [worked-examples] Run at least two concrete test cases that exercise non-trivial equations/algorithms. Show inputs, intermediate steps, and exact outputs.
 - [counterexample] Numerically test each equation on reasonable small test cases. Walk through nontrivial algebraic transformations line-by-line looking for symbolic manipulation error. State any theoretical or numerical counterexamples you found.
 - [referee-review] A structured critique with Major Issues, Minor Issues, Clarity/Exposition, and Reproducibility. Each item gets (a) how serious its annotation says it is, (b) location, (c) proposed fix, and (d) the annotation's id. The seriousness is the annotations' own; do not keep a second scale here.
-- [referee-revised] The revised proof or derivation, listed: the edits made, or the suggestions filed, each by its id.
+- [referee-revised] The revised proof or derivation, listed: the edits made, or the suggested edits filed, each by its id.
 - [decision] Final recommendation: Reject / Major Revision / Minor Revision / Accept, with a one-paragraph justification tied to the blocks above. It never touches the ledger, which is the author's.
 - [definition] Give formal definitions of all related mathematical concepts. Then include motivation, and history.
 - [worked-numerical-examples] Provide at least two fully worked numerical or symbolic examples, line-by-line calculations included. Show final values (e.g. six-decimal floats) and intermediate algebra exactly.
@@ -162,12 +162,12 @@ Write each block under a heading with its name in brackets, `## [name]`.
 - [uses-ledger] For each proof: facts the argument invokes that no `\ref`, `\uses`, or matched citation names (candidates for `\uses` entries or new nodes), and `\uses` entries the argument never consumes. Each finding is an annotation anchored to the invoking sentence.
 - [self-containedness] Every theorem, lemma, and definition that fails to parse standalone in its closure: undefined symbols, back-references, invisible standing hypotheses, notation introduced after first use.
 - [sharpenings] Places where the proof gives more than the statement claims, or where a hypothesis can be weakened without touching the argument.
-- [patch-list] Concrete changes, ordered by location, listed: the edits made, or the suggestions filed, each with its old text → new text where meaning could shift.
+- [patch-list] Concrete changes, ordered by location, listed: the edits made, or the suggested edits filed, each with its old text → new text where meaning could shift.
 - [simplifications] One entry per change, each tagged by type, with a locator. Types include new-citation (an argument replaced by a citation; give the digest node id and state that it was verified; replace only if verified, otherwise record the candidate in [rejected]), unnecessary-hypothesis (a hypothesis removed; state where you confirmed no step consumes it; if removal would require a new argument, do not remove it and propose it in [rejected]), condensation (a wordy statement rewritten; give old and new text), merge-or-delete (redundant lemmas, duplicated arguments, or scaffolding removed). Every entry states: type, locator, what changed, and what licenses the change. Name novel types in the same lowercase hyphenated style and define them in one clause on first use.
 - [structure-map] The passage's results, definitions and paragraphs in their current order, each with its consumers, and the proposed order. Say which numbered results move, merge into a paragraph, or split. If nothing moves, say so.
 - [flow-edits] One entry per change to reading order or clarity, tagged by type, with a locator, and old → new text where meaning could shift.
 - [rejected] Changes considered and not made, with reasons; in particular every place where a shorter or smoother form would have altered what is proved. If nothing was rejected, name the areas examined and found already tight.
-- [revised] The revised text, listed: the edits made, or the suggestions filed, each by its id, and whether the document compiles with them.
+- [revised] The revised text, listed: the edits made, or the suggested edits filed, each by its id, and whether the document compiles with them.
 - [meaning-drift-check] For each modified passage, compare against the original and confirm the meaning is unchanged. If it has changed, flag the drift explicitly and explain the reason. If preservation is non-obvious, say why it holds.
 - [rubric] Criteria for the pass, each with a good and a bad example taken from the text, and the text graded against them before and after.
 - [fresh-reader] What a reader given only what the target reader knows found unclear in the result, and what was done about each.

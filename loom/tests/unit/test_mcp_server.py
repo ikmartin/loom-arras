@@ -245,3 +245,37 @@ def test_two_large_results_in_one_second_are_kept_in_two_files(tmp_path: Path) -
     first, second = _keep(tmp_path, None, "status", "one"), _keep(tmp_path, None, "status", "two")
     assert first != second
     assert (tmp_path / first).read_text() == "one" and (tmp_path / second).read_text() == "two"
+
+
+def test_thirty_annotations_on_an_unchanged_key_keep_one_frozen_text_by_batch_or_by_call(tmp_path: Path) -> None:
+    """Plan 0.30's acceptance: the text an annotation is written on is frozen once for each version, so thirty annotations on an unchanged key name one frozen text and add at most one copy, whether one `--batch` carries them or thirty calls over MCP do."""
+    import json
+
+    from tests.helpers import ok
+
+    said = [{"target": "dm-0002", "message": f"Point {n}.", "type": "question"} for n in range(30)]
+
+    def frozen(q: Path) -> set[str]:
+        d = q / ".loom" / "history" / "texts"
+        return {p.name for p in d.iterdir()} if d.is_dir() else set()
+
+    def lines(q: Path) -> list[str]:
+        log = q / ".loom" / "annotations" / "log.jsonl"
+        return log.read_text().splitlines() if log.is_file() else []
+
+    for d in ("batch", "calls"):
+        (tmp_path / d).mkdir()
+    batched, called = demo(tmp_path / "batch"), demo(tmp_path / "calls")
+    starts = {q: (frozen(q), len(lines(q))) for q in (batched, called)}
+    ok("annotate", "--batch", "--as", AGENT, cwd=batched, stdin="".join(json.dumps(s) + "\n" for s in said))
+
+    async def body(client: Any) -> None:
+        for s in said:
+            r = await client.call_tool("loom_annotate", s)
+            assert not r.is_error, r.content[0].text
+
+    attached(called, body)
+    for q, (texts_before, lines_before) in starts.items():
+        made = [e for e in map(json.loads, lines(q)[lines_before:]) if e["event"] == "created"]
+        assert len(made) == 30 and len({e["against"] for e in made}) == 1, q.parent.name
+        assert len(frozen(q) - texts_before) <= 1, q.parent.name

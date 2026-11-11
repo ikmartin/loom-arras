@@ -20,7 +20,7 @@ COLORS = ("grey", "brown", "red", "orange", "yellow", "green", "blue", "purple",
 STYLES = ("underline", "highlight", "strike")
 #: A type's id: what annotations name it by, so it reaches a URL fragment and a CSS hook.
 ID = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
-WEIGHTS = (1, 10)
+WEIGHTS = (1, 5)
 OPACITIES = (0, 100)
 #: How an annotation with no type is drawn when nothing is set on it: a thin grey underline.
 UNTYPED = {"color": "grey", "style": "underline", "weight": 1, "opacity": 100}
@@ -172,13 +172,17 @@ def defaults() -> list[AnnotationType]:
 
 
 def load_types(root: Path) -> Types:
-    """The quilt's annotation types: its file's, or the defaults when there is no file or it is not TOML.
+    """The quilt's annotation types: its file's, or the defaults, said as a problem, when there is no file or it is not TOML.
 
     An entry that cannot be read is skipped and named; the rest of the file still counts, so one bad edit costs one type rather than every type a mode names.
     """
     path = root / ANNOTATION_TYPES
     if not path.is_file():
-        return Types(defaults(), None, [])
+        return Types(
+            defaults(),
+            None,
+            [f"{ANNOTATION_TYPES} is missing, so the default types are used; `loom upgrade` writes them into it"],
+        )
     try:
         text = path.read_text(encoding="utf-8")
         types, problems = parse_types(text)

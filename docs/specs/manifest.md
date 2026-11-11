@@ -304,6 +304,10 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** `type` is the id of one of `annotation_types` (§1), or null: a type is a label an annotation may carry, and one the quilt no longer lists is published as null. `look` is the whole look to draw it with, its type's under what was set on the annotation itself, or, its type gone, the look it last had. An annotation is **open**, and counted by `reviews.open` under its type, only while its type stays open until resolved; an untyped annotation, or one of a type that only informs, asks nothing (plan 0.30, decisions 4–6).
 
+**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version an annotation is written against, so this is a version lost outside loom, or a paper on file that is not the one the annotation was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+
+`resolved_why` is the text given when the annotation was resolved, or null; one resolved by keeping a suggested edit that answers it says so (§9.2).
+
 ## 9.1 Sessions
 
 **[decided]** `sessions` lists every session the index leaves standing, for the viewer's selector.
@@ -316,11 +320,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ]
 ```
 
-The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10) and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; a viewer's writes name their own (specs/write-api.md). A tombstoned session is not published at all.
-
-**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version an annotation is written against, so this is a version lost outside loom, or a paper on file that is not the one the note was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
-
-`resolved_why` is the text given when the annotation was resolved, or null; one resolved by keeping a suggested edit that answers it says so (§9.2).
+The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10) and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; the viewer's footer names the one the person has chosen, which `loom here` reports. A tombstoned session is not published at all.
 
 ## 9.2 Suggested edits
 
@@ -364,8 +364,8 @@ The **id** is minted once and is the address; the **title** is the author's and 
   "kind": "session",
   "title": "referee rl-0004",
   "created": "2026-09-16T14:02:00Z",
-  "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
-  "targets": ["rl-0004", "rl-0004/proof"],
+  "participants": [],
+  "targets": [],
   "attachments": [
     {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-cd0j88/orbit-counts.py"}
   ],
@@ -374,7 +374,7 @@ The **id** is minted once and is the address; the **title** is the author's and 
 }
 ```
 
-A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom annotate` line made or changed, written after an arrow in the log, and absent on every other line. `names` lists the keys (`{key}`) and files (`{path}`) a line's command names, each once, a document under where the history's moves have taken it; a word naming nothing in the quilt is left out, nothing is read from the command's verb, and the field is absent when the line names nothing. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
+A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `names` lists the keys (`{key}`) and files (`{path}`) a line's command names, each once, a document under where the history's moves have taken it; a word naming nothing in the quilt is left out, nothing is read from the command's verb, and the field is absent when the line names nothing. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` and `targets` empty, since an annotation belongs to no session, and `attachments` named by file with kinds `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
 
 ## 10.1 Transcripts
 

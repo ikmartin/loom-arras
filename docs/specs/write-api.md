@@ -68,7 +68,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 **[decided]** `locate` maps a selection to an anchor **on the publisher**, never in the browser. The client's text layer is a third extraction of a page, after the committed page text and the word boxes; only the publisher holds the other two, and only the publisher can say what the page says. The client sends the selected string and never a decision about what the anchor is. Geometry-only anchors are legal and are never refused.
 
-**[decided]** `undo: true` on `resolve` opens the annotation again (DR-174). It appends another event rather than removing one, so the record still says that it was resolved or withdrawn, when and by whom, and that it was reopened. A viewer offers it in place of the verb that fired, which is what lets those two act on a single click: a wrong one is one click back.
+**[decided]** `undo: true` on `resolve` opens the annotation again (DR-174). It appends another event rather than removing one, so the record still says that it was resolved, when and by whom, and that it was reopened. A viewer offers it in place of the verb that fired, which is what lets those two act on a single click: a wrong one is one click back.
 
 **[decided]** A suggested edit is kept or discarded, never resolved: `suggestion-apply` writes one in and keeps it, and `suggestion-discard` leaves the text as it is. An edit the author took by editing the source reads as taken (the manifest's `change` says so), and `loom suggestion apply` then keeps it without writing.
 

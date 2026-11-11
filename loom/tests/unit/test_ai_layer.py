@@ -278,6 +278,21 @@ def test_ai_mode_prints_the_quilts_copy_and_refuses_what_loom_does_not_ship(tmp_
     assert ok("ai", "mode", "flow", cwd=q).stdout.startswith("# Mode: flow\n\nWhen it fits: reading order")
 
 
+def test_renaming_a_type_renames_it_in_every_mode_that_names_it_and_in_the_orientation(tmp_path: Path) -> None:
+    """Plan 0.30's acceptance: a mode names a type by its id, so renaming the type in the quilt's file changes the name every mode prints, and the rules' too."""
+    q = bare(tmp_path)
+    types = q / ".loom" / "annotation-types.toml"
+    types.write_text(types.read_text().replace('name = "Revision"', 'name = "Correction"', 1))
+    modes = q / ".loom" / "ai" / "modes"
+    naming = [m for m in MODES if "{type:revision}" in (modes / f"{m}.md").read_text()]
+    assert {"referee", "review"} <= set(naming)
+    for m in naming:
+        out = ok("ai", "mode", m, cwd=q).stdout
+        assert "Correction" in out and "{type:" not in out, m
+    orient = ok("ai", "orient", cwd=q).stdout
+    assert "a Correction" in orient and "{type:" not in orient
+
+
 def test_orient_ends_with_the_index_of_the_modes(tmp_path: Path) -> None:
     """Each mode's `When it fits:` line is its entry, read from the quilt's copy; a file loom does not ship is not offered."""
     q = bare(tmp_path)
@@ -612,6 +627,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "session use",
         "adopt",  # the orientation names incorporation as author-only
         "history restore",
+        "suggestion apply",  # named among the author's acts; the agent files with `loom suggest`
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
     assert told <= named_to_refuse, sorted(told - named_to_refuse)

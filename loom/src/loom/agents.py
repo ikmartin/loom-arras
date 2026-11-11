@@ -140,8 +140,8 @@ def _under(rel: str, dirs: tuple[str, ...]) -> bool:
 
 
 def always_protected(config: QuiltConfig) -> list[str]:
-    """What no agent writes whatever the list says, as the orientation names it: loom's directory but for the agent's places, the history wherever it sits, the config and the research state."""
-    out = [f"{LOOM}/ (but {', '.join(f'{p}/' for p in AGENT_PLACES)})"]
+    """What no agent writes whatever the list says, as the orientation names it: loom's directory but for the agent's places and the files it may edit, the history wherever it sits, the config and the research state."""
+    out = [f"{LOOM}/ (but {', '.join([*(f'{p}/' for p in AGENT_PLACES), *AGENT_FILES])})"]
     if not _under(config.history, (LOOM,)):
         out.append(f"{config.history}/")
     return [*out, CONFIG, config.research_state]

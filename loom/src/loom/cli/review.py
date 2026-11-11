@@ -28,7 +28,7 @@ from loom.records.marks import MARKS
 from loom.records.selectors import find_quote, make_selector
 from loom.records.snapshots import snapshots_dir, write_snapshot
 from loom.records.store import Records
-from loom.records.types import COLORS, STYLES, drawn_look, load_types, look_problem, type_named
+from loom.records.types import COLORS, STYLES, WEIGHTS, drawn_look, load_types, look_problem, type_named
 from loom.render.fragments import plain_title
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import normalize, sha256
@@ -640,7 +640,7 @@ def _note_on_page(
     *,
     dry_run: bool = False,
 ) -> str:
-    """A note on a page of a cited work: the same event as any annotation, with the work as its target and a page anchor."""
+    """An annotation on a page of a cited work, anchored by its words or a box: the same event as any annotation, with the work as its target and a page anchor."""
     from loom.refs.anchoring import anchor_on_page
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
@@ -652,7 +652,9 @@ def _note_on_page(
     if page is None:
         raise EnvError(f"{citekey} is a cited work: say which page with --page N, and what on it with --quote or --box")
     if not quote and not rects:
-        raise EnvError("a note on a page needs --quote (text on it) or --box (x0,y0,x1,y1 in points, origin top left)")
+        raise EnvError(
+            "an annotation on a page needs --quote (text on it) or --box (x0,y0,x1,y1 in points, origin top left)"
+        )
     home = work_dir(result.quilt.root, result.bib[citekey])
     if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ContentError(
@@ -1043,7 +1045,7 @@ def _rects(box: str) -> list[list[float]]:
 )
 @click.option(
     "--weight",
-    type=click.IntRange(1, 10),
+    type=click.IntRange(*WEIGHTS),
     default=None,
     help="An underline's or a strike's thickness, in whole pixels.",
 )
@@ -1589,7 +1591,7 @@ def filter_keys(
     "--reading",
     "f_reading",
     is_flag=True,
-    help="List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
+    help="List the annotations on cited works, by work; they are in no row and count toward nothing otherwise.",
 )
 @click.option("--explain", default=None, metavar="KEY", help="Why KEY is in its state, with the diff of what moved.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
@@ -1618,7 +1620,7 @@ def status(
 ) -> None:
     """List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
-    Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+    Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
     """
     if f_in_order and f_master is None:
         raise EnvError("--in-order lists one document's keys; name it with --master DOC")
@@ -2015,7 +2017,7 @@ def _status_report(
 
 
 def _reading_report(payload: dict[str, Any]) -> Report:
-    """`loom status --reading`: the notes on pages of cited works, a group per work."""
+    """`loom status --reading`: the annotations on cited works, a group per work."""
     by_work: dict[str, list[dict[str, Any]]] = {}
     for r in payload["reading"]:
         by_work.setdefault(r["work"] or r["target"], []).append(r)
@@ -2034,9 +2036,9 @@ def _reading_report(payload: dict[str, Any]) -> Report:
         groups.append(Group(work, keyed(rows), limit=None))
     n = len(payload["reading"])
     return Report(
-        f"{counted(n, 'note')} on the pages of {counted(len(by_work), 'cited work')}"
+        f"{counted(n, 'annotation')} on {counted(len(by_work), 'cited work')}"
         if n
-        else "no notes on any cited work's pages",
+        else "no annotations on any cited work",
         groups=groups,
     )
 

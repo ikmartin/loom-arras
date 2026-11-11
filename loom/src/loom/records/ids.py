@@ -1,4 +1,4 @@
-"""The ids of what loom's shared logs hold: an annotation, a note, a session and a link.
+"""The ids of what loom's shared logs hold: an annotation, a suggested edit, a session and a link.
 
 Clones of a quilt write apart and merge later, so a number counted from what one clone can see is the number another clone counts too. Each of these ids ends in a token drawn at random instead, so two clones draw two ids. A log's lock still keeps one clone's writers apart.
 

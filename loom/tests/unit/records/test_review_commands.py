@@ -627,6 +627,28 @@ def test_an_annotation_is_deleted_with_its_replies_and_an_agent_deletes_only_its
     # a person deletes anyone's
     assert ok("annotate", "--delete", theirs, *AS, cwd=d).output.strip() == f"deleted {theirs}"
     assert [e["id"] for e in events(d)] == [mine]
+    # what is left is still a log that reads, and the history still verifies
+    from loom.records.log import replay
+
+    assert replay(d)[1] == []
+    ok("history", "verify", cwd=d)
+
+
+def test_status_never_says_a_key_was_reviewed_clean(tmp_path: Path) -> None:
+    """Plan 0.30, decision 6: a highlight with nothing said, a note, or a revision resolved says nothing about whether a key was reviewed, so status never claims it was (P15)."""
+    d = demo(tmp_path)
+    ok("annotate", "dm-0002", "--quote", "Every orbit", *AS, cwd=d)
+    ok("annotate", "dm-0003", "Read through.", "--type", "note", *AS, cwd=d)
+    gap = ok("annotate", "dm-0006", "A gap.", "--type", "revision", *AS, cwd=d).output.split()[0]
+    ok("annotate", "--resolve", gap, "Closed.", *AS, cwd=d)
+    for args in (("status",), ("status", "--json"), ("status", "--reading")):
+        out = ok(*args, cwd=d).output
+        assert "reviewed clean" not in out and "reviewed_clean" not in out, args
+    assert all(
+        not row["reviews"]["open"]
+        for key, row in status_json(d)["keys"].items()
+        if key in ("dm-0002", "dm-0003", "dm-0006")
+    )
 
 
 def test_a_deletion_takes_no_message(tmp_path: Path) -> None:
@@ -640,7 +662,7 @@ def test_a_deletion_takes_no_message(tmp_path: Path) -> None:
 def test_the_look_is_checked_and_an_annotation_carries_no_proposed_text(tmp_path: Path) -> None:
     d = demo(tmp_path)
     refused("annotate", "dm-0002", "x", "--color", "mauve", *AS, cwd=d, code=2, match="Invalid value for '--color'")
-    refused("annotate", "dm-0002", "x", "--weight", "11", *AS, cwd=d, code=2, match="Invalid value for '--weight'")
+    refused("annotate", "dm-0002", "x", "--weight", "6", *AS, cwd=d, code=2, match="Invalid value for '--weight'")
     refused("annotate", "dm-0002", "x", "--opacity", "101", *AS, cwd=d, code=2, match="Invalid value for '--opacity'")
     # proposed text is a suggested edit of its own (`loom suggest`)
     for flag in ("--payload", "--placement", "--applied"):

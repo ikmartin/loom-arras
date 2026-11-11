@@ -16,7 +16,7 @@ Say exactly where loom's copy of a paper and the paper differ. You are the verif
 4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s, and the extractor sees only what the source cites.
 5. **Locators.** Every node's title carries the paper's own number and page; what the extractor could not resolve is `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version, loom says so wherever the digest is read, and every number is then checked against the cited PDF with `loom library read CITEKEY N`.
 6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
-7. **Notes on the page.** What you notice that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a {type:note} on the page: `loom annotate CITEKEY "…" --page N --quote "…" --type note`, the quote from `loom library read`.
+7. **Notes on the page.** What you notice that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a {type:note} on the page: `loom annotate CITEKEY "…" --page N --quote "…" --type ID`, ID the id Annotation types gives it, the quote from `loom library read`.
 
 ## When there is no source
 

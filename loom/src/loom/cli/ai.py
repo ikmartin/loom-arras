@@ -1,4 +1,4 @@
-"""`loom ai ...`: the agent layer, its orientation, its documents, and a session's annotations."""
+"""`loom ai ...`: the agent layer, its orientation, its documents, and an agent's annotations."""
 
 from __future__ import annotations
 
@@ -570,7 +570,7 @@ def ai_annotations(
         {
             "id": a.annotation.id,
             "target": a.annotation.target_key,
-            # a note on a page of a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
+            # an annotation on a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
             "work": a.work or None,
             "page": a.annotation.anchor.page if a.annotation.anchor else None,
             "type": a.annotation.type,

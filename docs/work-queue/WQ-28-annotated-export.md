@@ -8,11 +8,11 @@ A review has to reach someone who cannot run arras — a coauthor or a referee r
 
 ## Why deferred
 
-The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pair with criticisms inlined in red. In loom the durable form is annotations on the text, and arras renders them live, which the author prefers; the compiled pair was declined as a run artifact on 2026-09-17. Some readers will want it, and it is cheap now that annotations carry severity and payloads (0.10, DR-147).
+The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pair with criticisms inlined in red. In loom the durable form is annotations on the text, and arras renders them live, which the author prefers; the compiled pair was declined as a run artifact on 2026-09-17. Some readers will want it, and it is cheap now that annotations carry types and suggested edits are a record of their own (plan 0.30).
 
 ## Rough design
 
-`loom export REVIEW` (name open): the target's text with each annotation inlined in red at its anchor — numbered `[R1]…` in report order, grouped by severity at the top, payloads shown as the suggested text — compiled through the bundle machinery so it stands alone. One command, no state.
+`loom export REVIEW` (name open): the target's text with each annotation inlined at its anchor — numbered `[R1]…` in report order, grouped by type at the top, each in its colour, and suggested edits shown as the text they propose — compiled through the bundle machinery so it stands alone. One command, no state.
 
 ## Blast radius
 

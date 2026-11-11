@@ -29,7 +29,7 @@ class LinkError(ValueError):
 class Target:
     """What a link names: its kind, the key it is addressed by, and the place in it, if any."""
 
-    kind: str  # node | document | annotation | session | work | page | file | note
+    kind: str  # node | document | annotation | session | work | page | file
     key: str
     place: str = ""
     href: str = ""

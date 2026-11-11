@@ -1408,7 +1408,7 @@
    "read_only_hint": false
   },
   "command": "loom since",
-  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on and what they propose; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
+  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1472,7 +1472,7 @@
    "read_only_hint": true
   },
   "command": "loom status",
-  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nNotes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.",
+  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nAnnotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1513,7 +1513,7 @@
      "type": "string"
     },
     "reading": {
-     "description": "List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
+     "description": "List the annotations on cited works, by work; they are in no row and count toward nothing otherwise.",
      "type": "boolean"
     },
     "retired": {

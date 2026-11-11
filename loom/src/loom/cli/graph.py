@@ -195,7 +195,7 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
 def _downstream_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """The acceptance rows and the live annotations on `key` and its proofs, for `downstream`'s last two blocks.
 
-    Withdrawn annotations are left out: `downstream` reports what a change to this key would disturb, and a withdrawn finding disturbs nothing.
+    A deleted annotation is gone from the log, so nothing of it is reported.
     """
     from loom.records.store import Records
 

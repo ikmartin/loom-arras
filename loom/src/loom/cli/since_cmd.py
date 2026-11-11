@@ -19,7 +19,7 @@ from loom.cli.report import Report, counted
 def since_command(declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Report what people did since you last looked, and move your marker past it.
 
-    People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+    People's annotations and replies, whole, with the words they are on; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
     """
     from loom.since import since, write_marker
 

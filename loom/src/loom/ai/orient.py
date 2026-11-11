@@ -56,6 +56,13 @@ def expand_types(text: str, types: Types) -> str:
     return PLACEHOLDER.sub(fill, text)
 
 
+def types_line(types: Types) -> str:
+    """The quilt's annotation types in one line, for the MCP server's instructions, which a client cuts short: each name, its id, and whether it stays open."""
+    return "; ".join(
+        f"{t.name} (`{t.id}`, {'stays open until resolved' if t.open else 'only informs'})" for t in types.types
+    )
+
+
 def types_text(types: Types) -> str:
     """The quilt's annotation types as the orientation prints them, after the rules: each with its id for `--type`, whether it stays open, and its instructions."""
     lines = [
@@ -142,7 +149,7 @@ def instructions(root: Path, name: str) -> str:
     bridge = (
         "When the person points at something without naming it, loom_here says what they are looking at in the "
         "viewer; loom_since says what they did since you last looked, so call it when a conversation starts. "
-        "The quilt's annotation types, and when to use each, are in loom_ai_orient."
+        f"The quilt's annotation types, by the id `type` takes: {types_line(load_types(root))}; when to use each is in loom_ai_orient."
     )
     return opening + "\n" + bridge + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")
 

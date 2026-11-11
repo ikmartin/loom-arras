@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
-from loom.paths import ANNOTATION_LOG, EDIT_LOG, LINKS, REVIEW_OBSERVATIONS
+from loom.paths import ANNOTATION_LOG, ANNOTATION_TYPES, EDIT_LOG, LINKS, REVIEW_OBSERVATIONS
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
@@ -545,7 +545,7 @@ class Records:
         return out
 
     def _on_page(self, result: ScanResult, a: Annotation, rec: Record, works: dict[str, str]) -> ResolvedAnnotation:
-        """A note on a page of a cited work, resolved against the store rather than against a key's text.
+        """An annotation on a page of a cited work, resolved against the store rather than against a key's text.
 
         `recorded` is whether the artifact the anchor names is the one in the store -- copy-once makes that the normal case for ever. `detached` is a text anchor whose quotation no longer locates in the page's committed text; a box is never detached, because the rectangles are the record. The target is the work's identifier, and the citekey is looked up through the bibliography so that a renamed citekey changes nothing.
         """
@@ -638,8 +638,10 @@ class Records:
 
         for p in replay_edits(self.root)[1]:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid suggested edit: {p}", []))
+        # a missing file is the defaults, which loses nothing, so it is said quietly; one that cannot be read is a warning
+        missing = not (self.root / ANNOTATION_TYPES).is_file()
         for p in self.types.problems:
-            diags.append(Diagnostic("warning", "loom:annotation-types", p, [], subject="record"))
+            diags.append(Diagnostic("info" if missing else "warning", "loom:annotation-types", p, [], subject="record"))
         for rel, events in (
             (ANNOTATION_LOG, ("created", "replied")),
             (EDIT_LOG, ("created",)),
@@ -865,8 +867,7 @@ class Records:
                 "id": a.id,
                 "author": {"kind": a.author_kind, "id": a.author_id, "label": a.author_id},
                 "created": a.created,
-                # a note on a page of a cited work names the work by identifier; the citekey and the page travel
-                # beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
+                # an annotation on a cited work names the work by identifier; the citekey and the page travel beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
                 "target": {
                     "key": res.target,
                     "hash": a.target_hash,

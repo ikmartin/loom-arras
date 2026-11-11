@@ -80,7 +80,7 @@ The principles that decide what loom and arras are. Each is stated, followed by 
 
 ### P1. Mathematics is LaTeX, and nothing an author writes as mathematics lives elsewhere.
 
-Mathematicians already know LaTeX, and every construct the tool needs is a label, an environment, a citation, a directive comment, or one of three macros that print nothing. Consequence: there is no node file format and no markup beside LaTeX for mathematics. A node's identity is a `\label`, its kind is its environment, its dependencies are its `\ref`s. What is said *about* the mathematics (annotations, notes, transcripts) is not the author's source; it lives in records loom writes, one command for each kind (P2, P4).
+Mathematicians already know LaTeX, and every construct the tool needs is a label, an environment, a citation, a directive comment, or one of three macros that print nothing. Consequence: there is no node file format and no markup beside LaTeX for mathematics. A node's identity is a `\label`, its kind is its environment, its dependencies are its `\ref`s. What is said *about* the mathematics (annotations, suggested edits, transcripts) is not the author's source; it lives in records loom writes, one command for each kind (P2, P4).
 
 ### P2. Author data in the source, decisions in the ledger, records in logs loom owns, derived data never durable.
 
@@ -88,11 +88,11 @@ Four kinds of information have four homes, and nothing fits in more than one. Co
 
 ### P3. States are computed, never stored.
 
-A stored state can disagree with the source; a computed one cannot. Consequence: `draft`, `accepted`, `stale`, `incomplete`, `conflicted`, `proved`, `settled`, and whether a note has faded are all computed from records and the current text on every query. Nothing writes the word "stale" anywhere.
+A stored state can disagree with the source; a computed one cannot. Consequence: `draft`, `accepted`, `stale`, `incomplete`, `conflicted`, `proved` and `settled`, whether an annotation is open, and the look it is drawn in, its type's with its own over it, are all computed from records and the current text on every query. Nothing writes the word "stale" anywhere.
 
 ### P4. One mechanism per concept, one write path per kind of record.
 
-Two ways to say the same thing drift apart. Consequence: `\input` is transclusion, `\ref` is dependency, `\newtheorem` is taxon, `loom accept` is the only writer of the ledger, and `loom annotate` is the only writer of annotation records.
+Two ways to say the same thing drift apart. Consequence: `\input` is transclusion, `\ref` is dependency, `\newtheorem` is taxon, `loom accept` is the only writer of the ledger, `loom annotate` is the only command that files an annotation, and `loom suggest` the only one that files a suggested edit.
 
 ### P5. The graph is defined by labels and environments, never by paths.
 
@@ -100,11 +100,11 @@ Where a file lives carries no meaning. Consequence: one file per node and twelve
 
 ### P6. Config only for what the preamble cannot say.
 
-The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the file the viewer opens on, the id prefix, a default engine and the paths agents may not write, and little else.
+The preamble is the author's declaration of their conventions, and the tool reads it. Consequence: taxa come from `\newtheorem`, style classes from `\theoremstyle`, macros from the preamble closure, the engine from `% !TEX program`. `config.toml` names the default document, the file the viewer opens on, the id prefix, a default engine and the paths agents may not write, and little else. A quilt's annotation types are in a file of their own, `.loom/annotation-types.toml`, which `loom init` writes with the defaults: the preamble cannot say them, and a type's instructions for agents run to paragraphs, which `config.toml`, edited line by line, is not for.
 
 ### P7. Loom changes an author's file only when the author incorporates a change, and keeps the old text first.
 
-An author's file is theirs, and a tool that edits it behind their back destroys work. Consequence: every other operation writes a new file at a destination the user names (`atomize SRC --to DEST`, `history restore --to FILE`), writes into loom's own directories, or prints a patch (`id`, `revert`, `fork`). Incorporating a contribution, whether an agent document (`loom adopt`) or a collaborator's pull (`loom sync incorporate`), is the author's act: it is previewed, and it stamps each document it reaches before writing. So is putting a document back as one of its versions from the viewer, which keeps the text it replaces as a version first, undoing a change in Changes, which keeps that text first too, applying a suggestion, which keeps a version of each document it changes before writing, and ticking a box in a Markdown file in the viewer, which keeps the file's text in the history first and changes that one character. Loom deletes nothing outside `build/`.
+An author's file is theirs, and a tool that edits it behind their back destroys work. Consequence: every other operation writes a new file at a destination the user names (`atomize SRC --to DEST`, `history restore --to FILE`), writes into loom's own directories, or prints a patch (`id`, `revert`, `fork`). Incorporating a contribution, whether an agent document (`loom adopt`) or a collaborator's pull (`loom sync incorporate`), is the author's act: it is previewed, and it stamps each document it reaches before writing. So is putting a document back as one of its versions from the viewer, which keeps the text it replaces as a version first, undoing a change in Changes, which keeps that text first too, keeping a suggested edit, which keeps a version of each document it changes before writing, and ticking a box in a Markdown file in the viewer, which keeps the file's text in the history first and changes that one character. Loom deletes nothing outside `build/`.
 
 ### P8. No editor, server, model, or credential is required by any command.
 
@@ -132,7 +132,7 @@ The head is always the files on disk, and the history is a log of what loom was 
 
 ### P14. No unnecessary friction.
 
-Nobody uses a tool that charges them for nothing, and research friction lands hardest on exploration, where most ideas deserve to be forgotten. Every step a person must take buys them something at that moment: capturing costs one gesture, forgetting costs none, and only the move to permanence asks for care. Consequence: defaults rather than questions; a note needs no kind, target or title to be taken; a refusal names the one thing that clears it (T3); a rule that protects none of the three people (the Learner, the Explorer, the Author) is removed. The test is to list what a feature asks of each of them and what each step buys.
+Nobody uses a tool that charges them for nothing, and research friction lands hardest on exploration, where most ideas deserve to be forgotten. Every step a person must take buys them something at that moment: capturing costs one gesture, forgetting costs none, and only the move to permanence asks for care. Consequence: defaults rather than questions; an annotation needs no type, and words only when its type stays open until resolved; a refusal names the one thing that clears it (T3); a rule that protects none of the three people (the Learner, the Explorer, the Author) is removed. The test is to list what a feature asks of each of them and what each step buys.
 
 ### P15. Nothing unchecked looks checked.
 
@@ -184,7 +184,7 @@ On the page an annotation appears once: as a mark, or, with no anchor, as the si
 
 ### A3. Draw only what loom knows.
 
-A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. No state is shown only as a word.
+A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. One on a PDF page records the file's hash: when the file changes, one on words stands where its words are found again, and anything else is detached. No state is shown only as a word.
 
 ### A4. One channel, one question.
 
@@ -192,12 +192,11 @@ Each visual channel answers exactly one question, and no two channels answer the
 
 | channel | answers |
 |---|---|
-| hue | on an annotation, what kind of thing is said; on a mark on a PDF page, whatever its reader uses that colour to say |
-| weight | how severe (objection and suggestion; the other kinds take the middle step) |
-| wash | which annotation's box is open, whatever its kind and severity, at one strength; at 3%, that it is settled |
-| shape | what it is attached to: an underline for a phrase, a rule for a display, a tint for a PDF span, an outline for a box; a mark on a PDF page is the shape it was drawn |
+| look: colour, style, thickness, opacity | whatever its reader uses it to say; a type gives its annotations one, and any annotation may take its own |
+| wash | which annotation's box is open |
+| shape | what it is attached to: words, drawn in the look's style; a display, with a rule beneath or across it; a region, outlined; a mark on a PDF page, the shape it was drawn |
 
-A mark on a PDF page has no kind, so its hue is left to its reader: it is the neutral until given one of five marking colours, and loom gives those colours no meaning. They are brighter than the annotation hues and drawn only on marks, so neither is taken for the other.
+Loom gives the nine colours no meaning and reads nothing from a look: a type's look is the quilt's default for it, and changing it changes what is drawn and nothing else.
 
 ### A5. Opening an annotation never costs the text.
 
@@ -205,9 +204,9 @@ A box never covers the words it is about. Travel between a mark and its record i
 
 ### A6. Quiet by default.
 
-- At rest only open, top-level annotations are drawn.
-- Settled annotations (resolved or withdrawn, marked by hand) are not drawn until the reader turns them on, and then at 3% wash with the underline at half weight and 50% opacity, the words untouched.
-- Annotations use four hues, one neutral and three weights, and nothing else. The five marking colours appear only on a mark on a PDF page and on the controls that choose them (A4).
+- At rest every top-level annotation that is not resolved is drawn.
+- Resolved annotations are not drawn until the reader turns them on, and then at 40% of their opacity, the words untouched.
+- An annotation is drawn in its own look, one of nine colours, a style (underline, highlight or strike), a thickness in whole pixels and an opacity, and nothing else marks it (A4).
 - An annotation looks the same on every surface: text, PDF and hover card.
 
 ## T · Terminal output

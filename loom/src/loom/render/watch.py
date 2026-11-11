@@ -64,7 +64,7 @@ def _files(root: Path) -> Iterator[Path]:
 
 
 def scan_unread(root: Path, changed: list[Path]) -> bool:
-    """Whether the scan reads none of `changed`: each is a record (the annotation log, the reference notes, a session's files, the review decisions) or a project file outside `.loom/` that is no LaTeX source and not `config.toml`, such as a Markdown file. A build after such a change may reuse the last scan."""
+    """Whether the scan reads none of `changed`: each is a record (the annotation log, the suggested edits, a session's files, the review decisions) or a project file outside `.loom/` that is no LaTeX source and not `config.toml`, such as a Markdown file. A build after such a change may reuse the last scan."""
     for p in changed:
         rel = p.relative_to(root).as_posix() if p.is_absolute() else p.as_posix()
         if rel.startswith(RECORDS) or rel in RECORD_FILES:
