@@ -242,3 +242,50 @@ def test_loom_compile_html_says_how_much_of_the_page_it_places(tmp_path: Path) -
     assert made["nodes"] == made["nodes_in_document"] == 3, made
     # the part's paragraph, and the master's after the part ends; a block of one word is too short to count
     assert made["blocks"] == made["exact"] == 2 and not made["unplaced"], made
+
+
+@pytest.mark.tex
+def test_a_document_is_read_from_its_html_while_that_is_current_and_from_the_translator_once_its_sources_change(
+    tmp_path: Path,
+) -> None:
+    """The synthetic quilt's document, compiled with `--html` and built (plan 0.29.3): its sections, inclusions, proofs, references and equation anchors are the dialect's around TeX's content, every block it places carries its offsets, and the whole validates; an edit since the compile leaves it to the translator until the next one."""
+    from tests.helpers import exits, ok
+
+    repo = Path(__file__).resolve().parents[3]
+    q = tmp_path / "q"
+    shutil.copytree(repo / "loom/tests/quilts/synthetic", q)
+    ok("compile", "drafting/main.tex", "--html", cwd=q)
+    exits(1, "build", cwd=q)  # the synthetic quilt carries its intentional errors
+    frag = (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")
+    assert 'data-from="tex"' in frag
+    assert re.findall(r'<section id="([^"]+)"', frag) == ["sy-0100", "sy-0200", "sy-0201", "sy-0300"]
+    assert 'class="included" data-key="drafting/nodes/sy-0002.tex" data-file="drafting/nodes/sy-0002.tex"' in frag
+    assert re.search(r'<details class="env env-proof"[^>]*data-of="sy-0002"', frag)
+    # a reference to an equation names the anchor the equation carries
+    eq = re.search(r'<a class="ref ref-eq" data-target="([^"]+)"[^>]*href="#([^"]+)"', frag)
+    assert eq is not None and f'id="{eq.group(2)}"' in frag
+    assert len(re.findall(r'<p data-src="drafting/[^"]+:\d+:\d+"', frag)) >= 10
+    # every picture is one the build holds: TeX4ht's beside its page, an included graphic published as the translator publishes it
+    pictures = re.findall(r'<img src="([^"]+)"', frag)
+    assert len(pictures) == 2 and all((q / ".loom/build" / s).is_file() for s in pictures), pictures
+    # a block's span takes in the citation it ends with, so the citation finds its command, and through its postnote its target
+    node = (q / ".loom/build/fragments/nodes/sy-000A.html").read_text(encoding="utf-8")
+    assert 'data-postnote="Theorem 2.1" data-target="Kre99-thm-2.1"' in node
+    # the paper formats set the title and heads by the document's class
+    assert re.match(r'<h1 [^>]*data-documentclass="amsart"', frag)
+    # each formula as the source writes it, which is what a quote copies, and not as TeX4ht writes it back
+    sources = "".join(p.read_text(encoding="utf-8") for p in (q / "drafting").rglob("*.tex"))
+    formulas = [html.unescape(f) for f in re.findall(r'<span class="math inline">\\\((.*?)\\\)</span>', frag)]
+    assert formulas and all(f"${f}$" in sources or f"\\({f}\\)" in sources for f in formulas), [
+        f for f in formulas if f"${f}$" not in sources and f"\\({f}\\)" not in sources
+    ]
+    validator = repo / "docs/specs/tools/validate-dialect.py"
+    checked = subprocess.run(
+        ["python3", str(validator), str(q / ".loom/build/fragments")], capture_output=True, text=True
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    # an edit since the compile: the document goes back to the translator until it compiles again
+    node = q / "drafting/nodes/sy-0002.tex"
+    node.write_text(node.read_text(encoding="utf-8").replace("[Orbits]", "[Orbit classes]", 1), encoding="utf-8")
+    exits(1, "build", cwd=q)
+    assert 'data-from="tex"' not in (q / ".loom/build/fragments/masters/drafting/main.html").read_text(encoding="utf-8")

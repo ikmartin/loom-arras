@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from loom.paths import document_dir
 from loom.render.assets import publish_graphic
@@ -31,6 +32,9 @@ from loom.scan.sections import starred_at
 from loom.scan.tokenize import read_args
 from loom.tex.aux import AuxNumber
 from loom.tex.bundle import _macro_block
+
+if TYPE_CHECKING:
+    from loom.render.fromhtml import DocumentHtml
 
 
 def _title_base(env: Env | None, node: NodeRec) -> int:
@@ -50,6 +54,9 @@ class RenderPlan:
     cite_labels: dict[str, dict[str, str]] = field(default_factory=dict)  # per master: citekey -> printed label
     diagnostics: list[Diagnostic] = field(default_factory=list)
     fallback_preamble: dict[str, str] = field(default_factory=dict)
+    pages: dict[str, Any] = field(
+        default_factory=dict
+    )  # per master: its page as TeX made it, current with its sources, or None
 
 
 PREPARED: dict[str, str] = {}
@@ -112,6 +119,8 @@ class FragmentRenderer:
         # Per thread: `loom build` renders on a pool, and a stack or a diagnostic list shared between renders made one
         # thread's expansion of sections/results.tex look like a cycle to another thread rendering a different node.
         self._local = threading.local()
+        self._shaping = threading.Lock()
+        self._shaped: dict[str, DocumentHtml] = {}
 
     @cached_property
     def salt(self) -> str:
@@ -512,7 +521,26 @@ class FragmentRenderer:
 
     # ---- fragments -----------------------------------------------------------
 
+    def _document_html(self, master: str) -> DocumentHtml | None:
+        """`master`'s page in the dialect's shape, made once per build and shared by its nodes; None without a current page."""
+        from loom.render.fromhtml import DocumentHtml
+
+        page = self.plan.pages.get(master)
+        if page is None:
+            return None
+        with self._shaping:
+            if master not in self._shaped:
+                self._shaped[master] = DocumentHtml(self, master, page)
+            doc = self._shaped[master]
+            return doc if doc.complete else None
+
     def node_fragment(self, key: str) -> str:
+        """A node's fragment: cut from the page TeX made of the default document, else of the first that reaches it, else the translator's."""
+        n = self.asm.nodes[key]
+        for m in sorted(n.reached_by, key=lambda m: m != self.result.default_master):
+            doc = self._document_html(m)
+            if doc is not None and key in doc.nodes:
+                return _from_tex(_stamp_first(doc.nodes[key], "node"))
         html_out = self.render_node_html(key, "node")
         return _stamp_first(html_out, "node")
 
@@ -520,6 +548,12 @@ class FragmentRenderer:
         node = self.asm.nodes[master]
         title = self.master_titles.get(master) or master
         head = f'<h1 data-src="{master}:0:0">{esc(title)}</h1>'
+        doc = self._document_html(master)
+        if doc is not None:
+            cls = _DOCUMENTCLASS.search(doc.result.files[master].clean) if master in doc.result.files else None
+            if cls is not None:
+                head = head.replace("<h1 ", f'<h1 data-documentclass="{esc(cls.group(1).strip())}" ', 1)
+            return _from_tex(_stamp_first(head + doc.master_html(), "master"))
         self._local.master = master
         try:
             return _stamp_first(head + self.render_container_body(node, "master"), "master")
@@ -559,6 +593,15 @@ def _equation_regions(result: ScanResult) -> set[str]:
         if i >= 0 and r.offset < spans[r.file][i][1]:
             out.add(key)
     return out
+
+
+#: A document's class, which the paper formats set its title and heads by.
+_DOCUMENTCLASS = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+
+
+def _from_tex(fragment: str) -> str:
+    """Mark a fragment made from the page TeX made: its blocks carry `data-src` where loom placed them, and only there."""
+    return re.sub(r"^(\s*<\w+)", r'\1 data-from="tex"', fragment, count=1)
 
 
 def _stamp_first(fragment: str, kind: str) -> str:

@@ -63,8 +63,9 @@ def test_fixture_matches_vendored(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     save_author("The synthetic quilt")
     q = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q)
-    ok("compile", "drafting/main.tex", cwd=q)
-    ok("compile", "drafting/talk.tex", cwd=q)
+    # as refresh-fixture.sh compiles them: each with its HTML, which the build reads its documents from
+    ok("compile", "drafting/main.tex", "--html", cwd=q)
+    ok("compile", "drafting/talk.tex", "--html", cwd=q)
     exits(1, "build", cwd=q)  # the synthetic quilt carries intentional errors
     ours = _norm_manifest(json.loads((q / ".loom/build" / "manifest.json").read_text()))
     theirs = _norm_manifest(json.loads((FIXTURE / "manifest.json").read_text()))

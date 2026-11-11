@@ -420,7 +420,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "3a4fa36f3379fb94182b29fe185bef618f6167c4432d02c0b547834687ac3e93",
+   "hash": "32936704f3242b499dde97558daae2db8e2362c0a53d3f95cb2b8fdc891db52a",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +435,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "7bd7cfc7621498ceaf40375cf2c81188bcf917255dfe0d5146adc0f826ecbc0b",
+   "hash": "4a8285e9723bccb47de25057ab3407be7fe2f320f41096b1d79aedf7500f5b77",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +450,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "c41c0bef4177698d07a7879b8d0e30c34c08b7a6d3b17329440debd63778be35",
+   "hash": "610f7332b682a5a13be66a2de1aaa60d7a99cf16b0da1c381948e358cf22053a",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -1557,21 +1557,6 @@
   {
    "code": "loom:converter-fallback",
    "keys": [
-    "sy-0100"
-   ],
-   "locations": [
-    {
-     "file": "drafting/main.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in sy-0100; rendered as SVG",
-   "owner": "person",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
     "sy-0100-ai"
    ],
    "locations": [
@@ -1597,21 +1582,6 @@
    ],
    "message": "unknown command \\parbox in sy-0100-ai; rendered as SVG",
    "owner": "copy",
-   "severity": "info"
-  },
-  {
-   "code": "loom:converter-fallback",
-   "keys": [
-    "sy-0100"
-   ],
-   "locations": [
-    {
-     "file": "drafting/main.tex",
-     "line": 0
-    }
-   ],
-   "message": "unknown command \\parbox in sy-0100; rendered as SVG",
-   "owner": "person",
    "severity": "info"
   },
   {

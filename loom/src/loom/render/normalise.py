@@ -82,11 +82,13 @@ VOID = frozenset({"br", "hr", "img"})
 BLOCKS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "dd", "li", "figcaption", "td", "th", "pre", "blockquote"})
 #: TeX4ht names a span by the font it was set in, Computer Modern's, Latin Modern's (`ec-lm…`) or Times's; the style is what is kept.
 _FONT = (
-    (re.compile(r"^(?:ec-|t1-)?(?:cmbx|cmb|lmbx|lmb|ptmb|bold|cmssbx)"), "strong"),
-    (re.compile(r"^(?:ec-|t1-)?(?:cmti|cmsl|cmmi|lmri|lmro|lmsl|ptmri|ptmro|italic|cmssi)"), "em"),
-    (re.compile(r"^(?:ec-|t1-)?(?:cmtt|lmtt|pcrr|cmvtt|verb)"), "code"),
+    (re.compile(r"^(?:ec-|t1-)?(?:cmbx|cmb|lmbx|lmb|ptmb|bold|cmssbx|ecbx|ecbi|ecrb|ecsx)"), "strong"),
+    (re.compile(r"^(?:ec-|t1-)?(?:cmtt|lmtt|pcrr|cmvtt|verb|ectt|ecvt|ecit|ecst)"), "code"),
 )
-_SMALLCAPS = re.compile(r"^(?:ec-|t1-)?(?:cmcsc|lmcsc|small-caps|ptmrc)")
+#: Italic and upright text, which say emphasis only against what surrounds them: a theorem's body is italic and a word emphasized in it upright, so the reshaper, which knows the theorem's style, decides.
+_ITALIC = re.compile(r"^(?:ec-|t1-)?(?:cmti|cmsl|cmmi|lmri|lmro|lmsl|ptmri|ptmro|italic|cmssi|ecti|ecsl|ecsi|ecui)")
+_UPRIGHT = re.compile(r"^(?:ec-|t1-)?(?:cmr|lmr|ptmr|cmss|lmss|ecrm|ecss)(?![a-z])")
+_SMALLCAPS = re.compile(r"^(?:ec-|t1-)?(?:cmcsc|lmcsc|small-caps|ptmrc|eccc|ecsc)")
 _LINE = re.compile(r"^\s*l\.\s*(\d+)\s*$")
 _FILE = re.compile(r"^\s*loom-file\s+(.*?)\s*$")
 _FILE_END = re.compile(r"^\s*loom-file-end\s*$")
@@ -181,11 +183,13 @@ class _Rebuild(HTMLParser):
             if f.depth == 0:
                 said = self.displays.get(f.repaired, "") if f.repaired is not None else "".join(f.text)
                 tex = escape(said.strip(), quote=False)
-                self.out.append(
-                    f'<div class="math display" data-at="{f.at}">{tex}</div>'
-                    if f.display
-                    else f'<span class="math inline">{tex}</span>'
-                )
+                if f.display:
+                    self.out.append(f'<div class="math display" data-at="{f.at}">{tex}</div>')
+                else:
+                    # TeX4ht writes the space after a formula inside its span, where it would be lost
+                    before = " " if said[:1].isspace() else ""
+                    after = " " if said[-1:].isspace() else ""
+                    self.out.append(f'{before}<span class="math inline">{tex}</span>{after}')
                 self.formula = None
             return
         if self.skip:
@@ -209,10 +213,15 @@ class _Rebuild(HTMLParser):
             # back in the file that input this one, where it was
             if self.outer:
                 self.file, self.line = self.outer.pop()
+            if self.body and not self.skip and self.formula is None:
+                self.out.append('<span class="loom-file-end"></span>')
         elif (m := _FILE.match(data)) is not None:
             # a file's first paragraph says no line of its own, so until one does the place is its start
             self.outer.append((self.file, self.line))
             self.file, self.line = m.group(1), None
+            # where an included file starts and ends, for its content to be wrapped as the inclusion it is
+            if self.body and not self.skip and self.formula is None and _PATH.fullmatch(self.file):
+                self.out.append(f'<span class="loom-file" data-file="{escape(self.file, quote=True)}"></span>')
 
     def handle_data(self, data: str) -> None:
         if self.formula is not None:
@@ -260,8 +269,14 @@ class _Rebuild(HTMLParser):
                 {"class": {"newtheorem": "env"}.get(first, first)},
                 block=first in ("quote", "quotation", "verse"),
             )
+        if tag == "div" and first in ("author", "date"):
+            # beneath the title: what `\\author` and `\\date` print, `\\today` a date TeX made
+            return self._emit("p", {"class": first, "data-made": ""}, block=False)
         if tag == "span" and first == "loom-ref":
             return self._emit("a", {"class": "ref", "data-label": a.get("data-label", ""), "data-made": ""})
+        if tag == "span" and re.fullmatch(r"(?:like)?(?:sub)*(?:section|paragraph|chapter|part)Head", first):
+            # a heading run in at the head of a paragraph, as amsart sets a subsection
+            return self._emit("span", {"data-head": first})
         if tag == "span" and first in ("head", "titlemark", "id", "title"):
             # a theorem's head, a section's number, a float's, an abstract's own title: what TeX printed rather than read
             return self._emit(
@@ -280,8 +295,12 @@ class _Rebuild(HTMLParser):
                     return self._emit(name, {})
             if _SMALLCAPS.match(first):
                 return self._emit("span", {"class": "smallcaps"})
-            if tag in ("b", "i", "tt"):
-                return self._emit({"b": "strong", "i": "em", "tt": "code"}[tag], {})
+            if _ITALIC.match(first) or tag == "i":
+                return self._emit("span", {"data-font": "it"})
+            if _UPRIGHT.match(first):
+                return self._emit("span", {"data-font": "rm"})
+            if tag in ("b", "tt"):
+                return self._emit({"b": "strong", "tt": "code"}[tag], {})
             return None
         if tag == "a":
             href = a.get("href", "")
@@ -304,6 +323,12 @@ class _Rebuild(HTMLParser):
             return self._emit(tag, {**keep, **({"data-align": align.group(1)} if align else {})}, block=True)
         if tag == "tr":
             return self._emit("tr", {"class": "rule"} if first == "hline" else {})
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            # which heading TeX made, `sectionHead`, `likesectionHead`, `titleHead`, which says what it heads
+            return self._emit(tag, {"data-head": first} if re.fullmatch(r"[A-Za-z]{1,40}", first) else {})
+        if tag == "p" and first == "noindent":
+            # TeX set it with no indent: it opens a section or an item, continues after a display, or stands in a list
+            return self._emit("p", {"class": "noindent"})
         if tag in KEPT:
             return self._emit(tag, {}, block=tag in BLOCKS)
         if tag not in ("span", "div", "a", "colgroup", "col", "tbody", "thead"):

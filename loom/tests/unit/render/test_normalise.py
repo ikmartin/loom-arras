@@ -49,19 +49,26 @@ def test_a_document_s_own_html_is_rebuilt_and_nothing_it_wrote_runs() -> None:
     assert {"script", "iframe", "svg"} <= set(n.dropped)
 
 
+def test_the_space_tex4ht_writes_inside_a_formula_stands_after_it() -> None:
+    n = normalise(
+        "<html><body><!-- l. 2 --><p>Let <span class='mathjax-inline'>\\(Y^T\\) </span><span class='ecti-10'>be</span> as.</p></body></html>"
+    )
+    assert '<span class="math inline">\\(Y^T\\)</span> <span data-font="it">be</span>' in n.html
+
+
 def test_the_structure_tex4ht_made_is_kept_in_the_dialect_s_names() -> None:
     n = normalise(PAGE)
     h = n.html
     assert "<title" not in h and "alert" not in h and "p{}" not in h
-    assert '<h3 data-at=":0"><span class="number" data-made="">1   </span> One</h3>' in h
+    assert '<h3 data-head="sectionHead" data-at=":0"><span class="number" data-made="">1   </span> One</h3>' in h
     assert (
-        '<p data-at=":17">Plain <strong>bold</strong> <em>it</em> <code>tt</code> <span class="smallcaps">S<span class="smallcaps">mall</span></span> <span class="math inline">\\(x^2 &lt; y\\)</span>.'
+        '<p class="noindent" data-at=":17">Plain <strong>bold</strong> <span data-font="it">it</span> <code>tt</code> <span class="smallcaps">S<span class="smallcaps">mall</span></span> <span class="math inline">\\(x^2 &lt; y\\)</span>.'
         in h
     )
     assert not re.search(r"<p[^>]*>\s*</p>", h)  # an empty paragraph is no block
     assert '<div class="node" data-env="lemma" data-file="parts/a.tex" data-line="3">' in h and n.nodes == 1
     assert (
-        '<p data-at="parts/a.tex:3"><span class="head" data-made=""><strong>Lemma 1.1.</strong></span> See <a class="ref" data-label="eq:a" data-made="">(2)</a>.</p>'
+        '<p class="noindent" data-at="parts/a.tex:3"><span class="head" data-made=""><strong>Lemma 1.1.</strong></span> See <a class="ref" data-label="eq:a" data-made="">(2)</a>.</p>'
         in h
     )
     assert '<div class="math display" data-at="parts/a.tex:3">\\begin{align}a&amp;=b\\end{align}</div>' in h

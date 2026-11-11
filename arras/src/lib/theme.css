@@ -760,6 +760,42 @@ a.heading-link:focus {
 /* An environment inside another drops the panel and keeps the accent. */
 .fragment .env .env { margin: var(--gap) 0; }
 
+/* A list as TeX set it (plan 0.29.3): each item's label is the one TeX printed, `1.1.` or `(ii)`, hung left of its text as LaTeX hangs it, and a description's term in bold before its text. */
+.fragment dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	column-gap: 0.55em;
+	margin: var(--gap-tight) 0;
+}
+.fragment dl > dt {
+	grid-column: 1;
+	text-align: right;
+	white-space: nowrap;
+}
+.fragment dl > dd {
+	grid-column: 2;
+	margin: 0;
+	min-width: 0;
+}
+.fragment dl > dd > :first-child { margin-top: 0; }
+.fragment dl > dd > :last-child { margin-bottom: 0; }
+/* A table as TeX set it: a rule TeX drew between rows, and each cell aligned as its column says. */
+.fragment table tr.rule > td {
+	border-top: 1px solid var(--ink-soft);
+	padding: 0;
+	height: 0;
+}
+.fragment table td[data-align='left'],
+.fragment table th[data-align='left'] { text-align: left; }
+.fragment table td[data-align='center'],
+.fragment table th[data-align='center'] { text-align: center; }
+.fragment table td[data-align='right'],
+.fragment table th[data-align='right'] { text-align: right; }
+.fragment table td,
+.fragment table th { padding: 0.1em 0.5em; }
+.fragment div.center { text-align: center; }
+.fragment div.center > table { margin-inline: auto; }
+
 /* Document headings: the body face, close to the text, with the number set apart. */
 .fragment > h1[data-fragment] {
 	font-family: var(--body-face);
@@ -914,7 +950,15 @@ a.heading-link:focus {
 	margin: 0;
 	text-indent: 1.4em;
 }
-/* The paragraph that opens a section, or follows a displayed thing, is not indented — as the class sets it. */
+/* A paragraph TeX set without an indent says so: one opening a section or an item, one continuing after a display, and every one in a list, whose `\listparindent` is nothing; a list's paragraphs stand apart by its `\parsep`. Where TeX has not said, the paragraph that opens a section, or follows a displayed thing, is not indented, as the class sets it. */
+.arras[data-format='p1'] .fragment p.noindent,
+.arras[data-format='p2'] .fragment p.noindent {
+	text-indent: 0;
+}
+.arras[data-format='p1'] .fragment :is(li, dd) p + p,
+.arras[data-format='p2'] .fragment :is(li, dd) p + p {
+	margin-top: 0.35em;
+}
 .arras[data-format='p1'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p,
 .arras[data-format='p2'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p {
 	text-indent: 0;
@@ -985,16 +1029,61 @@ a.heading-link:focus {
 	text-indent: 0;
 }
 
-/* A proof reads as prose with an italic head and a tombstone, never as a disclosure widget. */
-.arras[data-format='p1'] .fragment details.env-proof > summary,
-.arras[data-format='p2'] .fragment details.env-proof > summary {
+/* A proof reads as prose, never as a disclosure widget: its head italic, with its full stop, and run into the first line as amsthm sets it. A summary cannot share a line with what its details hold, so the head floats and the first line wraps beside it, and the proof holds the float. */
+.arras[data-format='p1'] .fragment details.env-proof,
+.arras[data-format='p2'] .fragment details.env-proof {
+	display: flow-root;
+}
+.arras[data-format='p1'] .fragment details.env-proof > summary.env-label,
+.arras[data-format='p2'] .fragment details.env-proof > summary.env-label {
+	float: left;
+	display: block;
+	margin: 0 0.4em 0 0;
 	font-style: italic;
 	font-weight: 400;
 	list-style: none;
 }
-.arras[data-format='p1'] .fragment details.env-proof[open] > summary::after,
-.arras[data-format='p2'] .fragment details.env-proof[open] > summary::after {
-	content: '';
+.arras[data-format='p1'] .fragment details.env-proof > summary.env-label::before,
+.arras[data-format='p2'] .fragment details.env-proof > summary.env-label::before {
+	content: none;
+}
+.arras[data-format='p1'] .fragment details.env-proof[open] > summary.env-label::after,
+.arras[data-format='p2'] .fragment details.env-proof[open] > summary.env-label::after {
+	content: '.';
+}
+.arras[data-format='p1'] .fragment details.env-proof > summary.env-label + p,
+.arras[data-format='p2'] .fragment details.env-proof > summary.env-label + p {
+	display: block;
+}
+
+/* A document of LaTeX's standard classes (`article`, `report`, `book` and those built on them) is set as they set it: a large title centred over its author and date, and bold heads at the left margin, a section's larger than a subsection's. The `ams` classes keep the centred small capitals above, as does a document whose class loom has not read. */
+.arras:is([data-format='p1'], [data-format='p2']) .fragment:has(> [data-documentclass]:not([data-documentclass^='ams'])) :is(h1, h2, h3, h4, h5, h6) {
+	text-align: left;
+	font-variant: normal;
+	font-weight: 700;
+	letter-spacing: 0;
+	margin: 1.5em 0 0.6em;
+}
+.arras:is([data-format='p1'], [data-format='p2']) .fragment:has(> [data-documentclass]:not([data-documentclass^='ams'])) section > h1 {
+	font-size: 1.44em;
+}
+.arras:is([data-format='p1'], [data-format='p2']) .fragment:has(> [data-documentclass]:not([data-documentclass^='ams'])) section > h2 {
+	font-size: 1.2em;
+}
+.arras:is([data-format='p1'], [data-format='p2']) .fragment > h1[data-documentclass]:not([data-documentclass^='ams']) {
+	text-align: center;
+	font-weight: 400;
+	font-size: 1.73em;
+	margin: 0.6em 0 0.5em;
+}
+.arras:is([data-format='p1'], [data-format='p2']) .fragment > :is(p.author, p.date) {
+	text-align: center;
+	text-indent: 0;
+	font-size: 1.2em;
+	margin: 0.3em 0;
+}
+.arras:is([data-format='p1'], [data-format='p2']) .fragment > p.date {
+	margin-bottom: 1.5em;
 }
 
 /* The page boundaries of the compiled paper (`p2`). A faint rule with the page's own number set into it, so the

@@ -211,10 +211,12 @@ def fragment_path(result: ScanResult, key: str) -> str:
     return f"fragments/keys/{quote(key, safe='')}.html"
 
 
-def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] | None = None) -> str:
-    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, and `aux` from `keys.aux_bytes`.
+def _input_hash(
+    result: ScanResult, key: str, aux: bytes, texts: dict[str, str] | None = None, pages: dict[str, Any] | None = None
+) -> str:
+    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, `aux` from `keys.aux_bytes`, and the digest of each page as TeX made it that the fragment may be cut from.
 
-    `texts` holds each file's text hash, filled as files are met, so a file every digest node draws on is hashed once per scan rather than once per node.
+    `texts` holds each file's text hash, filled as files are met, so a file every digest node draws on is hashed once per scan rather than once per node; `pages` maps each document to its current page, or None.
     """
     texts = {} if texts is None else texts
     n = result.nodes[key]
@@ -234,6 +236,9 @@ def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] 
         h.update(f.encode())
         h.update(texts[f].encode())
     h.update(aux)
+    for m in [key] if n.kind == "master" else n.reached_by:
+        page = (pages or {}).get(m)
+        h.update(f"{m}:{page.digest if page is not None else '-'}".encode())
     return h.hexdigest()
 
 
@@ -374,8 +379,17 @@ def build(
     marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
+    from loom.render.fromhtml import page_for
+
+    # each document's page as TeX made it, where one is current with its sources; the rest render as the translator renders them
+    pages = {m: page_for(result, m) for m in result.masters}
     plan = RenderPlan(
-        result=result, numbers=numbers, cite_labels=cite_labels, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg"
+        result=result,
+        numbers=numbers,
+        cite_labels=cite_labels,
+        svg_cache=cache_dir / "svg",
+        svg_out=build_dir / "svg",
+        pages=pages,
     )
     if force:
         # a remembered SVG failure may have been the machine's, a package since installed; --force tries each once more
@@ -438,7 +452,7 @@ def build(
         label = key if kind == "node" else f"{kind}:{key}"
         fragments[label] = rel
         if key not in hashes:
-            hashes[key] = _input_hash(result, key, aux, texts)
+            hashes[key] = _input_hash(result, key, aux, texts, pages)
         digest = hashes[key] + _marks_hash(marks, key, result)
         existing = build_dir / rel
         if (wanted is not None and key not in wanted) or (index.get(rel) == digest and existing.exists()):

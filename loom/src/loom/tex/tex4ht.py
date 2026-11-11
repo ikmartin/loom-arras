@@ -27,6 +27,23 @@ ENGINE = {"pdflatex": [], "latex": [], "lualatex": ["-l"], "xelatex": ["-x"]}
 FIGURES = (".pdf", ".png", ".jpg", ".jpeg")
 #: Beside a page, the displays it holds as placeholders, each `Repaired` as JSON, in the order of their numbers.
 REPAIRED = "repaired.json"
+#: Beside a page, the hash of every source file the run read, by quilt-relative path.
+SOURCES = "sources.json"
+#: The files a run's sources are, whose change makes its page stale; build products and pictures are not among them.
+SOURCE_SUFFIXES = frozenset((".tex", ".sty", ".cls", ".clo", ".def", ".cfg", ".bib", ".bst", ".bbx", ".cbx", ".ltx"))
+
+
+def source_hashes(root: Path) -> dict[str, str]:
+    """The sha256 of every source file under `root`, by its path relative to `root`."""
+    import hashlib
+
+    return {
+        f.relative_to(root).as_posix(): hashlib.sha256(f.read_bytes()).hexdigest()
+        for f in sorted(root.rglob("*"))
+        if f.is_file() and f.suffix.lower() in SOURCE_SUFFIXES
+    }
+
+
 #: What a run's output directory keeps: the page, its stylesheet and the pictures TeX4ht made.
 KEPT = (".html", ".css", ".svg", ".png", ".jpg", ".jpeg")
 
@@ -97,8 +114,9 @@ ROWS = r"""\ExplSyntaxOn
 """
 
 #: Where each node begins and in which file, where the reader is when an included file starts and ends, and which label each reference prints, wrapped round the kernel's and hyperref's `\@setref` once every package has defined its own.
-STAMPS = r"""\def\loomnode#1{\ConfigureEnv{#1}{\ifvmode\IgnorePar\fi\EndP\HCode{<div class="loom-node" data-env="#1" data-file="\CurrentFilePath\CurrentFile" data-line="\the\inputlineno">}}{\ifvmode\IgnorePar\fi\EndP\HCode{</div>}}{}{}}
-\AddToHook{file/before}{\HCode{<!--loom-file \CurrentFilePath\CurrentFile-->}}
+STAMPS = r"""\def\loomfile{\ifx\CurrentFilePath\empty\else\CurrentFilePath/\fi\CurrentFile}
+\def\loomnode#1{\ConfigureEnv{#1}{\ifvmode\IgnorePar\fi\EndP\HCode{<div class="loom-node" data-env="#1" data-file="\loomfile" data-line="\the\inputlineno">}}{\ifvmode\IgnorePar\fi\EndP\HCode{</div>}}{}{}}
+\AddToHook{file/before}{\HCode{<!--loom-file \loomfile-->}}
 \AddToHook{file/after}{\HCode{<!--loom-file-end-->}}
 \def\loomdisplay#1{\HCode{<div class="mathjax-env" data-loom-display="#1"></div>}}
 \makeatletter
@@ -290,6 +308,7 @@ def compile_html(
     with tempfile.TemporaryDirectory(prefix="loom-html-") as tmp:
         stage = stage_document(root, base, [tex], Path(tmp) / "src")
         cwd = stage / base
+        read = source_hashes(stage)
         for f in sorted(stage.rglob("*")):
             if f.is_file() and CARRIED.search(f.name):
                 f.unlink()
@@ -379,6 +398,8 @@ def compile_html(
                     shutil.copy2(f, fresh / f.name)
             # the displays the page holds as placeholders, which the normaliser fills with their TeX as written
             (fresh / REPAIRED).write_text(json.dumps([vars(r) for r in repaired], ensure_ascii=False), encoding="utf-8")
+            # what the page was made from, so a publication can tell whether it still says what the sources do
+            (fresh / SOURCES).write_text(json.dumps(read, sort_keys=True), encoding="utf-8")
             old = outdir.with_name(f".{outdir.name}.old")
             shutil.rmtree(old, ignore_errors=True)
             if outdir.exists():

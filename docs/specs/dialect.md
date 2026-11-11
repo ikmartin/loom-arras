@@ -7,9 +7,9 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 **[decided]**
 
 1. A fragment is a sequence of block elements; no `<html>`, `<head>`, `<body>`, `<script>`, `<style>`, `<link>`, `<iframe>`, or inline event handlers. A fragment containing any of these is invalid.
-2. No external resources: images are `img` with `src` relative to the build directory (`svg/<hash>.svg`), or inline `svg`.
+2. No external resources: images are `img` with `src` relative to the build directory (`svg/<hash>.svg`, or a picture TeX4ht drew, beside the document's page: `drafting/main/html/main0x.svg`), or inline `svg`.
 3. Encoding UTF-8. Void elements self-closed or not; both are valid.
-4. Every block element that originates in source carries `data-src="FILE:START:END"` where `START` and `END` are character offsets in the file.
+4. Every block element that originates in source carries `data-src="FILE:START:END"` where `START` and `END` are character offsets in the file. A fragment made from the page TeX made of a document (plan 0.29.3) says so with `data-from="tex"` on its first element, and there a block carries `data-src` only where loom placed its words in the source: a section, a node, a display and a list or table environment always do, and a block TeX printed itself, such as an item's label, a date or a bibliography entry, does not.
 
 **[decided]** A **file's body** (manifest §1, `files`) is not a fragment, and the rules above do not bind it: it is a Markdown file drawn by the publisher, and it alone among published bodies may hold the HTML its author wrote. An annotation, a message, a page and an overview escape theirs (manifest §9, §10.1). A viewer inserts a body into its own page, which holds the write token (write-api §3), and agents write Markdown files, so a publisher writes that HTML back out through an allowlist, with every attribute value and run of text escaped, and never passes it through as written. The lists are `loom/src/loom/raw_html.py`:
 
@@ -26,7 +26,7 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 ### 2.1 Fragment kinds
 
-**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon"` on its first element as a courtesy, not as authority.
+**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon"` on its first element as a courtesy, not as authority. A master fragment made from TeX's page also carries `data-documentclass`, the document's class as `\documentclass` names it (`article`, `amsart`), which a viewer's paper formats set the title and heads by; beneath the title, `p.author` and `p.date` hold what `\maketitle` printed.
 
 **[decided]** A **report's blocks** are marked in the message that carries it, not in a fragment of their own: in a transcript message's `body_html` (specs/manifest.md §10.1), each bracketed heading an agent wrote opens a `<section data-block="NAME">` holding the heading and what follows it, up to the next. `NAME` is the block's name without its brackets, and the heading shows that name, or what the agent wrote after the brackets. Anything before the first heading stands outside every section. A message with no bracketed heading has none.
 
@@ -81,7 +81,7 @@ The label is the proof's optional argument, as `amsthm` prints it: `\begin{proof
 
 ### 2.6 Paragraphs and inline markup
 
-**[decided]** `p`; `em`, `strong`, `code`, `span.smallcaps`, `u`; `a.url[href]`; `span.footnote` containing the note text, with `data-n`; `blockquote`; `pre`, `code` for verbatim; `ul`, `ol`, `dl` with `li`, `dt`, `dd`; `hr`.
+**[decided]** `p`; `em`, `strong`, `code`, `span.smallcaps`, `u`, `sup`, `sub`; `a.url[href]`; `span.footnote` containing the note text, with `data-n`, and `sup.footnote-mark`, the mark TeX printed; `blockquote`; `div.center`; `pre`, `code` for verbatim; `ul`, `ol`, `dl` with `li`, `dt`, `dd`; `hr`. In a fragment made from TeX, a list whose labels TeX printed is a `dl` whose `dt` is each item's label as printed (`1.1.`, `(a)`), and `p.noindent` is a paragraph TeX set without an indent: one opening a section or an item, one continuing after a display, every one in a list.
 
 **[decided]** A paragraph whose only content is empty inline math and space — `$ $` on a line of its own, which LaTeX is given to start a list on the line after a theorem's heading — is not emitted: a list in HTML starts on its own line already, and drawn it was a blank line between the heading and the list (DR-317-ikmartin).
 
@@ -89,7 +89,7 @@ The label is the proof's optional argument, as `amsthm` prints it: `\begin{proof
 
 ### 2.7 Math
 
-**[decided]** Inline: `<span class="math inline">\(...\)</span>`. Display: `<div class="math display" id="LABEL-ID" data-label="eq:main" data-number="3.2">\[...\]</div>`, the id being the qualified key slug. TeX is passed through inside, save for what the viewer's typesetter cannot read: `\label` is removed, `\ref` is replaced by its number or label, and a macro of the author's used inside a `\text{…}` is written between dollars (DR-130). The viewer renders it with the macro set from the manifest (plus a per-fragment set if the fragment's first element carries `data-macros="NAME"` naming a set in the manifest).
+**[decided]** Inline: `<span class="math inline">\(...\)</span>`, its TeX as the source writes it, which is what a quote copies; a fragment made from TeX takes it from the source where it reads as TeX4ht's does but for spacing. Display: `<div class="math display" id="LABEL-ID" data-label="eq:main" data-number="3.2">\[...\]</div>`, the id being the qualified key slug. TeX is passed through inside, save for what the viewer's typesetter cannot read: `\label` is removed, `\ref` is replaced by its number or label, and a macro of the author's used inside a `\text{…}` is written between dollars (DR-130). The viewer renders it with the macro set from the manifest (plus a per-fragment set if the fragment's first element carries `data-macros="NAME"` naming a set in the manifest).
 
 ### 2.8 References and citations
 
@@ -116,11 +116,11 @@ Review comparison fragments may mark changed prose with `<mark class="review-cha
 
 ### 2.11 Figures and diagrams
 
-**[decided]** `figure` with optional `figcaption`; contents either `img[src]` (relative to the build directory) or inline `svg`. Diagrams from tikz are inline `svg` inside `figure.diagram`. Fallbacks are `figure.fallback` containing inline `svg` and `data-src-text` holding the original LaTeX.
+**[decided]** `figure` with optional `figcaption`; contents either `img[src]` (relative to the build directory) or inline `svg`. Diagrams from tikz are inline `svg` inside `figure.diagram`, or, in a fragment made from TeX, the `img` of the picture TeX4ht drew. Fallbacks are `figure.fallback` containing inline `svg` and `data-src-text` holding the original LaTeX.
 
 ### 2.12 Tables
 
-**[decided]** `table`, `thead`, `tbody`, `tr`, `th`, `td`; cell content limited to inline markup and math. Anything else falls back.
+**[decided]** `table`, `thead`, `tbody`, `tr`, `th`, `td`; cell content limited to inline markup and math. Anything else falls back. In a fragment made from TeX, `tr.rule` is a row TeX ruled above (`\hline`) and `data-align` on a cell is its column's alignment, `left`, `right` or `center`.
 
 ### 2.13 Links
 

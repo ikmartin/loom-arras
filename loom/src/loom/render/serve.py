@@ -738,23 +738,39 @@ class ServeSession:
         return self.quilt.root / document_build(doc) / f"{Path(doc).stem}.pdf"
 
     def _compile(self, doc: str, started: Callable[[Any], None]) -> CompileResult:
-        """One run of the compile queue: the document as the last publication's scan read it, carried on past a recoverable error."""
+        """One run of the compile queue: the document as the last publication's scan read it, carried on past a recoverable error, then its HTML from that compile's aux.
+
+        The PDF is published as soon as it is made, since its pages answer before TeX4ht's longer pass; the page then replaces the translator's rendering at the next publication.
+        """
+        import shutil
+
         from loom.scan.scan import scan
+        from loom.tex.tex4ht import compile_html
 
         result = self.last_report.result if self.last_report is not None else scan(self.quilt)
         closure = result.closures.get(doc)
         engine = normalise_engine((closure.engine if closure else None) or self.quilt.config.engine)
+        build = self.quilt.root / document_build(doc)
         res = compile_document(
-            self.quilt.root,
-            result.base_of(doc),
-            doc,
-            self.quilt.root / document_build(doc),
-            engine,
-            halt_on_error=False,
-            started=started,
+            self.quilt.root, result.base_of(doc), doc, build, engine, halt_on_error=False, started=started
         )
         said = "ok" if res.pdf is not None and not res.errors else ("with errors" if res.pdf else "FAILED")
         print(f"loom serve: compiled {doc}: {said}{'' if said == 'ok' else ': ' + res.first_error}", file=sys.stderr)
+        if res.pdf is not None and shutil.which("make4ht"):
+            self.rebuild()
+            envs = [*(closure.taxa if closure else ()), "proof"]
+            page = compile_html(
+                self.quilt.root,
+                result.base_of(doc),
+                doc,
+                build / "html",
+                envs=envs,
+                engine=engine,
+                seed=build,
+                started=started,
+            )
+            if page.html is None:
+                print(f"loom serve: no HTML for {doc}: {page.first_error}", file=sys.stderr)
         return res
 
     def _reading(self) -> str | None:
