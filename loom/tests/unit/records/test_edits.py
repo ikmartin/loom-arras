@@ -359,6 +359,51 @@ def test_keep_and_discard_over_the_api(tmp_path: Path) -> None:
     assert handle(q, "change-discard", {"changes": [theirs], "undo": True, "author": "Tom"})["done"] == [theirs]
 
 
+def test_new_text_that_opens_a_section_is_kept_once_and_never_written_twice(tmp_path: Path) -> None:
+    from loom.render.api import ApiError, handle
+
+    q = demo(tmp_path)
+    main = q / "drafting/main.tex"
+    added = "\\section*{Preface}\nA word before the setup.\n\\begin{proof}[Answer]\n\\end{proof}"
+    a = suggest(q, "--quote", "\\maketitle", "--with", added, "--after", key="drafting/main.tex")
+    assert not is_taken(*placed(q, a))
+    said = handle(q, "change-keep", {"changes": [a], "author": "Tom"})
+    assert said["done"] == [a] and said["refused"] == []
+    result, e = placed(q, a)
+    # the section it opens is the master's child now, and the master still reads as it taken
+    assert e.status == "kept" and is_taken(result, e)
+    with pytest.raises(ApiError) as again:
+        handle(q, "change-keep", {"changes": [a], "author": "Tom"})
+    assert again.value.code == "no-such-change"
+    assert main.read_text().count("A word before the setup.") == 1
+
+
+def test_a_replacement_that_keeps_its_quote_and_opens_a_section_reads_as_taken(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    new = "\\maketitle\n\\section*{Note}\nRead the setup first."
+    a = suggest(q, "--quote", "\\maketitle", "--with", new, key="drafting/main.tex")
+    assert not is_taken(*placed(q, a))
+    ok("changes", "--keep", a, cwd=q)
+    result, e = placed(q, a)
+    assert e.status == "kept" and is_taken(result, e)
+    # the quote standing again outside the new text is the replacement undone
+    edit(q / "drafting/main.tex", "\\begin{document}", "\\begin{document}\n\\maketitle")
+    assert not is_taken(*placed(q, a))
+
+
+def test_an_edit_on_an_empty_file_is_kept_as_the_whole_file(tmp_path: Path) -> None:
+    from loom.render.api import handle
+
+    q = demo(tmp_path)
+    blank = q / "drafting/sheet.tex"
+    blank.write_text("")
+    whole = "\\documentclass{article}\n\\begin{document}\nOne problem.\n\\end{document}\n"
+    a = suggest(q, "--with", whole, key="drafting/sheet.tex")
+    assert place(*placed(q, a)).at == (0, 0)
+    assert handle(q, "change-keep", {"changes": [a], "author": "Tom"})["done"] == [a]
+    assert blank.read_text() == whole
+
+
 def test_an_edit_on_an_agents_copy_is_not_kept_since_it_comes_in_with_the_copy(tmp_path: Path) -> None:
     import shutil
 

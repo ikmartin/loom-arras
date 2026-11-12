@@ -651,17 +651,19 @@ class ServeSession:
     ) -> None:
         """Publish the quilt as it is now, building only what changed since the last publication.
 
-        The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change the scan does not read (`records`, or a watcher's change that `scan_unread` judges so: a record, or a Markdown file) builds from the last scan.
+        The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change the scan does not read (`records`, or a watcher's change that `scan_unread` judges so: a record, or a Markdown file) builds from the last scan. Every file changed since the last publication, whoever wrote it, asks for the compiles it reaches; the first publication leaves that to `first_build`.
         """
         root = self.quilt.root
         with self.lock:
             if not records:
                 self._reload()
             seen = snapshot(root, self.shown)
+            moved = [p for p, m in seen.items() if self.published.get(p) != m] + [
+                p for p in self.published if p not in seen
+            ]
+            first = self.builds == 0
             if changed is not None:
-                changed = [p for p, m in seen.items() if self.published.get(p) != m] + [
-                    p for p in self.published if p not in seen
-                ]
+                changed = moved
                 if not changed:
                     return
                 records = scan_unread(root, changed)
@@ -687,10 +689,13 @@ class ServeSession:
                 f"loom serve: rebuilt after change to {names}{' …' if len(changed) > 3 else ''}; {counted(len(report.rendered), 'block')} re-rendered",
                 file=sys.stderr,
             )
-        if self.compiles is not None and changed is not None:
+        if self.compiles is not None and moved and not first:
             from loom.render.compiles import needs_compiling
 
-            self.compiles.want(needs_compiling(report.result, changed, self._built))
+            # the watcher's change, or a write through the API (a suggested edit taken, a version restored), which the watcher is set past
+            due = needs_compiling(report.result, moved, self._built)
+            if due:
+                self.compiles.want(due)
 
     def _run_job(self, job: Any, progress: Callable[[str, str, int, int], None]) -> dict[str, Any]:
         """One library run the viewer started: `refs.update.update` on the quilt as it is now, outside the publication lock, then a rebuild, so the manifest shows what it made. Its report is what `loom library update` prints."""

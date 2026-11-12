@@ -266,7 +266,12 @@ def suggested(result: ScanResult) -> list[Pending]:
             p.at, p.span = list(placed.at), placed.at
             p.old = placed.own[placed.span[0] : placed.span[1]].strip() if edit.selector else p.old
             p.blocks = [placed.key]
-        if node is not None and not any(result.document_role(d) == "person" for d in node.reached_by):
+        # a file no document reads yet, as an empty one, is the person's to write
+        if (
+            node is not None
+            and node.reached_by
+            and not any(result.document_role(d) == "person" for d in node.reached_by)
+        ):
             copy = next((d for d in node.reached_by if result.document_role(d) == "agent"), None)
             p.state = "on-a-copy"
             p.why = (
@@ -422,6 +427,7 @@ def keep(
         # what was kept is a version of each document it is part of
         _say(said, keep_versions(result, sorted({p.path for p in edits}), KEEP, "Kept an edit", writer[1]))
     written: dict[str, list[tuple[int, int]]] = {}
+    wrote: set[str] = set()
     to_write = [p for p in chosen if p.kind == "suggested" and p.state == "ready"]
     if to_write:
         kept = keep_versions(
@@ -443,6 +449,7 @@ def keep(
             write_file(root / path, text)
             for p in mine:
                 append_entry(hist, APPLY, {"edit": p.id, "key": p.key, "path": path}, writer[1])
+                wrote.add(p.id)
             written[path] = spans
     after = _rescan(result)
     done = [p.id for p in edits]
@@ -453,7 +460,7 @@ def keep(
         if edit is None:
             continue
         try:
-            record_kept(after, edit, writer)
+            record_kept(after, edit, writer, written=p.id in wrote)
         except EditRefused as exc:
             refused.append({"id": p.id, "why": exc.message})
             continue
@@ -617,21 +624,18 @@ def absorb(result: ScanResult, who: str, path: str, spans: list[tuple[int, int]]
 
 
 def _where_taken(result: ScanResult, edit: Edit) -> list[tuple[int, int]]:
-    """Where a suggested edit's new text stands in its file, when its key reads as it taken already."""
+    """Where a suggested edit's new text stands in its file, when its key reads as it taken already.
+
+    Looked for in the key's whole text, as `is_taken` does: new text that opens a section is the key's child once it is in.
+    """
     from loom.records.edits import node_of
     from loom.records.selectors import find_quote
-    from loom.records.store import Records
 
     node = node_of(result, edit.target_key)
-    if node is None or not edit.with_text.strip():
+    if node is None or node.file not in result.files or not edit.with_text.strip():
         return []
-    own, pieces = Records.own_pieces(result, node)
-    out = []
-    for a, b in find_quote(own, edit.with_text):
-        span = Records.to_file_span(pieces, (a, b))
-        if span is not None:
-            out.append(span)
-    return out
+    whole = result.files[node.file].text[node.start : node.end]
+    return [(node.start + a, node.start + b) for a, b in find_quote(whole, edit.with_text)]
 
 
 def keep_accepted(result: ScanResult, who: str, keys: list[str]) -> list[str]:

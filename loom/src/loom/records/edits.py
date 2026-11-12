@@ -294,6 +294,9 @@ def place(result: ScanResult, edit: Edit) -> Placed:
         else:
             span, text = (a, b), new
     at = Records.to_file_span(pieces, span) if span[0] < span[1] else _point(pieces, span[0])
+    if at is None and not pieces:
+        # a key with no text of its own, as an empty file: the text goes where it starts, or where it ends after it
+        at = (node.end, node.end) if edit.placement == "after" else (node.start, node.start)
     if at is None:
         raise Unplaced(f"the place {edit.id} names in {node.key} is not in one piece of its file")
     return Placed(node.key, node.file, own, span, at, text, edit.target_hash != key_hash(result, node.key))
@@ -367,24 +370,38 @@ def _flat(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _words(text: str) -> re.Pattern[str]:
+    """`text` as a pattern that matches it with any run of whitespace for each of its own."""
+    return re.compile(r"\s+".join(re.escape(w) for w in text.split()))
+
+
 def is_taken(result: ScanResult, edit: Edit) -> bool:
     """Whether the key's text now reads as the edit taken.
 
-    A replacement is taken when its text stands in the key and its quote no longer does but inside it; an insertion when its text stands; a deletion when its quote is gone. Whitespace is compared normalised, as a quote is.
+    The new text is looked for in the key's whole text, its children's included, since text that opens a section or an environment is read as the key's child once it is in. A replacement is taken when its text stands and its quote no longer does in the key's own text outside it; an insertion when its text stands; a deletion when its quote is gone from the own text. Whitespace is compared normalised, as a quote is.
     """
     node = node_of(result, edit.target_key)
     if node is None or node.file not in result.files:
         return False
-    own = _flat(Records.own_pieces(result, node)[0])
-    new = _flat(edit.with_text)
+    text = result.files[node.file].text
     quote = _flat(edit.selector.exact) if edit.selector else ""
-    if not new:
-        return bool(quote) and quote not in own
-    if new not in own:
+    if not edit.with_text.strip():
+        return bool(quote) and quote not in _flat(Records.own_pieces(result, node)[0])
+    holes = [m.span() for m in _words(edit.with_text).finditer(text, node.start, node.end)]
+    if not holes:
         return False
     if edit.placement != "replace" or not quote:
         return True
-    return quote not in own.replace(new, "\0")
+
+    def blanked(a: int, b: int) -> str:
+        piece = text[a:b]
+        for x, y in holes:
+            lo, hi = max(a, x), min(b, y)
+            if lo < hi:
+                piece = piece[: lo - a] + "\0" * (hi - lo) + piece[hi - a :]
+        return piece
+
+    return quote not in _flat("".join(blanked(a, b) for a, b in node.own))
 
 
 # ---- what the person does with one ----------------------------------------------------------------------------------
@@ -432,8 +449,11 @@ def apply(result: ScanResult, edit: Edit, actor: str | None) -> tuple[list[str],
     return documents_reaching(result, [placed.file]), kept
 
 
-def keep(result: ScanResult, edit: Edit, writer: tuple[str, str]) -> str:
-    """Record `edit` kept, with its key's hash as the text now reads (taken already, or just written by `apply`), and resolve the open annotation it answers, with the edit as the reason. Returns what to say."""
+def keep(result: ScanResult, edit: Edit, writer: tuple[str, str], *, written: bool = False) -> str:
+    """Record `edit` kept, with its key's hash as the text now reads, and resolve the open annotation it answers, with the edit as the reason. Returns what to say.
+
+    Refused unless the key reads as the edit taken, or `written` says the caller has just written it in (`pending.keep`): an edit written in is kept whatever the text is read as, else keeping it again would write it again.
+    """
     from loom.clock import stamp
     from loom.records.annotations import find_annotation, load_records
     from loom.records.log import append as append_annotation
@@ -442,7 +462,7 @@ def keep(result: ScanResult, edit: Edit, writer: tuple[str, str]) -> str:
 
     if edit.status != "open":
         raise EditRefused("not-open", f"{edit.id} is {edit.status} already")
-    if not is_taken(result, edit):
+    if not written and not is_taken(result, edit):
         raise EditRefused(
             "not-taken",
             f"{edit.target_key} does not yet read as {edit.id} taken; `loom changes {edit.id}` prints the patch that takes it",

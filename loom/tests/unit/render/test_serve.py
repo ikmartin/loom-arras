@@ -248,6 +248,51 @@ def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, se
     assert session.builds >= 2
 
 
+class _Asked:
+    """A compile queue that only records what it is asked for."""
+
+    def __init__(self) -> None:
+        self.asked: list[list[str]] = []
+
+    def want(self, docs: list[str]) -> None:
+        self.asked.append(list(docs))
+
+    def state(self) -> dict[str, Any]:
+        return {}
+
+    def stop(self) -> None:
+        pass
+
+
+def test_a_write_through_the_api_asks_for_the_compiles_it_reaches(serve, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    """The watcher is set past what a write publishes, so the publication asks: a suggested edit taken in the viewer compiles its document, and a write that changes no source asks for nothing."""
+    from tests.unit.render._serve import post
+
+    q = demo(tmp_path)
+    s = serve(q, watch=False)
+    queue = _Asked()
+    s.compiles = queue
+    edit_id = json.loads(
+        ok(
+            "suggest",
+            "dm-0002",
+            "--quote",
+            "one or two points",
+            "--with",
+            "at most two points",
+            "--as",
+            "Tom",
+            "--json",
+            cwd=q,
+        ).stdout
+    )["edit"]
+    s.rebuild(records=True)
+    assert queue.asked == []
+    status, answer = post(s.url + "_api/change-keep", {"changes": [edit_id], "author": "Tom"})
+    assert status == 200, answer
+    assert len(queue.asked) == 1 and "drafting/main.tex" in queue.asked[0]
+
+
 def test_a_write_of_records_publishes_from_the_last_scan_and_once(
     serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:  # type: ignore[no-untyped-def]
