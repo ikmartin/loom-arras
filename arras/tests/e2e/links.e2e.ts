@@ -3,6 +3,13 @@ import { expect, test } from '@playwright/test';
 import { beside, pane } from '../workspace';
 import { REFEREE, saying, serve } from '../manifest';
 
+/** The block at the top of a pane's body, by its `data-src`, and how far below the top it stands. */
+function topBlock(el: Element): { src: string; below: number } {
+	const r = el.getBoundingClientRect();
+	const block = [...el.querySelectorAll<HTMLElement>('[data-src]')].filter((b) => !b.querySelector('[data-src]')).find((b) => b.getBoundingClientRect().bottom > r.top + 48);
+	return { src: block?.dataset.src ?? '', below: block ? block.getBoundingClientRect().top - r.top : 0 };
+}
+
 test.describe('naming', () => {
 	test('an empty link reads as the viewer names the thing; a titled one as written', async ({ page }) => {
 		await saying(page, '<p><a href="quilt:sy-0003"></a>, <a href="quilt:sy-0003">the parity theorem</a>, <a href="quilt:a-2026-09-16-ecnav2"></a> and <a href="quilt:drafting/main.tex"></a>.</p>');
@@ -110,6 +117,8 @@ test.describe('the one rule', () => {
 		await page.waitForTimeout(300);
 		const at = await body.evaluate((el) => el.scrollTop);
 		expect(at).toBeGreaterThan(100);
+		// the text at the pane's top, and where: blocks skipped while off screen are laid out at their real size as they come back, so the scroll offset itself may move while the text stays
+		const place = await body.evaluate(topBlock);
 		const tabs = async () => [0, 1].map(async (i) => (await pane(page, i).getByTestId('item-tab').allInnerTexts()).join('|'));
 		const before = await Promise.all(await tabs());
 
@@ -120,8 +129,7 @@ test.describe('the one rule', () => {
 		await expect(pane(page, 0).locator('.fragment mjx-container').first()).toBeAttached();
 		expect(await Promise.all(await tabs())).toEqual(before);
 		// the place is kept as the block at the pane's top, so it comes back to within a few pixels rather than to the pixel
-		await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(at - 12);
-		expect(Math.abs((await body.evaluate((el) => el.scrollTop)) - at)).toBeLessThan(12);
+		await expect.poll(async () => { const now = await body.evaluate(topBlock); return now.src === place.src && Math.abs(now.below - place.below) < 12; }).toBe(true);
 		await page.waitForTimeout(500);
 		await expect(box).toHaveCount(0);
 	});

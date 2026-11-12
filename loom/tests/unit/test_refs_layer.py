@@ -369,6 +369,16 @@ def test_the_manifest_keeps_the_digest_and_its_proposals_apart(tmp_path: Path) -
     assert ref["digest"]["file"].endswith(f"{ck}.tex") and not ref["digest"]["file"].endswith(".proposed.tex")
     assert ref["proposed"]["file"].endswith(".proposed.tex")
     assert ref["proposed"]["nodes"] == [f"{ck}-thm-4.1"]
+    # each file has a page of its own holding its own blocks, and a build with nothing changed writes neither again
+    assert ref["digest"]["fragment"] == f"fragments/digests/{ck}.html"
+    assert ref["proposed"]["fragment"] == f"fragments/digests/{ck}.proposed.html"
+    pages = {e["file"]: q / ".loom/build" / e["fragment"] for e in (ref["digest"], ref["proposed"])}
+    for file, page in pages.items():
+        other = next(f for f in pages if f != file)
+        assert f'data-src="{file}:' in page.read_text() and f'data-src="{other}:' not in page.read_text()
+    made = {f: p.stat().st_mtime_ns for f, p in pages.items()}
+    ok("build", cwd=q)
+    assert {f: p.stat().st_mtime_ns for f, p in pages.items()} == made
     # `statement` travels only for a proposal: that is the one claim a person is being asked to make
     assert "statement" in ref["results"][f"{ck}-thm-4.1"]
     assert "statement" not in ref["results"][f"{ck}-thm-1.1"]

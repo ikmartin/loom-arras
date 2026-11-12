@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import io
 import json
 import os
 import re
 import shutil
 import threading
 import time
+import tokenize
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -81,8 +83,11 @@ def _code() -> str:
 
 
 def _as_code(source: str) -> str:
-    """`source` as Python reads it, with no comments and no docstrings."""
+    """`source` without its comments, docstrings and blank lines, as text: an AST's dump differs from one Python to the next, and a key from it would never meet a cache made under another."""
     tree = ast.parse(source)
+    lines = source.split("\n")
+    gone: set[int] = set()
+    cut: dict[int, int] = {}
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
         if (
@@ -92,8 +97,17 @@ def _as_code(source: str) -> str:
             and isinstance(body[0].value, ast.Constant)
             and isinstance(body[0].value.value, str)
         ):
-            node.body = body[1:] or [ast.Pass()]
-    return ast.dump(tree)
+            doc = body[0]
+            first = doc.lineno - 1
+            if lines[first][: doc.col_offset].strip():
+                cut[first] = doc.col_offset
+                first += 1
+            gone.update(range(first, doc.end_lineno or doc.lineno))
+    for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+        if tok.type == tokenize.COMMENT:
+            cut[tok.start[0] - 1] = min(tok.start[1], cut.get(tok.start[0] - 1, tok.start[1]))
+    kept = (line[: cut[n]] if n in cut else line for n, line in enumerate(lines) if n not in gone)
+    return "\n".join(line.rstrip() for line in kept if line.strip())
 
 
 _CODE: list[str] = []

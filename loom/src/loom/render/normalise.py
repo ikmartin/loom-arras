@@ -78,6 +78,8 @@ KEPT = frozenset(
     }
 )
 VOID = frozenset({"br", "hr", "img"})
+#: What TeX4ht writes inside a paragraph, which a text set in none is given one for.
+INLINE = frozenset({"span", "a", "sup", "sub", "b", "i", "em", "strong", "tt", "code", "small", "big"})
 #: The blocks a reader reads and loom places: each carries `data-at`.
 BLOCKS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "dd", "li", "figcaption", "td", "th", "pre", "blockquote"})
 #: TeX4ht names a span by the font it was set in, Computer Modern's, Latin Modern's (`ec-lm…`) or Times's; the style is what is kept.
@@ -119,6 +121,7 @@ class _Formula:
     depth: int = 1
     text: list[str] = field(default_factory=list)
     repaired: str | None = None  # a placeholder's number: the TeX is the author's as written, held beside the page
+    in_text: bool = False  # a display written inside its paragraph, as TeX4ht since TeX Live 2026 writes it
 
 
 class _Rebuild(HTMLParser):
@@ -137,6 +140,9 @@ class _Rebuild(HTMLParser):
         self.math: list[str] | None = None  # an inline formula still open across pieces of text
         self.formula: _Formula | None = None  # a formula TeX4ht wrapped, taken whole as TeX whatever tags it holds
         self.cites = 0  # citations open around the parser
+        self.loose = 0  # paragraphs closed at a mark whose own `</p>` is still to come
+        self.bib = 0  # bibliographies set as a list, as TeX Live 2026's TeX4ht sets one, open around the parser
+        self.bibwrap = 0  # what holds a bibliography (`div.thebibliography`, `section.thebibliography` in TeX Live 2026), open around the parser
 
     # -- the parser's events --------------------------------------------------------------------------------------
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -149,12 +155,16 @@ class _Rebuild(HTMLParser):
             self.formula.depth += tag not in VOID
             return
         cls = (dict(attrs).get("class") or "").split()
-        if not self.skip and (
-            (tag == "span" and cls[:1] == ["mathjax-inline"])
-            or (tag == "div" and cls[:1] in (["mathjax-block"], ["mathjax-env"]))
-        ):
+        # a display is a `div` between paragraphs, or a `span` inside one (TeX4ht since TeX Live 2026)
+        display = tag in ("div", "span") and cls[:1] in (["mathjax-block"], ["mathjax-env"])
+        if not self.skip and ((tag == "span" and cls[:1] == ["mathjax-inline"]) or display):
+            if not display:
+                self._para()
             self.formula = _Formula(
-                tag == "div", f"{self.file}:{self.line or 0}", repaired=dict(attrs).get("data-loom-display")
+                display,
+                f"{self.file}:{self.line or 0}",
+                repaired=dict(attrs).get("data-loom-display"),
+                in_text=display and tag == "span",
             )
             return
         if self.skip or tag in DROPPED:
@@ -164,7 +174,31 @@ class _Rebuild(HTMLParser):
                 self.dropped.append(tag)
             return
         a = {k: (v or "") for k, v in attrs}
+        # a bibliography is a paragraph to an entry, its label first, as TeX4ht wrote it before TeX Live 2026, which sets it as a list
+        if tag in ("div", "section") and "thebibliography" in cls:
+            self.bibwrap += 1
+            self.stack.append("bibwrap")
+            return
+        if tag == "dl" and (self.bibwrap or "thebibliography" in cls):
+            self.bib += 1
+            self.stack.append("bib")
+            return
+        if self.bib and tag == "dt":
+            self._emit("p", {})
+            self.stack.append(None)
+            return
+        if self.bib and tag == "dd":
+            self.stack.append("p bibitem")
+            return
+        if tag in INLINE:
+            self._para()
+        elif tag not in VOID and self.stack and self.stack[-1] == "p auto":
+            # a block ends the paragraph given to text before it
+            self.stack.pop()
+            self.out.append("</p>")
         made = self._open(tag, a)
+        if made == "div" and a.get("class", "").split()[:1] == ["loom-node"]:
+            made = "div node"  # a stamp, whose words are its statement's, never given a paragraph of their own
         if tag not in VOID:
             self.stack.append(made)
 
@@ -186,7 +220,13 @@ class _Rebuild(HTMLParser):
                 said = self.displays.get(f.repaired, "") if f.repaired is not None else "".join(f.text)
                 tex = escape(said.strip(), quote=False)
                 if f.display:
+                    # a display inside a paragraph ends it, and what follows begins another, as a display between paragraphs is written
+                    split = f.in_text and bool(self.stack) and self.stack[-1] in ("p", "p auto")
+                    if split:
+                        self.out.append("</p>")
                     self.out.append(f'<div class="math display" data-at="{f.at}">{tex}</div>')
+                    if split:
+                        self._emit("p", {})
                 else:
                     # TeX4ht writes the space after a formula inside its span, where it would be lost
                     before = " " if said[:1].isspace() else ""
@@ -200,11 +240,26 @@ class _Rebuild(HTMLParser):
         if tag == "body":
             self.body = False
             return
+        if tag == "p" and self.loose and (not self.stack or self.stack[-1] not in ("p", "p auto")):
+            self.loose -= 1
+            return
+        if tag != "p" and self.stack and self.stack[-1] == "p auto":
+            # the paragraph given to loose text ends with what holds it
+            self.stack.pop()
+            self.out.append("</p>")
         if not self.stack:
             return
         made = self.stack.pop()
         if made == "span cite":
             self.cites -= 1
+        if made == "bib":
+            self.bib -= 1
+            return
+        if made == "bibwrap":
+            self.bibwrap -= 1
+            return
+        if self.bib and tag == "dt":
+            self.out.append(" ")  # between an entry's label and its text
         if made:
             self.out.append(f"</{made.split()[0]}>")
 
@@ -213,6 +268,12 @@ class _Rebuild(HTMLParser):
             self.line = int(m.group(1))
         elif (m := _SNIPPET.match(data)) is not None:
             if self.body and not self.skip and self.formula is None:
+                # a paragraph still open at a mark is the last text's, which TeX4ht closes only later when it ends in a display (TeX Live 2026); closed here, its own `</p>` then finds nothing open
+                while self.stack and self.stack[-1] in ("p", "p auto", None):
+                    made = self.stack.pop()
+                    if made is not None:
+                        self.out.append("</p>")
+                        self.loose += made == "p"
                 self.out.append(f'<span class="loom-snippet" data-snippet="{m.group(1)}"></span>')
         elif _FILE_END.match(data):
             # back in the file that input this one, where it was
@@ -234,6 +295,8 @@ class _Rebuild(HTMLParser):
             return
         if not self.body or self.skip:
             return
+        if data.strip():
+            self._para()
         if self.math is not None:
             end = data.find("\\)")
             if end < 0:
@@ -329,8 +392,11 @@ class _Rebuild(HTMLParser):
         if tag == "tr":
             return self._emit("tr", {"class": "rule"} if first == "hline" else {})
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
-            # which heading TeX made, `sectionHead`, `likesectionHead`, `titleHead`, which says what it heads
-            return self._emit(tag, {"data-head": first} if re.fullmatch(r"[A-Za-z]{1,40}", first) else {})
+            # which heading TeX made, `sectionHead`, `likesectionHead`, `titleHead`, which says what it heads; a title is `h2` whichever TeX4ht set it as, `h1` in TeX Live 2026
+            return self._emit(
+                "h2" if first == "titleHead" else tag,
+                {"data-head": first} if re.fullmatch(r"[A-Za-z]{1,40}", first) else {},
+            )
         if tag == "p" and first == "noindent":
             # TeX set it with no indent: it opens a section or an item, continues after a display, or stands in a list
             return self._emit("p", {"class": "noindent"})
@@ -339,6 +405,13 @@ class _Rebuild(HTMLParser):
         if tag not in ("span", "div", "a", "colgroup", "col", "tbody", "thead"):
             self.dropped.append(tag)
         return None
+
+    def _para(self) -> None:
+        """Begin a paragraph for text standing in none: directly in a container or outside every element, as TeX4ht leaves the words after a display that ends a proof, and in TeX Live 2026 a text of a run that follows another's paragraph, which it closes only after."""
+        kept = [made for made in self.stack if made not in (None, "bibwrap")]
+        if not kept or kept[-1] == "div":
+            self._emit("p", {})
+            self.stack.append("p auto")
 
     def _emit(self, tag: str, attrs: dict[str, str], *, block: bool | None = None) -> str:
         if block if block is not None else tag in BLOCKS:

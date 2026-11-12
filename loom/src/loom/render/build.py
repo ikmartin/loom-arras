@@ -221,7 +221,9 @@ def fragment_path(result: ScanResult, key: str) -> str:
     if n.kind == "master":
         return f"fragments/masters/{document_name(key)}.html"
     if n.kind == "file" and key in result.assembly.digest_files:
-        return f"fragments/digests/{result.assembly.digest_files[key]}.html"
+        # a work's proposals file names the work's citekey as its digest does, so it takes a page of its own beside the digest's
+        shadow = ".proposed" if key.endswith(".proposed.tex") else ""
+        return f"fragments/digests/{result.assembly.digest_files[key]}{shadow}.html"
     if n.id:
         return f"fragments/nodes/{n.id}.html"
     from urllib.parse import quote
