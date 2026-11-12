@@ -434,8 +434,12 @@ readOnly('the page and the zoom are typed into, and take exactly what was typed'
 
 /** How far the top of a preview card's mark lies outside the preview page's box, above or below; 0 or less is inside. */
 function markOutsidePreview(c: Element): number {
-	const m = c.querySelector('[data-testid="mark-_stmt"]')!.getBoundingClientRect();
-	const box = c.querySelector('[data-testid="preview-page"]')!.getBoundingClientRect();
+	// a card drawing its page again holds neither for a moment, which is not yet, not outside
+	const mark = c.querySelector('[data-testid="mark-_stmt"]');
+	const page = c.querySelector('[data-testid="preview-page"]');
+	if (!mark || !page) return Number.POSITIVE_INFINITY;
+	const m = mark.getBoundingClientRect();
+	const box = page.getBoundingClientRect();
 	return Math.max(box.top - m.top, m.top - box.bottom - 2);
 }
 
