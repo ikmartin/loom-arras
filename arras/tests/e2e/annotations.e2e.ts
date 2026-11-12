@@ -705,9 +705,11 @@ test.describe('written on earlier words', () => {
 		const gone = page.locator('.fragment mark.annotation.gone[data-annotation="a-2026-09-16-a91hwf"]');
 		await expect(gone).toHaveCount(1);
 		await expect(gone).toHaveText('');
-		// the margin has its icon, a speech bubble since it says something
+		// the margin holds it: its own icon, a speech bubble since it says something, or a count where another item starts on its line, which depends on the fonts' line breaks
 		const icon = page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-a91hwf"]');
-		await expect(icon).toHaveClass(/\btalk\b/);
+		const count = page.locator('[data-testid="margin-count"][data-items~="a-2026-09-16-a91hwf"]');
+		await expect(icon.or(count)).toHaveCount(1);
+		if (await icon.count()) await expect(icon).toHaveClass(/\btalk\b/);
 		await gone.click();
 		const p = popup(page);
 		await expect(p).toHaveAttribute('data-annotation-id', 'a-2026-09-16-a91hwf');
