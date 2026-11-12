@@ -15,8 +15,6 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { asPercent, document_, pdfjs } from './document';
 	import { markAt, type PageMark } from './marks';
-	import type { Look } from '$lib/manifest/types';
-	import { lookVars, styleOf } from '$lib/review/annotationTypes';
 	import PageMarks, { type Drawn, type Moved } from './PageMarks.svelte';
 
 	type Rect = readonly number[];
@@ -30,10 +28,10 @@
 		scale = 1.4,
 		render = true,
 		tool = 'select',
+		regions = false,
 		focus = '',
 		onselect,
 		onbox,
-		onmark,
 		onsized,
 		ondrawn,
 		onlink,
@@ -47,21 +45,21 @@
 	}: {
 		url: string;
 		page?: number;
-		/** Rectangles to draw, in loom's space: points, origin top left, one per line. An annotation is marked `note` and carries its look, basis and whether it is settled, which the mark's classes and variables say and theme.css draws; a result carries none of these. */
-		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean }[];
+		/** Rectangles to draw, in loom's space: points, origin top left, one per line: a work's results, and the place a link points at (`transient`). Annotations are `marks`. */
+		quads?: { id: string; rects: Rect[]; transient?: boolean }[];
 		scale?: number;
 		/** Whether to draw at all. False keeps the page's size and releases everything that costs memory. */
 		render?: boolean;
-		/** `select` uses the text layer; `box` drags a region; a word mark's tool leaves the words selectable; any other mark's takes the pointer. A page with no text layer forces `box` for what uses the words. */
+		/** `select` uses the text layer; a drawing tool takes the pointer. A page with no text layer drags a region for what uses the words. */
 		tool?: string;
+		/** A drag that starts on no words draws a region, as Annotate's does. */
+		regions?: boolean;
 		/** The id of the mark to show as the one being looked at. */
 		focus?: string;
 		/** The reader selected text: the page, what they selected, and the rectangles it covers. */
 		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		/** The reader drew a region where selection was not worth trusting. */
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
-		/** The reader acted on an existing mark: one click selects, two travel. `el` is the mark, for a box to open at. */
-		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
 		/** The page and its marks have finished rendering. */
 		ondrawn?: () => void;
 		/** This page's size in points, once known, so a parent can size what it has not drawn. */
@@ -101,8 +99,8 @@
 	/** What is left off the canvas, as a string, since the list is new at every manifest and the page is drawn again only when what it says changes. */
 	const hidden = $derived(hide.join());
 
-	/** Box mode: what the toolbar says, or forced on a page whose text layer has nothing to select. */
-	const boxing = $derived(tool === 'box' || empty);
+	/** Box mode: forced on a page whose text layer has nothing to select. */
+	const boxing = $derived(empty);
 
 	// Stage timings go to the performance timeline rather than to a prop: they are wanted by the profiler, by whoever is
 	// deciding whether a page is cheap enough to keep in a pane, and by nothing in the app. `measure` is free when
@@ -286,9 +284,9 @@
 		return false;
 	}
 
-	/** The box tool, or the modifier that reaches it without leaving the select tool. */
+	/** A region: on a page with no words, with the modifier that reaches it from anywhere, or, while Annotate is on, from a press on no words. */
 	function drags(e: PointerEvent): boolean {
-		return boxing || e.altKey;
+		return boxing || e.altKey || (regions && e.button === 0 && e.target === e.currentTarget);
 	}
 
 	function startBox(e: PointerEvent): void {
@@ -368,34 +366,13 @@
 			</div>
 		{/if}
 		<PageMarks {marks} {box} {scale} {tool} {selected} {embedded} ondraw={(e) => ondraw?.({ ...e, page })} {onpick} {onmove} />
-		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
-		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once.
-		     An annotation's mark is one button per line of its span, classed and styled as a mark in a fragment is (`annotation`, `ann-<style>`, the look's variables, `settled`, `basis-box`), so theme.css draws both surfaces from one rule. -->
+		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once. Annotations are drawn by `PageMarks`, above. -->
 		<div class="marks" aria-hidden={quads.length === 0}>
 			{#each quads as q (q.id)}
 				{#each q.rects as r, i (i)}
 					{@const at = asPercent(r, box)}
-					{#if !q.note && !q.transient}
-						<!-- A result is drawn only where a link lands, and takes no pointer: the page's words under it select like any other, and a click on it does nothing, since what it would travel to is not beside the page. -->
-						<span class="mark result" class:on={focus === q.id} class:lead={i === 0} data-mark={q.id} data-testid="mark-{q.id}" aria-hidden="true" style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"></span>
-					{:else}
-					<button
-						class="mark {q.note ? 'annotation ann-' + styleOf(q.look) : ''}"
-						class:note={q.note}
-						class:settled={q.note && q.settled}
-						class:basis-box={q.note && q.basis === 'box'}
-						class:transient={q.transient}
-						class:on={focus === q.id}
-						class:lead={i === 0}
-						data-mark={q.id}
-						data-annotation={q.note ? (q.ids ?? [q.id]).join(' ') : undefined}
-						data-testid="mark-{q.id}"
-						aria-label="{q.transient ? 'the place this link points at' : q.note ? `annotation ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
-						style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};{q.note ? ' ' + lookVars(q.look) : ''}"
-						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: !!q.note, el: e.currentTarget })}
-						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: !!q.note, el: e.currentTarget })}
-					></button>
-					{/if}
+					<!-- A result is drawn only where a link lands, and the place a link points at while the link is in force; neither takes the pointer, so the page's words under them select like any other. -->
+					<span class="mark {q.transient ? 'transient' : 'result'}" class:on={focus === q.id} class:lead={i === 0} data-mark={q.id} data-testid="mark-{q.id}" aria-hidden="true" style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"></span>
 				{/each}
 			{/each}
 		</div>

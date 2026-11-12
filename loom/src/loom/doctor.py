@@ -99,7 +99,13 @@ TOOLS = [
     Tool("extractbb", OPTIONAL, ("--version",), TEX, "the size of a PDF or image figure in a document's HTML"),
     Tool("pdftotext", OPTIONAL, ("-v",), POPPLER, "cited works' page text and geometry, and the identity test"),
     Tool("pdfinfo", OPTIONAL, ("-v",), POPPLER, "cited works' page rotation"),
-    Tool("pdftocairo", OPTIONAL, ("-v",), POPPLER, "PDF figures; dvisvgm --pdf stands in, less faithfully"),
+    Tool(
+        "pdftocairo",
+        OPTIONAL,
+        ("-v",),
+        POPPLER,
+        "PDF figures, where dvisvgm --pdf stands in less faithfully, and the crop of a page an agent is given beside a mark on a PDF",
+    ),
     Tool(
         "git",
         OPTIONAL,

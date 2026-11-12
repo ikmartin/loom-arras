@@ -31,8 +31,8 @@ test("a document's compiled PDF opens from its row in the tree, and a new compil
 	await expect(paper.locator('canvas').first()).toBeVisible();
 	await expect(page.getByTestId('page-count')).toHaveText('/ 2');
 	await expect(pane(page, 0).getByTestId('item-tab').filter({ hasText: 'main.tex · PDF' })).toHaveCount(1);
-	// it is read here, not marked: no markup bar's switch among its tools
-	await expect(page.getByTestId('markup-toggle')).toHaveCount(0);
+	// it is read here, not marked: neither Annotate nor the PDF's drawing tools nor PDF ▾ among its tools
+	for (const id of ['tool-annotate', 'tool-comment', 'tool-ink', 'pdf-menu']) await expect(page.getByTestId(id)).toHaveCount(0);
 
 	const at = page.getByTestId('page-at');
 	await at.fill('2');

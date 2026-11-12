@@ -88,8 +88,11 @@ class ResolvedAnnotation:
     work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
     target: str = ""  # the target key now: a whole document's path followed across moves, else the key as written
     in_doc: str | None = None  # the document `in` names now, followed across moves; as written when it is gone
-    # on a PDF page: where it stands now, its words found again on a changed file
+    # on a PDF page: where it stands now, found again on a changed file (`marks.refind`) when `refound`
     rects: list[list[float]] | None = None
+    page: int | None = None
+    strokes: list[list[float]] | None = None
+    refound: bool = False
     # taken in from a PDF's own annotation that is still in the file as it is now: that annotation's reference
     hides: str | None = None
 
@@ -550,7 +553,7 @@ class Records:
         `recorded` is whether the artifact the anchor names is the one in the store -- copy-once makes that the normal case for ever. `detached` is a text anchor whose quotation no longer locates in the page's committed text; a box is never detached, because the rectangles are the record. The target is the work's identifier, and the citekey is looked up through the bibliography so that a renamed citekey changes nothing.
         """
         from loom.refs.identity import identify, parse
-        from loom.refs.pages import read_map, read_page, storage_root
+        from loom.refs.pages import read_map, read_page
         from loom.refs.search import locate_offsets
 
         assert a.anchor is not None
@@ -565,14 +568,51 @@ class Records:
         ck = works[a.target_key]
         if not ck or not wid_path(a.target_key):
             return ResolvedAnnotation(a, rec, None, True, False, ck)
-        home = storage_root(self.root) / wid_path(a.target_key)
+        from loom.refs.fetch import work_dir
+
+        # the copy the work's page and PDF are read from, as the manifest's `artifacts.dir` names it; a work filed by its file's hash keeps its copy there, not under its identifier
+        home = work_dir(self.root, result.bib[ck])
         m = read_map(home)
         recorded = m is not None and bool(m.sha256) and m.sha256 == a.anchor.sha256
         if a.anchor.basis != "text":
-            return ResolvedAnnotation(a, rec, None, False, recorded, ck)
+            moved = None if recorded or m is None else self._box_again(result, home, a)
+            if moved is None:
+                return ResolvedAnnotation(a, rec, None, False, recorded, ck, page=a.anchor.page)
+            return ResolvedAnnotation(
+                a, rec, None, False, recorded, ck, rects=moved.rects, page=moved.page, refound=True
+            )
+        exact = a.selector.exact if a.selector else ""
         page = read_page(home, a.anchor.page)
-        span = locate_offsets(page, a.selector.exact) if page and a.selector and a.selector.exact else None
-        return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
+        span = locate_offsets(page, exact) if page and exact else None
+        if span is not None or recorded or m is None or not exact:
+            return ResolvedAnnotation(a, rec, span, span is None, recorded, ck, page=a.anchor.page)
+        # the work's file changed: its words are looked for on every page's committed text, its own first
+        for n in range(1, m.pages + 1):
+            text = read_page(home, n) if n != a.anchor.page else None
+            span = locate_offsets(text, exact) if text else None
+            if span is not None:
+                return ResolvedAnnotation(a, rec, span, False, recorded, ck, page=n, refound=True)
+        return ResolvedAnnotation(a, rec, None, True, recorded, ck, page=a.anchor.page)
+
+    @staticmethod
+    def _source(result: ScanResult, res: ResolvedAnnotation) -> dict[str, Any] | None:
+        """Where a mark on a cited work's page stands in the work's source (`refs.sourcemap.source_of`), or None; computed as the manifest is published, never recorded."""
+        a = res.annotation
+        page = res.page or (a.anchor.page if a.anchor else a.page)
+        if not res.work or not page or res.detached or a.selector is None or not a.selector.exact:
+            return None
+        from loom.refs.sourcemap import source_of
+
+        return source_of(result, res.work, a.selector.exact, a.selector.prefix, a.selector.suffix, page)
+
+    def _box_again(self, result: ScanResult, home: Path, a: Annotation) -> Any:
+        """A box on a work's page found again on the work's changed file by the words around it and its gap (`marks.refound`), or None; a box that records neither stands where it was drawn."""
+        from loom.records.marks import artifact_of, refound
+
+        pdf = home / "paper.pdf"
+        if a.gap is None or a.anchor is None or not pdf.is_file():
+            return None
+        return refound(result, pdf, a, artifact_of(pdf))
 
     def _work(self, result: ScanResult, a: Annotation, works: dict[str, str]) -> str:
         """The citekey of the cited work `a`'s target identifies, '' when it names none; looked up once per target."""
@@ -595,23 +635,54 @@ class Records:
     ) -> ResolvedAnnotation:
         """An annotation on a page of a PDF that records its own place, or on a cited work as a whole.
 
-        On a page, it is detached when the PDF's bytes changed under it and its words are not found again, and stands where they are found when they are (`marks.on_the_pdf_now`); a whole work has nothing to detach from.
+        On a page, unchanged bytes keep it where it was written, and nothing reads the file. When the PDF's bytes changed under it, it is found again anywhere in the document by the words it recorded around it (`marks.refound`) and stands there, `refound`; when they are not found, or the file is gone, it is detached (A3). One that names no hash was written with nothing to compare, and nothing is claimed of it. A whole work has nothing to detach from.
         """
-        from loom.records.marks import artifact_of, on_the_pdf_now, pdf_of
+        from loom.records.marks import artifact_of, pdf_of, refound
 
         ck = self._work(result, a, works)
         if a.page is None:
             return ResolvedAnnotation(a, rec, None, False, True, ck, target=a.target_key)
         pdf = pdf_of(result, a.target_key, ck)
-        if pdf is None:
-            return ResolvedAnnotation(a, rec, None, bool(a.artifact), True, ck, target=a.target_key, rects=a.rects)
-        quote = a.selector.exact if a.selector else None
-        detached, moved = on_the_pdf_now(pdf, a.artifact, a.page, quote)
+
+        def where(detached: bool, hides: str | None = None) -> ResolvedAnnotation:
+            return ResolvedAnnotation(
+                a,
+                rec,
+                None,
+                detached,
+                True,
+                ck,
+                target=a.target_key,
+                rects=a.rects,
+                page=a.page,
+                strokes=a.strokes,
+                hides=hides,
+            )
+
+        if pdf is None or not pdf.is_file():
+            return where(bool(a.artifact))
+        now = artifact_of(pdf)
         ref, sha = (a.origin or {}).get("ref"), (a.origin or {}).get("sha")
         # the PDF's own annotation it came from is still in the file, so a viewer drawing the file's annotations hides that one
-        hides = str(ref) if ref and pdf.is_file() and sha == artifact_of(pdf) else None
+        hides = str(ref) if ref and sha == now else None
+        if a.artifact is None or a.artifact == now:
+            return where(False, hides)
+        moved = refound(result, pdf, a, now)
+        if moved is None:
+            return where(True, hides)
         return ResolvedAnnotation(
-            a, rec, None, detached, True, ck, target=a.target_key, rects=moved or a.rects, hides=hides
+            a,
+            rec,
+            None,
+            False,
+            True,
+            ck,
+            target=a.target_key,
+            rects=moved.rects,
+            page=moved.page,
+            strokes=moved.strokes,
+            refound=True,
+            hides=hides,
         )
 
     def _recorded(self, a: Annotation, current: str | None) -> bool:
@@ -872,7 +943,8 @@ class Records:
                     "key": res.target,
                     "hash": a.target_hash,
                     "work": res.work or None,
-                    "page": a.anchor.page if a.anchor else a.page,
+                    # where it stands now: the page it was found again on, on a changed PDF
+                    "page": res.page or (a.anchor.page if a.anchor else a.page),
                     # a project PDF, by its path
                     "file": a.target_key if a.target_key.lower().endswith(".pdf") else None,
                 },
@@ -892,10 +964,14 @@ class Records:
                 and res.recorded,
                 "detached": res.detached,
                 "recorded": res.recorded,
-                "quote": a.selector.exact if a.selector else None,
-                # on a PDF page that records its own place: where it stands, its strokes, the tool it was drawn with, and where an import came from
+                "quote": (a.selector.exact or None) if a.selector else None,
+                # on a PDF page that records its own place: where it stands now, its strokes, the tool it was drawn with, and where an import came from
                 "rects": res.rects,
-                "strokes": a.strokes,
+                "strokes": res.strokes if res.refound else a.strokes,
+                # a drawing's gap from its pin word, by which a changed file places it; whether it stands where it was found again on a changed file; and, on a work with its source, where its words stand there
+                "gap": a.gap,
+                "refound": res.refound,
+                "source": self._source(result, res),
                 "mark": a.mark,
                 "origin": a.origin,
                 "hides": res.hides,

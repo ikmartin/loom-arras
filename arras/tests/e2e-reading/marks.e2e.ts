@@ -1,4 +1,4 @@
-// Marking a PDF under `loom serve` (plan 0.28): a mark is an annotation on the page, drawn at once and there after a reload, on a cited work's page and on a project's PDF; comments, deleting and undo; the drawing tools; a saved copy read back; annotations taken in; page edits into a new file.
+// Annotating a PDF under `loom serve` (plan 0.28, plan 0.30.2): a mark is an annotation on the page, made from the toolbar a document has (Annotate, Comment, the format menu, Undo) and the PDF's own drawing tools, drawn at once and in its look after a reload, on a cited work's page and on a project's PDF; its popup; a saved copy read back; annotations taken in; page edits into a new file, from PDF ▾.
 import { expect, test, type Served } from '../served';
 import type { Page } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as lib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { annotatedCopy, readAnnotations } from '../../src/lib/pdf/portable';
+import { RGB } from '../../src/lib/review/annotationTypes';
 
 const pdfjs = lib as unknown as typeof import('pdfjs-dist');
 const ARDEN = fileURLToPath(new URL('../../../loom/tests/quilts/sources/showcase-works/arden-cycle-spaces.pdf', import.meta.url));
@@ -71,17 +72,22 @@ async function selectWords(page: Page, n: number, phrase: string): Promise<void>
 	});
 }
 
-/** Highlight the words of a span with the markup bar's highlight tool, and put the tool down: a bare selection offers only Quote. The bar is left as it was found, shut or open. */
-async function highlight(page: Page, n: number, phrase: string): Promise<void> {
-	const tool = page.getByTestId('tool-highlight');
-	const shut = !(await tool.isVisible());
-	if (shut) await page.getByTestId('markup-toggle').click();
+/** Mark the words of a span with Annotate, in the look in hand, turning it on where it is off. */
+async function annotate(page: Page, n: number, phrase: string): Promise<void> {
+	const tool = page.getByTestId('tool-annotate');
 	if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click();
 	await selectWords(page, n, phrase);
-	await expect(marks(page)).not.toHaveCount(0);
-	await page.keyboard.press('Escape');
-	await expect(page.getByTestId('tool-select')).toHaveAttribute('aria-pressed', 'true');
-	if (shut) await page.getByTestId('markup-toggle').click();
+}
+
+/** Choose a line of PDF ▾. */
+async function pdfMenu(page: Page, testid: string): Promise<void> {
+	await page.getByTestId('pdf-menu').click();
+	await page.getByTestId(testid).click();
+}
+
+/** The look in hand, set before the page loads, as the format menu leaves it. */
+async function holding(page: Page, h: { type: string | null; over: Record<string, unknown> }): Promise<void> {
+	await page.addInitScript((v) => localStorage.setItem('arras.annotate.hand', JSON.stringify(v)), h);
 }
 
 const marks = (page: Page, kind?: string) => page.locator(kind ? `[data-testid^="page-mark-"][data-kind="${kind}"]` : '[data-testid^="page-mark-"]');
@@ -116,82 +122,87 @@ test.afterEach(({}, info) => {
 	expect(info.annotations.filter((a) => a.type === 'pageerror')).toEqual([]);
 });
 
-test("a highlight on a cited work's page needs no session, is drawn at once, and after a reload is an annotation on its words drawn in its look", async ({ page, served }) => {
+test("a highlight on a cited work's page needs no session, is drawn at once in the look in hand, and after a reload is an annotation on its words drawn in its look", async ({ page, served }) => {
 	const before = marksOf(served, 'Bellamy19').map((a) => a.id);
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
-	await highlight(page, 2, 'order');
-	await expect(marks(page, 'highlight')).toHaveCount(1);
+	await annotate(page, 2, 'order');
 	await expect.poll(() => marksOf(served, 'Bellamy19').filter((a) => !before.includes(a.id)).length).toBe(1);
 	const mark = marksOf(served, 'Bellamy19').find((a) => !before.includes(a.id))!;
-	// on words, so its look's style draws it and no tool did
-	expect(mark).toMatchObject({ mark: null, style: 'highlight', page: 2 });
+	await expect(page.locator(`[data-testid="page-mark-${mark.id}"][data-kind="highlight"]`)).toHaveCount(1);
+	// on words, so its look's style draws it and no tool did: the hand's yellow highlight, there being no type in it
+	expect(mark).toMatchObject({ mark: null, style: 'highlight', color: 'yellow', page: 2 });
 	expect(mark.quote).toBeTruthy();
 	expect(served.log().find((e) => e.event === 'created' && e.id === mark.id)).not.toHaveProperty('session');
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
-	await expect(page.locator(`button.mark.annotation.ann-highlight[data-annotation~="${mark.id}"]`).first()).toBeVisible();
+	const drawn = page.locator(`[data-testid="page-mark-${mark.id}"][data-kind="highlight"]`);
+	await expect(drawn).toHaveCount(1);
+	expect(await page.getByTestId(`mark-band-${mark.id}`).evaluate((g) => getComputedStyle(g).getPropertyValue('--band-strength').trim())).toBe('0.6');
 });
 
 test.describe('on a project PDF', () => {
 	test.use(withPaper);
 
-	test('a comment is written on a mark, which is deleted and put back by undo, and the file is not touched', async ({ page, served }) => {
+	test('a comment is written in a mark\'s popup, the mark is deleted from it and put back by Undo, and the file is not touched', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
-		await highlight(page, 1, 'Cycle');
+		await annotate(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
+		await page.keyboard.press('Escape');
 		await clickMark(page, `page-mark-${id}`);
-		await page.getByTestId('mark-comment').fill('the title says it');
-		await page.getByTestId('mark-done').click();
+		const p = page.getByTestId('ann-popup');
+		await expect(p).toHaveAttribute('data-annotation-id', id);
+		await p.getByTestId('popup-comment-field').fill('the title says it');
+		await p.getByTestId('popup-save').click();
 		await expect.poll(() => annotations(served)[id]?.body).toBe('the title says it');
 		await page.reload();
 		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count()).toBeGreaterThan(10);
 		await clickMark(page, `page-mark-${id}`);
-		await expect(page.getByTestId('mark-card-body')).toContainText('the title says it');
-		await page.getByTestId('mark-erase').click();
+		await expect(p.getByTestId('popup-comment')).toContainText('the title says it');
+		await p.getByTestId('popup-delete').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(0);
 		await expect.poll(() => id in annotations(served)).toBe(false);
-		await page.getByTestId('markup-toggle').click();
-		await page.getByTestId('mark-undo').click();
+		await page.getByTestId('annotate-undo').click();
 		await expect(page.getByTestId(`page-mark-${id}`)).toHaveCount(1);
 		await expect.poll(() => id in annotations(served)).toBe(true);
 		expect(readFileSync(join(served.root, FILE)).equals(readFileSync(ARDEN))).toBe(true);
 	});
 
-	test('a word tool marks each selection until it is put down, and leaves a plain selection to Quote afterwards', async ({ page, served }) => {
+	test('Annotate marks each selection in the style in hand until it is put down, and leaves a plain selection to Quote afterwards', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
-		await page.getByTestId('markup-toggle').click();
-		await page.getByTestId('tool-underline').click();
-		await selectWords(page, 1, 'Cycle');
-		await expect(marks(page, 'underline')).toHaveCount(1);
-		await page.getByTestId('tool-strike').click();
+		await annotate(page, 1, 'Cycle');
+		await expect(marks(page, 'highlight')).toHaveCount(1);
+		await page.getByTestId('format-toggle').click();
+		await page.getByTestId('format-menu').getByTestId('style-underline').click();
+		await page.keyboard.press('Escape');
 		await selectWords(page, 1, 'Abstract');
-		await expect(marks(page, 'strike')).toHaveCount(1);
+		await expect(marks(page, 'underline')).toHaveCount(1);
 		await expect(page.getByTestId('quote-offer')).toHaveCount(0);
 		await published(served, 2);
+		expect(marksOf(served).map((a) => a.style).sort()).toEqual(['highlight', 'underline']);
 		await page.keyboard.press('Escape');
-		await expect(page.getByTestId('tool-select')).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByTestId('tool-annotate')).toHaveAttribute('aria-pressed', 'false');
 		await selectWords(page, 1, 'Introduction');
 		await expect(page.getByTestId('quote-offer')).toBeVisible();
 	});
 
-	test('the drawing tools each leave a mark, a pin and words only once they say something, and a shape moves and resizes', async ({ page, served }) => {
+	test('Comment writes a pin once it says something, the drawing tools each leave a mark in the look in hand, and a shape moves, resizes and comes back with Undo', async ({ page, served }) => {
 		test.slow();
+		await holding(page, { type: null, over: { color: 'purple', style: 'highlight', weight: 3, opacity: 80 } });
 		await openPaper(page, `/file/${FILE}`);
-		await page.getByTestId('markup-toggle').click();
 
-		await page.getByTestId('tool-pin').click();
+		await page.getByTestId('tool-comment').click();
 		await pressOn(page, 1, [0.1, 0.1]);
-		await page.getByTestId('mark-done').click();
-		await expect(marks(page, 'pin')).toHaveCount(0);
-		await pressOn(page, 1, [0.1, 0.1]);
-		await page.getByTestId('mark-comment').fill('see the second section');
-		await page.getByTestId('mark-done').click();
+		const draft = page.getByTestId('ann-popup');
+		await expect(draft.getByTestId('popup-save')).toBeDisabled();
+		await draft.getByTestId('popup-comment-field').fill('see the second section');
+		await draft.getByTestId('popup-save').click();
 		await expect(marks(page, 'pin')).toHaveCount(1);
+		await expect(page.getByTestId('tool-comment')).toHaveAttribute('aria-pressed', 'false');
 
 		await page.getByTestId('tool-text').click();
 		await pressOn(page, 1, [0.25, 0.08]);
-		await page.getByTestId('mark-comment').fill('words on the page');
-		await page.getByTestId('mark-done').click();
+		await page.getByTestId('popup-comment-field').fill('words on the page');
+		await page.getByTestId('popup-save').click();
 		await expect(marks(page, 'text')).toContainText('words on the page');
 
 		await page.getByTestId('tool-rect').click();
@@ -204,7 +215,7 @@ test.describe('on a project PDF', () => {
 		await drag(page, 1, [0.2, 0.5], [0.4, 0.6]);
 		await expect(marks(page, 'arrow')).toHaveCount(1);
 
-		// lines of ink drawn close together are one mark; a busy machine can leave more than `INK_PAUSE` between two drags, so that timer is held back here and the change of tool ends them
+		// lines of ink drawn close together are one mark; a busy machine can leave more than `INK_PAUSE` between two drags, so that timer is held back here and putting the tool down ends them
 		const inkPause = await page.evaluateHandle(() => {
 			const setTimeout = window.setTimeout;
 			window.setTimeout = ((run: TimerHandler, ms = 0, ...rest: unknown[]) => (ms === 900 ? 0 : setTimeout(run, ms, ...rest))) as typeof window.setTimeout;
@@ -213,17 +224,21 @@ test.describe('on a project PDF', () => {
 		await page.getByTestId('tool-ink').click();
 		await drag(page, 1, [0.5, 0.5], [0.6, 0.55]);
 		await drag(page, 1, [0.6, 0.55], [0.7, 0.5]);
-		await page.getByTestId('tool-select').click();
+		await page.getByTestId('tool-ink').click();
 		await inkPause.evaluate((restore) => void restore());
 		await expect(marks(page, 'ink')).toHaveCount(1);
 		await published(served, 6);
 		const ink = marksOf(served).find((a) => a.mark === 'ink')!;
 		expect(ink.strokes).toHaveLength(2);
+		// every one in the look in hand
+		expect(new Set(marksOf(served).map((a) => a.color))).toEqual(new Set(['purple']));
+		expect(await page.locator('.k-box .shape').first().evaluate((s) => getComputedStyle(s).strokeWidth)).toBe('3px');
 
-		// a press inside a shape looks at it; dragging moves it and the record follows
+		// a press inside a shape opens its popup and takes hold of it; dragging moves it and the record follows
 		const box = marksOf(served).find((a) => a.mark === 'box')!;
 		const [x0, y0] = box.rects![0];
 		await clickMark(page, `page-mark-${box.id}`);
+		await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', box.id);
 		await expect(page.getByTestId('mark-grab')).toBeVisible();
 		const grab = (await page.getByTestId('mark-grab').boundingBox())!;
 		await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
@@ -239,45 +254,42 @@ test.describe('on a project PDF', () => {
 		await page.mouse.move(handle.x + 44, handle.y + 34, { steps: 4 });
 		await page.mouse.up();
 		await expect.poll(() => annotations(served)[box.id].rects![0][2]).toBeGreaterThan(moved[2] + 5);
-		// and the keyboard takes it back, then takes it off the page
-		await page.getByTestId('mark-done').click();
-		await page.keyboard.press('ControlOrMeta+z');
+		// and Undo takes the resize back, then Delete takes it off the page
+		await page.getByTestId('annotate-undo').click();
 		await expect.poll(() => annotations(served)[box.id].rects![0][2]).toBeCloseTo(moved[2], 0);
-		await clickMark(page, `page-mark-${box.id}`);
-		await page.getByTestId('mark-done').focus();
 		await page.locator('body').evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await page.keyboard.press('Delete');
 		await expect(page.getByTestId(`page-mark-${box.id}`)).toHaveCount(0);
 	});
 
-	test('a saved copy holds the marks as a PDF reader finds them, and its original bytes', async ({ page, served }) => {
+	test('a saved copy holds the marks as a PDF reader finds them, in their looks, and its original bytes', async ({ page, served }) => {
+		await holding(page, { type: null, over: { color: 'green', style: 'highlight', weight: 2, opacity: 55 } });
 		await openPaper(page, `/file/${FILE}`);
-		await highlight(page, 1, 'Cycle');
+		await annotate(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
+		await page.keyboard.press('Escape');
 		await clickMark(page, `page-mark-${id}`);
-		await page.getByTestId('mark-comment').fill('in the copy');
-		await page.getByTestId('mark-done').click();
+		await page.getByTestId('popup-comment-field').fill('in the copy');
+		await page.getByTestId('popup-save').click();
 		await expect.poll(() => annotations(served)[id]?.body).toBe('in the copy');
-		await page.getByTestId('markup-toggle').click();
-		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
+		await page.keyboard.press('Escape');
+		const [saved] = await Promise.all([page.waitForEvent('download'), pdfMenu(page, 'mark-save-copy')]);
 		expect(saved.suggestedFilename()).toBe('paper-annotated.pdf');
 		const bytes = new Uint8Array(readFileSync(await saved.path()));
 		const original = readFileSync(ARDEN);
 		expect(Buffer.from(bytes.subarray(0, original.length)).equals(original)).toBe(true);
 		const { items } = await readAnnotations(await open(bytes));
 		expect(items).toHaveLength(1);
-		expect(items[0]).toMatchObject({ style: 'highlight', body: 'in the copy', page: 1 });
-		await expect(page.getByTestId('mark-said')).toContainText('Saved a copy with 1 annotation');
+		expect(items[0]).toMatchObject({ style: 'highlight', body: 'in the copy', page: 1, color: 'green', opacity: 55, weight: 2 });
+		await expect(page.getByTestId('toast')).toContainText('It holds 1 annotation');
 	});
 
-	test('a colour is chosen in the markup bar, stays in the hand, changes on its mark with undo, and goes into a saved copy', async ({ page, served }) => {
+	test('a colour is set in the popup, with Undo, and the look in hand is what the next mark is drawn in', async ({ page, served }) => {
 		test.slow();
+		await holding(page, { type: null, over: { color: 'green', style: 'highlight', weight: 2, opacity: 100 } });
 		await openPaper(page, `/file/${FILE}`);
-		await page.getByTestId('markup-toggle').click();
-		await page.getByTestId('mark-colors').getByTestId('swatch-green').click();
-		await page.getByTestId('markup-toggle').click();
-		await highlight(page, 1, 'Cycle');
+		await annotate(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
 		expect(annotations(served)[id].color).toBe('green');
@@ -285,19 +297,20 @@ test.describe('on a project PDF', () => {
 		const fill = () => band.evaluate((r) => getComputedStyle(r).fill);
 		await expect.poll(fill).toBe('rgb(160, 232, 140)');
 
+		await page.keyboard.press('Escape');
 		await clickMark(page, `page-mark-${id}`);
-		await page.getByTestId('mark-card').getByTestId('swatch-pink').click();
-		await expect.poll(fill).toBe('rgb(255, 174, 220)');
+		await page.getByTestId('popup-type').click();
+		await page.getByTestId('popup-format').getByTestId('swatch-pink').click();
 		await expect.poll(() => annotations(served)[id]?.color).toBe('pink');
-		await page.getByTestId('mark-done').click();
-
-		// changing one mark leaves the colour in the hand, and that is what the next mark is drawn in
-		await page.getByTestId('markup-toggle').click();
-		const held = page.getByTestId('mark-colors');
-		await expect(held.getByTestId('swatch-green')).toHaveAttribute('aria-pressed', 'true');
-		await page.getByTestId('mark-undo').click();
+		await expect.poll(fill).toBe('rgb(255, 174, 220)');
+		await page.getByTestId('annotate-undo').click();
 		await expect.poll(() => annotations(served)[id]?.color).toBe('green');
-		await held.getByTestId('swatch-blue').click();
+		await page.keyboard.press('Escape');
+
+		// the hand keeps its own colour; blue chosen there draws the next box
+		await page.getByTestId('format-toggle').click();
+		await page.getByTestId('format-menu').getByTestId('swatch-blue').click();
+		await page.keyboard.press('Escape');
 		await page.getByTestId('tool-rect').click();
 		await drag(page, 1, [0.2, 0.6], [0.5, 0.75]);
 		await published(served, 2);
@@ -306,43 +319,35 @@ test.describe('on a project PDF', () => {
 		await expect.poll(() => page.locator('.k-box .shape').first().evaluate((s) => getComputedStyle(s).stroke)).toBe('rgb(26, 111, 196)');
 		await page.getByTestId('tool-rect').click();
 
-		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
+		const [saved] = await Promise.all([page.waitForEvent('download'), pdfMenu(page, 'mark-save-copy')]);
 		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));
 		expect(items.find((i) => i.style === 'highlight')?.color).toBe('green');
 		expect(items.find((i) => i.mark === 'ink')?.color).toBe('blue');
-
-		await page.reload();
-		await expect.poll(() => page.locator('[data-testid="pdf-page-1"] .text span').count()).toBeGreaterThan(10);
-		await expect.poll(fill).toBe('rgb(160, 232, 140)');
-		await page.getByTestId('markup-toggle').click();
-		await expect(page.getByTestId('mark-colors').getByTestId('swatch-blue')).toHaveAttribute('aria-pressed', 'true');
 	});
 
-	test('annotations are taken in from another copy once, and never from a different paper', async ({ page, served }) => {
+	test('annotations are taken in from another copy once, in their colours, and never from a different paper', async ({ page, served }) => {
 		const { bytes } = await annotatedCopy(pdfjs, { data: new Uint8Array(readFileSync(ARDEN)), verbosity: 0 }, [
-			{ page: 1, kind: 'highlight', rects: [[206.99, 125.41, 293.37, 140.99]], body: 'from elsewhere', by: 'A Reader' },
+			{ page: 1, kind: 'highlight', rects: [[206.99, 125.41, 293.37, 140.99]], body: 'from elsewhere', by: 'A Reader', color: RGB.red.band },
 			{ page: 1, kind: 'pin', rects: [[50, 50, 66, 66]], body: 'a sticky note', by: 'A Reader' }
 		]);
 		await openPaper(page, `/file/${FILE}`);
-		await page.getByTestId('markup-toggle').click();
 		const file = { name: 'marked.pdf', mimeType: 'application/pdf', buffer: Buffer.from(bytes) };
 		await page.getByTestId('mark-take-file').setInputFiles(file);
-		await expect(page.getByTestId('mark-said')).toContainText('Took in 2');
+		await expect(page.getByTestId('toast')).toContainText('Took in 2');
 		await expect(marks(page)).toHaveCount(2);
 		const taken = marksOf(served).find((a) => a.style === 'highlight' && !a.mark)!;
-		expect(taken).toMatchObject({ body: 'from elsewhere', origin: { by: 'A Reader' } });
+		expect(taken).toMatchObject({ body: 'from elsewhere', color: 'red', origin: { by: 'A Reader' } });
 		expect(taken.quote).toContain('Cycle spaces');
 		await page.getByTestId('mark-take-file').setInputFiles(file);
-		await expect(page.getByTestId('mark-said')).toContainText('2 were here already');
+		await expect(page.getByTestId('toast')).toContainText('2 were here already');
 		await page.getByTestId('mark-take-file').setInputFiles({ name: 'other.pdf', mimeType: 'application/pdf', buffer: readFileSync(BELLAMY) });
-		await expect(page.getByTestId('mark-said')).toContainText('no place here');
+		await expect(page.getByTestId('toast')).toContainText('no place here');
 		await published(served, 2);
 	});
 
 	test('edited pages are saved as a new file, opened, and the PDF being read stays as it was', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
-		await page.getByTestId('markup-toggle').click();
-		await page.getByTestId('mark-pages').click();
+		await pdfMenu(page, 'mark-pages');
 		const editor = page.getByTestId('pages-editor');
 		await expect(editor.getByTestId('pages-count')).toHaveText('2 pages');
 		// the second page first, and turned
@@ -385,16 +390,14 @@ test.describe('a PDF that already holds annotations', () => {
 		await expect(held).toHaveCount(1);
 		const box = (await held.boundingBox())!;
 		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-		await expect(page.getByTestId('mark-card-body')).toHaveText('said in Preview');
-		await page.getByTestId('mark-done').click();
-		await page.getByTestId('markup-toggle').click();
-		await page.getByTestId('mark-take-here').click();
-		await expect(page.getByTestId('mark-said')).toContainText('Took in 1');
+		await expect(page.getByTestId('toast')).toContainText('said in Preview');
+		await pdfMenu(page, 'mark-take-here');
+		await expect(page.getByTestId('toast')).toContainText('Took in 1');
 		await expect(marks(page, 'highlight')).toHaveCount(1);
 		await expect(held).toHaveCount(0);
 		expect(marksOf(served)[0]).toMatchObject({ body: 'said in Preview' });
 		// a copy holds it once
-		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
+		const [saved] = await Promise.all([page.waitForEvent('download'), pdfMenu(page, 'mark-save-copy')]);
 		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));
 		expect(items.map((i) => i.body)).toEqual(['said in Preview']);
 	});
@@ -409,17 +412,17 @@ test.describe('where no publisher takes writes', () => {
 		}
 	});
 
-	test('marks are drawn, the tools are not offered, and a copy can still be saved', async ({ page }) => {
+	test('marks are drawn, the tools are not offered, and a copy can still be saved', async ({ page, served }) => {
 		await page.route('**/_api', (route) => route.fulfill({ status: 404, body: '' }));
 		await openPaper(page, '/library/Bellamy19?page=2', 2);
-		await expect(marks(page, 'box')).toHaveCount(1);
-		await page.getByTestId('markup-toggle').click();
-		await expect(page.getByTestId('tool-highlight')).toHaveCount(0);
-		await expect(page.getByTestId('mark-save-copy')).toBeVisible();
+		const drawn = marksOf(served, 'Bellamy19').find((a) => a.mark === 'box')!;
+		await expect(page.getByTestId(`page-mark-${drawn.id}`)).toHaveAttribute('data-kind', 'box');
+		await expect(page.getByTestId('tool-annotate')).toHaveCount(0);
+		await expect(page.getByTestId('tool-rect')).toHaveCount(0);
 		// Quote writes nothing, so it is offered still
 		await selectWords(page, 2, 'order');
 		await expect(page.getByTestId('quote-offer')).toBeVisible();
-		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
+		const [saved] = await Promise.all([page.waitForEvent('download'), pdfMenu(page, 'mark-save-copy')]);
 		expect(saved.suggestedFilename()).toBe('Bellamy19-annotated.pdf');
 		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));
 		expect(items.map((i) => i.mark)).toContain('ink');

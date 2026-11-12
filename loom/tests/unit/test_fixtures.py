@@ -34,7 +34,11 @@ def _tree(root: Path, skip: set[str]) -> dict[str, bytes]:
     return {rel: p.read_bytes() for rel, p in out.items() if rel not in skip}
 
 
-@pytest.mark.parametrize("quilt", QUILTS, ids=[q.name for q in QUILTS])
+#: The showcase's marks on its PDFs are found again on a changed file by their words, which want the real pdftotext; without it they read as detached.
+LINTED = [pytest.param(q, marks=pytest.mark.poppler) if q.name == "showcase" else q for q in QUILTS]
+
+
+@pytest.mark.parametrize("quilt", LINTED, ids=[q.name for q in QUILTS])
 def test_lint_fixture_expected_codes(quilt: Path, tmp_path: Path) -> None:
     q = _copy(quilt, tmp_path)
     from loom.scan.quilt import save_author

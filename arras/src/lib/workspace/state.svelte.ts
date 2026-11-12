@@ -3,6 +3,7 @@
 import { getContext, setContext } from 'svelte';
 import { Annotating } from '$lib/review/annotating.svelte';
 import { PdfView } from '$lib/pdf/view.svelte';
+import type { MarkDesk } from '$lib/pdf/desk.svelte';
 import { itemKey, type Item } from './item';
 import { workspace } from './store.svelte';
 
@@ -20,11 +21,17 @@ export class DocumentState {
 export class WorkState {
 	/** The reader's view of the paper: the tool, the fit, the page. */
 	pdf = new PdfView();
+	/** Its annotating, as a document's: Annotate and Comment, its annotations in reading order, the one open, the side list. */
+	notes = new Annotating();
+	/** The paper's marks and file acts, which its renderer makes and the toolbar's `PDF ▾` acts through; null until the paper is drawn. */
+	desk = $state.raw<MarkDesk | null>(null);
 }
 
 export class FileState {
 	/** The reader's view of a PDF among the project's files: the tool, the fit, the page. */
 	pdf = new PdfView();
+	notes = new Annotating();
+	desk = $state.raw<MarkDesk | null>(null);
 }
 
 export class NodeState {

@@ -220,13 +220,69 @@ def token_boxes(pdf: Path, page: int, home: Path | None = None) -> str:
     """
     if home is None:
         return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
-    cache = home.parent.parent / "cache" / "boxes" / home.parent.name / home.name / f"{page:04d}.xml"
+    cache = store_boxes(home) / f"{page:04d}.xml"
     if cache.is_file():
         return cache.read_text(encoding="utf-8")
     xml = _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(xml, encoding="utf-8")
     return xml
+
+
+def store_boxes(home: Path) -> Path:
+    """Where a stored work's word boxes are cached, one file per page: under the store's `cache/`, which the shipped `.gitignore` ignores.
+
+    Parameters
+    ----------
+    home : Path
+        The work's directory in the store.
+
+    Returns
+    -------
+    Path
+        The directory, which `token_boxes` and `document_boxes` both write.
+    """
+    return home.parent.parent / "cache" / "boxes" / home.parent.name / home.name
+
+
+_PAGE_XML = re.compile(r"<page\b.*?</page>", re.S)
+
+
+def document_boxes(pdf: Path, cache: Path | None = None) -> list[str]:
+    """The `-bbox-layout` XML of every page of `pdf`, from one `pdftotext` over the whole file, split per page.
+
+    Parameters
+    ----------
+    pdf : Path
+        The PDF.
+    cache : Path, optional
+        A directory to keep the pages in, `NNNN.xml` each as `token_boxes` writes them, with `document.json` naming the file's hash; pages kept for another version of the file are read again.
+
+    Returns
+    -------
+    list of str
+        One `<page>` element per page, in order; MapRefused when pdftotext cannot read the file.
+    """
+    sha = sha256_of(pdf)
+    if cache is not None and (cache / "document.json").is_file():
+        try:
+            known = json.loads((cache / "document.json").read_text(encoding="utf-8"))
+            if known.get("sha256") == sha:
+                count = int(known["pages"])
+                return [(cache / f"{n:04d}.xml").read_text(encoding="utf-8") for n in range(1, count + 1)]
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    pages = _PAGE_XML.findall(_pdftotext(["-q", "-bbox-layout", str(pdf), "-"]))
+    if cache is not None:
+        said = cache / "document.json"
+        try:
+            cache.mkdir(parents=True, exist_ok=True)
+            for n, xml in enumerate(pages, 1):
+                (cache / f"{n:04d}.xml").write_text(xml, encoding="utf-8")
+            said.write_text(json.dumps({"sha256": sha, "pages": len(pages)}) + "\n", encoding="utf-8")
+        except OSError:
+            pass
+    return pages
 
 
 def page_rotation(pdf: Path, page: int, home: Path | None = None) -> float:

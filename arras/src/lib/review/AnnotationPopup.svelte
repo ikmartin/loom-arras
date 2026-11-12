@@ -99,7 +99,7 @@
 	async function save(): Promise<void> {
 		if (draft) {
 			if (!value.trim()) return;
-			const body = { target: draft.target, ...(draft.quote ? { quote: draft.quote } : {}), ...(draft.in ? { in: draft.in } : {}), ...handPayload(m, hand.value), message: value.trim() };
+			const body = { target: draft.target, ...(draft.quote ? { quote: draft.quote } : {}), ...(draft.in ? { in: draft.in } : {}), ...(draft.extra ?? {}), ...handPayload(m, hand.value), message: value.trim() };
 			const result = await send(() => annotate(body));
 			if (result !== null) onwritten?.(result.split(/\s+/)[0] ?? '');
 			return;
@@ -190,6 +190,10 @@
 				<LookControls {look} disabled={busy} onpick={(c, done) => void pickLook(c, done)} />
 				{#if from}<Changed name={from.name} disabled={busy} onreset={() => void reset()} onupdate={allowed['types-save'] ? () => void update() : undefined} />{/if}
 			</div>
+		{/if}
+		{#if a?.refound && a.target.page}
+			<!-- a changed PDF keeps no version, so there is nothing to open: where the mark was found again is all there is to say -->
+			<div class="earlier" data-testid="popup-refound">Found again on page {a.target.page} of the changed PDF.</div>
 		{/if}
 		{#if version}
 			<div class="earlier" data-testid="popup-earlier">

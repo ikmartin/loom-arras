@@ -1,7 +1,7 @@
 <script lang="ts">
-	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
+	// Reading one work (plan 0.13 item 5, item 6): the paper, its results drawn over it where a link lands, and its annotations, annotated and read as a document's are (`MarkedDoc`). Content only -- the split and the discussion are the Library View's, so there is one frame and not one inside another.
 	//
-	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. One drawn with a tool (`mark`) is the desk's (`desk.svelte.ts`), drawn as a mark; every other is drawn here from the sidecar, and opens its popup. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately.
+	// **Every annotation on the page is drawn** by the desk (`desk.svelte.ts`) in its look, unless the pane hides them all; a settled one only while the settled control is on. One drawn with a tool records its place; one anchored by its words or a box is placed by the work's sidecar.
 	//
 	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	//
@@ -11,9 +11,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
-	import { prefs } from '$lib/prefs.svelte';
-	import { ui } from '$lib/ui.svelte';
-	import { popups, type Popups } from '$lib/fragments/popup';
+	import { workState } from '$lib/workspace/state.svelte';
 	import type { Sidecar } from './sidecar';
 	import type { Reference } from '$lib/manifest/types';
 	import type { WorkLink } from '$lib/worklink';
@@ -21,14 +19,8 @@
 	import { MarkDesk } from './desk.svelte';
 	import MarkedDoc from './MarkedDoc.svelte';
 	import { mergeLines } from './marks';
-	import { colorOf, RGB, styleOf, typeOf } from '$lib/review/annotationTypes';
-	import type { Look } from '$lib/manifest/types';
 	import type { PdfView } from './view.svelte';
-	import type { Outgoing } from './portable';
-	import NoteAt from './NoteAt.svelte';
 	import QuoteChip from '$lib/review/QuoteChip.svelte';
-	import { clearPending } from '$lib/fragments/pending';
-	import { onDestroy } from 'svelte';
 	import { here } from '$lib/here.svelte';
 
 	let {
@@ -54,43 +46,34 @@
 	} = $props();
 
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
-	const desk = new MarkDesk(() => ({ on: citekey, owns: (a) => a.target.work === citekey, url, name: `${citekey}.pdf`, extras: annotationsToSave }));
-
-	/** The open annotations on this work's pages, as a saved copy holds them: each in its own style and colour as theme.css draws them in the light, the band for a highlight and the line otherwise, with its type's name before its words. */
-	function annotationsToSave(): Outgoing[] {
-		const out: Outgoing[] = [];
-		for (const a of notes) {
-			const rects = spans?.marks?.[a.id];
-			if (!rects?.length || a.status !== 'open') continue;
-			const style = styleOf(a.look);
-			const named = typeOf(store.manifest, a)?.name;
-			const words = new DOMParser().parseFromString(a.body_html, 'text/html').body.textContent?.trim() ?? '';
-			out.push({ page: a.target.page ?? 0, kind: style, rects, body: named ? `${named}: ${words}` : words, by: a.author?.id ?? '', color: RGB[colorOf(a.look)][style === 'highlight' ? 'band' : 'line'] });
-		}
-		return out;
-	}
+	// the item's annotating, which the toolbar shares; a work's pages are an item's only inside a pane
+	const held = $derived(workState({ kind: 'work', id: citekey }));
+	// a work's pages in a pane hide every annotation while the pane does
+	const holder = paneOf();
+	const hide = $derived(holder ? workspace.hidesNotes(holder.index) : false);
+	const desk = new MarkDesk(() => ({ on: citekey, owns: (a) => a.target.work === citekey, rectsOf: (a) => spans?.marks?.[a.id], url, name: `${citekey}.pdf`, notes: held.notes, hidden: hide }));
+	// the toolbar's PDF menu acts through it
+	$effect(() => {
+		const state = held;
+		state.desk = desk;
+		return () => {
+			if (state.desk === desk) state.desk = null;
+		};
+	});
 
 	$effect(() => {
 		const drop = () => {
-			if (offered && !(window.getSelection()?.toString().trim())) offered = null;
+			if (offered && !window.getSelection()?.toString().trim()) offered = null;
 		};
 		document.addEventListener('selectionchange', drop);
 		return () => document.removeEventListener('selectionchange', drop);
 	});
 	let spans = $state<Sidecar | null>(null);
 	let active = $state('');
-	/** The place an annotation is being written against, while the composer is open. */
-	let noting = $state<{ page: number; text?: string; rects?: number[][]; at: { left: number; top: number; width: number; height: number } } | null>(null);
-	/** A bare selection, offered Quote: selecting text is not a request to annotate it, which the markup bar's tools are for; the box tool opens the composer directly. */
+	/** A bare selection, offered Quote: selecting words is not a request to annotate them, which Annotate is for. */
 	let offered = $state<{ page: number; text: string; lines: number[][]; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
-	onDestroy(clearPending);
 	/** Where a quote from page `n` came from, as a link an agent can follow: the work by its identifier, else its citekey. */
 	const quoteHref = (n: number): string => (ref.work ? `cited:${ref.work}?page=${n}` : `quilt:${citekey}`);
-	/** The composer closed, written or not: the place it was lit for goes out. */
-	const done = () => {
-		noting = null;
-		clearPending();
-	};
 
 	// Fetched by the sidecar's own hash rather than derived from the manifest: the manifest is replaced on every poll,
 	// and re-fetching geometry once a second is exactly the re-render this pane must not do. Naming the hash is also
@@ -110,12 +93,6 @@
 		};
 	});
 
-	/** The annotations on this work's pages, top-level and not drawn with a tool; a resolved one is drawn as settled. */
-	const notes = $derived(
-		Object.values(store.manifest?.annotations ?? {}).filter(
-			(a) => a.target.work === citekey && a.in_reply_to === null && (a.target.page ?? 0) > 0 && !a.mark
-		)
-	);
 	/** The place the URL points at, mapped by loom into rectangles, while the URL carries it. */
 	let lit = $state<{ page: number; rects: number[][] } | null>(null);
 	$effect(() => {
@@ -147,37 +124,17 @@
 		() => onleft?.()
 	);
 
-	// a work's pages in a pane hide every annotation while the pane does
-	const holder = paneOf();
-	const hide = $derived(holder ? workspace.hidesNotes(holder.index) : false);
-
-	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean };
-	/** Every anchor's geometry, by the page it is on: the work's results, the annotations the selection shows -- stacked where they share a place, settled where every one of them is -- and the lit locator. The document view draws what belongs to each page it renders. */
+	type Drawn = { id: string; page: number; rects: number[][]; transient?: boolean };
+	/** The geometry drawn besides the annotations, by the page it is on: the work's results, where a link lands on one, and the lit locator. */
 	const drawn = $derived.by<Drawn[]>(() => {
 		const out: Drawn[] = Object.entries(spans?.quads ?? {})
 			.map(([id, rects]) => ({ id, page: ref.results?.[id]?.page ?? 0, rects }))
 			.filter((s) => s.page > 0);
-		const stacked = new Map<string, Drawn>();
-		for (const a of notes) {
-			const rects = spans?.marks?.[a.id];
-			if (!rects || hide) continue;
-			const key = `${a.target.page}:` + rects.map((r) => r.map((v) => Math.round(v)).join(',')).join(';');
-			const same = stacked.get(key);
-			if (same) {
-				same.ids!.push(a.id);
-				same.settled = same.settled && a.status !== 'open';
-			} else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, look: a.look, settled: a.status !== 'open', basis: a.basis });
-		}
-		out.push(...stacked.values());
 		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });
-		// a box drawn for an annotation stays drawn while it is written
-		if (noting?.rects) out.push({ id: '_noting', page: noting.page, rects: noting.rects, transient: true });
 		return out;
 	});
 	// `result=` names a result of this work, whose rectangles the sidecar already carries under that same id, so it is focused directly rather than resolved: a link to a cited result works with no publisher answering.
 	const focusOn = $derived(locator?.annot ?? locator?.result ?? (lit ? '_locator' : active));
-	let at = $state(0);
-	const onPage = $derived(drawn.filter((s) => s.page === (at || page)));
 
 	// Three states, not two. A work whose LaTeX is in the store but whose PDF is not has a digest worth trusting and no
 	// page to show it against, which is neither "nothing here" nor "we could not get it" — and page-numbered locators
@@ -190,64 +147,17 @@
 				: 'No copy of this paper on this machine.'
 	);
 
-	/** Where a popup over the page lives: the content pane, since a mark sits in an overlay that takes no pointer events. */
-	let pane = $state<HTMLElement | null>(null);
-	let boxes: Popups | null = null;
-	// One controller for the life of the pane, reading the manifest at the moment a popup opens, so a poll never shuts what the reader has open.
-	$effect(() => {
-		const host = pane;
-		if (!host) {
-			boxes?.destroy();
-			boxes = null;
-			return;
-		}
-		boxes = popups(() => store.manifest, { host });
-		return () => {
-			boxes?.destroy();
-			boxes = null;
-		};
-	});
-
-
-	// A link to an annotation on this work arrives with its popup open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
-	let openedFor = '';
-	$effect(() => {
-		const id = locator?.annot;
-		const host = pane;
-		void drawn;
-		if (!id || !host || !boxes || openedFor === id) return;
-		const find = () => host.querySelector<HTMLElement>(`[data-testid="mark-${CSS.escape(id)}"]`);
-		let tries = 0;
-		const look = () => {
-			const at = find();
-			if (at && boxes) {
-				openedFor = id;
-				boxes.toggle(at, [id]);
-				return;
-			}
-			if (++tries < 40) timer = setTimeout(look, 150);
-		};
-		let timer = setTimeout(look, 0);
-		return () => clearTimeout(timer);
-	});
-
-	function travel(e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }): void {
-		active = e.id;
-		if (e.note) ui.activeAnnotation = e.id;
-		if (e.travel) return;
-		if (e.note && boxes) boxes.toggle(e.el, e.ids);
-	}
 </script>
 
 <section class="reading" data-testid="reading">
 	{#if url}
-		<div class="paper" class:show-settled={ui.showSettled} bind:this={pane}>
+		<div class="paper">
 			<MarkedDoc
 				{desk}
 				{view}
+				notes={held.notes}
 				{url}
 				name="{citekey}.pdf"
-				hidden={hide}
 				page={place.opening.page}
 				share={place.opening.share}
 				seq={place.opening.seq}
@@ -259,13 +169,10 @@
 					offered = { page: e.page, text: e.text, lines: mergeLines(e.rects), at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
 					here.selection = { item: `work:${citekey}`, page: e.page, text: e.text, rects: e.rects };
 				}}
-				onbox={(e) => {
+				onregion={(e) => {
 					offered = null;
-					noting = { page: e.page, rects: e.rects, at: e.client };
 					here.region = { item: `work:${citekey}`, page: e.page, rects: e.rects };
 				}}
-				onmark={travel}
-				onpage={(e) => (at = e.page)}
 				onmoved={(e) => {
 					// what was being looked at is left behind with the place, so nothing lands back on it
 					active = '';
@@ -276,22 +183,8 @@
 	{:else}
 		<p class="muted" data-testid="reading-absent">{absent}</p>
 	{/if}
-	{#if offered && !noting}
+	{#if offered}
 		<QuoteChip at={offered.at} range={offered.range} words={offered.text} name="{citekey} p. {offered.page}" href={quoteHref(offered.page)} ondone={() => (offered = null)} />
-	{/if}
-	{#if noting}
-		<NoteAt
-			{citekey}
-			page={noting.page}
-			text={noting.text ?? ''}
-			rects={noting.rects}
-			at={noting.at}
-			onwritten={() => {
-				done();
-				store.refresh();
-			}}
-			onclose={done}
-		/>
 	{/if}
 </section>
 

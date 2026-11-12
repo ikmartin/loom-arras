@@ -184,7 +184,7 @@ On the page an annotation appears once: as a mark, or, with no anchor, as the si
 
 ### A3. Draw only what loom knows.
 
-A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. One on a PDF page records the file's hash: when the file changes, one on words stands where its words are found again, and anything else is detached. No state is shown only as a word.
+A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. One on a PDF page records the file's hash and the words around it: when the file changes, it stands where those words are found again, anywhere in the document, a drawing at the same distance from them as before, and one whose words are not found is detached. No state is shown only as a word.
 
 ### A4. One channel, one question.
 

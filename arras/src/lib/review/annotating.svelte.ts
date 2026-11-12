@@ -147,6 +147,8 @@ export interface Draft {
 	quote?: string;
 	in?: string;
 	name: string;
+	/** What else the annotation is written with: on a PDF page, its page, its rectangles and the tool that drew it (`mark`). */
+	extra?: Record<string, unknown>;
 }
 
 /** The tool in hand on a text: Annotate (selecting words marks them), Comment (a click leaves a comment there), or neither, when a selection offers Quote. */

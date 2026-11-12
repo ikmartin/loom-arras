@@ -22,7 +22,7 @@ from loom.scan.scan import ScanResult
 )
 @quilt_option
 def here_command(as_json: bool, quilt_path: str | None) -> None:
-    """Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.
+    """Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, the annotation whose popup is open, and the session they have chosen. A region or an annotation on a PDF page comes with a crop of the page around it, under .loom/build/crops/.
 
     The viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.
     """
@@ -156,11 +156,48 @@ def _resolve(result: ScanResult, place: dict[str, Any]) -> dict[str, Any]:
             elif isinstance(sel.get("page"), int) and out["item"] and out["item"].get("work"):
                 at = _work(result, out["item"]["work"], sel["page"])
                 out["selection"] = {**at, "text": str(sel.get("text") or ""), "rects": sel.get("rects") or []}
+            elif isinstance(sel.get("page"), int) and out["item"] and str(out["item"].get("path", "")).endswith(".pdf"):
+                path = out["item"]["path"]
+                at = {"path": path, "name": path, "page": sel["page"]}
+                out["selection"] = {**at, "text": str(sel.get("text") or ""), "rects": sel.get("rects") or []}
+            if "selection" in out and out["selection"].get("rects") and not out["selection"].get("text"):
+                out["selection"]["crop"] = _region(result, out["selection"])
         out["beside"] = _item(result, place.get("beside"))
+        # the annotation whose popup is open, with a crop of its page when it is on one
+        ann = place.get("annotation")
+        if isinstance(ann, str) and ann:
+            out["annotation"] = _annotation(result, ann)
     sid = place.get("session")
     if isinstance(sid, str) and sid:
         out["session"] = _item(result, {"kind": "session", "id": sid})
     return out
+
+
+def _annotation(result: ScanResult, ann_id: str) -> dict[str, Any]:
+    """An annotation as `loom since` carries it (`mailbox.annotation_row`), with its crop when it is on a PDF page; `gone` when the quilt no longer has it."""
+    from loom.mailbox import annotation_row, resolved_by_id
+
+    found = resolved_by_id(result).get(ann_id)
+    if found is None:
+        return {"id": ann_id, "gone": True}
+    row = annotation_row(result.quilt.root, found.annotation, result)
+    row.pop("act", None)
+    return row
+
+
+def _region(result: ScanResult, sel: dict[str, Any]) -> str | None:
+    """A crop of the page around a region the person drew (`records.crops.crop_region`), as a quilt-relative path; None when none can be made."""
+    from loom.records.crops import crop_region
+    from loom.records.marks import pdf_of
+
+    rects = [r for r in sel.get("rects") or [] if isinstance(r, list) and len(r) == 4]
+    try:
+        rects = [[float(v) for v in r] for r in rects]
+    except (TypeError, ValueError):
+        return None
+    pdf = pdf_of(result, str(sel["path"])) if sel.get("path") else pdf_of(result, "", str(sel.get("work") or ""))
+    made = crop_region(result, pdf, int(sel["page"]), rects) if pdf is not None and rects else None
+    return made.relative_to(result.quilt.root).as_posix() if made is not None else None
 
 
 def _named(thing: dict[str, Any] | None) -> str:
@@ -215,7 +252,23 @@ def _lines(looking: dict[str, Any]) -> list[str]:
             else:
                 box = "; ".join(_box(r) for r in sel.get("rects") or [])
                 out += line("region", sel, f" at {box} (points from the page's top left)" if box else "")
+                if sel.get("crop"):
+                    out.append(f"            crop: {sel['crop']}")
         out += line("beside", looking.get("beside"))
+    ann = looking.get("annotation")
+    if ann:
+        from loom.mailbox import page_lines
+
+        if ann.get("gone"):
+            out.append(f"  {'annotation':<9} {ann['id']}  (no longer in the quilt)")
+        else:
+            where = f"{ann.get('work') or ann['target']} p.{ann['page']}" if ann.get("page") else ann["target"]
+            out.append(
+                f"  {'annotation':<9} {ann['id']} · {ann.get('type') or 'untyped'} · {where} (its popup is open)"
+            )
+            if ann.get("quote"):
+                out.append(f'            on "{ann["quote"]}"')
+            out += page_lines(ann, "            ")
     session = looking.get("session")
     if session:
         out += line("session", session, " (the one they have chosen)")

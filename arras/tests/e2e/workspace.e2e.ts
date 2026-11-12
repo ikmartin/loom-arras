@@ -701,11 +701,11 @@ test.describe('the toolbar', () => {
 		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open the PDF', 'annotations off in this panea']);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('href', /paper\.pdf$/);
 		await page.getByTestId('toggle-settled').click();
-		await expect(page.locator('.paper').first()).toHaveClass(/show-settled/);
+		await expect(page.getByTestId('marked-doc')).toHaveClass(/show-settled/);
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		// off the paper: drawn and greyed, the PDF with its reason
 		await page.getByTestId('tab-info').click();
-		await expect(page.getByTestId('tool-select')).toBeDisabled();
+		await expect(page.getByTestId('zoom-fit')).toBeDisabled();
 		await viewMenu(page);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('aria-disabled', 'true');
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('title', /Text view/);
@@ -721,7 +721,7 @@ test.describe('the toolbar', () => {
 		await pane(page, 0).getByTestId('digest-text').locator('summary').click();
 		await expect(pane(page, 0).getByTestId('work-digest').locator('.env').first()).toBeVisible();
 		await expect.poll(() => new URL(page.url()).search).toBe('');
-		await expect(page.getByTestId('tool-select')).toBeDisabled();
+		await expect(page.getByTestId('zoom-fit')).toBeDisabled();
 		await viewMenu(page);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('title', 'No copy of this work is on file');
 	});

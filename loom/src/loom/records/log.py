@@ -176,7 +176,15 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         mark=str(event["mark"]) if event.get("mark") else None,
         artifact=str(event["artifact"]) if event.get("artifact") else None,
         origin=dict(event["origin"]) if isinstance(event.get("origin"), dict) else None,
+        gap=_gap(event.get("gap")),
     )
+
+
+def _gap(given: Any) -> list[float] | None:
+    """A mark's gap from its pin word as an event carries it, `[dx, dy]`; None for anything else."""
+    if isinstance(given, list) and len(given) == 2 and all(isinstance(v, int | float) for v in given):
+        return [float(v) for v in given]
+    return None
 
 
 def replay(root: Path) -> tuple[list[Record], list[str]]:
@@ -235,10 +243,16 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             for f in ("body",):
                 if f in event:
                     setattr(ann, f, event[f])
-            # moved or redrawn on its page: strokes carry their rectangle with them
+            # moved or redrawn on its page: strokes carry their rectangle with them, and the words around it, its gap from them and the file it now stands on come too
             for f in ("rects", "strokes"):
                 if isinstance(event.get(f), list):
                     setattr(ann, f, event[f])
+            if isinstance(event.get("anchor"), dict) and not is_page_anchor(event["anchor"]):
+                ann.selector = Selector.from_dict(event["anchor"])
+            if "gap" in event:
+                ann.gap = _gap(event["gap"])
+            if event.get("artifact"):
+                ann.artifact = str(event["artifact"])
             # restyled or retyped: the type it now has, the look set on it, and the look it is drawn with once its type is gone
             if "type" in event:
                 ann.type = str(event["type"]) if event["type"] else None

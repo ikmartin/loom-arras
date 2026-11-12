@@ -430,6 +430,12 @@ export interface Annotation {
   resolved_why?: string | null;
   /** The version it was written on, for one whose words are gone (`detached`) and whose version is kept (`recorded`): that version's hash, its key's text as it was with every annotation on it marked (`fragment`, under the build directory), and whether an empty `mark.annotation.gone` stands where its words were in the text now (`at`). */
   version?: AnnotationVersion | null;
+  /** On a PDF page that is not the one it was written on: true when its words, or the words its drawing stands beside, were found again on the changed file, `target.page`, `rects` and `strokes` being where it stands now. A changed PDF keeps no version, so there is nothing else to open. */
+  refound?: boolean | null;
+  /** A drawing's place beside the first word under it, `[dx, dy]` in points, by which it is found again on a changed file. */
+  gap?: number[] | null;
+  /** On a cited work whose source loom holds: where its words are in that source, the work's own TeX. */
+  source?: { path: string; bytes: number[]; exact: string } | null;
 }
 
 /** The version an annotation was written on (specs/manifest.md §9). */

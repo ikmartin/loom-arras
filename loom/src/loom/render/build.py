@@ -75,7 +75,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
 
     Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
 
-    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the annotations on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the annotations on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log, or where a changed copy found it again (`refound`); a mark that records its own place stands where the manifest says it stands now. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
 
     Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
@@ -165,8 +165,10 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                 table.boxes_of(page)  # for the page table
                 continue
             if a.get("basis") == "box":
-                if a["id"] in drawn:
-                    marks[a["id"]] = drawn[a["id"]]
+                # a box found again on a changed copy stands where it was found; any other where it was drawn
+                found = a["rects"] if a.get("refound") and a.get("rects") else drawn.get(a["id"])
+                if found:
+                    marks[a["id"]] = found
                     table.boxes_of(page)  # for the page table
                 continue
             xml = table.boxes_of(page)

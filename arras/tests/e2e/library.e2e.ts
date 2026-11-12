@@ -277,9 +277,9 @@ test.describe('a work', () => {
 	test("a work's tools stay, greyed, off the paper", async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.goto('/library/Kre99');
-		await expect(page.getByTestId('tool-select')).toBeEnabled();
+		await expect(page.getByTestId('zoom-fit')).toBeEnabled();
 		await page.getByTestId('tab-info').click();
-		await expect(page.getByTestId('tool-select')).toBeDisabled();
+		await expect(page.getByTestId('zoom-fit')).toBeDisabled();
 		await expect(page.getByTestId('zoom-at')).toBeDisabled();
 		await expect(page.getByTestId('page-at')).toBeDisabled();
 		await page.getByTestId('tab-paper').click();

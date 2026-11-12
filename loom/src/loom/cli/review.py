@@ -679,6 +679,7 @@ def _note_on_page(
             "target": str(wid),
             "against": "sha256:" + placed.anchor.sha256,
             "anchor": {**recorded, **placed.selector.to_dict()},
+            **({"gap": placed.gap} if placed.gap is not None else {}),
             **styled,
             "body": message or "",
         },
@@ -731,7 +732,15 @@ def _on_pdf_page(
     dry_run: bool = False,
 ) -> str:
     """An annotation on a page of a project PDF, or one drawn with a tool on a cited work's page: its page, place, strokes, tool and the PDF's hash, with the words it quotes."""
-    from loom.records.marks import MarkRefused, artifact_of, clean_rects, clean_strokes, pdf_target, placed
+    from loom.records.marks import (
+        MarkRefused,
+        artifact_of,
+        clean_rects,
+        clean_strokes,
+        pdf_target,
+        placed,
+        recorded_context,
+    )
 
     on, pdf = pdf_target(result, target)
     if pdf is None:
@@ -745,6 +754,12 @@ def _on_pdf_page(
         here = placed(pdf, page, mark, (quote or "").strip() or None, rects, strokes, (message or "").strip())
     except MarkRefused as exc:
         raise (ContentError if exc.code == "not-on-page" else EnvError)(exc.message) from exc
+    # the words around it and, for a drawing, its gap from them, by which a changed file places it again
+    assert page is not None
+    around = recorded_context(result, pdf, page, here, drawn=bool(mark or strokes))
+    anchor = around.pop("anchor", None)
+    if quote and quote.strip() and not (anchor or {}).get("exact"):
+        anchor = {"prefix": "", "suffix": "", **(anchor or {}), "exact": quote.strip()}
     event: dict[str, Any] = {
         **base,
         "event": "created",
@@ -752,7 +767,8 @@ def _on_pdf_page(
         "page": page,
         "rects": here,
         "artifact": artifact_of(pdf),
-        "anchor": {"exact": quote.strip(), "prefix": "", "suffix": ""} if quote and quote.strip() else None,
+        "anchor": anchor,
+        **around,
         **styled,
         "body": message or "",
     }
@@ -877,7 +893,7 @@ def edit_annotation(
         from loom.records.marks import MarkRefused, regeometry
 
         try:
-            restyled.update(regeometry(ann, rects, strokes))
+            restyled.update(regeometry(result, ann, rects, strokes))
         except MarkRefused as exc:
             raise EnvError(exc.message) from exc
     if fields.get("body") is not None and ann.mark in ("pin", "text") and not str(fields["body"]).strip():

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compile every invented cited work -- `showcase-works/`, `demo-works/` -- to the PDF beside it.
+# Compile every invented cited work -- `showcase-works/`, `demo-works/` -- and the showcase's own PDFs, `showcase-files/`, to the PDF beside each.
 #
 # The PDFs are committed, and this script is what makes them. It is not part of generating a quilt: `gen_quilts.py` copies these bytes into the quilt's seed space and lets `loom refs scan` file them, so that generating a quilt needs no TeX distribution and produces the same bytes on every machine. Run this only when one of the `.tex` files changes, and commit the result.
 #
@@ -12,7 +12,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/home" "$work/texmf" "$work/texmf-local" "$work/var" "$work/cfg"
 
-for tex in "$here"/*-works/*.tex; do
+for tex in "$here"/*-works/*.tex "$here"/showcase-files/*.tex; do
   dir=$(dirname "$tex")
   name=$(basename "$tex" .tex)
   cp "$tex" "$work/"

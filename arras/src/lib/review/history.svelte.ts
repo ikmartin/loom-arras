@@ -93,11 +93,13 @@ export async function reply(id: string, message: string): Promise<WriteResult> {
 	return res;
 }
 
-/** What puts `a` back as it stands now, for the fields `change` touches: its words, its type, and its look, as its type's when it is drawn so, else its own. */
+/** What puts `a` back as it stands now, for the fields `change` touches: its words, where a mark on a page stands, its type, and its look, as its type's when it is drawn so, else its own. */
 function before(a: Annotation, change: Record<string, unknown>, types: Parameters<typeof typeById>[0]): Record<string, unknown> {
 	const back: Record<string, unknown> = {};
 	if ('message' in change) back.message = a.body ?? plain(a.body_html);
 	if ('type' in change) back.type = a.type;
+	if ('rects' in change) back.rects = a.rects ?? [];
+	if ('strokes' in change) back.strokes = a.strokes ?? [];
 	if ('type' in change || 'look' in change) {
 		const t = typeById(types, a.type)?.look;
 		back.look = t && sameLook(t, a.look) ? null : { ...a.look };

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The list beside a text. **Comments**: every annotation here in reading order, a card each with its colour, author, quoted words and comment, which opens it at its mark; To do keeps the open annotations of types that stay open, from others than the reader; the filter leaves out people, and shows or hides the resolved. **Notes**: every annotation whose type is listed in Notes, from every document and work, grouped by document, each a link back to where it was left. Both are built from the manifest; nobody edits them.
+	// The list beside a text. **Comments**: every annotation here in reading order, a card each with its colour, author, quoted words and comment, which opens it at its mark (a PDF's mark not found again on the changed file says so, having none); To do keeps the open annotations of types that stay open, from others than the reader; the filter leaves out people, and shows or hides the resolved. **Notes**: every annotation whose type is listed in Notes, from every document and work, grouped by document, each a link back to where it was left. Both are built from the manifest; nobody edits them.
 	import Icon from '$lib/components/Icon.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
@@ -91,6 +91,7 @@
 					<div class="ch"><span class="dot2" style={dotVars(a)}></span><span class="who">{a.author.label ?? a.author.id}</span><span>{typeLine(a)}</span></div>
 					{#if a.quote}<div class="q"><TexProse text={a.quote} /></div>{/if}
 					{#if plain(a.body_html)}<div class="ct"><Prose html={a.body_html} /></div>{:else}<div class="ct none">No comment</div>{/if}
+					{#if a.detached && a.target.page}<div class="ct none" data-testid="card-detached">Not found again on the changed PDF, so drawn on no page.</div>{/if}
 					{#if staysOpen(m, a) || replies}
 						<div class="cf">
 							{#if staysOpen(m, a)}<span class="stat" class:done={a.status !== 'open'}>{a.status === 'open' ? 'Open' : 'Resolved'}</span>{/if}

@@ -13,7 +13,7 @@ How to work in a quilt, whatever you have been asked to do. `orientation.md` say
 
    Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper. Conversation needs no label on every sentence; what is kept does.
 4. Cite by id. A fact from the quilt is cited as its key (`<prefix>-0002`, `<prefix>-0004/proof`), and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters.
-5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF's page text through `loom library read WORK PAGES`, then the web. Say which you used. If none, write "unlocated".
+5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF's page text through `loom library read WORK PAGES`, then the web. Say which you used. If none, write "unlocated". An annotation on a PDF page comes with a crop of the page around it (a `crop:` path, an image over MCP): TeX you read off a crop is your own reading and is labelled as one, while a `source:` span is the work's own text.
 6. Distinguish what the author asked for from what you noticed on the way. Report both; act only on the first.
 7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. When the report cites a script, save it in your session's directory, named for what it computes, with its output appended as a comment block.
 8. Define every symbol an answer introduces, in the sentence that introduces it, or link the node that defines it.

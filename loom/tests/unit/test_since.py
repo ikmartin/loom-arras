@@ -211,3 +211,38 @@ def test_the_marker_is_neither_committed_nor_watched(q: Path) -> None:
     assert "since/" in LOOM_LINES
     assert "\nsince/\n" in (q / ".loom" / ".gitignore").read_text()
     assert marker_path(q, AGENT) not in snapshot(q), "a look would rebuild the site"
+
+
+@pytest.mark.poppler
+def test_a_mark_on_a_pdf_page_is_reported_with_where_it_stands_and_a_crop(q: Path) -> None:
+    """A mark on a project PDF names its page, file and tool, where it stands now and whether a changed file moved it; and the page round it as a crop, which `loom since` also prints."""
+    from tests.unit._pdfs import PROSE, lines_pdf
+
+    lines_pdf(q / "notes" / "paper.pdf", [PROSE])
+    ok(
+        "annotate",
+        "notes/paper.pdf",
+        "Is this used?",
+        "--page",
+        "1",
+        "--box",
+        "70,117,330,133",
+        "--mark",
+        "box",
+        "--as",
+        WHO,
+        cwd=q,
+    )
+    (row,) = look(q)["annotations"]
+    assert (row["page"], row["file"], row["mark"], row["refound"], row["source"]) == (
+        1,
+        "notes/paper.pdf",
+        "box",
+        False,
+        None,
+    )
+    assert row["rects"] == [[70.0, 117.0, 330.0, 133.0]] and row["crop"].startswith(".loom/build/crops/")
+    assert (q / row["crop"]).is_file()
+    ok("annotate", "notes/paper.pdf", "And this?", "--page", "1", "--quote", "the median polytope", "--as", WHO, cwd=q)
+    text = ok("since", "--as", AGENT, cwd=q).stdout
+    assert "notes/paper.pdf p.1" in text and "      crop: .loom/build/crops/" in text

@@ -8,15 +8,16 @@
 <script lang="ts">
 	// One page's marks, and the drawing of new ones (plan 0.28).
 	//
-	// **A dumb renderer**, as `PdfPage` is: it is given the marks and the tool and it reports what the reader drew, picked or moved, writing nothing and knowing nothing of notes.
+	// **A dumb renderer**, as `PdfPage` is: it is given the marks and the tool and it reports what the reader drew, picked or moved, writing nothing and knowing nothing of annotations but how each is drawn: in its look, its colour, its weight as the line's width and its opacity, a resolved one faintly.
 	//
 	// **Highlights stand on a layer of their own**, multiplied over the page so the words under them stay black. It cannot be inside the layer of the rest, which is a stacking context of its own and would multiply against nothing.
 	//
 	// **A mark takes no pointer**, so a press on a highlight begins a selection like a press on any other words, and `PdfPage` asks `markAt` where a click landed. Each mark still has its button, which takes the keyboard and says what the mark is; a pin's and words on the page also take the pointer, since nothing lies under them to select. The tools that draw take the whole page's pointer while they are up.
 	import Icon from '$lib/components/Icon.svelte';
 	import { asPercent } from './document';
-	import { prefs } from '$lib/prefs.svelte';
-	import { bound, DRAWING, kindOf, movable, ON_WORDS, paintOf, refit, simplify, type MarkKind, type PageMark } from './marks';
+	import { store } from '$lib/manifest/client.svelte';
+	import { hand, lookOf } from '$lib/review/annotating.svelte';
+	import { bound, DRAWING, kindOf, movable, ON_WORDS, paintOf, refit, simplify, type MarkColor, type MarkKind, type PageMark } from './marks';
 	import { arrowHead, TEXT_SIZE } from './portable';
 
 	let {
@@ -150,11 +151,18 @@
 	}
 
 	const label = (m: PageMark) => (m.plain ? 'a place being written about' : `${m.color ? `${m.color} ` : ''}${m.kind}`) + (m.quote ? `: ${m.quote}` : m.body ? `: ${m.body}` : '');
+	/** What is drawn while a tool draws: in the look in hand. */
+	const inHand = $derived.by(() => {
+		const l = lookOf(store.manifest, hand.value);
+		return paintOf(l.color as MarkColor, { weight: l.weight, opacity: l.opacity });
+	});
+	/** Whether a mark stands for an annotation, which the popup opens: not one on its way, nor a place being written about. */
+	const real = (m: PageMark) => !m.plain && !m.id.startsWith('pending-');
 </script>
 
 <svg class="bands" viewBox="0 0 {box.width} {box.height}" preserveAspectRatio="none" aria-hidden="true">
 	{#each bands as m (m.id)}
-		<g class="m" class:on={m.id === selected} style={paintOf(m.color)} data-testid="mark-band-{m.id}">
+		<g class="m" class:on={m.id === selected} class:settled={m.settled} style={paintOf(m.color, m)} data-testid="mark-band-{m.id}">
 			{#each m.rects as r, i (i)}
 				<rect class="band" x={r[0]} y={r[1]} width={r[2] - r[0]} height={r[3] - r[1]} />
 			{/each}
@@ -165,7 +173,7 @@
 <div class="page-marks" class:drawing class:idle={tool !== 'select'} bind:this={host} data-testid="page-marks" onpointerdown={begin} onpointermove={extend} onpointerup={finish}>
 	<svg viewBox="0 0 {box.width} {box.height}" preserveAspectRatio="none" aria-hidden="true">
 		{#each drawn as m (m.id)}
-			<g class="m k-{m.kind}" class:plain={m.plain} class:on={m.id === selected} style={paintOf(m.color)}>
+			<g class="m k-{m.kind}" class:plain={m.plain} class:on={m.id === selected} class:settled={m.settled} style={paintOf(m.color, m)} data-testid="mark-line-{m.id}">
 				{#if ON_WORDS.includes(m.kind)}
 					{#each m.rects as r, i (i)}
 						{@const y = m.kind === 'strike' ? (r[1] + r[3]) / 2 : r[3]}
@@ -188,7 +196,7 @@
 			</g>
 		{/each}
 		{#if line && line.length >= 4}
-			<g class="m on" style={paintOf(prefs.markColor)}>
+			<g class="m on" style={inHand}>
 				{#if tool === 'ink'}
 					<polyline class="shape" points={pointsOf(line)} />
 				{:else if tool === 'rect'}
@@ -206,15 +214,17 @@
 		{@const place = asPercent(bound(m.rects), box)}
 		<button
 			type="button"
-			class="hit"
+			class="hit mark"
 			class:pin={m.kind === 'pin'}
 			class:words={m.kind === 'text'}
 			class:on={m.id === selected}
+			class:settled={m.settled}
 			data-mark={m.id}
+			data-annotation={real(m) ? m.id : undefined}
 			data-kind={m.kind}
 			data-testid="page-mark-{m.id}"
 			aria-label={label(m)}
-			style="left: {place.left}; top: {place.top}; width: {place.width}; height: {place.height};{m.kind === 'text' ? ` font-size: ${TEXT_SIZE * scale}px;` : ''} {paintOf(m.color)}"
+			style="left: {place.left}; top: {place.top}; width: {place.width}; height: {place.height};{m.kind === 'text' ? ` font-size: ${TEXT_SIZE * scale}px;` : ''} {paintOf(m.color, m)}"
 			onclick={(e) => {
 				e.stopPropagation();
 				onpick?.({ id: m.id });
@@ -275,9 +285,19 @@
 	.shape {
 		fill: none;
 		stroke: var(--line, var(--ann-neutral));
-		stroke-width: 1.3;
+		stroke-opacity: var(--line-strength, 1);
+		stroke-width: var(--weight, 1.3);
 		stroke-linecap: round;
 		stroke-linejoin: round;
+	}
+	/* resolved: not drawn at rest; drawn at 40% while settled annotations are shown (`show-settled` on the paper) */
+	.m.settled,
+	.hit.settled {
+		opacity: 0;
+	}
+	:global(.show-settled) .m.settled,
+	:global(.show-settled) .hit.settled {
+		opacity: 0.4;
 	}
 	.plain .rule,
 	.plain .shape {
@@ -291,7 +311,7 @@
 	.m.on .rule,
 	.m.on .shape {
 		stroke: var(--line, var(--accent));
-		stroke-width: 2;
+		stroke-width: calc(var(--weight, 1.3) + 0.7);
 	}
 	.hit,
 	.embedded {

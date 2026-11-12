@@ -29,8 +29,7 @@ describe('the display preferences', () => {
 			size: 'm',
 			width: 'mid',
 			theme: 'system',
-			format: 'p1',
-			markColor: ''
+			format: 'p1'
 		});
 	});
 

@@ -1,7 +1,6 @@
 // The viewer's own preferences: the body typeface, the body size, the line width, the theme, how a document is set, and whether an item's toolbar fades.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
-import { COLOR_NAMES, type MarkColor } from '$lib/pdf/marks';
 
 export type Face = 'serif' | 'sans';
 export type Size = 's' | 'm' | 'l';
@@ -41,7 +40,6 @@ export interface Prefs {
 	/** Whether the project's tree leaves out the agents' config documents, which an agent's app reads its instructions from (`AGENTS.md`, `CLAUDE.md` and the like; `shell/aux.ts`). Off by default: they are the project's files, which the tree shows as they are. */
 	hideAgentConfig: boolean;
 	/** The colour a PDF mark is drawn in next, '' for the neutral; it stays until another is chosen, as a highlighter stays in the hand. */
-	markColor: MarkColor | '';
 	face: Face;
 	size: Size;
 	width: Width;
@@ -49,7 +47,7 @@ export interface Prefs {
 	format: Format;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, column: 252, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', markColor: '' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, column: 252, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1' };
 
 /** The left column's narrowest and widest: below the first a document's name no longer fits beside its marks, past the second the column takes the room a pane reads in. */
 export const COLUMN_MIN = 200;
@@ -85,8 +83,7 @@ export function coerce(raw: unknown): Prefs {
 		size: pick(o.size, SIZES, DEFAULTS.size),
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
 		theme: pick(o.theme, THEMES, DEFAULTS.theme),
-		format: pick(o.format, FORMATS, DEFAULTS.format),
-		markColor: pick<MarkColor | ''>(o.markColor, ['', ...COLOR_NAMES], DEFAULTS.markColor)
+		format: pick(o.format, FORMATS, DEFAULTS.format)
 	};
 }
 
@@ -133,10 +130,9 @@ class PrefsState {
 	width = $state<Width>(DEFAULTS.width);
 	theme = $state<Theme>(DEFAULTS.theme);
 	format = $state<Format>(DEFAULTS.format);
-	markColor = $state<MarkColor | ''>(DEFAULTS.markColor);
 
 	get current(): Prefs {
-		return { divider: this.divider, outline: this.outline, column: this.column, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, markColor: this.markColor };
+		return { divider: this.divider, outline: this.outline, column: this.column, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -154,7 +150,6 @@ class PrefsState {
 		this.width = p.width;
 		this.theme = p.theme;
 		this.format = p.format;
-		this.markColor = p.markColor;
 	}
 
 	/** Apply to <html> and persist. Called from one effect in the layout. */
