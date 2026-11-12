@@ -15,7 +15,7 @@ import pytest
 
 from loom.render.serve import ServeSession
 from tests.helpers import the
-from tests.unit._quilts import REPO, demo, mapped, new_session, open_session, propose, showcase
+from tests.unit._quilts import REPO, demo, mapped, new_session, open_session, propose, showcase, track_edits
 from tests.unit.render._serve import get, log, post
 
 
@@ -1014,6 +1014,7 @@ def _change_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 
     s, q, _sid = on_demo(serve, tmp_path)
     save_author(WHO)
+    track_edits(q)
     # before a first look, keeping all takes one
     assert succeeds(s, "change-keep", {"all": True})["result"] == "took your first look"
     lemma = q / "drafting" / "nodes" / "dm-0002.tex"
@@ -1039,6 +1040,7 @@ def _change_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None
 
     s, q, _sid = on_demo(serve, tmp_path)
     save_author(WHO)
+    track_edits(q)
     succeeds(s, "change-keep", {"all": True})
     lemma = q / "drafting" / "nodes" / "dm-0002.tex"
     lemma.write_text(lemma.read_text().replace("Every orbit", "Each orbit"))
@@ -1060,6 +1062,7 @@ def _history_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
 
     save_author("Tester")
     s, q, _ = on_demo(serve, tmp_path)
+    track_edits(q)
     main = q / "drafting" / "main.tex"
     before = main.read_text()
     succeeds(s, "history-record", {"document": "drafting/main.tex", "name": "First"})
