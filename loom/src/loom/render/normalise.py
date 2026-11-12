@@ -141,6 +141,7 @@ class _Rebuild(HTMLParser):
         self.formula: _Formula | None = None  # a formula TeX4ht wrapped, taken whole as TeX whatever tags it holds
         self.cites = 0  # citations open around the parser
         self.loose = 0  # paragraphs closed at a mark whose own `</p>` is still to come
+        self.bib = 0  # bibliographies set as a list, as TeX Live 2026's TeX4ht sets one, open around the parser
 
     # -- the parser's events --------------------------------------------------------------------------------------
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -172,6 +173,18 @@ class _Rebuild(HTMLParser):
                 self.dropped.append(tag)
             return
         a = {k: (v or "") for k, v in attrs}
+        # a bibliography is a paragraph to an entry, its label first, as TeX4ht wrote it before TeX Live 2026, which sets it as a list
+        if tag == "dl" and "thebibliography" in cls:
+            self.bib += 1
+            self.stack.append("bib")
+            return
+        if self.bib and tag == "dt":
+            self._emit("p", {})
+            self.stack.append(None)
+            return
+        if self.bib and tag == "dd":
+            self.stack.append("p bibitem")
+            return
         if tag in INLINE:
             self._para()
         elif tag not in VOID and self.stack and self.stack[-1] == "p auto":
@@ -234,6 +247,11 @@ class _Rebuild(HTMLParser):
         made = self.stack.pop()
         if made == "span cite":
             self.cites -= 1
+        if made == "bib":
+            self.bib -= 1
+            return
+        if self.bib and tag == "dt":
+            self.out.append(" ")  # between an entry's label and its text
         if made:
             self.out.append(f"</{made.split()[0]}>")
 
