@@ -38,7 +38,7 @@
 	</header>
 	<div class="stmt">
 		{#if node?.fragment}
-			{#key id}<Fragment path={node.fragment} macroSet={citekey} authoring={false} anchor="" standalone />{/key}
+			{#key id}<Fragment path={node.fragment} macroSet={citekey} anchor="" standalone />{/key}
 		{:else if record?.statement}
 			<Statement text={record.statement} />
 		{/if}

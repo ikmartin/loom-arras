@@ -54,7 +54,7 @@ Two markers keep the text honest:
 
 ## Decided, not yet built
 
-- **Annotating in the viewer as plan 0.30 settled it.** Types, looks, deletion, and notes and PDF marks as annotations are built in loom, and the viewer draws them; the toolbar and its one popup, the Comments and Notes lists, Quote on a bare selection, Settings › Annotations, an annotation opening the version it was written on, and changes reviewed in the document are not. See `model.md` and `docs/plans/0.30-annotations.md`.
+- **Annotating PDFs and reviewing changes as plan 0.30 settled them.** Annotating documents is built: the toolbar and its one popup, the Comments and Notes lists, Quote, Settings › Annotations, and an annotation opening the version it was written on. Not built: the same toolbar on a PDF page, a mark found again on a changed PDF and a crop of it for an agent (0.30.2), and changes reviewed in the document (0.30.3). See `model.md` and `docs/plans/0.30-annotations.md`.
 - **Notes beyond annotations.** Claims carrying their evidence, and promotion to durable notes. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.

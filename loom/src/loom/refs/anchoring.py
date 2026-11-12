@@ -24,6 +24,8 @@ class Placed:
     page_box: tuple[float, float] | None
     #: `text` or `box`: the one word that says which description is of record.
     said: str
+    #: A box's top left less its pin word's (`records.marks.context_at`), by which a changed copy of the work places it again; None for text, or a page with no words.
+    gap: list[float] | None = None
 
 
 def anchor_on_page(
@@ -58,7 +60,7 @@ def anchor_on_page(
     The caller has already checked the work is readable (`read_map` and `paper.pdf`); this raises nothing of its own beyond what `token_boxes` raises for a missing poppler.
     """
     from loom.refs.pages import page_box, read_map, read_page, token_boxes
-    from loom.refs.search import locate_offsets, locate_span, words_in_boxes
+    from loom.refs.search import locate_offsets, locate_span
 
     m = read_map(home)
     xml = token_boxes(home / "paper.pdf", page, home)
@@ -82,7 +84,24 @@ def anchor_on_page(
             anchor.basis = "box"
             selector = Selector(text or "")
     else:
-        # a formula, a figure, a scan: what the reader drew is the record, and whatever words it covers are a hint
+        # a formula, a figure, a scan: what the reader drew is the record, and the words under and around it are how a changed copy finds it again
         anchor.basis, anchor.quads = "box", rects
-        selector = Selector(words_in_boxes(xml, rects) or (text or ""))
+        selector, gap = _around(home, page, rects)
+        if not selector.exact and text:
+            # a box on no words, given the words it means: they are its quote, and nothing pins it
+            selector, gap = Selector(text, selector.prefix, selector.suffix), None
+        return Placed(anchor, selector, found, page_box(xml), anchor.basis, gap)
     return Placed(anchor, selector, found, page_box(xml), anchor.basis)
+
+
+def _around(home: Path, page: int, rects: list[list[float]]) -> tuple[Selector, list[float] | None]:
+    """The words under and around a box on a stored work's page, and its gap from them, from the work's words cached in the store (`records.marks.context_at`); nothing when the box is drawn on nothing or pdftotext cannot read the file."""
+    from loom.records.marks import DocumentWords, context_at
+    from loom.refs.pages import MapRefused, document_boxes, store_boxes
+
+    if not rects:
+        return Selector(""), None
+    try:
+        return context_at(DocumentWords(document_boxes(home / "paper.pdf", store_boxes(home))), page, rects)
+    except MapRefused:
+        return Selector(""), None

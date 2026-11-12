@@ -25,6 +25,17 @@ def test_the_tools_are_the_agent_commands_and_none_of_the_authors() -> None:
     assert all(re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", name) for name in SPECS)
 
 
+def test_an_agent_reads_what_waits_on_the_person_and_never_keeps_or_discards_it() -> None:
+    """`loom_changes` lists and prints a patch; its keep and discard options are the author's and no argument of the tool, and no `loom suggestion` tool is left."""
+    specs = {s.name: s for s in tools()}
+    assert ACTS["changes"] == "read"
+    names = {p.name for p in specs["loom_changes"].params}
+    assert {"change", "document", "by", "json"} <= names
+    assert not names & {"keep", "discard", "keep_all", "discard_all", "why"}
+    assert not [n for n in specs if n.startswith("loom_suggestion")]
+    assert {p.name for p in specs["loom_suggest"].params} >= {"withdraw", "key", "with"}
+
+
 def test_every_agent_command_says_what_it_does() -> None:
     """The hints come from one table beside `AGENT_COMMANDS`, which must cover it exactly."""
     assert set(ACTS) == AGENT_COMMANDS

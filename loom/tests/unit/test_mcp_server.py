@@ -279,3 +279,50 @@ def test_thirty_annotations_on_an_unchanged_key_keep_one_frozen_text_by_batch_or
         made = [e for e in map(json.loads, lines(q)[lines_before:]) if e["event"] == "created"]
         assert len(made) == 30 and len({e["against"] for e in made}) == 1, q.parent.name
         assert len(frozen(q) - texts_before) <= 1, q.parent.name
+
+
+def test_a_result_carries_the_crops_it_names_as_images(tmp_path: Path) -> None:
+    """From a `crop` value in JSON and a `crop:` line in text, once each and in order; a path outside `.loom/build/crops/` is no crop; at most eight, the rest counted."""
+    import base64
+    import json
+
+    from loom.mcp.server import MAX_IMAGES, _crops
+
+    crops = tmp_path / ".loom" / "build" / "crops"
+    crops.mkdir(parents=True)
+    names = [f"{n:016x}-p1-{n:016x}.png" for n in range(10)]
+    for name in names:
+        (crops / name).write_bytes(b"\x89PNG\r\n\x1a\n" + name.encode())
+    (tmp_path / "elsewhere.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    data = {"annotations": [{"crop": f".loom/build/crops/{names[0]}"}, {"crop": "elsewhere.png"}, {"crop": None}]}
+    images, more = _crops(tmp_path, json.dumps(data))
+    assert [i.mime_type for i in images] == ["image/png"] and more == 0
+    lines = [f"      crop: .loom/build/crops/{n}" for n in [names[1], names[1], *names[2:]]]
+    images, more = _crops(tmp_path, "\n".join([*lines, "      crop: ../x.png"]))
+    assert len(images) == MAX_IMAGES and more == 1
+    assert base64.b64decode(images[0].data).endswith(names[1].encode())
+
+
+@pytest.mark.poppler
+def test_an_agent_over_mcp_is_given_a_crop_for_a_mark(tmp_path: Path) -> None:
+    """The author marks a project PDF; the agent asks for the annotations and sees the page round the mark as an image beside the text."""
+    from tests.helpers import ok
+    from tests.unit._pdfs import PROSE, lines_pdf
+
+    q = demo(tmp_path)
+    lines_pdf(q / "notes" / "paper.pdf", [PROSE])
+    words = ("--quote", "the median polytope is integral", "--type", "question", "--as", "Tester")
+    ok("annotate", "notes/paper.pdf", "Is this used later?", "--page", "1", *words, cwd=q)
+
+    async def body(client: Any) -> None:
+        got = await client.call_tool("loom_ai_annotations", {"target": "notes/paper.pdf"})
+        assert not got.is_error
+        text, *images = got.content
+        assert "crop: .loom/build/crops/" in text.text and "notes/paper.pdf p.1" in text.text, text.text
+        assert [c.type for c in images] == ["image"] and images[0].mime_type == "image/png"
+        as_json = await client.call_tool("loom_ai_annotations", {"target": "notes/paper.pdf", "json": True})
+        (row,) = as_json.structured_content["annotations"]
+        assert (row["page"], row["file"], row["refound"]) == (1, "notes/paper.pdf", False)
+        assert row["crop"].startswith(".loom/build/crops/") and len(as_json.content) == 2
+
+    attached(q, body)

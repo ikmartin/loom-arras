@@ -27,6 +27,8 @@ from loom.paths import BUILD
 LARGE = 40_000
 #: Commands whose result is never such a file: an agent attached over MCP may have no tool that reads one, and the orientation is what it works from.
 WHOLE = frozenset({"ai orient"})
+#: The most crops one result carries as images; the rest are counted.
+MAX_IMAGES = 8
 
 
 def serve(root: Path, name: str) -> None:
@@ -218,11 +220,17 @@ def _result(
         return _error(err or f"{command} exited {done.returncode}", command, done.returncode)
     as_json = bool(arguments.get("json"))
     text = out if as_json or not err else out.rstrip("\n") + "\n\n" + err + "\n"
+    images, more = _crops(root, out)
+    if more:
+        text = (
+            text.rstrip("\n")
+            + f"\n\n{more} more crop{'s' if more != 1 else ''} than the {MAX_IMAGES} shown; each path is above.\n"
+        )
     if len(text) > LARGE and spec.path not in WHOLE:
         path = _keep(root, arguments.get("session"), spec.name.removeprefix("loom_"), text)
         first = next((ln for ln in out.splitlines() if ln.strip()), "")
         said = f"{first}\n\nThe whole result is {len(text):,} characters, so it is in {path}; read or search that file."
-        return types.CallToolResult(content=[types.TextContent(text=said)], _meta={**meta, "loom/file": path})
+        return types.CallToolResult(content=[types.TextContent(text=said), *images], _meta={**meta, "loom/file": path})
     structured = None
     if as_json:
         try:
@@ -230,10 +238,52 @@ def _result(
         except json.JSONDecodeError:
             structured = None
     return types.CallToolResult(
-        content=[types.TextContent(text=text)],
+        content=[types.TextContent(text=text), *images],
         structured_content=structured if isinstance(structured, dict) else None,
         _meta=meta,
     )
+
+
+def _crops(root: Path, out: str) -> tuple[list[types.ImageContent], int]:
+    """The crops a result names, as images an agent sees: each `crop` value in its JSON and each `crop:` line of its text, in order and once, kept only when it is a file under `.loom/build/crops/`; at most `MAX_IMAGES`, and how many more there were.
+
+    A crop is a picture of a page round a mark (`records.crops`), made by loom; what an agent reads off it is its own reading.
+    """
+    import base64
+    import re
+
+    from loom.records.crops import CROPS
+
+    named: list[str] = []
+    try:
+        data: Any = json.loads(out)
+    except json.JSONDecodeError:
+        data = None
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "crop" and isinstance(v, str):
+                    named.append(v)
+                else:
+                    walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(data)
+    named += re.findall(r"^\s*crop: (\S+)", out, re.M)
+    home = (root / CROPS).resolve()
+    kept: list[Path] = []
+    for rel in dict.fromkeys(named):
+        path = (root / rel).resolve()
+        if path.is_file() and path.parent == home and path.suffix == ".png":
+            kept.append(path)
+    images = [
+        types.ImageContent(data=base64.b64encode(p.read_bytes()).decode("ascii"), mime_type="image/png")
+        for p in kept[:MAX_IMAGES]
+    ]
+    return images, max(0, len(kept) - MAX_IMAGES)
 
 
 def _annotations(spec: ToolSpec) -> types.ToolAnnotations:

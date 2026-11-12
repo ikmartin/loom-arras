@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -1662,7 +1663,10 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     q = showcase(tmp_path)
     who = ("--as", "A. Author")
     # the showcase carries reading notes of its own; what is asserted is what these two add
-    before = sum(1 for line in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
+    events = [json.loads(line) for line in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines()]
+    before = sum(
+        1 for e in events if e["event"] in ("created", "replied") and e.get("target") == "doi:10.4171/showcase/19-2"
+    )
     a = ok(
         "annotate",
         "Bellamy19",
@@ -2028,3 +2032,30 @@ def test_a_works_path_and_its_pages_are_read_without_a_scan(tmp_path: Path, monk
     monkeypatch.setattr("loom.cli._quilt.scan", no_scan)
     assert ok("library", "read", "Calloway14", "--where", "dir", cwd=q).stdout.strip().endswith("10.4171_demo_14-1")
     assert ok("library", "read", "Calloway14", "1", cwd=q).stdout.strip()
+
+
+@pytest.mark.poppler
+def test_a_mark_on_a_work_with_its_source_is_published_with_where_its_words_stand_there(tmp_path: Path) -> None:
+    """Arden24's store holds its LaTeX: a mark on its page is aligned to it when the manifest is published, as a LaTeX anchor's span, and the record carries none of it."""
+    from loom.cli._quilt import open_scan
+    from loom.records.store import Records
+
+    q = showcase(tmp_path)
+    quote = "a saturated sublattice of the lattice of weightings"
+    ok("annotate", "Arden24", "Why saturated?", "--page", "2", "--quote", quote, "--as", "A. Author", cwd=q)
+    event = json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])
+    assert "source" not in event and "source" not in event["anchor"]
+    result = open_scan(str(q))
+    manifest: dict[str, Any] = {"nodes": {}, "keys": {}, "diagnostics": []}
+    Records(q, result.quilt.history_dir).apply(result, manifest)
+    source = manifest["annotations"][event["id"]]["source"]
+    path = ".loom/digests/storage/arxiv/2504.01234v1/src/arden-cycle-spaces.tex"
+    assert source["path"] == path and source["exact"] == quote
+    data = (q / path).read_bytes()
+    assert data[source["bytes"][0] : source["bytes"][1]].decode() == quote
+    # a work with only a PDF has none
+    ok("annotate", "Bellamy19", "Why?", "--page", "2", "--quote", "totally unimodular", "--as", "A. Author", cwd=q)
+    bellamy = json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])["id"]
+    result = open_scan(str(q))
+    Records(q, result.quilt.history_dir).apply(result, manifest)
+    assert manifest["annotations"][bellamy]["source"] is None

@@ -34,7 +34,7 @@
 	--accent-wash: rgb(217 119 87 / 18%);
 	/* where agents edit too: the mark after a name in the project's tree, the accent's hue dark enough to read at its size */
 	--agent: #b5532e;
-	/* what floats over the text — the focused pane's toolbar and the boxes it opens — casts this one shadow */
+	/* what floats over the text — the focused pane's toolbar and the popups it opens — casts this one shadow */
 	--float-shadow: 0 6px 24px rgb(0 0 0 / 12%);
 
 	/* states: text and wash, named for the state rather than for a severity role */
@@ -72,6 +72,9 @@
 	--ann-pink-band: rgb(255 174 220);
 	--ann-neutral: #6f6d66;
 	--ann-neutral-wash: rgb(111 109 102 / 10%);
+	/* pending changes: teal, a colour no annotation's look names, so a change is never read as an annotation */
+	--change: rgb(0 118 118);
+	--change-wash: rgb(0 118 118 / 10%);
 
 	/* compare with a base: git's red on the side holding the base, its green on the other; drawn only while annotations are off, so its red is not read as an annotation's */
 	--diff-del: #a32d2d;
@@ -162,6 +165,8 @@
 		--ann-pink-band: rgb(146 50 112);
 		--ann-neutral: #9a988f;
 		--ann-neutral-wash: rgb(154 152 143 / 10%);
+		--change: #5fcfc4;
+		--change-wash: rgb(95 207 196 / 14%);
 		color-scheme: dark;
 	}
 }
@@ -214,6 +219,8 @@
 	--ann-pink-band: rgb(146 50 112);
 	--ann-neutral: #9a988f;
 	--ann-neutral-wash: rgb(154 152 143 / 10%);
+	--change: #5fcfc4;
+	--change-wash: rgb(95 207 196 / 14%);
 	color-scheme: dark;
 }
 
@@ -606,17 +613,6 @@ table.list th {
 	color: var(--tone);
 }
 
-/* Comments in the gutter. A short comment stands in the right gutter beside the node it is about; one with sizeable content stays in the text as a box, because a paragraph squeezed into a gutter is unreadable and a reader who has to hunt for the rest of a sentence would rather have it in the flow. */
-.comment-slot {
-	display: block;
-}
-.comment-slot.inline {
-	margin: var(--gap) 0 var(--gap-wide);
-	font-family: var(--sans);
-}
-.comment-slot.inline > .box:first-child {
-	margin-top: 0;
-}
 /* Travel (plan 0.13 §7): a brief scroll, then a flash on what was arrived at, so the eye is told where it landed
    rather than being left to search the pane it was sent to. */
 .travelled {
@@ -652,68 +648,6 @@ table.list th {
 	pointer-events: none;
 }
 
-/* The `floating` placement: the same box, floated over the page at the mark rather than opened in the flow, so it is
-   free to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
-   coordinates by `expand.ts`, which keeps it 4px clear of every edge and follows its mark as the page scrolls. */
-.comment-slot.floating {
-	position: fixed;
-	z-index: 40;
-	font-family: var(--sans);
-	background: var(--sheet);
-	border-radius: var(--rad-panel, var(--rad-control));
-	box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
-	padding: var(--gap-tight);
-	max-height: 60vh;
-	overflow-y: auto;
-}
-/* A box that is open but not the one in front. It stays a box: the old treatment clamped it to about two lines and
-   faded it under a gradient, which made a backgrounded box read as a ghost when it was alone and as a second border
-   when another box sat over it. Only the shadow and the stacking say which is in front now. */
-.comment-slot.expanded.behind {
-	z-index: 30;
-}
-.comment-slot.floating.behind {
-	box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
-}
-/* **One frame, and it is the shadow.** The host is lifted off the page by its shadow, which is enough to say where it ends, so the card's own border goes; the left stripe stays, since it is the kind's hue and says the same thing here as in the flow. */
-.comment-slot.floating article.box {
-	border-width: 0 0 0 3px;
-	border-radius: 0;
-	background: none;
-	margin: 0;
-	padding: 0 0 0 var(--gap-tight);
-	box-shadow: none;
-}
-.comment-slot.floating .box + .box {
-	margin-top: var(--gap-tight);
-	padding-top: var(--gap-tight);
-	border-top: 1px solid var(--rule);
-}
-/* The ×, at the right of a box's title line (components/AnnotationBox.svelte): the main way an open box is closed. */
-.comment-close {
-	flex: none;
-	font: inherit;
-	font-size: 14px;
-	line-height: 1;
-	color: var(--ink-faint);
-	background: none;
-	border: 0;
-	padding: 2px 4px;
-	cursor: pointer;
-}
-.comment-close:hover {
-	color: var(--ink);
-}
-@media (prefers-reduced-motion: no-preference) {
-	.comment-slot.floating {
-		animation: comment-appear 90ms ease-out;
-	}
-	@keyframes comment-appear {
-		from {
-			opacity: 0;
-		}
-	}
-}
 /* Below the width the gutters exist at, the margin annotation has nowhere to stand and rejoins the flow. */
 @media (max-width: 1100px) {
 	.node-margin {
@@ -1062,18 +996,13 @@ a.heading-link:focus {
 	font-weight: 400;
 	font-style: italic;
 }
-/* What the viewer adds is not the paper and is not set like it: a comment, a margin key, a verb row. They sit inside
-   the fragment and would otherwise inherit its justification and its indent, which at gutter width is unreadable. */
-.arras[data-format='p1'] .fragment :is(.comment-slot, .node-margin, .verbs),
-.arras[data-format='p2'] .fragment :is(.comment-slot, .node-margin, .verbs) {
+/* What the viewer adds is not the paper and is not set like it: a margin key sits inside the fragment and would otherwise inherit its justification and its indent, which at gutter width is unreadable. */
+.arras[data-format='p1'] .fragment .node-margin,
+.arras[data-format='p2'] .fragment .node-margin {
 	text-align: left;
 	text-indent: 0;
 	hyphens: none;
 	font-style: normal;
-}
-.arras[data-format='p1'] .fragment .comment-slot p,
-.arras[data-format='p2'] .fragment .comment-slot p {
-	text-indent: 0;
 }
 
 /* A proof reads as prose, never as a disclosure widget: its head italic, with its full stop, and run into the first line as amsthm sets it. A summary cannot share a line with what its details hold, so the head floats and the first line wraps beside it, and the proof holds the float. */
@@ -1179,7 +1108,7 @@ a.heading-link:focus {
 	--taxon-definition: #63c0b8;
 }
 
-/* The mark: what is drawn on the text, one rule set for every surface. A mark carries its annotation's look as inline variables (`lookVars`, review/annotationTypes.ts): `--ann-line` and `--ann-band`, one colour's two tokens, `--ann-weight` and `--ann-opacity`; and its style as a class, `ann-underline`, `ann-highlight` or `ann-strike`. A mark with no look is a grey underline. Underline and strike are a line of the weight, at the foot of the words or through them at 58%; highlight is the band behind them; the opacity is the line's or the band's. The one mark whose box is open (`open`) adds what its style lacks: a faint band behind a line, a line beneath a band. The box takes `--ann-line` for its stripe and a list's dot for its fill. Nothing else is tinted or outlined. */
+/* The mark: what is drawn on the text, one rule set for every surface. A mark carries its annotation's look as inline variables (`lookVars`, review/annotationTypes.ts): `--ann-line` and `--ann-band`, one colour's two tokens, `--ann-weight` and `--ann-opacity`; and its style as a class, `ann-underline`, `ann-highlight` or `ann-strike`. A mark with no look is a grey underline. Underline and strike are a line of the weight, at the foot of the words or through them at 58%; highlight is the band behind them; the opacity is the line's or the band's. The marks of the annotation whose popup is open (`open`) add what their style lacks: a faint band behind a line, a line beneath a band. A list's dot takes `--ann-line` for its fill. Nothing else is tinted or outlined. */
 .annotation {
 	--ann-line: var(--ann-grey);
 	--ann-band: var(--ann-grey-band);
@@ -1201,9 +1130,6 @@ a.heading-link:focus {
 	--ann-bar: 0px;
 }
 .annotation.ann-highlight.open { --ann-bar: 2px; }
-article.box { --ann-line: var(--ann-neutral); }
-/* settled, the stripe keeps its colour at half strength, as the settled mark does */
-article.box.settled { border-left-color: color-mix(in srgb, var(--ann-line) 50%, transparent); }
 /* A list shows an annotation's colour and not its type: a 7px dot before the row's link; a reply's is a ring. The type's name stays in the dot's label for a screen reader. */
 .ann-dot {
 	--ann-line: var(--ann-neutral);
@@ -1299,20 +1225,65 @@ button.mark.annotation.basis-box {
 button.mark.annotation.settled { display: none; }
 .show-settled button.mark.annotation.settled { display: block; }
 
-/* A comment opened where it is: in the flow beneath its paragraph, raised just enough to read as something that opened. */
-.comment-slot.expanded {
-	margin: var(--gap-tight) 0 var(--gap);
-	font-family: var(--sans);
+/* Pending changes (`fragments/changes/`): each change's old words and new words, `span.change[data-change][data-side]`, in a block the publisher merged. The fragment says how they are shown: in Markup (`changes-markup`) the old words struck and the new underlined, both teal on a teal wash, a colour no annotation's look names; in Final (`changes-final`) the new words alone, unmarked; with changes off (`changes-off`, while the list shows annotations only) the old words alone, the text as kept. A change kept a moment ago (`ch-kept`) reads as its new words, one discarded or left out by the filter (`ch-off`) as its old, whatever the view. In Markup a change's words are its own, teal and to click: the wash is opaque, so an annotation round them does not tint them, one inside them is not drawn, and one drawn again on the new words (`moved`) is drawn in Final, dashed; the change's popup names them. */
+.fragment span.change {
+	border-radius: 2px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
 }
-/* A floating box is placed by its border box (`expand.ts`), so a margin would draw it lower than placed, off the window's foot when it is held there. */
-.comment-slot.expanded.floating {
-	margin: 0;
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) {
+	color: var(--change);
+	background-color: color-mix(in srgb, var(--change) 10%, var(--paper));
+	text-decoration-thickness: 1.5px;
+	text-decoration-color: var(--change);
+	cursor: pointer;
 }
-.comment-slot.expanded:not(.floating) > .box {
-	margin: 0 0 var(--gap-hair);
-	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);
+.fragment.changes-markup span.change[data-side='old']:not(.ch-kept, .ch-off) {
+	color: color-mix(in srgb, var(--change) 70%, var(--paper));
+	text-decoration-line: line-through;
 }
-
+.fragment.changes-markup span.change[data-side='new']:not(.ch-kept, .ch-off) {
+	margin-left: 3px;
+	text-decoration-line: underline;
+	text-underline-offset: 3px;
+}
+.fragment.changes-final span.change[data-side='old']:not(.ch-off),
+.fragment span.change.ch-kept[data-side='old'],
+.fragment.changes-off span.change[data-side='new']:not(.ch-kept),
+.fragment span.change.ch-off[data-side='new'] {
+	display: none;
+}
+.fragment span.change.open {
+	box-shadow: 0 0 0 1.5px var(--accent);
+}
+.fragment span.change:focus-visible {
+	outline: 2px solid var(--link);
+	outline-offset: 1px;
+}
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) mark.annotation {
+	background: none;
+}
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) mark.annotation.moved {
+	pointer-events: none;
+}
+/* A change not merged into the text, one to its structure or one whose block could not be swapped in, is marked on the element holding its words (`change-at`): a teal bar at its left, and its pen in the margin, in either view; ringed while its popup is open. */
+.fragment .change-at {
+	box-shadow: -7px 0 0 -4px var(--change);
+}
+.fragment.changes-off .change-at {
+	box-shadow: none;
+}
+.fragment .change-at.open {
+	outline: 1.5px solid var(--change);
+	outline-offset: 3px;
+}
+.fragment mark.annotation.moved {
+	background-image: repeating-linear-gradient(90deg, var(--ann-ink) 0 4px, transparent 4px 7px);
+}
+.fragment mark.annotation.moved.ann-highlight {
+	--ann-band-k: 0.5;
+	--ann-bar: 1.5px;
+}
 
 /* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
 ::highlight(note-pending) {
@@ -1322,4 +1293,177 @@ button.mark.annotation.settled { display: none; }
 	outline: 2px dashed var(--accent);
 	outline-offset: 2px;
 	background: var(--accent-wash);
+}
+
+/* Words drawn in a look outside the text (review/Sample.svelte): beside a type in a list, on the Annotate button, at a popup's head; drawn as a phrase is. */
+.ann-sample {
+	color: inherit;
+	background-color: var(--ann-bg);
+	background-image: linear-gradient(var(--ann-ink), var(--ann-ink));
+	background-size: 100% var(--ann-bar);
+	background-position: 0 var(--ann-at);
+	background-repeat: no-repeat;
+	padding: 0 1px 1px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* Where an annotation's words were, once they are gone (`version.at`): an empty mark, drawn as a small dashed ring in its colour, opening its popup. */
+.fragment mark.annotation.gone {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	margin: 0 2px;
+	padding: 0;
+	vertical-align: middle;
+	box-sizing: border-box;
+	background: color-mix(in srgb, var(--ann-band) calc(var(--ann-opacity) * var(--ann-k)), transparent);
+	border: 1.5px dashed var(--ann-ink);
+	border-radius: 50%;
+}
+.fragment mark.annotation.gone.open {
+	box-shadow: 0 0 0 2px var(--sheet), 0 0 0 3.5px var(--accent);
+}
+
+/* The one popup (review/AnnotationPopup.svelte), over the text at its mark: placed in window coordinates by `fragments/popup.ts`, clear of every edge. */
+.ann-popup-host {
+	position: fixed;
+	z-index: 40;
+	max-width: calc(100vw - 16px);
+	max-height: calc(100vh - 110px);
+	overflow: auto;
+	text-align: left;
+	text-indent: 0;
+	font-style: normal;
+	background: var(--sheet);
+	border: 1px solid var(--rule);
+	border-radius: 9px;
+	box-shadow: var(--float-shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.ann-popup-host {
+		animation: popup-appear 90ms ease-out;
+	}
+	@keyframes popup-appear {
+		from {
+			opacity: 0;
+		}
+	}
+}
+
+/* The margin beside a text (fragments/gutter.ts): one icon per annotation on the line its first mark stands on, a circle in its colour, a speech bubble where it says something, a count where several start on one line. */
+.ann-gutter {
+	position: absolute;
+	top: 0;
+	right: -30px;
+	width: 16px;
+	height: 100%;
+	pointer-events: none;
+}
+.ann-gutter .mi {
+	position: absolute;
+	left: 0;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	pointer-events: auto;
+	cursor: pointer;
+}
+.ann-gutter .mi.ma {
+	width: 11px;
+	height: 11px;
+	margin: 2px;
+	box-sizing: border-box;
+	background: var(--fill);
+	border: 1.5px solid var(--edge);
+	border-radius: 50%;
+}
+.ann-gutter .mi.ma.talk {
+	border-radius: 3px 3px 3px 0;
+}
+.ann-gutter .mi.ma.settled {
+	opacity: 0.45;
+}
+.ann-gutter .mi.mg {
+	min-width: 16px;
+	height: 15px;
+	padding: 0 3px;
+	box-sizing: border-box;
+	font-family: var(--sans);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1;
+	color: var(--ink-soft);
+	background: var(--sheet);
+	border: 1px solid var(--rule-strong);
+	border-radius: 8px;
+}
+.ann-gutter .mi.mc,
+.ann-pick .pk-c {
+	width: 15px;
+	height: 15px;
+	box-sizing: border-box;
+	color: var(--change);
+	background: var(--sheet);
+	border: 1px solid color-mix(in srgb, var(--change) 55%, transparent);
+	border-radius: 4px;
+}
+.ann-pick .pk-c {
+	display: grid;
+	flex: none;
+	place-items: center;
+}
+.ann-gutter .mi:hover {
+	transform: scale(1.15);
+}
+.ann-gutter .mi.on {
+	box-shadow: 0 0 0 2px var(--sheet), 0 0 0 3.5px var(--accent);
+}
+/* The line chooser: the annotations that start on one line, to pick one. */
+.ann-pick {
+	position: fixed;
+	z-index: 45;
+	display: grid;
+	width: 310px;
+	max-width: calc(100vw - 16px);
+	padding: 4px;
+	font-family: var(--sans);
+	font-size: 12.5px;
+	background: var(--sheet);
+	border: 1px solid var(--rule);
+	border-radius: 9px;
+	box-shadow: var(--float-shadow);
+}
+.ann-pick .pkrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	font: inherit;
+	text-align: left;
+	color: var(--ink);
+	background: none;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.ann-pick .pkrow:hover,
+.ann-pick .pkrow:focus-visible {
+	background: var(--leaf);
+	outline: none;
+}
+.ann-pick .pk-a {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	box-sizing: border-box;
+	background: var(--fill);
+	border: 1.5px solid var(--edge);
+	border-radius: 50%;
+}
+.ann-pick .pkt {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }

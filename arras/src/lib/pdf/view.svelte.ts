@@ -1,4 +1,4 @@
-// The reader's view of a document: which tool is in hand, how large the page is drawn, and where in it they are.
+// The reader's view of a document: which of the PDF's own tools is in hand, how large the page is drawn, and where in it they are.
 //
 // It is a separate object because the controls and the renderer need not be in the same place. `PdfDoc` draws its own toolbar when nothing else claims one, and a page with a rail of its own creates a view, hands it to both, and puts the controls on one line with everything else it offers.
 
@@ -6,15 +6,12 @@ import { prefs } from '$lib/prefs.svelte';
 import type { PageTool } from './marks';
 import type { PagePlace, PaperFile } from './position';
 
-export type Tool = 'select' | 'box';
-
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
 
 export class PdfView {
+	/** The drawing tool in hand; `select` reads, and Annotate and Comment are the item's (`Annotating.tool`). */
 	tool = $state<PageTool>('select');
-	/** Whether the markup bar is showing above the paper. */
-	marking = $state(false);
 	/** Whether the page is matched to the column, which then survives a resize. */
 	fitWidth = $state(false);
 	/** Whether a page wider than its column is drawn so its text fits instead: a paper opened into half a pane is read, not scrolled sideways. The reader's own zoom takes over as soon as they give one. */

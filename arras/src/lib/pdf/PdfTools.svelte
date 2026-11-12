@@ -1,26 +1,22 @@
 <script lang="ts">
-	// The reading controls, as one row: the two tools, the zoom, and where in the document the reader is.
+	// The reading controls, as one row: the zoom, and where in the document the reader is.
 	//
 	// The page and the zoom are typed into rather than only stepped, which is what every desktop PDF viewer does and what a reader on page 1 of 60 needs: `+` twelve times is not navigation. Each box shows the current value while it is not being edited, takes the typed one on Enter or on leaving, and puts the current one back on Escape or on anything that is not a number.
 	//
 	// Off the paper — a work's digest or its info — the row stays where it was and greys out: a toolbar that vanished and came back would move everything after it, and a greyed control still says what it would act on.
 	import Icon from '$lib/components/Icon.svelte';
-	import ToolPair from './ToolPair.svelte';
 	import { MAX_ZOOM, MIN_ZOOM, type PdfView } from './view.svelte';
 
 	let {
 		view,
 		of = '',
-		disabled = false,
-		markup = false
+		disabled = false
 	}: {
 		view: PdfView;
 		/** What the controls act on, for their accessible names: they stand apart from the paper, over its pane, so each says whose it is. */
 		of?: string;
 		/** Nothing to act on here: every control is drawn and none acts. */
 		disabled?: boolean;
-		/** Whether this paper can be marked, which puts the markup bar's switch among the controls. */
-		markup?: boolean;
 	} = $props();
 
 	const on = $derived(of ? ` in ${of}` : '');
@@ -67,23 +63,6 @@
 </script>
 
 <div class="tools" class:disabled role="group" aria-label="reading tools{on}">
-	<ToolPair holder={view} {of} {disabled} />
-	{#if markup}
-		<button
-			type="button"
-			class="tool"
-			class:on={!disabled && view.marking}
-			title="Markup: highlight, comment and draw on the page, and save a copy with what you marked"
-			aria-label="Markup{on}"
-			aria-pressed={view.marking}
-			data-testid="markup-toggle"
-			{disabled}
-			onclick={() => (view.marking = !view.marking)}><Icon name="pen" size={15} /></button
-		>
-	{/if}
-
-	<span class="bar" aria-hidden="true"></span>
-
 	<button
 		type="button"
 		class="tool"

@@ -39,30 +39,38 @@ def edit(q: Path, old: str, new: str, path: str = NODE) -> None:
     p.write_text(p.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
 
 
+def waiting(q: Path, path: str = NODE) -> list[str]:
+    """The ids of the in-place changes to `path` waiting on the reviewer."""
+    from loom.pending import in_place
+    from loom.scan.scan import scan
+
+    return [c.id for c in in_place(scan(load_quilt(q))) if c.path == path]
+
+
 def test_keep_keeps_a_version_of_each_document_a_kept_file_is_part_of_once(q: Path) -> None:
-    handle(q, "changes-keep", {})  # the first look keeps no version: nothing was edited
+    handle(q, "change-keep", {"all": True})  # the first look keeps no version: nothing was edited
     first = len(versions(q))
     edit(q, "Every orbit", "Each orbit")
-    said = handle(q, "changes-keep", {"path": NODE})["result"]
+    said = handle(q, "change-keep", {"changes": waiting(q)})["result"]
     assert "a version of main.tex" in said and "talk.tex" in said  # the node is part of both documents
     kept = versions(q)[-1]
     assert (kept.get("kept_for"), kept.message) == ("keep", "Kept an edit")
     assert set(kept.get("files")) >= {MAIN, NODE}
     assert len(versions(q)) == first + 1
-    # kept again unchanged, no second version
-    handle(q, "changes-keep", {})
+    # nothing waits now, and nothing more is kept
+    assert handle(q, "change-keep", {"all": True})["result"] == "kept 0 changes"
     assert len(versions(q)) == first + 1
     # a file no document is made of keeps only a line
     (q / "README.md").write_text("changed\n", encoding="utf-8")
-    assert handle(q, "changes-keep", {"path": "README.md"})["result"] == "kept README.md"
+    assert handle(q, "change-keep", {"changes": waiting(q, "README.md")})["result"] == "kept 1 change"
     line = load_history(load_quilt(q).history_dir).entries[-1]
     assert (line.action, line.get("path")) == ("keep", "README.md")
 
 
 def test_undo_keeps_the_text_it_sets_aside_as_a_version_before_writing(q: Path) -> None:
-    handle(q, "changes-keep", {})
+    handle(q, "change-keep", {"all": True})
     edit(q, "Every orbit", "Each orbit")
-    handle(q, "changes-undo", {"path": NODE})
+    handle(q, "change-discard", {"changes": waiting(q)})
     history = load_history(load_quilt(q).history_dir)
     kept = versions(q)[-1]
     assert kept.get("kept_for") == "undo" and "Each orbit" in history.landmark_path(kept).read_text()
@@ -71,14 +79,15 @@ def test_undo_keeps_the_text_it_sets_aside_as_a_version_before_writing(q: Path) 
 
 
 def test_an_act_goes_ahead_when_no_version_can_be_kept_and_says_why(q: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    handle(q, "changes-keep", {})
+    handle(q, "change-keep", {"all": True})
     edit(q, "Every orbit", "Each orbit")
+    ids = waiting(q)
 
     def conflicted(*_: object) -> None:
         raise ValueError("drafting/main.tex reaches two definitions of sy-0002; a landmark needs one text per key")
 
     monkeypatch.setattr("loom.history.steps.plan_document_stamp", conflicted)
-    said = handle(q, "changes-undo", {"path": NODE})["result"]
+    said = handle(q, "change-discard", {"changes": ids})["result"]
     assert "no version of main.tex was kept: drafting/main.tex reaches two definitions of sy-0002" in said
     assert "Each orbit" not in (q / NODE).read_text()
 
@@ -125,9 +134,9 @@ def test_a_flat_version_of_a_document_now_of_several_files_is_not_put_back(q: Pa
 
 
 def test_history_lists_every_act_with_what_it_was_done_to(q: Path) -> None:
-    handle(q, "changes-keep", {})
+    handle(q, "change-keep", {"all": True})
     edit(q, "Every orbit", "Each orbit")
-    handle(q, "changes-undo", {"path": NODE})
+    handle(q, "change-discard", {"changes": waiting(q)})
     acts = build(load_quilt(q)).manifest["history"]["acts"]
     undo = acts[-1]
     assert undo["action"] == "undo" and undo["path"] == NODE and undo["from"].startswith("sha256:")

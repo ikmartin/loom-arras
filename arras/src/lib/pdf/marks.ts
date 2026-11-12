@@ -1,17 +1,17 @@
 // What a mark on a PDF page is, and the geometry drawing one needs (plan 0.28). A mark is an annotation on a PDF page that records its own place: drawn with a tool its `mark` names, or on words, which its look's style draws (specs/manifest.md, Annotations); all of it is in points from the page's top left, the space the rest of `lib/pdf` draws in.
 
-import type { Annotation } from '$lib/manifest/types';
+import type { Annotation, Look } from '$lib/manifest/types';
 import { COLORS, colorOf, RGB, styleOf, type Color } from '$lib/review/annotationTypes';
 
 export type MarkKind = 'highlight' | 'underline' | 'strike' | 'pin' | 'ink' | 'text' | 'box' | 'oval' | 'arrow';
 
-/** The tools on a page: the reader's two, and one for each mark. `rect` draws a `box` mark, since `box` already names the tool that draws a region to annotate. */
-export type PageTool = 'select' | 'box' | 'highlight' | 'underline' | 'strike' | 'pin' | 'ink' | 'text' | 'rect' | 'oval' | 'arrow';
+/** The PDF's own tools, beside Annotate and Comment: reading, and one for each drawing. `rect` draws a `box` mark. Words are marked by Annotate in the look in hand, and a comment at a place is Comment's pin. */
+export type PageTool = 'select' | 'ink' | 'text' | 'rect' | 'oval' | 'arrow';
 
 export const ON_WORDS: readonly string[] = ['highlight', 'underline', 'strike'];
 export const STROKED: readonly string[] = ['ink', 'arrow'];
 export const SAYING: readonly string[] = ['pin', 'text'];
-/** The tools that take the pointer from the page's words: everything but reading and the word marks. */
+/** What takes the pointer from the page's words: the drawing tools, and Comment's pin. */
 export const DRAWING: readonly string[] = ['pin', 'ink', 'text', 'rect', 'oval', 'arrow'];
 
 /** The colours a mark can be given, the nine an annotation's look names; what each means is its reader's (A4). */
@@ -39,6 +39,11 @@ export interface PageMark {
 	quote?: string;
 	/** Its colour, one of the nine; '' is the neutral, which only a place still being written has. */
 	color?: MarkColor | '';
+	/** The rest of its look: how thick a line is drawn, in whole points, and how opaque, in percent. */
+	weight?: number;
+	opacity?: number;
+	/** Resolved: drawn faintly while settled annotations are shown, else not at all. */
+	settled?: boolean;
 	/** A place being written about, drawn faintly until it is written. */
 	plain?: boolean;
 	who?: string;
@@ -48,7 +53,7 @@ export interface PageMark {
 /** The mark a tool draws. */
 export function kindOf(tool: string): MarkKind | null {
 	if (tool === 'rect') return 'box';
-	return tool === 'select' || tool === 'box' ? null : (tool as MarkKind);
+	return tool === 'select' ? null : (tool as MarkKind);
 }
 
 /** An annotation's words as plain text: its body as published, its markup taken off. */
@@ -65,27 +70,53 @@ export function textOf(html: string): string {
 		.trim();
 }
 
-/** How an annotation is drawn on its page, or null where it is not: no page or place, detached (A3, A6), or a reply. A drawing's kind is its tool, one on words its look's style. */
-export function markOf(a: Annotation): PageMark | null {
+/**
+ * How an annotation is drawn on its page, or null where it is not: no page or place, detached (A3, A6), or a reply.
+ *
+ * Parameters
+ * ----------
+ * a : Annotation
+ * rects : number[][], optional
+ *     Where it stands when the record does not say: a cited work's sidecar places an annotation anchored by its words or a box.
+ *
+ * Returns
+ * -------
+ * PageMark | null
+ *     A drawing's kind is its tool, one on words its look's style, and one a box anchors on a work's page a box.
+ */
+export function markOf(a: Annotation, rects?: number[][] | null): PageMark | null {
 	const page = a.target.page;
-	if (!page || !a.rects?.length || a.detached || a.in_reply_to) return null;
+	const at = a.rects?.length ? a.rects : rects;
+	if (!page || !at?.length || a.detached || a.in_reply_to) return null;
+	const kind = (a.mark ?? (a.basis === 'box' ? 'box' : styleOf(a.look))) as MarkKind;
 	return {
 		id: a.id,
 		page,
-		kind: (a.mark ?? styleOf(a.look)) as MarkKind,
-		rects: a.rects,
+		kind,
+		rects: at,
 		...(a.strokes?.length ? { strokes: a.strokes } : {}),
-		body: textOf(a.body_html),
+		// the comment as written, which a saved copy carries
+		body: a.body ?? textOf(a.body_html),
 		...(a.quote ? { quote: a.quote } : {}),
 		color: colorOf(a.look),
+		weight: Math.max(1, Math.min(5, Math.round(Number(a.look?.weight) || 1))),
+		opacity: Math.max(0, Math.min(100, Math.round(Number(a.look?.opacity ?? 100)))),
+		...(a.status !== 'open' ? { settled: true } : {}),
 		who: a.author?.id,
 		when: a.created
 	};
 }
 
 /** A colour as the custom properties a mark's drawing reads, from the theme's tokens; '' for the neutral, and for a colour this viewer does not know. */
-export function paintOf(color?: MarkColor | ''): string {
-	return color && (COLORS as readonly string[]).includes(color) ? `--band: var(--ann-${color}-band); --band-strength: 1; --line: var(--ann-${color});` : '';
+export function paintOf(color?: MarkColor | '', look?: Pick<PageMark, 'weight' | 'opacity'>): string {
+	if (!color || !(COLORS as readonly string[]).includes(color)) return '';
+	const strength = look?.opacity === undefined ? 1 : look.opacity / 100;
+	return `--band: var(--ann-${color}-band); --band-strength: ${strength}; --line: var(--ann-${color}); --line-strength: ${strength}; --weight: ${look?.weight ?? 1.3};`;
+}
+
+/** A mark's look as an annotation names it: the colour and, for one on words, the style, with its weight and opacity. */
+export function lookOfMark(m: Pick<PageMark, 'kind' | 'color' | 'weight' | 'opacity'>): Partial<Look> {
+	return { ...(m.color ? { color: m.color } : {}), ...(ON_WORDS.includes(m.kind) ? { style: m.kind as Look['style'] } : {}), ...(m.weight ? { weight: m.weight } : {}), ...(m.opacity !== undefined ? { opacity: m.opacity } : {}) };
 }
 
 /** The nearest of the nine to a PDF annotation's own colour, 0–255, by hue: one with little hue is grey, and a dark or dull orange brown. The name is what `annotations-take` writes, so loom's own matching by value is not used. */

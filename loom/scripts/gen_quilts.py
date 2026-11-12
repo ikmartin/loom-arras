@@ -92,6 +92,30 @@ class Gen:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
 
+    def take_in(self, target: str, items: list[dict[str, object]]) -> dict[str, int]:
+        """Take a PDF's own annotations in as the author, as the viewer's Take in does (`records.marks.take_in`), under this generator's clock and config."""
+        from loom.records.marks import take_in
+        from loom.scan.quilt import load_quilt
+        from loom.scan.scan import scan
+
+        saved = {k: os.environ.get(k) for k in self.env()}
+        old = os.getcwd()
+        try:
+            for k, v in self.env().items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            os.chdir(self.root)
+            return take_in(scan(load_quilt(self.root)), target, items, ("person", self.author))
+        finally:
+            os.chdir(old)
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
     def apply_patch(self, diff: str) -> None:
         """Apply a unified diff loom printed, as the author's editor would."""
         for chunk in _split_diff(diff):
@@ -468,6 +492,8 @@ def build_synthetic(dest: Path) -> None:
     g.run("changes", "--keep-all")
     g.at("2026-09-16T11:45:00Z")
     g.edit("notes/intro.md", "A widget is fixed by its locus.", "A widget is fixed by its locus, and by nothing else.")
+    # an in-place edit to the paper itself, which waits for the author beside the suggested edit, drawn in its block
+    g.edit("drafting/main.tex", "Its fixed locus is", "Its fixed locus, the set of its fixed points, is")
 
 
 def _say_report(g: Gen, session: str, who: str, line: str, report: str) -> None:
@@ -669,6 +695,10 @@ WORKS = SOURCES / "showcase-works"
 #: The second arXiv version of Arden24, which adds a Section 5: filed by `library add` rather than gathered, so the showcase has a work with two documents.
 ARDEN_V2 = WORKS / "arden-cycle-spaces-v2"
 DEMO_WORKS = SOURCES / "demo-works"
+#: The showcase's own PDFs, compiled by the same script: a handout, and its second copy with every word a line lower.
+SHOWCASE_FILES = SOURCES / "showcase-files"
+#: Where the store files Bellamy19, the work that is a PDF and nothing else.
+BELLAMY = f"{STORAGE}/doi/10.4171_showcase_19-2/paper.pdf"
 
 
 def build_showcase(dest: Path) -> None:
@@ -1291,6 +1321,13 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
 
+    # ---- Bellamy19 marked as a PDF is: a drawing, an underline and a strike, a colour of the reader's own, marks taken in from Preview, one found again on a re-saved copy and one left on a copy the store no longer holds.
+    g.at("2026-09-17T11:12:00Z")
+    _mark_bellamy(g)
+    # ---- A handout among the quilt's own files, marked, then replaced by its second copy, whose words all stand a line lower: every mark is found again there.
+    g.at("2026-09-17T11:14:00Z")
+    _mark_handout(g)
+
     # ---- An orphan document, healed by the store. ----------------------------------------------------------- A document filed for an entry the author then deletes: the store outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, gathering's adoption).
     g.at("2026-09-17T11:15:00Z")
     bib = g.root / BIBLIOGRAPHY
@@ -1394,6 +1431,131 @@ def build_showcase(dest: Path) -> None:
     g.run("live", "drafting/sketch.tex")
 
     _write_expected_lint(g)
+
+
+def _mark_bellamy(g: Gen) -> None:
+    """The marks a PDF-only work holds besides its notes: what the viewer's PDF-only fixture shows (`playwright.reading.config.ts`)."""
+    on = ("annotate", "Bellamy19")
+    g.run(
+        *on,
+        "This is the sentence the paper is cited for.",
+        "--page",
+        "1",
+        "--mark",
+        "ink",
+        "--stroke",
+        "110,309,180,311,250,308,358,310",
+        "--type",
+        "note",
+    )
+    g.run(
+        *on,
+        "Classical for which tournaments? A reference would help.",
+        "--page",
+        "1",
+        "--quote",
+        "Median orders are classical for tournaments",
+        "--style",
+        "underline",
+        "--type",
+        "question",
+    )
+    g.run(
+        *on, "No sequel has appeared.", "--page", "3", "--quote", "it is the subject of the sequel", "--style", "strike"
+    )
+    g.run(
+        *on,
+        "Worth keeping in mind: no algorithm comes out of this.",
+        "--page",
+        "1",
+        "--quote",
+        "nothing below is constructive",
+        "--color",
+        "green",
+        "--type",
+        "note",
+    )
+    # what a reader marked in Preview, as the viewer's Take in reads it: its colour the nearest of the nine, a strike-out struck
+    g.take_in(
+        "Bellamy19",
+        [
+            {
+                "page": 1,
+                "style": "highlight",
+                "rects": [[250.5, 285.3, 502.3, 295.3]],
+                "body": "",
+                "origin": {"by": "R. Reader", "subtype": "Highlight", "color": [255, 222, 89]},
+                "color": "yellow",
+            },
+            {
+                "page": 2,
+                "style": "strike",
+                "rects": [[285.5, 172.9, 529.4, 183.8]],
+                "body": "Not needed once the polytope is integral.",
+                "origin": {"by": "R. Reader", "subtype": "StrikeOut", "color": [255, 38, 0]},
+                "color": "red",
+            },
+        ],
+    )
+    paper = g.root / BELLAMY
+    held = paper.read_bytes()
+    # boxed on a copy the reader re-saved, whose bytes differ and whose words do not: found again where it was drawn
+    paper.write_bytes(held + b"\n% saved again by the reader\n")
+    g.run(
+        *on,
+        "The result the digest calls Bellamy19-thm-2.3.",
+        "--page",
+        "2",
+        "--mark",
+        "box",
+        "--box",
+        "81,84,158,98",
+        "--type",
+        "note",
+    )
+    # circled on another file filed under this work by mistake, since replaced: its words are nowhere in this one, so it is detached
+    paper.write_bytes((SHOWCASE_FILES / "handout.pdf").read_bytes())
+    g.run(
+        *on,
+        "Circled on the copy filed by mistake before this one.",
+        "--page",
+        "1",
+        "--mark",
+        "oval",
+        "--box",
+        "84,88,186,101",
+        "--type",
+        "note",
+    )
+    paper.write_bytes(held)
+
+
+def _mark_handout(g: Gen) -> None:
+    """A project PDF marked on its first copy and then holding its second, every word a line lower: its marks are found again a line down."""
+    g.write("notes/README.md", "Handouts for the seminar on flow polytopes.\n")
+    handout = g.root / "notes" / "handout.pdf"
+    handout.write_bytes((SHOWCASE_FILES / "handout.pdf").read_bytes())
+    on = ("annotate", "notes/handout.pdf", "--page", "1")
+    g.run(
+        *on,
+        "Only the integer flows, or every lattice point of a dilate?",
+        "--quote",
+        "its lattice points count the integer flows",
+        "--type",
+        "question",
+    )
+    g.run(
+        *on,
+        "This is the dimension formula of the flow polytope.",
+        "--mark",
+        "box",
+        "--box",
+        "215,226,397,243",
+        "--type",
+        "note",
+    )
+    g.run(*on, "Ask about balance on average.", "--mark", "pin", "--box", "530,250,546,266")
+    handout.write_bytes((SHOWCASE_FILES / "handout-v2.pdf").read_bytes())
 
 
 def _showcase_referee_report(*, formula: str, expand: str, integrality: str, document: str) -> str:

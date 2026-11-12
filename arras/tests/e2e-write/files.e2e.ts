@@ -66,10 +66,10 @@ test('a box in a Markdown file is ticked in place: one character of the file cha
 	expect(await drawn!.evaluate((h) => h.isConnected)).toBe(true);
 	await expect(boxes.nth(1)).toBeChecked();
 	// the file's own edit stays listed, as this quilt keeps one, and the tick is not listed with it
-	const [listed] = JSON.parse(served.loom(['changes', '--json'])).changes.filter((c: { path: string }) => c.path === 'notes/intro.md');
-	expect(listed.hunks).toBe(1);
-	expect(listed.diff).toContain('+A widget is fixed by its locus, and by nothing else.');
-	expect(listed.diff).not.toContain('+- [x] Count');
+	const listed = JSON.parse(served.loom(['changes', '--json'])).changes.filter((c: { path: string }) => c.path === 'notes/intro.md');
+	expect(listed).toHaveLength(1);
+	expect(listed[0].new).toContain('and by nothing else.');
+	expect(JSON.stringify(listed)).not.toContain('[x]');
 	// a second click undoes it, and the file is as it was
 	await boxes.nth(1).click();
 	await expect.poll(() => onDisk(served.root, 'notes/intro.md')).toBe(before);

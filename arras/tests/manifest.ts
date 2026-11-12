@@ -21,6 +21,14 @@ export async function serve(page: Page, edit: (m: typeof manifest) => void): Pro
 	});
 }
 
+/** Serve the fixture with no pending changes, and `edit` applied: for a test about annotations or the page, which the changes' merged blocks would draw differently. The changes are tested with rows of their own (changes.e2e.ts, your-changes.e2e.ts). */
+export async function serveKept(page: Page, edit: (m: typeof manifest) => void = () => {}): Promise<void> {
+	await serve(page, (m) => {
+		m.changes = [];
+		edit(m);
+	});
+}
+
 /** The referee session's Chat, holding one message whose body is `html`. The fixture's transcript fits on its first page, which is the page served. */
 export async function saying(page: Page, html: string): Promise<void> {
 	await page.route(`**/build/transcripts/${REFEREE}/1.json`, (route) =>

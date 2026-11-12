@@ -1,7 +1,7 @@
 // What Settings holds: its sections, in two groups, and every setting's name and what it does, which the rows draw their words from. Each section says where its settings are kept.
 
 export type Group = 'loom' | 'quilt';
-export type SectionId = 'profile' | 'appearance' | 'files' | 'general' | 'documents' | 'agents' | 'library' | 'problems' | 'overleaf';
+export type SectionId = 'profile' | 'appearance' | 'files' | 'general' | 'documents' | 'annotations' | 'agents' | 'library' | 'problems' | 'overleaf';
 
 export interface Section {
 	id: SectionId;
@@ -37,6 +37,7 @@ export const SECTIONS: Section[] = [
 	{ id: 'files', label: 'Files', group: 'loom', where: `${BROWSER} What Docs shows of the project.`, icon: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
 	{ id: 'general', label: 'General', group: 'quilt', where: QUILT, icon: 'M4 6h16M4 12h16M4 18h10' },
 	{ id: 'documents', label: 'Documents', group: 'quilt', where: QUILT, icon: 'M7 3h7l5 5v13H7zM14 3v5h5' },
+	{ id: 'annotations', label: 'Annotations', group: 'quilt', where: "Saved in this quilt's .loom/annotation-types.toml, shared with everyone who has the quilt. You change it here; an agent may edit the file.", icon: 'm9 11-6 6v3h9l3-3M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4' },
 	{ id: 'agents', label: 'Agents', group: 'quilt', where: QUILT, icon: 'M7 7h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3M12 3v4M9 13h.01M15 13h.01' },
 	{ id: 'library', label: 'Library', group: 'quilt', where: QUILT, icon: 'M5 4v16M9 4v16M13 5l4 15M19 4l-2 16' },
 	{ id: 'problems', label: 'Problems', group: 'quilt', where: QUILT, icon: 'M12 3l9 16H3zM12 10v4M12 17h.01' },
@@ -49,7 +50,6 @@ export const SETTINGS: Setting[] = [
 	{ id: 'width', section: 'appearance', name: 'Width', what: 'How wide a line runs before it wraps.' },
 	{ id: 'theme', section: 'appearance', name: 'Theme', what: "Auto follows this computer's light or dark setting." },
 	{ id: 'format', section: 'appearance', name: 'Document format', what: 'How a document and its results are set: the compiled paper, continuous or in its pages, or a column for reading on screen, narrow or wide.' },
-	{ id: 'comments', section: 'appearance', name: 'Annotations open', what: 'Floating opens a box over the text at its mark; inline opens it in place.' },
 	{ id: 'ids', section: 'appearance', name: 'Show ids', what: "Each result's id and state in the left margin, for working on the quilt rather than reading it." },
 	{ id: 'hide-aux', section: 'files', name: 'Hide aux LaTeX files', what: 'Leave out what a compile writes for its next run: `.aux`, `.log`, `.synctex.gz`, `.bbl` and the rest. The compiled PDF stays.' },
 	{ id: 'hide-agent-config', section: 'files', name: 'Hide agent config documents', what: "Leave out the documents an agent's app reads its instructions from: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and the like, wherever they stand. The rest of an agent's config, such as `.mcp.json` and `.claude/`, is never shown." },
@@ -61,6 +61,7 @@ export const SETTINGS: Setting[] = [
 	{ id: 'quilt.home', section: 'documents', name: 'Front door', what: "What the viewer opens when you have nothing open. Unset, the quilt's README.", key: '[quilt] home' },
 	{ id: 'quilt.main', section: 'documents', name: 'Default document', what: 'The LaTeX document loom compiles and reads macros from when the quilt holds several.', key: '[quilt] main' },
 	{ id: 'quilt.research_state', section: 'documents', name: 'Research state', what: 'The page an agent keeps on where the work stands, and you edit.', key: '[quilt] research_state' },
+	{ id: 'annotation-types', section: 'annotations', name: 'Annotation types', what: 'The types an annotation may carry: each one’s name and look, whether it stays open until resolved, whether it is listed in Notes, and its instructions for agents.' },
 	{ id: 'agents.deny', section: 'agents', name: 'Where agents may not write', what: "Patterns as in `.gitignore`, from the quilt's top. An agent edits every other file in place, and you keep or undo its changes in Review.", key: '[agents] deny' },
 	{ id: 'agents.protected', section: 'agents', name: 'Always protected', what: "Loom's records, this file and the research state, which an agent writes only through loom." },
 	{ id: 'agents.apps', section: 'agents', name: 'Apps', what: 'Which agent apps start loom here. Claude Code refuses a denied path itself; the others are told the list, and loom still refuses their writes through it.' },

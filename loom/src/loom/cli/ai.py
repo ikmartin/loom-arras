@@ -546,9 +546,10 @@ def ai_annotations(
 ) -> None:
     """List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom changes --by` lists the edits it suggested.
     """
     from loom.cli._quilt import open_scan
+    from loom.mailbox import on_page, page_lines
     from loom.records.store import Records
 
     result = open_scan(quilt_path)
@@ -582,6 +583,8 @@ def ai_annotations(
             "message": a.annotation.body,
             # who wrote it, so an agent tells the author's from its own: it answers the author's, and may edit its own
             "author": {"kind": a.annotation.author_kind, "id": a.annotation.author_id},
+            # on a PDF page: where it stands now, the tool, whether a changed file moved it, its source and a crop of the page
+            **(on_page(result, a) if a.annotation.page is not None or a.annotation.anchor is not None else {}),
         }
         for a in resolved
         if (f_by is None or a.annotation.author_id == f_by)
@@ -605,14 +608,17 @@ def ai_annotations(
             # the edit itself: a reattached agent that could not see it diffed its own scratch script against the digest
             lines += [f"      {line}" for line in pr.get("edit") or []]
     cells = []
+    under: list[list[str]] = []
     for r in rows:
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"\u201c{r['quote']}\u201d" if r["quote"] else ""
-        where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
+        where = f"{r['work'] or r['target']} p.{r['page']}" if r["page"] else r["target"]
         rest = quote
         who = r["author"]["id"] if isinstance(r["author"], dict) else ""
         cells.append((str(r["id"]), str(where), f"{r['type'] or 'untyped'}{mark}", f"by {who}", rest))
-    items = [Item(line) for line in table(cells)]  # aligned, so the columns read down (T2)
+        under.append(page_lines(r, "    "))
+    # aligned, so the columns read down (T2); a crop and a source line under the annotation they belong to
+    items = [Item(text) for line, more in zip(table(cells), under, strict=True) for text in (line, *more)]
     narrowed = any(x is not None for x in (f_by, f_target, f_type, f_status))
     verdict = (
         counted(len(rows), "annotation") if rows else ("no annotations match" if narrowed else "no annotations yet")
@@ -621,7 +627,7 @@ def ai_annotations(
         verdict += f", {counted(len(proposals), 'proposal')}"
     Report(
         verdict,
-        groups=[Group("annotations", items, limit=None)] if items else [],
+        groups=[Group("annotations", items, count=len(rows), limit=None)] if items else [],
         lines=lines,
         data={"annotations": rows, "proposals": proposals},
     ).emit(as_json)

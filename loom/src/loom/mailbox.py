@@ -284,8 +284,8 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
     lines: list[str] = []
     for c in changed:
         who = c.get("by", "")
-        # what a reader can act on: the citekey and the page for an annotation on a cited work, the key otherwise
-        where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
+        # what a reader can act on: the citekey or the project PDF and the page for an annotation on a PDF, the key otherwise
+        where = f"{c.get('work') or c.get('target', '')} p.{c['page']}" if c.get("page") else c.get("target", "")
         mine = " · to your annotation" if c.get("yours") else ""
         now = f" · now {c['status']}" if c.get("status") else ""
         lines.append(
@@ -295,6 +295,7 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
             lines.append(f'      on "{c["quote"]}"')
         if c.get("body"):
             lines.append(f'      "{c["body"]}"')
+        lines += page_lines(c, "      ")
     return "\n".join(lines)
 
 
@@ -321,24 +322,113 @@ def work_of(root: Path, annotation: Any) -> str | None:
     return None
 
 
-def annotation_row(root: Path, a: Any) -> dict[str, Any]:
+def annotation_row(root: Path, a: Any, result: Any = None) -> dict[str, Any]:
     """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on.
 
-    Such an annotation's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
+    Such an annotation's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them. With the scan, one on a PDF page carries what `on_page` gives besides.
     """
     row: dict[str, Any] = {
         "id": a.id,
         "type": a.type,
         "target": a.target_key,
         "work": work_of(root, a),
-        "page": a.anchor.page if a.anchor else None,
+        "page": a.page or (a.anchor.page if a.anchor else None),
         "act": "replied" if a.in_reply_to else "created",
         "by": a.author_id,
         "body": a.body,
     }
     if a.selector is not None and a.selector.exact:
         row["quote"] = a.selector.exact
+    if result is not None and (a.page is not None or a.anchor is not None):
+        found = resolved_by_id(result).get(a.id)
+        if found is not None:
+            row.update(on_page(result, found))
     return row
+
+
+#: Each scan's annotations as resolved, by id, kept for the one scan they were resolved against.
+_RESOLVED: dict[str, tuple[Any, dict[str, Any]]] = {}
+
+
+def resolved_by_id(result: Any) -> dict[str, Any]:
+    """Every annotation of the quilt resolved against `result` (`Records.resolved`), by id, resolved once for each scan.
+
+    Parameters
+    ----------
+    result : ScanResult
+        The quilt as scanned.
+
+    Returns
+    -------
+    dict of str to ResolvedAnnotation
+        By annotation id.
+    """
+    from loom.records.store import Records
+
+    root = str(result.quilt.root)
+    kept = _RESOLVED.get(root)
+    if kept is None or kept[0] is not result:
+        found = Records(result.quilt.root, result.quilt.history_dir).resolved(result)
+        kept = (result, {ra.annotation.id: ra for ra in found})
+        _RESOLVED[root] = kept
+    return kept[1]
+
+
+def on_page(result: Any, ra: Any) -> dict[str, Any]:
+    """What an agent reads of an annotation on a PDF page beside its words: where it stands now and on what file, the tool it was drawn with, whether it was found again on a changed file, where its words stand in the work's source, and a crop of the page around it.
+
+    Parameters
+    ----------
+    result : ScanResult
+        The quilt as scanned.
+    ra : ResolvedAnnotation
+        An annotation on a PDF page, as it stands now.
+
+    Returns
+    -------
+    dict
+        `{page, file, mark, rects, refound, detached, source, crop}`: `crop` a quilt-relative path under `.loom/build/crops/` (`records.crops.crop_of`), made when first asked for, the copy it was written on for a detached annotation; `source` `{path, bytes, exact}` (`refs.sourcemap.source_of`).
+    """
+    from loom.records.crops import crop_of, rects_of
+    from loom.records.store import Records
+
+    a = ra.annotation
+    crop = crop_of(result, ra)
+    return {
+        "page": ra.page or a.page or (a.anchor.page if a.anchor else None),
+        "file": a.target_key if a.target_key.lower().endswith(".pdf") else None,
+        "mark": a.mark,
+        "rects": rects_of(result, ra),
+        "refound": ra.refound,
+        # a crop of a detached one is of the copy it was written on, which this says
+        "detached": ra.detached,
+        "source": Records._source(result, ra),
+        "crop": crop.relative_to(result.quilt.root).as_posix() if crop is not None else None,
+    }
+
+
+def page_lines(row: dict[str, Any], indent: str) -> list[str]:
+    """A row's `crop: PATH` and `source: PATH:START` lines, as text output prints them under it.
+
+    Parameters
+    ----------
+    row : dict
+        An annotation row carrying what `on_page` gives, and `detached` where it is known.
+    indent : str
+        What each line starts with.
+
+    Returns
+    -------
+    list of str
+        None, one or two lines; a crop of a detached annotation says it is of the copy it was written on.
+    """
+    out = []
+    if row.get("crop"):
+        written = " (the copy it was written on)" if row.get("detached") else ""
+        out.append(f"{indent}crop: {row['crop']}{written}")
+    if row.get("source"):
+        out.append(f"{indent}source: {row['source']['path']}:{row['source']['bytes'][0]}")
+    return out
 
 
 def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
@@ -353,10 +443,17 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
     sent = {str(c.get("id", "")) for e in read_events(root, session.id) for c in e.changed}
     since = session.last_opened
     records, _ = load_records(root)
-    out: list[dict[str, Any]] = []
-    for record in records:
-        for a in record.annotations:
-            if a.id in sent or a.created < since or a.author_kind != "person" or a.author_id != who:
-                continue
-            out.append(annotation_row(root, a))
-    return out
+    mine = [
+        a
+        for record in records
+        for a in record.annotations
+        if a.id not in sent and a.created >= since and a.author_kind == "person" and a.author_id == who
+    ]
+    # one on a PDF page carries a crop of the page and where it stands now, which want the quilt scanned
+    result = None
+    if any(a.page is not None or a.anchor is not None for a in mine):
+        from loom.scan.quilt import load_quilt
+        from loom.scan.scan import scan
+
+        result = scan(load_quilt(root))
+    return [annotation_row(root, a, result) for a in mine]

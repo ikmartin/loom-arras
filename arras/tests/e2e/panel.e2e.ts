@@ -2,19 +2,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, scrollPane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
-import { QUICK, REFEREE, serve } from '../manifest';
+import { QUICK, REFEREE, serveKept } from '../manifest';
 
-/** Select an element's words as a reader would, and let go. */
-async function selectWithin(at: import('@playwright/test').Locator): Promise<void> {
-	await at.evaluate((node) => {
-		const range = document.createRange();
-		range.selectNodeContents(node);
-		const sel = window.getSelection();
-		sel?.removeAllRanges();
-		sel?.addRange(range);
-		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-	});
-}
+// these are about annotations and the page; the fixture's pending changes are left out, and tested apart (changes.e2e.ts)
+test.beforeEach(({ page }) => serveKept(page));
 
 /** Advertise a write API with `caps`; the static server serves none, and the controls appear only where one is. */
 async function writes(page: Page, caps: string[]): Promise<void> {
@@ -23,7 +14,7 @@ async function writes(page: Page, caps: string[]): Promise<void> {
 
 test('the write target is stated once', async ({ page }) => {
 	// a title no annotation or author shares, so a count of it is a count of the places that name the session
-	await serve(page, (m) => {
+	await serveKept(page, (m) => {
 		m.sessions.find((s: { id: string }) => s.id === REFEREE).title = 'the refereeing sitting';
 	});
 	// a document and a node beside it: two items, two panes, and still one place that says where writes go
@@ -54,14 +45,13 @@ test("the picker chooses where notes go, and nothing about which annotations the
 test('an annotation needs no session, and the footer says in its own tone when nothing is selected', async ({ page }) => {
 	await writes(page, ['annotate']);
 	await page.goto('/node/sy-0002');
-	// a selection on the node offers to annotate it, as on a paper's page
+	// a comment left on the node asks for no session
 	const words = pane(page, 0).locator('.fragment .env[data-id="sy-0002"] p[data-src]').first();
 	await expect(words).toBeVisible();
-	await selectWithin(words);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Say which orbit.');
-	await expect(page.getByTestId('note-submit')).toBeEnabled();
-	await expect(page.getByTestId('note-quote-it')).toHaveCount(0);
+	await page.getByTestId('tool-comment').click();
+	await words.click({ position: { x: 4, y: 4 } });
+	await page.getByTestId('popup-comment-field').fill('Say which orbit.');
+	await expect(page.getByTestId('popup-save')).toBeEnabled();
 	// the footer carries only the state: refused, in its own tone, without the sentence
 	const footer = page.getByTestId('session-footer');
 	await expect(footer).toHaveAttribute('aria-label', /^not writing in a session/);

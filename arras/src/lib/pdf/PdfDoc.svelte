@@ -14,7 +14,6 @@
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
 	import type { PageMark } from './marks';
-	import type { Look } from '$lib/manifest/types';
 
 	type Rect = readonly number[];
 	type Box = { left: number; top: number; width: number; height: number };
@@ -32,7 +31,8 @@
 		view,
 		onselect,
 		onbox,
-		onmark,
+		regions = false,
+		tool,
 		onpage,
 		onlink,
 		onmoved,
@@ -51,8 +51,8 @@
 		share?: number;
 		/** Changed each time the reader is sent to `page` or `focus`, so being sent to the place already shown lands there again. */
 		seq?: number;
-		/** What to draw, by page: a work's results, and the annotations on its pages, which carry their look, basis and whether they are settled, and are marked `note`. */
-		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean }[];
+		/** What to draw besides the marks, by page: a work's results, and the place a link points at (`transient`). */
+		spans?: { id: string; page: number; rects: Rect[]; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
 		/** Whether `focus` is scrolled to; false shows it as the one looked at and leaves the reader where they are. */
@@ -65,7 +65,10 @@
 		view?: PdfView;
 		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
-		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
+		/** A drag that starts on no words draws a region, as Annotate's does. */
+		regions?: boolean;
+		/** The tool on the pages, where it is not the view's: Comment's pin. */
+		tool?: string;
 		/** The page the reader is looking at changed, by scrolling or by being sent there. */
 		onpage?: (e: { page: number }) => void;
 		/** A link inside the paper was followed to another of its pages; the document scrolls there and says so. */
@@ -165,8 +168,8 @@
 	const at = $derived(count ? Math.min(Math.max(here || page, 1), count) : here || page);
 	const shown = $derived(new Set(all.filter((n) => Math.abs(n - at) <= near)));
 	const byPage = $derived.by(() => {
-		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean }[]> = {};
-		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, look: s.look, settled: s.settled, basis: s.basis, transient: s.transient });
+		const out: Record<number, { id: string; rects: Rect[]; transient?: boolean }[]> = {};
+		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, transient: s.transient });
 		return out;
 	});
 
@@ -404,7 +407,7 @@
 					{url}
 					page={n}
 					scale={drawAt}
-					tool={v.tool}
+					tool={tool ?? v.tool}
 					{focus}
 					render={shown.has(n) && ready}
 					quads={byPage[n] ?? []}
@@ -418,7 +421,7 @@
 					ondrawn={() => { if (landed !== focus && (spans.some((s) => s.id === focus && s.page === n) || marks.some((m) => m.id === focus && m.page === n))) focusedRender++; }}
 					{onselect}
 					{onbox}
-					{onmark}
+					{regions}
 					onsized={(e) => (sizes = { ...sizes, [e.page]: { width: e.width, height: e.height } })}
 					onlink={(e) => {
 						goTo(e.page);

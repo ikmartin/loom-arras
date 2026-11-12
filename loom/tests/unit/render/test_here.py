@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from tests.helpers import json_of, ok
 from tests.unit._quilts import demo, open_session
 from tests.unit.render._serve import get, post
@@ -103,3 +105,52 @@ def test_the_place_is_held_in_memory_and_served_only_with_the_token(tmp_path: Pa
     assert get(s.url + "_api/here", {"X-Loom-Token": token, "Origin": "http://evil.example"})[0] == 403
     status, _, raw = get(s.url + "_api/here", {"X-Loom-Token": token})
     assert status == 200 and json.loads(raw)["place"]["selection"]["text"] == "private words"
+
+
+@pytest.mark.poppler
+def test_the_annotation_whose_popup_is_open_and_a_region_come_with_crops(session) -> None:  # type: ignore[no-untyped-def]
+    """The viewer reports the annotation whose popup is open; `loom here` names it with a crop of its page, and a region drawn on a project PDF's page with one of its own."""
+    from tests.unit._pdfs import PROSE, lines_pdf
+
+    s, q = session
+    lines_pdf(q / "notes" / "paper.pdf", [PROSE])
+    ok(
+        "annotate",
+        "notes/paper.pdf",
+        "Look.",
+        "--page",
+        "1",
+        "--quote",
+        "the median polytope",
+        "--as",
+        "A. Author",
+        cwd=q,
+    )
+    ann = json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])["id"]
+    told(
+        s,
+        {
+            "route": "reading",
+            "item": {"kind": "file", "id": "notes/paper.pdf"},
+            "page": 1,
+            "selection": {"page": 1, "rects": [[72, 100, 300, 140]]},
+            "annotation": ann,
+        },
+    )
+    got = json_of("here", "--json", cwd=q)["looking"]
+    assert (got["annotation"]["id"], got["annotation"]["page"], got["annotation"]["file"]) == (
+        ann,
+        1,
+        "notes/paper.pdf",
+    )
+    assert got["annotation"]["crop"].startswith(".loom/build/crops/")
+    assert (
+        got["selection"]["crop"].startswith(".loom/build/crops/")
+        and got["selection"]["crop"] != got["annotation"]["crop"]
+    )
+    text = ok("here", cwd=q).stdout
+    assert f"annotation {ann}" in text and text.count("crop: .loom/build/crops/") == 2
+    told(
+        s, {"route": "reading", "item": {"kind": "file", "id": "notes/paper.pdf"}, "annotation": "a-2026-01-01-gone00"}
+    )
+    assert json_of("here", "--json", cwd=q)["looking"]["annotation"] == {"id": "a-2026-01-01-gone00", "gone": True}

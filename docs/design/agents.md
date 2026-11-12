@@ -40,9 +40,8 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom accept`, the author's claim that a key's mathematics is right;
 - `loom library verify`, `discard`, `ignore`, `add`, `import` and `drop`;
 - `loom adopt` and `loom sync incorporate`, which write the author's files (P7);
-- `loom changes --keep` and `--undo`, keeping or undoing a change to an open file since the author's look, the undo writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
+- `loom changes --keep` and `--discard`, keeping or discarding a pending change (an agent's change to an open file since the author's look, or a suggested edit), a discard writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
 - `loom history restore`, `loom session delete --purge`, `loom ai delete`, `loom sync publish --push`;
-- `loom suggestion apply`, writing a suggested edit into the author's file (`suggestion-apply` in the viewer);
 - saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - starting a library run in the viewer (`library-update`), which may use the network for that run on the person's word, as `--online` does;
 - adding a work to the library, filing a dropped PDF, and deleting a work from it (`library-add`, `library-upload`, `library-file`, `library-delete`), and any lookup that asks for the network (`library-lookup` with `online`);
@@ -104,7 +103,7 @@ It writes at natural pauses and before it stops, and it links rather than restat
 
 The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
 
-What the person annotates reaches an agent through `loom since`, with its type, its words, where it is and any comment, a mark drawn on a PDF page among them. Asking for a work's overview from its Info is the person's annotation on the whole work. A quote is not a record: selecting words with no tool on offers Quote, which hands the words and where they came from to an agent (`model.md`, Notes; not built yet). An agent annotates a PDF page as it annotates text, with `loom annotate FILE --page N`, on the words of `--quote` or drawn with `--mark`.
+What the person annotates reaches an agent through `loom since`, with its type, its words, where it is and any comment, a mark drawn on a PDF page among them. Asking for a work's overview from its Info is the person's annotation on the whole work. A quote is not a record: selecting words with no tool on offers Quote, which copies the words and where they came from for the person to paste to an agent (`model.md`, Notes). An agent annotates a PDF page as it annotates text, with `loom annotate FILE --page N`, on the words of `--quote` or drawn with `--mark`.
 
 ## What an agent is told
 

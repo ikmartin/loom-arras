@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A document's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar where a publisher serves writes, then **history ▾** where the document has one (plan 0.20.6); under *view*, `show all annotations` and `show settled annotations` with their keys. `e`, `h` and `s` do what the two annotation lines do from the keyboard, inside the document. Its compiled PDF opens from its row in the tree. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
+	// A document's toolbar: the annotating bar (Annotate, Comment, the format menu and Undo and Redo where a publisher serves writes, with the hint beneath saying what the tool in hand does; Changes where its text has pending changes; the stepper, Comments and Notes), then **history ▾** where the document has one; under *view*, `show settled annotations` and its key, which `s` does from inside the document. Its compiled PDF opens from its row in the tree. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
 	import { store } from '$lib/manifest/client.svelte';
 	import { isLandmark, type Item } from '../item';
 	import { historyOf } from '../history';
@@ -8,7 +8,9 @@
 	import { documentState } from '../state.svelte';
 	import ItemToolbar from '../ItemToolbar.svelte';
 	import ToolbarItem from '../ToolbarItem.svelte';
-	import ToolPair from '$lib/pdf/ToolPair.svelte';
+	import AnnotateBar from '$lib/review/AnnotateBar.svelte';
+	import ChangesMenu from '$lib/review/ChangesMenu.svelte';
+	import { hand, hintFor } from '$lib/review/annotating.svelte';
 	import { ui } from '$lib/ui.svelte';
 	import { can } from '$lib/write';
 	import { settledIn } from '$lib/annotations';
@@ -31,23 +33,14 @@
 	});
 </script>
 
-{#snippet tools()}<ToolPair holder={documentState(item)} of={name} />{/snippet}
-{#snippet versions()}<HistoryMenu {item} {name} divided={(writes && !!master) || !!draft} />{/snippet}
+{#snippet changes()}{#if master}<ChangesMenu {notes} document={master.path} of={name} />{/if}{/snippet}
+{#snippet tools()}<AnnotateBar {notes} of={name} {writes} {changes} />{/snippet}
+{#snippet versions()}<HistoryMenu {item} {name} divided={(!!master && !master.closed && !master.context_only) || !!draft} />{/snippet}
 {#snippet live()}<VersionControls {item} {draft} />{/snippet}
 
 {#if master && !master.closed && !master.context_only}
-	<ItemToolbar {name} bar={writes ? tools : undefined} history={history ? versions : undefined} on={notes.allOpen || ui.showSettled}>
+	<ItemToolbar {name} bar={tools} history={history ? versions : undefined} on={ui.showSettled} hint={writes ? hintFor(m, notes, hand.value) : ''}>
 		{#snippet view()}
-			{#if notes.ready}
-				<ToolbarItem
-					label={notes.allOpen ? 'hide all annotations' : 'show all annotations'}
-					name="{notes.allOpen ? 'hide all annotations' : 'show all annotations'} in {name}"
-					key={notes.allOpen ? 'h' : 'e'}
-					checked={notes.allOpen}
-					testid="toggle-annotations"
-					onclick={() => notes.toggle()}
-				/>
-			{/if}
 			{#if notes.ready || anySettled}
 				<!-- Settled annotations are hidden at rest; this shows them faintly, for the sitting, on every document and node. -->
 				<ToolbarItem

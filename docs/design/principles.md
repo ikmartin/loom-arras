@@ -104,7 +104,7 @@ The preamble is the author's declaration of their conventions, and the tool read
 
 ### P7. Loom changes an author's file only when the author incorporates a change, and keeps the old text first.
 
-An author's file is theirs, and a tool that edits it behind their back destroys work. Consequence: every other operation writes a new file at a destination the user names (`atomize SRC --to DEST`, `history restore --to FILE`), writes into loom's own directories, or prints a patch (`id`, `revert`, `fork`). Incorporating a contribution, whether an agent document (`loom adopt`) or a collaborator's pull (`loom sync incorporate`), is the author's act: it is previewed, and it stamps each document it reaches before writing. So is putting a document back as one of its versions from the viewer, which keeps the text it replaces as a version first, undoing a change in Changes, which keeps that text first too, keeping a suggested edit, which keeps a version of each document it changes before writing, and ticking a box in a Markdown file in the viewer, which keeps the file's text in the history first and changes that one character. Loom deletes nothing outside `build/`.
+An author's file is theirs, and a tool that edits it behind their back destroys work. Consequence: every other operation writes a new file at a destination the user names (`atomize SRC --to DEST`, `history restore --to FILE`), writes into loom's own directories, or prints a patch (`id`, `revert`, `fork`). Incorporating a contribution, whether an agent document (`loom adopt`) or a collaborator's pull (`loom sync incorporate`), is the author's act: it is previewed, and it stamps each document it reaches before writing. So is putting a document back as one of its versions from the viewer, which keeps the text it replaces as a version first, discarding an agent's change to an open file, which keeps the text it replaces first too, keeping a suggested edit, which keeps a version of each document it changes before writing, and ticking a box in a Markdown file in the viewer, which keeps the file's text in the history first and changes that one character. Loom deletes nothing outside `build/`.
 
 ### P8. No editor, server, model, or credential is required by any command.
 
@@ -184,7 +184,7 @@ On the page an annotation appears once: as a mark, or, with no anchor, as the si
 
 ### A3. Draw only what loom knows.
 
-A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. One on a PDF page records the file's hash: when the file changes, one on words stands where its words are found again, and anything else is detached. No state is shown only as a word.
+A resolved annotation looks resolved. A detached one is never drawn at a guessed place; it is listed as detached. One written against text that has changed is not marked in the new text. One on a PDF page records the file's hash and the words around it: when the file changes, it stands where those words are found again, anywhere in the document, a drawing at the same distance from them as before, and one whose words are not found is detached. No state is shown only as a word.
 
 ### A4. One channel, one question.
 

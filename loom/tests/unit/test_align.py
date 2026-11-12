@@ -43,3 +43,20 @@ def test_words_that_differ_a_little_are_placed_near_and_too_much_not_at_all() ->
     near = src.place(rendered_words("The fixed point is surely unique"), 0)
     assert near is not None and not near.exact and SRC[near.start : near.end].startswith("The ﬁxed point")
     assert src.place(rendered_words("Nothing here was ever written"), 0) is None
+
+
+def test_a_run_of_words_is_placed_by_index_nearest_where_it_was() -> None:
+    """`place_run`, which a mark on a PDF is found again with as well as a block in its source: the whole run nearest the index given, else a cluster of four words in five, else nothing."""
+    from loom.tex.align import place_run, run_positions
+
+    texts = "a b c d e f g h a b c d".split()
+    assert place_run(texts, ["a", "b", "c"], 0) == (0, 2, True)
+    assert place_run(texts, ["a", "b", "c"], 9) == (8, 10, True)
+    # one word of five changed: placed, not whole, and each word mapped where it stands
+    texts = "the median order of a weighted digraph is defined here".split()
+    got = place_run(texts, "median order of an weighted".split(), 2)
+    assert got == (1, 5, False)
+    assert run_positions(texts, "median order of an weighted".split(), 1, 5) == [1, 2, 3, 4, 5]
+    # a word dropped from the text maps to the word after it
+    assert run_positions(texts, "order of x a".split(), 2, 4) == [2, 3, 4, 4]
+    assert place_run(texts, "nothing like this at all".split(), 2) is None

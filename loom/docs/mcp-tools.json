@@ -7,7 +7,7 @@
    "read_only_hint": true
   },
   "command": "loom ai annotations",
-  "description": "List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.",
+  "description": "List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom changes --by` lists the edits it suggested.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -309,6 +309,38 @@
    "destructive_hint": false,
    "idempotent_hint": true,
    "open_world_hint": false,
+   "read_only_hint": true
+  },
+  "command": "loom changes",
+  "description": "List what waits on you, by document: each in-place edit to an open file since your last look, cut by words, and each open suggested edit; with ID, print the change's patch, which `git apply` takes as it stands.\n\nThe open files are the ones the viewer shows that are text, at most 1 MB; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "by": {
+     "description": "NAME's suggested edits, in every state.",
+     "type": "string"
+    },
+    "change": {
+     "type": "string"
+    },
+    "document": {
+     "description": "Only the changes in the files DOC is made of.",
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  },
+  "name": "loom_changes"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": true,
+   "open_world_hint": false,
    "read_only_hint": false
   },
   "command": "loom check",
@@ -528,7 +560,7 @@
    "read_only_hint": true
   },
   "command": "loom here",
-  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
+  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, the annotation whose popup is open, and the session they have chosen. A region or an annotation on a PDF page comes with a crop of the page around it, under .loom/build/crops/.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1573,7 +1605,7 @@
    "read_only_hint": false
   },
   "command": "loom suggest",
-  "description": "File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.\n\nThe person keeps or discards it: `loom suggestion apply ID` writes it into the file and keeps it, `loom suggestion discard ID` leaves the text as it is. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\\uses{…}` is proposed.",
+  "description": "File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.\n\nThe person keeps or discards it with `loom changes`: keeping writes it into the file, discarding leaves the text as it is, and `loom changes ID` prints the patch that takes it. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\\uses{…}` is proposed. `--withdraw EDIT` takes back one of your own while it is open; `loom changes --by NAME` lists the edits NAME suggested, in every state.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1608,96 +1640,22 @@
      "description": "The words it replaces, once in the key's own text; without it, the key's body.",
      "type": "string"
     },
+    "why": {
+     "description": "With --withdraw, why.",
+     "type": "string"
+    },
     "with": {
      "description": "The new text; '' deletes the quoted words, and - reads it from stdin.",
      "type": "string"
+    },
+    "withdraw": {
+     "description": "Withdraw suggested edit EDIT, one of yours still open, instead.",
+     "type": "string"
     }
    },
-   "required": [
-    "key",
-    "with"
-   ],
    "type": "object"
   },
   "name": "loom_suggest"
- },
- {
-  "annotations": {
-   "destructive_hint": false,
-   "idempotent_hint": true,
-   "open_world_hint": false,
-   "read_only_hint": true
-  },
-  "command": "loom suggestion",
-  "description": "List suggested edits, or with EDIT print the patch that takes it: its new text in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `before` and `after` go right beside them; with no quote, of the key's body. `loom suggestion apply EDIT` writes it in and keeps it, and is the author's; `loom suggestion discard EDIT` discards it, which an agent may do to its own.",
-  "inputSchema": {
-   "additionalProperties": false,
-   "properties": {
-    "by": {
-     "description": "Only the edits NAME suggested.",
-     "type": "string"
-    },
-    "edit": {
-     "description": "A suggested edit, by its id, to print the patch that takes it; with none, the edits.",
-     "type": "string"
-    },
-    "json": {
-     "description": "Print the report as one JSON object.",
-     "type": "boolean"
-    },
-    "status": {
-     "default": "open",
-     "description": "Only the edits in this state.",
-     "enum": [
-      "open",
-      "kept",
-      "discarded"
-     ],
-     "type": "string"
-    },
-    "target": {
-     "description": "Only the edits on KEY.",
-     "type": "string"
-    }
-   },
-   "type": "object"
-  },
-  "name": "loom_suggestion"
- },
- {
-  "annotations": {
-   "destructive_hint": false,
-   "idempotent_hint": false,
-   "open_world_hint": false,
-   "read_only_hint": false
-  },
-  "command": "loom suggestion discard",
-  "description": "Discard suggested edit EDIT, leaving the text as it is; a person discards any edit, an agent only its own. --undo opens it again.",
-  "inputSchema": {
-   "additionalProperties": false,
-   "properties": {
-    "edit_id": {
-     "type": "string"
-    },
-    "json": {
-     "description": "Print the report as one JSON object.",
-     "type": "boolean"
-    },
-    "undo": {
-     "description": "Open a kept or discarded edit again.",
-     "type": "boolean"
-    },
-    "why": {
-     "description": "Why it is discarded, which the agent that suggested it reads.",
-     "type": "string"
-    }
-   },
-   "required": [
-    "edit_id"
-   ],
-   "type": "object"
-  },
-  "name": "loom_suggestion_discard"
  },
  {
   "annotations": {

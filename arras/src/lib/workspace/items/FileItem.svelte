@@ -1,6 +1,6 @@
 <script lang="ts">
 	// A file of the project (plan 0.22.7), drawn by its kind: a Markdown file or a notebook as the publisher drew it, an HTML page in its own frame, a PDF by pdf.js, an image, text as text. Anything else is named, with "Open in its application" where the publisher can open it, and loom never opens a file that runs code.
-	// A PDF's pages carry annotations (`pdf/desk.svelte.ts`): words selected on a page are offered **highlight**, and the drawing tools draw the rest.
+	// A PDF's pages carry annotations (`pdf/desk.svelte.ts`), made and read as a document's are from the toolbar (`FileControls`); words selected with no tool on are offered Quote.
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import { dataUrl, filesUrl } from '$lib/paths';
@@ -8,8 +8,7 @@
 	import MarkedDoc from '$lib/pdf/MarkedDoc.svelte';
 	import { mergeLines } from '$lib/pdf/marks';
 	import { paperPlace } from '$lib/pdf/place.svelte';
-	import PdfTools from '$lib/pdf/PdfTools.svelte';
-	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
+	import QuoteChip from '$lib/review/QuoteChip.svelte';
 	import { can, write } from '$lib/write';
 	import { itemKey, type Item } from '../item';
 	import { openOutside } from '../links';
@@ -36,14 +35,19 @@
 		() => ({ seq: named ? (item.seq ?? 0) : 0, page: pdfPage }),
 		() => workspace.update(itemKey(item), { anchor: undefined, note: undefined })
 	);
-	const desk = new MarkDesk(() => ({ on: item.id, owns: (a) => a.target.file === item.id, words: true, url: filesUrl(item.id), name }));
 	const holder = paneOf();
 	const hidesNotes = $derived(holder ? workspace.hidesNotes(holder.index) : false);
-	let canOpen = $state(false);
+	const kept = $derived(fileState(item));
+	const desk = new MarkDesk(() => ({ on: item.id, owns: (a) => a.target.file === item.id, url: filesUrl(item.id), name, notes: kept.notes, hidden: hidesNotes }));
+	// the toolbar's PDF menu acts through it
 	$effect(() => {
-		void can('open').then((yes) => (canOpen = yes));
+		const k = kept;
+		if (file?.kind !== 'pdf') return;
+		k.desk = desk;
+		return () => {
+			if (k.desk === desk) k.desk = null;
+		};
 	});
-
 	let body = $state<string | null>(null);
 	let text = $state<string | null>(null);
 	let failed = $state('');
@@ -185,7 +189,7 @@
 	}
 
 	type Box = { left: number; top: number; width: number; height: number };
-	/** Words selected on a PDF page, offered to highlight, and where they stand. */
+	/** Words selected on a PDF page, offered Quote, and where they stand. */
 	let offered = $state<{ text: string; page: number; lines: number[][]; at: Box; range?: Range } | null>(null);
 
 	// words let go of take their offer with them, as a fragment's do
@@ -197,13 +201,6 @@
 		return () => document.removeEventListener('selectionchange', gone);
 	});
 
-	function highlight(): void {
-		const o = offered;
-		if (!o) return;
-		desk.markWords('highlight', { page: o.page, text: o.text, rects: o.lines });
-		offered = null;
-		window.getSelection()?.removeAllRanges();
-	}
 </script>
 
 {#if !file}
@@ -212,15 +209,13 @@
 	<HtmlFrame path={file.path} anchor={item.anchor ?? ''} seq={item.seq ?? 0} key={`file:${file.path}`} />
 {:else if file.kind === 'pdf'}
 	<div class="file-pdf" data-testid="file-item" data-kind="pdf">
-		<PdfTools view={paper} markup />
 		<MarkedDoc
 			{desk}
 			view={paper}
+			notes={kept.notes}
 			url={filesUrl(file.path)}
 			{name}
 			dir={item.id.includes('/') ? item.id.slice(0, item.id.lastIndexOf('/')) : ''}
-			hidden={hidesNotes}
-			onoutside={canOpen ? () => void open().then(() => (desk.said = refused)) : undefined}
 			page={place.opening.page}
 			share={place.opening.share}
 			seq={place.opening.seq}
@@ -262,8 +257,8 @@
 		{/if}
 	</div>
 {/if}
-{#if offered && desk.writes}
-	<AnnotateChip at={offered.at} range={offered.range} onhighlight={highlight} />
+{#if offered && file}
+	<QuoteChip at={offered.at} range={offered.range} words={offered.text} name="{name} p. {offered.page}" href="quilt:{file.path}#page={offered.page}" ondone={() => (offered = null)} />
 {/if}
 
 <style>

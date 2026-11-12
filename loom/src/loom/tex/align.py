@@ -9,7 +9,7 @@ import difflib
 import re
 import unicodedata
 from bisect import bisect_left
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 _WORD = re.compile(r"[^\W\d_]+")
@@ -19,7 +19,7 @@ MATH_ENVS = frozenset(
 )
 #: Commands whose next braced argument TeX never prints as words: names, keys, addresses and lengths.
 SILENT = frozenset(
-    "label ref eqref pageref cref Cref autoref cite citep citet nocite bibitem href includegraphics input include usepackage begin end hspace vspace setlength addtocounter setcounter newcommand renewcommand def documentclass bibliography bibliographystyle color textcolor".split()
+    "label ref eqref pageref cref Cref autoref cite citep citet nocite bibitem href includegraphics input include usepackage begin end hspace vspace setlength addtocounter setcounter newcommand renewcommand def documentclass bibliography bibliographystyle color textcolor HCode".split()
 )
 #: Citations, whose notes in square brackets print inside the citation TeX makes, and so are made like its key.
 CITES = frozenset(
@@ -249,46 +249,110 @@ class Source:
     def place(
         self, words: list[str], near: int, *, window: int = 400, heads: frozenset[str] = frozenset()
     ) -> Place | None:
-        """Place rendered `words` here, preferring the occurrence nearest the offset `near`.
+        """Place rendered `words` here, preferring the occurrence nearest the offset `near` (`place_run`).
 
-        An exact place is the words as one unbroken run, less any leading words in `heads`: a theorem's name, which a style that puts the number first leaves outside the head TeX4ht marks. Failing that, the matches clustered round the largest one in a window around `near`, kept when they hold at least four in five of the words.
+        An exact place is the words as one unbroken run, less any leading words in `heads`: a theorem's name, which a style that puts the number first leaves outside the head TeX4ht marks.
         """
         lead = 0
         while lead < len(words) - 1 and words[lead] in heads:
             lead += 1
-        words = words[lead:]
-        if not words or not self.words:
+        found = place_run(self.texts, words[lead:], bisect_left(self.starts, near), window=window, at=self.at)
+        if found is None:
             return None
-        hint = bisect_left(self.starts, near)
-        k = len(words)
-        best: int | None = None
-        for i in self.at.get(words[0], ()):
-            if self.texts[i : i + k] == words and (best is None or abs(i - hint) < abs(best - hint)):
-                best = i
-        if best is not None:
-            return Place(self.words[best].start, self.words[best + k - 1].end, True)
-        lo, hi = max(0, hint - window), min(len(self.texts), hint + k + window)
-        matcher = difflib.SequenceMatcher(None, self.texts[lo:hi], words, autojunk=False)
-        blocks = [b for b in matcher.get_matching_blocks() if b.size]
-        if not blocks:
-            return None
-        # a stray common word far away is no part of the place: grow from the largest match while the next is close on both sides
-        gap = max(8, k // 4)
-        at = max(range(len(blocks)), key=lambda i: blocks[i].size)
-        first = last = at
-        while (
-            first > 0
-            and blocks[first].a - (blocks[first - 1].a + blocks[first - 1].size) <= gap
-            and blocks[first].b - (blocks[first - 1].b + blocks[first - 1].size) <= gap
-        ):
-            first -= 1
-        while (
-            last < len(blocks) - 1
-            and blocks[last + 1].a - (blocks[last].a + blocks[last].size) <= gap
-            and blocks[last + 1].b - (blocks[last].b + blocks[last].size) <= gap
-        ):
-            last += 1
-        if sum(b.size for b in blocks[first : last + 1]) * 5 < k * 4:
-            return None
-        start, end = blocks[first], blocks[last]
-        return Place(self.words[lo + start.a].start, self.words[lo + end.a + end.size - 1].end, False)
+        first, last, exact = found
+        return Place(self.words[first].start, self.words[last].end, exact)
+
+
+def place_run(
+    texts: Sequence[str],
+    words: Sequence[str],
+    near: int,
+    *,
+    window: int = 400,
+    at: Mapping[str, Sequence[int]] | None = None,
+) -> tuple[int, int, bool] | None:
+    """Where the run `words` stands in `texts`, the occurrence nearest the index `near` preferred.
+
+    Parameters
+    ----------
+    texts : sequence of str
+        The words searched, folded as `words` are.
+    words : sequence of str
+        The run to place.
+    near : int
+        The index in `texts` the run is expected at.
+    window : int, default 400
+        How many words either side of `near` a run that is not whole is looked for in.
+    at : mapping of str to sequence of int, optional
+        Each word's indices in `texts`, when the caller keeps them; read from `texts` otherwise.
+
+    Returns
+    -------
+    (int, int, bool) or None
+        The indices of the run's first and last words, and whether every word stood in order with none between. Failing a whole run, the matches clustered round the largest one in the window, kept when they hold at least four in five of the words; None when nothing is kept.
+    """
+    words = list(words)
+    if not words or not texts:
+        return None
+    k = len(words)
+    best: int | None = None
+    starts = at.get(words[0], ()) if at is not None else [i for i, t in enumerate(texts) if t == words[0]]
+    for i in starts:
+        if list(texts[i : i + k]) == words and (best is None or abs(i - near) < abs(best - near)):
+            best = i
+    if best is not None:
+        return best, best + k - 1, True
+    lo, hi = max(0, near - window), min(len(texts), near + k + window)
+    matcher = difflib.SequenceMatcher(None, list(texts[lo:hi]), words, autojunk=False)
+    blocks = [b for b in matcher.get_matching_blocks() if b.size]
+    if not blocks:
+        return None
+    # a stray common word far away is no part of the place: grow from the largest match while the next is close on both sides
+    gap = max(8, k // 4)
+    top = max(range(len(blocks)), key=lambda i: blocks[i].size)
+    first = last = top
+    while (
+        first > 0
+        and blocks[first].a - (blocks[first - 1].a + blocks[first - 1].size) <= gap
+        and blocks[first].b - (blocks[first - 1].b + blocks[first - 1].size) <= gap
+    ):
+        first -= 1
+    while (
+        last < len(blocks) - 1
+        and blocks[last + 1].a - (blocks[last].a + blocks[last].size) <= gap
+        and blocks[last + 1].b - (blocks[last].b + blocks[last].size) <= gap
+    ):
+        last += 1
+    if sum(b.size for b in blocks[first : last + 1]) * 5 < k * 4:
+        return None
+    return lo + blocks[first].a, lo + blocks[last].a + blocks[last].size - 1, False
+
+
+def run_positions(texts: Sequence[str], words: Sequence[str], first: int, last: int) -> list[int | None]:
+    """Where each of `words` stands in `texts`, a run `place_run` placed between `first` and `last`.
+
+    Parameters
+    ----------
+    texts : sequence of str
+        The words searched.
+    words : sequence of str
+        The run that was placed.
+    first, last : int
+        The indices `place_run` gave.
+
+    Returns
+    -------
+    list of int or None
+        For each word, its own index where it matched, the index of what replaced it where it did not, and for a word dropped from the text the word after the gap, so a place survives the words beside it changing; None where nothing stands for it.
+    """
+    region = list(texts[first : last + 1])
+    out: list[int | None] = [None] * len(words)
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, list(words), region, autojunk=False).get_opcodes():
+        for i in range(i1, i2):
+            if tag == "equal":
+                out[i] = first + j1 + (i - i1)
+            elif tag == "replace":
+                out[i] = first + j1 + min(i - i1, j2 - j1 - 1)
+            elif j1 < len(region):
+                out[i] = first + j1
+    return out

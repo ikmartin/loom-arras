@@ -8,10 +8,10 @@ async function infoTab(page: Page): Promise<void> {
 	await page.getByTestId('tab-info').click();
 }
 
-/** A node lists no annotations; its first mark opens the revision whose body the tests below put a link in. */
+/** A node lists no annotations; its first mark opens the popup of the revision whose body the tests below put a link in. */
 async function openFirstMark(page: Page): Promise<void> {
 	await page.locator('[data-pane] .fragment mark.annotation').first().click();
-	await expect(page.locator('[data-testid="comment-expanded"] article.box').first()).toBeVisible();
+	await expect(page.getByTestId('ann-popup')).toBeVisible();
 }
 
 function linkInComment(m: typeof manifest, href: string): void {
@@ -277,9 +277,9 @@ test.describe('a work', () => {
 	test("a work's tools stay, greyed, off the paper", async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.goto('/library/Kre99');
-		await expect(page.getByTestId('tool-select')).toBeEnabled();
+		await expect(page.getByTestId('zoom-fit')).toBeEnabled();
 		await page.getByTestId('tab-info').click();
-		await expect(page.getByTestId('tool-select')).toBeDisabled();
+		await expect(page.getByTestId('zoom-fit')).toBeDisabled();
 		await expect(page.getByTestId('zoom-at')).toBeDisabled();
 		await expect(page.getByTestId('page-at')).toBeDisabled();
 		await page.getByTestId('tab-paper').click();

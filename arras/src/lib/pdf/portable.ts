@@ -1,4 +1,4 @@
-// Marks to and from a PDF's own annotations (plan 0.28): "Save a copy" writes them through pdf.js into a copy of the file, and "Take in" reads what another program wrote. Loom's log stays the record; a PDF is what it is exported to and imported from.
+// Marks to and from a PDF's own annotations (plan 0.28): "Save a copy" writes them through pdf.js into a copy of the file, and "Take in" reads what another program wrote. Loom's log stays the record; a PDF is what it is exported to and imported from. A look goes with each: its colour as the annotation's colour, its opacity as `/CA` and its weight as the border width, and all three come back.
 //
 // Everything here takes the pdf.js library as an argument, so it runs in a test under node as it does in the page.
 
@@ -17,6 +17,10 @@ export interface Outgoing {
 	by: string;
 	/** Its colour in the copy, 0–255, where it has one of its own. */
 	color?: number[];
+	/** Its look's weight in whole points, written as the border's width; a line under or through words is drawn that thick. */
+	weight?: number;
+	/** Its look's opacity in percent, written as `/CA`. */
+	opacity?: number;
 }
 
 /** An annotation in the file to leave out of the copy, since one of loom's now stands for it. */
@@ -35,6 +39,10 @@ export interface Incoming {
 	body: string;
 	/** The nearest of the nine to its own colour, where it has one. */
 	color?: MarkColor;
+	/** Its border's width, 1 to 5 whole points, where it gives one. */
+	weight?: number;
+	/** Its `/CA`, in percent, where it is less than whole. */
+	opacity?: number;
 	origin: { by?: string; subtype: string; color?: number[]; ref?: string };
 }
 
@@ -125,9 +133,9 @@ export function wrapped(words: string, width: number, size = TEXT_SIZE): string 
 	return lines.join('\n');
 }
 
-/** A mark on a thin band of its rectangle, as the appearance of an underline or a strike-through. */
-function band(r: readonly number[], kind: string): number[] {
-	const h = Math.max(0.8, (r[3] - r[1]) * 0.07);
+/** A mark on a band of its rectangle as thick as its weight, as the appearance of an underline or a strike-through. */
+function band(r: readonly number[], kind: string, weight?: number): number[] {
+	const h = weight ? Math.max(0.5, weight) : Math.max(0.8, (r[3] - r[1]) * 0.07);
 	const y = kind === 'strike' ? (r[1] + r[3]) / 2 : r[3] - h;
 	return [r[0], y, r[2], y + h];
 }
@@ -140,7 +148,7 @@ function pinShape(r: readonly number[]): number[] {
 	return [x0, y0, x1, y0, x1, y0 + h * 0.72, x0 + w * 0.48, y0 + h * 0.72, x0 + w * 0.22, y1, x0 + w * 0.26, y0 + h * 0.72, x0, y0 + h * 0.72];
 }
 
-/** Put a copy's marks in the document's annotation storage, ready for pdf.js to write; what it wrote as a Highlight to be renamed is returned. */
+/** Put a copy's marks in the document's annotation storage, ready for pdf.js to write; what it wrote as a Highlight to be renamed, or given a border, is returned. */
 async function fill(doc: PDFDocumentProxy, marks: readonly Outgoing[], replaced: readonly Replaced[]): Promise<{ renames: Rename[]; left: number }> {
 	const store = doc.annotationStorage;
 	const renames: Rename[] = [];
@@ -168,34 +176,37 @@ async function fill(doc: PDFDocumentProxy, marks: readonly Outgoing[], replaced:
 		// copied, since these reach the worker and a colour may be a reactive proxy of the manifest's
 		const color = m.color ? Array.from(m.color) : null;
 		const common = { pageIndex: m.page - 1, rotation: 0, user: m.by, structTreeParentId: null };
+		const opacity = m.opacity === undefined ? 1 : Math.max(0, Math.min(1, m.opacity / 100));
+		const weight = m.weight ? Math.max(1, Math.min(5, Math.round(m.weight))) : undefined;
 		const popup = m.body && m.kind !== 'text' ? { popup: { contents: m.body, deleted: false, rect: [whole[2] + 4, whole[3] - 100, whole[2] + 184, whole[3]] } } : {};
 		const key = `${NEW}${n++}`;
 		if (m.kind === 'text') {
 			const [x0, , x1] = bound(m.rects);
 			store.setValue(key, { ...common, annotationType: TYPE.freetext, rect: whole, rotation: map.rotation, color: color ?? INK, fontSize: TEXT_SIZE, value: wrapped(m.body, x1 - x0) });
 		} else if (ON_WORDS.includes(m.kind) || m.kind === 'pin') {
-			const shapes = m.kind === 'pin' ? [polygonOf(pinShape(m.rects[0]), map.at)] : m.rects.map((r) => map.polygon(m.kind === 'highlight' ? r : band(r, m.kind)));
+			const shapes = m.kind === 'pin' ? [polygonOf(pinShape(m.rects[0]), map.at)] : m.rects.map((r) => map.polygon(m.kind === 'highlight' ? r : band(r, m.kind, weight)));
 			store.setValue(key, {
 				...common,
 				annotationType: TYPE.highlight,
 				rect: whole,
 				// yellow marks a band or a pin well and a thin line hardly at all
 				color: color ?? (m.kind === 'highlight' || m.kind === 'pin' ? YELLOW : INK),
-				opacity: 1,
+				opacity,
 				thickness: 12,
 				quadPoints: new Float32Array(m.rects.flatMap((r) => map.corners(r))),
 				outlines: shapes,
 				...popup
 			});
-			if (m.kind !== 'highlight') renames.push({ rect: whole, name: SUBTYPES[m.kind] });
+			// pdf.js writes these with no border, so the weight goes in after, at the same length
+			renames.push({ rect: whole, name: SUBTYPES[m.kind] ?? 'Highlight', ...(weight ? { border: weight } : {}) });
 		} else {
 			store.setValue(key, {
 				...common,
 				annotationType: TYPE.ink,
-				rect: padded(whole, PEN),
+				rect: padded(whole, weight ?? PEN),
 				color: color ?? INK,
-				opacity: 1,
-				thickness: PEN,
+				opacity,
+				thickness: weight ?? PEN,
 				paths: inkPaths(outlineOf(m), map.at),
 				...popup
 			});
@@ -214,31 +225,38 @@ function polygonOf(points: readonly number[], at: (x: number, y: number) => [num
 
 const SUBTYPES: Record<string, string> = { underline: 'Underline', strike: 'StrikeOut', pin: 'Text' };
 
-/** One annotation written as a Highlight that is to be another subtype. */
+/** One annotation written as a Highlight that is to be another subtype, or to have a border of the width given. */
 export interface Rename {
 	rect: number[];
 	name: string;
+	/** The border's width, 1 to 9 whole points. */
+	border?: number;
 }
 
 /**
- * Rename annotations pdf.js wrote as Highlights, in place and at the same length.
+ * Rename annotations pdf.js wrote as Highlights, and give them their border's width, in place and at the same length.
  *
- * pdf.js creates no Underline, StrikeOut or Text annotation, so each goes through as a Highlight with its own appearance and comment, found again here by its rectangle. `Highlight` is nine letters and every name here at most nine, so with spaces after it, which PDF ignores, not one object moves and the file's cross-reference still stands.
+ * pdf.js creates no Underline, StrikeOut or Text annotation, so each goes through as a Highlight with its own appearance and comment, found again here by its rectangle. `Highlight` is nine letters and every name here at most nine, so with spaces after it, which PDF ignores, not one object moves and the file's cross-reference still stands. pdf.js writes a Highlight's `/Border [0 0 0]`, and a width of one digit takes the last `0`'s place, again at the same length.
  */
 export function renameSubtypes(bytes: Uint8Array, renames: readonly Rename[], from = 0): void {
 	if (!renames.length) return;
 	const text = new TextDecoder('latin1').decode(bytes.subarray(from));
 	const wanted = [...renames];
 	const FIELD = '/Subtype /Highlight';
+	const BORDER = '/Border [0 0 0]';
 	for (let at = text.indexOf(FIELD); at >= 0 && wanted.length; at = text.indexOf(FIELD, at + 1)) {
 		const end = text.indexOf('endobj', at);
-		const found = /\/Rect \[([^\]]*)\]/.exec(text.slice(at, end < 0 ? undefined : end));
+		const body = text.slice(at, end < 0 ? undefined : end);
+		const found = /\/Rect \[([^\]]*)\]/.exec(body);
 		const rect = found?.[1].trim().split(/\s+/).map(Number) ?? [];
 		const hit = wanted.findIndex((w) => rect.length === 4 && w.rect.every((v, i) => Math.abs(v - rect[i]) < 0.02));
 		if (hit < 0) continue;
 		const name = wanted[hit].name.padEnd(9, ' ');
 		const start = from + at + FIELD.length - 9;
 		for (let i = 0; i < 9; i++) bytes[start + i] = name.charCodeAt(i);
+		const width = wanted[hit].border;
+		const b = body.indexOf(BORDER);
+		if (width && width < 10 && b >= 0) bytes[from + at + b + BORDER.length - 2] = String(Math.round(width)).charCodeAt(0);
 		wanted.splice(hit, 1);
 	}
 }
@@ -304,13 +322,30 @@ interface Raw {
 	vertices?: ArrayLike<number>;
 	lineCoordinates?: ArrayLike<number>;
 	color?: ArrayLike<number> | null;
+	opacity?: number;
+	borderStyle?: { width?: number };
 	contentsObj?: { str?: string };
 	titleObj?: { str?: string };
 	popupRef?: string | null;
 }
 
-/** One annotation as a mark: its words and place in the page's top-left points; null for what a mark cannot hold. */
-function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null {
+/**
+ * An annotation's `/CA` read from the file's own bytes, for the subtypes pdf.js reports no opacity for (it does for Highlight and Ink); undefined where the object is not found plainly, as in an object stream.
+ *
+ * The last revision of the object is the one in force, so the last `N 0 obj` of its number is read.
+ */
+function caOf(text: string, ref: string): number | undefined {
+	const n = /^(\d+)R$/.exec(ref)?.[1];
+	if (!n) return undefined;
+	const at = text.lastIndexOf(`\n${n} 0 obj`);
+	if (at < 0) return undefined;
+	const end = text.indexOf('endobj', at);
+	const ca = /\/CA\s+([\d.]+)/.exec(text.slice(at, end < 0 ? undefined : end))?.[1];
+	return ca === undefined ? undefined : Number(ca);
+}
+
+/** One annotation as a mark: its words and place in the page's top-left points, with its look; null for what a mark cannot hold. */
+function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean, file = ''): Incoming | null {
 	const mark = MARK_OF[a.subtype];
 	if (!mark || !a.rect) return null;
 	const view = page.getViewport({ scale: 1 });
@@ -333,7 +368,11 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
 		...(keepRef ? { ref: a.id } : {})
 	};
 	const color = a.color?.length === 3 ? nearestColor(a.color) : undefined;
-	const base = { page: page.pageNumber, ...(ON_WORDS.includes(mark) ? { style: mark } : { mark }), body, origin, ...(color ? { color } : {}) };
+	const width = Math.round(a.borderStyle?.width ?? 0);
+	const ca = a.opacity ?? caOf(file, a.id);
+	const opacity = ca !== undefined && ca < 1 ? Math.round(ca * 100) : undefined;
+	const look = { ...(color ? { color } : {}), ...(width >= 1 ? { weight: Math.min(5, width) } : {}), ...(opacity !== undefined ? { opacity } : {}) };
+	const base = { page: page.pageNumber, ...(ON_WORDS.includes(mark) ? { style: mark } : { mark }), body, origin, ...look };
 	if (ON_WORDS.includes(mark)) {
 		const q = a.quadPoints;
 		const rects: number[][] = [];
@@ -371,11 +410,13 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
 export async function readAnnotations(doc: PDFDocumentProxy, keepRef = false): Promise<{ items: Incoming[]; skipped: number }> {
 	const items: Incoming[] = [];
 	let skipped = 0;
+	// the file's own bytes, for what pdf.js leaves out of what it reports
+	const file = new TextDecoder('latin1').decode(await doc.getData());
 	for (let n = 1; n <= doc.numPages; n++) {
 		const page = await doc.getPage(n);
 		for (const a of (await page.getAnnotations()) as Raw[]) {
 			if (NOT_MARKS.has(a.subtype)) continue;
-			const item = incoming(a, page, keepRef);
+			const item = incoming(a, page, keepRef, file);
 			if (item) items.push(item);
 			else skipped++;
 		}

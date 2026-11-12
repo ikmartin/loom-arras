@@ -31,6 +31,12 @@ describe('placeOf', () => {
 		});
 	});
 
+	it('says which annotation has its popup open, on a document or a PDF', () => {
+		const current = { kind: 'work' as const, id: 'Bellamy19' };
+		expect(placeOf(reading({ current, page: 2, annotation: 'a-2026-11-12-k2m9xq' }))).toMatchObject({ item: { kind: 'work', id: 'Bellamy19' }, page: 2, annotation: 'a-2026-11-12-k2m9xq' });
+		expect(placeOf(reading({ current, annotation: null }))).not.toHaveProperty('annotation');
+	});
+
 	it("carries a selection only when it is in the current item, words before a region", () => {
 		const current = { kind: 'node' as const, id: 'sy-0003' };
 		const words = { item: 'node:sy-0003', key: 'sy-0003', text: 'a finite widget' };

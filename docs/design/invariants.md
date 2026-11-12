@@ -6,7 +6,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### The author's acts refuse any agent, whatever name it declares
 
-**Rule.** The author's acts (`accept`; `library verify`, `discard`, `ignore`, `add`, `import` and `drop`; `session delete --purge`; `ai delete`; `suggestion apply`; `sync publish --push` and `sync incorporate`) refuse a declared agent name, and under an agent marker refuse any name (K5). `refuse_under_agent` is the guard.
+**Rule.** The author's acts (`accept`; `library verify`, `discard`, `ignore`, `add`, `import` and `drop`; `session delete --purge`; `ai delete`; `changes --keep` and `--discard`; `sync publish --push` and `sync incorporate`) refuse a declared agent name, and under an agent marker refuse any name (K5). `refuse_under_agent` is the guard.
 
 **Why.** In the first study an agent verified its own proposal and loom named the author as verifier, since the name came from git, which the agent's shell shares. Later, `accept --author …` and `refs verify --author …` from an agent's shell were accepted.
 
@@ -419,13 +419,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Undo writes a person's file only on their act, with what it replaces kept first
 
-**Rule.** `loom changes --undo` and the API's `changes-undo` write an open file back as it was at the person's look only when the person asks, never an agent (K5), and store the file's text now in the history's texts before writing, with a ledger line naming both hashes. A file new since the look has no undo.
+**Rule.** `loom changes --discard` and the API's `change-discard` write a change's old words back into an open file only when the person asks, never an agent (K5), and store the file's text now in the history's texts before writing, with a ledger line naming the change. A file new since the look is removed the same way.
 
 **Why.** Since plan 0.22.6 agents edit open files in place, and Review's Your Changes is where the person keeps or throws away what they did. An undo is loom writing a person's file, which P7 allows only on the person's act and only with the old text kept, so a wrong undo can itself be undone from the history.
 
-**Guard.** `loom/tests/unit/test_looks.py::test_undo_puts_the_text_back_and_keeps_what_it_replaced`, `loom/tests/unit/test_looks.py::test_keeping_and_undoing_are_the_authors`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`changes-undo`), `arras/tests/e2e-write/meta.e2e.ts`
+**Guard.** `loom/tests/unit/test_pending.py::test_keeping_one_change_leaves_the_other_and_discarding_writes_it_back_with_a_version_kept`, `loom/tests/unit/test_pending.py::test_keeping_and_discarding_are_the_authors`, `loom/tests/unit/render/test_write_api.py::test_each_endpoint_writes_and_refuses_over_the_wire` (`change-discard`)
 
 **Record.** Plan 0.22.8
+
+**2026-11-12.** Undo became Discard, per change cut by words rather than per hunk, and covers suggested edits too (plan 0.30, decision 11); what it writes and what it keeps first are unchanged.
 
 ### A note's fading is computed, never stored
 

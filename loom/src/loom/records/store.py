@@ -21,7 +21,7 @@ from loom.paths import ANNOTATION_LOG, ANNOTATION_TYPES, EDIT_LOG, LINKS, REVIEW
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
-from loom.records.selectors import resolve_selector
+from loom.records.selectors import Selector, resolve_selector
 from loom.records.snapshots import read_snapshot
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import hash_text, mathematical_hash, normalize
@@ -88,8 +88,13 @@ class ResolvedAnnotation:
     work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
     target: str = ""  # the target key now: a whole document's path followed across moves, else the key as written
     in_doc: str | None = None  # the document `in` names now, followed across moves; as written when it is gone
-    # on a PDF page: where it stands now, its words found again on a changed file
+    # on a PDF page: where it stands now, found again on a changed file (`marks.refind`) when `refound`
     rects: list[list[float]] | None = None
+    page: int | None = None
+    strokes: list[list[float]] | None = None
+    refound: bool = False
+    # the changes still waiting on the person that its words touch (`pending.py`), by id
+    on_changes: list[str] = field(default_factory=list)
     # taken in from a PDF's own annotation that is still in the file as it is now: that annotation's reference
     hides: str | None = None
 
@@ -539,8 +544,12 @@ class Records:
                 if a.selector is None:
                     out.append(ResolvedAnnotation(a, rec, None, False, kept, target=target, in_doc=in_doc))
                     continue
-                span = resolve_selector(texts[n.key], a.selector)
-                out.append(ResolvedAnnotation(a, rec, span, span is None, kept, target=target, in_doc=in_doc))
+                span, touched = self._on_kept(result, n, texts[n.key], a.selector)
+                out.append(
+                    ResolvedAnnotation(
+                        a, rec, span, span is None, kept, target=target, in_doc=in_doc, on_changes=touched
+                    )
+                )
         self._resolved_cache = (result, out)
         return out
 
@@ -550,7 +559,7 @@ class Records:
         `recorded` is whether the artifact the anchor names is the one in the store -- copy-once makes that the normal case for ever. `detached` is a text anchor whose quotation no longer locates in the page's committed text; a box is never detached, because the rectangles are the record. The target is the work's identifier, and the citekey is looked up through the bibliography so that a renamed citekey changes nothing.
         """
         from loom.refs.identity import identify, parse
-        from loom.refs.pages import read_map, read_page, storage_root
+        from loom.refs.pages import read_map, read_page
         from loom.refs.search import locate_offsets
 
         assert a.anchor is not None
@@ -565,14 +574,72 @@ class Records:
         ck = works[a.target_key]
         if not ck or not wid_path(a.target_key):
             return ResolvedAnnotation(a, rec, None, True, False, ck)
-        home = storage_root(self.root) / wid_path(a.target_key)
+        from loom.refs.fetch import work_dir
+
+        # the copy the work's page and PDF are read from, as the manifest's `artifacts.dir` names it; a work filed by its file's hash keeps its copy there, not under its identifier
+        home = work_dir(self.root, result.bib[ck])
         m = read_map(home)
         recorded = m is not None and bool(m.sha256) and m.sha256 == a.anchor.sha256
         if a.anchor.basis != "text":
-            return ResolvedAnnotation(a, rec, None, False, recorded, ck)
+            moved = None if recorded or m is None else self._box_again(result, home, a)
+            if moved is None:
+                return ResolvedAnnotation(a, rec, None, False, recorded, ck, page=a.anchor.page)
+            return ResolvedAnnotation(
+                a, rec, None, False, recorded, ck, rects=moved.rects, page=moved.page, refound=True
+            )
+        exact = a.selector.exact if a.selector else ""
         page = read_page(home, a.anchor.page)
-        span = locate_offsets(page, a.selector.exact) if page and a.selector and a.selector.exact else None
-        return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
+        span = locate_offsets(page, exact) if page and exact else None
+        if span is not None or recorded or m is None or not exact:
+            return ResolvedAnnotation(a, rec, span, span is None, recorded, ck, page=a.anchor.page)
+        # the work's file changed: its words are looked for on every page's committed text, its own first
+        for n in range(1, m.pages + 1):
+            text = read_page(home, n) if n != a.anchor.page else None
+            span = locate_offsets(text, exact) if text else None
+            if span is not None:
+                return ResolvedAnnotation(a, rec, span, False, recorded, ck, page=n, refound=True)
+        return ResolvedAnnotation(a, rec, None, True, recorded, ck, page=a.anchor.page)
+
+    @staticmethod
+    def _on_kept(
+        result: ScanResult, node: NodeRec, own: str, sel: Selector
+    ) -> tuple[tuple[int, int] | None, list[str]]:
+        """Where an annotation stands in its key's text now, read against the text as the person kept it, and the changes waiting on the person that its words touch.
+
+        Its words are looked for in the key's own text with every in-place change still waiting put back (`pending.kept_own`), and placed on the text now through it; words found only in the text now, as on a change's new words, are placed there.
+        """
+        from loom.pending import in_place, kept_own
+
+        kept = kept_own(result, node) if in_place(result) else None
+        if kept is not None:
+            found = resolve_selector(kept.text, sel)
+            if found is not None:
+                return kept.to_now(*found)
+        span = resolve_selector(own, sel)
+        if span is None or kept is None:
+            return span, []
+        touched = [cid for k0, k1, n0, n1, cid in kept.segments if cid and n0 < span[1] and span[0] < n1]
+        return span, touched
+
+    @staticmethod
+    def _source(result: ScanResult, res: ResolvedAnnotation) -> dict[str, Any] | None:
+        """Where a mark on a cited work's page stands in the work's source (`refs.sourcemap.source_of`), or None; computed as the manifest is published, never recorded."""
+        a = res.annotation
+        page = res.page or (a.anchor.page if a.anchor else a.page)
+        if not res.work or not page or res.detached or a.selector is None or not a.selector.exact:
+            return None
+        from loom.refs.sourcemap import source_of
+
+        return source_of(result, res.work, a.selector.exact, a.selector.prefix, a.selector.suffix, page)
+
+    def _box_again(self, result: ScanResult, home: Path, a: Annotation) -> Any:
+        """A box on a work's page found again on the work's changed file by the words around it and its gap (`marks.refound`), or None; a box that records neither stands where it was drawn."""
+        from loom.records.marks import artifact_of, refound
+
+        pdf = home / "paper.pdf"
+        if a.gap is None or a.anchor is None or not pdf.is_file():
+            return None
+        return refound(result, pdf, a, artifact_of(pdf))
 
     def _work(self, result: ScanResult, a: Annotation, works: dict[str, str]) -> str:
         """The citekey of the cited work `a`'s target identifies, '' when it names none; looked up once per target."""
@@ -595,29 +662,60 @@ class Records:
     ) -> ResolvedAnnotation:
         """An annotation on a page of a PDF that records its own place, or on a cited work as a whole.
 
-        On a page, it is detached when the PDF's bytes changed under it and its words are not found again, and stands where they are found when they are (`marks.on_the_pdf_now`); a whole work has nothing to detach from.
+        On a page, unchanged bytes keep it where it was written, and nothing reads the file. When the PDF's bytes changed under it, it is found again anywhere in the document by the words it recorded around it (`marks.refound`) and stands there, `refound`; when they are not found, or the file is gone, it is detached (A3). One that names no hash was written with nothing to compare, and nothing is claimed of it. A whole work has nothing to detach from.
         """
-        from loom.records.marks import artifact_of, on_the_pdf_now, pdf_of
+        from loom.records.marks import artifact_of, pdf_of, refound
 
         ck = self._work(result, a, works)
         if a.page is None:
             return ResolvedAnnotation(a, rec, None, False, True, ck, target=a.target_key)
         pdf = pdf_of(result, a.target_key, ck)
-        if pdf is None:
-            return ResolvedAnnotation(a, rec, None, bool(a.artifact), True, ck, target=a.target_key, rects=a.rects)
-        quote = a.selector.exact if a.selector else None
-        detached, moved = on_the_pdf_now(pdf, a.artifact, a.page, quote)
+
+        def where(detached: bool, hides: str | None = None) -> ResolvedAnnotation:
+            return ResolvedAnnotation(
+                a,
+                rec,
+                None,
+                detached,
+                True,
+                ck,
+                target=a.target_key,
+                rects=a.rects,
+                page=a.page,
+                strokes=a.strokes,
+                hides=hides,
+            )
+
+        if pdf is None or not pdf.is_file():
+            return where(bool(a.artifact))
+        now = artifact_of(pdf)
         ref, sha = (a.origin or {}).get("ref"), (a.origin or {}).get("sha")
         # the PDF's own annotation it came from is still in the file, so a viewer drawing the file's annotations hides that one
-        hides = str(ref) if ref and pdf.is_file() and sha == artifact_of(pdf) else None
+        hides = str(ref) if ref and sha == now else None
+        if a.artifact is None or a.artifact == now:
+            return where(False, hides)
+        moved = refound(result, pdf, a, now)
+        if moved is None:
+            return where(True, hides)
         return ResolvedAnnotation(
-            a, rec, None, detached, True, ck, target=a.target_key, rects=moved or a.rects, hides=hides
+            a,
+            rec,
+            None,
+            False,
+            True,
+            ck,
+            target=a.target_key,
+            rects=moved.rects,
+            page=moved.page,
+            strokes=moved.strokes,
+            refound=True,
+            hides=hides,
         )
 
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
-        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (V3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
+        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (V3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes. A recorded note whose words are gone has its version published by the build (`render/versions.py`). A note with no `against` claimed no version and counts as recorded.
         """
         want = a.target_hash
         if not want:
@@ -872,7 +970,8 @@ class Records:
                     "key": res.target,
                     "hash": a.target_hash,
                     "work": res.work or None,
-                    "page": a.anchor.page if a.anchor else a.page,
+                    # where it stands now: the page it was found again on, on a changed PDF
+                    "page": res.page or (a.anchor.page if a.anchor else a.page),
                     # a project PDF, by its path
                     "file": a.target_key if a.target_key.lower().endswith(".pdf") else None,
                 },
@@ -882,6 +981,8 @@ class Records:
                 # its type, while the quilt lists it: an annotation whose type was deleted reads as untyped, looking as it did
                 "type": a.type if self.types.get(a.type) else None,
                 "look": self.look(a),
+                # the comment as written, which an editor starts from, and as rendered
+                "body": a.body,
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
@@ -890,14 +991,23 @@ class Records:
                 and res.recorded,
                 "detached": res.detached,
                 "recorded": res.recorded,
-                "quote": a.selector.exact if a.selector else None,
-                # on a PDF page that records its own place: where it stands, its strokes, the tool it was drawn with, and where an import came from
+                "quote": (a.selector.exact or None) if a.selector else None,
+                # on a PDF page that records its own place: where it stands now, its strokes, the tool it was drawn with, and where an import came from
                 "rects": res.rects,
-                "strokes": a.strokes,
+                "strokes": res.strokes if res.refound else a.strokes,
+                # a drawing's gap from its pin word, by which a changed file places it; whether it stands where it was found again on a changed file; and, on a work with its source, where its words stand there
+                "gap": a.gap,
+                "refound": res.refound,
+                "source": self._source(result, res),
+                # the changes waiting on the person that its words touch, and, carried by a kept change onto its new words, the words it was on and that change
+                "on_changes": list(res.on_changes),
+                "earlier": dict(a.earlier) if a.earlier else None,
                 "mark": a.mark,
                 "origin": a.origin,
                 "hides": res.hides,
                 "resolved_why": a.resolved_why,
+                # the version it was written on, for one whose words are gone, set when the build makes it (`render/versions.py`)
+                "version": None,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

@@ -450,6 +450,10 @@ def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     succeeds(s, "edit", {"session": sid, "annotation": ann, "type": None, "look": {"style": "strike"}, "author": WHO})
     edited = events(q, ann)[-1]
     assert (edited["type"], edited["look"], edited["drawn"]["style"]) == (None, {"style": "strike"}, "strike"), edited
+    # a null look drops the look set on it, so it is drawn in its type's and follows a later edit to the type
+    succeeds(s, "edit", {"session": sid, "annotation": ann, "type": "question", "look": None, "author": WHO})
+    edited = events(q, ann)[-1]
+    assert (edited["type"], edited["look"], edited["drawn"]["color"]) == ("question", {}, "blue"), edited
     refuses(
         s, "edit", {"session": sid, "annotation": ann, "look": "red", "author": WHO}, 400, "bad-field", "look must be"
     )
@@ -932,30 +936,6 @@ def _open(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     refuses(s, "open", {"file": "README.md"}, 400, "not-openable", "never opens a file that may run code")
 
 
-@case("changes-keep")
-def _changes_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    from loom.looks import read_look
-    from loom.scan.quilt import save_author
-
-    save_author("Tester")
-    s, q, _ = on_demo(serve, tmp_path)
-    succeeds(s, "changes-keep", {})
-    look = read_look(q, "Tester")
-    assert look is not None and "README.md" in look.files
-    (q / "README.md").write_text("changed\n", encoding="utf-8")
-    succeeds(s, "changes-keep", {"path": "README.md"})
-    refuses(s, "changes-keep", {"author": "Referee (Agent)"}, 403, "author-only", "only the author keeps")
-    # one change of a file, against the hash the page drew; a page drawn before the file moved is stale
-    from loom.scan.hashing import sha256
-
-    (q / "README.md").write_text("changed again\n", encoding="utf-8")
-    refuses(s, "changes-keep", {"path": "README.md", "hunks": [0], "seen": "0" * 64}, 409, "stale", "changed since")
-    refuses(s, "changes-keep", {"path": "README.md", "hunks": [-1]}, 400, "bad-field", "whole numbers")
-    refuses(s, "changes-keep", {"path": "README.md", "hunks": []}, 400, "bad-field", "whole numbers")
-    refuses(s, "changes-keep", {"path": "README.md", "hunks": [3]}, 404, "no-such-hunk", "no change number 3")
-    succeeds(s, "changes-keep", {"path": "README.md", "hunks": [0], "seen": sha256((q / "README.md").read_text())})
-
-
 @case("file-tick")
 def _file_tick(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     from loom.looks import changes
@@ -964,10 +944,10 @@ def _file_tick(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
 
     save_author("Tester")
     s, q, _ = on_demo(serve, tmp_path)
-    succeeds(s, "changes-keep", {})
+    succeeds(s, "change-keep", {"all": True})
     p = q / "todo.md"
     p.write_text("- [ ] one\n- [x] two\n", encoding="utf-8")
-    succeeds(s, "changes-keep", {})
+    succeeds(s, "change-keep", {"all": True})
     one, two = (t.id for t in items(p.read_text(encoding="utf-8")))
     said = succeeds(s, "file-tick", {"path": "todo.md", "task": one, "done": True})
     assert said["result"] == "ticked a box in todo.md"
@@ -993,27 +973,6 @@ def _file_tick(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     # the token is what keeps other pages out, here as for every write
     assert post(s.url + "_api/file-tick", body, token="wrong")[0] == 403
     assert p.read_text(encoding="utf-8") == "- [x] one\n- [ ] two\n"
-
-
-@case("changes-undo")
-def _changes_undo(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    from loom.scan.quilt import save_author
-
-    save_author("Tester")
-    s, q, _ = on_demo(serve, tmp_path)
-    succeeds(s, "changes-keep", {})
-    before = (q / "README.md").read_text()
-    (q / "README.md").write_text("an agent's edit\n", encoding="utf-8")
-    succeeds(s, "changes-undo", {"path": "README.md"})
-    assert (q / "README.md").read_text() == before
-    refuses(
-        s, "changes-undo", {"path": "README.md", "author": "Referee (Agent)"}, 403, "author-only", "only the author"
-    )
-    refuses(s, "changes-undo", {"path": "never-there.md"}, 409, "nothing-to-undo", "has not changed")
-    # a file new since the look is removed, its text kept
-    (q / "brand-new.md").write_text("new\n", encoding="utf-8")
-    succeeds(s, "changes-undo", {"path": "brand-new.md"})
-    assert not (q / "brand-new.md").exists()
 
 
 @case("history-record")
@@ -1049,39 +1008,49 @@ def filed(q: Path, *args: str, who: str = WHO) -> str:
     return str(json_of("suggest", "dm-0002", *args, "--as", who, "--json", cwd=q)["edit"])
 
 
-@case("suggestion-apply")
-def _suggestion_apply(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("change-keep")
+def _change_keep(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.scan.quilt import save_author
+
     s, q, _sid = on_demo(serve, tmp_path)
+    save_author(WHO)
+    # before a first look, keeping all takes one
+    assert succeeds(s, "change-keep", {"all": True})["result"] == "took your first look"
     lemma = q / "drafting" / "nodes" / "dm-0002.tex"
+    lemma.write_text(lemma.read_text().replace("Every orbit", "Each orbit"))
     edit = filed(q, "--quote", "one or two points", "--with", "at most two points")
-    refuses(s, "suggestion-apply", {"edit": edit, "author": "Claude Agent"}, 403, "author-only", "only the author")
-    said = succeeds(s, "suggestion-apply", {"edit": edit, "author": WHO})["result"]
-    assert said.startswith(f"applied {edit} in ") and f"kept {edit}" in said
-    assert "at most two points" in lemma.read_text()
-    kept = [json.loads(x) for x in (q / ".loom/edits" / "log.jsonl").read_text().splitlines() if edit in x][-1]
-    assert kept["event"] == "kept" and kept["hash"]
-    refuses(s, "suggestion-apply", {"edit": edit, "author": WHO}, 409, "not-open", "kept already")
-    refuses(s, "suggestion-apply", {"author": WHO}, 400, "missing-field", "edit is required")
+    s.rebuild()
+    pending = {c["id"]: c for c in json.loads(get(s.url + "build/manifest.json")[2])["changes"]}
+    (inplace,) = [i for i, c in pending.items() if c["kind"] == "edit"]
+    refuses(s, "change-keep", {"changes": [inplace], "author": "Claude Agent"}, 403, "author-only", "only the author")
+    refuses(s, "change-keep", {"changes": ["c-00000000"]}, 404, "no-such-change", "no change c-00000000")
+    refuses(s, "change-keep", {}, 400, "missing-field", "changes is the list")
+    said = succeeds(s, "change-keep", {"changes": [inplace, edit]})
+    assert said["done"] == [inplace, edit] and said["refused"] == [] and said["result"].startswith("kept 2 changes; ")
+    assert "at most two points" in lemma.read_text() and "Each orbit" in lemma.read_text()
+    s.rebuild()
+    left = [c["id"] for c in json.loads(get(s.url + "build/manifest.json")[2])["changes"]]
+    assert inplace not in left and edit not in left
 
 
-@case("suggestion-discard")
-def _suggestion_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("change-discard")
+def _change_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.scan.quilt import save_author
+
     s, q, _sid = on_demo(serve, tmp_path)
-    edit = filed(q, "--quote", "Every orbit", "--with", "Each orbit", who="Referee Agent")
-    refuses(s, "suggestion-discard", {"edit": edit, "author": "Other Agent"}, 403, "not-yours", "discards only its own")
-    said = succeeds(s, "suggestion-discard", {"edit": edit, "why": "not needed", "author": WHO})["result"]
-    assert said == f"discarded {edit}"
-    assert (
-        succeeds(s, "suggestion-discard", {"edit": edit, "undo": True, "author": WHO})["result"] == f"reopened {edit}"
-    )
-    refuses(
-        s,
-        "suggestion-discard",
-        {"edit": "e-1999-01-01-ekn992", "author": WHO},
-        404,
-        "no-such-edit",
-        "no suggested edit",
-    )
+    save_author(WHO)
+    succeeds(s, "change-keep", {"all": True})
+    lemma = q / "drafting" / "nodes" / "dm-0002.tex"
+    lemma.write_text(lemma.read_text().replace("Every orbit", "Each orbit"))
+    edit = filed(q, "--quote", "one or two points", "--with", "at most two points", who="Referee Agent")
+    s.rebuild()
+    pending = [c for c in json.loads(get(s.url + "build/manifest.json")[2])["changes"] if c["kind"] == "edit"]
+    refuses(s, "change-discard", {"changes": [edit], "author": "Referee Agent"}, 403, "author-only", "only the author")
+    said = succeeds(s, "change-discard", {"changes": [pending[0]["id"], edit], "why": "not needed"})
+    assert said["done"] == [pending[0]["id"], edit] and "Every orbit" in lemma.read_text()
+    # the viewer's undo opens a discarded suggested edit again; an in-place change comes back from History
+    assert succeeds(s, "change-discard", {"changes": [edit], "undo": True})["done"] == [edit]
+    refuses(s, "change-discard", {"changes": ["c-00000000"], "undo": True}, 404, "no-such-change", "from History")
 
 
 @case("history-restore")
@@ -1113,9 +1082,13 @@ def _history_restore(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
     agent = {"document": "drafting/main.tex", "version": first, "author": "Referee (Agent)"}
     refuses(s, "history-restore", agent, 403, "author-only", "only the author")
     # the text an undo set aside goes back into its file, the file's text now kept first
-    succeeds(s, "changes-keep", {})
+    from loom.pending import in_place
+    from loom.scan.scan import scan
+
+    succeeds(s, "change-keep", {"all": True})
     (q / "README.md").write_text("an edit undone\n", encoding="utf-8")
-    succeeds(s, "changes-undo", {"path": "README.md"})
+    ids = [c.id for c in in_place(scan(load_quilt(q))) if c.path == "README.md"]
+    succeeds(s, "change-discard", {"changes": ids})
     undone = [e for e in load_history(load_quilt(q).history_dir).entries if e.action == "undo"][-1]
     succeeds(s, "history-restore", {"path": "README.md", "text": undone.get("from")})
     assert (q / "README.md").read_text() == "an edit undone\n"
@@ -1157,6 +1130,46 @@ def _settings_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         "author-only",
         "only the author changes",
     )
+
+
+@case("types-save")
+def _types_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    from loom.records.types import default_text, load_types
+
+    s, q, _ = on_demo(serve, tmp_path)
+    look = {"color": "green", "style": "underline", "weight": 2, "opacity": 60}
+    given = [
+        {"name": "Citation \\cite", **look, "open": False, "notes": True, "instructions": 'Use \\cite{x} and """.'},
+        {"id": "revision", "name": "Must change", **look, "color": "red", "open": True, "notes": False},
+    ]
+    said = succeeds(s, "types-save", {"types": given})
+    assert said["result"] == "saved 2 annotation types"
+    # in the order given, an id drawn from the name where none was, every field as sent
+    assert [(t["id"], t["name"]) for t in said["types"]] == [
+        ("citation-cite", "Citation \\cite"),
+        ("revision", "Must change"),
+    ]
+    assert said["types"][0]["instructions"] == 'Use \\cite{x} and """.' and said["types"][0]["look"] == look
+    text = (q / ".loom" / "annotation-types.toml").read_text(encoding="utf-8")
+    assert text.startswith(default_text().split("\n[[type]]", 1)[0])
+    assert [t.id for t in load_types(q).types] == ["citation-cite", "revision"]
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert [t["id"] for t in manifest["annotation_types"]] == ["citation-cite", "revision"]
+    # a refusal names the type, and writes nothing
+    for body, match in (
+        ({"types": [{**given[1], "name": " "}]}, "type 1 has no name"),
+        ({"types": [given[1], {**given[1], "id": None}]}, "type 'Must change' is named twice"),
+        ({"types": [{**given[1], "color": "mauve"}]}, "type 'Must change'"),
+        ({"types": [{**given[1], "weight": None}]}, "type 'Must change' has no weight"),
+        ({"types": [{**given[1], "id": "Bad id"}]}, "its id is lowercase"),
+    ):
+        refuses(s, "types-save", body, 400, "bad-field", match)
+    assert (q / ".loom" / "annotation-types.toml").read_text(encoding="utf-8") == text
+    refuses(s, "types-save", {}, 400, "missing-field", "types is the list")
+    refuses(s, "types-save", {"defaults": True, "author": "Referee (Agent)"}, 403, "author-only", "only the author")
+    said = succeeds(s, "types-save", {"defaults": True})
+    assert said["result"] == "restored the default annotation types"
+    assert (q / ".loom" / "annotation-types.toml").read_text(encoding="utf-8") == default_text()
 
 
 @case("agents-update")

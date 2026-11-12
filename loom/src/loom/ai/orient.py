@@ -149,6 +149,8 @@ def instructions(root: Path, name: str) -> str:
     bridge = (
         "When the person points at something without naming it, loom_here says what they are looking at in the "
         "viewer; loom_since says what they did since you last looked, so call it when a conversation starts. "
+        "An annotation on a PDF page comes with a crop of the page as an image: TeX you read off a crop is your own "
+        "reading, while a `source` span is the work's own text. "
         f"The quilt's annotation types, by the id `type` takes: {types_line(load_types(root))}; when to use each is in loom_ai_orient."
     )
     return opening + "\n" + bridge + "\n" + mode_index(root).replace("`loom ai mode NAME`", "`loom_ai_mode`")

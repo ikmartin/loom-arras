@@ -1,8 +1,10 @@
-// Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, the suggested edit that answers one, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
+// Annotations as a reader meets them: marks in the text, the margin's icons, the one popup, the stepper, the Comments and Notes lists, Quote, the toolbar's tools and format menu where a publisher serves writes, and Settings › Annotations. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane, prefs, settings, viewMenu } from '../workspace';
-import { pickSession } from '../picker';
-import { manifest, REFEREE, saying, serve } from '../manifest';
+import { pane, settings, viewMenu } from '../workspace';
+import { REFEREE, saying, serveKept } from '../manifest';
+
+// these are about annotations and the page; the fixture's pending changes are left out, and tested apart (changes.e2e.ts)
+test.beforeEach(({ page }) => serveKept(page));
 
 /** A computed CSS colour's channels, in whichever form the browser serialises it: `rgb(r, g, b)`, `rgba(r, g, b, a)` or `color(srgb r g b / a)`. */
 function channels(colour: string): { r: number; g: number; b: number; a: number } {
@@ -46,15 +48,13 @@ async function selectWithin(at: import('@playwright/test').Locator): Promise<voi
 // The nine colours as theme.css draws them in the light: a line, and a band for a highlight.
 const RED = { r: 204, g: 28, b: 28 };
 const RED_BAND = { r: 255, g: 125, b: 115 };
-const ORANGE = { r: 196, g: 90, b: 10 };
 const ORANGE_BAND = { r: 255, g: 190, b: 120 };
 const BLUE = { r: 26, g: 111, b: 196 };
 const BLUE_BAND = { r: 140, g: 205, b: 255 };
 const GREEN = { r: 30, g: 125, b: 54 };
 const GREY_BAND = { r: 216, g: 213, b: 205 };
-const NEUTRAL = { r: 111, g: 109, b: 102 };
 
-// The mark is the annotation's own look: a highlight is its colour's band at its opacity, an underline or a strike a line of its weight, the mark whose box is open adds what its style lacks, and a settled annotation is not drawn. Each test holds one clause of that rule against the computed style, never a pixel.
+// The mark is the annotation's own look: a highlight is its colour's band at its opacity, an underline or a strike a line of its weight, the marks of the one whose popup is open add what their style lacks, and a settled annotation is not drawn. Each test holds one clause of that rule against the computed style, never a pixel.
 test.describe('marks', () => {
 	const mark = (page: Page, id: string) => page.locator(`.fragment mark.annotation[data-annotation~="${id}"]`);
 
@@ -72,7 +72,7 @@ test.describe('marks', () => {
 	});
 
 	test('an underline is a line of its weight at the foot of the words, a strike one through them, each at its opacity', async ({ page }) => {
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 3, opacity: 100 };
 			m.annotations['a-2026-09-16-ecnav2'].look = { color: 'green', style: 'strike', weight: 1, opacity: 50 };
 		});
@@ -93,7 +93,7 @@ test.describe('marks', () => {
 	});
 
 	test("the look is the annotation's own: renaming or deleting its type changes nothing drawn, and a colour the viewer does not know is grey", async ({ page }) => {
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotation_types = [];
 			m.annotations['a-2026-09-16-bns3an'].look.color = 'teal';
 		});
@@ -104,8 +104,8 @@ test.describe('marks', () => {
 		expect((await drawn(mark(page, 'a-2026-09-16-bns3an'))).band).toMatchObject(GREY_BAND);
 	});
 
-	test('the one mark whose box is open adds what its style lacks: a line beneath a band, a band behind a line; nothing is outlined', async ({ page }) => {
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 2, opacity: 100 }));
+	test('the marks of the one annotation whose popup is open add what their style lacks: a line beneath a band, a band behind a line; nothing is outlined', async ({ page }) => {
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 2, opacity: 100 }));
 		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-ecnav2');
 		const other = mark(page, 'a-2026-09-16-bns3an');
@@ -113,13 +113,13 @@ test.describe('marks', () => {
 		expect((await drawn(other)).band.a).toBe(0);
 		await m.click();
 		await expect(m).toHaveClass(/\bopen\b/);
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(1);
+		await expect(page.getByTestId('ann-popup')).toHaveCount(1);
 		const open = await drawn(m);
 		expect([open.bar, open.at]).toEqual(['2px', '100%']);
 		expect(open.line).toMatchObject(RED);
 		expect(open.band).toMatchObject(RED_BAND);
 		expect(open.outline).toBe('none');
-		// the open mark says which box is open, so the other stays as it was
+		// the open mark says which popup is open, so the other stays as it was
 		expect((await drawn(other)).band.a).toBe(0);
 		await page.keyboard.press('Escape');
 		await expect(m).not.toHaveClass(/\bopen\b/);
@@ -132,9 +132,12 @@ test.describe('marks', () => {
 		expect(lined.bar).toBe('2px');
 	});
 
-	test('an annotation with no mark of its own is a mark on its node\'s label, and several share one', async ({ page }) => {
-		// a-2026-09-16-hqnbz4 has no quote and a-2026-09-16-a91hwf lost its anchor; both are put on sy-0002's label
-		await serve(page, (m) => (m.annotations['a-2026-09-16-a91hwf'].target.key = 'sy-0002'));
+	test('an annotation with no mark of its own is a mark on its node\'s label, and several share one, which opens the first', async ({ page }) => {
+		// a-2026-09-16-hqnbz4 has no quote and a-2026-09-16-a91hwf lost its anchor with no place loom could say its words were; both are put on sy-0002's label
+		await serveKept(page, (m) => {
+			m.annotations['a-2026-09-16-a91hwf'].target.key = 'sy-0002';
+			m.annotations['a-2026-09-16-a91hwf'].version = null;
+		});
 		await page.goto('/master/drafting/main');
 		const label = page.locator('.fragment .env[data-key="sy-0002"] > .env-label mark.annotation-label');
 		await expect(label).toHaveCount(1);
@@ -143,17 +146,19 @@ test.describe('marks', () => {
 		// no count is drawn anywhere: the label's own words are marked and nothing is added to them
 		await expect(page.locator('.fragment button.comment-count')).toHaveCount(0);
 		await label.click();
-		const boxes = page.locator('aside.comment-slot.expanded article.box');
-		await expect(boxes).toHaveCount(2);
-		await expect(page.locator('aside.comment-slot.expanded article.box[data-annotation-id="a-2026-09-16-hqnbz4"]')).toHaveCount(1);
+		await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', 'a-2026-09-16-hqnbz4');
+		// the label's line has a count in the margin, and its chooser lists what starts there
+		await page.getByTestId('margin-count').first().click();
+		await expect(page.getByTestId('line-chooser').locator('.pkrow[data-annotation="a-2026-09-16-hqnbz4"]')).toHaveCount(1);
+		await page.keyboard.press('Escape');
 		// the label mark takes the look of its leading annotation, as any mark does
 		await expect(label).toHaveClass(/\bann-highlight\b/);
 		expect((await drawn(label)).band).toMatchObject(ORANGE_BAND);
 	});
 
-	test('a phrase with two annotations is one mark whose box lists both, with no count drawn', async ({ page }) => {
+	test('a phrase with two annotations is one mark, opening the first, with no count drawn', async ({ page }) => {
 		// the reply on the revision's phrase is made an annotation of its own, so the one mark carries two
-		await serve(page, (m) => (m.annotations['a-2026-09-16-hwnav1'].in_reply_to = null));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-hwnav1'].in_reply_to = null));
 		await page.goto('/node/sy-0003');
 		const m = mark(page, 'a-2026-09-16-ecnav2');
 		await expect(m).toHaveCount(1);
@@ -161,7 +166,9 @@ test.describe('marks', () => {
 		await expect(m).not.toHaveAttribute('data-count');
 		expect(await m.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 		await m.click();
-		await expect(page.locator('aside.comment-slot.expanded article.box')).toHaveCount(2);
+		await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		// the margin has one for each, a count on their one line
+		await expect(page.getByTestId('margin-count')).toHaveText('2');
 	});
 
 	test('a settled annotation is not drawn until settled annotations are shown, and then faintly, the words untouched', async ({ page }) => {
@@ -173,14 +180,9 @@ test.describe('marks', () => {
 		expect((await drawn(m)).line.a).toBe(0);
 		expect((await drawn(m)).band.a).toBe(0);
 		await expect(m).toHaveAttribute('tabindex', '-1');
-		// nothing to open: a click on the words is a click on the words, and show all opens nothing
+		// nothing to open: a click on the words is a click on the words
 		await m.dispatchEvent('click');
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-		await viewMenu(page);
-		await page.getByTestId('toggle-annotations').click();
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-		await viewMenu(page);
-		await page.getByTestId('toggle-annotations').click();
+		await expect(page.getByTestId('ann-popup')).toHaveCount(0);
 		// shown by the toolbar's control: its look at 40% of its opacity, and the mark opens again
 		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
@@ -188,12 +190,12 @@ test.describe('marks', () => {
 		expect(shown.band).toMatchObject(ORANGE_BAND);
 		expect(shown.band.a).toBeCloseTo(0.24, 2);
 		await m.click();
-		await expect(page.locator('aside.comment-slot.expanded article.box[data-annotation-id="a-2026-09-16-hwtkaw"]')).toHaveCount(1);
+		await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', 'a-2026-09-16-hwtkaw');
 	});
 
 	test('a block mark is drawn in its look: a quote loom could not place marks its whole block, a list among them, underlined line by line', async ({ page }) => {
 		// the publisher marks the block with `annotation-block` alone; the viewer gives it `annotation`, which every rule for the look, settled and hidden is keyed on
-		await serve(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].look = { color: 'red', style: 'underline', weight: 2, opacity: 100 }));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].look = { color: 'red', style: 'underline', weight: 2, opacity: 100 }));
 		await page.route('**/fragments/masters/drafting/main.html', async (route) => {
 			const res = await route.fetch();
 			const body = (await res.text()).replace('<ul data-src=', '<ul class="annotation-block" data-annotation="a-2026-09-16-ecnav2" data-src=');
@@ -239,667 +241,750 @@ test.describe('marks', () => {
 	});
 });
 
-test.describe('marks and boxes', () => {
-	test('a node draws no annotation list: its marks open their boxes, and show all opens every one that is drawn, in the flow', async ({ page }) => {
-		// a mark opens its annotation as a floating box over the text; `show all annotations` opens every one; nothing below the node lists them again
+
+/** Advertise `caps` from the publisher's write API, accept every write and keep each body by endpoint, the last one sent; `vite preview` serves none, and the controls appear only where one is. */
+async function writes(page: Page, caps: string[] = ['annotate', 'reply', 'resolve', 'edit', 'delete', 'restore', 'types-save']): Promise<Record<string, Record<string, unknown>>> {
+	const sent: Record<string, Record<string, unknown>> = {};
+	await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: caps, token: 't' } }));
+	await page.route('**/_api/*', (r) => {
+		const endpoint = new URL(r.request().url()).pathname.split('/').pop() ?? '';
+		sent[endpoint] = r.request().postDataJSON();
+		return r.fulfill({ json: { ok: true, result: endpoint === 'annotate' ? 'a-2026-11-12-new000  sy-0003  untyped  (you)' : 'done', removed: [] } });
+	});
+	return sent;
+}
+
+const popup = (page: Page) => page.getByTestId('ann-popup');
+const markOf = (page: Page, id: string) => page.locator(`.fragment mark.annotation[data-annotation~="${id}"]`);
+
+/** Open the popup of annotation `id` from its first mark. */
+async function openPopup(page: Page, id: string) {
+	await markOf(page, id).first().click();
+	const p = popup(page);
+	await expect(p).toHaveAttribute('data-annotation-id', id);
+	return p;
+}
+
+// The toolbar's two tools write where the reader is: Annotate marks words as they are selected, in the look in hand, and stays on; Comment leaves a comment at the next place clicked.
+test.describe('the toolbar', () => {
+	test('Annotate stays on, and words selected while it is on are marked at once in the look in hand, with Add comment at their end; Escape puts it down', async ({ page }) => {
+		const sent = await writes(page);
 		await page.goto('/node/sy-0003');
-		// counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does not fail a test that is about marks and boxes agreeing; a settled one is not drawn and so not opened
-		const open = await page.evaluate(async () => {
-			const m = await (await fetch(new URL('/build/manifest.json', location.href))).json();
-			// every key the node owns: its statement and its proofs, which carry ids of their own rather than a `/proof` suffix
-			const keys = Object.entries(m.keys)
-				.filter(([, k]: [string, any]) => k.node === 'sy-0003')
-				.map(([id]) => id);
-			return Object.values(m.annotations).filter((a: any) => keys.includes(a.target.key) && !a.in_reply_to && a.status === 'open' && !a.in).length;
-		});
-		expect(open).toBeGreaterThan(0);
-		await expect(page.getByTestId('annotation-list')).toHaveCount(0);
-		// the marks that are drawn: the revision's, and not the resolved suggestion's on the proof
-		const marks = page.locator('.fragment mark.annotation:not(.settled)');
-		await expect(marks).toHaveCount(open);
-		await expect(page.locator('.fragment mark.annotation.settled')).toHaveCount(1);
-		await marks.first().click();
-		const opened = page.locator('[data-testid="comment-expanded"] article.box');
-		await expect(opened).toHaveCount(1);
-		await expect(opened.locator('header')).toHaveCount(0); // the box begins with the body
-		await expect(opened.locator('article.reply')).toHaveCount(1);
-		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
-		// the toolbar's show all opens every one at once, each at its mark or beside its result's label, in the flow rather than floating
-		await viewMenu(page);
-		await page.getByTestId('toggle-annotations').click();
-		await expect(opened).toHaveCount(open);
-		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(0);
-		await viewMenu(page);
-		await page.getByTestId('toggle-annotations').click();
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-		// and with them closed, a single mark still floats
-		await marks.first().click();
-		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
-	});
-
-	test('floating, a mark opens a box clear of every edge and a second mark a second box; × closes one, Escape or a click away the rest, and hovering opens nothing', async ({ page }) => {
-		await prefs(page, { comments: 'floating' });
-		// any delay a hover could open a box after runs on the page's clock, which the test moves on rather than sleeping
-		await page.clock.install();
-		await page.goto('/master/drafting/main');
-		// a fragment is wired once for the default placement and again when the stored preferences arrive, so waiting on the marks is not enough: wait until it is wired for the placement under test
-		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
-		const first = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]');
-		const second = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-bns3an"]');
-		const slots = page.locator('aside.comment-slot.floating');
-		const open = page.locator('.comment-slot.expanded.floating');
-		await expect(slots).toHaveCount(0);
-
-		// hovering never opens one: a box the pointer summons cannot be read without holding it still, and moving toward the box leaves the mark
-		await first.hover({ force: true });
-		await page.clock.runFor(400);
-		await expect(slots).toHaveCount(0);
-
-		await first.click();
-		await expect(slots).toHaveCount(1);
-		// it floats over the page rather than opening in the flow, so it is free to overlap the text and the gutter
-		await expect(slots).toHaveCSS('position', 'fixed');
-		await expect(slots.locator('article.box')).toHaveCount(1);
-		// and it is kept clear of every edge, so a mark near one slides the box rather than clipping it
-		const inset = await slots.evaluate((el) => {
-			const r = el.getBoundingClientRect();
-			return Math.min(r.left, r.top, window.innerWidth - r.right, window.innerHeight - r.bottom);
-		});
-		expect(inset).toBeGreaterThanOrEqual(3.5);
-
-		// a second mark opens a second box rather than replacing the first, so two annotations can be read side by side
-		await second.click();
-		await expect(open).toHaveCount(2);
-		// a box's own × closes just that one
-		await open.first().locator('.comment-close').click();
-		await expect(open).toHaveCount(1);
-		// clicking the text closes what is left, leaving no faded stub behind
-		await page.locator('.fragment p').first().click({ position: { x: 4, y: 4 } });
-		await expect(open).toHaveCount(0);
-		await expect(page.locator('.comment-slot.floating.behind')).toHaveCount(0);
-
-		// Escape closes the front-most, and a click anywhere away closes what is open
-		await first.click();
-		await expect(slots).toHaveCount(1);
+		const tool = page.getByTestId('tool-annotate');
+		await tool.click();
+		await expect(tool).toHaveAttribute('aria-pressed', 'true');
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		// no type in hand, so the whole look travels and no type does; the place is the result the words are in
+		expect(sent.annotate).toMatchObject({ target: 'sy-0003', look: { color: 'yellow', style: 'highlight', weight: 2, opacity: 60 } });
+		expect(sent.annotate.quote).toContain('finite widget');
+		expect(sent.annotate).not.toHaveProperty('type');
+		expect(sent.annotate).not.toHaveProperty('message');
+		await expect(page.getByTestId('add-comment')).toBeVisible();
+		await expect(page.getByTestId('quote-offer')).toHaveCount(0);
+		await expect(tool).toHaveAttribute('aria-pressed', 'true');
 		await page.keyboard.press('Escape');
-		await expect(slots).toHaveCount(0);
-		await first.click();
-		await expect(slots).toHaveCount(1);
-		await page.mouse.click(4, 4);
-		await expect(slots).toHaveCount(0);
+		await expect(tool).toHaveAttribute('aria-pressed', 'false');
 	});
 
-	test('floating, a box that grows as its content renders stays clear of the window foot', async ({ page }) => {
-		await prefs(page, { comments: 'floating' });
+	test('a type that stays open asks something, so words marked with it open the popup to say it, and are written with what is said', async ({ page }) => {
+		const sent = await writes(page);
+		await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'question', over: {} })));
 		await page.goto('/master/drafting/main');
-		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
-		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]');
-		// the mark mid-window, so a box grown past the window fits neither below it nor above it and is held at the foot, where nothing is left to scroll to reach it
-		await mark.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-		await mark.click();
-		const slot = page.locator('aside.comment-slot.floating');
-		await expect(slot).toHaveCount(1);
-		// what renders after the box is placed makes it taller, as math and a proposed theorem do
-		await slot.evaluate((el) => {
-			const grown = document.createElement('div');
-			grown.style.height = '2000px';
-			el.querySelector('article.box')!.append(grown);
-		});
-		await expect
-			.poll(() => slot.evaluate((el) => window.innerHeight - el.getBoundingClientRect().bottom))
-			.toBeGreaterThanOrEqual(3.5);
+		await page.getByTestId('tool-annotate').click();
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
+		const draft = popup(page);
+		await expect(draft).toBeVisible();
+		await expect(draft.getByTestId('popup-type')).toContainText('Question');
+		expect(sent.annotate).toBeUndefined();
+		await draft.getByTestId('popup-comment-field').fill('Is finiteness needed?');
+		await draft.getByTestId('popup-save').click();
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		expect(sent.annotate).toMatchObject({ target: 'sy-0003', type: 'question', message: 'Is finiteness needed?', in: 'drafting/main.tex' });
+		expect(sent.annotate).not.toHaveProperty('look');
 	});
 
-	test('inline, a mark expands its comment beneath its paragraph; clicking away closes it', async ({ page }) => {
-		await prefs(page, { comments: 'inline' });
+	test('Comment leaves a comment at the place clicked, on the result there, and goes off', async ({ page }) => {
+		const sent = await writes(page);
 		await page.goto('/master/drafting/main');
-		await page.waitForSelector('.fragment .env[data-key]');
-		await expect(page.locator('aside.comment-slot.gutter')).toHaveCount(0);
-
-		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]');
-		await mark.click();
-		const open = page.locator('aside.comment-slot.expanded');
-		await expect(open).toHaveCount(1);
-		await expect(open.locator('article.box')).toHaveCount(1); // the reply is inside its parent, not a second box
-		await expect(open.locator('.replies')).toBeVisible();
-		await expect(mark).toHaveAttribute('aria-expanded', 'true');
-		// in the flow, directly after the paragraph holding the mark
-		const follows = await mark.evaluate((m) => {
-			const block = m.closest('p, li, .math.display, .annotation-block, summary');
-			return block?.nextElementSibling?.className ?? '(nothing follows the block)';
-		});
-		expect(follows.split(/\s+/)).toContain('expanded');
-
-		// clicking away closes it, leaving nothing behind
-		await page.mouse.click(5, 5);
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-
-		// and Escape closes the front-most
-		await mark.click();
-		await expect(open).toHaveCount(1);
-		await page.keyboard.press('Escape');
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
+		const tool = page.getByTestId('tool-comment');
+		await tool.click();
+		await expect(tool).toHaveAttribute('aria-pressed', 'true');
+		await pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first().click({ position: { x: 4, y: 4 } });
+		await expect(tool).toHaveAttribute('aria-pressed', 'false');
+		const draft = popup(page);
+		await expect(draft).toBeVisible();
+		await draft.getByTestId('popup-comment-field').fill('Say where parity is used.');
+		await expect(draft.getByTestId('popup-save')).toHaveText('Comment');
+		await draft.getByTestId('popup-comment-field').press('Enter');
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		expect(sent.annotate).toMatchObject({ target: 'sy-0003', message: 'Say where parity is used.', in: 'drafting/main.tex' });
+		expect(sent.annotate).not.toHaveProperty('quote');
 	});
 
-	test('inline, a mark on a label opens its box beneath the label', async ({ page }) => {
-		await prefs(page, { comments: 'inline' });
-		await page.goto('/master/drafting/main');
-		// a-2026-09-16-a91hwf lost its anchor, so it is marked on sy-0001's label
-		const label = page.locator('.fragment .env[data-key="sy-0001"] > .env-label mark.annotation-label');
-		await expect(label).toHaveAttribute('data-annotation', 'a-2026-09-16-a91hwf');
-		await label.click();
-		const open = page.locator('aside.comment-slot.expanded');
-		await expect(open.locator('article.box')).toHaveCount(1);
-		expect(await label.evaluate((m) => m.closest('.env-label')?.nextElementSibling?.className ?? '')).toContain('expanded');
-	});
-
-	test('e opens every annotation at its mark, and h closes them', async ({ page }) => {
-		// the document view draws no buttons for these, so the keys are the whole affordance here
-		await page.goto('/master/drafting/main');
-		await page.waitForSelector('.fragment mjx-container');
-		const boxes = page.locator('aside.comment-slot.expanded');
-		await expect(page.getByTestId('content-head')).toHaveCount(0);
-		await expect(boxes).toHaveCount(0);
-
-		await page.locator('.fragment').focus();
-		await page.keyboard.press('e');
-		await expect.poll(() => boxes.count()).toBeGreaterThan(1);
-
-		await page.keyboard.press('h');
-		await expect(boxes).toHaveCount(0);
-	});
-
-	test('the keys draw no focus ring around the document', async ({ page }) => {
-		// a click focuses the document without a ring and a key then asks for one, which around a document taller than the window showed as two blue rules down its sides
-		await page.goto('/master/drafting/main');
-		await page.waitForSelector('.fragment mjx-container');
-		const fragment = page.locator('.fragment');
-		await fragment.locator('p').first().click();
-		await page.keyboard.press('e');
-		expect(await fragment.evaluate((el) => el.matches(':focus-visible'))).toBe(true);
-		await expect(fragment).toHaveCSS('outline-style', 'none');
-	});
-
-	test('an annotation on a whole document is not drawn above its title', async ({ page }) => {
-		await page.goto('/master/drafting/main');
-		await expect(page.locator('.fragment').first()).toBeVisible();
-		await expect(page.getByTestId('document-annotations')).toHaveCount(0);
+	test('with no write API there are no tools and no verbs, and the popup still shows what is written', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect(page.getByTestId('step-next')).toBeVisible();
+		await expect(page.getByTestId('tool-annotate')).toHaveCount(0);
+		await expect(page.getByTestId('tool-comment')).toHaveCount(0);
+		const p = await openPopup(page, 'a-2026-09-16-ecnav2');
+		await expect(p.getByTestId('popup-comment')).toContainText('finite');
+		await expect(p.getByTestId('popup-type')).toBeDisabled();
+		await expect(p.getByTestId('popup-resolve')).toHaveCount(0);
+		await expect(p.getByTestId('popup-delete')).toHaveCount(0);
+		await expect(p.getByTestId('popup-reply')).toHaveCount(0);
 	});
 });
 
-// The box begins with the body (annotation study fixes 12–17): nothing is said in words that the record already shows, the annotation's colour is the stripe, what it proposes stands at a rule in that colour, and everything an annotation can do happens inside its box.
-test.describe('the box', () => {
-	/** Advertise `caps` from the publisher's write API and accept every write. */
-	async function writes(page: Page, caps: string[]): Promise<void> {
-		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: caps, token: 't' } }));
-		await page.route('**/_api/*', (r) => r.fulfill({ json: { ok: true, result: 'done' } }));
-	}
-
-	/** Open the box of the annotation `id` from its mark, floating over the node it is on. */
-	async function openBox(page: Page, path: string, id: string) {
-		await page.goto(path);
-		await page.locator(`.fragment .annotation[data-annotation~="${id}"]`).first().click();
-		const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-		await expect(box).toBeVisible();
-		return box;
-	}
-
-	test('a reply being written survives a new manifest: the box is made again with its text, open, the cursor where it was', async ({ page }) => {
-		// a serving publisher writes a new manifest whenever the quilt changes, an agent's annotation among them, and the document re-draws its boxes: a reply kept only in the box was lost with it
-		let revision = 0;
-		let served = 0;
-		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['reply', 'resolve', 'edit', 'delete'] } }));
-		await serve(page, (m) => {
-			served += 1;
-			m.sessions[0].title = `A sitting, revision ${revision}`;
-		});
-		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await box.getByTestId('verb-reply').click();
-		const text = box.getByTestId('verb-text');
-		await text.fill('Half of what I meant to say');
-		revision = 1;
-		const before = served;
-		await expect.poll(() => served).toBeGreaterThan(before + 1);
-		await page.waitForTimeout(500);
-		const again = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-ecnav2"]').getByTestId('verb-text');
-		await expect(again).toHaveValue('Half of what I meant to say');
-		await expect(again).toBeFocused();
-		// cancel is what forgets it
-		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-ecnav2"]').getByTestId('verb-cancel').click();
-		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-ecnav2"]').getByTestId('verb-reply').click();
-		await expect(page.locator('[data-testid="comment-expanded"]').getByTestId('verb-text')).toHaveValue('');
-	});
-
-	test("it is titled by its type's name in its colour with the × on that line, then the body; no status word, author and date on one line", async ({ page }) => {
-		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		// the title line comes first: the type's name, in the annotation's colour, and the × at its right
-		expect(await box.evaluate((el) => el.firstElementChild?.className)).toContain('title');
-		const kind = box.getByTestId('box-type');
-		await expect(kind).toHaveText('Revision');
-		expect(channels(await css(kind, 'color'))).toMatchObject(RED);
-		const close = box.locator(':scope > .title .comment-close');
-		await expect(close).toHaveCount(1);
-		const [k, x] = [await kind.boundingBox(), await close.boundingBox()];
-		expect(Math.abs(k!.y + k!.height / 2 - (x!.y + x!.height / 2))).toBeLessThan(6);
-		expect(x!.x).toBeGreaterThan(k!.x + k!.width);
-		// then the body
-		expect(await box.evaluate((el) => el.children[1]?.className)).toContain('body');
-		await expect(box.locator('.body').first()).toContainText('parity count');
-		const who = box.locator(':scope > .meta .who');
-		await expect(who).toHaveText(/^agent · \S/);
-		await expect(who).not.toContainText(/revision|open/i);
-		expect(channels(await css(box, 'border-left-color'))).toMatchObject(RED);
-		await expect(box).toHaveCSS('border-left-width', '3px');
-		// no wash of its own: the colour is the stripe and nothing else
-		expect(channels(await css(box, 'background-color'))).not.toMatchObject(RED);
-	});
-
-	test("the stripe is the annotation's own colour; one whose type the quilt no longer has keeps it, untitled", async ({ page }) => {
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].type = 'remark'));
-		const question = await openBox(page, '/node/sy-0002', 'a-2026-09-16-bns3an');
-		expect(channels(await css(question, 'border-left-color'))).toMatchObject(BLUE);
-		await expect(question.getByTestId('box-type')).toHaveText('');
+// The format menu sets the look in hand: the Type list, the look controls and Customize. The hand is remembered in this browser.
+test.describe('the format menu', () => {
+	test('lists No type and the quilt’s types with their keys; a type chosen, or a look, is what Annotate shows and what the next visit holds', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		const sample = page.getByTestId('tool-annotate').getByTestId('sample');
+		await expect(sample).toHaveClass(/\bann-highlight\b/);
+		await page.getByTestId('format-toggle').click();
+		const menu = page.getByTestId('format-menu');
+		await expect(menu.getByTestId('type-none')).toHaveAttribute('aria-selected', 'true');
+		await expect(menu.getByTestId('type-row')).toHaveText(['Ab Revision 1', 'Ab Suggestion 2', 'Ab Question 3', 'Ab Note 4'].map((t) => new RegExp(t.replace(/ /g, '\\s*'))));
+		await menu.locator('[data-testid="type-row"][data-type="revision"]').click();
+		await expect(menu.locator('[data-testid="type-row"][data-type="revision"]')).toHaveAttribute('aria-selected', 'true');
+		expect((await drawn(sample)).band).toMatchObject(RED_BAND);
+		// a look over the type: strike, then green
+		await menu.getByTestId('style-strike').click();
+		await menu.getByTestId('swatch-green').click();
+		await expect(sample).toHaveClass(/\bann-strike\b/);
+		expect((await drawn(sample)).line).toMatchObject(GREEN);
 		await page.keyboard.press('Escape');
-		const suggestion = await openBox(page, '/node/sy-0002', 'a-2026-09-16-hqnbz4');
-		expect(channels(await css(suggestion, 'border-left-color'))).toMatchObject(ORANGE);
-		await expect(suggestion.getByTestId('box-type')).toHaveText('Suggestion');
+		await expect(menu).toHaveCount(0);
+		const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand') ?? '{}'));
+		expect(kept).toEqual({ type: 'revision', over: { style: 'strike', color: 'green' } });
+		await page.reload();
+		await expect(page.getByTestId('tool-annotate').getByTestId('sample')).toHaveClass(/\bann-strike\b/);
 	});
 
-	test('no quote on an anchored annotation, whose mark is the quote; the quote, italic, on one with no mark of its own', async ({ page }) => {
-		const anchored = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await expect(anchored.locator('.quote')).toHaveCount(0);
-		// a-2026-09-16-a91hwf lost its anchor, so its box is the only record of the words it was about
-		const detached = await openBox(page, '/node/sy-0001', 'a-2026-09-16-a91hwf');
-		const quote = detached.locator('.quote');
-		await expect(quote).toContainText('an involution');
-		await expect(quote).toHaveCSS('font-style', 'italic');
-	});
-
-	test('an annotation an open suggested edit answers says so in one line, linking to its card in Proposed Changes, and proposes nothing itself', async ({ page }) => {
-		// the fixture's e-2026-09-16-r2hw0m answers a-2026-09-16-hwtkaw, which is resolved, so it is reopened to be drawn
-		await serve(page, (m) => (m.annotations['a-2026-09-16-hwtkaw'].status = 'open'));
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
-		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-hwtkaw');
-		const line = box.getByTestId('box-edit');
-		await expect(line).toContainText('A suggested edit answers it');
-		await expect(line.locator('a')).toHaveAttribute('href', '/review/proposed#e-2026-09-16-r2hw0m');
-		await expect(box.getByTestId('payload')).toHaveCount(0);
-		await expect(box.getByTestId('verb-apply')).toHaveCount(0);
-		await expect(box.getByTestId('verb-resolve')).toHaveText('resolve');
-		// one no edit answers has no such line
-		const other = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await expect(other.getByTestId('box-edit')).toHaveCount(0);
-	});
-
-	test('resolve is offered only where the type stays open until resolved; one that only informs, or none, has reply, edit and delete', async ({ page }) => {
-		await serve(page, (m) => {
-			m.annotations['a-2026-09-16-bns3an'].type = 'note';
-			m.annotations['a-2026-09-16-hqnbz4'].type = null;
-		});
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
-		const asks = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await expect(asks.getByTestId('verb-resolve')).toBeVisible();
-		for (const id of ['a-2026-09-16-bns3an', 'a-2026-09-16-hqnbz4']) {
-			const box = await openBox(page, '/node/sy-0002', id);
-			await expect(box.getByTestId('verb-reply')).toBeVisible();
-			await expect(box.getByTestId('verb-edit')).toBeVisible();
-			await expect(box.getByTestId('verb-delete')).toBeVisible();
-			await expect(box.getByTestId('verb-resolve')).toHaveCount(0);
-		}
-	});
-
-	test('reply and edit open inside the box beneath the meta line, and nothing pops over the text', async ({ page }) => {
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
-		await prefs(page, { comments: 'inline' });
-		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		const meta = box.locator(':scope > .meta');
-		const row = meta.getByTestId('verb-row');
-		await expect(row).toBeVisible();
-		await expect(row.getByTestId('verb-reply')).toHaveCSS('color', 'rgb(136, 135, 128)'); // --ink-faint: quiet until reached for
-
-		await row.getByTestId('verb-reply').click();
-		const panel = box.getByTestId('verb-panel');
-		await expect(panel).toBeVisible();
-		await expect(page.locator('.pop')).toHaveCount(0);
-		await expect(panel).toHaveCSS('position', 'static');
-		// beneath the verbs, inside the box: the box grows to hold it
-		const [pb, rb, bb] = await Promise.all([panel.boundingBox(), row.boundingBox(), box.boundingBox()]);
-		expect(pb!.y).toBeGreaterThanOrEqual(rb!.y + rb!.height - 1);
-		expect(pb!.y + pb!.height).toBeLessThanOrEqual(bb!.y + bb!.height + 1);
-		await expect(panel.getByTestId('verb-text')).toHaveAttribute('placeholder', 'reply');
-		// it says nothing until it has something to say
-		await expect(panel.getByTestId('verb-send')).toBeDisabled();
-		await panel.getByTestId('verb-text').fill('Fixed in the next revision.');
-		await expect(panel.getByTestId('verb-send')).toBeEnabled();
+	test('while Annotate is on, a number key chooses a type and 0 none', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('tool-annotate').click();
+		await page.keyboard.press('3');
+		await page.getByTestId('format-toggle').click();
+		await expect(page.getByTestId('format-menu').locator('[data-testid="type-row"][data-type="question"]')).toHaveAttribute('aria-selected', 'true');
 		await page.keyboard.press('Escape');
-		await expect(panel).toHaveCount(0);
-
-		// an edit starts from the body it supersedes, with the quilt's types to hand and its own chosen
-		await row.getByTestId('verb-edit').click();
-		await expect(panel.getByTestId('verb-text')).toHaveValue(/parity count/);
-		await expect(panel.getByTestId('verb-type')).toHaveValue('revision');
-		await expect(panel.getByTestId('verb-type').locator('option')).toHaveText(['No type', 'Revision', 'Suggestion', 'Question', 'Note']);
-		await expect(page.getByTestId('verb-more')).toHaveCount(0);
+		await page.keyboard.press('0');
+		await page.getByTestId('format-toggle').click();
+		await expect(page.getByTestId('format-menu').getByTestId('type-none')).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('delete asks nothing first: the box goes with the annotation, and Undo at the foot of the window puts back what loom took out', async ({ page }) => {
-		const removed = [{ event: 'created', id: 'a-2026-09-16-ecnav2' }, { event: 'replied', id: 'a-2026-09-16-hwnav1' }];
+	test('Customize opens Settings at Annotations', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('format-toggle').click();
+		await page.getByTestId('format-customize').click();
+		await expect(page.getByTestId('settings-title')).toHaveText('Annotations');
+		await expect(page.getByTestId('settings-annotations')).toBeVisible();
+	});
+});
+
+// One popup for every annotation: its type and look, its comment edited in place, replies, Resolve where the type stays open, and Delete with its undo.
+test.describe('the popup', () => {
+	test('one at a time, at its mark; the mark of the open one closes it, and × and Escape do', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await openPopup(page, 'a-2026-09-16-bns3an');
+		await openPopup(page, 'a-2026-09-16-ecnav2');
+		await expect(popup(page)).toHaveCount(1);
+		await markOf(page, 'a-2026-09-16-ecnav2').click();
+		await expect(popup(page)).toHaveCount(0);
+		await openPopup(page, 'a-2026-09-16-ecnav2');
+		await popup(page).getByTestId('popup-close').click();
+		await expect(popup(page)).toHaveCount(0);
+		await openPopup(page, 'a-2026-09-16-ecnav2');
+		await page.keyboard.press('Escape');
+		await expect(popup(page)).toHaveCount(0);
+		// hovering opens nothing
+		await markOf(page, 'a-2026-09-16-ecnav2').hover();
+		await expect(popup(page)).toHaveCount(0);
+	});
+
+	test('its type and its look change from its head: a type drops its own look, so it is drawn in the type’s, and a look changes only what it names', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/master/drafting/main');
+		const p = await openPopup(page, 'a-2026-09-16-bns3an');
+		await expect(p.getByTestId('popup-type')).toContainText('Question');
+		await p.getByTestId('popup-type').click();
+		const format = p.getByTestId('popup-format');
+		await format.locator('[data-testid="type-row"][data-type="revision"]').click();
+		await expect.poll(() => sent.edit).toBeTruthy();
+		expect(sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', type: 'revision', look: null });
+		// each write is answered before the next is taken
+		await expect(format.getByTestId('type-none')).toBeEnabled();
+		await format.getByTestId('swatch-green').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', look: { color: 'green' } });
+		await expect(format.getByTestId('type-none')).toBeEnabled();
+		await format.getByTestId('style-underline').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', look: { style: 'underline' } });
+		await expect(format.getByTestId('type-none')).toBeEnabled();
+		await format.getByTestId('type-none').click();
+		await expect.poll(() => sent.edit).toMatchObject({ annotation: 'a-2026-09-16-bns3an', type: null, look: { color: 'blue', style: 'highlight' } });
+	});
+
+	test('the comment is edited in place, a reply is one line, and Resolve is offered only where the type stays open', async ({ page }) => {
+		const sent = await writes(page);
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].type = 'note'));
+		await page.goto('/master/drafting/main');
+		const p = await openPopup(page, 'a-2026-09-16-ecnav2');
+		await p.getByTestId('popup-comment').click();
+		const field = p.getByTestId('popup-comment-field');
+		await field.fill('Say that finiteness is essential.');
+		await p.getByTestId('popup-save').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-ecnav2', message: 'Say that finiteness is essential.' });
+		await expect(p.getByTestId('popup-reply-row')).toHaveCount(1);
+		await p.getByTestId('popup-reply').fill('Agreed.');
+		await p.getByTestId('popup-reply').press('Enter');
+		await expect.poll(() => sent.reply).toEqual({ annotation: 'a-2026-09-16-ecnav2', message: 'Agreed.' });
+		await expect(p.getByTestId('popup-status')).toHaveText('Open');
+		await p.getByTestId('popup-resolve').click();
+		await expect.poll(() => sent.resolve).toEqual({ annotation: 'a-2026-09-16-ecnav2' });
+		// a Note only informs: no Resolve and no status
+		const note = await openPopup(page, 'a-2026-09-16-bns3an');
+		await expect(note.getByTestId('popup-resolve')).toHaveCount(0);
+		await expect(note.getByTestId('popup-status')).toHaveCount(0);
+		await expect(note.getByTestId('popup-delete')).toBeVisible();
+	});
+
+	test('a resolved one offers Reopen, which is the undo of Resolve', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/node/sy-0004');
+		await viewMenu(page);
+		await page.getByTestId('toggle-settled').click();
+		await page.keyboard.press('Escape');
+		const p = await openPopup(page, 'a-2026-09-16-hwtkaw');
+		await expect(p.getByTestId('popup-status')).toHaveText('Resolved');
+		await p.getByTestId('popup-reopen').click();
+		await expect.poll(() => sent.resolve).toEqual({ annotation: 'a-2026-09-16-hwtkaw', undo: true });
+	});
+
+	test('Delete asks nothing first; Undo at the foot of the window puts back what loom took out, and a refusal is said in the popup', async ({ page }) => {
+		const removed = [{ event: 'created', id: 'a-2026-09-16-ecnav2' }];
 		const sent: Record<string, Record<string, unknown>> = {};
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete', 'restore']);
-		await page.route('**/_api/delete', (r) => ((sent.delete = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'deleted a-2026-09-16-ecnav2', removed } })));
-		await page.route('**/_api/restore', (r) => ((sent.restore = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'restored a-2026-09-16-ecnav2' } })));
-		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
-		await expect(box.getByTestId('verb-panel')).toHaveCount(0);
-		expect(sent.delete).toMatchObject({ annotation: 'a-2026-09-16-ecnav2' });
-		expect(sent.delete).not.toHaveProperty('session');
+		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['annotate', 'edit', 'delete', 'restore'], token: 't' } }));
+		await page.route('**/_api/delete', (r) => ((sent.delete = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'deleted', removed } })));
+		await page.route('**/_api/restore', (r) => ((sent.restore = r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'restored' } })));
+		await page.goto('/node/sy-0003');
+		await (await openPopup(page, 'a-2026-09-16-ecnav2')).getByTestId('popup-delete').click();
+		await expect.poll(() => sent.delete).toEqual({ annotation: 'a-2026-09-16-ecnav2' });
 		const held = page.getByTestId('deleted');
-		await expect(held).toHaveCount(1);
 		await expect(held).toContainText('Deleted Revision on Theorem 2.1.');
 		await held.getByTestId('deleted-undo').click();
 		await expect(held).toHaveCount(0);
 		expect(sent.restore).toMatchObject({ events: removed });
-	});
-
-	test('a refused delete says why in the box, and holds nothing to undo', async ({ page }) => {
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
+		await page.unroute('**/_api/delete');
 		await page.route('**/_api/delete', (r) => r.fulfill({ status: 400, json: { ok: false, error: { code: 'refused', message: 'an agent deletes only its own annotations' } } }));
-		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-ecnav2');
-		await box.locator(':scope > .meta').getByTestId('verb-delete').click();
-		await expect(box.getByTestId('verb-said')).toHaveText('an agent deletes only its own annotations');
+		await page.reload();
+		const p = await openPopup(page, 'a-2026-09-16-ecnav2');
+		await p.getByTestId('popup-delete').click();
+		await expect(p.getByTestId('popup-said')).toHaveText('an agent deletes only its own annotations');
 		await expect(page.getByTestId('deleted')).toHaveCount(0);
 	});
-
-	test('a settled box: the stripe at half strength, the body softened, the outcome said once, and reopen and delete its verbs', async ({ page }) => {
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'delete']);
-		await page.goto('/node/sy-0004');
-		// a-2026-09-16-hwtkaw is resolved: its mark is drawn only once settled annotations are shown
-		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-hwtkaw"]');
-		await expect(mark).toHaveClass(/settled/);
-		await viewMenu(page);
-		await page.getByTestId('toggle-settled').click();
-		await mark.click();
-		const box = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-hwtkaw"]');
-		await expect(box).toHaveClass(/settled/);
-		const stripe = channels(await css(box, 'border-left-color'));
-		expect(stripe).toMatchObject(ORANGE);
-		expect(stripe.a).toBeCloseTo(0.5, 1);
-		await expect(box.locator('.body').first()).toHaveCSS('color', 'rgb(95, 94, 90)'); // --ink-soft
-		await expect(box.getByTestId('outcome')).toHaveText(' · resolved');
-		const row = box.locator(':scope > .meta').getByTestId('verb-row');
-		await expect(row.getByTestId('verb-reopen')).toBeVisible();
-		await expect(row.locator('button')).toHaveText(['reopen', 'delete']);
-	});
-
-	test('travel is two-way: a double-click on a mark lands on its box, and one on the box lands on its mark', async ({ page }) => {
-		await page.goto('/master/drafting/main');
-		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]');
-		await mark.dblclick();
-		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-ecnav2"]');
-		await expect(box).toHaveCount(1);
-		await expect(box).toHaveClass(/travelled/);
-		await expect(page.getByTestId('travel-nowhere')).toHaveCount(0);
-		await box.locator('.body').first().dblclick();
-		await expect(mark).toHaveClass(/travelled/);
-		await expect(box).toHaveCount(1);
-	});
-
-	test('beside a comparison a card in the flow is the annotation\'s one box: its mark travels to it rather than opening a second', async ({ page }) => {
-		await page.goto('/master/drafting/main?review=sy-0001&cause=0');
-		const card = page.locator('aside.comment-slot.inline article.box[data-annotation-id="a-2026-09-16-ecnav2"]');
-		await expect(card).toHaveCount(1);
-		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
-		await expect(card).toHaveClass(/travelled/);
-		await expect(page.locator('article.box[data-annotation-id="a-2026-09-16-ecnav2"]')).toHaveCount(1);
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
-	});
 });
 
-test.describe('the placement', () => {
-	test('the placement is a display setting', async ({ page }) => {
+// What changes a look, and what a type is changed into: the line saying what a look was changed from, with Reset and Update, and Save as new type.
+test.describe('changed from a type', () => {
+	test('in the popup, a look that differs from its type says so; Reset drops it, and Update writes it into the type and drops it', async ({ page }) => {
+		const sent = await writes(page);
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'green', style: 'highlight', weight: 2, opacity: 60 }));
 		await page.goto('/master/drafting/main');
-		await settings(page, 'appearance');
-		await page.getByTestId('comments-inline').click();
-		await expect(page.locator('html')).toHaveAttribute('data-comments', 'inline');
-		await expect(page.locator('aside.comment-slot.gutter')).toHaveCount(0);
+		const p = await openPopup(page, 'a-2026-09-16-bns3an');
+		await p.getByTestId('popup-type').click();
+		const line = p.getByTestId('modified-line');
+		await expect(line).toContainText('Changed from Question');
+		await line.getByTestId('modified-reset').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', look: null });
+		delete sent.edit;
+		await expect(line.getByTestId('modified-update')).toBeEnabled();
+		await line.getByTestId('modified-update').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', look: null });
+		const types = sent['types-save'].types as Record<string, unknown>[];
+		expect(types.map((t) => t.id)).toEqual(['revision', 'suggestion', 'question', 'note']);
+		expect(types[2]).toMatchObject({ id: 'question', name: 'Question', color: 'green', style: 'highlight', weight: 2, opacity: 60, open: true });
+		expect(types[0]).toMatchObject({ color: 'red', opacity: 65 });
+		// one whose look is its type's says nothing
+		const same = await openPopup(page, 'a-2026-09-16-ecnav2');
+		await same.getByTestId('popup-type').click();
+		await expect(same.getByTestId('modified-line')).toHaveCount(0);
 	});
 
-	test('changing the placement re-wires the document without typesetting it again', async ({ page }) => {
-		await prefs(page, { comments: 'floating' });
-		await page.goto('/master/drafting/main');
-		await page.waitForSelector('.fragment[data-comments-wired="floating"] mjx-container');
-		await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
-		await page.evaluate(() => {
-			const w = window as unknown as { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; typeset: string[] };
-			const real = w.MathJax.typesetPromise.bind(w.MathJax);
-			w.typeset = [];
-			// a comment card typesets its own body; what must not happen is the document's text going through MathJax again
-			w.MathJax.typesetPromise = (els) => {
-				w.typeset.push(els.some((e) => e.closest('.fragment') && !e.closest('aside.comment-slot')) ? 'document' : 'card');
-				return real(els);
-			};
+	test('in the format menu, the look in hand over a type says so; Reset takes the type’s look, and Update writes the hand’s into the type', async ({ page }) => {
+		const sent = await writes(page);
+		await page.addInitScript(() => {
+			if (!sessionStorage.getItem('seeded')) {
+				localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'revision', over: { color: 'blue' } }));
+				sessionStorage.setItem('seeded', '1');
+			}
 		});
-		await settings(page, 'appearance');
-		await page.getByTestId('comments-inline').click();
-		await page.waitForSelector('.fragment[data-comments-wired="inline"]');
-		await page.getByTestId('comments-floating').click();
-		await page.waitForSelector('.fragment[data-comments-wired="floating"]');
-		// a later event rendered: a mark opened after the switch draws its box, so any re-typeset the switch set off has had its turn
-		await page.keyboard.press('Escape');
-		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
-		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
-		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('format-toggle').click();
+		const menu = page.getByTestId('format-menu');
+		await expect(menu.getByTestId('modified-line')).toContainText('Changed from Revision');
+		await menu.getByTestId('modified-reset').click();
+		await expect(menu.getByTestId('modified-line')).toHaveCount(0);
+		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {} });
+		await menu.getByTestId('swatch-blue').click();
+		await menu.getByTestId('modified-update').click();
+		await expect.poll(() => sent['types-save']).toBeTruthy();
+		expect((sent['types-save'].types as Record<string, unknown>[])[0]).toMatchObject({ id: 'revision', name: 'Revision', color: 'blue', style: 'highlight', opacity: 65 });
+		await expect(menu.getByTestId('modified-line')).toHaveCount(0);
+		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {} });
+	});
+
+	test('Save as new type starts a type in the look in hand, and once it is saved the hand holds it', async ({ page }) => {
+		const sent = await writes(page);
+		await page.route('**/_api/types-save', (r) => {
+			sent['types-save'] = r.request().postDataJSON();
+			const types = (sent['types-save'].types as { id?: string; name: string; color: string; style: string; weight: number; opacity: number }[]).map((t) => ({ id: t.id ?? 'hint', name: t.name, look: { color: t.color, style: t.style, weight: t.weight, opacity: t.opacity }, open: false, notes: false, instructions: '' }));
+			return r.fulfill({ json: { ok: true, result: 'saved', types } });
+		});
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('format-toggle').click();
+		await page.getByTestId('format-save-type').click();
+		await expect(page.getByTestId('settings-title')).toHaveText('Annotations');
+		const name = page.getByTestId('type-name');
+		await expect(name).toBeFocused();
+		await expect(page.getByTestId('type-tab')).toHaveCount(5);
+		await name.fill('Hint');
+		await page.getByTestId('types-save').click();
+		await expect.poll(() => sent['types-save']).toBeTruthy();
+		expect((sent['types-save'].types as Record<string, unknown>[]).at(-1)).toEqual({ name: 'Hint', color: 'yellow', style: 'highlight', weight: 2, opacity: 60, open: false, notes: false, instructions: '' });
+		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'hint', over: {} });
 	});
 });
 
-test.describe('writing', () => {
-	/** Advertise `caps` from the publisher's write API and accept every write; `vite preview` serves none, and the controls appear only where one is. */
-	async function writes(page: Page, caps: string[]): Promise<void> {
-		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: caps, token: 't' } }));
-		await page.route('**/_api/*', (r) => r.fulfill({ json: { ok: true, result: 'done' } }));
+// Undo and Redo go back and forth over this page's own annotation writes; a delete stands at the foot of the window too.
+test.describe('undo and redo', () => {
+	/** Accept every write, as `writes` does, answering a delete with the events it took out. */
+	async function undoable(page: Page) {
+		const sent = await writes(page);
+		const all: [string, Record<string, unknown>][] = [];
+		await page.route('**/_api/*', (r) => {
+			const endpoint = new URL(r.request().url()).pathname.split('/').pop() ?? '';
+			const body = r.request().postDataJSON();
+			sent[endpoint] = body;
+			all.push([endpoint, body]);
+			const result = endpoint === 'annotate' ? 'a-2026-11-12-new000  sy-0003  untyped  (you)' : endpoint === 'reply' ? 'a-2026-11-12-rep000  sy-0003  reply' : 'done';
+			return r.fulfill({ json: { ok: true, result, removed: endpoint === 'delete' ? [{ event: 'created', id: body.annotation }] : [] } });
+		});
+		return { sent, all };
 	}
 
-	test('with no write API there is no editing affordance at all: no verbs on what is written, no tools to write with', async ({ page }) => {
-		// detected, never assumed: the fixture is served by a static preview with no write API, which is also what a deployed static site gets
-		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
-		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
-		await pane(page, 0).locator('.fragment mark.annotation').first().click();
-		await expect(page.locator('article.box').first()).toBeVisible();
-		await expect(page.getByTestId('verb-row')).toHaveCount(0);
-		await expect(page.getByTestId('tool-select')).toHaveCount(0);
+	test('a new annotation is undone by deleting it and done again by restoring it, from the toolbar and the keys', async ({ page }) => {
+		const { sent, all } = await undoable(page);
+		await page.goto('/node/sy-0003');
+		const undo = page.getByTestId('annotate-undo');
+		const redo = page.getByTestId('annotate-redo');
+		await expect(undo).toBeDisabled();
+		await page.getByTestId('tool-annotate').click();
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		await expect(undo).toBeEnabled();
+		await expect(undo).toHaveAttribute('title', 'Undo new annotation (⌘Z)');
+		await undo.click();
+		await expect.poll(() => sent.delete).toEqual({ annotation: 'a-2026-11-12-new000' });
+		await expect(undo).toBeDisabled();
+		await redo.click();
+		await expect.poll(() => sent.restore).toEqual({ events: [{ event: 'created', id: 'a-2026-11-12-new000' }] });
+		// and the keys do the same, once the last step is answered
+		await expect(undo).toBeEnabled();
+		await page.keyboard.press('Escape');
+		await pane(page, 0).locator('.fragment').first().focus();
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => all.filter(([e]) => e === 'delete').length).toBe(2);
+		await expect(redo).toBeEnabled();
+		await page.keyboard.press('ControlOrMeta+Shift+z');
+		await expect.poll(() => all.filter(([e]) => e === 'restore').length).toBe(2);
 	});
 
-	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {
-		// `resolve` is one click and opens no panel, so its refusal is shown in the box; it names no session, so it reaches the publisher whatever is selected, and the publisher's refusal is what gets shown
-		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['annotate', 'reply', 'resolve', 'edit', 'delete'], token: 't' } }));
-		await page.route('**/_api/resolve', (route) =>
-			route.fulfill({
-				status: 400,
-				contentType: 'application/json',
-				body: JSON.stringify({ error: { code: 'refused', message: 'no author name: add name = "Your Name" under [author]' } })
-			})
-		);
-		await page.goto('/node/sy-0003');
-		const openFirstMark = async () => {
-			await page.locator('[data-pane] .fragment mark.annotation').first().click();
-			await expect(page.locator('[data-testid="comment-expanded"] article.box').first()).toBeVisible();
-		};
-		await openFirstMark();
-		const said = page.getByTestId('verb-said').first();
-		await page.getByTestId('verb-resolve').first().click();
-		await expect(said).toBeVisible();
-		await expect(said).toContainText('no author name');
-		await expect(said).not.toContainText('session');
+	test('an edit is undone by an edit back to the words, the type and the look it had', async ({ page }) => {
+		const { sent } = await undoable(page);
+		await page.goto('/master/drafting/main');
+		const p = await openPopup(page, 'a-2026-09-16-bns3an');
+		await p.getByTestId('popup-comment').click();
+		await p.getByTestId('popup-comment-field').fill('Is a fixed point one orbit?');
+		await p.getByTestId('popup-save').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', message: 'Is a fixed point one orbit?' });
+		await page.getByTestId('annotate-undo').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', message: 'Is the orbit of a fixed point counted as one point or two?' });
+		await page.getByTestId('annotate-redo').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', message: 'Is a fixed point one orbit?' });
+		// a type changed and changed back: it had the question's own look, so the undo drops what the edit set
+		await p.getByTestId('popup-type').click();
+		await p.getByTestId('popup-format').locator('[data-testid="type-row"][data-type="revision"]').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', type: 'revision', look: null });
+		await page.getByTestId('annotate-undo').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', type: 'question', look: null });
 	});
 
-	test("words selected in an annotation's box are not the document's, and offer nothing to annotate", async ({ page }) => {
-		// a box stands in the fragment's markup, but a note quoting its words would be filed on the node with a quote its source does not hold
-		await writes(page, ['annotate', 'reply']);
+	test('a resolve is undone by reopening, and a delete by restoring what loom took out, the same act as the Undo at the foot of the window', async ({ page }) => {
+		const { sent, all } = await undoable(page);
 		await page.goto('/node/sy-0003');
-		await page.locator('.fragment .annotation[data-annotation~="a-2026-09-16-ecnav2"]').first().click();
-		const body = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-ecnav2"] .body').first();
-		await expect(body).toBeVisible();
-		await selectWithin(body);
+		const p = await openPopup(page, 'a-2026-09-16-ecnav2');
+		await p.getByTestId('popup-resolve').click();
+		await expect.poll(() => sent.resolve).toEqual({ annotation: 'a-2026-09-16-ecnav2' });
+		await page.getByTestId('annotate-undo').click();
+		await expect.poll(() => sent.resolve).toEqual({ annotation: 'a-2026-09-16-ecnav2', undo: true });
+		await expect(p.getByTestId('popup-delete')).toBeEnabled();
+		await p.getByTestId('popup-delete').click();
+		await expect.poll(() => sent.delete).toEqual({ annotation: 'a-2026-09-16-ecnav2' });
+		const held = page.getByTestId('deleted');
+		await expect(held).toHaveCount(1);
+		await page.getByTestId('annotate-undo').click();
+		await expect.poll(() => sent.restore).toEqual({ events: [{ event: 'created', id: 'a-2026-09-16-ecnav2' }] });
+		await expect(held).toHaveCount(0);
+		await page.getByTestId('annotate-redo').click();
+		await expect.poll(() => all.filter(([e]) => e === 'delete').length).toBe(2);
+		await expect(held).toHaveCount(1);
+		// the foot of the window's Undo is the same step
+		await held.getByTestId('deleted-undo').click();
+		await expect.poll(() => all.filter(([e]) => e === 'restore').length).toBe(2);
+		await expect(held).toHaveCount(0);
+		await expect(page.getByTestId('annotate-redo')).toBeEnabled();
+	});
+
+	test('the annotation open is removed by Delete or Backspace, with the same undo', async ({ page }) => {
+		const { sent, all } = await undoable(page);
+		await page.goto('/master/drafting/main');
+		await openPopup(page, 'a-2026-09-16-ecnav2');
+		await expect(page.getByTestId('annotate-hint')).toContainText('Delete removes it');
+		await page.keyboard.press('Delete');
+		await expect.poll(() => sent.delete).toEqual({ annotation: 'a-2026-09-16-ecnav2' });
+		await expect(popup(page)).toHaveCount(0);
+		await expect(page.getByTestId('deleted')).toContainText('Deleted Revision on Theorem 2.1.');
+		await page.getByTestId('annotate-undo').click();
+		await expect.poll(() => sent.restore).toBeTruthy();
+		await openPopup(page, 'a-2026-09-16-bns3an');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => all.filter(([e]) => e === 'delete').map(([, b]) => b.annotation)).toEqual(['a-2026-09-16-ecnav2', 'a-2026-09-16-bns3an']);
+		// nothing open, nothing deleted
+		await page.keyboard.press('Delete');
 		await page.waitForTimeout(300);
-		await expect(page.getByTestId('annotate-offer')).toHaveCount(0);
-		// the document's own words still offer it
-		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] p[data-src]').first());
-		await expect(page.getByTestId('annotate-offer')).toHaveCount(1);
-	});
-
-	test('a selection offers one annotate chip at its end, in the annotation neutral at the reader\'s body size, opaque under the pointer, and Enter does what the chip does', async ({ page }) => {
-		await writes(page, ['annotate']);
-		await page.goto('/node/sy-0002');
-		const words = pane(page, 0).locator('.fragment .env[data-id="sy-0002"] p[data-src]').first();
-		await expect(words).toBeVisible();
-		await selectWithin(words);
-		const chip = page.getByTestId('annotate-offer');
-		await expect(chip).toHaveText('annotate');
-		await expect(chip).toHaveCSS('color', 'rgb(111, 109, 102)');
-		// after the selection's last line, not above its first
-		const end = await words.evaluate((el) => {
-			const r = [...(window.getSelection()!.getRangeAt(0).getClientRects())].at(-1)!;
-			return { right: r.right, top: r.top, bottom: r.bottom };
-		});
-		const at = (await chip.boundingBox())!;
-		expect(at.x).toBeGreaterThanOrEqual(end.right);
-		expect(at.y + at.height / 2).toBeGreaterThan(end.top - 1);
-		expect(at.y + at.height / 2).toBeLessThan(end.bottom + 1);
-		// set at the reader's body size, and its hover face opaque, so the words under it never show through its label
-		const body = await page.locator('.arras').first().evaluate((el) => getComputedStyle(el).getPropertyValue('--body-size').trim());
-		await expect(chip).toHaveCSS('font-size', body);
-		await chip.hover();
-		expect(channels(await css(chip, 'background-color')).a).toBe(1);
-		// Enter opens the composer, and the chip is gone once it is open
-		await page.keyboard.press('Enter');
-		await expect(page.getByTestId('note-at')).toBeVisible();
-		await expect(chip).toHaveCount(0);
-	});
-
-	test('with the box tool chosen, a drag that starts on a mark draws a box, and a click on it still opens the mark', async ({ page }) => {
-		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['annotate'], token: 't' } }));
-		await page.goto('/node/sy-0003');
-		const mark = pane(page, 0).locator('.fragment mark.annotation').first();
-		await expect(mark).toBeVisible();
-		await page.getByTestId('tool-box').click();
-		// a click without a drag is still a click on the mark
-		await mark.click();
-		await expect(pane(page, 0).getByTestId('comment-expanded')).toBeVisible();
-		await page.keyboard.press('Escape');
-		// a drag from it is a box
-		const b = (await mark.boundingBox())!;
-		await page.mouse.move(b.x + 4, b.y + b.height / 2);
-		await page.mouse.down();
-		await page.mouse.move(b.x + 120, b.y + b.height + 30, { steps: 8 });
-		await page.mouse.up();
-		await expect(page.getByTestId('note-at')).toBeVisible();
+		expect(all.filter(([e]) => e === 'delete')).toHaveLength(2);
 	});
 });
 
-// The composer (annotation study fixes 5 and 18–21): the header names the words, the quilt's types are buttons, and × or Escape cancel. Against a mocked write API: what is tested here is the form, not the write, which the write suite holds against the real publisher.
-test.describe('the composer', () => {
-	async function writes(page: Page): Promise<void> {
-		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['annotate'], token: 't' } }));
-	}
-
-	/** Open the composer on the statement of `key`, by selecting its first paragraph and taking the chip. */
-	async function composeOn(page: Page, key: string) {
+// The hint under the toolbar says what the tool in hand does.
+test.describe('the hint', () => {
+	test('says what Annotate and Comment do while they are on, and goes when they are put down', async ({ page }) => {
 		await writes(page);
-		await page.goto(`/node/${key}`);
-		const words = pane(page, 0).locator(`.fragment .env[data-id="${key}"] > p[data-src]`).first();
-		await expect(words).toBeVisible();
-		await selectWithin(words);
-		await page.getByTestId('annotate-offer').click();
-		const form = page.getByTestId('note-at');
-		await expect(form).toBeVisible();
-		return form;
-	}
-
-	test('the header names the quoted words and the place as the tab names it, never the key', async ({ page }) => {
-		const form = await composeOn(page, 'sy-0003');
-		const where = form.getByTestId('note-where');
-		await expect(where).toContainText('finite widget');
-		await expect(where).toContainText('in Theorem 2.1');
-		await expect(where).not.toContainText('sy-0003');
-		// the words are set in the body face, as a quotation
-		await expect(where.locator('q.quoted')).toHaveCSS('font-style', 'italic');
+		await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'question', over: {} })));
+		await page.goto('/master/drafting/main');
+		const hint = page.getByTestId('annotate-hint');
+		await expect(hint).toHaveCount(0);
+		await page.getByTestId('tool-annotate').click();
+		await expect(hint).toHaveText('Annotate is on. Select text to mark it as Question. Number keys switch type, 0 for none. Esc stops.');
+		await page.keyboard.press('0');
+		await expect(hint).toHaveText('Annotate is on. Select text to mark it. Number keys switch type, 0 for none. Esc stops.');
+		await page.getByTestId('tool-comment').click();
+		await expect(hint).toHaveText('Comment is on. Click where the comment should go. Esc stops.');
+		await page.keyboard.press('Escape');
+		await expect(hint).toHaveCount(0);
 	});
 
-	test('a box round a labelled equation names the whole of the equation', async ({ page }) => {
-		await writes(page);
+	test('is not drawn where nothing can be written', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await openPopup(page, 'a-2026-09-16-ecnav2');
+		await expect(page.getByTestId('annotate-hint')).toHaveCount(0);
+	});
+});
+
+// "Written on earlier words": an annotation whose words are gone shows the words it was written on and opens the version that holds them, and is reached from where its words were.
+test.describe('written on earlier words', () => {
+	// on the fixture as it stands: sy-0001 has a pending change, so its block is the publisher's merged one, which carries the gone mark as the document's does
+	test.beforeEach(({ page }) => page.unroute('**/build/manifest.json'));
+
+	test('its gone mark stands where its words were, opens its popup with the words as they were, and the version opens with its annotations drawn', async ({ page }) => {
 		await page.goto('/node/sy-0001');
-		const display = pane(page, 0).locator('.fragment .math.display[data-label="eq:fix"]');
-		await expect(display.locator('mjx-container')).toBeVisible();
-		await page.getByTestId('tool-box').click();
-		const b = (await display.boundingBox())!;
-		await page.mouse.move(b.x + 4, b.y + 2);
-		await page.mouse.down();
-		await page.mouse.move(b.x + b.width - 4, b.y + b.height - 2, { steps: 6 });
-		await page.mouse.up();
-		const form = page.getByTestId('note-at');
-		await expect(form).toBeVisible();
-		await expect(form.getByTestId('note-where')).toHaveText('on the whole of equation (2) in Definition 1.1');
-		await expect(form.getByTestId('note-where')).not.toContainText('sy-0001');
-		// a box defaults to no type, as a selection does
-		await expect(form.getByTestId('note-type').locator('[aria-pressed="true"]')).toHaveAttribute('data-type', '');
+		const gone = page.locator('.fragment mark.annotation.gone[data-annotation="a-2026-09-16-a91hwf"]');
+		await expect(gone).toHaveCount(1);
+		await expect(gone).toHaveText('');
+		// the margin has its icon, a speech bubble since it says something
+		const icon = page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-a91hwf"]');
+		await expect(icon).toHaveClass(/\btalk\b/);
+		await gone.click();
+		const p = popup(page);
+		await expect(p).toHaveAttribute('data-annotation-id', 'a-2026-09-16-a91hwf');
+		await expect(p.getByTestId('popup-earlier')).toContainText('Written on earlier words');
+		await expect(p.getByTestId('popup-earlier')).toContainText('an involution');
+		await p.getByTestId('earlier-open').click();
+		const version = p.getByTestId('version-view');
+		await expect(version).toContainText('Definition');
+		const was = version.locator('mark.annotation[data-annotation~="a-2026-09-16-a91hwf"]');
+		await expect(was).toHaveClass(/\bopen\b/);
+		await expect(was).toContainText('involution');
+		expect((await drawn(was)).band).toMatchObject(BLUE_BAND);
+		await p.getByTestId('earlier-open').click();
+		await expect(version).toHaveCount(0);
 	});
 
-	test("the quilt's types as buttons in their colours, then No type, chosen by default; words are needed only for a type that stays open; the type is sent by its id, and none for No type", async ({ page }) => {
-		const sent: Record<string, unknown>[] = [];
-		await page.route('**/_api/annotate', (r) => (sent.push(r.request().postDataJSON()), r.fulfill({ json: { ok: true, result: 'a-2026-11-11-zz0001' } })));
-		const form = await composeOn(page, 'sy-0003');
-		await pickSession(page, REFEREE);
-		const types = form.getByTestId('note-type');
-		const submit = form.getByTestId('note-submit');
-		await expect(types.locator('button')).toHaveText(['Revision', 'Suggestion', 'Question', 'Note', 'No type']);
-		await expect(types.locator('[aria-pressed="true"]')).toHaveAttribute('data-type', '');
-		await expect(types.locator('[data-type="revision"]')).toHaveCSS('color', 'rgb(204, 28, 28)');
-		await expect(types.locator('[data-type="suggestion"]')).toHaveCSS('color', 'rgb(196, 90, 10)');
-		await expect(types.locator('[data-type="question"]')).toHaveCSS('color', 'rgb(26, 111, 196)');
-		await expect(types.locator('[data-type="note"]')).toHaveCSS('color', 'rgb(136, 135, 128)');
-		await expect(types.locator('[data-type=""]')).toHaveCSS('color', 'rgb(111, 109, 102)');
-		await expect(submit).toHaveText('Annotate');
-		// with no type, nothing need be said
-		await expect(submit).toBeEnabled();
-		const height = (await form.boundingBox())!.height;
-		// a type that stays open until resolved needs words, and the submit takes its colour
-		await types.locator('[data-type="revision"]').click();
-		await expect(types.locator('[aria-pressed="true"]')).toHaveAttribute('data-type', 'revision');
-		await expect(submit).toBeDisabled();
-		await expect(submit).toHaveCSS('background-color', 'rgb(204, 28, 28)');
-		// one that only informs does not
-		await types.locator('[data-type="note"]').click();
-		await expect(submit).toBeEnabled();
-		expect((await form.boundingBox())!.height).toBe(height);
-		await types.locator('[data-type="revision"]').click();
-		await form.getByTestId('note-body').fill('Say which orbit.');
-		await submit.click();
-		await expect(form).toHaveCount(0);
-		expect(sent).toHaveLength(1);
-		expect(sent[0]).toMatchObject({ target: 'sy-0003', type: 'revision', message: 'Say which orbit.' });
-		expect(sent[0]).not.toHaveProperty('kind');
-		expect(sent[0]).not.toHaveProperty('severity');
-		// No type sends none, and no words when none were written
-		const again = await composeOn(page, 'sy-0003');
-		await again.getByTestId('note-submit').click();
-		await expect(again).toHaveCount(0);
-		expect(sent).toHaveLength(2);
-		expect(sent[1]).not.toHaveProperty('type');
-		expect(sent[1]).not.toHaveProperty('message');
+	test('a mark in the version opens that annotation’s popup in place of this one', async ({ page }) => {
+		// the version marks every annotation written on it; a second one is put in by the test, since the fixture's version holds one
+		await page.route('**/fragments/versions/fb425ed10ccf378e.html', async (route) => {
+			const res = await route.fetch();
+			const body = (await res.text()).replace('is a pair', 'is a <mark class="annotation" data-annotation="a-2026-09-16-ecnav2">pair</mark>');
+			await route.fulfill({ response: res, body });
+		});
+		await page.goto('/node/sy-0001');
+		await page.locator('.fragment mark.annotation.gone[data-annotation="a-2026-09-16-a91hwf"]').click();
+		await popup(page).getByTestId('earlier-open').click();
+		const version = popup(page).getByTestId('version-view');
+		// its own mark opens nothing new
+		await version.locator('mark.annotation[data-annotation~="a-2026-09-16-a91hwf"]').click();
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-a91hwf');
+		const other = version.locator('mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]');
+		expect((await drawn(other)).band).toMatchObject(RED_BAND);
+		await other.click();
+		await expect(popup(page)).toHaveCount(1);
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		await expect(popup(page)).toBeInViewport();
 	});
 
-	test('× and Escape cancel, and there is no third button', async ({ page }) => {
-		const form = await composeOn(page, 'sy-0003');
-		await expect(form.locator('button', { hasText: /^cancel$/i })).toHaveCount(0);
-		await page.keyboard.press('Escape');
-		await expect(form).toHaveCount(0);
-		await composeOn(page, 'sy-0003');
-		await form.getByTestId('note-close').click();
-		await expect(form).toHaveCount(0);
+	test('an annotation whose words still stand says nothing of earlier words', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect((await openPopup(page, 'a-2026-09-16-ecnav2')).getByTestId('popup-earlier')).toHaveCount(0);
 	});
 });
 
-// The settled control: a resolved annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
+// The margin: one icon per annotation on the line its first mark stands on, a count where several start on one line, which opens the line chooser.
+test.describe('the margin', () => {
+	test('one icon per annotation drawn, a speech bubble where it says something; an icon opens its popup', async ({ page }) => {
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].body_html = ''));
+		await page.goto('/master/drafting/main');
+		const icon = page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-ecnav2"]');
+		await expect(icon).toHaveCount(1);
+		await expect(icon).not.toHaveClass(/\btalk\b/);
+		await expect(page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-a91hwf"]')).toHaveClass(/\btalk\b/);
+		// a settled one is not drawn at rest, so it has no icon
+		await expect(page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-hwtkaw"]')).toHaveCount(0);
+		await icon.click();
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		await expect(icon).toHaveClass(/\bon\b/);
+		// level with its mark
+		// the margin is drawn again as the layout settles, so an icon read between two drawings has no box yet
+		const middle = async (at: import('@playwright/test').Locator) => at.evaluate((el) => {
+			const r = el.getClientRects()[0];
+			return r ? r.top + r.height / 2 : NaN;
+		});
+		await expect.poll(async () => Math.abs((await middle(icon)) - (await middle(markOf(page, 'a-2026-09-16-ecnav2')))) < 10).toBe(true);
+	});
+
+	test('where several start on one line, a count opens the line chooser, which opens the one picked', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		// the lemma's label carries the untyped suggestion, and its words the question
+		const count = page.getByTestId('margin-count');
+		await expect(count).toHaveText('2');
+		await count.click();
+		const chooser = page.getByTestId('line-chooser');
+		const rows = chooser.locator('.pkrow');
+		await expect(rows).toHaveCount(2);
+		await expect(chooser.locator('.pkrow[data-annotation="a-2026-09-16-bns3an"]')).toContainText('Question · The synthetic quilt');
+		await chooser.locator('.pkrow[data-annotation="a-2026-09-16-bns3an"]').click();
+		await expect(chooser).toHaveCount(0);
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-bns3an');
+	});
+});
+
+// The stepper goes through the annotations in reading order, from the toolbar's arrows or J and K.
+test.describe('the stepper', () => {
+	test('J and K open the next and the previous in reading order, round the ends, and the count says where', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await expect(page.getByTestId('step-count')).toHaveText('5 annotations');
+		await pane(page, 0).locator('.fragment p').first().click();
+		await page.keyboard.press('j');
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-a91hwf');
+		await expect(page.getByTestId('step-count')).toHaveText('1 of 5');
+		await page.keyboard.press('j');
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-hqnbz4');
+		await page.keyboard.press('j');
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-bns3an');
+		await page.keyboard.press('k');
+		await expect(page.getByTestId('step-count')).toHaveText('2 of 5');
+		await page.getByTestId('step-next').click();
+		await page.getByTestId('step-next').click();
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		// the last is on the whole document and has no mark: it is shown in the list instead
+		await page.getByTestId('step-next').click();
+		await expect(page.getByTestId('step-count')).toHaveText('5 of 5');
+		await expect(page.locator('[data-testid="comment-card"][data-annotation="a-2026-09-16-6sn46y"]')).toHaveClass(/\bon\b/);
+		await page.getByTestId('step-next').click();
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-a91hwf');
+		// K from the first goes round to the last
+		await page.getByTestId('step-prev').click();
+		await expect(page.getByTestId('step-count')).toHaveText('5 of 5');
+	});
+});
+
+// Comments: every annotation here in reading order, a card each; To do and the filter narrow it, and the text with it.
+test.describe('the Comments list', () => {
+	test('a card per annotation in reading order, with its colour, author, words and comment; a card opens its annotation at its mark', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await expect(page.getByTestId('open-comments')).toContainText('5');
+		await page.getByTestId('open-comments').click();
+		const cards = page.getByTestId('comment-card');
+		await expect(cards).toHaveCount(5);
+		expect(await cards.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.annotation))).toEqual(['a-2026-09-16-a91hwf', 'a-2026-09-16-hqnbz4', 'a-2026-09-16-bns3an', 'a-2026-09-16-ecnav2', 'a-2026-09-16-6sn46y']);
+		const revision = page.locator('[data-testid="comment-card"][data-annotation="a-2026-09-16-ecnav2"]');
+		await expect(revision).toContainText('agent');
+		await expect(revision).toContainText('Revision');
+		await expect(revision).toContainText('finite widget');
+		await expect(revision).toContainText('1 reply');
+		await revision.click();
+		await expect(popup(page)).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		await expect(revision).toHaveClass(/\bon\b/);
+		await page.getByTestId('side-close').click();
+		await expect(page.getByTestId('side-list')).toHaveCount(0);
+	});
+
+	test('To do keeps the open annotations of types that stay open from others than the reader, and the text with it', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('open-comments').click();
+		const todo = page.getByTestId('comments-todo');
+		await expect(todo).toContainText('3');
+		await todo.click();
+		await expect(todo).toHaveAttribute('aria-pressed', 'true');
+		expect(await page.getByTestId('comment-card').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.annotation))).toEqual(['a-2026-09-16-hqnbz4', 'a-2026-09-16-ecnav2', 'a-2026-09-16-6sn46y']);
+		// the reader's own question is left out of the text too
+		await expect(markOf(page, 'a-2026-09-16-bns3an')).toHaveClass(/\bhidden\b/);
+		await expect(page.getByTestId('step-count')).toHaveText('3 annotations');
+		await todo.click();
+		await expect(markOf(page, 'a-2026-09-16-bns3an')).not.toHaveClass(/\bhidden\b/);
+	});
+
+	test('the filter leaves out a person, here and in the text, and shows the resolved', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('open-comments').click();
+		await page.getByTestId('comments-filter').click();
+		const who = page.getByTestId('filter-who');
+		await expect(who).toHaveCount(2);
+		await expect(page.getByTestId('filter-menu')).toContainText('The synthetic quilt (you)');
+		await page.locator('[data-testid="filter-who"][data-author="agent"]').uncheck();
+		await expect(page.getByTestId('comment-card')).toHaveCount(2);
+		await expect(markOf(page, 'a-2026-09-16-ecnav2')).toHaveClass(/\bhidden\b/);
+		await page.locator('[data-testid="filter-who"][data-author="agent"]').check();
+		await expect(page.getByTestId('comment-card')).toHaveCount(5);
+		await page.getByTestId('filter-resolved').check();
+		await expect(page.locator('[data-testid="comment-card"][data-annotation="a-2026-09-16-hwtkaw"]')).toHaveClass(/\bsettled\b/);
+		await expect(page.locator('.fragment').first()).toHaveClass(/show-settled/);
+	});
+});
+
+// Notes: every annotation whose type is listed in Notes, from every document, grouped by document, each linking back to its place.
+test.describe('the Notes list', () => {
+	test('holds the annotations of types listed in Notes, grouped by document, and a card goes back to its place with its popup open', async ({ page }) => {
+		await serveKept(page, (m) => {
+			m.annotations['a-2026-09-16-ecnav2'].type = 'note';
+			m.annotations['a-2026-09-16-xgtcve'].type = 'note';
+		});
+		await page.goto('/node/sy-0001');
+		await expect(page.getByTestId('open-notes')).toContainText('2');
+		await page.getByTestId('open-notes').click();
+		await expect(page.getByTestId('notes-group')).toHaveText([/main\.tex\s*1/, /talk\.tex\s*1/]);
+		const card = page.locator('[data-testid="note-card"][data-annotation="a-2026-09-16-ecnav2"]');
+		await expect(card).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
+		await expect(card).toContainText('finite widget');
+		await card.click();
+		await expect(page.locator('[data-testid="ann-popup"][data-annotation-id="a-2026-09-16-ecnav2"]')).toBeVisible();
+	});
+
+	test('with no type listed in Notes it says how one gets there', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('open-notes').click();
+		await expect(page.getByTestId('side-list')).toContainText('No notes yet');
+	});
+});
+
+// Quote: a bare selection, no tool on, offers Quote, which copies the words and where they came from, and writes nothing.
+test.describe('Quote', () => {
+	test('copies the words and a link to their place, says so, and writes nothing', async ({ page }) => {
+		const sent = await writes(page);
+		await page.addInitScript(() => {
+			(window as unknown as { copied: string[] }).copied = [];
+			Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t: string) => void (window as unknown as { copied: string[] }).copied.push(t) }, configurable: true });
+		});
+		await page.goto('/master/drafting/main');
+		// Quote stands at the end of the words, so they are scrolled to as a reader would have them on screen
+		await markOf(page, 'a-2026-09-16-ecnav2').scrollIntoViewIfNeeded();
+		await selectWithin(markOf(page, 'a-2026-09-16-ecnav2'));
+		await page.getByTestId('quote-offer').click();
+		const toast = page.getByTestId('toast');
+		await expect(toast).toContainText('Quoted for your agent');
+		await expect(toast).toContainText('“finite widget”');
+		const copied = await page.evaluate(() => (window as unknown as { copied: string[] }).copied);
+		expect(copied).toEqual(['> finite widget\n— [main.tex, Theorem 2.1](quilt:drafting/main.tex#sy-0003)']);
+		await expect(page.getByTestId('quote-offer')).toHaveCount(0);
+		expect(Object.keys(sent)).toEqual([]);
+	});
+
+	test('is offered without a publisher, since it writes nothing', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await selectWithin(markOf(page, 'a-2026-09-16-ecnav2'));
+		await expect(page.getByTestId('quote-offer')).toBeVisible();
+	});
+});
+
+// Settings › Annotations: one type at a time, a draft until Save, which writes the types file whole through `types-save`.
+test.describe('Settings › Annotations', () => {
+	test('a renamed type and a deleted one are saved together; deleting one a mode uses asks first', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		const tabs = page.getByTestId('type-tab');
+		await expect(tabs).toHaveCount(4);
+		await tabs.nth(1).click();
+		await expect(page.getByTestId('type-name')).toHaveValue('Suggestion');
+		await expect(page.getByTestId('type-modes')).toHaveText('Used by the audit, referee and review modes.');
+		await page.getByTestId('type-name').fill('Idea');
+		await expect(tabs.nth(1)).toContainText('Idea');
+		await tabs.nth(2).click();
+		await page.getByTestId('type-delete').click();
+		const warn = page.getByTestId('type-delete-warn');
+		await expect(warn).toContainText('The audit and referee modes use this type');
+		await page.getByTestId('type-delete-yes').click();
+		await expect(tabs).toHaveCount(3);
+		await page.getByTestId('types-save').click();
+		await expect.poll(() => sent['types-save']).toBeTruthy();
+		const saved = sent['types-save'].types as { id: string; name: string; open: boolean; color: string }[];
+		expect(saved.map((t) => [t.id, t.name])).toEqual([
+			['revision', 'Revision'],
+			['suggestion', 'Idea'],
+			['note', 'Note']
+		]);
+		expect(saved[0]).toEqual({ id: 'revision', name: 'Revision', color: 'red', style: 'highlight', weight: 2, opacity: 65, open: true, notes: false, instructions: expect.stringContaining('wrong') });
+	});
+
+	test('a new type is written with no id, and Restore defaults writes the defaults', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		await page.getByTestId('types-add').click();
+		await expect(page.getByTestId('type-name')).toBeFocused();
+		await page.getByTestId('type-name').fill('Hint');
+		await page.getByTestId('type-notes').check();
+		await page.getByTestId('type-open-true').check();
+		await page.getByTestId('types-save').click();
+		await expect.poll(() => sent['types-save']).toBeTruthy();
+		const saved = sent['types-save'].types as Record<string, unknown>[];
+		expect(saved.at(-1)).toEqual({ name: 'Hint', color: 'green', style: 'highlight', weight: 2, opacity: 50, open: true, notes: true, instructions: '' });
+		await page.getByTestId('types-defaults').click();
+		await expect.poll(() => sent['types-save']).toEqual({ defaults: true });
+	});
+
+	test('without a publisher that saves types it is shown as published', async ({ page }) => {
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		await expect(page.getByTestId('settings-read-only')).toContainText('.loom/annotation-types.toml');
+		await expect(page.getByTestId('type-name')).toBeDisabled();
+		await expect(page.getByTestId('types-add')).toHaveCount(0);
+	});
+});
+
 test.describe('the settled control', () => {
 	const settledMark = (page: Page) => page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-hwtkaw"]');
 
@@ -912,7 +997,7 @@ test.describe('the settled control', () => {
 	/** Close the menu with Escape, which leaves the page as it was. */
 	const shut = (page: Page) => page.keyboard.press('Escape');
 
-	test('on a document it shows and hides the settled marks, and their boxes open only while it is on', async ({ page }) => {
+	test('on a document it shows and hides the settled marks, and their popups open only while it is on', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		const m = settledMark(page);
 		await expect(m).toHaveClass(/settled/);
@@ -930,19 +1015,17 @@ test.describe('the settled control', () => {
 		expect((await drawn(m)).band.a).toBeCloseTo(0.24, 2);
 		// the resolved suggestion on the theorem has no quote, so shown it is a mark on the theorem's label
 		await expect(page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-tc3rcf"]')).toHaveCount(1);
-		// show all now opens the settled boxes too
-		await viewMenu(page);
-		await page.getByTestId('toggle-annotations').click();
-		await expect(page.locator('article.box[data-annotation-id="a-2026-09-16-hwtkaw"]')).toBeVisible();
+		await m.click();
+		await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', 'a-2026-09-16-hwtkaw');
+		await page.keyboard.press('Escape');
 		await (await settled(page)).click();
 		await expect(await settled(page)).toHaveText(/^show settled annotations/);
 		await shut(page);
 		expect((await drawn(m)).band.a).toBe(0);
-		await expect(page.locator('article.box[data-annotation-id="a-2026-09-16-hwtkaw"]')).toHaveCount(0);
 		await expect(page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-tc3rcf"]')).toHaveCount(0);
 	});
 
-	test('on a node the same control, and the s key beside e and h', async ({ page }) => {
+	test('on a node the same control, and the s key', async ({ page }) => {
 		await page.goto('/node/sy-0004');
 		const m = settledMark(page);
 		expect((await drawn(m)).band.a).toBe(0);
@@ -962,6 +1045,17 @@ test.describe('the settled control', () => {
 		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
 	});
 
+	test('the keys draw no focus ring around the document', async ({ page }) => {
+		// a click focuses the document without a ring and a key then asks for one, which around a document taller than the window showed as two blue rules down its sides
+		await page.goto('/master/drafting/main');
+		await page.waitForSelector('.fragment mjx-container');
+		const fragment = page.locator('.fragment');
+		await fragment.locator('p').first().click();
+		await page.keyboard.press('s');
+		expect(await fragment.evaluate((el) => el.matches(':focus-visible'))).toBe(true);
+		await expect(fragment).toHaveCSS('outline-style', 'none');
+	});
+
 	test('it is off again on a fresh visit', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await (await settled(page)).click();
@@ -971,22 +1065,23 @@ test.describe('the settled control', () => {
 		expect((await drawn(settledMark(page))).band.a).toBe(0);
 	});
 
-	test('a link to a settled annotation turns it on and opens the box, one with no quote included', async ({ page }) => {
-		// a message or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the box opens, rather than the reader landing on a page where nothing is drawn
+	test('a link to a settled annotation turns it on and opens its popup, one with no quote included', async ({ page }) => {
+		// a message or the Context links a settled annotation by `quilt:`; following it is a request to see it, so the control comes on for the sitting and the popup opens, rather than the reader landing on a page where nothing is drawn
 		await saying(page, '<p>See <a href="quilt:a-2026-09-16-hwtkaw"></a>.</p>');
 		await page.goto(`/session/${REFEREE}`);
 		await page.getByTestId('message-1').locator('a[href="quilt:a-2026-09-16-hwtkaw"]').click();
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
-		await expect(page.locator('[data-pane="1"] article.box.settled[data-annotation-id="a-2026-09-16-hwtkaw"]')).toBeVisible();
-		// a resolved annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was resolved
+		await expect(page.locator('[data-pane="1"] [data-testid="ann-popup"][data-annotation-id="a-2026-09-16-hwtkaw"]')).toBeVisible();
+		// a resolved annotation with no quote is a label mark only while settled annotations are drawn, and its popup opens from it and says it was resolved
 		await page.goto('/node/sy-0003');
 		const label = page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-tc3rcf"]');
 		await expect(label).toHaveCount(0);
 		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
+		await shut(page);
 		await label.click();
-		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-tc3rcf"]');
-		await expect(box).toBeVisible();
-		await expect(box.getByTestId('outcome')).toHaveText('· resolved');
+		const p = page.getByTestId('ann-popup');
+		await expect(p).toHaveAttribute('data-annotation-id', 'a-2026-09-16-tc3rcf');
+		await expect(p.getByTestId('popup-status')).toHaveText('Resolved');
 	});
 });

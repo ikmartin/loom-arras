@@ -259,7 +259,7 @@ def html_report(result: ScanResult, master: str, engine: str) -> dict[str, Any]:
 
 
 def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
-    """Resolve `--with`: a file on disk, else a suggested edit's id, its text taken in place as `loom suggestion` prints it.
+    """Resolve `--with`: a file on disk, else a suggested edit's id, its text taken in place as `loom changes ID` prints it.
 
     A file is tried first, because a path is what the option takes and a filename could otherwise be shadowed by an id. An edit is accepted because its text **is** the proposal, and asking an agent to copy its own edit into a file before compiling it is a step with nothing in it.
     """

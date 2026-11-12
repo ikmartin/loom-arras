@@ -17,10 +17,10 @@ function changed(over: (x: Manifest) => void): Manifest {
 }
 
 describe('what is proposed to the person', () => {
-	it('lists a copy, then the open suggested edits, newest first, one card each', () => {
-		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy', 'edit', 'edit']);
-		expect(cardsOf(m).filter((c) => c.kind === 'edit').map((c) => c.id)).toEqual([TEXT, ANSWERING]);
-		expect(proposedCount(m)).toBe(3);
+	it('lists a copy, and no card for a suggested edit, which is a pending change kept or discarded where it stands', () => {
+		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy']);
+		expect(cardsOf(m).some((c) => c.id === TEXT || c.id === ANSWERING)).toBe(false);
+		expect(proposedCount(m)).toBe(1);
 		expect(adoptionsOf(m).map((a) => a.copy)).toEqual([COPY]);
 	});
 
@@ -32,31 +32,23 @@ describe('what is proposed to the person', () => {
 		expect(pullLabel(x)).toBe('Pull from https://git.overleaf.com/0123');
 	});
 
-	it('holds a suggested edit on a copy on that copy, and counts it no longer', () => {
+	it('holds a suggested edit on a copy on that copy, which counts once', () => {
 		const x = changed((y) => {
 			y.nodes['sy-0002'].reached_by = [COPY];
 		});
 		const cards = cardsOf(x);
-		expect(cards.some((c) => c.id === TEXT)).toBe(false);
 		const copy = cards[0];
 		expect(copy.kind === 'copy' && copy.edits.map((e) => e.id)).toEqual([TEXT]);
-		expect(proposedCount(x)).toBe(2);
+		expect(proposedCount(x)).toBe(1);
 	});
 
-	it('gives a suggested edit on a copy with no card one of its own', () => {
+	it('lists no edit on a copy once it is kept or discarded', () => {
 		const x = changed((y) => {
 			y.nodes['sy-0002'].reached_by = [COPY];
-			y.contributions = [];
+			y.suggested_edits![TEXT].status = 'discarded';
 		});
-		expect(cardsOf(x).some((c) => c.id === TEXT)).toBe(true);
-	});
-
-	it('leaves out an edit once it is kept or discarded', () => {
-		const x = changed((y) => {
-			y.suggested_edits![TEXT].status = 'kept';
-			y.suggested_edits![ANSWERING].status = 'discarded';
-		});
-		expect(cardsOf(x).map((c) => c.kind)).toEqual(['copy']);
+		const copy = cardsOf(x)[0];
+		expect(copy.kind === 'copy' && copy.edits).toEqual([]);
 	});
 
 	it('counts each work with results proposed once, however many it has', () => {
@@ -69,7 +61,7 @@ describe('what is proposed to the person', () => {
 		});
 		expect(resultsOf(x)).toEqual([{ citekey: 'Kre99', count: 2 }]);
 		expect(cardsOf(x).at(-1)).toMatchObject({ kind: 'results', id: 'Kre99', count: 2 });
-		expect(proposedCount(x)).toBe(4);
+		expect(proposedCount(x)).toBe(2);
 	});
 });
 

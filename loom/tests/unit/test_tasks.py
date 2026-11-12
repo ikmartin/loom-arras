@@ -177,7 +177,7 @@ def test_a_link_out_of_the_quilt_is_left_alone_and_a_link_inside_it_stays_a_link
 
 
 def listed(q: Path) -> dict[str, int]:
-    return {c.path: c.hunks for c in changes(load_quilt(q), WHO)}
+    return {c.path: 1 for c in changes(load_quilt(q), WHO)}
 
 
 def test_a_tick_is_not_listed_back_to_the_person_who_made_it(q: Path) -> None:

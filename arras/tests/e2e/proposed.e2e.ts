@@ -1,5 +1,5 @@
-// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggested edit is decided in its card. The acts are stubbed: e2e-write drives them against a running publisher.
-import { expect, test, type Page } from '@playwright/test';
+// Review › Proposed Changes, read from the fixture: one card for each thing decided in a pass of its own, in order and counted; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2). A suggested edit is a pending change, kept or discarded in its document and in Your Changes (changes.e2e.ts, your-changes.e2e.ts); one on a copy is listed on the copy's card. The acts are stubbed: e2e-write drives them against a running publisher.
+import { expect, test } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
 const COPY = '.loom/copies/aidoc.tex';
@@ -7,99 +7,43 @@ const COPY = '.loom/copies/aidoc.tex';
 const TEXT = 'e-2026-09-17-zwvx4m';
 const ANSWERING = 'e-2026-09-16-r2hw0m';
 
-const ACTS = ['suggestion-apply', 'suggestion-discard'];
+const card = (page: import('@playwright/test').Page, id: string) => page.locator(`[data-testid="proposed-card"][data-id="${id}"]`);
+const edit = (page: import('@playwright/test').Page, id: string) => page.locator(`[data-testid="suggestion"][data-id="${id}"]`);
 
-/** A publisher serving the acts; what it was sent, by endpoint. */
-async function serving(page: Page): Promise<Record<string, Record<string, unknown>>> {
-	const sent: Record<string, Record<string, unknown>> = {};
-	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
-	for (const e of ACTS)
-		await page.route(`**/_api/${e}`, async (route) => {
-			sent[e] = route.request().postDataJSON();
-			await route.fulfill({ json: { ok: true, result: e === 'suggestion-apply' ? 'applied the suggested edit in main.tex; a version of main.tex is kept' : `done ${sent[e].edit}` } });
-		});
-	return sent;
-}
-
-const card = (page: Page, id: string) => page.locator(`[data-testid="proposed-card"][data-id="${id}"]`);
-const edit = (page: Page, id: string) => page.locator(`[data-testid="suggestion"][data-id="${id}"]`);
-
-test('everything to decide is a card, in order, and counted: a copy, then the open suggested edits, newest first', async ({ page }) => {
+test('everything to decide in a pass of its own is a card, counted, and a suggested edit is none', async ({ page }) => {
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
-	await expect(page.getByTestId('proposed-summary')).toHaveText('3 to decide');
-	const kinds = await page.getByTestId('proposed-card').evaluateAll((els) => els.map((e) => e.getAttribute('data-kind')));
-	expect(kinds).toEqual(['copy', 'edit', 'edit']);
-	const ids = await page.locator('[data-testid="proposed-card"][data-kind="edit"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-id')));
-	expect(ids).toEqual([TEXT, ANSWERING]);
-	// what a person reads calls it a suggested edit, never a suggestion, since Suggestion is a type of annotation
-	await expect(card(page, TEXT).locator('.tag')).toHaveText('a suggested edit');
-	await expect(page.getByTestId('proposed')).toContainText('A suggested edit you take is written into its file, a version of the document kept first');
-	await expect(page.getByTestId('proposed')).not.toContainText(/\bsuggestions?\b/);
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('1');
+	await expect(page.getByTestId('proposed-summary')).toContainText('1 to decide');
+	await expect(page.getByTestId('proposed-card')).toHaveCount(1);
+	await expect(card(page, TEXT)).toHaveCount(0);
+	await expect(page.getByTestId('proposed')).toContainText('A suggested edit is kept or discarded where it stands');
+	for (const id of ['proposed-take', 'proposed-leave']) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
-test('each names its document and who wrote it, its quote typeset rather than its LaTeX, what it says, its change, and the annotation it answers', async ({ page }) => {
+test("a suggested edit on a copy is listed on the copy's card with its document, writer, typeset quote, what it says and the annotation it answers, and no act", async ({ page }) => {
+	await serve(page, (m) => {
+		m.nodes['sy-0002'].reached_by = [COPY];
+		m.nodes['sy-0004'].reached_by = [COPY];
+	});
 	await page.goto('/review/proposed');
+	const fold = card(page, COPY).getByTestId('proposed-on-copy');
+	await fold.locator('summary').click();
 	const text = edit(page, TEXT);
-	await expect(text.getByTestId('suggestion-document')).toHaveText('in main.tex');
+	await expect(text.getByTestId('suggestion-document')).toContainText("the agent's copy");
 	await expect(text.getByTestId('suggestion-quote')).not.toContainText('\\ref');
 	await expect(text.getByTestId('suggestion-writer')).toContainText('agent');
 	await expect(text).toContainText('Say what the comparison shows.');
-	await expect(text.getByTestId('diff')).toHaveCount(1);
+	await expect(text.getByTestId('suggestion-on-copy')).toBeVisible();
 	await expect(text.getByTestId('edit-answers')).toHaveCount(0);
-	// one that answers an annotation links to it, named as a reader names it
 	const answering = edit(page, ANSWERING);
 	await expect(answering.getByTestId('edit-answers')).toContainText('It answers Suggestion on');
 	await expect(answering.getByTestId('edit-answers').locator('a')).toHaveAttribute('href', /note=a-2026-09-16-hwtkaw/);
-	// the box links to its card by the card's own id
-	await expect(page.locator(`[id="${ANSWERING}"]`)).toHaveCount(1);
+	for (const id of ['proposed-take', 'proposed-leave', 'card-keep']) await expect(card(page, COPY).getByTestId(id)).toHaveCount(0);
 });
 
-test('a static host offers no acts', async ({ page }) => {
+test('a static host can still open a review, which only reads', async ({ page }) => {
 	await page.goto('/review/proposed');
-	for (const id of ['proposed-take', 'proposed-leave']) await expect(page.getByTestId(id)).toHaveCount(0);
-	// reviewing a copy or a pull only reads, so it can still be opened
 	await expect(card(page, COPY).getByTestId('proposed-open')).toBeVisible();
-});
-
-test('Take it sends the suggested edit, naming no session, and says what it did in the card', async ({ page }) => {
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const c = card(page, TEXT);
-	await c.getByTestId('proposed-take').click();
-	await expect(c.getByTestId('suggestion-said')).toHaveText('Applied the suggested edit in main.tex; a version of main.tex is kept.');
-	expect(sent['suggestion-apply']).toEqual({ edit: TEXT });
-});
-
-test('Leave it discards a suggested edit, and the bar offers it back', async ({ page }) => {
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const c = card(page, TEXT);
-	await c.getByTestId('proposed-leave').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('Left the suggested edit on');
-	expect(sent['suggestion-discard']).toEqual({ edit: TEXT });
-	await page.getByTestId('proposed-undo').click();
-	await expect(page.getByTestId('proposed-bar-said')).toContainText('Put the suggested edit on');
-	expect(sent['suggestion-discard']).toEqual({ edit: TEXT, undo: true });
-});
-
-test('one the text already reads as taken offers only to record it kept', async ({ page }) => {
-	await serve(page, (m) => (m.suggested_edits![TEXT].change = { state: 'taken' }));
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const c = card(page, TEXT);
-	await expect(c).toContainText('The text already reads as it taken.');
-	await expect(c.getByTestId('proposed-take')).toHaveCount(0);
-	await c.getByTestId('suggestion-applied').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('Kept the suggested edit on');
-	expect(sent['suggestion-apply']).toEqual({ edit: TEXT });
-});
-
-test('a decision needs no session selected', async ({ page }) => {
-	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
-	await page.goto('/review/proposed');
-	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeEnabled();
-	await expect(card(page, TEXT).getByTestId('proposed-leave')).toBeEnabled();
 });
 
 test("a copy's card says where it stands and opens its review at its own address, and comes back", async ({ page }) => {
@@ -124,7 +68,7 @@ test("suggested edits on a copy are folded on its card and not counted, since th
 	});
 	await page.goto('/review/proposed');
 	await expect(card(page, TEXT)).toHaveCount(0);
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('2');
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('1');
 	const fold = card(page, COPY).getByTestId('proposed-on-copy');
 	await expect(fold).toContainText('1 suggested edit on it');
 	await fold.locator('summary').click();
@@ -151,7 +95,7 @@ test('a work with results proposed has a card that opens the queue at it', async
 		m.references.Kre99.results = { ...(m.references.Kre99.results ?? {}), 'Kre99-thm-9.9': { state: 'proposed', level: 1, class: 'anchored', page: 1, artifact: 'df039aa2ab80', origin: [{ act: 'proposed', by: 'run:2026-09-18T20-00', when: '2026-09-18T20:00:00Z' }], source_text: 'Every cycle group is generated by integral cycles.', statement: 'Every cycle group is generated by integral cycles.', page_text: 'Theorem 9.9. Every cycle group is generated by integral cycles.' } };
 	});
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('4');
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('2');
 	const c = card(page, 'Kre99');
 	await expect(c).toHaveAttribute('data-kind', 'results');
 	await expect(c).toContainText('1 result an agent proposes');
@@ -228,7 +172,8 @@ test('what taking a copy in did is said even when the copy leaves the manifest b
 	});
 	await page.goto('/review/proposed?copy=' + encodeURIComponent(COPY));
 	await page.getByTestId('apply').click();
-	await expect(page.getByTestId('proposed-summary')).toBeVisible();
+	// the copy taken in leaves nothing to decide
+	await expect(page.getByTestId('proposed-none')).toBeVisible();
 	answer();
 	await expect(page.getByTestId('proposed-answer')).toContainText('Took 1 change into main: 0 accepted, 1 wait in Your Changes.');
 });

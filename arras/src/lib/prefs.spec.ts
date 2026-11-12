@@ -15,7 +15,7 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it("defaults to serif, medium, mid, system, the compiled page, a floating comment box, no ids, LaTeX's aux files hidden and the agents' config documents shown", () => {
+	it("defaults to serif, medium, mid, system, the compiled page, no ids, LaTeX's aux files hidden and the agents' config documents shown", () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
 			outline: 0.55,
@@ -29,19 +29,16 @@ describe('the display preferences', () => {
 			size: 'm',
 			width: 'mid',
 			theme: 'system',
-			format: 'p1',
-			comments: 'floating',
-			markColor: ''
+			format: 'p1'
 		});
 	});
 
-	it('keeps the divider inside the range a pane is usable in, and reads a stored hover placement as the default', () => {
+	it('keeps the divider inside the range a pane is usable in', () => {
 		// a ratio outside it leaves one pane too narrow to read, which a stored value from a dragged-off-screen divider or a hand-edited blob could otherwise do; one inside it is kept
 		expect(coerce({ divider: 0.42 }).divider).toBe(0.42);
 		expect(coerce({ divider: 0.95 }).divider).toBe(0.8);
 		expect(coerce({ divider: 0.01 }).divider).toBe(0.2);
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
-		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
 		// hiding the agents' config documents is asked for, never assumed from a stray value
 		expect(coerce({ hideAgentConfig: true }).hideAgentConfig).toBe(true);
 		expect(coerce({ hideAgentConfig: 'yes' }).hideAgentConfig).toBe(false);

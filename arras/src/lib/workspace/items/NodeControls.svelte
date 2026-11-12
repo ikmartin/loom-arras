@@ -1,12 +1,13 @@
 <script lang="ts">
-	// A node's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar, as a work's pages have them; under *view*, `show all annotations` and `show settled annotations` with their keys, then `open its context beside`, which opens what the node is in and rests on in the other pane, and `show verbatim code`, naming the reading a click gives.
+	// A node's toolbar: the annotating bar, as a document has it; under *view*, `show settled annotations` and its key, then `open its context beside`, which opens what the node is in and rests on in the other pane, and `show verbatim code`, naming the reading a click gives.
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Item } from '../item';
 	import { nodeState } from '../state.svelte';
 	import { workspace } from '../store.svelte';
 	import ItemToolbar from '../ItemToolbar.svelte';
 	import ToolbarItem from '../ToolbarItem.svelte';
-	import ToolPair from '$lib/pdf/ToolPair.svelte';
+	import AnnotateBar from '$lib/review/AnnotateBar.svelte';
+	import { hand, hintFor } from '$lib/review/annotating.svelte';
 	import { ui } from '$lib/ui.svelte';
 	import { can } from '$lib/write';
 	import { settledOn } from '$lib/annotations';
@@ -30,21 +31,11 @@
 	});
 </script>
 
-{#snippet tools()}<ToolPair holder={held} of={name} />{/snippet}
+{#snippet tools()}<AnnotateBar notes={held.notes} of={name} writes={writes && !node?.external} />{/snippet}
 
 {#if node}
-	<ItemToolbar {name} bar={writes ? tools : undefined} on={held.notes.allOpen || ui.showSettled || held.verbatim}>
+	<ItemToolbar {name} bar={tools} on={ui.showSettled || held.verbatim} hint={writes && !node.external ? hintFor(store.manifest, held.notes, hand.value) : ''}>
 		{#snippet view()}
-			{#if held.notes.ready}
-				<ToolbarItem
-					label={held.notes.allOpen ? 'hide all annotations' : 'show all annotations'}
-					name="{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'} in {name}"
-					key={held.notes.allOpen ? 'h' : 'e'}
-					checked={held.notes.allOpen}
-					testid="toggle-annotations"
-					onclick={() => held.notes.toggle()}
-				/>
-			{/if}
 			{#if held.notes.ready || anySettled}
 				<ToolbarItem
 					label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
@@ -54,8 +45,8 @@
 					testid="toggle-settled"
 					onclick={() => (ui.showSettled = !ui.showSettled)}
 				/>
+				<hr />
 			{/if}
-			{#if held.notes.ready || anySettled}<hr />{/if}
 			<ToolbarItem label="open its context beside" name="open the context of {name} beside" testid="open-context" onclick={context} />
 			{#if held.source}
 				<ToolbarItem

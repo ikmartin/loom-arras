@@ -299,6 +299,48 @@ def place(result: ScanResult, edit: Edit) -> Placed:
     return Placed(node.key, node.file, own, span, at, text, edit.target_hash != key_hash(result, node.key))
 
 
+def compose(result: ScanResult, edits: list[Edit]) -> list[tuple[Edit, Placed | Unplaced]]:
+    """Several edits placed together, in the order they were written: each placed in its key's text now (`place`), and one whose place meets an earlier one's in the same file Unplaced, since the earlier stands there first.
+
+    Parameters
+    ----------
+    result : ScanResult
+        A scan of the quilt now.
+    edits : list of Edit
+        The suggested edits.
+
+    Returns
+    -------
+    list of (Edit, Placed or Unplaced)
+        In the order written. Two places meet when they overlap, or one is a point inside or at the edge of the other.
+    """
+    out: list[tuple[Edit, Placed | Unplaced]] = []
+    held: dict[str, list[tuple[int, int, str]]] = {}
+    for edit in sorted(edits, key=lambda e: e.created):
+        try:
+            placed = place(result, edit)
+        except Unplaced as exc:
+            out.append((edit, exc))
+            continue
+        a, b = placed.at
+        clash = next(
+            (
+                other
+                for x, y, other in held.get(placed.file, [])
+                if (a < y and x < b) or (a == b and x <= a <= y) or (x == y and a <= x <= b)
+            ),
+            None,
+        )
+        if clash is not None:
+            out.append(
+                (edit, Unplaced(f"{clash}, suggested before it, is on the same words; keep or discard that first"))
+            )
+            continue
+        held.setdefault(placed.file, []).append((a, b, edit.id))
+        out.append((edit, placed))
+    return out
+
+
 def _point(pieces: list[tuple[int, int, int]], at: int) -> tuple[int, int] | None:
     """A point of the own text in the file: inside a piece, or at the end of the one it closes."""
     for cstart, fstart, length in pieces:
@@ -403,7 +445,7 @@ def keep(result: ScanResult, edit: Edit, writer: tuple[str, str]) -> str:
     if not is_taken(result, edit):
         raise EditRefused(
             "not-taken",
-            f"{edit.target_key} does not yet read as {edit.id} taken; `loom suggestion {edit.id}` prints the patch that takes it",
+            f"{edit.target_key} does not yet read as {edit.id} taken; `loom changes {edit.id}` prints the patch that takes it",
         )
     akind, aid = writer
     node = node_of(result, edit.target_key)

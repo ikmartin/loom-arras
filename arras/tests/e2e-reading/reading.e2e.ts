@@ -73,23 +73,19 @@ async function intoASession(page: Page, served: Served): Promise<string> {
 	return id;
 }
 
+/** A person's note on page 2 of Bellamy19 over `phrase`, of type `type` or none, written through the API; returns its id. */
+async function noteOnPageAs(served: Served, phrase: string, body: string, type: string | null): Promise<string> {
+	const result = await served.api('annotate', { target: 'Bellamy19', page: 2, quote: phrase, message: body, ...(type ? { type } : {}) });
+	return result.split(/\s+/)[0];
+}
+
 /** A person's note on page 2 of Bellamy19 over `phrase`, written through the API into `session`; returns its id. */
 async function noteOnPage2(served: Served, session: string, phrase: string, body: string): Promise<string> {
 	const result = await served.api('annotate', { target: 'Bellamy19', page: 2, quote: phrase, message: body, type: 'note', session });
 	return result.split(/\s+/)[0];
 }
 
-/**
- * Select a phrase and ask to annotate it, the way a reader does.
- *
- * Selecting no longer opens the composer by itself: the selection stays live so it can be copied, and an *annotate* chip offers the other thing. Both halves are exercised here, because a test that reached the composer without the chip would not notice the chip disappearing.
- */
-async function select(page: Page, phrase: string): Promise<void> {
-	await selectOnly(page, phrase);
-	await page.getByTestId('annotate-offer').click();
-}
-
-/** The selection alone, for a test about what selecting does on its own. The phrase is scrolled into view first, as one a reader selects is: the chip is hidden while the selection's end is out of its pane's view. */
+/** Select a phrase, as a reader does, and let go. It is scrolled into view first, as one a reader selects is: the chip at its end is hidden while that end is out of its pane's view. */
 async function selectOnly(page: Page, phrase: string): Promise<void> {
 	const span = page.locator(`[data-testid="pdf-page-2"] .text span:has-text("${phrase}")`).first();
 	await span.scrollIntoViewIfNeeded();
@@ -103,30 +99,23 @@ async function selectOnly(page: Page, phrase: string): Promise<void> {
 	});
 }
 
-test('a selection stays selected and only offers to annotate; a note written from it shows loom’s own words before anything is recorded', async ({ page, served }) => {
+/** Click the middle of an annotation's mark on a page: a mark takes no pointer, so the page below is asked what the click landed on. */
+async function clickMark(page: Page, id: string): Promise<void> {
+	const box = (await page.getByTestId(`page-mark-${id}`).boundingBox())!;
+	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+/** The colour a line of a mark is drawn in: grey, in the light, given as sRGB or as `color()`. */
+const GREY = /rgb\(136, 135, 128\)|color\(srgb 0\.533\d* 0\.529\d* 0\.50\d*\)/;
+
+test('a selection stays selected and offers only Quote; a note on its words is drawn on the page in the look loom gave it', async ({ page, served }) => {
+	const id = await noteOnPageAs(served, 'incidence matrix', 'So the vertices are integral.', null);
 	await opened(page, served);
-	// highlighting a phrase to copy it is the ordinary thing to do with a paper, so selecting opens nothing: the selection survives, and the chip is the way to the composer
+	// highlighting a phrase to copy it is the ordinary thing to do with a paper, so selecting writes nothing and opens nothing: the selection survives, and Quote is offered at its end
 	await selectOnly(page, 'incidence matrix');
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await expect(page.getByTestId('ann-popup')).toHaveCount(0);
 	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('incidence matrix');
-	await expect(page.getByTestId('annotate-offer')).toBeVisible();
-	// the one chip every surface has: the annotation neutral, after the selection's last line
-	await expect(page.getByTestId('annotate-offer')).toHaveCSS('color', 'rgb(111, 109, 102)');
-	await page.getByTestId('annotate-offer').click();
-	const form = page.getByTestId('note-at');
-	await expect(form).toBeVisible();
-	// the header names the page and the words, never the work's key; beneath it, what loom found on the page in its own words, before anything is typed
-	await expect(page.getByTestId('note-where')).toContainText('on p. 2,');
-	await expect(page.getByTestId('note-where')).toContainText('incidence matrix');
-	await expect(page.getByTestId('note-where')).not.toContainText(bellamy(served).work);
-	await expect(page.getByTestId('note-located')).toContainText('anchored by text');
-	// the composer is a comment box and nothing else: the words stay lit on the page instead of being quoted in it
-	await expect(page.getByTestId('note-quote')).toHaveCount(0);
-	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('incidence matrix');
-	await page.getByTestId('note-body').fill('So the vertices are integral.');
-	await expect(page.getByTestId('note-type').locator('[aria-pressed="true"]')).toHaveAttribute('data-type', '');
-	await page.getByTestId('note-submit').click();
-	await expect(form).toBeHidden();
+	await expect(page.getByTestId('quote-offer')).toBeVisible();
 	const written = served.written('So the vertices are integral.');
 	expect(written.target).toBe(bellamy(served).work);
 	const anchor = written.anchor as Record<string, unknown>;
@@ -134,30 +123,20 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	expect(anchor.page).toBe(2);
 	expect(String(anchor.exact)).toContain('incidence matrix');
 	expect(anchor).not.toHaveProperty('quads'); // derived at build time, never recorded for text
-	// and the mark appears once the publisher has rebuilt the sidecar, drawn as a fragment draws one in the look loom gave it: with no type, a thin grey underline beneath each line and no band
-	const mark = page.getByTestId(`mark-${written.id}`).first();
-	await expect(mark).toBeVisible();
-	await expect(mark).toHaveClass(/annotation/);
-	await expect(mark).toHaveClass(/\bann-underline\b/);
-	await expect(mark).toHaveCSS('background-size', '100% 1px');
-	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/rgb\(136, 135, 128\)|color\(srgb 0\.533\d* 0\.529\d* 0\.50\d*\)/);
-	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/rgba\(0, 0, 0, 0\)|[ /,] ?0\)$/);
-	await expect(mark).toHaveCSS('border-top-width', '0px');
-});
-
-test('Enter on a selection opens the composer, as the chip does', async ({ page, served }) => {
-	await opened(page, served);
-	await selectOnly(page, 'incidence matrix');
-	await expect(page.getByTestId('annotate-offer')).toBeVisible();
-	await page.keyboard.press('Enter');
-	await expect(page.getByTestId('note-at')).toBeVisible();
-	await expect(page.getByTestId('annotate-offer')).toHaveCount(0);
+	// with no type, a thin grey underline beneath each line and no band
+	await expect(page.getByTestId(`page-mark-${id}`)).toHaveAttribute('data-kind', 'underline');
+	const rule = page.getByTestId(`mark-line-${id}`).locator('line').first();
+	await expect(rule).toBeAttached();
+	expect(await rule.evaluate((el) => getComputedStyle(el).stroke)).toMatch(GREY);
+	expect(await rule.evaluate((el) => getComputedStyle(el).strokeWidth)).toBe('1px');
+	await expect(page.getByTestId(`mark-band-${id}`)).toHaveCount(0);
 });
 
 test('a selection across a citation and a reference is quoted as they were written, and anchors', async ({ page, served }) => {
 	// the 0.14 study (F5): the rendered `[2, Theorem 3.2]` shares no text with `\cite[Theorem 3.2]{Bellamy19}`, and the page prints `Ehrhart’s` for `Ehrhart's`, so a selection across either was "quote not found" and only a note on the whole proof was offered
+	await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'question', over: {} })));
 	await page.goto('/node/sh-000C');
-	await intoASession(page, served);
+	await page.getByTestId('tool-annotate').click();
 	const para = page.locator('[data-pane="0"] .fragment details p').filter({ hasText: 'Ehrhart' }).first();
 	await expect(para.locator('mjx-container').first()).toBeAttached();
 	await para.evaluate((node) => {
@@ -168,11 +147,12 @@ test('a selection across a citation and a reference is quoted as they were writt
 		sel?.addRange(range);
 		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 	});
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Which digraph is this the median polytope of?');
-	await page.getByTestId('note-type').locator('[data-type="question"]').click();
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toBeHidden();
+	// marked with Annotate, holding a type that asks something, so the popup takes the question before anything is written
+	const draft = page.getByTestId('ann-popup');
+	await expect(draft).toBeVisible();
+	await draft.getByTestId('popup-comment-field').fill('Which digraph is this the median polytope of?');
+	await draft.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 	const written = served.written('Which digraph is this the median polytope of?');
 	expect(written.target).toBe('sh-000C/proof');
 	const quote = String((written.anchor as Record<string, unknown>).exact);
@@ -188,10 +168,9 @@ test('a selection across a citation and a reference is quoted as they were writt
 		.toBe('true true');
 });
 
-test('a box is recorded as drawn, and the words under it are its hint', async ({ page, served }) => {
+test('a region drawn with Alt is commented on, recorded as drawn, and drawn as an outline in the look in hand', async ({ page, served }) => {
+	await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: null, over: { color: 'grey', style: 'underline', weight: 1, opacity: 100 } })));
 	await opened(page, served);
-	await page.getByTestId('tool-box').click();
-	await expect(page.locator('[data-testid="pdf-page-2"].boxing')).toBeVisible(); // the tool has taken
 	const canvas = page.locator('[data-testid="pdf-page-2"] canvas');
 	// the column, not the window: the page's top at the top of the reader, so the display a third of the way down is in view
 	await canvas.evaluate((c) => c.scrollIntoView({ block: 'start' }));
@@ -213,55 +192,45 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 			document.addEventListener(t, (e) => w.__ev.push(`${t}:${((e.target as Element).className || (e.target as Element).tagName).toString().slice(0, 30)}`), true);
 		}
 	});
-	// the display on page 2, in the page's own proportions
+	// the display on page 2, in the page's own proportions, with Alt held: a region with no tool up
+	await page.keyboard.down('Alt');
 	await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * 0.36);
 	await page.mouse.down();
 	await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.4, { steps: 6 });
 	await page.mouse.up();
+	await page.keyboard.up('Alt');
 	const seen = await page.evaluate(() => (window as unknown as { __ev: string[] }).__ev.slice(0, 10));
-	await expect(page.getByTestId('note-at'), `the pointer saw: ${seen.join(' ')}`).toBeVisible();
-	await expect(page.getByTestId('note-where')).toHaveText('on p. 2, a box');
-	await expect(page.getByTestId('note-located')).toContainText('anchored by box');
-	await page.getByTestId('note-body').fill('This is the display I want to cite.');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toBeHidden();
+	const draft = page.getByTestId('draft-host').getByTestId('ann-popup');
+	await expect(draft, `the pointer saw: ${seen.join(' ')}`).toBeVisible();
+	await draft.getByTestId('popup-comment-field').fill('This is the display I want to cite.');
+	await draft.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 	const written = served.written('This is the display I want to cite.');
 	const anchor = written.anchor as Record<string, unknown>;
 	expect(anchor.basis).toBe('box');
 	expect(anchor.quads).toHaveLength(1);
-	// a box anchor is an outline of its weight in its line's colour, not an underline: with no type, thin and grey
-	const mark = page.getByTestId(`mark-${written.id}`);
-	await expect(mark).toBeVisible();
-	await expect(mark).toHaveClass(/basis-box/);
-	await expect(mark).toHaveCSS('border-top-width', '1px');
-	expect(await mark.evaluate((el) => getComputedStyle(el).borderTopColor)).toMatch(/rgb\(136, 135, 128\)|color\(srgb 0\.533\d* 0\.529\d* 0\.50\d*\)/);
-	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
+	// an outline in the look in hand, not an underline: here thin and grey
+	await expect(page.getByTestId(`page-mark-${written.id}`)).toHaveAttribute('data-kind', 'box');
+	const shape = page.getByTestId(`mark-line-${written.id}`).locator('.shape');
+	await expect(shape).toBeAttached();
+	expect(await shape.evaluate((el) => getComputedStyle(el).stroke)).toMatch(GREY);
+	// its weight, which a mark drawn selected thickens a little
+	expect(await page.getByTestId(`mark-line-${written.id}`).evaluate((g) => getComputedStyle(g).getPropertyValue('--weight').trim())).toBe('1');
+	await expect(page.getByTestId(`mark-band-${written.id}`)).toHaveCount(0);
+	// and its popup is open on it, once written
+	await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', String(written.id));
 });
 
-test('a mark opens the box a fragment opens, Escape closes it, and its mark has nowhere to travel', async ({ page, served }) => {
-	// a person's note in the session the page is opened in, written before the page is
+test('a mark opens the popup a fragment opens, and Escape closes it', async ({ page, served }) => {
 	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note to open from its mark');
 	await opened(page, served);
-	const mark = page.getByTestId(`mark-${id}`);
-	await expect(mark).toBeVisible();
-	await mark.click();
-	const open = page.getByTestId('comment-expanded');
-	await expect(open).toBeVisible();
-	await expect(open.locator('article.box').first()).toBeVisible();
+	await expect(page.getByTestId(`page-mark-${id}`)).toBeVisible();
+	await clickMark(page, id);
+	const open = page.getByTestId('ann-popup');
+	await expect(open).toHaveAttribute('data-annotation-id', id);
+	await expect(open.getByTestId('popup-comment')).toContainText('a note to open from its mark');
 	await page.keyboard.press('Escape');
 	await expect(open).toHaveCount(0);
-	// what the session did is the log of what was done through loom's commands, which a note written here is not: its mark has nowhere to travel, and says so
-	await mark.dblclick();
-	await expect(page.getByTestId('travel-nowhere')).toBeVisible();
-});
-
-test('inline is never offered on a page, and a note opens floating', async ({ page, served }) => {
-	// A PDF page cannot reflow, so there is nowhere for an inline box to go.
-	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note placed inline by preference');
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'inline' })));
-	await opened(page, served);
-	await page.getByTestId(`mark-${id}`).click();
-	await expect(page.getByTestId('comment-expanded')).toHaveClass(/floating/);
 });
 
 test('a locator in the URL is lit while the URL carries it, and a note is focused by its id', async ({ page, served }) => {
@@ -275,9 +244,9 @@ test('a locator in the URL is lit while the URL carries it, and a note is focuse
 	await expect(lit).toBeVisible();
 	await expect(lit).toHaveClass(/on/); // and it is the one in focus
 	await page.goto(`${PAGE2}&annot=${id}`);
-	await expect(page.getByTestId(`mark-${id}`)).toHaveClass(/on/);
+	await expect(page.getByTestId(`page-mark-${id}`)).toHaveClass(/\bon\b/);
 	// and it arrives open: a link to a note is a link to what it says (plan 0.14)
-	await expect(page.getByTestId('comment-expanded').locator(`[data-annotation-id="${id}"]`)).toBeVisible();
+	await expect(page.locator(`[data-testid="ann-popup"][data-annotation-id="${id}"]`)).toBeVisible();
 });
 
 test('a session is named on the spot and closed from the page', async ({ page, served }) => {
@@ -298,72 +267,56 @@ test('a session is named on the spot and closed from the page', async ({ page, s
 	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 });
 
-test('two notes on one place are one mark with no count drawn, and one box holding both', async ({ page, served }) => {
+test('two notes on one place are each drawn there, with no count, and a click opens one of them', async ({ page, served }) => {
+	const session = served.openSessions().at(-1)!;
+	const first = await noteOnPage2(served, session, 'Boundedness holds', 'first on this phrase');
+	const second = await noteOnPage2(served, session, 'Boundedness holds', 'second on this phrase');
 	await opened(page, served);
-	for (const body of ['first on this phrase', 'second on this phrase']) {
-		await select(page, 'Boundedness holds');
-		await expect(page.getByTestId('note-at')).toBeVisible();
-		await page.getByTestId('note-body').fill(body);
-		await page.getByTestId('note-submit').click();
-		await expect(page.getByTestId('note-at')).toBeHidden();
-	}
-	// one mark carries both ids; nothing is drawn to say how many
-	const stacked = page.locator('[data-testid="pdf-page-2"] .mark.note[data-annotation*=" "]').first();
-	await expect(stacked).toBeVisible();
-	await expect(stacked).not.toHaveAttribute('data-count');
-	expect(await stacked.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
-	const ids = (await stacked.getAttribute('data-annotation'))!.split(/\s+/);
-	expect(ids.length).toBeGreaterThanOrEqual(2);
-	await stacked.click();
-	await expect(page.getByTestId('comment-expanded').locator('article.box')).toHaveCount(ids.length);
+	const one = page.getByTestId(`page-mark-${first}`);
+	const two = page.getByTestId(`page-mark-${second}`);
+	await expect(one).toBeVisible();
+	await expect(two).toBeVisible();
+	expect(await one.boundingBox()).toEqual(await two.boundingBox());
+	expect(await one.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	await clickMark(page, first);
+	await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', new RegExp(`^(${first}|${second})$`));
 });
 
-test('a box shows the write it fired, without being closed and reopened', async ({ page, served }) => {
-	// `openAt` mounted the card with the annotation as it was and nothing updated it, so resolving from a box left the
-	// box saying `open` with the same verbs. In the study the reader clicked twice for that reason and the append-only
-	// log took two `resolved` events for one annotation.
+test('a popup shows the write it fired, without being closed and reopened', async ({ page, served }) => {
+	// a popup reads its annotation from the manifest by id, so a resolve that comes back on the next poll is shown where the reader acted
+	const id = await noteOnPageAs(served, 'exchange inequalities', 'resolve me', 'question');
 	await opened(page, served);
-	// a phrase no note in the showcase is on: a stacked mark carries the first id rather than the newest
-	await select(page, 'exchange inequalities');
-	await expect(page.getByTestId('note-at')).toBeVisible();
-	await page.getByTestId('note-body').fill('resolve me');
-	// a type that stays open until resolved, since only those offer resolve
-	await page.getByTestId('note-type').locator('[data-type="question"]').click();
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toBeHidden();
-	const id = served.written('resolve me').id as string;
-	const mark = page.getByTestId(`mark-${id}`);
-	await expect(mark).toBeVisible();
-	await mark.click();
-	const box = page.getByTestId('comment-expanded');
-	await expect(box.getByTestId('outcome')).toHaveCount(0);
-	await box.getByTestId('verb-resolve').first().click();
-	// the same box, still open, still where the reader put it, now settled: the outcome said once, and reopen its one verb
-	await expect(box.getByTestId('outcome').first()).toHaveText('· resolved');
-	await expect(box.locator('article.box').first()).toHaveClass(/settled/);
-	await expect(box.getByTestId('verb-resolve')).toHaveCount(0);
-	const undo = box.getByTestId('verb-reopen').first();
-	await undo.click();
-	await expect(box.getByTestId('outcome')).toHaveCount(0);
+	await expect(page.getByTestId(`page-mark-${id}`)).toBeVisible();
+	await clickMark(page, id);
+	const p = page.getByTestId('ann-popup');
+	await expect(p.getByTestId('popup-status')).toHaveText('Open');
+	await p.getByTestId('popup-resolve').click();
+	// the same popup, still open, now resolved, with Reopen its undo
+	await expect(p.getByTestId('popup-status')).toHaveText('Resolved');
+	await expect(p.getByTestId('popup-resolve')).toHaveCount(0);
+	await p.getByTestId('popup-reopen').click();
+	await expect(p.getByTestId('popup-status')).toHaveText('Open');
 });
 
 test('a selection records the lines it covers and nothing else', async ({ page, served }) => {
-	// **A phantom rectangle is a wrong anchor, not a cosmetic fault.** A range over the text layer yields a rectangle for every element it crosses, degenerate ones included, and those were mapped to points and recorded. They sat at the layer's top-left, hundreds of points above the words they claimed to be. A text anchor publishes its geometry through the sidecar rather than the log (DR-209), so that is where the drawn rectangles are checked.
+	// **A phantom rectangle is a wrong anchor, not a cosmetic fault.** A range over the text layer yields a rectangle for every element it crosses, degenerate ones included, and those were mapped to points and recorded, at the layer's top-left, hundreds of points above the words they claimed to be. Words marked with Annotate are anchored by their text, and the rectangles drawn for them are the lines they cover.
 	await opened(page, served);
-	await select(page, 'rational polytope');
-	await page.getByTestId('note-body').fill('the quads of this note are the lines it covers');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
-
-	const written = served.written('the quads of this note are the lines it covers');
-	const id = String(written.id);
+	await page.getByTestId('tool-annotate').click();
+	await selectOnly(page, 'rational polytope');
+	await page.keyboard.press('Escape');
+	// a text anchor publishes its geometry through the sidecar rather than the log (DR-209), so that is where the drawn rectangles are checked
+	const manifest = () => JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8'));
+	type Raw = { id: string; quote?: string | null; target: { page?: number | null } };
+	const found = () => (Object.values(manifest().annotations) as Raw[]).find((a) => (a.quote ?? '').includes('rational polytope'));
+	await expect.poll(() => !!found()).toBe(true);
+	const written = found()!;
+	const id = written.id;
 	const sidecar = join(served.root, '.loom/build', bellamy(served).spans.path);
 	await expect
 		.poll(() => JSON.parse(readFileSync(sidecar, 'utf8')).marks?.[id]?.length ?? 0)
 		.toBeGreaterThan(0);
-
 	const spans = JSON.parse(readFileSync(sidecar, 'utf8'));
-	const box = spans.pages[String((written.anchor as { page: number }).page)];
+	const box = spans.pages[String(written.target.page)];
 	for (const [x0, y0, x1, y1] of spans.marks[id] as number[][]) {
 		expect(x1, `a quad with no width: ${JSON.stringify([x0, y0, x1, y1])}`).toBeGreaterThan(x0);
 		expect(y1, `a quad with no height: ${JSON.stringify([x0, y0, x1, y1])}`).toBeGreaterThan(y0);

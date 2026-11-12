@@ -26,6 +26,7 @@ from loom.render.keys import aux_bytes, code_hash
 from loom.render.manifest import build_manifest
 from loom.render.marks import MarkEntry, place_marks
 from loom.render.publish import publish, write_atomic
+from loom.render.versions import Gone, attach_versions, gone_annotations, gone_marks
 from loom.scan.model import Diagnostic
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
@@ -74,7 +75,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
 
     Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
 
-    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the annotations on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the annotations on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log, or where a changed copy found it again (`refound`); a mark that records its own place stands where the manifest says it stands now. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
 
     Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
@@ -164,8 +165,10 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                 table.boxes_of(page)  # for the page table
                 continue
             if a.get("basis") == "box":
-                if a["id"] in drawn:
-                    marks[a["id"]] = drawn[a["id"]]
+                # a box found again on a changed copy stands where it was found; any other where it was drawn
+                found = a["rects"] if a.get("refound") and a.get("rects") else drawn.get(a["id"])
+                if found:
+                    marks[a["id"]] = found
                     table.boxes_of(page)  # for the page table
                 continue
             xml = table.boxes_of(page)
@@ -280,16 +283,18 @@ def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult)
     h = hashlib.sha256()
     for k in sorted(keys):
         for m in marks.get(k, []):
-            h.update(f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}".encode())
+            h.update(
+                f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}|{m.gone}|{m.lead}|{m.quote if m.gone else ''}".encode()
+            )
     return h.hexdigest()[:16]
 
 
-def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkEntry]]:
+def _marks_by_node(result: ScanResult, records: Records, gone: list[Gone] | None = None) -> dict[str, list[MarkEntry]]:
     """Mark entries grouped by the node whose fragment shows them: a proof's marks under its statement, and on the proof's own page.
 
-    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label.
+    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label. An annotation whose words are gone marks where they were with an empty mark (`versions.gone_marks`), from `gone` when the caller has it.
     """
-    out: dict[str, list[MarkEntry]] = {}
+    out: dict[str, list[MarkEntry]] = gone_marks(gone_annotations(result, records) if gone is None else gone)
     for res in records.resolved(result):
         # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
         if not res.recorded:
@@ -312,12 +317,22 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
             n = result.nodes.get(region.container) if region else None
         if n is None:
             continue
-        _, pieces = Records.own_pieces(result, n)
-        span = Records.to_file_span(pieces, res.span)
-        if span is None:
-            continue
-        # `in` as the history's moves leave it, so a note read in a document is drawn in whatever that document became
-        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], res.in_doc)
+        own, pieces = Records.own_pieces(result, n)
+        if res.span[0] == res.span[1]:
+            # a point where its words were removed, carried there by a kept change: drawn as the empty mark a gone annotation's place is
+            from loom.render.versions import _beside, _file_point
+
+            at = _file_point(pieces, res.span[0])
+            if at is None:
+                continue
+            words, lead = _beside(own, res.span[0])
+            entry = MarkEntry(a.id, words, n.file, at, at, res.in_doc, gone=True, lead=lead)
+        else:
+            span = Records.to_file_span(pieces, res.span)
+            if span is None:
+                continue
+            # `in` as the history's moves leave it, so a note read in a document is drawn in whatever that document became
+            entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], res.in_doc)
         owner = n.of if n.kind == "proof" and n.of else n.key
         out.setdefault(owner, []).append(entry)
         # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement
@@ -412,7 +427,8 @@ def build(
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
     freeze_moved(result, records.records)
-    marks = _marks_by_node(result, records)
+    gone = gone_annotations(result, records)
+    marks = _marks_by_node(result, records, gone)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
     from loom.render.fromhtml import page_for
@@ -567,9 +583,11 @@ def build(
     from loom.render.incoming import attach_adoptions
 
     attach_adoptions(result, renderer, manifest, files)
-    from loom.render.edits import attach_edits
+    from loom.render.pending import attach_pending
 
-    attach_edits(result, renderer, manifest, files)
+    # every change waiting on the person, each drawn in its block, and the suggested edits' record
+    attach_pending(result, records, renderer, manifest, files, marks)
+    attach_versions(result, records, renderer, manifest, files, gone)
     # every preview asked for above, made by TeX together, one batch per preamble
     renderer.previews.make()
     from loom.review_queue import rows_for
@@ -578,9 +596,7 @@ def build(
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)
     from loom.files import BODIES, attach_files
-    from loom.looks import DIFFS
-    from loom.looks import attach_changes as attach_look_changes
-    from loom.scan.quilt import reviewer_identity
+    from loom.render.pending import DIFFS
 
     attach_files(result, manifest, files)
     from loom.render.threads import last_active
@@ -590,7 +606,6 @@ def build(
     from loom.config_edit import published as published_config
 
     manifest["config"] = published_config(result)
-    attach_look_changes(result, reviewer_identity(result.quilt.root)[0], manifest, files)
     # every diagnostic, lint's, the renderer's and the records', whole and with whose it is to fix
     from loom.scan.owners import stamped
 

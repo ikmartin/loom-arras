@@ -1,6 +1,6 @@
 <script lang="ts">
-	// The undo of a delete: one line per annotation this page deleted, at the foot of the window, each with Undo and ×. The deleted annotation's mark and box are gone once loom rebuilds, so the undo stands here, held until the page closes or × lets it go.
-	import { deletions, forget, undoDelete } from './deleted.svelte';
+	// The undo of a delete: one line per annotation this page deleted, at the foot of the window, each with Undo and ×. The deleted annotation's mark and popup are gone once loom rebuilds, so the undo stands here while the delete does; it is the history's (`history.svelte.ts`), so the toolbar's Undo and this one are the same act. × lets the line go and leaves the delete in the history.
+	import { forget, history, undoDelete } from './history.svelte';
 
 	let busy = $state('');
 	let refused = $state<Record<string, string>>({});
@@ -13,9 +13,9 @@
 	}
 </script>
 
-{#if deletions.length}
+{#if history.deletions.length}
 	<ul class="deleted plain" data-testid="deleted-bar" aria-live="polite">
-		{#each deletions as d (d.id)}
+		{#each history.deletions as d (d.id)}
 			<li data-testid="deleted" data-id={d.id}>
 				<span class="said">Deleted {d.said}.</span>
 				<button type="button" class="btn small" disabled={!!busy} onclick={() => void undo(d.id)} data-testid="deleted-undo">{busy === d.id ? 'Putting back…' : 'Undo'}</button>

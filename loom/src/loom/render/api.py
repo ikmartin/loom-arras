@@ -28,8 +28,8 @@ CAPABILITIES = [
     "delete",
     "restore",
     "annotations-take",
-    "suggestion-apply",
-    "suggestion-discard",
+    "change-keep",
+    "change-discard",
     "library-verify",
     "library-discard",
     "library-update",
@@ -61,10 +61,9 @@ CAPABILITIES = [
     "review-accept",
     "reviewer-settings",
     "settings-save",
+    "types-save",
     "agents-update",
     "here",
-    "changes-keep",
-    "changes-undo",
     "file-tick",
     "history-record",
     "history-restore",
@@ -315,8 +314,6 @@ RECORD_WRITES = (
     "annotate",
     "file-tick",
     "annotations-take",
-    "suggestion-discard",
-    "changes-keep",
     "history-record",
     "reply",
     "resolve",
@@ -332,6 +329,7 @@ RECORD_WRITES = (
     "session-purpose",
     "adopt-decision",
     "reviewer-settings",
+    "types-save",
 )
 
 
@@ -406,59 +404,82 @@ def _pdf_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "result": f"saved {rel}", "path": rel, "bytes": len(raw)}
 
 
-def _changes(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """`changes-keep` and `changes-undo`: the reviewer keeps a change to an open file, some hunks of it, or every change (no `path`), or puts one back as it was at their look, a new file removed; the author's acts, refused to a declared agent.
+def _change(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`change-keep` and `change-discard`: the person keeps or discards changes waiting on them (`pending.py`), by id, or every one with `all`, of one document with `document`; the author's acts, refused to a declared agent. `change-discard` takes `why`, and with `undo` opens again the suggested edits it names, kept or discarded."""
+    from loom.cli._common import ContentError, EnvError, is_agent
+    from loom.cli.review import _annotator
+    from loom.looks import keep_all, read_look
+    from loom.pending import PendingRefused, discard, keep, pending
 
-    `seen` is the file's hash as the page drew it (`changes[].hash`); an act on a file that has moved on since is `stale`, so a hunk's number never names another change.
-    """
-    from loom.cli._common import is_agent
-    from loom.looks import LookRefused, changes, keep, undo
-    from loom.scan.quilt import load_quilt, reviewer_identity
-
-    who = reviewer_identity(root)[0]
-    if not who:
-        raise ApiError("no-reviewer", "Choose your reviewer name in Settings", status=409)
+    who = reviewer_identity_of(root)
     if is_agent(_str(body, "author") or who):
         raise ApiError(
-            "author-only", "An agent reads and annotates; only the author keeps or undoes a change", status=403
+            "author-only", "An agent suggests and annotates; only the author keeps or discards a change", status=403
         )
-    quilt = load_quilt(root)
-    hunks = body.get("hunks")
-    if hunks is not None and (
-        not isinstance(hunks, list)
-        or not hunks
-        or any(isinstance(n, bool) or not isinstance(n, int) or n < 0 for n in hunks)
-    ):
-        raise ApiError("bad-field", "hunks must be a list of whole numbers from 0")
-    path = _str(body, "path", required=endpoint == "changes-undo" or hunks is not None)
-    seen = _str(body, "seen")
-    what = (f"a change to {path}" if len(hunks) == 1 else f"{len(hunks)} changes to {path}") if hunks else path
-    from loom.history.acts import Kept, keep_versions
-
     try:
-        if endpoint == "changes-undo":
-            # the text being set aside is a version of each document it is part of, kept before it goes
-            kept: list[Kept] = []
-            first = lambda: kept.append(keep_versions(_scan(root), [path or ""], "undo", "Before an undo", who))  # noqa: E731
-            back = undo(quilt, who, path or "", hunks=hunks, seen=seen, before=first)
-            said = (
-                f"removed {path}; its text is kept"
-                if back is None
-                else f"put back {what}; the text it replaced is kept"
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+    except (EnvError, ContentError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    # a scan of the files as they are now: what waits is cut from them, and the publisher's may predate an edit
+    from loom.cli._quilt import open_scan
+
+    result = open_scan(str(root))
+    given = body.get("changes")
+    if body.get("all") is True:
+        document = _str(body, "document")
+        if endpoint == "change-keep" and who and read_look(root, who) is None:
+            keep_all(result.quilt, who)
+            return {"ok": True, "result": "took your first look", "done": [], "refused": []}
+        ids = [c.id for c in pending(result, who) if document is None or document in c.documents]
+    elif isinstance(given, list) and given and all(isinstance(i, str) for i in given):
+        ids = list(given)
+    else:
+        raise ApiError("missing-field", "changes is the list of the changes' ids, or send all: true")
+    if endpoint == "change-discard" and body.get("undo") is True:
+        return _reopen(root, ids, writer)
+    versions: list[str] = []
+    try:
+        if endpoint == "change-keep":
+            done, refused = keep(result, who, ids, writer, versions)
+        else:
+            done, refused = discard(result, who, ids, writer, _str(body, "why"), versions)
+    except PendingRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+    verb = "kept" if endpoint == "change-keep" else "discarded"
+    parts = [f"{verb} {len(done)} change{'s' if len(done) != 1 else ''}"]
+    if refused:
+        parts.append(f"{len(refused)} could not be")
+    said = "; ".join([*parts, *versions])
+    return {"ok": True, "result": said, "done": done, "refused": refused}
+
+
+def reviewer_identity_of(root: Path) -> str:
+    """The reviewer name Review resolves, whose look the changes are since; '' when there is none."""
+    from loom.scan.quilt import reviewer_identity
+
+    return reviewer_identity(root)[0] or ""
+
+
+def _reopen(root: Path, ids: list[str], writer: tuple[str, str]) -> dict[str, Any]:
+    """Open again the suggested edits `ids`, kept or discarded: the viewer's undo of a Keep or a Discard."""
+    from loom.records.edits import EditRefused, discard, find
+
+    done: list[str] = []
+    refused: list[dict[str, str]] = []
+    for i in ids:
+        edit = find(root, i)
+        if edit is None:
+            raise ApiError(
+                "no-such-change",
+                f"no suggested edit {i}; an in-place change discarded comes back from History",
+                status=404,
             )
-            return {"ok": True, "result": "; ".join(filter(None, [said, *(k.said() for k in kept)]))}
-        # a whole keep keeps a version of the documents whose files moved since the look, and none at a first look
-        moved = [path] if path else [c.path for c in changes(quilt, who)]
-        keep(quilt, who, path, hunks=hunks, seen=seen)
-    except LookRefused as exc:
-        raise ApiError(
-            exc.code, exc.message, status=404 if exc.code in ("no-such-change", "no-such-hunk") else 409
-        ) from exc
-    versions = keep_versions(_scan(root), moved, "keep", "Kept an edit", who)
-    return {
-        "ok": True,
-        "result": "; ".join(filter(None, [f"kept {what}" if path else "kept everything", versions.said()])),
-    }
+        try:
+            discard(root, edit, writer, undo=True)
+            done.append(i)
+        except EditRefused as exc:
+            refused.append({"id": i, "why": exc.message})
+    return {"ok": True, "result": f"reopened {len(done)}", "done": done, "refused": refused}
 
 
 def _file_tick(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -539,6 +560,29 @@ def _history(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "ok": True,
         "result": f"put {Path(doc).name} back as “{done['label']}” holds it; its text before is the version “{done['before']}”",
     }
+
+
+def _types_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`types-save` writes `.loom/annotation-types.toml` whole from Settings › Annotations, or with `defaults` the defaults; the author's act, refused to a declared agent, which edits the file itself."""
+    from loom.cli._common import is_agent
+    from loom.records.types import TypesRefused, save_types
+    from loom.scan.quilt import reviewer_identity
+
+    if is_agent(_str(body, "author") or reviewer_identity(root)[0]):
+        raise ApiError(
+            "author-only", "An agent edits the annotation types in their file; only the author saves them here", 403
+        )
+    given = body.get("types")
+    if body.get("defaults") is True:
+        given = None
+    elif not isinstance(given, list):
+        raise ApiError("missing-field", "types is the list of the quilt's annotation types, or send defaults: true")
+    try:
+        saved = save_types(root, given)
+    except TypesRefused as exc:
+        raise ApiError("bad-field", str(exc)) from exc
+    said = "restored the default annotation types" if given is None else f"saved {len(saved.types)} annotation types"
+    return {"ok": True, "result": said, "types": [t.to_dict() for t in saved.types]}
 
 
 def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -658,16 +702,14 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _here(root, body)
     if endpoint == "open":
         return _open(root, body)
-    if endpoint in ("changes-keep", "changes-undo"):
-        return _changes(root, endpoint, body)
+    if endpoint in ("change-keep", "change-discard"):
+        return _change(root, endpoint, body)
     if endpoint == "file-tick":
         return _file_tick(root, body)
     if endpoint in ("history-record", "history-restore"):
         return _history(root, endpoint, body)
     if endpoint == "annotations-take":
         return _take(root, body)
-    if endpoint in ("suggestion-apply", "suggestion-discard"):
-        return _suggested(root, endpoint, body)
     if endpoint == "pdf-save":
         return _pdf_save(root, body)
     if endpoint in ("library-verify", "library-discard"):
@@ -859,6 +901,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             raise ApiError("adoption-refused", str(exc), status=409) from exc
     if endpoint in ("settings-save", "agents-update"):
         return _settings(root, endpoint, body)
+    if endpoint == "types-save":
+        return _types_save(root, body)
     if endpoint == "reviewer-settings":
         from loom.cli._common import is_agent
         from loom.scan.quilt import reviewer_identity, save_author
@@ -908,7 +952,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         if answer["accepted"]:
             # what the page showed with its Accept: an edit touching only blocks just accepted has been seen
             from loom.history.acts import keep_versions
-            from loom.looks import keep_accepted
+            from loom.pending import keep_accepted
 
             after = _scan(root)
             moved = keep_accepted(after, reviewer, answer["accepted"])
@@ -1159,6 +1203,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _look(body),
                 _geometry(body, "rects"),
                 _geometry(body, "strokes"),
+                # `look: null` drops the annotation's own look, so it follows its type again
+                clear_look="look" in body and body["look"] is None,
                 **fields,
             )
         if endpoint == "annotate":
@@ -1195,40 +1241,6 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("refused", str(exc)) from exc
     except EnvError as exc:
         raise ApiError("bad-request", str(exc)) from exc
-
-
-def _suggested(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """`suggestion-apply` writes a suggested edit into its file, as `loom suggestion apply ID` does, and records it kept, the author's act refused to a declared agent; `suggestion-discard` discards one, or with `undo` opens it again, a person any edit and an agent its own."""
-    from loom.cli._common import ContentError, EnvError
-    from loom.cli.review import _annotator
-    from loom.records.edits import EditRefused, apply, discard, find, is_taken, keep
-
-    edit_id = _str(body, "edit", required=True) or ""
-    try:
-        writer = _annotator(root, _str(body, "author"), sniff=False)
-    except (EnvError, ContentError) as exc:
-        raise ApiError("refused", str(exc)) from exc
-    edit = find(root, edit_id)
-    if edit is None:
-        raise ApiError("no-such-edit", f"no suggested edit {edit_id}", status=404)
-    try:
-        if endpoint == "suggestion-discard":
-            return {"ok": True, "result": discard(root, edit, writer, _str(body, "why"), undo=bool(body.get("undo")))}
-        if writer[0] == "agent":
-            raise ApiError("author-only", "An agent suggests; only the author puts a suggested edit into the text", 403)
-        result = _scan(root)
-        if edit.status == "open" and is_taken(result, edit):
-            # taken by an edit of the source already: there is nothing to write, only the keeping to record
-            return {"ok": True, "result": keep(result, edit, writer)}
-        documents, kept = apply(result, edit, writer[1])
-        said = f"applied {edit.id} in {' and '.join(Path(d).name for d in documents) or edit.target_key}"
-        try:
-            said += "; " + keep(_scan(root), edit, writer)
-        except EditRefused as exc:  # the text is in; only the record of it failed, and the person is told so
-            return {"ok": True, "result": f"{said}, but it could not be recorded kept: {exc.message}"}
-        return {"ok": True, "result": "; ".join(x for x in (said, kept.said()) if x)}
-    except EditRefused as exc:
-        raise ApiError(exc.code, exc.message, status=exc.status) from exc
 
 
 def _geometry(body: dict[str, Any], name: str) -> list[list[float]] | None:

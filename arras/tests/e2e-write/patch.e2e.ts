@@ -55,13 +55,17 @@ test('an annotation filed from the command line is drawn into the open document,
 	const r = await page.evaluate((id) => {
 		const w = window as unknown as Watched;
 		const block = document.querySelector(`[data-pane="0"] .fragment mark[data-annotation~="${id}"]`)!.closest('[data-src]')!;
-		const elsewhere = w.typeset.flat().filter((e) => e.closest('.fragment') && !block.contains(e) && !e.closest('aside.comment-slot'));
+		const elsewhere = w.typeset.flat().filter((e) => e.closest('.fragment') && !block.contains(e) && !e.closest('.ann-popup-host'));
 		return { kept: w.kept.isConnected, elsewhere: elsewhere.length };
 	}, id);
 	expect(r.kept, 'a block the annotation does not touch is the same element').toBe(true);
 	expect(r.elsewhere, 'formulas typeset outside the block the mark is in').toBe(0);
+	// the phrase already carries a question, so the one mark carries both and opens the first; the new one has its card in Comments
 	await mark.click();
-	await expect(page.getByTestId('comment-expanded').first()).toBeVisible();
+	await expect(page.getByTestId('ann-popup')).toBeVisible();
+	await page.getByTestId('open-comments').click();
+	await page.locator(`[data-testid="comment-card"][data-annotation="${id}"]`).click();
+	await expect(page.getByTestId('ann-popup')).toHaveAttribute('data-annotation-id', id);
 });
 
 test('an edit keeps the blocks after it in its file, and moves their offsets', async ({ page, served }) => {

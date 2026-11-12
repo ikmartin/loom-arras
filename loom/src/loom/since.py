@@ -207,7 +207,7 @@ def since(result: ScanResult, name: str) -> Since:
 
     states = Records(root, result.quilt.history_dir).key_states(result, observe=False)
     stale = {k for k, ks in states.items() if ks.state == "accepted" and not ks.fresh}
-    _annotations(root, name, new, out)
+    _annotations(result, name, new, out)
     _deleted(root, name, new, out)
     _edits(root, name, new, out)
     _acceptances(result, window, new, out, states, stale)
@@ -262,12 +262,13 @@ def _deleted(root: Path, name: str, new: Any, out: Since) -> None:
         )
 
 
-def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
+def _annotations(result: ScanResult, name: str, new: Any, out: Since) -> None:
     """A person's annotations and replies, whole, then what a person did to an annotation: resolved or reopened."""
     from loom.mailbox import annotation_row
     from loom.records.annotations import load_records
     from loom.records.log import log_path
 
+    root = result.quilt.root
     records, _ = load_records(root)
     by_id = {a.id: a for r in records for a in r.annotations}
     try:
@@ -290,7 +291,7 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
         if kind in ("created", "replied"):
             # what a person wrote and settled in one window is reported once, as it stands
             made.add(aid)
-            row = {**annotation_row(root, a), "when": when}
+            row = {**annotation_row(root, a, result), "when": when}
             if a.status != "open":
                 row["status"] = a.status
             parent = by_id.get(str(a.in_reply_to or ""))

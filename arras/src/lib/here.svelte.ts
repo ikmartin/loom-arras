@@ -1,11 +1,12 @@
-// Where the reader is (plan 0.21.8): the focused pane's item, the block at its top, the words selected or the region of a page, the block under review, and the selected session, reported to the publisher's `here` so that `loom here` can tell an agent what "this" is.
+// Where the reader is (plan 0.21.8): the focused pane's item, the block at its top, the words selected or the region of a page, the annotation whose popup is open, the block under review, and the selected session, reported to the publisher's `here` so that `loom here` can tell an agent what "this" is.
 //
 // **The tab touched last wins.** Every tab reports when its place settles and again the moment it gains focus or comes back into view, and the publisher keeps only the last report. The publisher holds it in memory; nothing here or there writes it down.
 
 import { itemKey, type Item } from '$lib/workspace/item';
 import { workspace } from '$lib/workspace/store.svelte';
-import { workState } from '$lib/workspace/state.svelte';
+import { documentState, fileState, nodeState, workState } from '$lib/workspace/state.svelte';
 import { sessionView } from '$lib/sessions/sessions.svelte';
+import { store } from '$lib/manifest/client.svelte';
 import { can, write } from '$lib/write';
 import { keyOf, quoteOf } from '$lib/fragments/quote';
 
@@ -61,6 +62,8 @@ export interface PlaceInput {
 	region: Selection | null;
 	/** The paper's page in view, when the current item is a work. */
 	page?: number;
+	/** The annotation whose popup is open in the current item. */
+	annotation?: string | null;
 	review: { key: string; cause: string | null } | null;
 	session: string | null;
 }
@@ -94,12 +97,20 @@ export function placeOf(i: PlaceInput): Record<string, unknown> {
 		out.selection = rest;
 	}
 	if (i.page) out.page = i.page;
+	if (i.annotation) out.annotation = i.annotation;
 	const beside = bare(i.beside);
 	if (beside) out.beside = beside;
 	return out;
 }
 
-/** Words selected in a document's text, as the annotate chip quotes them; null when the selection is elsewhere or empty. */
+/** The annotation whose popup is open in `item`, or null: an item that annotates keeps it on its state, where a pending change's popup is kept too and is no annotation. */
+function openIn(item: Item | null): string | null {
+	if (!item) return null;
+	const open = item.kind === 'document' ? documentState(item).notes.open : item.kind === 'node' ? nodeState(item).notes.open : item.kind === 'work' ? workState(item).notes.open : item.kind === 'file' ? fileState(item).notes.open : null;
+	return open && store.manifest?.annotations[open] ? open : null;
+}
+
+/** Words selected in a document's text, as Quote quotes them; null when the selection is elsewhere or empty. */
 function textSelection(item: string): Selection | null {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
@@ -150,6 +161,7 @@ export function startReporting(route: () => Route, path: () => string): () => vo
 			selection: here.selection,
 			region: here.region,
 			page: current?.kind === 'work' ? workState(current).pdf.page : undefined,
+			annotation: openIn(current),
 			review: here.review,
 			session: sessionView.selected
 		});

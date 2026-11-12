@@ -64,7 +64,7 @@ test('a landmark is shown in the draft’s own tab, read-only, at the result the
 	await expect(pane(page, 0).locator('#sy-0003')).toBeInViewport();
 	// a landmark is read, not annotated: no marks, no annotating tools
 	await expect(pane(page, 0).locator('.fragment mark.annotation')).toHaveCount(0);
-	await expect(pane(page, 0).getByTestId('tool-select')).toHaveCount(0);
+	await expect(pane(page, 0).getByTestId('tool-annotate')).toHaveCount(0);
 	// its own menu is the draft's, with it checked
 	await history(page);
 	await expect(page.getByTestId('history-version-widgets-v2')).toHaveAttribute('aria-checked', 'true');

@@ -1,6 +1,6 @@
 """Annotations on a page of a PDF: a project file the viewer shows, or a cited work's copy on this machine.
 
-An annotation on a PDF page names its `page` and stands at `rects` (`[x0, y0, x1, y1]` in points from the page's top left) or along `strokes` (`x, y, x, y…` per stroke). One drawn with a tool says so in `mark`: a pin, ink, words on the page, a box, an oval or an arrow; one on words has no `mark`, and its look's style says how it is drawn. It records the hash of the PDF it was written on (`artifact`), so a changed file is noticed (A3): one with quoted words is found again on its page, and one that cannot be is detached. `origin` says where one taken in from a PDF's own annotations came from.
+An annotation on a PDF page names its `page` and stands at `rects` (`[x0, y0, x1, y1]` in points from the page's top left) or along `strokes` (`x, y, x, y…` per stroke). One drawn with a tool says so in `mark`: a pin, ink, words on the page, a box, an oval or an arrow; one on words has no `mark`, and its look's style says how it is drawn. It records the hash of the PDF it was written on (`artifact`), so a changed file is noticed (A3), and the words under and around it, with a drawing's gap from them (`context_at`), by which it is found again anywhere in a changed file (`refind`); one that cannot be is detached. `origin` says where one taken in from a PDF's own annotations came from.
 
 A text or box annotation on a cited work's page is anchored through the work's store instead (`refs/anchoring.py`); this module serves the drawn ones there and every one on a project PDF.
 """
@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from loom.records.selectors import Selector
 
 #: The drawing tools: how an annotation that is not on words is drawn on a PDF page.
 MARKS = ("pin", "ink", "text", "box", "oval", "arrow")
@@ -83,13 +86,13 @@ def pdf_of(result: Any, target: str, work: str = "") -> Path | None:
     return paper if paper.is_file() else None
 
 
-def lines_of(pdf: Path, page: int, words: str) -> list[list[float]] | None:
-    """Where `words` stand on a page, one rectangle per line; None where they are not there or the page cannot be read."""
+def lines_of(pdf: Path, page: int, words: str, home: Path | None = None) -> list[list[float]] | None:
+    """Where `words` stand on a page, one rectangle per line; None where they are not there or the page cannot be read. With `home`, a stored work's directory, the page's word boxes are read from the store's cache (`token_boxes`)."""
     from loom.refs.pages import MapRefused, token_boxes
     from loom.refs.search import locate_span
 
     try:
-        hit = locate_span(token_boxes(pdf, page, None), words, page)
+        hit = locate_span(token_boxes(pdf, page, home), words, page)
     except MapRefused:
         return None
     return [[float(v) for v in q] for q in hit.lines] if hit else None
@@ -179,8 +182,11 @@ def placed(
     return found
 
 
-def regeometry(ann: Any, rects: Any, strokes: Any) -> dict[str, Any]:
-    """The geometry an edit gives `ann`: strokes for ink or an arrow, whose rectangle follows, or one rectangle for a tool that is not on words; MarkRefused otherwise."""
+def regeometry(result: Any, ann: Any, rects: Any, strokes: Any) -> dict[str, Any]:
+    """The geometry an edit gives `ann`: strokes for ink or an arrow, whose rectangle follows, or one rectangle for a tool that is not on words; MarkRefused otherwise.
+
+    The words around it and its gap from them are taken again where it now stands, on the PDF as it is now, whose hash comes too (`recorded_context`).
+    """
     out: dict[str, Any] = {}
     if strokes:
         if ann.mark not in STROKED:
@@ -194,31 +200,326 @@ def regeometry(ann: Any, rects: Any, strokes: Any) -> dict[str, Any]:
         if len(clean_r) != 1:
             raise MarkRefused("bad-field", f"a {ann.mark} stands in one rectangle")
         out["rects"] = clean_r
+    _, pdf = pdf_target(result, ann.target_key)
+    if out and pdf is not None and pdf.is_file() and ann.page:
+        out.update(recorded_context(result, pdf, ann.page, out["rects"], drawn=True))
+        out["artifact"] = artifact_of(pdf)
     return out
 
 
-def on_the_pdf_now(
-    pdf: Path, artifact: str | None, page: int | None, quote: str | None
-) -> tuple[bool, list[list[float]] | None]:
-    """Whether an annotation on a PDF is detached, and where its words stand when the file has changed under them.
+def recorded_context(result: Any, pdf: Path, page: int, rects: list[list[float]], *, drawn: bool) -> dict[str, Any]:
+    """What a mark written at `rects` on `page` of `pdf` records of the words around it, as its event carries it.
 
-    Unchanged bytes keep the place as written, so nothing reads the file. A changed file puts words back through the page's word boxes, and anything else is detached (A3). One that names no hash was written with nothing to compare, and nothing is claimed of it.
+    Parameters
+    ----------
+    result : ScanResult
+        The quilt as scanned.
+    pdf : Path
+        The PDF it is written on.
+    page : int
+        Its page, from 1.
+    rects : list of [x0, y0, x1, y1]
+        Where it stands.
+    drawn : bool
+        Whether it is drawn with a tool rather than on words, so its gap is recorded.
+
+    Returns
+    -------
+    dict
+        `anchor`, the text triple (`context_at`), when there are words, and `gap` for a drawing; {} when pdftotext cannot read the file.
     """
-    if not pdf.is_file():
-        return bool(artifact), None
-    if artifact is None or artifact == artifact_of(pdf):
-        return False, None
-    lines = lines_of(pdf, page, quote) if quote and page else None
-    return lines is None, lines
+    from loom.refs.pages import MapRefused
+
+    try:
+        said, gap = context_at(words_of(result, pdf), page, rects)
+    except MapRefused:
+        return {}
+    out: dict[str, Any] = {"anchor": said.to_dict()} if said.exact or said.prefix or said.suffix else {}
+    if drawn and gap is not None:
+        out["gap"] = gap
+    return out
+
+
+#: How many words either side of a mark it records, in reading order and across a page break.
+AROUND = 8
+
+
+@dataclass(frozen=True)
+class PdfWord:
+    """One word of a PDF as `pdftotext -bbox-layout` places it: its page, its box in points from the page's top left, its text, and its letters folded (`tex.align.fold`), '' for a token with none, which is a gap."""
+
+    page: int
+    box: tuple[float, float, float, float]
+    text: str
+    letters: str
+
+
+class DocumentWords:
+    """Every word of a PDF in reading order, with the lettered ones indexed for placing a run of them (`tex.align.place_run`)."""
+
+    def __init__(self, pages: list[str]) -> None:
+        from loom.refs.pages import page_box
+        from loom.refs.search import _words
+        from loom.tex.align import rendered_words
+
+        self.words: list[PdfWord] = []
+        self.sizes: dict[int, tuple[float, float] | None] = {}
+        for n, xml in enumerate(pages, 1):
+            self.sizes[n] = page_box(xml)
+            for x0, y0, x1, y1, text in _words(xml):
+                self.words.append(PdfWord(n, (x0, y0, x1, y1), text, "".join(rendered_words(text))))
+        #: the index in `words` of each lettered word, and its letters: what a run is placed in
+        self.lettered = [i for i, w in enumerate(self.words) if w.letters]
+        self.texts = [self.words[i].letters for i in self.lettered]
+        self.at: dict[str, list[int]] = {}
+        for i, t in enumerate(self.texts):
+            self.at.setdefault(t, []).append(i)
+
+    def on(self, page: int) -> list[int]:
+        """The indices of the words on `page`, in reading order."""
+        return [i for i, w in enumerate(self.words) if w.page == page]
+
+    def near(self, page: int, y: float) -> int:
+        """The lettered word a mark at height `y` on `page` is expected beside, as an index into `texts`: the first on its page that reaches that height, else the first after it."""
+        for k, i in enumerate(self.lettered):
+            w = self.words[i]
+            if w.page > page or (w.page == page and w.box[3] >= y):
+                return k
+        return max(len(self.lettered) - 1, 0)
+
+
+def words_of(result: Any, pdf: Path) -> DocumentWords:
+    """The words of `pdf` (`refs.pages.document_boxes`), kept by the file's hash under the build's cache, or a stored work's under the store's.
+
+    Parameters
+    ----------
+    result : ScanResult
+        The quilt as scanned.
+    pdf : Path
+        A project PDF, or a stored work's `paper.pdf`.
+
+    Returns
+    -------
+    DocumentWords
+        Every word in reading order; MapRefused when pdftotext cannot read the file.
+    """
+    from loom.paths import BUILD
+    from loom.refs.pages import document_boxes, storage_root, store_boxes
+
+    root: Path = result.quilt.root
+    try:
+        pdf.resolve().relative_to(storage_root(root).resolve())
+        cache = store_boxes(pdf.parent)
+    except ValueError:
+        cache = root / BUILD / "cache" / "boxes" / "files" / artifact_of(pdf)[:16]
+    return DocumentWords(document_boxes(pdf, cache))
+
+
+def _top_left(rects: list[list[float]]) -> tuple[float, float]:
+    return min(r[0] for r in rects), min(r[1] for r in rects)
+
+
+def _after(w: PdfWord, x: float, y: float) -> bool:
+    """Whether `w` comes after the point (x, y) of its page in reading: on the line through it and to its right, or below it."""
+    if w.box[1] <= y <= w.box[3]:
+        return w.box[0] >= x
+    return w.box[1] > y
+
+
+def context_at(words: DocumentWords, page: int, rects: list[list[float]]) -> tuple[Selector, list[float] | None]:
+    """What a mark at `rects` on `page` records of the words around it, and its gap from them.
+
+    Parameters
+    ----------
+    words : DocumentWords
+        The PDF's words.
+    page : int
+        The mark's page, from 1.
+    rects : list of [x0, y0, x1, y1]
+        Where it stands, in points from the page's top left.
+
+    Returns
+    -------
+    (Selector, list of float or None)
+        `exact` the words whose middles are under it (as `search.words_under`), `prefix` and `suffix` up to `AROUND` words either side in reading order, across a page break; and its top left less its pin word's: the first lettered word under it, else the first after it on its page, else the last before it there. The gap is None when its page has no word to pin it to; a mark on words records none.
+    """
+    ws = words.words
+    on_page = words.on(page)
+    under = [
+        i
+        for i in on_page
+        if any(
+            x0 <= (ws[i].box[0] + ws[i].box[2]) / 2 <= x1 and y0 <= (ws[i].box[1] + ws[i].box[3]) / 2 <= y1
+            for x0, y0, x1, y1 in rects
+        )
+    ]
+    x, y = _top_left(rects)
+    if under:
+        exact, prefix, suffix = under, list(range(max(0, under[0] - AROUND), under[0])), []
+        suffix = list(range(under[-1] + 1, min(len(ws), under[-1] + 1 + AROUND)))
+    else:
+        after = next((i for i in on_page if _after(ws[i], x, y)), None)
+        k = after if after is not None else (on_page[-1] + 1 if on_page else _first_after(words, page))
+        exact, prefix, suffix = [], list(range(max(0, k - AROUND), k)), list(range(k, min(len(ws), k + AROUND)))
+    # the pin is the word `refind` finds it by: the first lettered of its words, else of the words after, else the last of those before
+    pin = next((i for i in exact if ws[i].letters), None)
+    if pin is None:
+        pin = next((i for i in suffix if ws[i].letters), None)
+        if pin is None or ws[pin].page != page:
+            # the next word is on another page and says nothing of where it stands, so the words after are dropped and the one before pins it
+            suffix = []
+            pin = next((i for i in reversed(prefix) if ws[i].letters), None)
+    said = Selector(*(" ".join(ws[i].text for i in group) for group in (exact, prefix, suffix)))
+    if pin is None or ws[pin].page != page:
+        return said, None
+    return said, [round(x - ws[pin].box[0], 2), round(y - ws[pin].box[1], 2)]
+
+
+def _first_after(words: DocumentWords, page: int) -> int:
+    """The index of the first word on a page after `page`, or the end."""
+    return next((i for i, w in enumerate(words.words) if w.page > page), len(words.words))
+
+
+@dataclass
+class Refound:
+    """Where a mark stands on a changed PDF: its page, its rectangles and its strokes there."""
+
+    page: int
+    rects: list[list[float]]
+    strokes: list[list[float]] | None = None
+
+
+def refind(words: DocumentWords, a: Any) -> Refound | None:
+    """Find a mark again on a changed PDF by the words it recorded around it, anywhere in the document; None when they are not there.
+
+    `prefix`, `exact` and `suffix` are placed as one run (`tex.align.place_run`) nearest the mark's own page and height. A mark on words stands on its words found again, one rectangle per line; any other stands at its gap from its pin word, its strokes moved with it, and one that records no gap is not placed: an older drawing stays detached. An older mark on words, which recorded its words alone, is found by them.
+    """
+    from loom.refs.search import _by_line
+    from loom.tex.align import place_run, rendered_words, run_positions
+
+    sel = a.selector
+    anchor = getattr(a, "anchor", None)
+    page = a.page or (anchor.page if anchor else None)
+    rects = a.rects or (anchor.quads if anchor else None)
+    drawn = bool(a.mark or a.strokes or (anchor is not None and anchor.basis == "box"))
+    if sel is None or not page or not rects or (drawn and a.gap is None):
+        return None
+
+    def letters(text: str) -> list[str]:
+        return [w for w in ("".join(rendered_words(t)) for t in text.split()) if w]
+
+    before, exact, after = letters(sel.prefix), letters(sel.exact), letters(sel.suffix)
+    needle = before + exact + after
+    if not needle or (not drawn and not exact):
+        return None
+    found = place_run(words.texts, needle, words.near(page, _top_left(rects)[1]), at=words.at)
+    if found is None:
+        return None
+    first, last, whole = found
+    at = list(range(first, first + len(needle))) if whole else run_positions(words.texts, needle, first, last)
+    ws = words.words
+    if not drawn:
+        hit = sorted({words.lettered[i] for i in at[len(before) : len(before) + len(exact)] if i is not None})
+        if not hit:
+            return None
+        on = ws[hit[0]].page
+        boxes = [(*ws[i].box, ws[i].text) for i in range(hit[0], hit[-1] + 1) if ws[i].page == on]
+        return Refound(on, [[round(v, 2) for v in q] for q in _by_line(boxes)])
+    k = len(before) if (exact or after) else len(before) - 1
+    j = at[k] if k >= 0 else None
+    if j is None:
+        return None
+    pin = ws[words.lettered[j]]
+    old = _top_left(rects)
+    dx = round(pin.box[0] + a.gap[0] - old[0], 2)
+    dy = round(pin.box[1] + a.gap[1] - old[1], 2)
+    moved = [[round(r[0] + dx, 2), round(r[1] + dy, 2), round(r[2] + dx, 2), round(r[3] + dy, 2)] for r in rects]
+    strokes = (
+        [[round(v + (dx if j % 2 == 0 else dy), 2) for j, v in enumerate(s)] for s in a.strokes] if a.strokes else None
+    )
+    return Refound(pin.page, moved, strokes)
+
+
+def refound(result: Any, pdf: Path, a: Any, artifact: str) -> Refound | None:
+    """`refind` on the PDF as it is now, kept under `.loom/build/cache/refound/` by what it reads, so a build after the first reads nothing.
+
+    Parameters
+    ----------
+    result : ScanResult
+        The quilt as scanned.
+    pdf : Path
+        The PDF as it is now.
+    a : Annotation
+        The mark, written on another copy.
+    artifact : str
+        The hash of `pdf`, which the kept answer is filed under.
+
+    Returns
+    -------
+    Refound or None
+        Where it stands now; None when its words are not found, it is an older drawing with no gap, or pdftotext cannot read the file.
+    """
+    import json
+
+    from loom.paths import BUILD
+    from loom.refs.pages import MapRefused
+
+    sel = a.selector.to_dict() if a.selector else None
+    anchor = a.anchor.to_dict() if getattr(a, "anchor", None) else None
+    given = [REFIND, artifact, a.page, a.rects, a.strokes, a.mark, a.gap, sel, anchor]
+    path = (
+        result.quilt.root
+        / BUILD
+        / "cache"
+        / "refound"
+        / (hashlib.sha256(json.dumps(given).encode()).hexdigest()[:32] + ".json")
+    )
+    try:
+        got = json.loads(path.read_text(encoding="utf-8"))
+        return Refound(**got) if isinstance(got, dict) else None
+    except (OSError, ValueError, TypeError):
+        pass
+    try:
+        out = refind(words_of(result, pdf), a)
+    except MapRefused:
+        return None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(out.__dict__ if out else None) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+    return out
+
+
+#: Read with the inputs of every `refound` kept, so a change to how marks are found again is not answered from the cache.
+REFIND = 1
+
+
+#: Where the chromatic colours stand on the wheel, in degrees, as the viewer's `nearestColor` places them.
+HUES = {"red": 0, "orange": 30, "yellow": 55, "green": 125, "blue": 210, "purple": 268, "pink": 326}
 
 
 def nearest_color(rgb: Any) -> str | None:
-    """The nearest of the nine colours to a PDF annotation's own, given as three numbers from 0 to 1 or 0 to 255; None for no colour."""
+    """The nearest of the nine colours to a PDF annotation's own, given as three numbers from 0 to 1 or 0 to 255, by hue as the viewer's `nearestColor` finds it; None for no colour.
+
+    A colour with almost no hue is grey, and an orange that is dark or dull is brown.
+    """
     if not isinstance(rgb, list | tuple) or len(rgb) != 3 or not all(isinstance(v, int | float) for v in rgb):
         return None
     scale = 255 if max(rgb) <= 1 else 1
     r, g, b = (float(v) * scale for v in rgb)
-    return min(RGB, key=lambda c: (RGB[c][0] - r) ** 2 + (RGB[c][1] - g) ** 2 + (RGB[c][2] - b) ** 2)
+    most, least = max(r, g, b), min(r, g, b)
+    spread = most - least
+    if most == 0 or spread / most < 0.15:
+        return "grey"
+    if most == r:
+        hue = 60 * (((g - b) / spread + 6) % 6)
+    elif most == g:
+        hue = 60 * ((b - r) / spread + 2)
+    else:
+        hue = 60 * ((r - g) / spread + 4)
+    name = min(HUES, key=lambda c: min(abs(hue - HUES[c]), 360 - abs(hue - HUES[c])))
+    return "brown" if name == "orange" and (most / 255 < 0.6 or spread / most < 0.45) else name
 
 
 def _bound(rects: list[list[float]]) -> list[float]:
@@ -261,8 +562,6 @@ def take_in(
     from loom.records.ids import draw
     from loom.records.log import log_path, replay
     from loom.records.types import COLORS, drawn_look
-    from loom.refs.pages import MapRefused, token_boxes
-    from loom.refs.search import words_under
 
     on, pdf = pdf_target(result, target)
     if pdf is None or not pdf.is_file():
@@ -270,7 +569,6 @@ def take_in(
     akind, aid = writer
     root = result.quilt.root
     out = {"taken": 0, "already": 0, "skipped": 0}
-    boxes: dict[int, str] = {}
     # one lock over the whole run, so no writer beside it draws an id from it
     with locked(log_path(root)):
         records, _ = replay(root)
@@ -300,14 +598,7 @@ def take_in(
             if any(p == page and b == body and same_place(r, here) for p, b, r in held):
                 out["already"] += 1
                 continue
-            quote = None
-            if mark is None and not strokes:
-                if page not in boxes:
-                    try:
-                        boxes[page] = token_boxes(pdf, page, None)
-                    except MapRefused:
-                        boxes[page] = ""
-                quote = words_under(boxes[page], here) or None
+            around = recorded_context(result, pdf, page, here, drawn=mark is not None or bool(strokes))
             color = item.get("color") if item.get("color") in COLORS else nearest_color((origin or {}).get("color"))
             look = {k: v for k, v in (("color", color), ("style", style)) if v}
             artifact = artifact_of(pdf)
@@ -330,8 +621,7 @@ def take_in(
                 "drawn": drawn_look(None, look),
                 "body": body,
             }
-            if quote:
-                event["anchor"] = {"exact": quote, "prefix": "", "suffix": ""}
+            event.update(around)
             for k, v in (("strokes", strokes), ("mark", mark), ("origin", origin)):
                 if v:
                     event[k] = v
