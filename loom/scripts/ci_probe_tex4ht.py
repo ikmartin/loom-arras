@@ -103,6 +103,9 @@ def quilt() -> None:
     page = q / ".loom/build/drafting/main/html/main.html"
     print("\n===== main.tex's page round each equation reference =====")
     text = page.read_text(errors="replace") if page.is_file() else "NO PAGE"
+    at = text.find("References")
+    print("\n===== main.tex's page round its references =====")
+    print(text[max(0, at - 200) : at + 1600])
     for m in re.finditer(r"loom-ref|eq:prose|eq:fix|eq:step", text):
         print("...", text[max(0, m.start() - 200) : m.start() + 300].replace("\n", " "), "...")
     original = snippets.make_html
