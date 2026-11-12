@@ -1088,6 +1088,23 @@ test.describe('Settings › Annotations', () => {
 		await expect(page.getByTestId('types-add')).toHaveCount(0);
 	});
 
+	test('the two ways a type resolves are short options, each explained on hover', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		const open = page.getByTestId('type-open-option-true');
+		const tip = page.getByTestId('type-open-tip-true');
+		await expect(open).toContainText('Stay open until resolved');
+		await expect(page.getByTestId('type-open-option-false')).toContainText('Static annotation');
+		await expect(tip).toBeHidden();
+		await open.hover();
+		await expect(tip).toBeVisible();
+		await expect(tip).toHaveText('This annotation suggests an action and appears in "To Do" list until it is resolved.');
+		await page.getByTestId('type-open-option-false').hover();
+		await expect(page.getByTestId('type-open-tip-false')).toBeVisible();
+		await expect(page.getByTestId('type-open-tip-false')).toContainText('requires no action');
+	});
+
 	test('Plain comes first, a look and nothing else, and is saved with the types', async ({ page }) => {
 		const sent = await writes(page);
 		await page.goto('/master/drafting/main');

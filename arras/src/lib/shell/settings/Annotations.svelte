@@ -77,6 +77,12 @@
 
 	const current = $derived<Draft | undefined>(chosen >= 0 ? draft[chosen] : undefined);
 
+	/** The two ways a type resolves, each a short label with its explanation shown on hover. */
+	const RESOLVING = [
+		[true, 'Stay open until resolved', 'This annotation suggests an action and appears in "To Do" list until it is resolved.'],
+		[false, 'Static annotation', 'This annotation is static and requires no action; it remains in place until deleted and doesn\'t appear in any sort of "To Do" queue.']
+	] as const;
+
 	function add(look: Look = { color: 'green', style: 'highlight', weight: 2, opacity: 50 }): void {
 		draft.push({ name: '', look: { ...look }, open: false, notes: false, instructions: '', modes: [], key: ++keys });
 		chosen = draft.length - 1;
@@ -161,7 +167,7 @@
 			{#each draft as t, i (t.key)}
 				<button type="button" class="tp-row" class:on={i === chosen} role="tab" aria-selected={i === chosen} data-testid="type-tab" data-type={t.id ?? ''} onclick={() => ((chosen = i), (confirming = null))}>
 					<span class="tn">{#if t.name.trim()}<Sample look={t.look} text={t.name} />{:else}<span class="untitled">Untitled</span>{/if}</span>
-					<span class="tm">{t.open ? 'Open until resolved' : 'Only informs'}{t.notes ? ' · in Notes' : ''}</span>
+					<span class="tm">{t.open ? 'Open until resolved' : 'Static'}{t.notes ? ' · in Notes' : ''}</span>
 				</button>
 			{/each}
 			{#if editable}<button type="button" class="tp-add lnk" data-testid="types-add" onclick={() => add()}>+ Add type</button>{/if}
@@ -188,10 +194,11 @@
 				<section class="tp-sec">
 					<h4>Resolving</h4>
 					<div class="tp-radio" role="radiogroup" aria-label="Resolving">
-						{#each [[true, 'Stays open until resolved', 'In To do for everyone but its writer, with a Resolve button, until someone resolves it.'], [false, 'Only informs', 'Never open: no Resolve button, and never in To do.']] as const as [v, name, hint] (name)}
-							<label class="tp-opt" class:on={t.open === v}>
-								<input type="radio" name="open-{t.key}" checked={t.open === v} disabled={!editable} data-testid="type-open-{v}" onchange={() => (t.open = v)} />
-								<span><b>{name}</b><span class="tp-hint">{hint}</span></span>
+						{#each RESOLVING as [v, name, hint] (name)}
+							<label class="tp-opt" class:on={t.open === v} data-testid="type-open-option-{v}">
+								<input type="radio" name="open-{t.key}" checked={t.open === v} disabled={!editable} aria-describedby="open-{t.key}-{v}" data-testid="type-open-{v}" onchange={() => (t.open = v)} />
+								<span>{name}</span>
+								<span class="tp-tip" id="open-{t.key}-{v}" role="tooltip" data-testid="type-open-tip-{v}">{hint}</span>
 							</label>
 						{/each}
 					</div>
@@ -212,7 +219,7 @@
 			<div class="tp-detail" role="tabpanel" data-testid="plain-detail">
 				<section class="tp-sec">
 					<h4>Plain</h4>
-					<p class="tp-hint">An annotation with no type is drawn in this look, unless it sets a look of its own. A Plain annotation only informs: it is never in To do or Notes.</p>
+					<p class="tp-hint">An annotation with no type is drawn in this look, unless it sets a look of its own. A Plain annotation is static: it is never in To do or Notes.</p>
 					<p class="tp-sample">Marked words <Sample look={plain} text="look like this" /> in the text.</p>
 					<LookControls look={plain} words disabled={!editable} onpick={(c) => (plain = { ...plain, ...c })} />
 				</section>
@@ -342,26 +349,63 @@
 		color: var(--ink-soft);
 	}
 	.tp-radio {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 8px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
 	}
 	.tp-opt {
-		display: flex;
-		align-items: flex-start;
-		gap: 8px;
-		padding: 8px 10px;
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 3px 10px 3px 7px;
+		font-size: 12.5px;
 		border: 1px solid var(--rule);
-		border-radius: 8px;
+		border-radius: 999px;
 		cursor: pointer;
+	}
+	.tp-opt input {
+		margin: 0;
 	}
 	.tp-opt.on {
 		border-color: var(--accent);
 		background: var(--accent-wash);
 	}
-	.tp-opt span {
-		display: grid;
-		gap: 2px;
+	/* the explanation, beneath the option while it is hovered or reached by the keyboard */
+	.tp-tip {
+		position: absolute;
+		left: 0;
+		top: calc(100% + 6px);
+		z-index: 5;
+		width: max-content;
+		max-width: 280px;
+		padding: 6px 8px;
+		font-size: 12px;
+		line-height: 1.4;
+		color: var(--ink);
+		background: var(--sheet);
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		box-shadow: var(--float-shadow);
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+		transition:
+			opacity 0.12s ease 0.2s,
+			visibility 0s linear 0.32s;
+	}
+	/* the last option's opens leftward, so it stays inside the window */
+	.tp-opt:last-child .tp-tip {
+		left: auto;
+		right: 0;
+	}
+	.tp-opt:hover .tp-tip,
+	.tp-opt:has(input:focus-visible) .tp-tip {
+		opacity: 1;
+		visibility: visible;
+		transition:
+			opacity 0.12s ease 0.2s,
+			visibility 0s linear 0.2s;
 	}
 	.chk {
 		display: flex;
@@ -433,9 +477,6 @@
 		.tp-list {
 			border-right: 0;
 			padding-right: 0;
-		}
-		.tp-radio {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>
