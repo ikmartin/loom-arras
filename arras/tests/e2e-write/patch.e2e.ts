@@ -89,6 +89,12 @@ test('an annotation filed far above the reader leaves the text they are reading 
 	await page.goto('/master/drafting/main');
 	await allTypeset(page);
 	const body = page.locator('[data-pane="0"] > .body');
+	// a paragraph of one line, so its real height is well away from the three-line placeholder under any face, which a longer one can come to under one; it holds no element whose visibility says it is skipped, so an empty one is put in while it is on screen
+	const quote = 'This paper studies widgets';
+	await body.evaluate((el, quote) => {
+		const p = [...el.querySelectorAll<HTMLElement>('p[data-src]')].find((e) => e.textContent!.includes(quote))!;
+		p.append(Object.assign(document.createElement('span'), { className: 'probe' }));
+	}, quote);
 	// read down most of the way, a screen at a time, so each block above was drawn at its real size, as a reader leaves them; not to the very end, where a shorter document would be held in place by the end itself
 	await body.evaluate(async (el) => {
 		const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -98,12 +104,12 @@ test('an annotation filed far above the reader leaves the text they are reading 
 		}
 		await frame();
 	});
-	const quote = 'theory of gadgets is not touched';
+
 	// what makes this a test of the place: the paragraph the mark goes into is skipped, and a block put in for it starts at a placeholder size other than its own
 	const before = await body.evaluate((el, quote) => {
 		const p = [...el.querySelectorAll<HTMLElement>('p[data-src]')].find((e) => e.textContent!.includes(quote))!;
 		const style = getComputedStyle(p);
-		return { skipped: !p.querySelector('*')!.checkVisibility({ contentVisibilityAuto: true }), off: Math.abs(p.getBoundingClientRect().height - 3 * parseFloat(style.lineHeight)) };
+		return { skipped: !p.querySelector('span.probe')!.checkVisibility({ contentVisibilityAuto: true }), off: Math.abs(p.getBoundingClientRect().height - 3 * parseFloat(style.lineHeight)) };
 	}, quote);
 	expect(before.skipped, 'the paragraph annotated is skipped while off screen').toBe(true);
 	expect(before.off, 'how far its height is from the placeholder a new block starts at').toBeGreaterThan(4);
@@ -113,7 +119,7 @@ test('an annotation filed far above the reader leaves the text they are reading 
 		const block = [...el.querySelectorAll<HTMLElement>('[data-src]')].filter((e) => !e.querySelector('[data-src]')).find((e) => e.getBoundingClientRect().bottom > top + 48)!;
 		return { src: block.dataset.src!, below: block.getBoundingClientRect().top - top };
 	});
-	const id = served.loom(['annotate', 'sy-0100', 'Which theory?', '--quote', quote]).split(/\s+/)[0];
+	const id = served.loom(['annotate', 'sy-0100', 'Which widgets?', '--quote', quote]).split(/\s+/)[0];
 	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`)).toHaveCount(1);
 	await allTypeset(page);
 	await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
