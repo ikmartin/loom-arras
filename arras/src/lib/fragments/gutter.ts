@@ -193,6 +193,8 @@ export function drawGutter(layer: HTMLElement, root: HTMLElement, m: Manifest | 
 			b.setAttribute('aria-label', `${line.items.length} ${line.items.every((it) => it.a) ? 'annotations' : 'items'} on this line`);
 			b.setAttribute('aria-haspopup', 'menu');
 			b.dataset.testid = 'margin-count';
+			// what it holds, so the line's items are found by id whichever line breaks the reader's fonts make
+			b.dataset.items = line.items.map((it) => it.id).join(' ');
 			b.addEventListener('click', (e) => {
 				e.stopPropagation();
 				if (chooser) return closeChooser();

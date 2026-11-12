@@ -2041,6 +2041,11 @@ def test_a_mark_on_a_work_with_its_source_is_published_with_where_its_words_stan
     from loom.records.store import Records
 
     q = showcase(tmp_path)
+    # the store's copy of a paper's source is ignored by git, so a checkout has none: file it as the generator does, the same here as in CI
+    store = q / ".loom/digests/storage/arxiv/2504.01234v1"
+    shutil.rmtree(store / "src", ignore_errors=True)
+    works = Path(__file__).resolve().parents[1] / "quilts" / "sources" / "showcase-works"
+    ok("library", "add", str(works / "arden-cycle-spaces.tex"), "--for", "Arden24", cwd=q)
     quote = "a saturated sublattice of the lattice of weightings"
     ok("annotate", "Arden24", "Why saturated?", "--page", "2", "--quote", quote, "--as", "A. Author", cwd=q)
     event = json.loads((q / ".loom/annotations" / "log.jsonl").read_text().splitlines()[-1])
