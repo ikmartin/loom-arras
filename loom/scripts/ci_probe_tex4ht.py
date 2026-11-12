@@ -76,5 +76,51 @@ def main() -> None:
     run("the same, every display a picture", doc, math="svg")
 
 
+def quilt() -> None:
+    """The synthetic quilt as the fixture test builds it, with every raw page a build's snippet runs make, and the raw page of `main.tex` round its equation references."""
+    import os
+    import re
+
+    import loom.render.snippets as snippets
+    from loom.cli import main as cli
+
+    repo = Path(__file__).resolve().parents[1]
+    tmp = Path(tempfile.mkdtemp())
+    q = tmp / "synthetic"
+    shutil.copytree(repo / "tests" / "quilts" / "synthetic", q)
+    os.environ.update(
+        {
+            "LOOM_FIXED_TIME": "2026-09-16T00:00:00Z",
+            "HOME": str(tmp / "home"),
+            "XDG_CONFIG_HOME": str(tmp / "home/.config"),
+            "LOOM_PROGRESS": "off",
+        }
+    )
+    for doc in ("drafting/main.tex", "drafting/talk.tex", ".loom/copies/aidoc.tex"):
+        subprocess.run(
+            [sys.executable, "-m", "loom", "compile", doc, "--html"], cwd=q, check=False, capture_output=True
+        )
+    page = q / ".loom/build/drafting/main/html/main.html"
+    print("\n===== main.tex's page round each equation reference =====")
+    text = page.read_text(errors="replace") if page.is_file() else "NO PAGE"
+    for m in re.finditer(r"loom-ref|eq:prose|eq:fix|eq:step", text):
+        print("...", text[max(0, m.start() - 200) : m.start() + 300].replace("\n", " "), "...")
+    original = snippets.make_html
+
+    def logged(*a, **k):  # type: ignore[no-untyped-def]
+        made, log = original(*a, **k)
+        print("\n===== a snippet run's raw page =====")
+        print(made if made is not None else "NO PAGE\n" + log[-2000:])
+        return made, log
+
+    snippets.make_html = logged  # type: ignore[assignment]
+    os.chdir(q)
+    try:
+        cli(["build"], standalone_mode=False)
+    except SystemExit:
+        pass
+
+
 if __name__ == "__main__":
     main()
+    quilt()
