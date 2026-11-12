@@ -14,6 +14,7 @@
 		bar,
 		history,
 		view,
+		hint = '',
 		on = false
 	}: {
 		/** The item's name, for every control's accessible name. */
@@ -26,6 +27,8 @@
 		view?: Snippet;
 		/** A mode inside *view* is on: the dot on *view* says so. */
 		on?: boolean;
+		/** One line under the bar saying what the tool in hand does; '' for none. */
+		hint?: string;
 	} = $props();
 
 	const pane = getPane();
@@ -66,6 +69,7 @@
 			/>
 		</ToolbarMenu>
 	</span>
+	{#if hint && !strip}<div class="hint" role="status" data-testid="annotate-hint">{hint}</div>{/if}
 	{#if strip}
 		<div class="strip" class:refused={strip.refused} role={strip.refused ? 'alert' : 'status'} data-testid={strip.testid}>
 			<span class="said">{strip.text}</span>
@@ -137,6 +141,24 @@
 		border: 1px solid var(--rule-strong);
 		border-radius: 8px;
 		box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+	}
+	/* the hint: one quiet line under the bar, across it, over the page's head */
+	.hint {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		z-index: 5;
+		box-sizing: border-box;
+		padding: 4px 12px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 12px;
+		color: var(--ink-soft);
+		background: var(--leaf);
+		border-bottom: 1px solid var(--rule);
+		pointer-events: none;
 	}
 	.strip.refused .said {
 		color: var(--state-stale);

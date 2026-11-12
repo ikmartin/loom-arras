@@ -26,6 +26,7 @@ from loom.render.keys import aux_bytes, code_hash
 from loom.render.manifest import build_manifest
 from loom.render.marks import MarkEntry, place_marks
 from loom.render.publish import publish, write_atomic
+from loom.render.versions import Gone, attach_versions, gone_annotations, gone_marks
 from loom.scan.model import Diagnostic
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
@@ -278,16 +279,18 @@ def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult)
     h = hashlib.sha256()
     for k in sorted(keys):
         for m in marks.get(k, []):
-            h.update(f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}".encode())
+            h.update(
+                f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}|{m.gone}|{m.lead}|{m.quote if m.gone else ''}".encode()
+            )
     return h.hexdigest()[:16]
 
 
-def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkEntry]]:
+def _marks_by_node(result: ScanResult, records: Records, gone: list[Gone] | None = None) -> dict[str, list[MarkEntry]]:
     """Mark entries grouped by the node whose fragment shows them: a proof's marks under its statement, and on the proof's own page.
 
-    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label.
+    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label. An annotation whose words are gone marks where they were with an empty mark (`versions.gone_marks`), from `gone` when the caller has it.
     """
-    out: dict[str, list[MarkEntry]] = {}
+    out: dict[str, list[MarkEntry]] = gone_marks(gone_annotations(result, records) if gone is None else gone)
     for res in records.resolved(result):
         # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
         if not res.recorded:
@@ -410,7 +413,8 @@ def build(
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
     freeze_moved(result, records.records)
-    marks = _marks_by_node(result, records)
+    gone = gone_annotations(result, records)
+    marks = _marks_by_node(result, records, gone)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
     from loom.render.fromhtml import page_for
@@ -568,6 +572,7 @@ def build(
     from loom.render.edits import attach_edits
 
     attach_edits(result, renderer, manifest, files)
+    attach_versions(result, records, renderer, manifest, files, gone)
     # every preview asked for above, made by TeX together, one batch per preamble
     renderer.previews.make()
     from loom.review_queue import rows_for

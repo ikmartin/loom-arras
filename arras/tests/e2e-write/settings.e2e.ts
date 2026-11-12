@@ -39,6 +39,35 @@ test('a quilt setting waits for Save, and Save writes config.toml with its comme
 	expect(readFileSync(config, 'utf8')).toBe(after);
 });
 
+test('Settings › Annotations writes the types file whole: a renamed type keeps its id, and a deleted one leaves its annotations looking as they did', async ({ page, served }) => {
+	const file = join(served.root, '.loom/annotation-types.toml');
+	const manifest = () => JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8'));
+	const question = (Object.values(manifest().annotations) as { id: string; type: string | null; look: unknown; in_reply_to: string | null }[]).find((a) => a.type === 'question' && !a.in_reply_to)!;
+	await page.goto('/node/sy-0002');
+	const mark = page.locator(`.fragment mark.annotation[data-annotation~="${question.id}"]`).first();
+	const band = () => mark.evaluate((el) => getComputedStyle(el).backgroundColor);
+	await expect(mark).toBeVisible();
+	const drawn = await band();
+	await settings(page, 'annotations');
+	const tabs = page.getByTestId('type-tab');
+	await tabs.nth(1).click();
+	await page.getByTestId('type-name').fill('Idea');
+	await tabs.nth(2).click();
+	await page.getByTestId('type-delete').click();
+	await page.getByTestId('type-delete-yes').click();
+	await page.getByTestId('types-save').click();
+	await expect.poll(() => readFileSync(file, 'utf8')).toContain('name = "Idea"');
+	const written = readFileSync(file, 'utf8');
+	expect(written).toContain('id = "suggestion"');
+	expect(written).not.toContain('id = "question"');
+	await expect.poll(() => manifest().annotation_types.map((t: { name: string }) => t.name)).toEqual(['Revision', 'Idea', 'Note']);
+	await expect(tabs).toHaveText([/Revision/, /Idea/, /Note/]);
+	// its annotations keep the look they were drawn with, and are untyped now
+	expect(manifest().annotations[question.id].look).toEqual(question.look);
+	await page.keyboard.press('Escape');
+	await expect.poll(band).toBe(drawn);
+});
+
 test.describe('the agents boundary', () => {
 	test.use({
 		prepareQuilt: async ({}, use) => {

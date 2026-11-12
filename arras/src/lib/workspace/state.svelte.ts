@@ -1,8 +1,8 @@
 // What an open item keeps while another tab stands in front of it, and what its controls act on (plan 0.13.3 F4). The renderer and the controls are drawn apart — the renderer in the pane's body, the controls by the pane, and only while it is focused — so the state they share lives here, keyed by the item, rather than in either.
 
 import { getContext, setContext } from 'svelte';
-import { Annotations } from '$lib/fragments/shown.svelte';
-import { PdfView, type Tool } from '$lib/pdf/view.svelte';
+import { Annotating } from '$lib/review/annotating.svelte';
+import { PdfView } from '$lib/pdf/view.svelte';
 import { itemKey, type Item } from './item';
 import { workspace } from './store.svelte';
 
@@ -12,11 +12,9 @@ export interface Arrival {
 }
 
 export class DocumentState {
-	/** Whether every annotation is open at its mark; the fragment registers the doing. */
-	notes = new Annotations();
+	/** Its annotating: the tool in hand, its annotations in reading order, the one open, the side list; the fragment registers the doing. */
+	notes = new Annotating();
 	arrival: Arrival = { at: null };
-	/** The annotating tool in hand on the document's text. */
-	tool = $state<Tool>('select');
 }
 
 export class WorkState {
@@ -30,10 +28,8 @@ export class FileState {
 }
 
 export class NodeState {
-	notes = new Annotations();
+	notes = new Annotating();
 	arrival: Arrival = { at: null };
-	/** The annotating tool in hand on the node's text. */
-	tool = $state<Tool>('select');
 	/** Whether the node is read as its source rather than rendered. */
 	verbatim = $state(false);
 	/** The node's source, once fetched; null while unknown or when the corpus publishes none, and then there is no `source` control. */

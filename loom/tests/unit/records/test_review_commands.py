@@ -637,6 +637,16 @@ def test_an_annotation_is_deleted_with_its_replies_and_an_agent_deletes_only_its
     ok("history", "verify", cwd=d)
 
 
+def test_the_manifest_carries_a_comment_as_written_beside_it_rendered(tmp_path: Path) -> None:
+    """An editor starts from the comment as written: rebuilt from the rendered words, a comment lost its math delimiters and its links' targets when it was edited."""
+    d = demo(tmp_path)
+    said = "Is $|X| \\geq 2$ here? See [the definition](quilt:dm-0001)."
+    ann = ok("annotate", "dm-0002", said, "--quote", "Every orbit", "--type", "question", *AS, cwd=d).output.split()[0]
+    ok("build", cwd=d)
+    row = json.loads((d / ".loom/build" / "manifest.json").read_text())["annotations"][ann]
+    assert row["body"] == said and "<a" in row["body_html"]
+
+
 def test_status_never_says_a_key_was_reviewed_clean(tmp_path: Path) -> None:
     """Plan 0.30, decision 6: a highlight with nothing said, a note, or a revision resolved says nothing about whether a key was reviewed, so status never claims it was (P15)."""
     d = demo(tmp_path)

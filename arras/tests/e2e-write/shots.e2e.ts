@@ -8,14 +8,16 @@ test('the editing surfaces', async ({ page, served }) => {
 	// a write names its session, and nothing is selected at rest (plan 0.13.1), so the pictures are of a reader who has chosen where their work goes -- which is the state the composer is usable in
 	const session = served.openSessions().at(-1)!;
 	await page.setViewportSize({ width: 1440, height: 900 });
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'floating' })));
+	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme: 'light' })));
+	await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'question', over: {} })));
 
 	await page.goto('/node/sy-0002');
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0002"] > p[data-src]').first();
 	await words.locator('mark.annotation').waitFor();
 	await pickSession(page, session);
 	await settled(page);
-	// the composer opens where the selection is, as on a paper's page
+	// Annotate, holding a type that asks something: the popup opens where the selection is, for what it asks
+	await page.getByTestId('tool-annotate').click();
 	await words.evaluate((node) => {
 		const range = document.createRange();
 		range.selectNodeContents(node);
@@ -23,10 +25,8 @@ test('the editing surfaces', async ({ page, served }) => {
 		window.getSelection()?.addRange(range);
 		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 	});
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Is the singleton orbit counted once or twice here?');
-	await page.getByTestId('note-type').locator('[data-type="question"]').click();
-	await expect(page.getByTestId('note-type').locator('[aria-pressed="true"]')).toHaveAttribute('data-type', 'question');
+	await page.getByTestId('popup-comment-field').fill('Is the singleton orbit counted once or twice here?');
+	await expect(page.getByTestId('popup-type')).toContainText('Question');
 	await page.screenshot({ path: `${OUT}/composer.png`, animations: 'disabled' });
 
 	await page.goto('/master/drafting/main');

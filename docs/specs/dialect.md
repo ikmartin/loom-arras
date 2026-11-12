@@ -108,6 +108,8 @@ The label is the proof's optional argument, as `amsthm` prints it: `\begin{proof
 
 **[decided]** `<mark class="annotation" data-annotation="ID">...</mark>` around resolved quotes, in a `pre.source` at the quote's own offsets; `data-annotation` on a block with class `annotation-block` when a quote could not be located within the block's markup; a viewer draws it as it draws a `mark.annotation`, by kind, severity and state. A block may carry several ids space-separated.
 
+**[decided]** An empty `<mark class="annotation gone" data-annotation="ID"></mark>`, one per annotation, stands where the words of an annotation whose quote is gone were in the text now, when loom can say where (specs/manifest.md §9, `version.at`); it is never inside another mark, and a displayed formula has it before its element.
+
 Review comparison fragments may mark changed prose with `<mark class="review-changed">`, a changed inline or display formula with the `review-changed` class on its math element, and a zero-width insertion or deletion with `<span class="review-change-point">`. TeX makes the text, and the marks go on afterwards where each word TeX printed aligns with the source word it came from; a side TeX refused is its `pre.source`, marked at the changed offsets. These classes occur only in comparison fragments; ordinary reading fragments keep their original markup.
 
 ### 2.10 Incomplete markers

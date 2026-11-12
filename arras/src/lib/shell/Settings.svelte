@@ -16,6 +16,8 @@
 	import Library from './settings/Library.svelte';
 	import Problems from './settings/Problems.svelte';
 	import Overleaf from './settings/Overleaf.svelte';
+	import Annotations from './settings/Annotations.svelte';
+	import { settingsAsked } from './settings/opener.svelte';
 
 	let { indexes = [] }: { indexes?: Index[] } = $props();
 
@@ -25,12 +27,20 @@
 	let canSave = $state(false);
 	let canName = $state(false);
 	let canUpdate = $state(false);
+	let canTypes = $state(false);
 	onMount(() => {
-		void Promise.all([can('settings-save'), can('reviewer-settings'), can('agents-update')]).then(([save, name, update]) => {
+		void Promise.all([can('settings-save'), can('reviewer-settings'), can('agents-update'), can('types-save')]).then(([save, name, update, types]) => {
 			canSave = save;
 			canName = name;
 			canUpdate = update;
+			canTypes = types;
 		});
+	});
+	// another control asked for a section: Customize in a format menu asks for Annotations
+	$effect(() => {
+		if (!settingsAsked.n || !settingsAsked.section) return;
+		choose(settingsAsked.section);
+		open = true;
 	});
 
 	function remembered(): SectionId {
@@ -63,7 +73,7 @@
 	});
 	const attention = $derived<Partial<Record<SectionId, string>>>(config?.agents.stale ? { agents: 'Claude Code holds an older list' } : {});
 	// Overleaf shows the pairing and changes nothing, so it is never said to be read-only
-	const readOnly = $derived(SECTION[shown].group === 'quilt' && shown !== 'overleaf' && !canSave);
+	const readOnly = $derived(SECTION[shown].group === 'quilt' && shown !== 'overleaf' && !(shown === 'annotations' ? canTypes : canSave));
 </script>
 
 <button class="toggle" aria-label="Settings" aria-haspopup="dialog" aria-expanded={open} title="Settings" onclick={() => (open = !open)} data-testid="settings-toggle">⚙</button>
@@ -102,7 +112,7 @@
 				<button class="close" aria-label="Close settings" onclick={() => (open = false)}>×</button>
 			</header>
 			<div class="body" data-testid="settings-page" data-section={shown}>
-				{#if readOnly}<p class="note info" data-testid="settings-read-only">Shown as published. Change these in config.toml.</p>{/if}
+				{#if readOnly}<p class="note info" data-testid="settings-read-only">Shown as published. Change these in {shown === 'annotations' ? '.loom/annotation-types.toml' : 'config.toml'}.</p>{/if}
 				{#if config?.warnings.length && SECTION[shown].group === 'quilt'}
 					<div class="note warn">config.toml: {config.warnings.join('; ')}</div>
 				{/if}
@@ -111,6 +121,7 @@
 				{:else if shown === 'profile'}<Profile editable={canName} />
 				{:else if config && shown === 'general'}<General {config} editable={canSave} />
 				{:else if config && shown === 'documents'}<Documents {config} editable={canSave} />
+				{:else if shown === 'annotations'}<Annotations editable={canTypes} />
 				{:else if config && shown === 'agents'}<Agents {config} editable={canSave} {canUpdate} />
 				{:else if shown === 'library'}<Library editable={canSave} />
 				{:else if config && shown === 'problems'}<Problems {config} editable={canSave} />

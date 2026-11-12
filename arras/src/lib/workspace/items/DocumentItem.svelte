@@ -1,26 +1,22 @@
 <script lang="ts">
 	// A document (plan 0.13.3 D1–D4): a master or a landmark rendered as a document in a measured column, with each result's id and state in the left gutter behind Show ids. No chrome of its own: its controls are drawn by the pane, and only while the pane is focused.
 	// The gutters use the site generator's algebra, so a corpus page and a note page are laid out alike; the environment's taxon accent stands on the boundary between the left gutter and the text.
-	import { mount, unmount, untrack, type Component } from 'svelte';
+	import { untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import DraftActions from '$lib/components/DraftActions.svelte';
 	import ReviewPanel from '$lib/review/ReviewPanel.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
-	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
-	import { settled, type CommentSlot } from '$lib/fragments/mount';
-	import { ui } from '$lib/ui.svelte';
-	import type { Annotation } from '$lib/manifest/types';
+	import SideHost from '$lib/review/SideHost.svelte';
 	import { anchorId, keyUrl } from '$lib/nav';
 	import { followNodes, followReading, reading, sectionIds } from '$lib/reading.svelte';
 	import { contentsOf } from '$lib/contents';
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
-	import { repliesTo } from '$lib/annotations';
 	import { typeName } from '$lib/review/annotationTypes';
-	import { commentsOn, slotsFor } from '$lib/fragments/slots';
+	import { slotsFor } from '$lib/fragments/slots';
 	import { isLandmark, itemKey, pathFor, type Item } from '../item';
 	import { documentState, getPane } from '../state.svelte';
 	import { workspace } from '../store.svelte';
@@ -41,21 +37,12 @@
 	/** Closing a comparison is the document without it, at the same place. */
 	const plain = $derived(pathFor(m, { kind: 'document', id: item.id, ...(item.anchor ? { anchor: item.anchor } : {}) }));
 
-	const replies = (id: string) => repliesTo(m, id);
 	const slots = slotsFor(() => m, () => master?.path ?? null);
 	const notes = $derived(documentState(item).notes);
-	/** Beside a comparison every annotation's box stands in the flow; a settled one only while settled annotations are shown, as its mark is. */
-	const inlineSlots = (key: string): CommentSlot[] =>
-		commentsOn(m, key)
-			.filter((a) => !settled(a) || ui.showSettled)
-			.map((a) => ({ id: a.id, where: 'inline' }));
 	/** Only the current item moves the panel's position bar and the local graph: two documents open at once would otherwise fight over one. */
 	const current = $derived(workspace.current ? itemKey(workspace.current) === itemKey(item) : false);
 	/** A context on screen already draws a local graph; a second one beside it, of whatever result the reading position has reached, would be one graph twice, and of a different result. */
 	const contextShown = $derived([0, 1].some((i) => workspace.active(i)?.kind === 'context'));
-
-	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind. Beside a comparison every card stands in the flow and is the annotation's one box: its mark travels to it rather than opening a second (`expand.ts`).
-	let mounted: Record<string, unknown>[] = [];
 
 	// The local graph follows the result being read. Whether it is open is a per-reader convenience kept in this browser, so a reader who put it away is not shown it on every document.
 	const GRAPH_KEY = 'arras.localGraph';
@@ -101,21 +88,6 @@
 
 	function fill(root: HTMLElement) {
 		docRoot = root;
-		for (const made of mounted) void unmount(made);
-		mounted = [];
-		for (const slot of root.querySelectorAll<HTMLElement>('aside[data-comment-slot]')) {
-			slot.textContent = '';
-			for (const id of (slot.dataset.commentSlot ?? '').split(/\s+/).filter(Boolean)) {
-				const annotation = m.annotations[id];
-				if (!annotation) continue;
-				mounted.push(
-					mount(AnnotationBox as unknown as Component<{ annotation: Annotation; replies: Annotation[] }>, {
-						target: slot,
-						props: { annotation, replies: replies(id) }
-					}) as Record<string, unknown>
-				);
-			}
-		}
 	}
 
 	/** Put a floating panel against the pane rather than inside what scrolls, so it stays put while the document moves under it. */
@@ -125,7 +97,7 @@
 	}
 </script>
 
-<div class="page item document">
+<div class="page item document" class:with-side={!!notes.side}>
 	{#if landmark && doc}
 		<div class="gutters-host">
 			<div class="gutters">
@@ -152,7 +124,7 @@
 			<div class="gutters-host">
 				<div class="gutters">
 					<div class="column">
-						<FragmentNotes holder={documentState(item)} fallback={master.path} in={master.path}>
+						<FragmentNotes {notes} fallback={master.path} in={master.path}>
 							{#key hasComparison}<Fragment
 									path={master.fragment}
 									master={master.path}
@@ -161,7 +133,7 @@
 									headingLinks
 									annotations={notes}
 									margins={!hasComparison}
-									comments={hasComparison ? inlineSlots : slots}
+									comments={slots}
 									anchor={item.anchor ?? ''}
 									jump={item.seq}
 									note={item.note}
@@ -183,7 +155,8 @@
 				</aside>
 			{/if}
 		</div>
-		{#if current && !contextShown}
+		<SideHost {notes} />
+		{#if current && !contextShown && !notes.side}
 			{#if graphOpen && reading.node}
 				<div class="local-float" use:onPane>
 					<LocalGraphPanel center={reading.node} master={master.path} {hrefFor} height={240} onclose={() => setGraph(false)} />
@@ -201,6 +174,10 @@
 		padding-top: 0;
 		padding-left: 0;
 		padding-right: 0;
+	}
+	/* the list beside the text stands against the pane's right edge, and the text gives it room */
+	.item.document.with-side {
+		padding-right: 310px;
 	}
 	.review-comparison {
 		position: sticky;

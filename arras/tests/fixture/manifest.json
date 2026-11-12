@@ -81,6 +81,7 @@
     "label": "agent"
    },
    "basis": null,
+   "body": "The hypothesis 'finite' is essential for the parity count; say so in the statement.",
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -109,7 +110,8 @@
     "page": null,
     "work": null
    },
-   "type": "revision"
+   "type": "revision",
+   "version": null
   },
   "a-2026-09-16-hwtkaw": {
    "anchored": true,
@@ -119,6 +121,7 @@
     "label": "agent"
    },
    "basis": null,
+   "body": "Cite the orbit lemma by number here.",
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -147,7 +150,8 @@
     "page": null,
     "work": null
    },
-   "type": "suggestion"
+   "type": "suggestion",
+   "version": null
   },
   "a-2026-09-16-6sn46y": {
    "anchored": false,
@@ -157,6 +161,7 @@
     "label": "agent"
    },
    "basis": null,
+   "body": "The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.",
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -185,7 +190,8 @@
     "page": null,
     "work": null
    },
-   "type": "suggestion"
+   "type": "suggestion",
+   "version": null
   },
   "a-2026-09-16-tc3rcf": {
    "anchored": false,
@@ -195,6 +201,7 @@
     "label": "agent"
    },
    "basis": null,
+   "body": "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.",
    "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -223,7 +230,8 @@
     "page": null,
     "work": null
    },
-   "type": "suggestion"
+   "type": "suggestion",
+   "version": null
   },
   "a-2026-09-16-hqnbz4": {
    "anchored": false,
@@ -233,6 +241,7 @@
     "label": "agent"
    },
    "basis": null,
+   "body": "The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.",
    "body_html": "<p>The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -261,7 +270,8 @@
     "page": null,
     "work": null
    },
-   "type": "suggestion"
+   "type": "suggestion",
+   "version": null
   },
   "a-2026-09-16-bns3an": {
    "anchored": true,
@@ -271,6 +281,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "Is the orbit of a fixed point counted as one point or two?",
    "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -299,7 +310,8 @@
     "page": null,
     "work": null
    },
-   "type": "question"
+   "type": "question",
+   "version": null
   },
   "a-2026-09-16-xgtcve": {
    "anchored": true,
@@ -309,6 +321,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "For the slide, the fixed-point clause can go; the talk never uses it.",
    "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -337,7 +350,8 @@
     "page": null,
     "work": null
    },
-   "type": "suggestion"
+   "type": "suggestion",
+   "version": null
   },
   "a-2026-09-16-hwnav1": {
    "anchored": true,
@@ -347,6 +361,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "Agreed; I will add the hypothesis to the statement.",
    "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -375,7 +390,8 @@
     "page": null,
     "work": null
    },
-   "type": null
+   "type": null,
+   "version": null
   },
   "a-2026-09-16-gahrrs": {
    "anchored": true,
@@ -385,6 +401,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "Done in the next revision.",
    "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -413,7 +430,8 @@
     "page": null,
     "work": null
    },
-   "type": null
+   "type": null,
+   "version": null
   },
   "a-2026-09-16-a91hwf": {
    "anchored": false,
@@ -423,6 +441,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "Is the involution required to be a bijection, or does that follow?",
    "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
@@ -451,7 +470,12 @@
     "page": null,
     "work": null
    },
-   "type": "question"
+   "type": "question",
+   "version": {
+    "at": true,
+    "fragment": "fragments/versions/fb425ed10ccf378e.html",
+    "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716"
+   }
   },
   "a-2026-09-16-pmjbhz": {
    "anchored": true,
@@ -461,6 +485,7 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
+   "body": "the figure's corner",
    "body_html": "<p>the figure's corner</p>",
    "created": "2026-09-16T11:30:00Z",
    "detached": false,
@@ -496,7 +521,8 @@
     "page": 1,
     "work": null
    },
-   "type": null
+   "type": null,
+   "version": null
   }
  },
  "canon": [
@@ -504,7 +530,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "734a19b679042683139cc7de69243b7f2dbe5676295759a7ac6442dd0f26f03d",
+   "hash": "d175df401f19a1f26cb6109c6a622c098408f3d1da402bad0f6a6a3223b70673",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -519,7 +545,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "f9a21fcae015953e53139c14cbf645a19c984b90cca0074e69302f230108ad25",
+   "hash": "9fe6cf7ef0fd0e80528e57866b68eb010a9bd6eef95da300f45c4fac94ed7894",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -534,7 +560,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "409719077b2b793778ad687ff5a3eba573d7942bcaf28cf8ad03d2e6d2f0c245",
+   "hash": "291788a7bda6a08d0c4e30fdf6c2be60061d02d353ac00e5f87d7b01cd5ff26f",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",

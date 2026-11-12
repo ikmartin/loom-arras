@@ -10,7 +10,7 @@ test('Settings opens as a window over the page, Loom first with Profile at its h
 	await expect(win).toHaveAttribute('role', 'dialog');
 	const nav = page.getByTestId('settings-nav');
 	await expect(nav.locator('.group')).toHaveText(['Loom', 'Quilt', 'Development']);
-	await expect(nav.locator('[data-testid^="settings-section-"]')).toHaveText(['Profile', 'Appearance', 'Files', 'General', 'Documents', 'Agents', 'Library', 'Problems', 'Overleaf']);
+	await expect(nav.locator('[data-testid^="settings-section-"]')).toHaveText(['Profile', 'Appearance', 'Files', 'General', 'Documents', 'Annotations', 'Agents', 'Library', 'Problems', 'Overleaf']);
 	// larger than the box it replaced: a window, not a menu
 	const box = await win.boundingBox();
 	expect(box!.width).toBeGreaterThan(700);

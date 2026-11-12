@@ -617,7 +617,7 @@ class Records:
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
-        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (V3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
+        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (V3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes. A recorded note whose words are gone has its version published by the build (`render/versions.py`). A note with no `against` claimed no version and counts as recorded.
         """
         want = a.target_hash
         if not want:
@@ -882,6 +882,8 @@ class Records:
                 # its type, while the quilt lists it: an annotation whose type was deleted reads as untyped, looking as it did
                 "type": a.type if self.types.get(a.type) else None,
                 "look": self.look(a),
+                # the comment as written, which an editor starts from, and as rendered
+                "body": a.body,
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
@@ -898,6 +900,8 @@ class Records:
                 "origin": a.origin,
                 "hides": res.hides,
                 "resolved_why": a.resolved_why,
+                # the version it was written on, for one whose words are gone, set when the build makes it (`render/versions.py`)
+                "version": None,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

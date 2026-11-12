@@ -73,13 +73,13 @@ test.describe('the one rule', () => {
 		await expect(pane(page, 0).locator(`[id="${id}"]`)).toBeInViewport();
 	});
 
-	test('a link to an annotation opens what it is on, with its box open', async ({ page }) => {
+	test('a link to an annotation opens what it is on, with its popup open', async ({ page }) => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
-		const box = pane(page, 0).getByTestId('comment-expanded');
+		const box = pane(page, 0).getByTestId('ann-popup');
 		await expect(box).toBeVisible();
-		await expect(box.locator('[data-annotation-id="a-2026-09-16-ecnav2"]')).toHaveCount(1);
+		await expect(box).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
 		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-ecnav2');
 	});
 
@@ -91,19 +91,19 @@ test.describe('the one rule', () => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
-		const body = pane(page, 0).getByTestId('comment-expanded').locator('.body').first();
+		const body = pane(page, 0).getByTestId('ann-popup').locator('.body').first();
 		await expect(body).toContainText('This invokes Lemma 1.2(a), not sy-9999.');
 		await expect(body.locator('a[href="quilt:sy-0002"]')).toHaveAttribute('title', 'sy-0002');
 	});
 
-	test('reading is where it was left after a visit to Review: the same tabs, the same place, a closed box still closed', async ({ page }) => {
+	test('reading is where it was left after a visit to Review: the same tabs, the same place, a closed popup still closed', async ({ page }) => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		// a link opens the document at an annotation; the reader closes it and reads on
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
-		const box = pane(page, 0).getByTestId('comment-expanded');
+		const box = pane(page, 0).getByTestId('ann-popup');
 		await expect(box).toBeVisible();
-		await pane(page, 0).locator('.fragment').first().press('h');
+		await pane(page, 0).locator('.fragment').first().press('Escape');
 		await expect(box).toHaveCount(0);
 		const body = pane(page, 0).locator('> .body');
 		await body.evaluate((el) => el.scrollTo(0, el.scrollHeight / 2));
@@ -137,10 +137,10 @@ test.describe('the one rule', () => {
 		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
-		const box = pane(page, 0).getByTestId('comment-expanded');
+		const box = pane(page, 0).getByTestId('ann-popup');
 		await expect(box).toBeVisible();
 		// the reader closes it and reads on, well away from it
-		await pane(page, 0).locator('.fragment').first().press('h');
+		await pane(page, 0).locator('.fragment').first().press('Escape');
 		await expect(box).toHaveCount(0);
 		const body = pane(page, 0).locator('> .body');
 		await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));

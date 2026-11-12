@@ -1,4 +1,4 @@
-// The viewer's own preferences: the body typeface, the body size, the line width, the theme, how a document is set, where comments stand, and whether an item's toolbar fades.
+// The viewer's own preferences: the body typeface, the body size, the line width, the theme, how a document is set, and whether an item's toolbar fades.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
 import { COLOR_NAMES, type MarkColor } from '$lib/pdf/marks';
@@ -20,7 +20,6 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
  *
  * `floating` opens a box over the text, anchored to the mark and inset from the window; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
-export type Comments = 'floating' | 'inline';
 
 const KEY = 'arras.prefs';
 
@@ -48,10 +47,9 @@ export interface Prefs {
 	width: Width;
 	theme: Theme;
 	format: Format;
-	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, column: 252, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating', markColor: '' };
+export const DEFAULTS: Prefs = { divider: 0.5, outline: 0.55, column: 252, panel: true, ids: false, hideAux: true, hideAgentConfig: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', markColor: '' };
 
 /** The left column's narrowest and widest: below the first a document's name no longer fits beside its marks, past the second the column takes the room a pane reads in. */
 export const COLUMN_MIN = 200;
@@ -62,7 +60,6 @@ const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
 const FORMATS: Format[] = ['p1', 'p2', 'b1', 'b2'];
-const COMMENTS: Comments[] = ['floating', 'inline'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {
@@ -89,7 +86,6 @@ export function coerce(raw: unknown): Prefs {
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
 		theme: pick(o.theme, THEMES, DEFAULTS.theme),
 		format: pick(o.format, FORMATS, DEFAULTS.format),
-		comments: pick(o.comments, COMMENTS, DEFAULTS.comments),
 		markColor: pick<MarkColor | ''>(o.markColor, ['', ...COLOR_NAMES], DEFAULTS.markColor)
 	};
 }
@@ -119,7 +115,6 @@ export function attributes(p: Prefs): Record<string, string | null> {
 		'data-width': p.width,
 		'data-theme': p.theme === 'system' ? null : p.theme,
 		'data-format': p.format,
-		'data-comments': p.comments,
 		'data-ids': p.ids ? 'yes' : null,
 	};
 }
@@ -138,11 +133,10 @@ class PrefsState {
 	width = $state<Width>(DEFAULTS.width);
 	theme = $state<Theme>(DEFAULTS.theme);
 	format = $state<Format>(DEFAULTS.format);
-	comments = $state<Comments>(DEFAULTS.comments);
 	markColor = $state<MarkColor | ''>(DEFAULTS.markColor);
 
 	get current(): Prefs {
-		return { divider: this.divider, outline: this.outline, column: this.column, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments, markColor: this.markColor };
+		return { divider: this.divider, outline: this.outline, column: this.column, panel: this.panel, ids: this.ids, hideAux: this.hideAux, hideAgentConfig: this.hideAgentConfig, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, markColor: this.markColor };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -160,7 +154,6 @@ class PrefsState {
 		this.width = p.width;
 		this.theme = p.theme;
 		this.format = p.format;
-		this.comments = p.comments;
 		this.markColor = p.markColor;
 	}
 

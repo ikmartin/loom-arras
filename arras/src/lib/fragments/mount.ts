@@ -4,8 +4,7 @@ import { dataUrl } from '$lib/paths';
 import { pageOf } from '$lib/worklink';
 import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
-import type { Manifest } from '$lib/manifest/types';
-import { travel } from '$lib/travel/travel';
+import type { Annotation, Manifest } from '$lib/manifest/types';
 import { lookProps, lookVars, styleOf, typeOf } from '$lib/review/annotationTypes';
 
 export interface WireOptions {
@@ -15,25 +14,22 @@ export interface WireOptions {
 	headingLinks?: boolean;
 	/** Renders the read view's margin column: the key and its state beside every node. */
 	margins?: boolean;
-	/** Where each of a node's annotations without a mark of its own stands: as a mark on the node's label, or as a box in the flow that the caller fills. */
+	/** Which of a node's annotations without a mark of its own are drawn as a mark on its label. */
 	comments?: (key: string) => CommentSlot[];
 	/** A fragment with no node identity (a landmark): its references are the publisher's own in-page anchors and must be left alone, and nothing in it is a key to look up. */
 	keyless?: boolean;
-	/** Expands comments in place instead of pointing at a card elsewhere: a mark calls this with the annotations it stands for (the `inline` and `floating` preferences). */
+	/** Opens an annotation's popup: a mark calls this with the annotations it stands for. */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
-	/** Where an opened box stands: over the text, anchored to the mark, rather than in place. Nothing about how it opens. */
-	floating?: boolean;
 	/** Every annotation hidden, as the pane the fragment stands in asks: its marks read as plain text, and none goes on a label. */
 	hide?: boolean;
+	/** Whether the filter shows an annotation; one it leaves out is not drawn, as if its pane hid it. */
+	shows?: (a: Annotation) => boolean;
 }
 
-/** One annotation and where it stands beside the node it is about.
- *
- * Named `slot` rather than `placement` because an annotation carries a `placement` of its own, which is a different thing: this is the viewer's layout decision, that the publisher's hint about where a payload's text would go. */
+/** One annotation with no mark of its own (no quote, or one that no longer resolves), drawn as a mark on its node's label, which opens its popup like any mark. */
 export interface CommentSlot {
 	id: string;
-	/** `inline` stays in the text as a box the caller fills; `label` is a mark on the node's label, for an annotation with no mark of its own (no quote, or one that no longer resolves), opening its box like any mark. */
-	where: 'inline' | 'label';
+	where: 'label';
 }
 
 export function labelFor(manifest: Manifest | null, key: string): string {
@@ -78,9 +74,8 @@ function leadOf(manifest: Manifest | null, ids: string[]): string {
 	return leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';
 }
 
-/** Take out what the comment setting put in, so `wire` can put the other setting's back without the fragment being rebuilt. A label mark is unwrapped: its words are the label's and go back where they were. */
+/** Take out the label marks, so `wire` can put them back as the annotations now stand without the fragment being rebuilt. A label mark is unwrapped: its words are the label's and go back where they were. */
 export function resetComments(root: HTMLElement): void {
-	for (const el of root.querySelectorAll('aside.comment-slot')) el.remove();
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation-label')) {
 		while (mark.firstChild) mark.parentNode?.insertBefore(mark.firstChild, mark);
 		mark.remove();
@@ -96,17 +91,6 @@ export function settled(a: { status: string } | undefined): boolean {
 /** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or hidden with every annotation in its pane. */
 export function inert(mark: HTMLElement): boolean {
 	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
-}
-
-/** An annotation's card, looked for in the pane the mark stands in before anywhere else: two open items can both hold a card for one annotation. */
-export function card(root: HTMLElement, id: string): HTMLElement | null {
-	const scope = root.closest('[data-pane]');
-	return scope?.querySelector<HTMLElement>(`[id="ann-${CSS.escape(id)}"]`) ?? document.getElementById('ann-' + id);
-}
-
-/** The annotation's box, or the reply inside one, open in the pane the mark stands in; null when none is. A box carries `ann-<id>` wherever it is placed, so this is one query. */
-export function boxFor(root: HTMLElement, id: string): HTMLElement | null {
-	return (root.closest('[data-pane]') ?? root).querySelector<HTMLElement>(`:is(article.box, article.reply)[id="ann-${CSS.escape(id)}"]`);
 }
 
 /**
@@ -205,7 +189,7 @@ export function wire(
 			const placements = key && !opts.hide ? opts.comments(key) : [];
 			if (!placements.length) continue;
 			el.dataset.wiredComments = '1';
-			// **One annotation, one mark**. An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its hue, opening its box like any mark; several share one label mark whose box lists them. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
+			// **One annotation, one mark**. An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its look, opening its popup like any mark; several share one label mark. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
 			const onLabel = placements.filter((p) => p.where === 'label').map((p) => p.id);
 			const label = el.querySelector<HTMLElement>(':scope > p.env-label, :scope > summary.env-label, :scope > :is(h1,h2,h3,h4,h5,h6)');
 			if (onLabel.length && label && !label.querySelector('mark.annotation-label')) {
@@ -216,18 +200,9 @@ export function wire(
 				for (const child of [...label.childNodes]) if (!(child instanceof Element && child.classList.contains('heading-link'))) mark.appendChild(child);
 				label.prepend(mark);
 			}
-			const inline = placements.filter((p) => p.where === 'inline').map((p) => p.id);
-			if (inline.length) {
-				// a sibling of the node, because it takes room in the text rather than standing beside it
-				const slot = document.createElement('aside');
-				slot.className = 'comment-slot inline';
-				slot.dataset.commentSlot = inline.join(' ');
-				slot.dataset.slotFor = key;
-				el.after(slot);
-			}
 		}
 	}
-	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` while the pane hides annotations. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
+	// Every mark, the publisher's and the label marks made above, and the empty one loom leaves where an annotation's words were (`gone`). What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` while the pane hides annotations or the filter leaves its annotations out. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
 		// several annotations can share one phrase, and the mark lists them in no particular order
@@ -248,7 +223,7 @@ export function wire(
 			}
 		}
 		if (judged.length > 0 && judged.every(settled)) want.add('settled');
-		if (judged.length > 0 && opts.hide) want.add('hidden');
+		if (judged.length > 0 && (opts.hide || (opts.shows && !judged.some(opts.shows)))) want.add('hidden');
 		for (const c of [...mark.classList]) if (/^ann-(underline|highlight|strike)$|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
 		for (const c of want) if (!mark.classList.contains(c)) mark.classList.add(c);
 		set(mark, 'tabindex', inert(mark) ? '-1' : '0');
@@ -256,35 +231,20 @@ export function wire(
 		mark.dataset.wiredMark = '1';
 		mark.setAttribute('role', 'button');
 		mark.setAttribute('aria-expanded', 'false');
-		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
+		if (mark.classList.contains('gone')) mark.setAttribute('aria-label', 'An annotation whose words were here');
 		const go = (e: Event) => {
 			if (inert(mark)) return;
-			// inside a proof's summary a click on the label would also fold the proof
+			// inside a proof's summary a click on the label would also fold the proof; a click that ends a selection is the selection's
 			if (mark.classList.contains('annotation-label')) e.preventDefault();
+			if (!window.getSelection()?.isCollapsed) return;
 			const at = liveAt(mark);
 			if (!at) return;
 			if (at.now.expand) return at.now.expand(mark, ids);
-			const lead = leadOf(at.now.manifest, ids);
-			at.now.select(lead);
-			card(at.root, lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			at.now.select(leadOf(at.now.manifest, ids));
 		};
 		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be clicked into at all -- a box that appears under the pointer and vanishes when it moves toward the box.
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go(e));
-		// and a double-click travels to the annotation's box, which carries its id: the one open in this pane, else the one the mark opens for it, else whatever else stands for the annotation on screen. Nothing is invented for one with no box here: the notice says so and the pane stays put.
-		mark.addEventListener('dblclick', (e) => {
-			e.preventDefault();
-			if (inert(mark)) return;
-			const at = liveAt(mark);
-			if (!at) return;
-			const lead = leadOf(at.now.manifest, ids);
-			let to = boxFor(at.root, lead);
-			if (!to && at.now.expand) {
-				at.now.expand(mark, ids);
-				to = boxFor(at.root, lead);
-			}
-			travel(to ?? card(at.root, lead), mark);
-		});
 	}
 	if (opts.headingLinks) {
 		for (const el of root.querySelectorAll<HTMLElement>('section[data-id] > :is(h1,h2,h3,h4,h5,h6), div.env[data-id] > p.env-label')) {

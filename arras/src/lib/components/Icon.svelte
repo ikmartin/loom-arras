@@ -107,6 +107,27 @@
 	{:else if name === 'turn-right'}
 		<path d="M21 4v6h-6" />
 		<path d="M20.5 10a9 9 0 1 0-1.2 6" />
+	{:else if name === 'quote'}
+		<path d="M6 8h4v4c0 2.5-1.5 4-4 4.5" />
+		<path d="M14 8h4v4c0 2.5-1.5 4-4 4.5" />
+	{:else if name === 'note'}
+		<path d="M5 3h10l4 4v14H5z" />
+		<path d="M15 3v4h4" />
+		<path d="M9 12h6" />
+		<path d="M9 16h4" />
+	{:else if name === 'caret'}
+		<path d="m6 9 6 6 6-6" />
+	{:else if name === 'left'}
+		<path d="m15 18-6-6 6-6" />
+	{:else if name === 'right'}
+		<path d="m9 18 6-6-6-6" />
+	{:else if name === 'panel'}
+		<rect x="3" y="4" width="18" height="16" rx="2" />
+		<path d="M15 4v16" />
+	{:else if name === 'filter'}
+		<path d="M3 5h18l-7 8v6l-4-2v-4z" />
+	{:else if name === 'check'}
+		<path d="M20 6 9 17l-5-5" />
 	{/if}
 </svg>
 

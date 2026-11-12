@@ -104,7 +104,7 @@ It writes at natural pauses and before it stops, and it links rather than restat
 
 The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
 
-What the person annotates reaches an agent through `loom since`, with its type, its words, where it is and any comment, a mark drawn on a PDF page among them. Asking for a work's overview from its Info is the person's annotation on the whole work. A quote is not a record: selecting words with no tool on offers Quote, which hands the words and where they came from to an agent (`model.md`, Notes; not built yet). An agent annotates a PDF page as it annotates text, with `loom annotate FILE --page N`, on the words of `--quote` or drawn with `--mark`.
+What the person annotates reaches an agent through `loom since`, with its type, its words, where it is and any comment, a mark drawn on a PDF page among them. Asking for a work's overview from its Info is the person's annotation on the whole work. A quote is not a record: selecting words with no tool on offers Quote, which copies the words and where they came from for the person to paste to an agent (`model.md`, Notes). An agent annotates a PDF page as it annotates text, with `loom annotate FILE --page N`, on the words of `--quote` or drawn with `--mark`.
 
 ## What an agent is told
 

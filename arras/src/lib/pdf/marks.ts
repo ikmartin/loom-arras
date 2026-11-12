@@ -75,7 +75,8 @@ export function markOf(a: Annotation): PageMark | null {
 		kind: (a.mark ?? styleOf(a.look)) as MarkKind,
 		rects: a.rects,
 		...(a.strokes?.length ? { strokes: a.strokes } : {}),
-		body: textOf(a.body_html),
+		// the comment as written, which the card edits; its rendering's text only from a publisher that does not say
+		body: a.body ?? textOf(a.body_html),
 		...(a.quote ? { quote: a.quote } : {}),
 		color: colorOf(a.look),
 		who: a.author?.id,

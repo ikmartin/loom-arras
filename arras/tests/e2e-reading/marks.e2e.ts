@@ -71,6 +71,19 @@ async function selectWords(page: Page, n: number, phrase: string): Promise<void>
 	});
 }
 
+/** Highlight the words of a span with the markup bar's highlight tool, and put the tool down: a bare selection offers only Quote. The bar is left as it was found, shut or open. */
+async function highlight(page: Page, n: number, phrase: string): Promise<void> {
+	const tool = page.getByTestId('tool-highlight');
+	const shut = !(await tool.isVisible());
+	if (shut) await page.getByTestId('markup-toggle').click();
+	if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click();
+	await selectWords(page, n, phrase);
+	await expect(marks(page)).not.toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('tool-select')).toHaveAttribute('aria-pressed', 'true');
+	if (shut) await page.getByTestId('markup-toggle').click();
+}
+
 const marks = (page: Page, kind?: string) => page.locator(kind ? `[data-testid^="page-mark-"][data-kind="${kind}"]` : '[data-testid^="page-mark-"]');
 const published = (served: Served, count: number, on = FILE) => expect.poll(() => marksOf(served, on).length).toBe(count);
 
@@ -103,11 +116,10 @@ test.afterEach(({}, info) => {
 	expect(info.annotations.filter((a) => a.type === 'pageerror')).toEqual([]);
 });
 
-test("a highlight from the selection on a cited work's page needs no session, is drawn at once, and after a reload is an annotation on its words drawn in its look", async ({ page, served }) => {
+test("a highlight on a cited work's page needs no session, is drawn at once, and after a reload is an annotation on its words drawn in its look", async ({ page, served }) => {
 	const before = marksOf(served, 'Bellamy19').map((a) => a.id);
 	await openPaper(page, '/library/Bellamy19?page=2', 2);
-	await selectWords(page, 2, 'order');
-	await page.getByTestId('highlight-offer').click();
+	await highlight(page, 2, 'order');
 	await expect(marks(page, 'highlight')).toHaveCount(1);
 	await expect.poll(() => marksOf(served, 'Bellamy19').filter((a) => !before.includes(a.id)).length).toBe(1);
 	const mark = marksOf(served, 'Bellamy19').find((a) => !before.includes(a.id))!;
@@ -124,8 +136,7 @@ test.describe('on a project PDF', () => {
 
 	test('a comment is written on a mark, which is deleted and put back by undo, and the file is not touched', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
-		await selectWords(page, 1, 'Cycle');
-		await page.getByTestId('highlight-offer').click();
+		await highlight(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
 		await clickMark(page, `page-mark-${id}`);
@@ -146,7 +157,7 @@ test.describe('on a project PDF', () => {
 		expect(readFileSync(join(served.root, FILE)).equals(readFileSync(ARDEN))).toBe(true);
 	});
 
-	test('a word tool marks each selection until it is put down, and leaves a plain selection to the chip afterwards', async ({ page, served }) => {
+	test('a word tool marks each selection until it is put down, and leaves a plain selection to Quote afterwards', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
 		await page.getByTestId('markup-toggle').click();
 		await page.getByTestId('tool-underline').click();
@@ -155,12 +166,12 @@ test.describe('on a project PDF', () => {
 		await page.getByTestId('tool-strike').click();
 		await selectWords(page, 1, 'Abstract');
 		await expect(marks(page, 'strike')).toHaveCount(1);
-		await expect(page.getByTestId('highlight-offer')).toHaveCount(0);
+		await expect(page.getByTestId('quote-offer')).toHaveCount(0);
 		await published(served, 2);
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('tool-select')).toHaveAttribute('aria-pressed', 'true');
 		await selectWords(page, 1, 'Introduction');
-		await expect(page.getByTestId('highlight-offer')).toBeVisible();
+		await expect(page.getByTestId('quote-offer')).toBeVisible();
 	});
 
 	test('the drawing tools each leave a mark, a pin and words only once they say something, and a shape moves and resizes', async ({ page, served }) => {
@@ -241,8 +252,7 @@ test.describe('on a project PDF', () => {
 
 	test('a saved copy holds the marks as a PDF reader finds them, and its original bytes', async ({ page, served }) => {
 		await openPaper(page, `/file/${FILE}`);
-		await selectWords(page, 1, 'Cycle');
-		await page.getByTestId('highlight-offer').click();
+		await highlight(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
 		await clickMark(page, `page-mark-${id}`);
@@ -261,11 +271,13 @@ test.describe('on a project PDF', () => {
 		await expect(page.getByTestId('mark-said')).toContainText('Saved a copy with 1 annotation');
 	});
 
-	test('a colour is chosen on the chip, stays in the hand, changes on its mark with undo, and goes into a saved copy', async ({ page, served }) => {
+	test('a colour is chosen in the markup bar, stays in the hand, changes on its mark with undo, and goes into a saved copy', async ({ page, served }) => {
 		test.slow();
 		await openPaper(page, `/file/${FILE}`);
-		await selectWords(page, 1, 'Cycle');
-		await page.locator('.tray').getByTestId('swatch-green').click();
+		await page.getByTestId('markup-toggle').click();
+		await page.getByTestId('mark-colors').getByTestId('swatch-green').click();
+		await page.getByTestId('markup-toggle').click();
+		await highlight(page, 1, 'Cycle');
 		await published(served, 1);
 		const id = marksOf(served)[0].id;
 		expect(annotations(served)[id].color).toBe('green');
@@ -404,8 +416,9 @@ test.describe('where no publisher takes writes', () => {
 		await page.getByTestId('markup-toggle').click();
 		await expect(page.getByTestId('tool-highlight')).toHaveCount(0);
 		await expect(page.getByTestId('mark-save-copy')).toBeVisible();
+		// Quote writes nothing, so it is offered still
 		await selectWords(page, 2, 'order');
-		await expect(page.getByTestId('highlight-offer')).toHaveCount(0);
+		await expect(page.getByTestId('quote-offer')).toBeVisible();
 		const [saved] = await Promise.all([page.waitForEvent('download'), page.getByTestId('mark-save-copy').click()]);
 		expect(saved.suggestedFilename()).toBe('Bellamy19-annotated.pdf');
 		const { items } = await readAnnotations(await open(new Uint8Array(readFileSync(await saved.path()))));

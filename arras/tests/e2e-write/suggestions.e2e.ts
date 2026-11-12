@@ -50,17 +50,11 @@ test("an annotation written while another session's transcript is read names no 
 	await expect(page.getByTestId('session-footer-name')).toHaveText('referee');
 	const at = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
 	await at.locator('mjx-container').first().waitFor();
-	await at.evaluate((el) => {
-		const range = document.createRange();
-		range.selectNodeContents(el);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
-		el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-	});
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Written while reading the side sitting.');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	// a comment left on the theorem
+	await page.getByTestId('pane-0').getByTestId('tool-comment').click();
+	await at.click();
+	await page.getByTestId('popup-comment-field').fill('Written while reading the side sitting.');
+	await page.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 	expect(served.written('Written while reading the side sitting.')).not.toHaveProperty('session');
 });

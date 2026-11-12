@@ -1,26 +1,32 @@
 <script lang="ts">
-	// Writing on the corpus's own text (plan 0.13.3 phase 4): the two tools a cited work's pages have, on a node's or a document's fragment, so annotating is one act wherever a reader is.
+	// Annotating on the corpus's own text, a node's or a document's: what the toolbar's tools do here.
 	//
-	// **Select** leaves the selection a selection and offers `annotate` at its end, as on a page: highlighting to copy is the ordinary thing to do with text. The note's place is the result the selection is in, and its quote is what was selected, with each formula it touches given as its TeX — loom finds the quote in the source, so a selection across `$c$` anchors where the words on screen alone would not. **Box**, or Alt-drag from select, draws round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
-	import type { Snippet } from 'svelte';
+	// **Annotate** on, selected words are marked at once in the look in hand, and Add comment stands at their end for a moment; a type that stays open until resolved asks something, so its words open the popup to say it first, since loom takes such an annotation only with words. **Comment** on, a click leaves a comment at the place clicked, on the result it is in, and turns the tool off. With neither on, a selection offers **Quote**, which copies the words and where they came from and writes nothing. Alt-drag draws a box round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
+	//
+	// A quote is what was selected with each formula it touches given as its TeX, the form loom finds in the source, so a selection across `$c$` anchors where the words on screen alone would not.
+	import { untrack, type Snippet } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import NoteAt from '$lib/pdf/NoteAt.svelte';
-	import AnnotateChip from './AnnotateChip.svelte';
-	import type { Tool } from '$lib/pdf/view.svelte';
 	import { can } from '$lib/write';
-	import { nameOf } from '$lib/workspace/registry';
+	import { annotate as record } from '$lib/review/history.svelte';
+	import { linkName } from '$lib/workspace/names';
+	import AnnotationPopup from '$lib/review/AnnotationPopup.svelte';
+	import AtSelection from '$lib/review/AtSelection.svelte';
+	import QuoteChip from '$lib/review/QuoteChip.svelte';
+	import { hand, handPayload, typeById, type Annotating, type Draft } from '$lib/review/annotating.svelte';
+	import { say } from '$lib/review/toasts.svelte';
+	import { placeAt } from './popup';
 	import { quoteOf, keyOf, texOf } from './quote';
 	import { clearPending, showPending } from './pending';
-	import { onDestroy } from 'svelte';
 
 	let {
-		holder,
+		notes,
 		fallback,
 		in: inDoc = '',
 		children
 	}: {
-		/** Where the tool in hand is kept: the item's state, which the controls' tool pair sets. */
-		holder: { tool: Tool };
+		/** The item's annotating: the tool in hand, and the popup's opening. */
+		notes: Annotating;
 		/** The key a place belongs to when no result encloses it: the node shown, or the document. */
 		fallback: string;
 		/** The document being read, when the fragment is one: every annotation written here is filed with it. A node's own page passes nothing. */
@@ -36,33 +42,35 @@
 	$effect(() => {
 		void can('annotate').then((ok) => (allowed = ok));
 	});
-	/** A selection waiting to be made into a note, if the reader wants one. */
-	let offered = $state<{ target: string; text: string; at: Box; range?: Range } | null>(null);
-	/** The place a note is being written against, while the composer is open; it stays lit as long as the composer does. */
-	let noting = $state<{ target: string; text: string; at: Box } | null>(null);
-	onDestroy(clearPending);
-	const done = () => {
-		noting = null;
-		clearPending();
-	};
-	/** The box being drawn, in window coordinates. */
-	let drawing = $state<{ x: number; y: number; x2: number; y2: number } | null>(null);
 
 	const m = $derived(store.manifest);
-	const boxing = $derived(holder.tool === 'box');
 
-	function nameFor(key: string): string {
-		if (!m) return key;
-		const region = m.regions?.[key];
-		if (region) {
-			const n = Object.values(region.numbers ?? {})[0]?.number;
-			const of = m.nodes[region.container] ? nameOf({ kind: 'node', id: region.container }, m) : region.container;
-			return n ? `equation (${n}) in ${of}` : `an equation in ${of}`;
-		}
-		if (m.nodes[key]) return nameOf({ kind: 'node', id: key }, m);
-		if (m.masters.some((x) => x.path === key)) return key.split('/').pop() ?? key;
-		return key;
-	}
+	/** A bare selection, offered Quote. */
+	let offered = $state<{ words: string; target: string; at: Box; range: Range } | null>(null);
+	/** A new annotation being written in the popup, and where the popup stands. */
+	let drafting = $state<{ draft: Draft; at: Box } | null>(null);
+	/** Words just marked by Annotate, with Add comment at their end for a few seconds. */
+	let marked = $state<{ id: string; at: Box } | null>(null);
+	let markedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearPending();
+		clearTimeout(markedTimer);
+	});
+
+	/** The tool goes off with Escape, as a highlighter is put down. */
+	$effect(() => {
+		const key = (e: KeyboardEvent) => {
+			if (e.key !== 'Escape' || e.defaultPrevented) return;
+			if (drafting) {
+				e.preventDefault();
+				return closeDraft();
+			}
+			if (notes.tool && !notes.open) notes.tool = null;
+		};
+		document.addEventListener('keydown', key);
+		return () => document.removeEventListener('keydown', key);
+	});
 
 	$effect(() => {
 		const drop = () => {
@@ -72,39 +80,136 @@
 		return () => document.removeEventListener('selectionchange', drop);
 	});
 
-	/** What stands in the fragment without being its text: an annotation's box or card, and what compare draws or swaps in. */
-	const NOT_TEXT = 'aside, article.box, .compare-swap, .compare-tag, .compare-gutter';
+	// choosing a tool ends whatever the last one offered
+	$effect(() => {
+		void notes.tool;
+		untrack(() => {
+			offered = null;
+		});
+	});
+
+	/** What stands in the fragment without being its text: a popup, the margin, and what compare draws or swaps in. */
+	const NOT_TEXT = 'aside, .ann-gutter, .ann-popup-host, .compare-swap, .compare-tag, .compare-gutter';
 
 	function notText(n: Node): boolean {
 		const el = n instanceof Element ? n : n.parentElement;
 		return !!el?.closest(NOT_TEXT);
 	}
 
+	/** A place's name, as the popup's head and a quote's source say it: an equation by its number in its result; else the document and the result in it, or the result alone on its own page. */
+	function nameFor(key: string): string {
+		if (!m) return key;
+		const region = m.regions?.[key];
+		if (region) {
+			const n = Object.values(region.numbers ?? {})[0]?.number;
+			const of = linkName(m, `quilt:${region.container}`);
+			return n ? `equation (${n}) in ${of}` : `an equation in ${of}`;
+		}
+		if (inDoc && key !== inDoc) return `${linkName(m, `quilt:${inDoc}`)}, ${linkName(m, `quilt:${key}`)}`;
+		return linkName(m, `quilt:${key}`);
+	}
+
+	/** A link to a place: in a document, the document at the result; on a node's page, the result. */
+	function hrefFor(key: string): string {
+		if (inDoc && key !== inDoc) return `quilt:${inDoc}#${key}`;
+		return `quilt:${key}`;
+	}
+
+	function rectOfRange(range: Range): Box {
+		const r = range.getBoundingClientRect();
+		return { left: r.left, top: r.top, width: r.width, height: r.height };
+	}
+
+	function endOf(range: Range): Box {
+		const last = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0).at(-1) ?? range.getBoundingClientRect();
+		return { left: last.left, top: last.top, width: last.width, height: last.height };
+	}
+
 	function selected(): void {
-		if (!allowed || boxing || !root) return;
+		if (!root || drawing) return;
 		const sel = window.getSelection();
 		if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.commonAncestorContainer)) return;
-		// only the document's own words are annotated: a box, a card or compare's drawing stands in the fragment's markup without being its text
+		// only the text's own words: a popup, the margin or compare's drawing stands in the fragment without being its text
 		if ([range.startContainer, range.endContainer, range.commonAncestorContainer].some(notText)) return;
-		const text = quoteOf(range);
-		if (!text) return;
-		const r = range.getBoundingClientRect();
-		offered = { target: keyOf(range.commonAncestorContainer, fallback), text, at: { left: r.left, top: r.top, width: r.width, height: r.height }, range: range.cloneRange() };
+		const words = quoteOf(range);
+		if (!words) return;
+		const target = keyOf(range.commonAncestorContainer, fallback);
+		if (notes.tool === 'annotate' && allowed) return void annotate(target, words, range);
+		if (notes.tool === 'comment') return;
+		offered = { words, target, at: rectOfRange(range), range: range.cloneRange() };
 	}
 
-	/** A press on a mark while the box tool is chosen: a click on the mark until the pointer moves, a box once it does. */
+	/** Mark the selected words in the look in hand; a type that asks something opens the popup for its words first. */
+	async function annotate(target: string, quote: string, range: Range): Promise<void> {
+		const h = hand.value;
+		if (typeById(m, h.type)?.open) {
+			showPending(range);
+			window.getSelection()?.removeAllRanges();
+			openDraft({ target, quote, ...(inDoc ? { in: inDoc } : {}), name: nameFor(target) }, rectOfRange(range));
+			return;
+		}
+		const at = endOf(range);
+		window.getSelection()?.removeAllRanges();
+		const res = await record({ target, quote, ...(inDoc ? { in: inDoc } : {}), ...handPayload(m, h) });
+		if (!res.ok) {
+			say({ title: 'Not annotated', lines: [res.error?.message ?? 'the publisher refused it'] });
+			return;
+		}
+		const id = (res.result ?? '').split(/\s+/)[0] ?? '';
+		clearTimeout(markedTimer);
+		marked = id ? { id, at } : null;
+		markedTimer = setTimeout(() => (marked = null), 4000);
+	}
+
+	/** Open the popup on an annotation just written, once the manifest that holds it has been drawn. */
+	async function openWritten(id: string): Promise<void> {
+		marked = null;
+		await store.refresh();
+		for (let i = 0; i < 20; i++) {
+			if (notes.show(id)) return;
+			await new Promise((r) => setTimeout(r, 100));
+		}
+	}
+
+	function openDraft(draft: Draft, at: Box): void {
+		notes.close();
+		offered = null;
+		drafting = { draft, at };
+	}
+
+	function closeDraft(): void {
+		drafting = null;
+		clearPending();
+	}
+
+	/** A click while Comment is on leaves a comment there: caught before a mark under it opens its popup. */
+	function clicked(e: MouseEvent): void {
+		if (notes.tool !== 'comment' || !allowed || !root || e.button !== 0) return;
+		const on = e.target as Element;
+		if (notText(on) || on.closest('a, button, input, textarea, select')) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const target = keyOf(on, fallback);
+		notes.tool = null;
+		const block = on.closest<HTMLElement>('p, li, .math.display, figure, table, h1, h2, h3, h4, h5, h6');
+		if (block) showPending(null, block);
+		openDraft({ target, ...(inDoc ? { in: inDoc } : {}), name: nameFor(target) }, { left: e.clientX, top: e.clientY, width: 0, height: 0 });
+	}
+
+	/** The box being drawn, in window coordinates. */
+	let drawing = $state<{ x: number; y: number; x2: number; y2: number } | null>(null);
+	/** A press on a mark while Alt is held: a click on the mark until the pointer moves, a box once it does. */
 	let pressed: { x: number; y: number } | null = null;
 
 	function down(e: PointerEvent): void {
-		if (!allowed || e.button !== 0 || !(boxing || e.altKey)) return;
+		if (!allowed || e.button !== 0 || !e.altKey) return;
 		const on = e.target as Element;
-		// a press on a link or a control is a click on it, never the start of a box; one in a box or a card is not on the document
+		// a press on a link or a control is a click on it, never the start of a box; one in a popup or the margin is not on the text
 		if (on.closest('a, button, input, textarea, select') || notText(on)) return;
-		// On a mark, only the box tool draws, and only once the pointer moves: an annotated equation is still boxable for a second note, and a click without a drag still opens the mark (study F4).
 		if (on.closest('mark.annotation, .annotation-block')) {
-			if (boxing) pressed = { x: e.clientX, y: e.clientY };
+			pressed = { x: e.clientX, y: e.clientY };
 			return;
 		}
 		start(e, e.clientX, e.clientY);
@@ -112,7 +217,6 @@
 
 	function start(e: PointerEvent, x: number, y: number): void {
 		e.preventDefault();
-		// a drag begun on a mark has already started selecting its words; a box is not a selection
 		window.getSelection()?.removeAllRanges();
 		offered = null;
 		drawing = { x, y, x2: e.clientX, y2: e.clientY };
@@ -136,9 +240,9 @@
 		const box = rectOf(drawing);
 		drawing = null;
 		if (box.width < MIN_BOX && box.height < MIN_BOX) return;
-		const { el, ...place } = placeUnder(root, box);
+		const { el, target, text } = placeUnder(root, box);
 		showPending(null, el);
-		noting = { ...place, at: box };
+		openDraft({ target, ...(text ? { quote: text } : {}), ...(inDoc ? { in: inDoc } : {}), name: nameFor(target) }, box);
 	}
 
 	function rectOf(d: { x: number; y: number; x2: number; y2: number }): Box {
@@ -175,10 +279,37 @@
 		}
 		return { target: fallback, text: '', el: null };
 	}
+
+	/** Put the draft's popup at its place once it is drawn, and again as it grows. */
+	function placed(host: HTMLElement, at: Box) {
+		let r = at;
+		const go = () => placeAt(host, { left: r.left, top: r.top, bottom: r.top + r.height });
+		const sized = new ResizeObserver(go);
+		sized.observe(host);
+		go();
+		return {
+			update(next: Box) {
+				r = next;
+				go();
+			},
+			destroy: () => sized.disconnect()
+		};
+	}
+
+	/** A press outside the draft's popup puts it away, as a press outside any popup does. */
+	$effect(() => {
+		if (!drafting) return;
+		const away = (e: PointerEvent) => {
+			const t = e.target as Element | null;
+			if (!t?.closest?.('.ann-popup-host, [data-testid="settings-window"]')) closeDraft();
+		};
+		document.addEventListener('pointerdown', away, true);
+		return () => document.removeEventListener('pointerdown', away, true);
+	});
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="fragment-notes" class:boxing bind:this={root} onmouseup={selected} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={() => (drawing = null)} data-testid="fragment-notes">
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+<div class="fragment-notes" class:armed={notes.tool === 'annotate' && allowed} class:placing={notes.tool === 'comment' && allowed} bind:this={root} onmouseup={selected} onclickcapture={clicked} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={() => (drawing = null)} data-testid="fragment-notes">
 	{@render children()}
 </div>
 
@@ -186,40 +317,34 @@
 	{@const b = rectOf(drawing)}
 	<div class="drawn" style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px;" data-testid="drawn-box"></div>
 {/if}
-{#if offered && !noting}
-	<!-- At the selection's end, out of the way of the words it is about, and gone the moment the selection is or the composer opens. -->
-	<AnnotateChip
-		at={offered.at}
-		range={offered.range}
-		onaccept={() => {
-			if (!offered) return;
-			const { range, ...place } = offered;
-			showPending(range ?? null);
-			noting = place;
-			offered = null;
-		}}
-	/>
+{#if offered && !drafting}
+	<QuoteChip at={offered.at} range={offered.range} words={offered.words} name={nameFor(offered.target)} href={hrefFor(offered.target)} ondone={() => (offered = null)} />
 {/if}
-{#if noting}
-	<NoteAt
-		target={noting.target}
-		name={nameFor(noting.target)}
-		in={inDoc}
-		text={noting.text}
-		at={noting.at}
-		onwritten={() => {
-			done();
-			store.refresh();
-		}}
-		onclose={done}
-	/>
+{#if marked}
+	{@const id = marked.id}
+	<AtSelection at={marked.at}>
+		<button type="button" class="chip" data-testid="add-comment" onclick={() => void openWritten(id)}>Add comment</button>
+	</AtSelection>
+{/if}
+{#if drafting}
+	<aside class="ann-popup-host" use:placed={drafting.at} data-testid="draft-host">
+		<AnnotationPopup
+			draft={drafting.draft}
+			onclose={closeDraft}
+			onwritten={(id) => {
+				closeDraft();
+				if (id) void openWritten(id);
+			}}
+		/>
+	</aside>
 {/if}
 
 <style>
-	.fragment-notes.boxing {
-		cursor: crosshair;
-		user-select: none;
-		-webkit-user-select: none;
+	.fragment-notes.armed {
+		cursor: text;
+	}
+	.fragment-notes.placing {
+		cursor: copy;
 	}
 	.drawn {
 		position: fixed;

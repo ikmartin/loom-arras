@@ -1,6 +1,6 @@
 // Where each annotation on a key stands in a fragment.
 //
-// An annotation with a mark is reached from its mark; one without -- no quote, or an anchor that no longer resolves -- is a mark on its node's label. One that names the document it is read in is marked there and nowhere else.
+// An annotation with a mark is reached from its mark; one without -- no quote, or an anchor that no longer resolves -- is a mark on its node's label, unless loom left an empty mark where its words were (`version.at`). One that names the document it is read in is marked there and nowhere else.
 
 import type { Annotation, Manifest } from '$lib/manifest/types';
 import { settled, type CommentSlot } from './mount';
@@ -20,7 +20,7 @@ export function commentsOn(m: Manifest, key: string): Annotation[] {
 export function slotsFor(m: () => Manifest, master: () => string | null = () => null): (key: string) => CommentSlot[] {
 	return (key) =>
 		commentsOn(m(), key)
-			.filter((a) => !(a.anchored && a.quote))
+			.filter((a) => !(a.anchored && a.quote) && !a.version?.at)
 			.filter((a) => !a.in || a.in === master())
 			.filter((a) => !settled(a) || ui.showSettled)
 			.map((a) => ({ id: a.id, where: 'label' }));

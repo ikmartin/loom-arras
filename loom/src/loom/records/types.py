@@ -189,3 +189,125 @@ def load_types(root: Path) -> Types:
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         return Types(defaults(), None, [f"{ANNOTATION_TYPES} cannot be read ({exc}); the default types are used"])
     return Types(types, ANNOTATION_TYPES, [f"{ANNOTATION_TYPES}: {p}" for p in problems])
+
+
+class TypesRefused(ValueError):
+    """Types a write cannot save, and why, naming the type."""
+
+
+def _slug(name: str, taken: set[str]) -> str:
+    """An id for a type from its name: lower case, a hyphen for each run of anything but letters and digits, starting with a letter, unique among `taken`."""
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    base = re.sub(r"^[^a-z]+", "", base)[:36].strip("-") or "type"
+    out, n = base, 2
+    while out in taken:
+        out, n = f"{base}-{n}", n + 1
+    return out
+
+
+def _quoted(text: str) -> str:
+    """`text` as a TOML basic string on one line."""
+    import json
+
+    return json.dumps(text, ensure_ascii=False)
+
+
+def _block(text: str) -> str:
+    """`text` as a TOML multi-line basic string, opening and closing on lines of their own."""
+    # the delimiter spelled out, since three quotes in a row in this file would read as a docstring to a line-based check
+    fence = '"' * 3
+    body = text.strip().replace("\\", "\\\\").replace(fence, '""\\"')
+    return fence + "\n" + body + "\n" + fence if body else '""'
+
+
+def types_text(given: list[Any]) -> str:
+    """The types file for `given`, in its order and with the defaults' header comment, an id drawn from the name where none is given; TypesRefused names the type it cannot write.
+
+    Parameters
+    ----------
+    given : list of dict
+        The types as a write sends them, each `{id?, name, color, style, weight, opacity, open, notes, instructions}`.
+
+    Returns
+    -------
+    str
+        The file's text, which `parse_types` reads back to the same types.
+    """
+    header = default_text().split("\n[[type]]", 1)[0].rstrip() + "\n"
+    ids: set[str] = set()
+    names: set[str] = set()
+    blocks: list[str] = []
+    for n, entry in enumerate(given, 1):
+        if not isinstance(entry, dict):
+            raise TypesRefused(f"type {n} is not an object")
+        name = entry.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise TypesRefused(f"type {n} has no name")
+        name = name.strip()
+        said = f"type {name!r}"
+        if name.lower() in names:
+            raise TypesRefused(f"{said} is named twice")
+        names.add(name.lower())
+        tid = entry.get("id")
+        if tid in (None, ""):
+            tid = _slug(name, ids | {str(e.get("id")) for e in given if isinstance(e, dict) and e.get("id")})
+        if not isinstance(tid, str) or not ID.match(tid):
+            raise TypesRefused(f"{said}: its id is lowercase letters, digits and hyphens, starting with a letter")
+        if tid in ids:
+            raise TypesRefused(f"{said}: the id {tid!r} is given twice")
+        ids.add(tid)
+        look = {k: entry.get(k) for k in ("color", "style", "weight", "opacity")}
+        missing = [k for k, v in look.items() if v is None]
+        if missing:
+            raise TypesRefused(f"{said} has no {', '.join(missing)}")
+        why = look_problem(look)
+        if why:
+            raise TypesRefused(f"{said}: {why}")
+        flags = {k: entry.get(k, False) for k in ("open", "notes")}
+        if any(not isinstance(v, bool) for v in flags.values()):
+            raise TypesRefused(f"{said}: open and notes are true or false")
+        instructions = entry.get("instructions", "")
+        if not isinstance(instructions, str):
+            raise TypesRefused(f"{said}: its instructions are text")
+        blocks.append(
+            "\n".join(
+                [
+                    "[[type]]",
+                    f"id = {_quoted(tid)}",
+                    f"name = {_quoted(name)}",
+                    f"color = {_quoted(str(look['color']))}",
+                    f"style = {_quoted(str(look['style']))}",
+                    f"weight = {look['weight']}",
+                    f"opacity = {look['opacity']}",
+                    f"open = {'true' if flags['open'] else 'false'}",
+                    f"notes = {'true' if flags['notes'] else 'false'}",
+                    f"instructions = {_block(instructions)}",
+                ]
+            )
+        )
+    return header + "".join(f"\n{b}\n" for b in blocks)
+
+
+def save_types(root: Path, given: list[Any] | None) -> Types:
+    """Write the quilt's types file whole: `given` in its order, or the defaults for None; TypesRefused when one cannot be written, and nothing is written then.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt.
+    given : list of dict, optional
+        The types, as `types_text` takes them; None writes the defaults.
+
+    Returns
+    -------
+    Types
+        The types as the file now reads.
+    """
+    text = default_text() if given is None else types_text(given)
+    _parsed, problems = parse_types(text)
+    if problems:
+        raise TypesRefused("; ".join(problems))
+    path = root / ANNOTATION_TYPES
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return load_types(root)

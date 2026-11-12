@@ -1,6 +1,8 @@
 """Annotation marks in fragments: a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
 
 The quote is TeX and the block is HTML, so both are compared as the page prints them, except in a block shown as its source (`pre.source`), where the quote stands at its own offsets: the quote, a formula's TeX and the command a reference or citation carries in `data-tex` all read through `selectors.project`; printed text reads as it is, other tags as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
+
+An annotation whose quoted words are gone draws an empty `<mark class="annotation gone" data-annotation="ID">` where they were (`versions.py`): after the words its entry quotes, or before them when it `lead`s; at its offset in a `pre.source`; at the start of its block when the words are not found, and before a displayed formula, which a tag inside would break.
 """
 
 from __future__ import annotations
@@ -22,6 +24,9 @@ class MarkEntry:
     end: int
     #: the document this mark is drawn in, or None for every fragment that holds the node (plan 0.15, decision 9)
     in_doc: str | None = None
+    #: an empty mark where the annotation's words were: just after the words `quote` holds, or just before them when `lead`
+    gone: bool = False
+    lead: bool = False
 
 
 @dataclass
@@ -86,6 +91,7 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
     edits: list[tuple[int, int, str]] = []
     block_level: dict[int, list[str]] = {}
     spans: dict[tuple[int, int], list[str]] = {}
+    points: list[tuple[int, str]] = []
     for e in entries:
         candidates = [
             b
@@ -112,7 +118,14 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
             ]
         if not candidates:
             continue
+        if e.gone:
+            # a place where one block ends and the next begins is in the block that holds the words it is found by
+            inner = [b for b in candidates if (b.start <= e.start < b.end if e.lead else b.start < e.start <= b.end)]
+            candidates = inner or candidates
         blk = min(candidates, key=lambda b: b.end - b.start)
+        if e.gone:
+            points.append((_point(html, blk, e), e.ann_id))
+            continue
         placed = False
         if _is_source(html[blk.open_start : blk.open_end]):
             found = _at_offsets(html, blk.open_end, blk.close_start, e.start - blk.start, e.end - blk.start)
@@ -155,10 +168,32 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
         else:
             new_tag += ' class="annotation-block"'
         edits.append((open_start, tag_end, new_tag))
+    # after every other edit, so one at the same offset is applied first and the empty mark stands before it, and reversed, so two at one place stand in the order given; never inside a mark
+    for at, ann_id in reversed(points):
+        at = next((b_ for a_, b_, _ in kept if a_ < at < b_), at)
+        edits.append((at, at, f'<mark class="annotation gone" data-annotation="{ann_id}"></mark>'))
     out = html
     for a, b, rep in sorted(edits, key=lambda x: x[0], reverse=True):
         out = out[:a] + rep + out[b:]
     return out
+
+
+def _point(html: str, blk: _Block, e: MarkEntry) -> int:
+    """Where a gone entry's empty mark stands in `blk`: beside the words it quotes, at its offset in a `pre.source`, else at the block's start.
+
+    A displayed formula takes it before the block opens, since a tag inside TeX stops MathJax reading it.
+    """
+    open_tag = html[blk.open_start : blk.open_end]
+    if _is_source(open_tag):
+        at = e.start - blk.start
+        found = _at_offsets(html, blk.open_end, blk.close_start, at - 1, at) if at > 0 else None
+        return found[1] if found else blk.open_end
+    if _is_math(open_tag):
+        return blk.open_start
+    ranges = _locate(html, blk.open_end, blk.close_start, e.quote) if e.quote else []
+    if not ranges:
+        return blk.open_end
+    return ranges[0][0] if e.lead else ranges[-1][1]
 
 
 def _norm_positions(text: str) -> tuple[str, list[int]]:

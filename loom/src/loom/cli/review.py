@@ -847,11 +847,12 @@ def edit_annotation(
     look: dict[str, Any] | None = None,
     rects: Any = None,
     strokes: Any = None,
+    clear_look: bool = False,
     **fields: str | None,
 ) -> str:
     """Supersede an annotation's body, its type, its look or, on a PDF page, where a drawn one stands; the history stays in the log and one current body is shown.
 
-    This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement. `type_given` of '' takes the type off.
+    This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement. `type_given` of '' takes the type off; `clear_look` drops the look set on the annotation itself, so it is drawn in its type's again, before any of `look` is set over it.
     """
     root = result.quilt.root
     found = find_annotation(Records(root).records, ann_id)
@@ -859,7 +860,7 @@ def edit_annotation(
         raise NotFoundError("annotation", f"no annotation {ann_id}")
     ann = found[1]
     restyled: dict[str, Any] = {}
-    if type_given is not None or look:
+    if type_given is not None or look or clear_look:
         types = load_types(root)
         try:
             t = type_named(types, type_given) if type_given is not None else types.get(ann.type)
@@ -868,7 +869,7 @@ def edit_annotation(
         why = look_problem(look or {})
         if why:
             raise EnvError(f"--{why}")
-        own = {**ann.own_look, **(look or {})}
+        own = {**({} if clear_look else ann.own_look), **(look or {})}
         restyled = {"look": own, "drawn": drawn_look(t, own)}
         if type_given is not None:
             restyled["type"] = t.id if t else None

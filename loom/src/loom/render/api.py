@@ -61,6 +61,7 @@ CAPABILITIES = [
     "review-accept",
     "reviewer-settings",
     "settings-save",
+    "types-save",
     "agents-update",
     "here",
     "changes-keep",
@@ -332,6 +333,7 @@ RECORD_WRITES = (
     "session-purpose",
     "adopt-decision",
     "reviewer-settings",
+    "types-save",
 )
 
 
@@ -539,6 +541,29 @@ def _history(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         "ok": True,
         "result": f"put {Path(doc).name} back as “{done['label']}” holds it; its text before is the version “{done['before']}”",
     }
+
+
+def _types_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`types-save` writes `.loom/annotation-types.toml` whole from Settings › Annotations, or with `defaults` the defaults; the author's act, refused to a declared agent, which edits the file itself."""
+    from loom.cli._common import is_agent
+    from loom.records.types import TypesRefused, save_types
+    from loom.scan.quilt import reviewer_identity
+
+    if is_agent(_str(body, "author") or reviewer_identity(root)[0]):
+        raise ApiError(
+            "author-only", "An agent edits the annotation types in their file; only the author saves them here", 403
+        )
+    given = body.get("types")
+    if body.get("defaults") is True:
+        given = None
+    elif not isinstance(given, list):
+        raise ApiError("missing-field", "types is the list of the quilt's annotation types, or send defaults: true")
+    try:
+        saved = save_types(root, given)
+    except TypesRefused as exc:
+        raise ApiError("bad-field", str(exc)) from exc
+    said = "restored the default annotation types" if given is None else f"saved {len(saved.types)} annotation types"
+    return {"ok": True, "result": said, "types": [t.to_dict() for t in saved.types]}
 
 
 def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -859,6 +884,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             raise ApiError("adoption-refused", str(exc), status=409) from exc
     if endpoint in ("settings-save", "agents-update"):
         return _settings(root, endpoint, body)
+    if endpoint == "types-save":
+        return _types_save(root, body)
     if endpoint == "reviewer-settings":
         from loom.cli._common import is_agent
         from loom.scan.quilt import reviewer_identity, save_author
@@ -1159,6 +1186,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _look(body),
                 _geometry(body, "rects"),
                 _geometry(body, "strokes"),
+                # `look: null` drops the annotation's own look, so it follows its type again
+                clear_look="look" in body and body["look"] is None,
                 **fields,
             )
         if endpoint == "annotate":

@@ -17,6 +17,11 @@ async function intoASession(page: import('@playwright/test').Page, served: Serve
 }
 
 /** Select an element's words as a reader would, and let go: the page offers to annotate them. */
+/** Hold a type in hand before the page loads, as the format menu would leave it. */
+async function holding(page: import('@playwright/test').Page, type: string): Promise<void> {
+	await page.addInitScript((t) => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: t, over: {} })), type);
+}
+
 async function select(at: import('@playwright/test').Locator): Promise<void> {
 	await at.evaluate((node) => {
 		const range = document.createRange();
@@ -29,24 +34,23 @@ async function select(at: import('@playwright/test').Locator): Promise<void> {
 }
 
 test('a comment written from a selection lands in the log as a person, anchored across the formula it crosses', async ({ page, served }) => {
-	// The gate of plan 0.11 Part H, with the tools a work's pages have (phase 4): not "the button appeared" -- the file changed.
+	// The gate of plan 0.11 Part H: not "the button appeared" -- the file changed. Annotate, holding a revision, which asks something, so the popup takes the comment before anything is written.
+	await holding(page, 'revision');
 	await page.goto('/node/sy-0003');
 	await intoASession(page, served);
 	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
 	await statement.locator('mjx-container').first().waitFor();
+	await page.getByTestId('tool-annotate').click();
 	await select(statement);
-	await page.getByTestId('annotate-offer').click();
-	// the header names the words, then the place as the tab names it (by its number, from the compile the suite's pages carry); the quote carries the formula as TeX
-	await expect(page.getByTestId('note-where')).toContainText('finite widget');
-	await expect(page.getByTestId('note-where')).toContainText('in Theorem 2.1');
-	// the selection stays lit while the comment is written, and the composer does not repeat it
-	await expect(page.getByTestId('note-quote')).toHaveCount(0);
+	// the popup's head names the place as the tab names it (by its number, from the compile the suite's pages carry), and its type
+	const draft = page.getByTestId('ann-popup');
+	await expect(draft).toContainText('Theorem 2.1');
+	await expect(draft.getByTestId('popup-type')).toContainText('Revision');
+	// the selection stays lit while the comment is written
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('widget');
-	await page.getByTestId('note-body').fill('Does finiteness do any work in the closedness half?');
-	// a revision, one of the quilt's types, sent by its id
-	await page.getByTestId('note-type').locator('[data-type="revision"]').click();
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await draft.getByTestId('popup-comment-field').fill('Does finiteness do any work in the closedness half?');
+	await draft.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 
 	const mine = served.log().filter((e) => String(e.body ?? '').startsWith('Does finiteness'));
 	expect(mine).toHaveLength(1);
@@ -60,28 +64,21 @@ test('a comment written from a selection lands in the log as a person, anchored 
 	expect(exact).toMatch(/\$|\\\(/);
 });
 
-test("the publisher's refusal is shown rather than swallowed, and the whole result is offered instead", async ({ page, served }) => {
+test("the publisher's refusal is shown rather than swallowed, and nothing is filed as anchored that is not", async ({ page, served }) => {
 	// "quote not found" means something different from "no such key", and a reader told only "failed" has to guess.
+	await holding(page, 'question');
 	await page.goto('/node/sy-0003');
 	await intoASession(page, served);
 	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
 	await statement.locator('mjx-container').first().waitFor();
 	// words that are nowhere in the source: what a reader would get from a selection loom cannot map back
 	await statement.evaluate((p) => p.insertAdjacentText('afterbegin', 'a phrase that appears nowhere in this statement at all '));
+	await page.getByTestId('tool-annotate').click();
 	await select(statement);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('This should be refused.');
-	await page.getByTestId('note-submit').click();
-	const said = page.getByTestId('note-said');
-	await expect(said).toContainText('quote');
+	await page.getByTestId('popup-comment-field').fill('This should be refused.');
+	await page.getByTestId('popup-save').click();
+	await expect(page.getByTestId('popup-said')).toContainText('quote');
 	expect(served.log().filter((e) => e.body === 'This should be refused.')).toHaveLength(0);
-	// nothing is filed as anchored that is not: the one way on is a note on the whole result, said as such
-	await page.getByTestId('note-whole').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
-	const whole = served.log().filter((e) => e.body === 'This should be refused.');
-	expect(whole).toHaveLength(1);
-	expect(whole[0].target).toBe('sy-0003');
-	expect(whole[0].anchor ?? null).toBeNull();
 });
 
 test('a box drawn round an equation notes the equation itself', async ({ page, served }) => {
@@ -89,16 +86,19 @@ test('a box drawn round an equation notes the equation itself', async ({ page, s
 	await intoASession(page, served);
 	const display = page.locator('[data-pane="0"] .fragment .math.display[data-label="eq:fix"]');
 	await display.locator('mjx-container').waitFor();
-	await page.getByTestId('tool-box').click();
+	// Alt-drag draws a box, round what a selection cannot hold
 	const b = (await display.boundingBox())!;
+	await page.keyboard.down('Alt');
 	await page.mouse.move(b.x + 4, b.y + 2);
 	await page.mouse.down();
 	await page.mouse.move(b.x + b.width - 4, b.y + b.height - 2, { steps: 6 });
 	await page.mouse.up();
-	await expect(page.getByTestId('note-where')).toContainText('equation');
-	await page.getByTestId('note-body').fill('Name the fixed locus here.');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await page.keyboard.up('Alt');
+	const draft = page.getByTestId('ann-popup');
+	await expect(draft).toContainText('equation');
+	await draft.getByTestId('popup-comment-field').fill('Name the fixed locus here.');
+	await draft.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 	const mine = served.log().filter((e) => e.body === 'Name the fixed locus here.');
 	expect(mine).toHaveLength(1);
 	expect(mine[0].target).toBe('sy-0001#eq:fix');
@@ -109,16 +109,12 @@ test('a box drawn round an equation notes the equation itself', async ({ page, s
 
 test('a document is written on the same way, and what is written there is filed with the document: marked in it, and on no other page', async ({ page, served }) => {
 	// decision 9 and 11 of the annotation study: the viewer implies `in` from where the reader is, so a claim made while reading main.tex is about sy-0008 as read there, and talk.tex, which also holds sy-0008, and the node's own page carry no mark for it
+	await holding(page, 'question');
 	await page.goto('/master/drafting/main');
 	await intoASession(page, served);
-	await expect(page.getByTestId('tool-select')).toBeVisible();
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
 	await words.scrollIntoViewIfNeeded();
-	await select(words);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('A gadget wants an example.');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await noteOn(page, words, 'A gadget wants an example.');
 	const mine = served.log().filter((e) => e.body === 'A gadget wants an example.');
 	expect(mine).toHaveLength(1);
 	expect(mine[0].target).toBe('sy-0008');
@@ -134,14 +130,13 @@ test('a document is written on the same way, and what is written there is filed 
 	await expect(markOf()).toHaveCount(0);
 });
 
-readOnly('the annotate chip stays at the end of the selection as its pane scrolls, and is hidden while those words are scrolled out of the pane', async ({ page }) => {
+readOnly('Quote stays at the end of the selection as its pane scrolls, and is hidden while those words are scrolled out of the pane', async ({ page }) => {
 	await page.goto('/master/drafting/main');
-	await expect(page.getByTestId('tool-select')).toBeVisible();
 	const body = page.locator('[data-pane="0"] > .body');
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
 	await words.scrollIntoViewIfNeeded();
 	await select(words);
-	const chip = page.getByTestId('annotate-offer');
+	const chip = page.getByTestId('quote-offer');
 	await expect(chip).toBeVisible();
 	// how far the chip stands from the words' top, which a chip fixed to the window changes by the distance scrolled; the chip is placed to whole pixels, so within one
 	const at = (await chip.boundingBox())!.y - (await words.boundingBox())!.y;
@@ -160,65 +155,49 @@ readOnly('the annotate chip stays at the end of the selection as its pane scroll
 });
 
 test('an annotation written on the node\'s own page is filed with no document', async ({ page, served }) => {
+	await holding(page, 'question');
 	await page.goto('/node/sy-0008');
 	await intoASession(page, served);
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
-	await select(words);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Everywhere a gadget is read.');
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await noteOn(page, words, 'Everywhere a gadget is read.');
 	const mine = served.written('Everywhere a gadget is read.');
 	expect(mine.target).toBe('sy-0008');
 	expect(mine.in ?? null).toBeNull();
 });
 
-/** Comments shown in place (`inline` beneath the block, `floating` at the mark), with the reply written inside the box that is showing them. */
-function inPlace(where: 'inline' | 'floating') {
-	return async ({ page, served }: { page: import('@playwright/test').Page; served: Served }) => {
-		await page.addInitScript(
-			(c) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: c })),
-			where
-		);
-		// the mark this test opens is one the fixture carries, so a fresh copy has it before anything is written
-		await page.goto('/node/sy-0003');
-		await intoASession(page, served);
-		const mark = page.locator('.fragment mark.annotation').first();
-		await mark.waitFor();
-		const box = page.locator('[data-testid="comment-expanded"]'); // one host, however many comments the mark carries
-		await mark.click();
-		await expect(box).toHaveCount(1);
+test('a reply written in the popup leaves it open, showing the reply', async ({ page, served }) => {
+	// the mark this test opens is one the fixture carries, so a fresh copy has it before anything is written
+	await page.goto('/node/sy-0003');
+	await intoASession(page, served);
+	const mark = page.locator('.fragment mark.annotation').first();
+	await mark.waitFor();
+	const popup = page.getByTestId('ann-popup');
+	await mark.click();
+	await expect(popup).toHaveCount(1);
 
-		const body = `a reply written in the ${where} box`;
-		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-reply"]').first().click();
-		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-text"]').first().fill(body);
-		// the viewer asks for the manifest once a second; a re-wire on any answer after a write once closed the box
-		const polls = (n: number) => {
-			let seen = 0;
-			return page.waitForResponse((r) => new URL(r.url()).pathname === '/build/manifest.json' && r.status() < 400 && ++seen >= n);
-		};
-		const afterWrite = polls(3);
-		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-send"]').first().click();
-
-		// The write changes the manifest, and the re-wire that follows it must leave the box where the reply was written open, now showing the reply.
-		await expect(page.locator('[data-testid="comment-expanded"] .reply').filter({ hasText: body })).toHaveCount(1);
-		await afterWrite;
-		await expect(box).toHaveCount(1);
-		expect(served.log().filter((e) => e.body === body)).toHaveLength(1);
-
-		// And the mark still toggles: one click closes it, the next opens it, and it stays open.
-		await mark.click();
-		await expect(box).toHaveCount(0);
-		await mark.click();
-		await expect(box).toHaveCount(1);
-		// the pointer's own beat falls inside the click and must not shut what the click opened, nor the next poll's re-wire
-		await polls(1);
-		await expect(box).toHaveCount(1);
+	const body = 'a reply written in the popup';
+	// the viewer asks for the manifest once a second; a re-wire on any answer after a write must not close the popup
+	const polls = (n: number) => {
+		let seen = 0;
+		return page.waitForResponse((r) => new URL(r.url()).pathname === '/build/manifest.json' && r.status() < 400 && ++seen >= n);
 	};
-}
+	const afterWrite = polls(3);
+	await popup.getByTestId('popup-reply').fill(body);
+	await popup.getByTestId('popup-reply').press('Enter');
+	// the write changes the manifest, and the popup it was written in stays open, now showing the reply
+	await expect(popup.getByTestId('popup-reply-row').filter({ hasText: body })).toHaveCount(1);
+	await afterWrite;
+	await expect(popup).toHaveCount(1);
+	expect(served.log().filter((e) => e.body === body)).toHaveLength(1);
 
-test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
-test('a reply written in a floating comment box leaves the box open', inPlace('floating'));
+	// and the mark still toggles: one click closes it, the next opens it, and it stays open
+	await mark.click();
+	await expect(popup).toHaveCount(0);
+	await mark.click();
+	await expect(popup).toHaveCount(1);
+	await polls(1);
+	await expect(popup).toHaveCount(1);
+});
 
 test('what an agent says arrives in the transcript without a rebuild, and the viewer offers nothing to post with', async ({ page, served }) => {
 	// plan 0.20.1: the conversation happens in the agent's own app; the agent writes the transcript with `loom session say`, read from `/_api/events` rather than waiting for the manifest
@@ -254,17 +233,21 @@ function sessionIndex(served: Served): Record<string, unknown>[] {
 		.map((l) => JSON.parse(l));
 }
 
-/** Select an element's words and write a note on them from the composer. */
+/** Mark an element's words with Annotate, holding a type that asks something (`holding`), and say `body` in the popup that opens for it. */
 async function noteOn(page: import('@playwright/test').Page, at: import('@playwright/test').Locator, body: string): Promise<void> {
-	await at.locator('mjx-container').first().waitFor();
+	await at.waitFor();
+	// selected once its formulas are set, as a reader sees them
+	await page.waitForFunction(() => !document.querySelector('[data-pane="0"] .fragment .math:not(:has(mjx-container))'));
+	const tool = page.getByTestId('pane-0').getByTestId('tool-annotate');
+	if ((await tool.getAttribute('aria-pressed')) !== 'true') await tool.click();
 	await select(at);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill(body);
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	await page.getByTestId('popup-comment-field').fill(body);
+	await page.getByTestId('popup-save').click();
+	await expect(page.getByTestId('draft-host')).toHaveCount(0);
 }
 
 test('an annotation is written with no session selected, and names none', async ({ page, served }) => {
+	await holding(page, 'question');
 	await page.goto('/node/sy-0003');
 	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await noteOn(page, page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first(), 'Which sitting is this in?');
@@ -274,22 +257,20 @@ test('an annotation is written with no session selected, and names none', async 
 });
 
 test('an annotation is edited, then deleted, which takes its lines out of the log, and Undo puts the same lines back', async ({ page, served }) => {
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'inline' })));
 	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.type === 'revision')!.id as string;
 	await page.goto('/node/sy-0003');
 	await intoASession(page, served);
 	const mark = page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first();
 	await mark.click();
-	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-	const head = box.locator(':scope > .meta');
+	const box = page.locator(`[data-testid="ann-popup"][data-annotation-id="${id}"]`);
 	await expect(box).toHaveCount(1);
 
+	// the comment is edited in place
 	const restated = 'Finiteness is used in the parity count; state it as a hypothesis.';
-	await head.getByTestId('verb-edit').click();
-	await box.getByTestId('verb-text').fill(restated);
-	await box.getByTestId('verb-send').click();
-	await expect(box.getByTestId('verb-panel')).toHaveCount(0);
-	await expect(box).toContainText(restated);
+	await box.getByTestId('popup-comment').click();
+	await box.getByTestId('popup-comment-field').fill(restated);
+	await box.getByTestId('popup-save').click();
+	await expect(box.getByTestId('popup-comment')).toContainText(restated);
 	const edited = served.log().filter((e) => e.event === 'edited' && e.id === id);
 	expect(edited).toHaveLength(1);
 	expect(edited[0].body).toBe(restated);
@@ -299,8 +280,8 @@ test('an annotation is edited, then deleted, which takes its lines out of the lo
 	// the log as lines, in any order: a restore appends what it puts back
 	const lines = () => served.log().map((e) => JSON.stringify(e)).sort();
 	const before = lines();
-	await head.getByTestId('verb-delete').click();
-	// nothing of it is left in the log, and the box and its mark go with it
+	await box.getByTestId('popup-delete').click();
+	// nothing of it is left in the log, and the popup and its mark go with it
 	await expect.poll(() => served.log().filter((e) => e.id === id).length).toBe(0);
 	const gone = before.filter((l) => !lines().includes(l));
 	expect(gone.length).toBeGreaterThan(1); // its creation and its edit at least
@@ -313,6 +294,82 @@ test('an annotation is edited, then deleted, which takes its lines out of the lo
 	// the same lines, and the mark drawn again
 	await expect.poll(lines).toEqual(before);
 	await expect(page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first()).toBeVisible();
+});
+
+/** The served quilt's manifest as loom last published it. */
+function published(served: Served): { annotations: Record<string, { id: string; type: string | null; look: Record<string, unknown> }>; annotation_types: { id: string; look: Record<string, unknown> }[] } {
+	return JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8'));
+}
+
+test('a type chosen in the popup drops the look set on the annotation, so it is drawn in the type’s and follows later edits to it', async ({ page, served }) => {
+	const id = served.log().find((e) => e.event === 'created' && e.target === 'sy-0003' && e.type === 'revision')!.id as string;
+	await page.goto('/node/sy-0003');
+	await page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first().click();
+	const p = page.locator(`[data-testid="ann-popup"][data-annotation-id="${id}"]`);
+	await p.getByTestId('popup-type').click();
+	// a look of its own first: green over the revision's red
+	await p.getByTestId('popup-format').getByTestId('swatch-green').click();
+	await expect.poll(() => published(served).annotations[id].look.color).toBe('green');
+	await expect(p.getByTestId('modified-line')).toContainText('Changed from Revision');
+	await p.getByTestId('popup-format').locator('[data-testid="type-row"][data-type="question"]').click();
+	await expect.poll(() => published(served).annotations[id].type).toBe('question');
+	const question = () => published(served).annotation_types.find((t) => t.id === 'question')!.look;
+	expect(published(served).annotations[id].look).toEqual(question());
+	await expect(p.getByTestId('modified-line')).toHaveCount(0);
+	// the type's look changed in Settings, and the annotation follows it
+	await page.keyboard.press('Escape');
+	await page.getByTestId('settings-toggle').click();
+	await page.getByTestId('settings-section-annotations').click();
+	await page.getByTestId('type-tab').nth(2).click();
+	await page.getByTestId('settings-annotations').getByTestId('swatch-purple').click();
+	await page.getByTestId('types-save').click();
+	await expect.poll(() => published(served).annotations[id].look.color).toBe('purple');
+});
+
+test('Undo takes a new annotation out of the log, and Redo puts the same one back', async ({ page, served }) => {
+	await page.goto('/node/sy-0003');
+	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
+	await statement.waitFor();
+	await page.waitForFunction(() => !document.querySelector('[data-pane="0"] .fragment .math:not(:has(mjx-container))'));
+	await page.getByTestId('tool-annotate').click();
+	const before = served.log().filter((e) => e.event === 'created').length;
+	await select(statement);
+	await expect.poll(() => served.log().filter((e) => e.event === 'created').length).toBe(before + 1);
+	const made = served.log().filter((e) => e.event === 'created').at(-1)!;
+	const id = made.id as string;
+	await expect.poll(() => !!published(served).annotations[id]).toBe(true);
+	await page.getByTestId('annotate-undo').click();
+	await expect.poll(() => served.log().some((e) => e.id === id)).toBe(false);
+	await expect.poll(() => !!published(served).annotations[id]).toBe(false);
+	await page.getByTestId('annotate-redo').click();
+	await expect.poll(() => served.log().filter((e) => e.id === id).map((e) => e.event)).toEqual(['created']);
+	await expect.poll(() => !!published(served).annotations[id]).toBe(true);
+});
+
+test('a comment is edited as the Markdown it was written in, its math and its link kept, and Undo puts that Markdown back', async ({ page, served }) => {
+	const original = 'Is $|X| \\geq 2$ here? See [the definition](quilt:sy-0001).';
+	const changed = original.replace('here?', 'there?');
+	const id = (await served.api('annotate', { target: 'sy-0003', quote: 'finite widget', message: original })).split(/\s+/)[0];
+	const edits = () => served.log().filter((e) => e.event === 'edited' && e.id === id);
+	await page.goto('/node/sy-0003');
+	await page.getByTestId('open-comments').click();
+	await page.locator(`[data-testid="comment-card"][data-annotation="${id}"]`).click();
+	const p = page.locator(`[data-testid="ann-popup"][data-annotation-id="${id}"]`);
+	// the comment is shown rendered, its formula set and its link named, and opens for editing as it was written
+	await expect(p.getByTestId('popup-comment').locator('a[href="quilt:sy-0001"]')).toHaveText('the definition');
+	await p.getByTestId('popup-comment').click({ position: { x: 4, y: 4 } });
+	const field = p.getByTestId('popup-comment-field');
+	await expect(field).toHaveValue(original);
+	await field.fill(changed);
+	await p.getByTestId('popup-save').click();
+	await expect.poll(() => edits().map((e) => e.body)).toEqual([changed]);
+	await expect(p.getByTestId('popup-comment')).toContainText('there?');
+	// Undo restates it as it was written, Markdown and all
+	await page.getByTestId('annotate-undo').click();
+	await expect.poll(() => edits().map((e) => e.body)).toEqual([changed, original]);
+	await expect(p.getByTestId('popup-comment')).not.toContainText('there?');
+	await p.getByTestId('popup-comment').click({ position: { x: 4, y: 4 } });
+	await expect(field).toHaveValue(original);
 });
 
 test('deleting a session from the picker tombstones it in the index, and no annotation goes with it', async ({ page, served }) => {

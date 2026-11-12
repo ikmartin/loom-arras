@@ -275,6 +275,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "basis": null,
   "type": "revision",
   "look": {"color": "red", "style": "highlight", "weight": 2, "opacity": 65},
+  "body": "No rigidity lemma exists in the quilt. ...",
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
   "status": "open",
   "in_reply_to": null,
@@ -287,11 +288,12 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "mark": null,
   "origin": null,
   "hides": null,
-  "resolved_why": null
+  "resolved_why": null,
+  "version": null
 }
 ```
 
-`body_html` is the Markdown body rendered by the publisher as CommonMark with tables, raw HTML not passed through and alignment not carried, so a table is the dialect's (§2.12 of specs/dialect.md) and its cells hold inline markup and math.
+`body` is the comment as written, in Markdown, which a viewer's editor starts from, and `body_html` is the Markdown body rendered by the publisher as CommonMark with tables, raw HTML not passed through and alignment not carried, so a table is the dialect's (§2.12 of specs/dialect.md) and its cells hold inline markup and math.
 
 **[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**. An annotation belongs to no session: it carries its author, its time (`created`) and the version of the text it was written on (`target.hash`), and a viewer groups annotations by those (plan 0.30, decision 8).
 
@@ -304,6 +306,14 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 **[decided]** `type` is the id of one of `annotation_types` (§1), or null: a type is a label an annotation may carry, and one the quilt no longer lists is published as null. `look` is the whole look to draw it with, its type's under what was set on the annotation itself, or, its type gone, the look it last had. An annotation is **open**, and counted by `reviews.open` under its type, only while its type stays open until resolved; an untyped annotation, or one of a type that only informs, asks nothing (plan 0.30, decisions 4–6).
 
 **[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version an annotation is written against, so this is a version lost outside loom, or a paper on file that is not the one the annotation was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+
+**[decided]** `version` is the version an annotation was written on, published for one on a key whose quoted words are gone (`detached`) and whose version is kept (`recorded`), and null on every other (plan 0.30, decision 9):
+
+```json
+"version": {"hash": "sha256:5d2f...", "fragment": "fragments/versions/5d2f0c41a9e3b871.html", "at": true}
+```
+
+`hash` is `target.hash`. `fragment` is that version of the key's own text, made by TeX as the document makes it, its children's places left out, with every annotation quoted from that version drawn as `mark.annotation` (specs/dialect.md §2.9); it is under `fragments/versions/`, named by the hash's first sixteen hex characters, one per hash, so annotations written on one version share it. `at` is whether loom could say where the annotation's words were in the text now, by aligning the version's words with the current text's: where its words were replaced, at the start of what replaced them; where they were cut, before the word that followed. When it can, the key's fragment and each document's fragment that holds the key carry an empty `<mark class="annotation gone" data-annotation="ID"></mark>` at that place, within the paragraph, never inside another mark, and before a displayed formula rather than inside it; `at` is false when no word of the two aligns. An annotation whose key is gone has a version and no place. A reply, an annotation on a PDF page or a whole work, and one detached because its document no longer holds its key, which keeps its words, have no version.
 
 `resolved_why` is the text given when the annotation was resolved, or null; one resolved by keeping a suggested edit that answers it says so (§9.2).
 

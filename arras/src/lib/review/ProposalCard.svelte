@@ -199,7 +199,7 @@
 	<section class="rendering" data-testid="proposal-statement">
 		<h4>rendered as</h4>
 		{#if node?.fragment}
-			{#key id}<Fragment path={node.fragment} macroSet={citekey} authoring={false} anchor="" standalone onmounted={markWords} />{/key}
+			{#key id}<Fragment path={node.fragment} macroSet={citekey} anchor="" standalone onmounted={markWords} />{/key}
 		{:else}
 			<p class="rendered"><Statement text={record.statement ?? ''} /></p>
 		{/if}

@@ -416,6 +416,8 @@ export interface Annotation {
   type: string | null;
   /** The whole look to draw it with, whatever its type now says. */
   look: Look;
+  /** The comment as written, in Markdown, which an editor starts from; `body_html` is it rendered. Absent from a publisher that does not say. */
+  body?: string;
   body_html: string;
   status: "open" | "resolved";
   in_reply_to: string | null;
@@ -426,6 +428,15 @@ export interface Annotation {
   quote?: string;
   /** Why it was resolved, when it was. */
   resolved_why?: string | null;
+  /** The version it was written on, for one whose words are gone (`detached`) and whose version is kept (`recorded`): that version's hash, its key's text as it was with every annotation on it marked (`fragment`, under the build directory), and whether an empty `mark.annotation.gone` stands where its words were in the text now (`at`). */
+  version?: AnnotationVersion | null;
+}
+
+/** The version an annotation was written on (specs/manifest.md §9). */
+export interface AnnotationVersion {
+  hash: string;
+  fragment: string;
+  at: boolean;
 }
 
 /** A suggested edit (specs/manifest.md §9.2): words a writer proposes to put in place of a quote, beside it or for it, which the person keeps or discards. */

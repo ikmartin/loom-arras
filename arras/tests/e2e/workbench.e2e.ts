@@ -22,7 +22,7 @@ test('a landmark is a document, with no identity and nothing to review', async (
 	await expect(fragment.locator('.env').first()).toBeVisible();
 	await expect(fragment.locator('.env[data-key], .env[data-id]')).toHaveCount(0); // no theorem in a landmark is a node
 	await expect(page.locator('aside.margin')).toHaveCount(0);
-	await expect(page.locator('aside.comment-slot')).toHaveCount(0);
+	await expect(page.getByTestId('margin')).toHaveCount(0);
 	await expect(page.getByTestId('local-graph-open')).toHaveCount(0);
 	// its own references stay inside the page; one that pointed at nothing when the landmark was written still points at nothing
 	const hrefs = await fragment

@@ -191,7 +191,7 @@
 						<!-- with no copy to read, the digest is the paper's text here: its opening and prose between the results, which the cards leave out -->
 						<details class="fold-block" bind:open={digestOpen} data-testid="digest-text">
 							<summary>The digest as one text</summary>
-							{#if digestOpen}<div data-testid="work-digest"><Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} anchor="" /></div>{/if}
+							{#if digestOpen}<div data-testid="work-digest"><Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} anchor="" /></div>{/if}
 						</details>
 					{/if}
 				</section>

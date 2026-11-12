@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
 	//
-	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. One drawn with a tool (`mark`) is the desk's (`desk.svelte.ts`), drawn as a mark; every other is drawn here from the sidecar, with its box. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
+	// **Every annotation on the page is drawn**, unless the pane hides them all; a settled one only while the settled control is on. One drawn with a tool (`mark`) is the desk's (`desk.svelte.ts`), drawn as a mark; every other is drawn here from the sidecar, and opens its popup. **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately.
 	//
 	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	//
@@ -13,9 +13,7 @@
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { ui } from '$lib/ui.svelte';
-	import { inlineComments, type InlineComments } from '$lib/fragments/expand';
-	import { repliesTo } from '$lib/annotations';
-	import { travel as goTo } from '$lib/travel/travel';
+	import { popups, type Popups } from '$lib/fragments/popup';
 	import type { Sidecar } from './sidecar';
 	import type { Reference } from '$lib/manifest/types';
 	import type { WorkLink } from '$lib/worklink';
@@ -28,8 +26,8 @@
 	import type { PdfView } from './view.svelte';
 	import type { Outgoing } from './portable';
 	import NoteAt from './NoteAt.svelte';
-	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
-	import { clearPending, showPending } from '$lib/fragments/pending';
+	import QuoteChip from '$lib/review/QuoteChip.svelte';
+	import { clearPending } from '$lib/fragments/pending';
 	import { onDestroy } from 'svelte';
 	import { here } from '$lib/here.svelte';
 
@@ -83,13 +81,11 @@
 	let active = $state('');
 	/** The place an annotation is being written against, while the composer is open. */
 	let noting = $state<{ page: number; text?: string; rects?: number[][]; at: { left: number; top: number; width: number; height: number } } | null>(null);
-	/**
-	 * A selection waiting to be made into an annotation, if the reader wants one.
-	 *
-	 * **Selecting text is not a request to annotate it.** The composer used to open on every mouse-up, which meant the ordinary thing a reader does with a paper — highlight a phrase and copy it — was impossible without a form appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the box tool has no such ambiguity and still opens the composer directly.
-	 */
+	/** A bare selection, offered Quote: selecting text is not a request to annotate it, which the markup bar's tools are for; the box tool opens the composer directly. */
 	let offered = $state<{ page: number; text: string; lines: number[][]; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
 	onDestroy(clearPending);
+	/** Where a quote from page `n` came from, as a link an agent can follow: the work by its identifier, else its citekey. */
+	const quoteHref = (n: number): string => (ref.work ? `cited:${ref.work}?page=${n}` : `quilt:${citekey}`);
 	/** The composer closed, written or not: the place it was lit for goes out. */
 	const done = () => {
 		noting = null;
@@ -112,12 +108,6 @@
 		return () => {
 			dropped = true;
 		};
-	});
-
-	// an open box over the page is re-read when the manifest is, so the surface that fired a write shows it
-	$effect(() => {
-		void store.manifest;
-		boxes?.refresh();
 	});
 
 	/** The annotations on this work's pages, top-level and not drawn with a tool; a resolved one is drawn as settled. */
@@ -200,11 +190,10 @@
 				: 'No copy of this paper on this machine.'
 	);
 
-	/** Where a box over the page lives: the content pane, since a mark sits in an overlay that takes no pointer events. */
+	/** Where a popup over the page lives: the content pane, since a mark sits in an overlay that takes no pointer events. */
 	let pane = $state<HTMLElement | null>(null);
-	let boxes: InlineComments | null = null;
-	// One controller for the life of the pane, reading the manifest at the moment a box opens: recreating it on every
-	// poll would shut whatever the reader had open, which is the failure `Fragment.svelte` has been patched for twice.
+	let boxes: Popups | null = null;
+	// One controller for the life of the pane, reading the manifest at the moment a popup opens, so a poll never shuts what the reader has open.
 	$effect(() => {
 		const host = pane;
 		if (!host) {
@@ -212,8 +201,7 @@
 			boxes = null;
 			return;
 		}
-		// `inline` is the Authoring View's alone: a PDF page cannot reflow, so it opens floating here
-		boxes = inlineComments(() => store.manifest, true, { host });
+		boxes = popups(() => store.manifest, { host });
 		return () => {
 			boxes?.destroy();
 			boxes = null;
@@ -221,7 +209,7 @@
 	});
 
 
-	// A link to an annotation on this work arrives with its box open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
+	// A link to an annotation on this work arrives with its popup open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
 	let openedFor = '';
 	$effect(() => {
 		const id = locator?.annot;
@@ -246,11 +234,7 @@
 	function travel(e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }): void {
 		active = e.id;
 		if (e.note) ui.activeAnnotation = e.id;
-		if (e.travel) {
-			// an annotation travels to its box wherever one stands (a result takes no pointer, so only an annotation arrives here)
-			goTo(document.querySelector(`[id="ann-${CSS.escape(e.id)}"]`), e.el);
-			return;
-		}
+		if (e.travel) return;
 		if (e.note && boxes) boxes.toggle(e.el, e.ids);
 	}
 </script>
@@ -293,25 +277,7 @@
 		<p class="muted" data-testid="reading-absent">{absent}</p>
 	{/if}
 	{#if offered && !noting}
-		<!-- At the selection's end, out of the way of the words it is about, and gone the moment the selection is or the composer opens. -->
-		<AnnotateChip
-			at={offered.at}
-			range={offered.range}
-			onaccept={() => {
-				if (!offered) return;
-				showPending(offered.range ?? null);
-				noting = { page: offered.page, text: offered.text, at: offered.at };
-				offered = null;
-			}}
-			onhighlight={desk.writes
-				? () => {
-						if (!offered) return;
-						desk.markWords('highlight', { page: offered.page, text: offered.text, rects: offered.lines });
-						offered = null;
-						window.getSelection()?.removeAllRanges();
-					}
-				: undefined}
-		/>
+		<QuoteChip at={offered.at} range={offered.range} words={offered.text} name="{citekey} p. {offered.page}" href={quoteHref(offered.page)} ondone={() => (offered = null)} />
 	{/if}
 	{#if noting}
 		<NoteAt

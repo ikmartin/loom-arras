@@ -25,7 +25,7 @@ ALLOWED_CLASSES = {
     "pre": {"source", "annotation-block"},
     "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color", "review-changed", "review-change-point", "qed"},
     "a": {"ref", "ref-eq", "ref-dangling", "url"},
-    "mark": {"annotation", "review-changed"},
+    "mark": {"annotation", "gone", "review-changed"},
     "figure": {"diagram", "failed"},
     "section": {"annotation-block"},
     "li": {"task"},

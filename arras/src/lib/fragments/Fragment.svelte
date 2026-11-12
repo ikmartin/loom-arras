@@ -1,10 +1,12 @@
 <script lang="ts">
-	import type { Annotations } from './shown.svelte';
+	import type { Annotating } from '$lib/review/annotating.svelte';
+	import { passes } from '$lib/review/annotating.svelte';
 	import type { Macro } from '$lib/manifest/types';
 	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { card, resetComments, settled, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { resetComments, settled, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { on } from '$lib/annotations';
 	import { flash } from '$lib/travel/travel';
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
@@ -13,7 +15,8 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
-	import { inlineComments, triggerFor, type InlineComments } from './expand';
+	import { MARKS, popups, type Popups } from './popup';
+	import { closeChooser, drawGutter, idsOf } from './gutter';
 	import { hold, type Hold } from './hold';
 	import { keep, take } from './kept';
 	import { parse, patch } from './patch';
@@ -29,7 +32,6 @@
 		annotations,
 		standalone = false,
 		comments,
-		authoring = true,
 		anchor,
 		jump = 0,
 		note,
@@ -44,13 +46,11 @@
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
-		/** Shared state for a rail that offers to open every annotation: this fragment registers the actions on it. */
-		annotations?: Annotations;
+		/** The item's annotating: this fragment sets its annotations' reading order and registers opening one; given, the margin's icons are drawn. */
+		annotations?: Annotating;
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
 		comments?: (key: string) => CommentSlot[];
-		/** Whether this is the corpus's own text. `inline` is the Authoring View's alone (plan 0.13 §7): a cited work's rendering is read, not written, and opens floating under that setting. */
-		authoring?: boolean;
 		/** The element to scroll to, by its published id. Given by a renderer in a pane, which then ignores the URL's hash: in two panes the hash is only one of them's. */
 		anchor?: string;
 		/** Changes each time the item is opened again, so the fragment goes to `anchor` even when it is unchanged. */
@@ -81,6 +81,10 @@
 	let error = $state('');
 	let mathReady = $state(false);
 	let el: HTMLElement | undefined = $state();
+	/** What holds the fragment: the popup stands in it, beside the fragment rather than inside its markup. */
+	let frame: HTMLElement | undefined = $state();
+	/** The margin's layer of icons. */
+	let gutter: HTMLElement | undefined = $state();
 	let mountVersion = 0;
 	let loadVersion = 0;
 
@@ -111,9 +115,29 @@
 		await mount(child);
 	}
 
-	// comments shown in place are opened by the marks and counts this fragment wires; the controller lives as long as the fragment does
-	let inline: InlineComments | null = null;
-	$effect(() => () => inline?.destroy());
+	// An annotation's popup opens from its mark, its margin icon, a list or a link; one controller for the fragment's life, reading the manifest as it stands when a popup opens.
+	let popup: Popups | null = null;
+	$effect(() => {
+		const host = frame;
+		if (!host) return;
+		const made = popups(() => store.manifest, {
+			host,
+			onopen: (id) => {
+				if (annotations) annotations.open = id;
+				margin();
+			}
+		});
+		popup = made;
+		if (annotations) {
+			annotations.show = (id) => !!el && made.open(el, id);
+			annotations.close = () => made.close();
+		}
+		return () => {
+			made.destroy();
+			if (popup === made) popup = null;
+			closeChooser();
+		};
+	});
 
 	// The compiled paper's page boundaries, drawn only where they can be known: `p2`, in a document, from the numbers
 	// loom read out of the `.aux`. Re-run on a change of setting, and cleared when the setting is not `p2`.
@@ -127,77 +151,87 @@
 		if (el && placed !== null) untrack(() => pages(el!));
 	});
 
-	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets.
-	 *
-	 * The setting it was wired for is left on the element. A fragment mounts before the stored preferences are read, so it is wired once for the default and again when they arrive, and "which placement is live" is otherwise only knowable from a closure.
-	 */
+	/** Wire the fragment as the annotations now stand; nothing here re-renders or re-typesets. */
 	function wireComments(root: HTMLElement) {
-		root.dataset.commentsWired = prefs.comments;
-		// a manifest refresh re-wires, and the one that follows a reply must not shut the box the reply was written in
-		const was = inline?.current() ?? null;
-		inline?.destroy();
-		// `floating` and `inline` both open in the text; only where the box stands differs, which is the controller's
-		// own business. `hover` was a third mode and is gone: a box the pointer brought up could not be read without
-		// holding the pointer still, and could not be clicked into at all (plan 0.13 §7).
-		const inPlace = prefs.comments === 'inline' || prefs.comments === 'floating';
-		inline = inPlace && store.manifest ? inlineComments(() => store.manifest, floats()) : null;
-		const opened = inline;
 		rewire(root);
-		const trigger = was && opened ? triggerFor(root, was) : null;
-		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? '').split(/\s+/).filter(Boolean));
+		order(root);
 	}
 
-	const floats = (): boolean => prefs.comments === 'floating' || !authoring;
 	// a fragment in a pane hides every annotation while its pane does; one outside every pane never does
 	const pane = paneOf();
 	const hide = $derived(pane ? workspace.hidesNotes(pane.index) : false);
 
-	/** Wire the fragment again under the comments controller it has: what the manifest decides is read afresh, and nothing already bound is bound twice. */
+	/** Wire the fragment again: what the manifest decides is read afresh, and nothing already bound is bound twice. */
 	function rewire(root: HTMLElement): void {
-		const opened = inline;
-		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
+		const m = store.manifest;
+		const filter = annotations;
+		wire(root, m, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
 			headingLinks,
 			margins,
 			keyless: standalone,
 			comments,
-			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
-			floating: floats(),
-			hide
+			expand: (trigger, ids) => popup?.toggle(trigger, ids),
+			hide,
+			shows: filter ? (a) => passes(m, a, filter) : undefined
 		});
 	}
 
-	/** What the comments controller and the slots show: every annotation's id, status and text. While it holds, a new manifest re-wires in place; when it moves, the controller and the slots are made again. */
+	/** The annotations read here in reading order, for the stepper and the lists: each mark's in the order the marks stand, then those on the whole document. */
+	function order(root: HTMLElement): void {
+		const m = store.manifest;
+		if (!annotations || !m) return;
+		const ids: string[] = [];
+		const seen = new Set<string>();
+		for (const mark of root.querySelectorAll<HTMLElement>(MARKS)) {
+			for (const id of idsOf(m, mark)) {
+				if (seen.has(id)) continue;
+				seen.add(id);
+				ids.push(id);
+			}
+		}
+		if (master) for (const a of on(m, master)) if (!seen.has(a.id)) ids.push(a.id);
+		if (ids.join(' ') !== annotations.order.join(' ')) annotations.order = ids;
+	}
+
+	/** Draw the margin's icons again, a frame from now, once the layout they measure has settled. */
+	let marginFrame = 0;
+	function margin(): void {
+		if (!annotations || marginFrame) return;
+		marginFrame = requestAnimationFrame(() => {
+			marginFrame = 0;
+			if (!el || !gutter || !annotations) return;
+			const at = el;
+			drawGutter(gutter, at, store.manifest, { open: annotations.open, onpick: (id) => popup?.open(at, id, false) });
+		});
+	}
+	$effect(() => {
+		const root = el;
+		if (!root || !annotations) return;
+		const watch = new ResizeObserver(margin);
+		watch.observe(root);
+		return () => {
+			watch.disconnect();
+			cancelAnimationFrame(marginFrame);
+			marginFrame = 0;
+		};
+	});
+
+	/** What the label marks and the order show: every annotation's id, status and place. While it holds, a new manifest re-wires in place; when it moves, the label marks are made again. */
 	let wiredKey = '';
 	function annotationKey(): string {
 		return Object.values(store.manifest?.annotations ?? {})
-			.map((a) => `${a.id}:${a.status}:${a.detached ? 1 : 0}:${a.in ?? ''}:${a.body_html}`)
+			.map((a) => `${a.id}:${a.status}:${a.detached ? 1 : 0}:${a.in ?? ''}:${a.version?.at ? 1 : 0}`)
 			.join('|');
 	}
 
-	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
-	// formula in it: about 800ms of stall on a whole paper, for a setting that moves boxes around. The marks read the
-	// live options, so the slots are taken out, put back the other way, and refilled.
-	//
-	// Only on a real change. The mount wires the fragment for the setting it has, and a re-wire tears down the
-	// controller: firing once more when typesetting finishes closed a comment the reader had already opened.
-	let wiredFor: string | null = null;
-	$effect(() => {
-		const mode = prefs.comments;
-		// `wiredFor` is set as the fragment is wired, before its mathematics is typeset, so a change of placement is
-		// answered at once rather than waiting on a document that takes seconds to set.
-		if (!el || wiredFor === null || mode === wiredFor) return;
-		wiredFor = mode;
-		resetComments(el);
-		wireComments(el);
-		onmounted?.(el);
-	});
-
-	// The pane's hiding and the settled control govern the marks: a change of either re-wires the fragment, which puts `hidden` on every mark while the pane hides annotations and remakes the label marks. The marks themselves are the fragment's and stay.
+	// The pane's hiding, the settled control and the filter govern the marks: a change of any re-wires the fragment, which puts `hidden` on every mark they leave out and remakes the label marks. The marks themselves are the fragment's and stay.
 	$effect(() => {
 		void hide;
 		void ui.showSettled;
-		if (!el || wiredFor === null) return;
+		void annotations?.hidden.length;
+		void annotations?.todo;
+		if (!el || placed === null) return;
 		const root = el;
 		untrack(() => {
 			resetComments(root);
@@ -296,7 +330,6 @@
 	async function restored(root: HTMLElement): Promise<void> {
 		const version = ++mountVersion;
 		wireComments(root);
-		wiredFor = prefs.comments;
 		wiredKey = annotationKey();
 		pages(root);
 		counts();
@@ -314,9 +347,13 @@
 		const key = annotationKey();
 		if (key !== wiredKey) {
 			wiredKey = key;
+			resetComments(root);
 			wireComments(root);
 			onmounted?.(root);
-		} else rewire(root);
+		} else {
+			rewire(root);
+			order(root);
+		}
 		counts();
 	}
 
@@ -330,8 +367,7 @@
 		holding?.release();
 		const root = el;
 		if (!root || placed === null || !cacheable()) return;
-		inline?.destroy();
-		inline = null;
+		popup?.close();
 		resetComments(root);
 		for (const b of root.querySelectorAll('.page-break')) b.remove();
 		const nodes = document.createDocumentFragment();
@@ -343,7 +379,6 @@
 		const version = ++mountVersion;
 		keepTex(root);
 		wireComments(root);
-		wiredFor = prefs.comments;
 		if (root === el) wiredKey = annotationKey();
 		pages(root);
 		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
@@ -384,7 +419,7 @@
 		if (anchor) flash(at);
 	}
 
-	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
+	/** Go where the item names: its place, and the annotation it names, its popup open at its mark. */
 	async function arrive() {
 		arrived().at = request();
 		// the pane stops putting the reader back where the item was left: this request names where to go
@@ -398,19 +433,11 @@
 			await tick();
 			if (!el || note !== id) return;
 		}
-		if (inline) {
-			const at = triggerFor(el, [id]);
-			if (!at) return;
-			if (!inline.current()?.includes(id)) inline.toggle(at, [id]);
-			at.scrollIntoView({ block: 'center' });
-			flash(at);
-			return;
-		}
-		const box = card(el, id);
-		if (!box) return;
-		ui.activeAnnotation = id;
-		box.scrollIntoView({ block: 'center' });
-		flash(box);
+		const at = el.querySelector<HTMLElement>(`:is(${MARKS})[data-annotation~="${CSS.escape(id)}"]`);
+		if (!at || !popup) return;
+		if (popup.current() !== id) popup.open(el, id);
+		else at.scrollIntoView({ block: 'center' });
+		flash(at);
 	}
 
 	// New markup is placed: drawn, taken back, or patched (`place`).
@@ -420,7 +447,7 @@
 		if (h && root) untrack(() => void place(root, h));
 	});
 
-	// What the wiring is built from: a new manifest, or a change of what the caller wires for, re-wires without typesetting. The comments setting has an effect of its own, above.
+	// What the wiring is built from: a new manifest, or a change of what the caller wires for, re-wires without typesetting.
 	$effect(() => {
 		void [store.manifest, master, headingLinks, margins, standalone, comments];
 		const root = el;
@@ -449,55 +476,35 @@
 
 	onMount(() => {});
 
-	/** How many places in this fragment carry an annotation: marked phrases and blocks, and the labels of results whose annotations have no mark. */
-	let marks = $state(0);
-	let allOpen = $state(false);
-	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether there is anything to act on, and which way the control should read.
-	$effect(() => {
-		const a = annotations;
-		if (!a) return;
-		a.expand = expandAll;
-		a.collapse = hideAll;
-		a.ready = marks > 0;
-		return () => {
-			a.ready = false;
-		};
-	});
-	$effect(() => {
-		if (annotations) annotations.allOpen = allOpen;
-	});
+	/** Whether anything in this fragment carries an annotation, said as soon as the marks are wired; and the margin drawn again. */
 	function counts(): void {
 		if (!el) return;
-		marks = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation]').length;
+		if (annotations) annotations.ready = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation]').length > 0;
+		margin();
 	}
+	$effect(() => {
+		const a = annotations;
+		return () => {
+			if (a) a.ready = false;
+		};
+	});
+	// the open annotation's icon is ringed
+	$effect(() => {
+		void annotations?.open;
+		untrack(margin);
+	});
 
-	function expandAll(): void {
-		if (!el || !inline) return;
-		inline.expandAll(el);
-		allOpen = true;
-	}
-
-	function hideAll(): void {
-		inline?.hideAll();
-		allOpen = false;
-	}
-
-	// `e`, `h` and `s` only while the content has focus, so they never fire while somebody is typing in a field. Not on a modifier and not global. `s` flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts); `a`, which hides every annotation, is the pane's (Pane.svelte).
+	// `s` only while the content has focus, so it never fires while somebody is typing in a field. Not on a modifier and not global. It flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts); `a`, which hides every annotation, is the pane's (Pane.svelte).
 	function keys(e: KeyboardEvent): void {
 		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
 		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-		if (e.key === 'e') expandAll();
-		else if (e.key === 'h') hideAll();
-		else if (e.key === 's') ui.showSettled = !ui.showSettled;
+		if (e.key === 's') ui.showSettled = !ui.showSettled;
 		else return;
 		e.preventDefault();
 	}
 
 	$effect(() => {
 		void store.manifest;
-		void prefs.comments;
-		// a write lands in the log and comes back on the next poll; the boxes already open must show it
-		inline?.refresh();
 		counts();
 	});
 </script>
@@ -505,14 +512,13 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<!-- A focusable region with three shortcut keys: the rule below models a static div, not a labelled region a reader tabs into deliberately to reach the keys its own header names. -->
-	<div class="framed">
+	<!-- A focusable region with a shortcut key: the rule below models a static div, not a labelled region a reader tabs into deliberately to reach the key it answers. -->
+	<div class="framed" bind:this={frame}>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="fragment"
 			class:read={margins}
 			class:math-pending={isolatedMacros && !mathReady}
-			class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
 			class:show-settled={ui.showSettled}
 			aria-busy={isolatedMacros && !mathReady}
 			bind:this={el}
@@ -521,6 +527,7 @@
 			aria-label="the document"
 			onkeydown={keys}
 		></div>
+		{#if annotations}<div class="ann-gutter" bind:this={gutter} data-testid="margin"></div>{/if}
 	</div>
 {/if}
 
@@ -539,7 +546,7 @@
 	.framed {
 		position: relative;
 	}
-	/* Focusable only so `e`, `h` and `s` reach it. A browser rings it once a key is pressed, and around a document taller than the window the ring is two blue rules down the text's edges. */
+	/* Focusable only so `s` reaches it. A browser rings it once a key is pressed, and around a document taller than the window the ring is two blue rules down the text's edges. */
 	.fragment:focus {
 		outline: none;
 	}

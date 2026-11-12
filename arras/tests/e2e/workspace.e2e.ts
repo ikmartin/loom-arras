@@ -149,7 +149,7 @@ test.describe('V4 · name the question', () => {
 	test('a control names the destination, not the state', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await viewMenu(page);
-		await expect(page.getByTestId('toggle-annotations')).toHaveText(/^show all annotations/);
+		await expect(page.getByTestId('toggle-settled')).toHaveText(/^show settled annotations/);
 	});
 });
 
@@ -272,7 +272,7 @@ async function watchTypesetting(page: Page): Promise<void> {
 		w.wrapped = true;
 		const real = w.MathJax.typesetPromise.bind(w.MathJax);
 		w.MathJax.typesetPromise = (els) => {
-			w.typeset.push(els.some((e) => e.closest('.fragment') && !e.closest('aside.comment-slot')) ? 'document' : 'card');
+			w.typeset.push(els.some((e) => e.closest('.fragment') && !e.closest('.ann-popup-host')) ? 'document' : 'card');
 			return real(els);
 		};
 	});
@@ -299,7 +299,7 @@ test.describe('coming back to a document', () => {
 		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
 		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
 		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
-		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
+		await expect(page.getByTestId('ann-popup')).toBeVisible();
 	});
 
 	test('reading come back to from the graph is taken back as it was, with nothing typeset again', async ({ page }) => {
@@ -316,7 +316,7 @@ test.describe('coming back to a document', () => {
 		await allTypeset(page);
 		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
 		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
-		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
+		await expect(page.getByTestId('ann-popup')).toBeVisible();
 	});
 });
 
@@ -646,15 +646,15 @@ test.describe('the toolbar', () => {
 		await writes(page);
 		await page.goto('/master/drafting/main');
 		const bar = controls(page, 0);
-		await expect(bar.getByTestId('tool-select')).toBeVisible();
+		await expect(bar.getByTestId('tool-annotate')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['tool-select', 'tool-box', 'toolbar-history', 'toolbar-view']);
+		expect(order).toEqual(['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'step-prev', 'step-next', 'open-comments', 'open-notes', 'toolbar-history', 'toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 		await expect(page.getByTestId('toolbar-view')).toHaveAttribute('aria-label', 'view menu for main.tex');
 		await viewMenu(page);
 		const menu = page.getByTestId('toolbar-menu');
 		await expect(menu).toHaveAttribute('role', 'menu');
-		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show all annotationse', 'show settled annotationss', 'annotations off in this panea']);
+		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show settled annotationss', 'annotations off in this panea']);
 		await expect(menu.getByTestId('toggle-settled')).toHaveAttribute('aria-keyshortcuts', 's');
 		await expect(menu.getByTestId('toggle-hide-notes')).toHaveAttribute('aria-keyshortcuts', 'a');
 		// its compiled PDF opens from its row in the tree, not from here
@@ -668,25 +668,27 @@ test.describe('the toolbar', () => {
 		await expect(page.getByTestId('toggle-settled')).toHaveAttribute('aria-checked', 'true');
 		await expect(page.getByTestId('toggle-settled')).toHaveText(/^hide settled annotations/);
 		// the keys move through the menu, and Escape hands focus back to view
-		await expect(page.getByTestId('toggle-annotations')).toBeFocused();
-		await page.keyboard.press('ArrowDown');
 		await expect(page.getByTestId('toggle-settled')).toBeFocused();
+		await page.keyboard.press('ArrowDown');
+		await expect(page.getByTestId('toggle-hide-notes')).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(menu).toHaveCount(0);
 		await expect(page.getByTestId('toolbar-view')).toBeFocused();
 
-		// nothing serving, and a draft with no history: view stands alone, with no divider before it
+		// nothing serving, and a draft with no history: no tools to write with, the lists still on the bar, and the divider before view
 		await page.unrouteAll();
 		await page.goto('/master/drafting/talk');
 		await expect(page.getByTestId('toolbar-view')).toBeVisible();
-		expect(await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid))).toEqual(['toolbar-view']);
-		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'none');
+		const reading = await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+		expect(reading).not.toContain('tool-annotate');
+		expect(reading.slice(-3)).toEqual(['open-comments', 'open-notes', 'toolbar-view']);
+		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 	});
 
 	test('a node keeps its context and its source under view', async ({ page }) => {
 		await page.goto('/node/sy-0003');
 		await viewMenu(page);
-		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show all annotationse', 'show settled annotationss', 'open its context beside', 'show verbatim code', 'annotations off in this panea']);
+		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotationss', 'open its context beside', 'show verbatim code', 'annotations off in this panea']);
 		await page.getByTestId('open-context').click();
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
 	});

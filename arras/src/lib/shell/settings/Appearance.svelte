@@ -1,6 +1,6 @@
 <script lang="ts">
 	// How the viewer looks and a document reads, in this browser: typeface, size, line width and theme, with a sentence set as documents are; how a document is set, where an annotation opens, and whether ids stand in the margin.
-	import { prefs, type Face, type Size, type Width, type Theme, type Format, type Comments } from '$lib/prefs.svelte';
+	import { prefs, type Face, type Size, type Width, type Theme, type Format } from '$lib/prefs.svelte';
 	import Row from './Row.svelte';
 	import Seg from './Seg.svelte';
 	import Toggle from './Toggle.svelte';
@@ -28,7 +28,6 @@
 			]}
 		/>
 	</Row>
-	<Row id="comments"><Seg label="Annotations open" test="comments" current={prefs.comments} pick={(v) => (prefs.comments = v as Comments)} options={[{ v: 'floating', label: 'Floating' }, { v: 'inline', label: 'Inline' }]} /></Row>
 	<Row id="ids"><Toggle label="Show ids" test="ids" checked={prefs.ids} set={(on) => (prefs.ids = on)} /></Row>
 </div>
 
