@@ -172,3 +172,13 @@ test('a passage is shown as TeX made it, and raw source keeps its lists and proo
 	await expect(raw.locator('mjx-container')).toHaveCount(1);
 	await expect(raw.locator('mjx-merror, [data-mjx-error]')).toHaveCount(0);
 });
+
+test('a suggestion the text already reads as is kept to record it, saying so', async ({ page }) => {
+	const taken = { ...rows[1], id: 'e-2026-09-18-taken1', state: 'taken', why: 'Its block reads as it taken already; keeping it records it kept' };
+	await serve(page, (m) => (m.changes = [taken]));
+	const sent = await serving(page);
+	await page.goto('/review');
+	await expect(card(page, taken.id).getByTestId('change-card-why')).toContainText('keeping it records it kept');
+	await card(page, taken.id).getByTestId('card-keep').click();
+	expect(sent['change-keep']).toEqual({ changes: [taken.id] });
+});

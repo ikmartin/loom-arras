@@ -22,9 +22,9 @@ export function changesIn(m: Read, path: string): PendingChange[] {
 	return pending(m).filter((c) => c.documents?.includes(path));
 }
 
-/** Whether Keep and Discard act on it now. */
+/** Whether Keep and Discard act on it now: one ready to write, or a suggestion the text already reads as, which Keep records kept and Discard records discarded. */
 export function ready(c: Pick<PendingChange, 'state'>): boolean {
-	return c.state === 'ready';
+	return c.state === 'ready' || c.state === 'taken';
 }
 
 /** What a change is, in two words: an edit made in the file, or a suggestion. */
@@ -61,11 +61,11 @@ export function summary(c: Pick<PendingChange, 'old' | 'new'>): string {
 	return `“${o}” → “${n}”`;
 }
 
-/** Why Keep and Discard are refused: loom's words, else the state's; '' for one that is ready. */
+/** Why Keep and Discard are refused, or for a suggestion the text already reads as, what Keep does: loom's words, else the state's; '' for one that is ready. */
 export function refusal(c: Pick<PendingChange, 'state' | 'why'>): string {
+	if (c.state === 'taken') return c.why || 'The text already reads so; Keep records it kept.';
 	if (ready(c)) return '';
 	if (c.why) return c.why;
-	if (c.state === 'taken') return 'The text already reads so.';
 	if (c.state === 'unplaced') return 'It has no place in the text as it stands.';
 	if (c.state === 'on-a-copy') return "It is on the agent's copy, and comes in with the copy.";
 	return 'It cannot be kept or discarded now.';
