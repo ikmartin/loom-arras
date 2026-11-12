@@ -260,11 +260,11 @@ An annotation carries its author, its time and the version of the text it was wr
 
 ### `loom suggest`
 
-`loom suggest [OPTIONS] KEY`
+`loom suggest [OPTIONS] [KEY]`
 
 File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.
 
-The person keeps or discards it: `loom suggestion apply ID` writes it into the file and keeps it, `loom suggestion discard ID` leaves the text as it is. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\uses{…}` is proposed.
+The person keeps or discards it with `loom changes`: keeping writes it into the file, discarding leaves the text as it is, and `loom changes ID` prints the patch that takes it. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\uses{…}` is proposed. `--withdraw EDIT` takes back one of your own while it is open; `loom changes --by NAME` lists the edits NAME suggested, in every state.
 
 | option | description |
 |---|---|
@@ -275,55 +275,9 @@ The person keeps or discards it: `loom suggestion apply ID` writes it into the f
 | `--answers` `ID` | The annotation it answers; keeping the edit resolves it. |
 | `--comment` `TEXT` | What to say beside it, in Markdown. |
 | `--as` `NAME` | Who suggests it; an agent names itself, with Agent or AI in the name. |
+| `--withdraw` `EDIT` | Withdraw suggested edit EDIT, one of yours still open, instead. |
+| `--why` | With --withdraw, why. |
 | `--dry-run` | Say what would be filed, and write nothing. |
-| `--json` | Print the report as one JSON object. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom suggestion`
-
-`loom suggestion [OPTIONS]`
-
-`loom suggestion [OPTIONS] [EDIT | apply EDIT | discard EDIT]`
-
-Run alone, `loom suggestion` is a command; its subcommands follow its options.
-
-List suggested edits, or with EDIT print the patch that takes it: its new text in place, against its key's text now.
-
-`replace` takes exactly the quoted words' place; `before` and `after` go right beside them; with no quote, of the key's body. `loom suggestion apply EDIT` writes it in and keeps it, and is the author's; `loom suggestion discard EDIT` discards it, which an agent may do to its own.
-
-| option | description |
-|---|---|
-| `--by` `NAME` | Only the edits NAME suggested. |
-| `--target` `KEY` | Only the edits on KEY. |
-| `--status` | Only the edits in this state. |
-| `--json` | Print the report as one JSON object. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom suggestion apply`
-
-`loom suggestion apply [OPTIONS] EDIT`
-
-Write suggested edit EDIT into its file and keep it, keeping a version of each document it changes first.
-
-The author's act. Refused for an edit that is not open, one whose quote no longer stands once, and one on an agent's copy, whose changes come in with the copy. An edit whose key reads as it taken already is kept without writing. Keeping one that answers an open annotation resolves that annotation.
-
-| option | description |
-|---|---|
-| `--as` `NAME` | Who is applying it; default your [author] name. |
-| `--json` | Print the report as one JSON object. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom suggestion discard`
-
-`loom suggestion discard [OPTIONS] EDIT`
-
-Discard suggested edit EDIT, leaving the text as it is; a person discards any edit, an agent only its own. --undo opens it again.
-
-| option | description |
-|---|---|
-| `--why` | Why it is discarded, which the agent that suggested it reads. |
-| `--undo` | Open a kept or discarded edit again. |
-| `--as` `NAME` | Who is discarding it; an agent discards only its own. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -348,18 +302,21 @@ Record that you accept KEYS as mathematically correct, each against the document
 
 ### `loom changes`
 
-`loom changes [OPTIONS]`
+`loom changes [OPTIONS] [ID]`
 
-List what changed in the open files since your last look, or keep or undo a change.
+List what waits on you, by document: each in-place edit to an open file since your last look, cut by words, and each open suggested edit; with ID, print the change's patch, which `git apply` takes as it stands.
 
-The open files are the ones the viewer shows that are text: Markdown, HTML, notebooks, LaTeX and the rest, at most 1 MB. Your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and undoing are yours, never an agent's, for a whole file or one of its changes (`--hunk`); undoing keeps the text it replaces, and undoing a new file removes it. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+The open files are the ones the viewer shows that are text, at most 1 MB; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
 
 | option | description |
 |---|---|
-| `--keep` `PATH` | Keep the change to PATH: your look takes its text now. |
-| `--keep-all` | Keep every change: a new look at every open file. |
-| `--undo` `PATH` | Put PATH back as it was at your look, keeping its text now in the history first. |
-| `--hunk` `N` | With --keep or --undo, act on PATH's change number N alone, as the list numbers them; may repeat. |
+| `--document` `DOC` | Only the changes in the files DOC is made of. |
+| `--keep` `ID|PATH` | Keep the change ID, or every change in PATH; may repeat. |
+| `--discard` `ID|PATH` | Discard the change ID, or every change in PATH; may repeat. |
+| `--keep-all` | Keep every change; before your first look, take it. |
+| `--discard-all` | Discard every change. |
+| `--why` | With a discard, why, which the agent that suggested an edit reads. |
+| `--by` `NAME` | NAME's suggested edits, in every state. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1027,7 +984,7 @@ Set up the agent layer and read what an agent works from: its orientation, its d
 
 List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.
+An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom changes --by` lists the edits it suggested.
 
 | option | description |
 |---|---|

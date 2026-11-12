@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Annotating } from '$lib/review/annotating.svelte';
 	import { passes } from '$lib/review/annotating.svelte';
+	import { acted, prune } from '$lib/review/acted.svelte';
+	import { authorOf, changeById, changesIn, pending } from '$lib/review/changes';
 	import type { Macro } from '$lib/manifest/types';
 	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
@@ -15,7 +17,7 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { paneOf } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
-	import { MARKS, popups, type Popups } from './popup';
+	import { CHANGES, changeIds, MARKED, MARKS, popups, type Popups } from './popup';
 	import { closeChooser, drawGutter, idsOf } from './gutter';
 	import { hold, type Hold } from './hold';
 	import { keep, take } from './kept';
@@ -46,7 +48,7 @@
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
-		/** The item's annotating: this fragment sets its annotations' reading order and registers opening one; given, the margin's icons are drawn. */
+		/** The item's annotating: this fragment sets its annotations' and changes' reading order and registers opening one; given, the margin's icons are drawn and the pending changes are drawn in their blocks, as its view says. */
 		annotations?: Annotating;
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
@@ -88,10 +90,114 @@
 	let mountVersion = 0;
 	let loadVersion = 0;
 
+	/** A `data-src`'s file and the range of it, `FILE:START:END`; null for one that names no range. */
+	function rangeOf(src: string): { file: string; start: number; end: number } | null {
+		const m = /^(.*):(\d+):(\d+)$/.exec(src);
+		return m ? { file: m[1], start: Number(m[2]), end: Number(m[3]) } : null;
+	}
+
+	/** The elements of `t` with a `data-src` in `file`, each with its range. */
+	function sourced(t: HTMLTemplateElement, file: string): { el: HTMLElement; start: number; end: number }[] {
+		const out: { el: HTMLElement; start: number; end: number }[] = [];
+		for (const el of t.content.querySelectorAll<HTMLElement>(`[data-src^="${CSS.escape(file + ':')}"]`)) {
+			const r = rangeOf(el.dataset.src ?? '');
+			if (r && r.file === file) out.push({ el, start: r.start, end: r.end });
+		}
+		return out;
+	}
+
+	/** Whether an element holds no other with a `data-src`: a leaf, one paragraph, display or item. */
+	const leaf = (el: Element) => !el.querySelector('[data-src]');
+
+	/**
+	 * The element a merged block may be swapped for: the one whose `data-src` is the block's, where it is a leaf or a statement's or proof's own element; else, for a block whose range runs to its blank lines, the one leaf it overlaps. Null where it overlaps several, or names a container (a section, a list): such a change is drawn by its marker instead, so a merged block never stands over a whole section.
+	 */
+	function blockAt(t: HTMLTemplateElement, src: string): HTMLElement | null {
+		const want = rangeOf(src);
+		const exact = t.content.querySelector<HTMLElement>(`[data-src="${CSS.escape(src)}"]`);
+		if (exact) return leaf(exact) || exact.matches('.env') ? exact : null;
+		if (!want) return null;
+		const hit = sourced(t, want.file).filter((x) => leaf(x.el) && Math.min(x.end, want.end) > Math.max(x.start, want.start));
+		return hit.length === 1 ? hit[0].el : null;
+	}
+
+	/** The innermost element whose `data-src` holds the range `src`, where a change drawn by its marker stands; null where none does. */
+	function holderOf(t: HTMLTemplateElement, src: string): HTMLElement | null {
+		const want = rangeOf(src);
+		if (!want) return null;
+		const holding = sourced(t, want.file).filter((x) => x.start <= want.start && x.end >= want.end);
+		holding.sort((a, b) => a.end - a.start - (b.end - b.start));
+		return holding[0]?.el ?? null;
+	}
+
+	/** Whether merged text keeps every element of `at` that has a `data-src`: the document still needs each, for its place and its anchors. */
+	function keepsAll(at: HTMLElement, merged: ParentNode): boolean {
+		const has = new Set([...merged.querySelectorAll<HTMLElement>('[data-src]')].map((e) => e.dataset.src));
+		return [...at.querySelectorAll<HTMLElement>('[data-src]')].every((e) => has.has(e.dataset.src));
+	}
+
+	/**
+	 * The markup with each block holding pending changes swapped for the publisher's merged block, which carries every change's old and new words (`span.change`), and each change not merged into the text marked on the element holding its words (`data-change-at`). Only where the item annotates, which is where the changes are shown and acted on.
+	 *
+	 * The publisher gives a merged block the document's own offsets, ids and gone marks, and marks what only new words hold `data-new` in place of `data-src`. A merged block is swapped in only over one leaf, or over a statement's or proof's element whose every part it keeps, and never over another change's block: anything else is drawn by its marker, as a change to the text's structure (`place`) is. One element of the block's kind fills the block, which keeps its own element; anything else (TeX source, where TeX refused the merged text) takes a leaf's place, or stands inside a statement or proof after its label. One that cannot be fetched, or is not made yet, leaves its block as it was.
+	 */
+	async function withChanges(h: string, hash: string): Promise<string> {
+		const all = pending(store.manifest);
+		if (!annotations || !all.some((c) => c.block || c.place)) return h;
+		const t = document.createElement('template');
+		t.innerHTML = h;
+		const blocks = new Map<string, { path: string; ids: string[] }>();
+		for (const c of all) {
+			if (!c.block?.src || !c.block.fragment) continue;
+			const b = blocks.get(c.block.src) ?? { path: c.block.fragment, ids: [] };
+			b.ids.push(c.id);
+			blocks.set(c.block.src, b);
+		}
+		const found = [...blocks].map(([src, b]) => ({ src, ...b, at: blockAt(t, src) }));
+		const marked: { id: string; src: string }[] = all.filter((c) => !c.block && c.place?.src).map((c) => ({ id: c.id, src: c.place!.src }));
+		// a block in another's, or holding another's, is drawn by its marker: the one swap would undo the other
+		const swaps = found.filter((f) => {
+			const alone = !!f.at && !found.some((o) => o !== f && o.at && (f.at!.contains(o.at) || o.at.contains(f.at!)));
+			if (!alone) marked.push(...f.ids.map((id) => ({ id, src: f.src })));
+			return alone;
+		});
+		const merged = await Promise.all(swaps.map((b) => fetchFragment(b.path, hash).catch(() => null)));
+		swaps.forEach((b, i) => {
+			const text = merged[i];
+			if (!text) return;
+			const at = b.at!;
+			const n = document.createElement('template');
+			n.innerHTML = text;
+			// shown as TeX where TeX refused it: the `{}` that joins a change's old words to its new ones is the publisher's, not the person's
+			for (const old of n.content.querySelectorAll('pre.source span.change[data-side="old"]')) {
+				const between = old.nextSibling;
+				if (between?.nodeType === Node.TEXT_NODE && /^\s*\{\}\s*$/.test(between.textContent ?? '') && (between.nextSibling as Element | null)?.matches?.('span.change[data-side="new"]')) between.textContent = (between.textContent ?? '').replace('{}', ' ');
+			}
+			const roots = [...n.content.childNodes].filter((x) => x.nodeType !== Node.TEXT_NODE || x.textContent?.trim());
+			const only = roots.length === 1 && roots[0] instanceof Element ? roots[0] : null;
+			// a statement or proof keeps its block only where the merged text keeps every part of it the document needs
+			if (!leaf(at) && !keepsAll(at, only?.tagName === at.tagName ? only : n.content)) return void marked.push(...b.ids.map((id) => ({ id, src: b.src })));
+			// the block keeps its own element, and so its place, its anchors and its classes, where the merged text is one of its kind
+			if (only && only.tagName === at.tagName) at.innerHTML = only.innerHTML;
+			else if (leaf(at)) at.replaceWith(n.content);
+			else {
+				const label = at.querySelector(':scope > .env-label, :scope > summary');
+				at.replaceChildren(...(label ? [label] : []), n.content);
+			}
+		});
+		for (const m of marked) {
+			const at = holderOf(t, m.src);
+			if (!at) continue;
+			const ids = (at.dataset.changeAt ?? '').split(/\s+/).filter(Boolean);
+			if (!ids.includes(m.id)) at.dataset.changeAt = [...ids, m.id].join(' ');
+		}
+		return t.innerHTML;
+	}
+
 	async function load(p: string, hash: string) {
 		const version = ++loadVersion;
 		try {
-			const fragment = await fetchFragment(p, hash);
+			const fragment = await withChanges(await fetchFragment(p, hash), hash);
 			if (version !== loadVersion) return;
 			html = fragment;
 			error = '';
@@ -173,24 +279,38 @@
 			comments,
 			expand: (trigger, ids) => popup?.toggle(trigger, ids),
 			hide,
-			shows: filter ? (a) => passes(m, a, filter) : undefined
+			shows: filter ? (a) => passes(m, a, filter) : undefined,
+			changeState: (id) => {
+				const how = acted.map[id];
+				if (how) return how === 'kept' ? 'kept' : 'off';
+				const c = changeById(m, id);
+				return c && filter?.hidden.includes(authorOf(c).id) ? 'off' : 'live';
+			}
 		});
 	}
 
-	/** The annotations read here in reading order, for the stepper and the lists: each mark's in the order the marks stand, then those on the whole document. */
+	/** The annotations and pending changes read here in reading order, for the stepper and the lists: each mark's and each change's in the order they stand, then the annotations on the whole document and the changes drawn nowhere. */
 	function order(root: HTMLElement): void {
 		const m = store.manifest;
 		if (!annotations || !m) return;
 		const ids: string[] = [];
 		const seen = new Set<string>();
-		for (const mark of root.querySelectorAll<HTMLElement>(MARKS)) {
-			for (const id of idsOf(m, mark)) {
-				if (seen.has(id)) continue;
-				seen.add(id);
-				ids.push(id);
+		const add = (id: string) => {
+			if (seen.has(id)) return;
+			seen.add(id);
+			ids.push(id);
+		};
+		for (const el of root.querySelectorAll<HTMLElement>(`${MARKS}, ${CHANGES}, ${MARKED}`)) {
+			if (el.matches(`${CHANGES}, ${MARKED}`)) {
+				for (const id of changeIds(el)) if (changeById(m, id)) add(id);
+				continue;
 			}
+			for (const id of idsOf(m, el)) add(id);
 		}
-		if (master) for (const a of on(m, master)) if (!seen.has(a.id)) ids.push(a.id);
+		if (master) {
+			for (const a of on(m, master)) add(a.id);
+			for (const c of changesIn(m, master)) add(c.id);
+		}
 		if (ids.join(' ') !== annotations.order.join(' ')) annotations.order = ids;
 	}
 
@@ -225,12 +345,15 @@
 			.join('|');
 	}
 
-	// The pane's hiding, the settled control and the filter govern the marks: a change of any re-wires the fragment, which puts `hidden` on every mark they leave out and remakes the label marks. The marks themselves are the fragment's and stay.
+	// The pane's hiding, the settled control and the filter govern the marks, and the view and the acts just pressed govern the changes: a change of any re-wires the fragment, which puts `hidden` on every mark they leave out, shows each change as it now stands, and remakes the label marks. The marks themselves are the fragment's and stay.
 	$effect(() => {
 		void hide;
 		void ui.showSettled;
 		void annotations?.hidden.length;
 		void annotations?.todo;
+		void annotations?.layer;
+		void annotations?.view;
+		void acted.map;
 		if (!el || placed === null) return;
 		const root = el;
 		untrack(() => {
@@ -479,7 +602,7 @@
 	/** Whether anything in this fragment carries an annotation, said as soon as the marks are wired; and the margin drawn again. */
 	function counts(): void {
 		if (!el) return;
-		if (annotations) annotations.ready = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation]').length > 0;
+		if (annotations) annotations.ready = el.querySelectorAll(`mark.annotation[data-annotation], .annotation-block[data-annotation], ${CHANGES}, [data-change-at]`).length > 0;
 		margin();
 	}
 	$effect(() => {
@@ -504,8 +627,10 @@
 	}
 
 	$effect(() => {
-		void store.manifest;
+		const m = store.manifest;
 		counts();
+		// a change kept or discarded is shown so until the manifest no longer lists it
+		untrack(() => prune(m));
 	});
 </script>
 
@@ -520,6 +645,9 @@
 			class:read={margins}
 			class:math-pending={isolatedMacros && !mathReady}
 			class:show-settled={ui.showSettled}
+			class:changes-markup={!!annotations && annotations.layer !== 'annotations' && annotations.view === 'markup'}
+			class:changes-final={!!annotations && annotations.layer !== 'annotations' && annotations.view === 'final'}
+			class:changes-off={!!annotations && annotations.layer === 'annotations'}
 			aria-busy={isolatedMacros && !mathReady}
 			bind:this={el}
 			tabindex="-1"

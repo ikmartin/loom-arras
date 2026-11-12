@@ -48,7 +48,7 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
     (
         "Review",
         "Annotate, accept, keep or undo what changed, and see what rests on what.",
-        ("annotate", "suggest", "suggestion", "accept", "changes", "deps", "downstream"),
+        ("annotate", "suggest", "accept", "changes", "deps", "downstream"),
     ),
     (
         "History",

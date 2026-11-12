@@ -1,7 +1,10 @@
 // Annotations as a reader meets them: marks in the text, the margin's icons, the one popup, the stepper, the Comments and Notes lists, Quote, the toolbar's tools and format menu where a publisher serves writes, and Settings › Annotations. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { pane, settings, viewMenu } from '../workspace';
-import { REFEREE, saying, serve } from '../manifest';
+import { REFEREE, saying, serveKept } from '../manifest';
+
+// these are about annotations and the page; the fixture's pending changes are left out, and tested apart (changes.e2e.ts)
+test.beforeEach(({ page }) => serveKept(page));
 
 /** A computed CSS colour's channels, in whichever form the browser serialises it: `rgb(r, g, b)`, `rgba(r, g, b, a)` or `color(srgb r g b / a)`. */
 function channels(colour: string): { r: number; g: number; b: number; a: number } {
@@ -69,7 +72,7 @@ test.describe('marks', () => {
 	});
 
 	test('an underline is a line of its weight at the foot of the words, a strike one through them, each at its opacity', async ({ page }) => {
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 3, opacity: 100 };
 			m.annotations['a-2026-09-16-ecnav2'].look = { color: 'green', style: 'strike', weight: 1, opacity: 50 };
 		});
@@ -90,7 +93,7 @@ test.describe('marks', () => {
 	});
 
 	test("the look is the annotation's own: renaming or deleting its type changes nothing drawn, and a colour the viewer does not know is grey", async ({ page }) => {
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotation_types = [];
 			m.annotations['a-2026-09-16-bns3an'].look.color = 'teal';
 		});
@@ -102,7 +105,7 @@ test.describe('marks', () => {
 	});
 
 	test('the marks of the one annotation whose popup is open add what their style lacks: a line beneath a band, a band behind a line; nothing is outlined', async ({ page }) => {
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 2, opacity: 100 }));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'blue', style: 'underline', weight: 2, opacity: 100 }));
 		await page.goto('/master/drafting/main');
 		const m = mark(page, 'a-2026-09-16-ecnav2');
 		const other = mark(page, 'a-2026-09-16-bns3an');
@@ -131,7 +134,7 @@ test.describe('marks', () => {
 
 	test('an annotation with no mark of its own is a mark on its node\'s label, and several share one, which opens the first', async ({ page }) => {
 		// a-2026-09-16-hqnbz4 has no quote and a-2026-09-16-a91hwf lost its anchor with no place loom could say its words were; both are put on sy-0002's label
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-a91hwf'].target.key = 'sy-0002';
 			m.annotations['a-2026-09-16-a91hwf'].version = null;
 		});
@@ -155,7 +158,7 @@ test.describe('marks', () => {
 
 	test('a phrase with two annotations is one mark, opening the first, with no count drawn', async ({ page }) => {
 		// the reply on the revision's phrase is made an annotation of its own, so the one mark carries two
-		await serve(page, (m) => (m.annotations['a-2026-09-16-hwnav1'].in_reply_to = null));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-hwnav1'].in_reply_to = null));
 		await page.goto('/node/sy-0003');
 		const m = mark(page, 'a-2026-09-16-ecnav2');
 		await expect(m).toHaveCount(1);
@@ -192,7 +195,7 @@ test.describe('marks', () => {
 
 	test('a block mark is drawn in its look: a quote loom could not place marks its whole block, a list among them, underlined line by line', async ({ page }) => {
 		// the publisher marks the block with `annotation-block` alone; the viewer gives it `annotation`, which every rule for the look, settled and hidden is keyed on
-		await serve(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].look = { color: 'red', style: 'underline', weight: 2, opacity: 100 }));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].look = { color: 'red', style: 'underline', weight: 2, opacity: 100 }));
 		await page.route('**/fragments/masters/drafting/main.html', async (route) => {
 			const res = await route.fetch();
 			const body = (await res.text()).replace('<ul data-src=', '<ul class="annotation-block" data-annotation="a-2026-09-16-ecnav2" data-src=');
@@ -427,7 +430,7 @@ test.describe('the popup', () => {
 
 	test('the comment is edited in place, a reply is one line, and Resolve is offered only where the type stays open', async ({ page }) => {
 		const sent = await writes(page);
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].type = 'note'));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].type = 'note'));
 		await page.goto('/master/drafting/main');
 		const p = await openPopup(page, 'a-2026-09-16-ecnav2');
 		await p.getByTestId('popup-comment').click();
@@ -489,7 +492,7 @@ test.describe('the popup', () => {
 test.describe('changed from a type', () => {
 	test('in the popup, a look that differs from its type says so; Reset drops it, and Update writes it into the type and drops it', async ({ page }) => {
 		const sent = await writes(page);
-		await serve(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'green', style: 'highlight', weight: 2, opacity: 60 }));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-bns3an'].look = { color: 'green', style: 'highlight', weight: 2, opacity: 60 }));
 		await page.goto('/master/drafting/main');
 		const p = await openPopup(page, 'a-2026-09-16-bns3an');
 		await p.getByTestId('popup-type').click();
@@ -694,6 +697,9 @@ test.describe('the hint', () => {
 
 // "Written on earlier words": an annotation whose words are gone shows the words it was written on and opens the version that holds them, and is reached from where its words were.
 test.describe('written on earlier words', () => {
+	// on the fixture as it stands: sy-0001 has a pending change, so its block is the publisher's merged one, which carries the gone mark as the document's does
+	test.beforeEach(({ page }) => page.unroute('**/build/manifest.json'));
+
 	test('its gone mark stands where its words were, opens its popup with the words as they were, and the version opens with its annotations drawn', async ({ page }) => {
 		await page.goto('/node/sy-0001');
 		const gone = page.locator('.fragment mark.annotation.gone[data-annotation="a-2026-09-16-a91hwf"]');
@@ -749,7 +755,7 @@ test.describe('written on earlier words', () => {
 // The margin: one icon per annotation on the line its first mark stands on, a count where several start on one line, which opens the line chooser.
 test.describe('the margin', () => {
 	test('one icon per annotation drawn, a speech bubble where it says something; an icon opens its popup', async ({ page }) => {
-		await serve(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].body_html = ''));
+		await serveKept(page, (m) => (m.annotations['a-2026-09-16-ecnav2'].body_html = ''));
 		await page.goto('/master/drafting/main');
 		const icon = page.locator('[data-testid="margin-icon"][data-annotation="a-2026-09-16-ecnav2"]');
 		await expect(icon).toHaveCount(1);
@@ -872,7 +878,7 @@ test.describe('the Comments list', () => {
 // Notes: every annotation whose type is listed in Notes, from every document, grouped by document, each linking back to its place.
 test.describe('the Notes list', () => {
 	test('holds the annotations of types listed in Notes, grouped by document, and a card goes back to its place with its popup open', async ({ page }) => {
-		await serve(page, (m) => {
+		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-ecnav2'].type = 'note';
 			m.annotations['a-2026-09-16-xgtcve'].type = 'note';
 		});

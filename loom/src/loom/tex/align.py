@@ -19,7 +19,7 @@ MATH_ENVS = frozenset(
 )
 #: Commands whose next braced argument TeX never prints as words: names, keys, addresses and lengths.
 SILENT = frozenset(
-    "label ref eqref pageref cref Cref autoref cite citep citet nocite bibitem href includegraphics input include usepackage begin end hspace vspace setlength addtocounter setcounter newcommand renewcommand def documentclass bibliography bibliographystyle color textcolor".split()
+    "label ref eqref pageref cref Cref autoref cite citep citet nocite bibitem href includegraphics input include usepackage begin end hspace vspace setlength addtocounter setcounter newcommand renewcommand def documentclass bibliography bibliographystyle color textcolor HCode".split()
 )
 #: Citations, whose notes in square brackets print inside the citation TeX makes, and so are made like its key.
 CITES = frozenset(

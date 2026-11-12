@@ -1,16 +1,16 @@
 <script lang="ts">
-	// Review › Proposed Changes: everything someone proposes that the person decides, one card each. A copy, a pull or a work's proposed results is reviewed in its own pass, which the card opens here at its own address (`?copy=`, `?pull`, `?work=`). A suggested edit is decided in its card, its change shown with what it says and the annotation it answers: Take it writes it into its file, a version of the document kept first, and keeps it; Leave it discards it and leaves the text as it is; one the text already reads as taken is only recorded kept. An act's answer is said in its card while the card stands, else in the bar with its undo.
+	// Review › Proposed Changes: everything someone proposes that the person decides in a pass of its own, one card each: a copy, a pull or a work's proposed results, which the card opens here at its own address (`?copy=`, `?pull`, `?work=`). A suggested edit is a pending change, kept or discarded in its document and in Your Changes; one on an agent's copy is listed on the copy's card, with what it says and the annotation it answers, and comes in with the copy.
 	import '$lib/review/review.css';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import DiffView from '$lib/components/DiffView.svelte';
+	import { changeById, refusal } from '$lib/review/changes';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { SuggestedEdit } from '$lib/manifest/types';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
 	import { placeUrl, workUrl } from '$lib/nav';
 	import { route } from '$lib/paths';
-	import ActionBar from '$lib/review/ActionBar.svelte';
 	import ContributionReview from '$lib/review/ContributionReview.svelte';
 	import Empty from '$lib/review/Empty.svelte';
 	import IncomingPull from '$lib/review/IncomingPull.svelte';
@@ -22,7 +22,7 @@
 	import { documentOf, writerOf } from '$lib/review/suggestions';
 	import { keyName, linkName } from '$lib/workspace/names';
 	import { bibText, surnames } from '$lib/works';
-	import { can, write } from '$lib/write';
+	import { can } from '$lib/write';
 
 	const here = route('/review/proposed');
 	/** How many of a card's changes it names before saying how many more. */
@@ -40,48 +40,15 @@
 
 	let served = $state<Record<string, boolean>>({});
 	onMount(() => {
-		for (const e of ['suggestion-apply', 'suggestion-discard', 'sync-incorporate']) void can(e).then((yes) => (served = { ...served, [e]: yes }));
+		void can('sync-incorporate').then((yes) => (served = { ...served, 'sync-incorporate': yes }));
 	});
 
 	// the last answer from a copy or a pull: said by its bar while it is open, and by the list once it is not
 	let answer = $state<{ text: string; refused: boolean; from: string } | null>(null);
-	// what is running and where its answer goes: a suggested edit's id, or '*' for the bar once its card has gone
-	let busy = $state('');
-	let said = $state<{ at: string; text: string; refused: boolean } | null>(null);
-	let undo = $state<{ id: string; name: string } | null>(null);
 
-	const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1) + (t.endsWith('.') ? '' : '.');
 	const name = (e: SuggestedEdit) => keyName(m, e.target.key);
 	const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 	const file = (p: string) => p.split('/').pop()?.replace(/\.tex$/, '') ?? p;
-
-	/** Whether suggested edit `id` is still drawn, on the list or folded in a copy's card. */
-	function drawn(id: string): boolean {
-		const now = store.manifest!;
-		return cardsOf(now).some((c) => c.id === id || (c.kind === 'copy' && c.edits.some((e) => e.id === id)));
-	}
-
-	/** One act on suggested edit `e`; `past` is what its answer says when the publisher's own words would name it by id. */
-	async function act(e: SuggestedEdit, endpoint: 'suggestion-apply' | 'suggestion-discard', past?: string): Promise<void> {
-		busy = e.id;
-		said = null;
-		undo = null;
-		const done = await write(endpoint, { edit: e.id });
-		if (done.ok) await store.refresh();
-		const text = done.ok ? capital(past ?? done.result ?? 'done') : (done.error?.message ?? 'The publisher refused it.');
-		said = { at: done.ok && !drawn(e.id) ? '*' : e.id, text, refused: !done.ok };
-		if (done.ok && endpoint === 'suggestion-discard') undo = { id: e.id, name: name(e) };
-		busy = '';
-	}
-	async function takeBack(): Promise<void> {
-		const u = undo!;
-		busy = '*';
-		undo = null;
-		const done = await write('suggestion-discard', { edit: u.id, undo: true });
-		if (done.ok) await store.refresh();
-		said = { at: '*', text: done.ok ? `Put the suggested edit on ${u.name} back.` : (done.error?.message ?? 'The publisher refused it.'), refused: !done.ok };
-		busy = '';
-	}
 </script>
 
 {#snippet chips(names: { name: string; bad: boolean }[])}
@@ -98,32 +65,20 @@
 	<span class="of" data-testid="suggestion-writer">· {writerOf(m, e)}</span>
 {/snippet}
 
-<!-- A suggested edit. A copy's own are folded on its card, and come in with it, so there they can only be left. -->
+<!-- A suggested edit on an agent's copy, folded on the copy's card: it comes in with the copy, so here it is only read. -->
 {#snippet suggestedEdit(e: SuggestedEdit)}
-	{@const where = documentOf(m, e)}
 	{@const answers = e.answers ? m.annotations[e.answers] : undefined}
+	{@const change = changeById(m, e.id)}
 	<div class="line">
 		<span class="tag">a suggested edit</span>
 		{@render editHead(e)}
-		<span class="acts">
-			{#if served['suggestion-apply'] && e.change?.state === 'ready' && !where?.copy}
-				<button type="button" class="btn small primary" disabled={!!busy} title="Write it into the file and keep it; a version of the document is kept first" data-testid="proposed-take" onclick={() => void act(e, 'suggestion-apply')}>{busy === e.id ? 'Taking…' : 'Take it'}</button>
-			{:else if served['suggestion-apply'] && e.change?.state === 'taken'}
-				<button type="button" class="btn small primary" disabled={!!busy} title="The text already reads as it taken; that is recorded" data-testid="suggestion-applied" onclick={() => void act(e, 'suggestion-apply', `Kept the suggested edit on ${name(e)}`)}>Record it kept</button>
-			{/if}
-			{#if served['suggestion-discard']}
-				<button type="button" class="btn small" disabled={!!busy} title="You won't take it; the text is left as it is" data-testid="proposed-leave" onclick={() => void act(e, 'suggestion-discard', `Left the suggested edit on ${name(e)}`)}>Leave it</button>
-			{/if}
-		</span>
 	</div>
 	{#if answers}<p class="why" data-testid="edit-answers">It answers <a href={placeUrl(m, answers.target.key, answers.id, answers.in)}>{linkName(m, `quilt:${answers.id}`)}</a>.</p>{/if}
 	{#if e.quote}<q class="quoted" data-testid="suggestion-quote"><TexProse text={e.quote} /></q>{/if}
 	{#if e.comment_html}<Prose html={e.comment_html} />{/if}
-	{#if e.change?.state === 'ready'}<DiffView path={e.change.diff} />
-	{:else if e.change?.state === 'unplaced'}<p class="why" data-testid="suggestion-unplaced">It cannot be put in as it stands: {e.change.why}.</p>
-	{:else if e.change?.state === 'taken'}<p class="why">The text already reads as it taken.</p>{/if}
-	{#if where?.copy}<p class="why" data-testid="suggestion-on-copy">It is on the agent's copy, and comes in with the copy.</p>{/if}
-	{#if said?.at === e.id}<Said text={said.text} refused={said.refused} testid="suggestion-said" />{/if}
+	{#if change?.diff}<DiffView path={change.diff} />{/if}
+	{#if change && change.state !== 'ready' && change.state !== 'on-a-copy'}<p class="why" data-testid="suggestion-unplaced">{refusal(change)}</p>{/if}
+	<p class="why" data-testid="suggestion-on-copy">It is on the agent's copy, and comes in with the copy.</p>
 {/snippet}
 
 <main class="page scrollbar-shown" class:review-page={!opened} data-testid="proposed">
@@ -139,18 +94,9 @@
 	{:else}
 		{#if answer && answer.from !== showing}<div class="answer"><Said text={answer.text} refused={answer.refused} testid="proposed-answer" /></div>{/if}
 		{#if !cards.length}
-			{#if said?.at === '*'}<Said text={said.text} refused={said.refused} testid="proposed-bar-said" />{/if}
 			<Empty text="Nobody has proposed anything." testid="proposed-none" />
 		{:else}
-			<ActionBar said={said?.at === '*' ? said.text : ''} refused={said?.refused} testid="proposed-bar">
-				{#snippet lead()}
-					<span data-testid="proposed-summary">{cards.length} to decide</span>
-				{/snippet}
-				{#snippet actions()}
-					{#if undo}<button type="button" class="btn small" disabled={!!busy} data-testid="proposed-undo" onclick={() => void takeBack()}>Undo</button>{/if}
-				{/snippet}
-			</ActionBar>
-			<p class="lead">What agents and collaborators propose. A copy or a pull is reviewed in one pass. A suggested edit you take is written into its file, a version of the document kept first.</p>
+			<p class="lead" data-testid="proposed-summary">{cards.length} to decide. What agents and collaborators propose in a pass of its own: a copy or a pull is reviewed whole, a work's results one by one. A suggested edit is kept or discarded where it stands, in its document or in Your Changes.</p>
 			<ul class="plain cards" data-testid="proposed-cards">
 				{#each cards as c (c.kind + c.id)}
 					<li class="card" data-testid="proposed-card" data-kind={c.kind} data-id={c.id}>
@@ -181,8 +127,6 @@
 									</ul>
 								</details>
 							{/if}
-						{:else if c.kind === 'edit'}
-							<div id={c.id} data-testid="suggestion" data-id={c.id}>{@render suggestedEdit(c.edit)}</div>
 						{:else}
 							{@const ref = m.references[c.citekey]}
 							<div class="line">

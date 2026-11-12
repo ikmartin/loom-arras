@@ -85,5 +85,5 @@ def test_every_patch_loom_prints_applies_with_git_apply_as_it_stands(tmp_path: P
     _applies(q, ok("fork", "dm-0001", "--in", "drafting/main.tex", "--dry-run", cwd=q).stdout)
     (q / "drafting" / "extra.tex").write_text("\\begin{lemma}\nA.\n\\end{lemma}\n")
     _applies(q, ok("id", "drafting/extra.tex", cwd=q).stdout)
-    shipped = json_of("suggestion", "--json", cwd=q)["edits"][0]["id"]  # the demo's open suggested edit
-    _applies(q, ok("suggestion", shipped, cwd=q).stdout)
+    shipped = next(c["id"] for c in json_of("changes", "--json", cwd=q)["changes"] if c["kind"] == "suggested")
+    _applies(q, ok("changes", shipped, cwd=q).stdout)  # the demo's open suggested edit

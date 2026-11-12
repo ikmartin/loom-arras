@@ -183,6 +183,21 @@ def make_selector(own_text: str, quote: str) -> Selector:
     return Selector(own_text[a:b], own_text[max(0, a - CONTEXT) : a], own_text[b : b + CONTEXT])
 
 
+def _point(own_text: str, sel: Selector) -> tuple[int, int] | None:
+    """Where a selector with no words stands: between its prefix and its suffix, else after its prefix or before its suffix where that stands once; None when neither does."""
+    if sel.prefix or sel.suffix:
+        both = own_text.find(sel.prefix + sel.suffix)
+        if both >= 0 and own_text.find(sel.prefix + sel.suffix, both + 1) < 0:
+            at = both + len(sel.prefix)
+            return at, at
+    for side, near in ((sel.prefix, True), (sel.suffix, False)):
+        if side and own_text.count(side) == 1:
+            k = own_text.find(side)
+            at = k + len(side) if near else k
+            return at, at
+    return None
+
+
 def _common_suffix_len(a: str, b: str) -> int:
     n = 0
     while n < len(a) and n < len(b) and a[-1 - n] == b[-1 - n]:
@@ -198,7 +213,12 @@ def _common_prefix_len(a: str, b: str) -> int:
 
 
 def resolve_selector(own_text: str, sel: Selector) -> tuple[int, int] | None:
-    """The unique exact occurrence, else the one whose context matches best, else the whitespace-normalised match, else None (detached)."""
+    """The unique exact occurrence, else the one whose context matches best, else the whitespace-normalised match, else None (detached).
+
+    A selector with no words is a point, where the words it was on were removed (`records/carry.py`): found by its prefix and suffix together, else by whichever stands once.
+    """
+    if not sel.exact:
+        return _point(own_text, sel)
     spans: list[tuple[int, int]] = []
     start = 0
     while True:

@@ -18,6 +18,14 @@ LEMMA = "drafting/nodes/dm-0002.tex"
 AGENT = {"AI_AGENT": "1"}
 
 
+@pytest.fixture(autouse=True)
+def tom() -> None:
+    """The person keeping and discarding, by the name their config gives `loom changes`."""
+    from loom.scan.quilt import save_author
+
+    save_author("Tom")
+
+
 def suggest(q: Path, *args: str, who: str = "Tom", key: str = "dm-0002", env: dict[str, str] | None = None) -> str:
     """File a suggested edit on `key`, returning its id."""
     return str(json_of("suggest", key, *args, "--as", who, "--json", cwd=q, env=env)["edit"])
@@ -175,23 +183,23 @@ def test_the_cli_lists_edits_and_prints_the_patch(tmp_path: Path) -> None:
     q = demo(tmp_path)
     mine = suggest(q, "--quote", "one or two points", "--with", "at most two points")
     theirs = suggest(q, "--quote", "Every orbit", "--with", "Each orbit", who="Referee Agent", env=AGENT)
-    out = ok("suggestion", mine, cwd=q).stdout
+    out = ok("changes", mine, cwd=q).stdout
     assert out.startswith(f"--- a/{LEMMA}") and "+Every orbit of a widget has at most two points" in out
-    data = json_of("suggestion", mine, "--json", cwd=q)
-    assert data["file"] == LEMMA and data["moved"] is False and data["diff"] == out
-    exits(2, "suggestion", "e-1999-01-01-ekn992", cwd=q, match="no suggested edit")
-    assert {mine, theirs} <= {e["id"] for e in json_of("suggestion", "--json", cwd=q)["edits"]}
-    assert [e["id"] for e in json_of("suggestion", "--by", "Tom", "--json", cwd=q)["edits"]] == [mine]
-    assert [e["id"] for e in json_of("suggestion", "--by", "Referee Agent", "--json", cwd=q)["edits"]] == [theirs]
-    assert json_of("suggestion", "--target", "dm-0003", "--by", "Tom", "--json", cwd=q)["edits"] == []
-    ok("suggestion", "discard", theirs, "--why", "not needed", "--as", "Tom", cwd=q)
-    listed = json_of("suggestion", "--status", "discarded", "--json", cwd=q)["edits"]
-    assert [(e["id"], e["why"]) for e in listed] == [(theirs, "not needed")]
+    data = json_of("changes", mine, "--json", cwd=q)
+    assert data["change"]["path"] == LEMMA and data["patch"] == out
+    exits(2, "changes", "e-1999-01-01-ekn992", cwd=q, match="no change e-1999-01-01-ekn992")
+    assert {mine, theirs} <= {c["id"] for c in json_of("changes", "--json", cwd=q)["changes"]}
+    assert [e["id"] for e in json_of("changes", "--by", "Tom", "--json", cwd=q)["edits"]] == [mine]
+    assert [e["id"] for e in json_of("changes", "--by", "Referee Agent", "--json", cwd=q)["edits"]] == [theirs]
+    ok("suggest", "--withdraw", theirs, "--why", "not needed", "--as", "Referee Agent", cwd=q, env=AGENT)
+    listed = json_of("changes", "--by", "Referee Agent", "--json", cwd=q)["edits"]
+    assert [(e["id"], e["status"], e["why"]) for e in listed] == [(theirs, "discarded", "not needed")]
     edit(q / LEMMA, "one or two points", "at most two points")
-    assert "already reads as" in ok("suggestion", mine, cwd=q).stdout
+    (row,) = [c for c in json_of("changes", "--json", cwd=q)["changes"] if c["id"] == mine]
+    assert row["state"] == "taken"
 
 
-def test_apply_writes_it_in_keeping_a_version_first_and_keeping_it_resolves_what_it_answers(tmp_path: Path) -> None:
+def test_keep_writes_it_in_keeping_a_version_first_and_keeping_it_resolves_what_it_answers(tmp_path: Path) -> None:
     from loom.history.acts import APPLY
     from loom.history.ledger import load_history
     from loom.records.annotations import find_annotation, load_records
@@ -210,10 +218,9 @@ def test_apply_writes_it_in_keeping_a_version_first_and_keeping_it_resolves_what
         who="Referee Agent",
         env=AGENT,
     )
-    refused("suggestion", "apply", a, "--as", "Referee Agent", cwd=q, env=AGENT, code=2, match="agent")
-    out = ok("suggestion", "apply", a, "--as", "Tom", cwd=q).stdout
-    out = flat(out)
-    assert f"applied {a}" in out and f"kept {a}" in out and f"resolved {ann}" in out and "a version of" in out
+    refused("changes", "--keep", a, cwd=q, env=AGENT, code=2, match="author's")
+    out = flat(ok("changes", "--keep", a, cwd=q).stdout)
+    assert out.startswith("kept 1 change")
     assert "at most two points" in (q / LEMMA).read_text() and "one or two points" not in (q / LEMMA).read_text()
     result, e = placed(q, a)
     assert e.status == "kept" and e.kept == {"hash": key_hash(result, "dm-0002")}
@@ -221,30 +228,34 @@ def test_apply_writes_it_in_keeping_a_version_first_and_keeping_it_resolves_what
     assert found is not None and found[1].status == "resolved" and found[1].resolved_why == f"kept suggested edit {a}"
     history = load_history(result.quilt.history_dir)
     kept = [x for x in history.landmarks() if x.get("kept_for") == APPLY]
-    assert kept and kept[-1].message == "Before applying a suggested edit"
+    assert kept and kept[-1].message == "Before keeping a suggested edit"
     line = [x for x in history.entries if x.action == APPLY][-1]
     assert (line.get("edit"), line.get("key"), line.get("path")) == (a, "dm-0002", LEMMA)
-    refused("suggestion", "apply", a, "--as", "Tom", cwd=q, code=1, match="kept already")
+    exits(2, "changes", "--keep", a, cwd=q, match=f"no change {a}")
     # an edit the author took by hand is kept without writing, and discarding leaves what it answers alone
     other = ok("annotate", "dm-0002", "Say plainly.", "--type", "revision", "--as", "Tom", cwd=q).stdout.split()[0]
     by_hand = suggest(q, "--quote", "Every orbit", "--with", "Each orbit", "--answers", other)
     edit(q / LEMMA, "Every orbit", "Each orbit")
-    assert ok("suggestion", "apply", by_hand, "--as", "Tom", cwd=q).stdout.startswith(f"kept {by_hand}")
+    assert ok("changes", "--keep", by_hand, cwd=q).stdout.startswith("kept 1 change")
+    assert find(q, by_hand).status == "kept"  # type: ignore[union-attr]
     dropped = suggest(q, "--quote", "Each orbit", "--with", "Any orbit", "--answers", other)
-    ok("suggestion", "discard", dropped, "--as", "Tom", cwd=q)
+    ok("changes", "--discard", dropped, cwd=q)
+    assert find(q, dropped).status == "discarded"  # type: ignore[union-attr]
 
 
-def test_an_agent_discards_only_its_own_and_undo_opens_one_again(tmp_path: Path) -> None:
+def test_an_agent_withdraws_only_its_own_and_the_viewers_undo_opens_one_again(tmp_path: Path) -> None:
+    from loom.render.api import handle
+
     q = demo(tmp_path)
     mine = suggest(q, "--quote", "Every orbit", "--with", "Each orbit")
     theirs = suggest(q, "--quote", "one or two points", "--with", "two points", who="Referee Agent", env=AGENT)
-    refused(
-        "suggestion", "discard", mine, "--as", "Referee Agent", cwd=q, env=AGENT, code=2, match="discards only its own"
-    )
-    ok("suggestion", "discard", theirs, "--why", "wrong count", "--as", "Referee Agent", cwd=q, env=AGENT)
+    refused("suggest", "--withdraw", mine, "--as", "Referee Agent", cwd=q, env=AGENT, code=2, match="only your own")
+    ok("suggest", "--withdraw", theirs, "--why", "wrong count", "--as", "Referee Agent", cwd=q, env=AGENT)
     assert (find(q, theirs).status, find(q, theirs).why) == ("discarded", "wrong count")  # type: ignore[union-attr]
-    refused("suggestion", "discard", theirs, "--as", "Tom", cwd=q, code=2, match="discarded already")
-    ok("suggestion", "discard", theirs, "--undo", "--as", "Tom", cwd=q)
+    refused(
+        "suggest", "--withdraw", theirs, "--as", "Referee Agent", cwd=q, env=AGENT, code=2, match="discarded already"
+    )
+    handle(q, "change-discard", {"changes": [theirs], "undo": True, "author": "Tom"})
     assert find(q, theirs).status == "open"  # type: ignore[union-attr]
     assert [e["event"] for e in log(q) if e["id"] == theirs] == ["created", "discarded", "reopened"]
 
@@ -255,8 +266,8 @@ def test_since_tells_an_agent_what_became_of_its_edits_once(tmp_path: Path) -> N
     a = suggest(q, "--quote", "one or two points", "--with", "at most two points", who=who, env=AGENT)
     b = suggest(q, "--quote", "Every orbit", "--with", "Each orbit", who=who, env=AGENT)
     json_of("since", "--as", who, "--json", cwd=q, env=AGENT)
-    ok("suggestion", "apply", a, "--as", "Tom", cwd=q)
-    ok("suggestion", "discard", b, "--why", "no", "--as", "Tom", cwd=q)
+    ok("changes", "--keep", a, cwd=q)
+    ok("changes", "--discard", b, "--why", "no", cwd=q)
     got = json_of("since", "--as", who, "--json", cwd=q, env=AGENT)
     assert {(e["id"], e["act"], e["by"], e["why"]) for e in got["edits"]} == {
         (a, "kept", "Tom", ""),
@@ -290,7 +301,7 @@ def test_two_clones_merge_their_edits_each_with_an_id_of_its_own_and_a_bad_line_
     assert any(d["code"] == "loom:repeated-id" and ".loom/edits/log.jsonl" in d["message"] for d in diags)
 
 
-def test_the_manifest_publishes_each_edit_with_its_text_and_its_change(tmp_path: Path) -> None:
+def test_the_manifest_publishes_each_edit_as_its_record_and_an_open_one_as_a_change(tmp_path: Path) -> None:
     q = demo(tmp_path)
     ready = suggest(q, "--quote", "one or two points", "--with", "at most two points", "--comment", "Sharper *here*.")
     lost = suggest(q, "--quote", "the one-point orbits", "--with", "the fixed points")
@@ -306,25 +317,24 @@ def test_the_manifest_publishes_each_edit_with_its_text_and_its_change(tmp_path:
         "open",
     )
     # `with_html` is made by TeX, so it is checked in the tex suite (test_review_commands.py, the proposed theorem)
-    assert "<em>here</em>" in row["comment_html"]
-    change = row["change"]
-    assert change["state"] == "ready" and change["moved"] is True and change["fragment"].startswith("fragments/edits/")
-    assert "review-changed" in (q / ".loom/build" / change["fragment"]).read_text()
-    assert (q / ".loom/build" / change["diff"]).read_text().startswith(f"--- a/{LEMMA}")
-    assert m["suggested_edits"][lost]["change"]["state"] == "unplaced"
+    assert "<em>here</em>" in row["comment_html"] and "change" not in row
+    change = {c["id"]: c for c in m["changes"]}
+    assert change[ready]["state"] == "ready" and change[ready]["block"]["fragment"].startswith("fragments/changes/")
+    assert (q / ".loom/build" / change[ready]["diff"]).read_text().startswith(f"--- a/{LEMMA}")
+    assert change[lost]["state"] == "unplaced" and change[lost]["block"] is None
     assert all("payload" not in a and "placement" not in a for a in m["annotations"].values())
     edit(q / LEMMA, "one or two points", "at most two points")
     ok("build", cwd=q)
-    assert json.loads((q / ".loom/build" / "manifest.json").read_text())["suggested_edits"][ready]["change"] == {
-        "state": "taken"
-    }
-    ok("suggestion", "apply", ready, "--as", "Tom", cwd=q)
+    assert {c["id"]: c for c in json.loads((q / ".loom/build" / "manifest.json").read_text())["changes"]}[ready][
+        "state"
+    ] == "taken"
+    ok("changes", "--keep", ready, cwd=q)
     ok("build", cwd=q)
-    row = json.loads((q / ".loom/build" / "manifest.json").read_text())["suggested_edits"][ready]
-    assert (row["status"], row["change"]) == ("kept", None)
+    m = json.loads((q / ".loom/build" / "manifest.json").read_text())
+    assert m["suggested_edits"][ready]["status"] == "kept" and ready not in {c["id"] for c in m["changes"]}
 
 
-def test_apply_and_discard_over_the_api(tmp_path: Path) -> None:
+def test_keep_and_discard_over_the_api(tmp_path: Path) -> None:
     from loom.render.api import ApiError, handle
 
     q = demo(tmp_path)
@@ -332,45 +342,34 @@ def test_apply_and_discard_over_the_api(tmp_path: Path) -> None:
     lost = suggest(q, "--quote", "the one-point orbits", "--with", "the fixed points")
     theirs = suggest(q, "--quote", "Every orbit", "--with", "Each orbit", who="Referee Agent", env=AGENT)
     with pytest.raises(ApiError) as agent:
-        handle(q, "suggestion-apply", {"edit": a, "author": "Claude Agent"})
+        handle(q, "change-keep", {"changes": [a], "author": "Claude Agent"})
     assert (agent.value.code, agent.value.status) == ("author-only", 403)
     with pytest.raises(ApiError) as missing:
-        handle(q, "suggestion-apply", {"edit": "e-1999-01-01-ekn992", "author": "Tom"})
-    assert (missing.value.code, missing.value.status) == ("no-such-edit", 404)
+        handle(q, "change-keep", {"changes": ["e-1999-01-01-ekn992"], "author": "Tom"})
+    assert (missing.value.code, missing.value.status) == ("no-such-change", 404)
     edit(q / LEMMA, "the one-point orbits", "the orbits of size one")
-    with pytest.raises(ApiError) as unplaced:
-        handle(q, "suggestion-apply", {"edit": lost, "author": "Tom"})
-    assert unplaced.value.code == "unplaced"
-    said = handle(q, "suggestion-apply", {"edit": a, "author": "Tom"})["result"]
-    assert said.startswith(f"applied {a} in main.tex") and f"kept {a}" in said
+    said = handle(q, "change-keep", {"changes": [lost, a], "author": "Tom"})
+    assert said["done"] == [a] and [r["id"] for r in said["refused"]] == [lost]
+    assert said["result"].startswith("kept 1 change; 1 could not be")
     with pytest.raises(ApiError) as again:
-        handle(q, "suggestion-apply", {"edit": a, "author": "Tom"})
-    assert again.value.code == "not-open"
-    with pytest.raises(ApiError) as not_yours:
-        handle(q, "suggestion-discard", {"edit": lost, "author": "Claude Agent"})
-    assert (not_yours.value.code, not_yours.value.status) == ("not-yours", 403)
-    assert (
-        handle(q, "suggestion-discard", {"edit": theirs, "why": "no", "author": "Tom"})["result"]
-        == f"discarded {theirs}"
-    )
-    assert (
-        handle(q, "suggestion-discard", {"edit": theirs, "undo": True, "author": "Tom"})["result"]
-        == f"reopened {theirs}"
-    )
+        handle(q, "change-keep", {"changes": [a], "author": "Tom"})
+    assert again.value.code == "no-such-change"
+    got = handle(q, "change-discard", {"changes": [theirs], "why": "no", "author": "Tom"})
+    assert got["done"] == [theirs] and find(q, theirs).why == "no"  # type: ignore[union-attr]
+    assert handle(q, "change-discard", {"changes": [theirs], "undo": True, "author": "Tom"})["done"] == [theirs]
 
 
-def test_an_edit_on_an_agents_copy_is_not_applied_since_it_comes_in_with_the_copy(tmp_path: Path) -> None:
+def test_an_edit_on_an_agents_copy_is_not_kept_since_it_comes_in_with_the_copy(tmp_path: Path) -> None:
     import shutil
 
-    from loom.render.api import ApiError, handle
+    from loom.render.api import handle
     from tests.unit._quilts import REPO
 
     q = tmp_path / "q"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q, ignore=shutil.ignore_patterns("build", ".git"))
     e = suggest(q, "--quote", "at most two points", "--with", "two points at most", key="sy-0002-ai")
-    with pytest.raises(ApiError) as on_copy:
-        handle(q, "suggestion-apply", {"edit": e, "author": "Tom"})
-    assert on_copy.value.code == "on-a-copy" and "aidoc.tex" in on_copy.value.message
+    said = handle(q, "change-keep", {"changes": [e], "author": "Tom"})
+    assert said["done"] == [] and said["refused"][0]["id"] == e and "aidoc.tex" in said["refused"][0]["why"]
 
 
 def test_compile_with_an_edit_substitutes_its_text(tmp_path: Path) -> None:

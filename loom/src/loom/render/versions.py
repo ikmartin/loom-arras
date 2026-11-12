@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from loom.records.annotations import Annotation
-from loom.records.selectors import resolve_selector
+from loom.records.selectors import Selector, resolve_selector
 from loom.records.snapshots import read_snapshot
 from loom.records.store import Records
 from loom.render.fragments import FragmentRenderer
@@ -40,6 +40,8 @@ class Gone:
     node: NodeRec | None
     old: str
     entry: MarkEntry | None
+    #: carried by a kept change onto its new words, where it stands: its version is published, and it needs no empty mark
+    carried: bool = False
 
 
 def _fragment_of(digest: str) -> str:
@@ -139,6 +141,11 @@ def gone_annotations(result: ScanResult, records: Records) -> list[Gone]:
     kept: dict[str, str | None] = {}
     for res in records.resolved(result):
         a = res.annotation
+        if a.earlier and res.recorded and not res.detached and a.target_hash and a.page is None:
+            old = kept.setdefault(a.target_hash, _kept_text(result, a.target_hash))
+            if old is not None and resolve_selector(old, Selector(a.earlier.get("quote", ""))) is not None:
+                out.append(Gone(a, res.target, result.nodes.get(res.target), old, None, carried=True))
+            continue
         if not (res.detached and res.recorded) or a.in_reply_to or a.selector is None:
             continue
         if a.anchor is not None or a.page is not None or not a.target_hash:
@@ -231,11 +238,13 @@ def attach_versions(
         path = _fragment_of(digest)
         row = rows.get(g.annotation.id)
         if row is not None:
-            row["version"] = {"hash": digest, "fragment": path, "at": g.entry is not None}
+            row["version"] = {"hash": digest, "fragment": path, "at": g.entry is not None or g.carried}
         if digest in asked:
             continue
         asked.add(digest)
-        quoted = [(a.id, a.selector.exact, resolve_selector(g.old, a.selector)) for a in on_hash[digest] if a.selector]
+        # a carried annotation is marked on the words it was on, which this version holds
+        said = {a.id: Selector(a.earlier["quote"]) if a.earlier else a.selector for a in on_hash[digest]}
+        quoted = [(i, sel.exact, resolve_selector(g.old, sel)) for i, sel in said.items() if sel and sel.exact]
         files[path] = ""
         later = renderer.previews.ask(g.node.key if g.node else g.key, g.old, None, [])
 

@@ -1,13 +1,11 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import { dataUrl } from '$lib/paths';
-	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right. `hunk`, when given, draws the controls for one change in its `@@` row, numbered from 0 as the publisher numbers them; `only` draws just those changes, by the same numbers, so a block shows its own edit out of its file's. A diff keeps its path as it changes, so `version` says when to read it again.
-	let { path, hunk, only, version }: { path: string; hunk?: Snippet<[number]>; only?: number[]; version?: string } = $props();
+	// A unified diff shown as two tinted columns: what was accepted on the left, what is there now on the right, each `@@` row between. A diff keeps its path as it changes, so `version` says when to read it again.
+	let { path, version }: { path: string; version?: string } = $props();
 
-	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk'; n?: number; of: number };
+	type Row = { left: string; right: string; kind: 'same' | 'change' | 'hunk' };
 
-	let all = $state<Row[]>([]);
-	const rows = $derived(only ? all.filter((r) => only.includes(r.of)) : all);
+	let rows = $state<Row[]>([]);
 	let error = $state('');
 
 	/** Pairs a run of removed lines with the run of added lines that follows it, so a rewritten line sits opposite its replacement. */
@@ -15,7 +13,6 @@
 		const out: Row[] = [];
 		const lines = text.split('\n');
 		let i = 0;
-		let n = 0;
 		while (i < lines.length) {
 			const ln = lines[i];
 			if (ln.startsWith('--- ') || ln.startsWith('+++ ')) {
@@ -23,8 +20,7 @@
 				continue;
 			}
 			if (ln.startsWith('@@')) {
-				out.push({ left: ln, right: '', kind: 'hunk', n: n, of: n });
-				n++;
+				out.push({ left: ln, right: '', kind: 'hunk' });
 				i++;
 				continue;
 			}
@@ -34,11 +30,11 @@
 				while (i < lines.length && lines[i].startsWith('-')) removed.push(lines[i++].slice(1));
 				while (i < lines.length && lines[i].startsWith('+')) added.push(lines[i++].slice(1));
 				for (let j = 0; j < Math.max(removed.length, added.length); j++) {
-					out.push({ left: removed[j] ?? '', right: added[j] ?? '', kind: 'change', of: n - 1 });
+					out.push({ left: removed[j] ?? '', right: added[j] ?? '', kind: 'change' });
 				}
 				continue;
 			}
-			out.push({ left: ln.slice(1), right: ln.slice(1), kind: 'same', of: n - 1 });
+			out.push({ left: ln.slice(1), right: ln.slice(1), kind: 'same' });
 			i++;
 		}
 		while (out.length && out[out.length - 1].kind === 'same' && !out[out.length - 1].left.trim()) out.pop();
@@ -51,12 +47,12 @@
 		void fetch(url)
 			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
 			.then((t) => {
-				all = pair(t);
+				rows = pair(t);
 				error = '';
 			})
 			.catch((e: Error) => {
 				error = e.message;
-				all = [];
+				rows = [];
 			});
 	});
 </script>
@@ -69,7 +65,7 @@
 			{#each rows as r, i (i)}
 				<tr class={r.kind}>
 					{#if r.kind === 'hunk'}
-						<td class="hunk" colspan="2"><span>{r.left}</span>{#if hunk && r.n !== undefined}<span class="hunk-acts" data-testid="hunk-acts" data-hunk={r.n}>{@render hunk(r.n)}</span>{/if}</td>
+						<td class="hunk" colspan="2"><span>{r.left}</span></td>
 					{:else}
 						<td class="l">{r.left}</td>
 						<td class="r">{r.right}</td>
@@ -107,19 +103,5 @@
 	td.hunk {
 		color: var(--ink-faint);
 		background: var(--leaf);
-	}
-	/* a change's controls stand at the end of its `@@` row, in the viewer's own face rather than the diff's */
-	td.hunk:has(.hunk-acts) {
-		padding: 3px 6px;
-	}
-	.hunk-acts {
-		float: right;
-		display: inline-flex;
-		align-items: center;
-		gap: var(--gap-tight);
-		font-family: var(--sans);
-		font-size: 12px;
-		color: var(--ink-soft);
-		white-space: normal;
 	}
 </style>

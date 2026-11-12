@@ -24,7 +24,6 @@ GROUP_WORDS = {
         "key",
         "A key, to list its recorded versions and whether its text now is one; with none, the history's steps.",
     ),
-    "suggestion": ("edit", "A suggested edit, by its id, to print the patch that takes it; with none, the edits."),
     "library": (
         "work",
         "A work, by citekey, its identifier (doi:…, arXiv:…), a fragment of a citekey or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
@@ -110,7 +109,14 @@ def _command(root: click.Command, path: str) -> click.Command:
 
 
 def _spec(path: str, cmd: click.Command) -> ToolSpec:
-    params = [p for p in (_param(x) for x in cmd.params) if p is not None]
+    from loom.ai.layout import AUTHOR_OPTIONS
+
+    authors = AUTHOR_OPTIONS.get(path, frozenset())
+    params = [
+        p
+        for p in (_param(x) for x in cmd.params if not (isinstance(x, click.Option) and authors & set(x.opts)))
+        if p is not None
+    ]
     if path in GROUP_WORDS:
         name, said = GROUP_WORDS[path]
         params.insert(0, Param(name, None, "string", required=path in WORD_REQUIRED, description=said, word=True))

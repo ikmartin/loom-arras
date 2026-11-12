@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The list beside a text. **Comments**: every annotation here in reading order, a card each with its colour, author, quoted words and comment, which opens it at its mark (a PDF's mark not found again on the changed file says so, having none); To do keeps the open annotations of types that stay open, from others than the reader; the filter leaves out people, and shows or hides the resolved. **Notes**: every annotation whose type is listed in Notes, from every document and work, grouped by document, each a link back to where it was left. Both are built from the manifest; nobody edits them.
+	// The list beside a text. **Comments**: every annotation and pending change here in reading order, a card each, which opens it at its mark: an annotation's with its colour, author, quoted words and comment (a PDF's mark not found again on the changed file says so, having none), a change's with its words out and in and Keep and Discard (`ChangeCard`). Where the text has changes, All, Annotations and Changes choose what is listed, and with annotations alone the text shows what the person has kept. To do keeps the changes and the open annotations of types that stay open, from others than the reader; the filter leaves out people, an edit made in the file being its own, and shows or hides the resolved. **Notes**: every annotation whose type is listed in Notes, from every document and work, grouped by document, each a link back to where it was left. Both are built from the manifest; nobody edits them.
 	import Icon from '$lib/components/Icon.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
@@ -9,18 +9,30 @@
 	import { repliesTo } from '$lib/annotations';
 	import { ui } from '$lib/ui.svelte';
 	import { staysOpen, typeOf } from './annotationTypes';
-	import { authors, isTodo, notesIn, placeOf, plain, sequence, type Annotating } from './annotating.svelte';
+	import { authors, changePasses, entries, isTodo, notesIn, placeOf, plain, type Annotating, type Layer } from './annotating.svelte';
+	import { authorOf, changeById } from './changes';
 	import { dotVars } from '$lib/fragments/gutter';
+	import ChangeCard from './ChangeCard.svelte';
 
 	let { notes }: { notes: Annotating } = $props();
 
 	const m = $derived(store.manifest);
-	const seq = $derived(sequence(m, notes));
+	const seq = $derived(entries(m, notes));
 	/** Everyone who wrote here, whether the filter shows them or not. */
 	const all = $derived(m ? notes.order.map((id) => m.annotations[id]).filter((a): a is Annotation => !!a) : []);
-	const people = $derived(authors(m, all));
-	const todo = $derived(all.filter((a) => isTodo(m, a) && !notes.hidden.includes(a.author.id)).length);
-	const filtered = $derived(notes.hidden.length > 0);
+	const changes = $derived(m ? notes.order.map((id) => changeById(m, id)).filter((c) => !!c) : []);
+	const people = $derived.by(() => {
+		const out = authors(m, all);
+		for (const c of changes) if (!out.some((p) => p.id === authorOf(c!).id)) out.push(authorOf(c!));
+		return out;
+	});
+	const todo = $derived(all.filter((a) => isTodo(m, a) && !notes.hidden.includes(a.author.id)).length + changes.filter((c) => changePasses(c!, { hidden: notes.hidden, layer: 'all' })).length);
+	const filtered = $derived(notes.hidden.length > 0 || notes.layer !== 'all');
+	const LAYERS: [Layer, string][] = [
+		['all', 'All'],
+		['annotations', 'Annotations'],
+		['changes', 'Changes']
+	];
 	const groups = $derived(notesIn(m));
 
 	let filtering = $state(false);
@@ -36,14 +48,14 @@
 		notes.hidden = shown ? notes.hidden.filter((x) => x !== id) : [...notes.hidden, id];
 	}
 
-	function open(a: Annotation): void {
-		if (!notes.show(a.id)) notes.open = a.id;
+	function open(id: string): void {
+		if (!notes.show(id)) notes.open = id;
 	}
 
 	const typeLine = (a: Annotation) => [typeOf(m, a)?.name, shortDate(a.created)].filter(Boolean).join(' · ');
 </script>
 
-<aside class="side" aria-label={notes.side === 'notes' ? 'Notes' : 'Comments'} data-testid="side-list" data-pane-side={notes.side}>
+<aside class="side" aria-label={notes.side === 'notes' ? 'Notes' : changes.length ? 'Comments and changes' : 'Comments'} data-testid="side-list" data-pane-side={notes.side}>
 	{#if notes.side === 'notes'}
 		<div class="shead">
 			<div class="row"><span class="stitle">Notes</span><button type="button" class="x" aria-label="Close notes" title="Close notes" data-testid="side-close" onclick={() => (notes.side = null)}><Icon name="close" size={14} /></button></div>
@@ -67,12 +79,17 @@
 	{:else}
 		<div class="shead">
 			<div class="row">
-				<span class="stitle">Comments</span>
+				<span class="stitle">{changes.length ? 'Comments and changes' : 'Comments'}</span>
 				<button type="button" class="tool" class:on={filtering || filtered} aria-expanded={filtering} title="Filter by person and resolved" data-testid="comments-filter" onclick={() => (filtering = !filtering)}><Icon name="filter" size={13} />Filter</button>
 				<button type="button" class="x" aria-label="Close the list" title="Close the list" data-testid="side-close" onclick={() => (notes.side = null)}><Icon name="close" size={14} /></button>
 			</div>
 			<div class="row">
-				<button type="button" class="tool todo" class:on={notes.todo} aria-pressed={notes.todo} title="To do: open annotations from others" data-testid="comments-todo" onclick={() => (notes.todo = !notes.todo)}>To do<span class="badge">{todo}</span></button>
+				{#if changes.length}
+					<div class="seg" role="group" aria-label="Which to list">
+						{#each LAYERS as [l, name] (l)}<button type="button" class:on={notes.layer === l} aria-pressed={notes.layer === l} data-testid="layer-{l}" onclick={() => (notes.layer = l)}>{name}</button>{/each}
+					</div>
+				{/if}
+				<button type="button" class="tool todo" class:on={notes.todo} aria-pressed={notes.todo} title={changes.length ? 'To do: changes to keep or discard, and open annotations from others' : 'To do: open annotations from others'} data-testid="comments-todo" onclick={() => (notes.todo = !notes.todo)}>To do<span class="badge">{todo}</span></button>
 			</div>
 			{#if filtering}
 				<div class="fmenu" data-testid="filter-menu">
@@ -85,9 +102,13 @@
 			{/if}
 		</div>
 		<div class="cards" bind:this={list}>
-			{#each seq as a (a.id)}
+			{#each seq as e (e.id)}
+				{#if e.c}
+					<ChangeCard c={e.c} on={notes.open === e.id} onopen={() => open(e.id)} />
+				{:else}
+				{@const a = e.a}
 				{@const replies = m ? repliesTo(m, a.id).length : 0}
-				<div class="card" class:on={notes.open === a.id} class:settled={a.status !== 'open'} role="button" tabindex="0" data-testid="comment-card" data-annotation={a.id} onclick={() => open(a)} onkeydown={(e) => e.key === 'Enter' && open(a)}>
+				<div class="card" class:on={notes.open === a.id} class:settled={a.status !== 'open'} role="button" tabindex="0" data-testid="comment-card" data-annotation={a.id} onclick={() => open(a.id)} onkeydown={(e) => e.key === 'Enter' && open(a.id)}>
 					<div class="ch"><span class="dot2" style={dotVars(a)}></span><span class="who">{a.author.label ?? a.author.id}</span><span>{typeLine(a)}</span></div>
 					{#if a.quote}<div class="q"><TexProse text={a.quote} /></div>{/if}
 					{#if plain(a.body_html)}<div class="ct"><Prose html={a.body_html} /></div>{:else}<div class="ct none">No comment</div>{/if}
@@ -99,8 +120,9 @@
 						</div>
 					{/if}
 				</div>
+				{/if}
 			{:else}
-				<div class="sempty">{notes.todo && !filtered ? 'Nothing to do.' : filtered || notes.todo ? 'Nothing matches the filter.' : 'No comments.'}</div>
+				<div class="sempty">{notes.todo && !filtered ? 'Nothing to do.' : filtered || notes.todo ? 'Nothing matches the filter.' : changes.length ? 'No comments or changes.' : 'No comments.'}</div>
 			{/each}
 		</div>
 	{/if}
@@ -170,6 +192,30 @@
 	}
 	.tool.todo {
 		border: 1px solid var(--rule);
+	}
+	.seg {
+		display: inline-flex;
+		flex: 1;
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+		overflow: hidden;
+	}
+	.seg button {
+		flex: 1;
+		height: 24px;
+		padding: 0 6px;
+		font: inherit;
+		color: var(--ink-soft);
+		background: none;
+		border: 0;
+		cursor: pointer;
+	}
+	.seg button + button {
+		border-left: 1px solid var(--rule);
+	}
+	.seg button.on {
+		color: var(--ink);
+		background: var(--accent-wash);
 	}
 	.badge {
 		min-width: 16px;

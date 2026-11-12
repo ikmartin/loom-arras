@@ -7,9 +7,10 @@
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
 			title: 'What the Your Changes page shows',
-			body: "What changed in your documents and files since your look, and every statement and proof you have not accepted as it stands. A block is listed once, with every reason it waits. Keep takes an edit into your look, and Undo puts it back, keeping the text it replaces; neither says whether the mathematics is right. Accepting records your reading of the text against what it rests on, and keeps its edit too; it goes stale when either changes. Blocks taken in from an agent's copy or a pull are grouped by where they came from. A block's name opens it in its document with why it waits beside it; what loom cannot accept says why in its row.",
+			body: "Every change waiting in your text, by document: edits made in your files since your look, and suggestions not yet kept or discarded, each a few words out and a few words in. Keep takes an edit into your look, or writes a suggestion into its file; Discard writes your words back over an edit, its text kept as a version first, or drops a suggestion. Neither says whether the mathematics is right, and each acts as it does in the document. To do adds the open annotations from others. Beneath, every statement and proof you have not accepted as it stands, each listed once with every reason it waits: accepting records your reading of the text against what it rests on, and keeps its edit too; it goes stale when either changes. Blocks taken in from an agent's copy or a pull are grouped by where they came from; what loom cannot accept says why in its row.",
 			states: [
-				['edited since your look', 'its text differs from what you last saw, whoever changed it'],
+				['edit in the file', 'words that differ from what you last saw, whoever changed them'],
+				['suggestion', 'words someone proposes in place of yours, not yet in the file'],
 				['changed since you accepted', 'the text, or something it rests on, changed after you accepted it'],
 				['taken in', "it came in from an agent's copy or a pull, and you have not accepted it since"],
 				['never accepted', 'nothing has been recorded about this text; these are listed and not counted'],

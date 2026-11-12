@@ -2,7 +2,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, scrollPane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
-import { QUICK, REFEREE, serve } from '../manifest';
+import { QUICK, REFEREE, serveKept } from '../manifest';
+
+// these are about annotations and the page; the fixture's pending changes are left out, and tested apart (changes.e2e.ts)
+test.beforeEach(({ page }) => serveKept(page));
 
 /** Advertise a write API with `caps`; the static server serves none, and the controls appear only where one is. */
 async function writes(page: Page, caps: string[]): Promise<void> {
@@ -11,7 +14,7 @@ async function writes(page: Page, caps: string[]): Promise<void> {
 
 test('the write target is stated once', async ({ page }) => {
 	// a title no annotation or author shares, so a count of it is a count of the places that name the session
-	await serve(page, (m) => {
+	await serveKept(page, (m) => {
 		m.sessions.find((s: { id: string }) => s.id === REFEREE).title = 'the refereeing sitting';
 	});
 	// a document and a node beside it: two items, two panes, and still one place that says where writes go

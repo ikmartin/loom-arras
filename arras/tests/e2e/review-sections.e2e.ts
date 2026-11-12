@@ -7,11 +7,12 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	const list = page.getByTestId('review-sections');
 	await expect(list.getByRole('link')).toHaveText([/^Your Changes/, /^Proposed Changes/, /^Problems/, /^Library/, /^The Record/]);
 	await expect(page.getByTestId('section-changes')).toHaveAttribute('aria-current', 'page');
-	// what changed since it was accepted, or was taken in, and the one file edited since the look; a block never accepted is listed there, not counted
+	// what changed since it was accepted, or was taken in, and every pending change; a block never accepted is listed there, not counted
 	const unresolved = (manifest.unresolved ?? []).filter((r: { cause: string }) => r.cause !== 'never-accepted').length;
-	await expect(page.getByTestId('section-count-changes')).toHaveText(String(unresolved + 1));
-	// an agent's copy and two suggested edits
-	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
+	const pending = (manifest.changes ?? []).filter((c: { id?: unknown }) => typeof c.id === 'string').length;
+	await expect(page.getByTestId('section-count-changes')).toHaveText(String(unresolved + pending));
+	// an agent's copy; a suggested edit is a pending change, counted in Your Changes
+	await expect(page.getByTestId('section-count-proposed')).toHaveText('1');
 	// an open session waits for no one: it is said on hover, never counted
 	await expect(page.getByTestId('section-record')).toHaveAttribute('title', /1 open session/);
 	const problems = manifest.diagnostics.filter((d: { severity: string; owner?: string }) => (d.owner ?? 'person') === 'person' && (d.severity === 'error' || d.severity === 'warning')).length;
@@ -19,10 +20,10 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	// every landmark leads to a live draft, so The Record waits for nothing
 	await expect(page.getByTestId('section-count-record')).toHaveCount(0);
 	// each says what it is for
-	await expect(page.getByTestId('section-changes')).toContainText('edits to keep, mathematics to accept');
+	await expect(page.getByTestId('section-changes')).toContainText('changes to keep, mathematics to accept');
 	await expect(page.getByTestId('section-record')).toContainText('versions, sessions, everything done');
 	await expect(page.getByTestId('section-library')).toContainText('the works you read and cite');
-	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /3 proposals to decide/);
+	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /1 proposal to decide/);
 	// each section is its own page, and the column marks it
 	for (const id of ['proposed', 'problems', 'record']) {
 		await page.getByTestId(`section-${id}`).click();

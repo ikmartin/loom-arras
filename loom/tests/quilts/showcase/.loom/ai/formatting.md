@@ -24,7 +24,7 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 
 ## Proposed text
 
-- **On the author's text, propose text as a suggested edit, never as a file.** (On an agent document you edit it yourself.) `loom suggest KEY --quote "the old text" --with "the new text" --comment "why"` shows the key in Review with the new text in place of exactly the quoted words, where the author reads it and keeps or discards it. A file in your session's directory is not displayed.
+- **On the author's text, propose text as a suggested edit, never as a file.** (On an agent document you edit it yourself.) `loom suggest KEY --quote "the old text" --with "the new text" --comment "why"` shows the new text in the document beside exactly the quoted words, where the author reads it and keeps or discards it. A file in your session's directory is not displayed.
 - **Propose a dependency the same way.** When one result uses another that its source does not declare, suggest the edge with no quote, `loom suggest KEY --with "\uses{sh-0004}" --before`: it goes at the head of the body, beside the others. Loom never writes an edge into the author's source; the author keeps it.
 
 ## What renders what

@@ -72,6 +72,9 @@
 	--ann-pink-band: rgb(255 174 220);
 	--ann-neutral: #6f6d66;
 	--ann-neutral-wash: rgb(111 109 102 / 10%);
+	/* pending changes: teal, a colour no annotation's look names, so a change is never read as an annotation */
+	--change: rgb(0 118 118);
+	--change-wash: rgb(0 118 118 / 10%);
 
 	/* compare with a base: git's red on the side holding the base, its green on the other; drawn only while annotations are off, so its red is not read as an annotation's */
 	--diff-del: #a32d2d;
@@ -162,6 +165,8 @@
 		--ann-pink-band: rgb(146 50 112);
 		--ann-neutral: #9a988f;
 		--ann-neutral-wash: rgb(154 152 143 / 10%);
+		--change: #5fcfc4;
+		--change-wash: rgb(95 207 196 / 14%);
 		color-scheme: dark;
 	}
 }
@@ -214,6 +219,8 @@
 	--ann-pink-band: rgb(146 50 112);
 	--ann-neutral: #9a988f;
 	--ann-neutral-wash: rgb(154 152 143 / 10%);
+	--change: #5fcfc4;
+	--change-wash: rgb(95 207 196 / 14%);
 	color-scheme: dark;
 }
 
@@ -1218,6 +1225,66 @@ button.mark.annotation.basis-box {
 button.mark.annotation.settled { display: none; }
 .show-settled button.mark.annotation.settled { display: block; }
 
+/* Pending changes (`fragments/changes/`): each change's old words and new words, `span.change[data-change][data-side]`, in a block the publisher merged. The fragment says how they are shown: in Markup (`changes-markup`) the old words struck and the new underlined, both teal on a teal wash, a colour no annotation's look names; in Final (`changes-final`) the new words alone, unmarked; with changes off (`changes-off`, while the list shows annotations only) the old words alone, the text as kept. A change kept a moment ago (`ch-kept`) reads as its new words, one discarded or left out by the filter (`ch-off`) as its old, whatever the view. In Markup a change's words are its own, teal and to click: the wash is opaque, so an annotation round them does not tint them, one inside them is not drawn, and one drawn again on the new words (`moved`) is drawn in Final, dashed; the change's popup names them. */
+.fragment span.change {
+	border-radius: 2px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) {
+	color: var(--change);
+	background-color: color-mix(in srgb, var(--change) 10%, var(--paper));
+	text-decoration-thickness: 1.5px;
+	text-decoration-color: var(--change);
+	cursor: pointer;
+}
+.fragment.changes-markup span.change[data-side='old']:not(.ch-kept, .ch-off) {
+	color: color-mix(in srgb, var(--change) 70%, var(--paper));
+	text-decoration-line: line-through;
+}
+.fragment.changes-markup span.change[data-side='new']:not(.ch-kept, .ch-off) {
+	margin-left: 3px;
+	text-decoration-line: underline;
+	text-underline-offset: 3px;
+}
+.fragment.changes-final span.change[data-side='old']:not(.ch-off),
+.fragment span.change.ch-kept[data-side='old'],
+.fragment.changes-off span.change[data-side='new']:not(.ch-kept),
+.fragment span.change.ch-off[data-side='new'] {
+	display: none;
+}
+.fragment span.change.open {
+	box-shadow: 0 0 0 1.5px var(--accent);
+}
+.fragment span.change:focus-visible {
+	outline: 2px solid var(--link);
+	outline-offset: 1px;
+}
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) mark.annotation {
+	background: none;
+}
+.fragment.changes-markup span.change:not(.ch-kept, .ch-off) mark.annotation.moved {
+	pointer-events: none;
+}
+/* A change not merged into the text, one to its structure or one whose block could not be swapped in, is marked on the element holding its words (`change-at`): a teal bar at its left, and its pen in the margin, in either view; ringed while its popup is open. */
+.fragment .change-at {
+	box-shadow: -7px 0 0 -4px var(--change);
+}
+.fragment.changes-off .change-at {
+	box-shadow: none;
+}
+.fragment .change-at.open {
+	outline: 1.5px solid var(--change);
+	outline-offset: 3px;
+}
+.fragment mark.annotation.moved {
+	background-image: repeating-linear-gradient(90deg, var(--ann-ink) 0 4px, transparent 4px 7px);
+}
+.fragment mark.annotation.moved.ann-highlight {
+	--ann-band-k: 0.5;
+	--ann-bar: 1.5px;
+}
+
 /* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
 ::highlight(note-pending) {
 	background-color: rgb(24 95 165 / 26%);
@@ -1330,6 +1397,21 @@ button.mark.annotation.settled { display: none; }
 	background: var(--sheet);
 	border: 1px solid var(--rule-strong);
 	border-radius: 8px;
+}
+.ann-gutter .mi.mc,
+.ann-pick .pk-c {
+	width: 15px;
+	height: 15px;
+	box-sizing: border-box;
+	color: var(--change);
+	background: var(--sheet);
+	border: 1px solid color-mix(in srgb, var(--change) 55%, transparent);
+	border-radius: 4px;
+}
+.ann-pick .pk-c {
+	display: grid;
+	flex: none;
+	place-items: center;
 }
 .ann-gutter .mi:hover {
 	transform: scale(1.15);

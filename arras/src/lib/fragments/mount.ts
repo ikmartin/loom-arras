@@ -7,6 +7,9 @@ import { toneClass } from '$lib/state';
 import type { Annotation, Manifest } from '$lib/manifest/types';
 import { lookProps, lookVars, styleOf, typeOf } from '$lib/review/annotationTypes';
 
+/** The changes a piece of changed words stands for: one, or several merged into it. */
+const changeIdsOf = (el: HTMLElement): string[] => (el.dataset.change ?? '').split(/\s+/).filter(Boolean);
+
 export interface WireOptions {
 	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation. */
 	master?: string;
@@ -24,6 +27,8 @@ export interface WireOptions {
 	hide?: boolean;
 	/** Whether the filter shows an annotation; one it leaves out is not drawn, as if its pane hid it. */
 	shows?: (a: Annotation) => boolean;
+	/** How a pending change's words are shown: as the view says (`live`), as kept, or as the text was before it (`off`): discarded a moment ago, or left out by the filter. */
+	changeState?: (id: string) => 'live' | 'kept' | 'off';
 }
 
 /** One annotation with no mark of its own (no quote, or one that no longer resolves), drawn as a mark on its node's label, which opens its popup like any mark. */
@@ -88,9 +93,15 @@ export function settled(a: { status: string } | undefined): boolean {
 	return !!a && a.status !== 'open';
 }
 
-/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or hidden with every annotation in its pane. */
+/** The change whose words hold `el`, while they are drawn in Markup and so answer a click: its words are the change's to open. */
+export function liveChange(el: HTMLElement): HTMLElement | null {
+	const span = el.closest<HTMLElement>('span.change[data-change]');
+	return span && span.closest('.changes-markup') && !span.classList.contains('ch-kept') && !span.classList.contains('ch-off') ? span : null;
+}
+
+/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, hidden with every annotation in its pane, or drawn again on a change's new words while those words are the change's. */
 export function inert(mark: HTMLElement): boolean {
-	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
+	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled')) || (mark.classList.contains('moved') && !!liveChange(mark));
 }
 
 /**
@@ -233,7 +244,8 @@ export function wire(
 		mark.setAttribute('aria-expanded', 'false');
 		if (mark.classList.contains('gone')) mark.setAttribute('aria-label', 'An annotation whose words were here');
 		const go = (e: Event) => {
-			if (inert(mark)) return;
+			// on a change's words drawn in Markup, the change answers, as the click reaches it
+			if (inert(mark) || liveChange(mark)) return;
 			// inside a proof's summary a click on the label would also fold the proof; a click that ends a selection is the selection's
 			if (mark.classList.contains('annotation-label')) e.preventDefault();
 			if (!window.getSelection()?.isCollapsed) return;
@@ -245,6 +257,40 @@ export function wire(
 		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be clicked into at all -- a box that appears under the pointer and vanishes when it moves toward the box.
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go(e));
+	}
+	// A pending change's words, old and new (`fragments/changes/`): shown as the view says, or as kept or as before it (`ch-kept`, `ch-off`), read afresh on every pass; while drawn in Markup a click or Enter opens its popup, the first of the changes a merged piece stands for. The handlers are bound once.
+	for (const span of root.querySelectorAll<HTMLElement>('span.change[data-change]')) {
+		const ids = changeIdsOf(span);
+		const id = ids[0] ?? '';
+		const states = ids.map((i) => opts.changeState?.(i) ?? 'live');
+		const state = states.every((x) => x === states[0]) ? (states[0] ?? 'live') : 'live';
+		if (span.classList.contains('ch-kept') !== (state === 'kept')) span.classList.toggle('ch-kept', state === 'kept');
+		if (span.classList.contains('ch-off') !== (state === 'off')) span.classList.toggle('ch-off', state === 'off');
+		set(span, 'tabindex', liveChange(span) ? '0' : '-1');
+		if (span.dataset.wiredChange) continue;
+		span.dataset.wiredChange = '1';
+		span.setAttribute('role', 'button');
+		span.setAttribute('aria-expanded', 'false');
+		span.title = span.dataset.side === 'old' ? 'Words a pending change takes out' : 'Words a pending change puts in';
+		const go = (e: Event) => {
+			if (!liveChange(span) || !window.getSelection()?.isCollapsed) return;
+			const at = liveAt(span);
+			if (!at?.now.expand) return;
+			// an annotation round the change's words would open too
+			e.stopPropagation();
+			at.now.expand(span, ids);
+		};
+		span.addEventListener('click', go);
+		span.addEventListener('keydown', (e) => {
+			if (e.key !== 'Enter' && e.key !== ' ') return;
+			e.preventDefault();
+			go(e);
+		});
+	}
+	// An element a change not merged into the text is marked on (`data-change-at`): marked (`change-at`) while one of its changes is shown as the view says; it opens nothing itself, its margin icon does.
+	for (const at of root.querySelectorAll<HTMLElement>('[data-change-at]')) {
+		const live = (at.dataset.changeAt ?? '').split(/\s+/).filter(Boolean).some((i) => (opts.changeState?.(i) ?? 'live') === 'live');
+		if (at.classList.contains('change-at') !== live) at.classList.toggle('change-at', live);
 	}
 	if (opts.headingLinks) {
 		for (const el of root.querySelectorAll<HTMLElement>('section[data-id] > :is(h1,h2,h3,h4,h5,h6), div.env[data-id] > p.env-label')) {

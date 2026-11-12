@@ -492,6 +492,8 @@ def build_synthetic(dest: Path) -> None:
     g.run("changes", "--keep-all")
     g.at("2026-09-16T11:45:00Z")
     g.edit("notes/intro.md", "A widget is fixed by its locus.", "A widget is fixed by its locus, and by nothing else.")
+    # an in-place edit to the paper itself, which waits for the author beside the suggested edit, drawn in its block
+    g.edit("drafting/main.tex", "Its fixed locus is", "Its fixed locus, the set of its fixed points, is")
 
 
 def _say_report(g: Gen, session: str, who: str, line: str, report: str) -> None:

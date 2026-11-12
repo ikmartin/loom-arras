@@ -253,6 +253,12 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 ann.gap = _gap(event["gap"])
             if event.get("artifact"):
                 ann.artifact = str(event["artifact"])
+            # carried onto the words a kept change put in place of its own
+            if isinstance(event.get("earlier"), dict):
+                ann.earlier = {
+                    "quote": str(event["earlier"].get("quote") or ""),
+                    "change": str(event["earlier"].get("change") or ""),
+                }
             # restyled or retyped: the type it now has, the look set on it, and the look it is drawn with once its type is gone
             if "type" in event:
                 ann.type = str(event["type"]) if event["type"] else None

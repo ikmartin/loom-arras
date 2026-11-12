@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A text's annotating toolbar: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes; the stepper over the annotations in reading order (the arrows, J and K); Comments and Notes with their counts, which open the list beside the text.
+	// A text's annotating toolbar: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes; a document's Changes menu where its text has pending changes (`changes`); the stepper over the annotations and changes in reading order (the arrows, J and K); Comments and Notes with their counts, which open the list beside the text.
 	//
 	// Annotate stays on until it is turned off, and selecting words while it is on marks them in the look in hand. Comment leaves a comment at the next place clicked. The format menu sets the look in hand: the Type list (Add new… starts a type the hand takes), the look controls, the line saying what the look was changed from (Reset, Update the type), Save as new type, and Customize, which opens Settings › Annotations. Number keys choose a type while Annotate is on, 0 for none. Undo and Redo, and ⌘Z and ⇧⌘Z, go back and forth over this page's annotation writes (`history.svelte.ts`); Delete or Backspace removes the annotation open, with the same undo.
 	import Icon from '$lib/components/Icon.svelte';
@@ -9,7 +9,8 @@
 	import { openSettings } from '$lib/shell/settings/opener.svelte';
 	import { can, write } from '$lib/write';
 	import { linkName } from '$lib/workspace/names';
-	import { hand, lookOf, notesCount, sequence, typeById, typesPayload, withLook, withType, type Annotating, type Side } from './annotating.svelte';
+	import type { Snippet } from 'svelte';
+	import { entries, hand, lookOf, notesCount, typeById, typesPayload, withLook, withType, type Annotating, type Side } from './annotating.svelte';
 	import { history, nextRedo, nextUndo, redo, remove, undo } from './history.svelte';
 	import { say } from './toasts.svelte';
 	import Changed from './Changed.svelte';
@@ -20,13 +21,16 @@
 	let {
 		notes,
 		of,
-		writes = false
+		writes = false,
+		changes
 	}: {
 		notes: Annotating;
 		/** What the tools act on, for their accessible names. */
 		of: string;
 		/** Whether the publisher takes annotations, which the tools need. */
 		writes?: boolean;
+		/** A document's Changes menu, after Undo and Redo. */
+		changes?: Snippet;
 	} = $props();
 
 	const pane = getPane();
@@ -34,8 +38,10 @@
 	const types = $derived(m?.annotation_types ?? []);
 	const look = $derived(lookOf(m, hand.value));
 	const current = $derived(hand.type && types.some((t) => t.id === hand.type) ? hand.type : null);
-	const seq = $derived(sequence(m, notes));
-	const at = $derived(notes.open ? seq.findIndex((a) => a.id === notes.open) : -1);
+	const seq = $derived(entries(m, notes));
+	const at = $derived(notes.open ? seq.findIndex((e) => e.id === notes.open) : -1);
+	/** What the stepper and the list count: annotations, or items where changes are among them. */
+	const things = $derived((n: number) => (seq.some((e) => e.c) ? `${n} ${n === 1 ? 'item' : 'items'}` : `${n} ${n === 1 ? 'annotation' : 'annotations'}`));
 	const notesN = $derived(notesCount(m));
 	/** The type the look in hand was changed from, while it differs from it. */
 	const from = $derived(hand.type && Object.keys(hand.over).length ? (typeById(m, hand.type) ?? null) : null);
@@ -114,16 +120,16 @@
 		if (why) say({ title: d === 'undo' ? 'Not undone' : 'Not done again', lines: [why] });
 	}
 
-	/** Delete the annotation open, as its popup's Delete does. */
+	/** Delete the annotation open, as its popup's Delete does; a change open is kept or discarded, never deleted. */
 	async function removeOpen(): Promise<void> {
 		const id = notes.open;
-		if (!id) return;
+		if (!id || !m?.annotations[id]) return;
 		notes.close();
 		const why = await remove(id, m ? linkName(m, `quilt:${id}`) : 'an annotation');
 		if (why) say({ title: 'Not deleted', lines: [why] });
 	}
 
-	/** Open the next or the previous annotation in reading order, scrolled to; one with no mark here is shown in the list. */
+	/** Open the next or the previous annotation or change in reading order, scrolled to; one with no mark here is shown in the list. */
 	function step(d: number): void {
 		const list = seq;
 		if (!list.length) return;
@@ -153,7 +159,7 @@
 				return;
 			}
 			if (e.metaKey || e.ctrlKey) return;
-			if ((e.key === 'Delete' || e.key === 'Backspace') && notes.open && deletes) {
+			if ((e.key === 'Delete' || e.key === 'Backspace') && notes.open && m?.annotations[notes.open] && deletes) {
 				e.preventDefault();
 				void removeOpen();
 				return;
@@ -187,14 +193,15 @@
 		<button type="button" class="tool" title={nextUndo() ? `Undo ${nextUndo()} (⌘Z)` : 'Undo'} aria-label="Undo in {of}" aria-keyshortcuts="Control+Z Meta+Z" disabled={!history.done.length || history.busy} data-testid="annotate-undo" onclick={() => void back('undo')}><Icon name="undo" size={14} /></button>
 		<button type="button" class="tool" title={nextRedo() ? `Redo ${nextRedo()} (⇧⌘Z)` : 'Redo'} aria-label="Redo in {of}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabled={!history.undone.length || history.busy} data-testid="annotate-redo" onclick={() => void back('redo')}><Icon name="redo" size={14} /></button>
 	{/if}
+	{#if changes}{@render changes()}{/if}
 	{#if seq.length}
 		<span class="sep" aria-hidden="true"></span>
 		<button type="button" class="tool" title="Previous (K)" aria-label="Previous annotation in {of}" aria-keyshortcuts="k" data-testid="step-prev" onclick={() => step(-1)}><Icon name="left" size={14} /></button>
-		<span class="count" data-testid="step-count">{at >= 0 ? `${at + 1} of ${seq.length}` : `${seq.length} ${seq.length === 1 ? 'annotation' : 'annotations'}`}</span>
+		<span class="count" data-testid="step-count">{at >= 0 ? `${at + 1} of ${seq.length}` : things(seq.length)}</span>
 		<button type="button" class="tool" title="Next (J)" aria-label="Next annotation in {of}" aria-keyshortcuts="j" data-testid="step-next" onclick={() => step(1)}><Icon name="right" size={14} /></button>
 	{/if}
 	<span class="sep" aria-hidden="true"></span>
-	<button type="button" class="tool words" class:on={notes.side === 'comments'} aria-pressed={notes.side === 'comments'} title="Every annotation here, in reading order" aria-label="Comments in {of}, {seq.length}" data-testid="open-comments" onclick={() => side('comments')}><Icon name="panel" size={14} />Comments<span class="badge">{seq.length}</span></button>
+	<button type="button" class="tool words" class:on={notes.side === 'comments'} aria-pressed={notes.side === 'comments'} title="Every annotation and change here, in reading order" aria-label="Comments in {of}, {seq.length}" data-testid="open-comments" onclick={() => side('comments')}><Icon name="panel" size={14} />Comments<span class="badge">{seq.length}</span></button>
 	<button type="button" class="tool words" class:on={notes.side === 'notes'} aria-pressed={notes.side === 'notes'} title="Notes: every annotation whose type is listed in Notes, from every document" aria-label="Notes, from every document, beside {of}, {notesN}" data-testid="open-notes" onclick={() => side('notes')}><Icon name="note" size={14} />Notes<span class="badge">{notesN}</span></button>
 </span>
 

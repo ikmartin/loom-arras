@@ -1,48 +1,31 @@
-// Review › Your Changes read from the manifest: one document's blocks, each listed once with every reason it waits (edited since the look, changed since accepted, taken in), the text edited outside any block, and the files in no document. Model facts in, display facts out.
-import type { FileChange, Key, Manifest, UnresolvedReview } from '$lib/manifest/types';
+// Review › Your Changes read from the manifest: every pending change in the quilt, grouped by the document that lists it (`changes.ts`); the quilt's To do, the open annotations from others, grouped the same way; and, beneath, each document's blocks waiting to be accepted (changed since accepted, taken in from a copy or a pull), with the never accepted and the accepted folded. Model facts in, display facts out.
+import type { Annotation, Key, Manifest, UnresolvedReview } from '$lib/manifest/types';
+import { documentLabel } from '$lib/workspace/names';
+import { documentOf, isTodo } from './annotating.svelte';
+import { pending } from './changes';
 import { groupsOf } from './queue';
 
-type Read = Pick<Manifest, 'nodes' | 'keys' | 'unresolved'> & Partial<Pick<Manifest, 'changes'>>;
-
-/** Some of a file's changes, by number. */
-export interface Edit {
-	change: FileChange;
-	hunks: number[];
-}
-
-/** One block as the page lists it. */
+/** One block as the acceptance list draws it. */
 export interface BlockRow {
 	key: string;
-	/** Why it waits to be accepted; none when it stands accepted though its text was edited. */
+	/** Why it waits to be accepted. */
 	row?: UnresolvedReview;
-	/** Its edit since the look, drawn under it. */
-	edit?: Edit;
-	/** The block whose row draws an edit running across this one too. */
-	editedWith?: string;
 }
 
-export interface YourChanges {
-	/** Edited since the look, or changed since accepted. */
+/** One document's blocks as the acceptance list draws them. */
+export interface Acceptance {
+	/** Changed since accepted. */
 	changed: BlockRow[];
 	/** Taken in from a copy or a pull, one group per source. */
 	taken: { label: string; rows: BlockRow[] }[];
-	/** Text of the document's files edited outside any block, by file. */
-	outside: Edit[];
-	/** Never accepted and not edited: listed, not counted. */
+	/** Never accepted: listed, not counted. */
 	never: BlockRow[];
 	/** Accepted, as they stand. */
 	accepted: Key[];
 }
 
-const reaches = (m: Pick<Manifest, 'nodes' | 'keys'>, key: string, path: string) => !!m.nodes[m.keys[key]?.node ?? key]?.reached_by.includes(path);
-
-/** Files whose edits belong to no document's blocks: those in no document, and an empty new file, which has no change to draw. */
-export function otherFiles(m: Pick<Manifest, 'changes'>): FileChange[] {
-	return (m.changes ?? []).filter((c) => !c.documents?.length || !c.hunks);
-}
-
 /**
- * One document's text as the page lists it.
+ * One document's blocks waiting to be accepted, and those that are not.
  *
  * Parameters
  * ----------
@@ -52,50 +35,58 @@ export function otherFiles(m: Pick<Manifest, 'changes'>): FileChange[] {
  *
  * Returns
  * -------
- * YourChanges
- *     An edit touching several blocks is drawn under the first, and each other says so; a block is in one list, its edit shown wherever that is.
+ * Acceptance
  */
-export function yourChangesOf(m: Read, path: string): YourChanges {
+export function acceptanceOf(m: Pick<Manifest, 'nodes' | 'keys' | 'unresolved'>, path: string): Acceptance {
 	const g = groupsOf(m, path);
-	const edits = new Map<string, Edit>();
-	const shared = new Map<string, string>();
-	const outside: Edit[] = [];
-	for (const c of m.changes ?? []) {
-		if (!c.hunks || !c.documents?.includes(path)) continue;
-		const loose: number[] = [];
-		(c.blocks ?? []).forEach((keys, n) => {
-			const here = keys.filter((k) => reaches(m, k, path));
-			if (!here.length) return void loose.push(n);
-			const edit = edits.get(here[0]) ?? { change: c, hunks: [] };
-			edit.hunks.push(n);
-			edits.set(here[0], edit);
-			for (const k of here.slice(1)) if (!shared.has(k)) shared.set(k, here[0]);
-		});
-		if (loose.length) outside.push({ change: c, hunks: loose });
-	}
-	const edited = (k: string) => edits.has(k) || shared.has(k);
-	const block = (key: string, row?: UnresolvedReview): BlockRow => ({ key, row, edit: edits.get(key), editedWith: edits.has(key) ? undefined : shared.get(key) });
-	const waits = new Set((m.unresolved ?? []).filter((r) => reaches(m, r.key, path)).map((r) => r.key));
+	const row = (r: UnresolvedReview): BlockRow => ({ key: r.key, row: r });
 	return {
-		changed: [
-			...g.changed.map((r) => block(r.key, r)),
-			...g.never.filter((r) => edited(r.key)).map((r) => block(r.key, r)),
-			...[...new Set([...edits.keys(), ...shared.keys()])].filter((k) => !waits.has(k)).map((k) => block(k))
-		],
-		taken: g.taken.map((t) => ({ label: t.label, rows: t.rows.map((r) => block(r.key, r)) })),
-		outside,
-		never: g.never.filter((r) => !edited(r.key)).map((r) => block(r.key, r)),
-		accepted: g.accepted.filter((k) => !edited(k.key))
+		changed: g.changed.map(row),
+		taken: g.taken.map((t) => ({ label: t.label, rows: t.rows.map(row) })),
+		never: g.never.map(row),
+		accepted: g.accepted
 	};
 }
 
-/** How many rows of one document wait: never accepted ones are listed, and do not. */
-export function waitingIn(y: YourChanges): number {
-	return y.changed.length + y.taken.reduce((n, t) => n + t.rows.length, 0) + y.outside.length;
+/** How many of one document's blocks wait to be accepted: never accepted ones are listed, and do not. */
+export function waitingIn(a: Acceptance): number {
+	return a.changed.length + a.taken.reduce((n, t) => n + t.rows.length, 0);
+}
+
+/** The open annotations from others in one document, work or file, as the To do of Review lists them. */
+export interface TodoGroup {
+	/** The document's path, a work's citekey or a file's path. */
+	path: string;
+	label: string;
+	annotations: Annotation[];
 }
 
 /**
- * What Review counts here: each block waiting or edited once, however many documents read it, each file's text outside any block once, and each file in no document.
+ * The quilt's To do: every open annotation, of a type that stays open, from someone other than the reader, grouped by where it is read.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ *
+ * Returns
+ * -------
+ * TodoGroup[]
+ *     In the order the groups first appear.
+ */
+export function todoOf(m: Manifest): TodoGroup[] {
+	const groups = new Map<string, TodoGroup>();
+	for (const a of Object.values(m.annotations ?? {})) {
+		if (a.in_reply_to || !isTodo(m, a)) continue;
+		const at = documentOf(m, a);
+		const g = groups.get(at) ?? { path: at, label: m.masters.some((x) => x.path === at) ? documentLabel(m.masters, at) : (at.split('/').pop() ?? at), annotations: [] };
+		g.annotations.push(a);
+		groups.set(at, g);
+	}
+	return [...groups.values()];
+}
+
+/**
+ * What Review counts here: every pending change, and each block waiting to be accepted once, however many documents read it.
  *
  * Parameters
  * ----------
@@ -107,11 +98,5 @@ export function waitingIn(y: YourChanges): number {
  */
 export function yourChangesCount(m: Pick<Manifest, 'unresolved'> & Partial<Pick<Manifest, 'changes'>>): number {
 	const blocks = new Set((m.unresolved ?? []).filter((r) => r.cause !== 'never-accepted').map((r) => r.key));
-	let files = otherFiles(m).length;
-	for (const c of m.changes ?? []) {
-		if (!c.hunks || !c.documents?.length) continue;
-		for (const k of (c.blocks ?? []).flat()) blocks.add(k);
-		if ((c.blocks ?? []).some((keys) => !keys.length)) files += 1;
-	}
-	return blocks.size + files;
+	return pending(m).length + blocks.size;
 }

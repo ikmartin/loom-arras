@@ -62,7 +62,7 @@ The author reads the viewer: what it does not show is never seen. So every outpu
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The report holds the reasoning and refers to the annotation by the id loom printed.
 4. Types: the quilt's annotation types, and when to use each, are under Annotation types below; pass a type's id as `--type`. Use the type whose instructions fit, and leave an annotation untyped when none does. An annotation of a type that stays open until resolved asks the author something, so it needs a message; an untyped one, or one of a type that only informs, asks nothing.
 5. Say in the message how serious a fault is, by how bad the fault is and not by how strongly you feel about it: a grammar fault is small because the fault is small.
-6. Text you propose -- a proof, a paragraph, a rewritten passage -- is a suggested edit, a record of its own: `loom suggest KEY --quote "the old text" --with "the new text"` puts it in place of exactly the quoted words, and `--before` or `--after` puts it right beside them instead. To change a longer span, quote the whole span. With no `--quote`, it is about the key's body, inside its environment: it replaces the body, and `--before` and `--after` add to its start or its end. `--with ""` deletes the quoted words, and in a shell `--with -` reads stdin. `--comment` says why, and `--answers ID` names the annotation it answers, which is resolved when the author keeps the edit. One change per edit: a second change, elsewhere in the key, is a second edit. The author sees each in Review and keeps or discards it; `loom suggestion ID` prints it as a patch, `loom suggestion --by NAME` lists yours with what became of each, and `loom suggestion discard ID` withdraws one of yours.
+6. Text you propose -- a proof, a paragraph, a rewritten passage -- is a suggested edit, a record of its own: `loom suggest KEY --quote "the old text" --with "the new text"` puts it in place of exactly the quoted words, and `--before` or `--after` puts it right beside them instead. To change a longer span, quote the whole span. With no `--quote`, it is about the key's body, inside its environment: it replaces the body, and `--before` and `--after` add to its start or its end. `--with ""` deletes the quoted words, and in a shell `--with -` reads stdin. `--comment` says why, and `--answers ID` names the annotation it answers, which is resolved when the author keeps the edit. One change per edit: a second change, elsewhere in the key, is a second edit. The author sees each in the document, beside its old words, and keeps or discards it; `loom changes ID` prints it as a patch, `loom changes --by NAME` lists yours with what became of each, and `loom suggest --withdraw ID` withdraws one of yours while it is open.
 7. On a re-check, the event says what you found:
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
@@ -91,6 +91,7 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom ai refresh`
   - `loom annotate`
   - `loom build`
+  - `loom changes`
   - `loom check`
   - `loom compile`
   - `loom deps`
@@ -126,8 +127,6 @@ Loom is still how anything durable is recorded. A fault you find while answering
   - `loom source`
   - `loom status`
   - `loom suggest`
-  - `loom suggestion`
-  - `loom suggestion discard`
   - `loom write`
 
   `loom new` without `--print` writes a node file; give it `--print`. `loom --help` and `--help` on any of these say what it takes.

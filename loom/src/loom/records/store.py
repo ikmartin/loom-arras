@@ -21,7 +21,7 @@ from loom.paths import ANNOTATION_LOG, ANNOTATION_TYPES, EDIT_LOG, LINKS, REVIEW
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
-from loom.records.selectors import resolve_selector
+from loom.records.selectors import Selector, resolve_selector
 from loom.records.snapshots import read_snapshot
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import hash_text, mathematical_hash, normalize
@@ -93,6 +93,8 @@ class ResolvedAnnotation:
     page: int | None = None
     strokes: list[list[float]] | None = None
     refound: bool = False
+    # the changes still waiting on the person that its words touch (`pending.py`), by id
+    on_changes: list[str] = field(default_factory=list)
     # taken in from a PDF's own annotation that is still in the file as it is now: that annotation's reference
     hides: str | None = None
 
@@ -542,8 +544,12 @@ class Records:
                 if a.selector is None:
                     out.append(ResolvedAnnotation(a, rec, None, False, kept, target=target, in_doc=in_doc))
                     continue
-                span = resolve_selector(texts[n.key], a.selector)
-                out.append(ResolvedAnnotation(a, rec, span, span is None, kept, target=target, in_doc=in_doc))
+                span, touched = self._on_kept(result, n, texts[n.key], a.selector)
+                out.append(
+                    ResolvedAnnotation(
+                        a, rec, span, span is None, kept, target=target, in_doc=in_doc, on_changes=touched
+                    )
+                )
         self._resolved_cache = (result, out)
         return out
 
@@ -593,6 +599,27 @@ class Records:
             if span is not None:
                 return ResolvedAnnotation(a, rec, span, False, recorded, ck, page=n, refound=True)
         return ResolvedAnnotation(a, rec, None, True, recorded, ck, page=a.anchor.page)
+
+    @staticmethod
+    def _on_kept(
+        result: ScanResult, node: NodeRec, own: str, sel: Selector
+    ) -> tuple[tuple[int, int] | None, list[str]]:
+        """Where an annotation stands in its key's text now, read against the text as the person kept it, and the changes waiting on the person that its words touch.
+
+        Its words are looked for in the key's own text with every in-place change still waiting put back (`pending.kept_own`), and placed on the text now through it; words found only in the text now, as on a change's new words, are placed there.
+        """
+        from loom.pending import in_place, kept_own
+
+        kept = kept_own(result, node) if in_place(result) else None
+        if kept is not None:
+            found = resolve_selector(kept.text, sel)
+            if found is not None:
+                return kept.to_now(*found)
+        span = resolve_selector(own, sel)
+        if span is None or kept is None:
+            return span, []
+        touched = [cid for k0, k1, n0, n1, cid in kept.segments if cid and n0 < span[1] and span[0] < n1]
+        return span, touched
 
     @staticmethod
     def _source(result: ScanResult, res: ResolvedAnnotation) -> dict[str, Any] | None:
@@ -972,6 +999,9 @@ class Records:
                 "gap": a.gap,
                 "refound": res.refound,
                 "source": self._source(result, res),
+                # the changes waiting on the person that its words touch, and, carried by a kept change onto its new words, the words it was on and that change
+                "on_changes": list(res.on_changes),
+                "earlier": dict(a.earlier) if a.earlier else None,
                 "mark": a.mark,
                 "origin": a.origin,
                 "hides": res.hides,

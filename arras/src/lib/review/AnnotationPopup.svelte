@@ -198,9 +198,9 @@
 		{#if version}
 			<div class="earlier" data-testid="popup-earlier">
 				Written on earlier words: <span class="ow">“<TexProse text={version.words} />”</span>
-				<button type="button" class="lnk" data-testid="earlier-open" aria-expanded={showVersion} onclick={() => (showVersion = !showVersion)}>{showVersion ? 'Close that version' : 'Open that version'}</button>
+				{#if version.fragment}<button type="button" class="lnk" data-testid="earlier-open" aria-expanded={showVersion} onclick={() => (showVersion = !showVersion)}>{showVersion ? 'Close that version' : 'Open that version'}</button>{/if}
 			</div>
-			{#if showVersion && a}<VersionView path={version.fragment} focus={a.id} {onmark} />{/if}
+			{#if showVersion && a && version.fragment}<VersionView path={version.fragment} focus={a.id} {onmark} />{/if}
 		{/if}
 		{#if editing && (draft || allowed.edit)}
 			<textarea class="cmt" rows="2" placeholder={draft?.quote === undefined && draft ? 'Write the comment' : 'Add a comment'} aria-label="Comment" data-testid="popup-comment-field" value={value} use:field oninput={(e) => { text = e.currentTarget.value; grow(e.currentTarget); }} onkeydown={keys}></textarea>

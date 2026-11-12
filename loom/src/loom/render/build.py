@@ -315,12 +315,22 @@ def _marks_by_node(result: ScanResult, records: Records, gone: list[Gone] | None
             n = result.nodes.get(region.container) if region else None
         if n is None:
             continue
-        _, pieces = Records.own_pieces(result, n)
-        span = Records.to_file_span(pieces, res.span)
-        if span is None:
-            continue
-        # `in` as the history's moves leave it, so a note read in a document is drawn in whatever that document became
-        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], res.in_doc)
+        own, pieces = Records.own_pieces(result, n)
+        if res.span[0] == res.span[1]:
+            # a point where its words were removed, carried there by a kept change: drawn as the empty mark a gone annotation's place is
+            from loom.render.versions import _beside, _file_point
+
+            at = _file_point(pieces, res.span[0])
+            if at is None:
+                continue
+            words, lead = _beside(own, res.span[0])
+            entry = MarkEntry(a.id, words, n.file, at, at, res.in_doc, gone=True, lead=lead)
+        else:
+            span = Records.to_file_span(pieces, res.span)
+            if span is None:
+                continue
+            # `in` as the history's moves leave it, so a note read in a document is drawn in whatever that document became
+            entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], res.in_doc)
         owner = n.of if n.kind == "proof" and n.of else n.key
         out.setdefault(owner, []).append(entry)
         # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement
@@ -571,9 +581,10 @@ def build(
     from loom.render.incoming import attach_adoptions
 
     attach_adoptions(result, renderer, manifest, files)
-    from loom.render.edits import attach_edits
+    from loom.render.pending import attach_pending
 
-    attach_edits(result, renderer, manifest, files)
+    # every change waiting on the person, each drawn in its block, and the suggested edits' record
+    attach_pending(result, records, renderer, manifest, files, marks)
     attach_versions(result, records, renderer, manifest, files, gone)
     # every preview asked for above, made by TeX together, one batch per preamble
     renderer.previews.make()
@@ -583,9 +594,7 @@ def build(
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)
     from loom.files import BODIES, attach_files
-    from loom.looks import DIFFS
-    from loom.looks import attach_changes as attach_look_changes
-    from loom.scan.quilt import reviewer_identity
+    from loom.render.pending import DIFFS
 
     attach_files(result, manifest, files)
     from loom.render.threads import last_active
@@ -595,7 +604,6 @@ def build(
     from loom.config_edit import published as published_config
 
     manifest["config"] = published_config(result)
-    attach_look_changes(result, reviewer_identity(result.quilt.root)[0], manifest, files)
     # every diagnostic, lint's, the renderer's and the records', whole and with whose it is to fix
     from loom.scan.owners import stamped
 

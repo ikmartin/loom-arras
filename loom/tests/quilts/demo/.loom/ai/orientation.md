@@ -39,7 +39,7 @@ The source contract, briefly:
 
 These make a claim only a person can make — *I checked this*, *I accept this mathematics* — or write the author's files or destroy what cannot be had back. Each refuses you, whatever name you give, and says so:
 
-`loom accept` · `loom adopt` · `loom library verify`, `discard`, `ignore`, `add`, `import`, `drop` · `loom sync incorporate` · `loom sync publish --push` · `loom history restore` · `loom session delete --purge` · `loom ai delete` · `loom suggestion apply` · removing a relation someone else asserted.
+`loom accept` · `loom adopt` · `loom library verify`, `discard`, `ignore`, `add`, `import`, `drop` · `loom sync incorporate` · `loom sync publish --push` · `loom history restore` · `loom session delete --purge` · `loom ai delete` · `loom changes --keep`, `--discard`, `--keep-all`, `--discard-all` · removing a relation someone else asserted.
 
 To ask for one, write a {type:suggestion} on the thing concerned with your reasoning; it surfaces where the author decides anyway.
 

@@ -82,6 +82,13 @@ test("the publisher's refusal is shown rather than swallowed, and nothing is fil
 });
 
 test('a box drawn round an equation notes the equation itself', async ({ page, served }) => {
+	// the quilt's own edit to sy-0001 is kept first: a block with a pending change is drawn merged, as TeX source where no TeX runs, as here
+	const built = () => JSON.parse(readFileSync(join(served.root, '.loom/build/manifest.json'), 'utf8'));
+	const edits = () => (built().changes ?? []).filter((c: { key: string | null; kind: string }) => c.key === 'sy-0001' && c.kind === 'edit').map((c: { id: string }) => c.id);
+	if (edits().length) {
+		await served.api('change-keep', { changes: edits() });
+		await expect.poll(edits).toEqual([]);
+	}
 	await page.goto('/node/sy-0001');
 	await intoASession(page, served);
 	const display = page.locator('[data-pane="0"] .fragment .math.display[data-label="eq:fix"]');

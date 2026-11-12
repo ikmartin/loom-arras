@@ -102,18 +102,46 @@ def _named(owner: Owner, p: Later) -> str:
     return posixpath.join(owner.base, "review-" + hashlib.sha256(p.text.encode()).hexdigest()[:20] + ".tex")
 
 
+#: A change's side, as `span.change[data-side]` names it.
+SIDES = ("old", "new")
+
+
+def _label(spans: Sequence[Sequence[int]], a: int, b: int) -> tuple[int, int] | bool | None:
+    """What marks source `a`..`b`: a change's `(n, side)` for a span of four, `[start, end, n, side]`; True for a changed span of two; None for none."""
+    for span in spans:
+        lo, hi = span[0], span[1]
+        if (lo < b and hi > a) or (lo == hi and a < lo < b):
+            return (span[2], span[3]) if len(span) == 4 else True
+    return None
+
+
+def _open(label: tuple[int, int] | bool) -> tuple[str, str]:
+    """The tag that opens a marked run and the one that closes it."""
+    if label is True:
+        return '<mark class="review-changed">', "</mark>"
+    assert isinstance(label, tuple)
+    return f'<span class="change" data-change="{label[0]}" data-side="{SIDES[label[1]]}">', "</span>"
+
+
 def marked_source(file: str, text: str, spans: Sequence[Sequence[int]]) -> str:
-    """`text`, standing in `file`, as `pre.source` with its changed spans marked: a side TeX refused."""
-    cuts = sorted({0, len(text), *(x for a, b in spans for x in (a, b) if 0 <= x <= len(text))})
+    """`text`, standing in `file`, as `pre.source` with its spans marked: a side TeX refused.
+
+    A span of two, `[start, end]`, is a change `mark.review-changed` shows, a point an edit point; a span of four, `[start, end, n, side]`, is the old or new words of change `n`, wrapped in `span.change[data-change][data-side]`.
+    """
+    cuts = sorted({0, len(text), *(x for span in spans for x in span[:2] if 0 <= x <= len(text))})
+    points = [span for span in spans if len(span) == 2 and span[0] == span[1]]
     out: list[str] = []
     for a, b in zip(cuts, cuts[1:], strict=False):
-        if any(lo == hi == a for lo, hi in spans):
+        if any(span[0] == a for span in points):
             out.append(_POINT)
         piece = esc(text[a:b])
-        out.append(
-            f'<mark class="review-changed">{piece}</mark>' if any(lo < b and hi > a for lo, hi in spans) else piece
-        )
-    if any(lo == hi == len(text) for lo, hi in spans):
+        label = _label(spans, a, b)
+        if label is None or label is False:
+            out.append(piece)
+        else:
+            head, tail = _open(label)
+            out.append(f"{head}{piece}{tail}")
+    if any(span[0] == len(text) for span in points):
         out.append(_POINT)
     return f'<pre class="source" data-src="{file}:0:{len(text)}">{"".join(out)}</pre>'
 
@@ -121,14 +149,24 @@ def marked_source(file: str, text: str, spans: Sequence[Sequence[int]]) -> str:
 def mark_changes(
     body: list[El | str], file: str, clean: str, spans: Sequence[Sequence[int]], macros: Mapping[str, str]
 ) -> list[El | str]:
-    """`body` with what changed in its source marked: each rendered word aligned with the source word it came from, a formula with the source formula it is, a display by its `data-src`."""
+    """`body` with what changed in its source marked: each rendered word aligned with the source word it came from, a formula with the source formula it is, a display by its `data-src`.
+
+    A span of two, `[start, end]`, marks changed words `mark.review-changed` and a point an edit point; a span of four, `[start, end, n, side]`, the old or new words of change `n`, wrapped in `span.change[data-change][data-side]`, a formula or display taking the class `change` and the two attributes.
+    """
     from loom.render.fromhtml import El, _walk, text_of
 
     if not spans:
         return body
 
-    def changed(a: int, b: int) -> bool:
-        return any((lo < b and hi > a) or (lo == hi and a < lo < b) for lo, hi in spans)
+    def changed(a: int, b: int) -> tuple[int, int] | bool | None:
+        return _label(spans, a, b)
+
+    def put(el: El, label: tuple[int, int] | bool | None) -> None:
+        if label is True:
+            el.attrs["class"] += " review-changed"
+        elif isinstance(label, tuple):
+            el.attrs["class"] += " change"
+            el.attrs["data-change"], el.attrs["data-side"] = str(label[0]), SIDES[label[1]]
 
     # the formulas, in order, against the source's
     formulas = [m for m in _INLINE.finditer(clean)]
@@ -141,15 +179,14 @@ def mark_changes(
                 at = el.attrs.get("data-src", "")
                 f, _, rest = at.partition(":")
                 a, _, b = rest.partition(":")
-                if f == file and a.isdigit() and b.isdigit() and changed(int(a), int(b)):
-                    el.attrs["class"] += " review-changed"
+                if f == file and a.isdigit() and b.isdigit():
+                    put(el, changed(int(a), int(b)))
                 continue
             want = re.sub(r"\s+", "", re.sub(r"^\\\(|\\\)$", "", text_of(el).strip()))
             while k < len(formulas) and re.sub(r"\s+", "", formulas[k].group(1) or formulas[k].group(2) or "") != want:
                 k += 1
             if k < len(formulas):
-                if changed(formulas[k].start(), formulas[k].end()):
-                    el.attrs["class"] += " review-changed"
+                put(el, changed(formulas[k].start(), formulas[k].end()))
                 k += 1
     # the words, in order, against the source's
     tokens: list[tuple[El, int, int, int, str]] = []  # parent, kid index, start, end in that string, folded word
@@ -165,7 +202,7 @@ def mark_changes(
             found[blk.b + d] = (w.start, w.end)
     # an unmatched word stands for the source between the matched words around it
     lo = 0
-    marked: list[bool] = []
+    marked: list[tuple[int, int] | bool | None] = []
     for i, t in enumerate(found):
         if t is not None:
             lo = t[1]
@@ -174,12 +211,13 @@ def mark_changes(
         hi = next((x[0] for x in found[i + 1 :] if x is not None), len(clean))
         marked.append(changed(lo, max(lo + 1, hi)))
     points: dict[int, int] = {}  # token index after which an edit point stands -> how many
-    for a, b in spans:
-        if a != b:
+    for span in spans:
+        a, b = span[0], span[1]
+        if a != b or len(span) == 4:
             continue
         after = max((i for i, t in enumerate(found) if t is not None and t[1] <= a), default=-1)
         points[after] = points.get(after, 0) + 1
-    by_string: dict[tuple[int, int], list[tuple[int, int, bool, int]]] = {}
+    by_string: dict[tuple[int, int], list[tuple[int, int, tuple[int, int] | bool | None, int]]] = {}
     parents: dict[int, El] = {}
     for i, (parent, kid, a, b, _w) in enumerate(tokens):
         parents[id(parent)] = parent
@@ -195,7 +233,27 @@ def mark_changes(
             first.kids[0:0] = [El("span", {"class": "review-change-point", "aria-label": "edit point"}, [])] * points[
                 -1
             ]
+    for top in body:
+        if isinstance(top, El):
+            _said_sides(top, spans)
     return body
+
+
+def _said_sides(el: El, spans: Sequence[Sequence[int]]) -> None:
+    """Wrap each element `el` holds that TeX made of a command, a reference or a citation, whose source (`data-at`) lies in a side of a change, in that side's `span.change`: it has no words of its own to be marked by."""
+    from loom.render.fromhtml import El
+
+    for i, kid in enumerate(el.kids):
+        if not isinstance(kid, El):
+            continue
+        at = kid.attrs.get("data-at", "")
+        label = _label(spans, int(at), int(at) + 1) if at.isdigit() and "math" not in kid.classes else None
+        if isinstance(label, tuple):
+            attrs = {"class": "change", "data-change": str(label[0]), "data-side": SIDES[label[1]]}
+            el.kids[i] = El("span", attrs, [kid])
+            continue
+        if "change" not in kid.classes:
+            _said_sides(kid, spans)
 
 
 def _tokens(el: El, out: list[tuple[El, int, int, int, str]]) -> None:
@@ -213,18 +271,23 @@ def _tokens(el: El, out: list[tuple[El, int, int, int, str]]) -> None:
                 out.append((el, i, m.start(), m.end(), w))
 
 
-def _wrap(s: str, toks: list[tuple[int, int, bool, int]]) -> list[El | str]:
-    """`s` with each run of marked words, and the space between them, in `mark.review-changed`, and edit points after the words they follow."""
+def _wrap(s: str, toks: list[tuple[int, int, tuple[int, int] | bool | None, int]]) -> list[El | str]:
+    """`s` with each run of words marked alike, and the space between them, wrapped: in `mark.review-changed`, or in `span.change` for a change's side; and edit points after the words they follow."""
     from loom.render.fromhtml import El
 
     out: list[El | str] = []
     pos = 0
     run: tuple[int, int] | None = None
+    held: tuple[int, int] | bool | None = None
 
     def flush() -> None:
         nonlocal run
         if run is not None:
-            out.append(El("mark", {"class": "review-changed"}, [s[run[0] : run[1]]]))
+            if held is True:
+                out.append(El("mark", {"class": "review-changed"}, [s[run[0] : run[1]]]))
+            elif isinstance(held, tuple):
+                attrs = {"class": "change", "data-change": str(held[0]), "data-side": SIDES[held[1]]}
+                out.append(El("span", attrs, [s[run[0] : run[1]]]))
             run = None
 
     seen: set[tuple[int, int]] = set()
@@ -232,11 +295,14 @@ def _wrap(s: str, toks: list[tuple[int, int, bool, int]]) -> list[El | str]:
         if (a, b) in seen:
             continue
         seen.add((a, b))
+        if marked and run is not None and marked != held:
+            flush()
         if marked:
             if run is None:
                 if a > pos:
                     out.append(s[pos:a])
                 run = (a, b)
+                held = marked
             else:
                 run = (run[0], b)
             pos = b

@@ -1,11 +1,13 @@
-// Annotating in the viewer: the look in hand, remembered in this browser, and each open item's annotating state (its tool, its annotations in reading order, the one open, the side list and its filter). The fragment registers what only it can do, opening an annotation at its mark; the toolbar, the side list and the popup read and call it.
+// Annotating in the viewer: the look in hand, remembered in this browser, and each open item's annotating state (its tool, its annotations and pending changes in reading order, the one open, how the changes are shown, the side list and its filter). The fragment registers what only it can do, opening an annotation or a change at its mark; the toolbar, the side list and the popup read and call it.
 //
 // Nothing here reads a type's id to decide anything: a type's `open`, `notes` and look do.
 
-import type { Annotation, AnnotationType, Look, Manifest } from '$lib/manifest/types';
+import type { Annotation, AnnotationType, Look, Manifest, PendingChange } from '$lib/manifest/types';
 import { documentLabel, keyName } from '$lib/workspace/names';
 import { ui } from '$lib/ui.svelte';
 import { COLORS, STYLES, typeOf } from './annotationTypes';
+import { acted } from './acted.svelte';
+import { authorOf, changeById } from './changes';
 
 /** How an annotation with no type is drawn when nothing is set on it, as loom draws it: a thin grey underline. */
 export const UNTYPED: Look = { color: 'grey', style: 'underline', weight: 1, opacity: 100 };
@@ -155,14 +157,22 @@ export interface Draft {
 export type Tool = 'annotate' | 'comment' | null;
 /** Which list stands beside the text. */
 export type Side = 'comments' | 'notes' | null;
+/** What the list and the stepper go through: annotations and changes, or one of them. With annotations alone the text shows what the person has kept. */
+export type Layer = 'all' | 'annotations' | 'changes';
+/** How the text shows its pending changes: in place, old words struck and new underlined (`markup`), or with every one made (`final`). */
+export type ChangesView = 'markup' | 'final';
 
 /** One open item's annotating: what the toolbar, the side list and the fragment share. */
 export class Annotating {
 	tool = $state<Tool>(null);
-	/** The top-level annotations read here, in reading order: those with a mark in the order their first marks stand, then those on the whole document. The fragment sets it as it wires. */
+	/** The top-level annotations and the pending changes read here, by id, in reading order: those with a mark in the order their first marks stand, then those on the whole document and the changes drawn nowhere. The fragment sets it as it wires. */
 	order = $state<string[]>([]);
-	/** The annotation whose popup is open, or null. */
+	/** The annotation or change whose popup is open, or null. */
 	open = $state<string | null>(null);
+	/** What the list and the stepper go through. */
+	layer = $state<Layer>('all');
+	/** How the text shows its pending changes. */
+	view = $state<ChangesView>('markup');
 	side = $state<Side>(null);
 	/** Authors the filter leaves out, by id. */
 	hidden = $state<string[]>([]);
@@ -171,7 +181,7 @@ export class Annotating {
 	/** Whether the fragment shows anything to annotate yet. */
 	ready = $state(false);
 
-	/** Open annotation `id` at its mark, scrolled to it; registered by the fragment. False when it has no mark here. */
+	/** Open annotation or change `id` at its mark, scrolled to it; registered by the fragment. False when it has no mark here. */
 	show: (id: string) => boolean = () => false;
 	/** Close the popup; registered by the fragment. */
 	close: () => void = () => {};
@@ -192,12 +202,13 @@ export class Annotating {
  * -------
  * str
  */
-export function hintFor(m: Typed, s: Pick<Annotating, 'tool' | 'open'>, h: Hand): string {
+export function hintFor(m: (Pick<Manifest, 'annotation_types'> & Partial<Pick<Manifest, 'changes'>>) | null | undefined, s: Pick<Annotating, 'tool' | 'open'>, h: Hand): string {
 	if (s.tool === 'annotate') {
 		const t = typeById(m, h.type);
 		return `Annotate is on. Select text to mark it${t ? ` as ${t.name}` : ''}. Number keys switch type, 0 for none. Esc stops.`;
 	}
 	if (s.tool === 'comment') return 'Comment is on. Click where the comment should go. Esc stops.';
+	if (s.open && changeById(m, s.open)) return 'Change selected. Keep or Discard it in its popup, Esc closes it.';
 	if (s.open) return 'Annotation selected. Its popup changes it, Delete removes it, Esc closes it.';
 	return '';
 }
@@ -223,6 +234,44 @@ export function passes(m: Pick<Manifest, 'annotation_types' | 'reviewer'> | null
 export function sequence(m: Manifest | null | undefined, s: Pick<Annotating, 'order' | 'hidden' | 'todo'>, showSettled = ui.showSettled): Annotation[] {
 	if (!m) return [];
 	return s.order.map((id) => m.annotations[id]).filter((a): a is Annotation => !!a && passes(m, a, s, showSettled));
+}
+
+/** One thing the stepper and the list go through: an annotation, or a pending change. */
+export type Entry = { id: string; a: Annotation; c?: undefined } | { id: string; c: PendingChange; a?: undefined };
+
+/** Whether the list and the text show change `c` under the filter: changes listed, its author not left out, and not kept or discarded a moment ago. A pending change is always something to do. */
+export function changePasses(c: PendingChange, s: Pick<Annotating, 'hidden' | 'layer'>): boolean {
+	return s.layer !== 'annotations' && !s.hidden.includes(authorOf(c).id) && !(c.id in acted.map);
+}
+
+/**
+ * What the stepper and the Comments list go through: `order` under the filter, annotations and changes alike.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ * s : Annotating
+ *     The order, the filter and which layer is listed.
+ * showSettled : bool
+ *     Whether resolved annotations are shown.
+ *
+ * Returns
+ * -------
+ * Entry[]
+ */
+export function entries(m: Manifest | null | undefined, s: Pick<Annotating, 'order' | 'hidden' | 'todo' | 'layer'>, showSettled = ui.showSettled): Entry[] {
+	if (!m) return [];
+	const out: Entry[] = [];
+	for (const id of s.order) {
+		const a = m.annotations[id];
+		if (a) {
+			if (s.layer !== 'changes' && passes(m, a, s, showSettled)) out.push({ id, a });
+			continue;
+		}
+		const c = changeById(m, id);
+		if (c && changePasses(c, s)) out.push({ id, c });
+	}
+	return out;
 }
 
 /** Everyone who wrote one of these annotations, the reader first, by id and the name shown. */
@@ -305,8 +354,9 @@ export function placeOf(m: Manifest, a: Annotation): string {
 	return keyName(m, a.target.key);
 }
 
-/** What "Written on earlier words" shows for `a`: the words it quoted and the version to open, or null when its words still stand or no version is kept. */
+/** What "Written on earlier words" shows for `a`: the words it was written on and the version to open (`fragment`, '' where none is kept), or null when its words still stand. One carried onto new words when a change was kept names the words it was written on. */
 export function earlier(a: Annotation): { words: string; fragment: string; at: boolean } | null {
+	if (a.earlier) return { words: a.earlier.quote, fragment: a.version?.fragment ?? '', at: a.version?.at ?? false };
 	return a.version ? { words: a.quote ?? '', fragment: a.version.fragment, at: a.version.at } : null;
 }
 

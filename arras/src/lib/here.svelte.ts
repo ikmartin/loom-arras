@@ -6,6 +6,7 @@ import { itemKey, type Item } from '$lib/workspace/item';
 import { workspace } from '$lib/workspace/store.svelte';
 import { documentState, fileState, nodeState, workState } from '$lib/workspace/state.svelte';
 import { sessionView } from '$lib/sessions/sessions.svelte';
+import { store } from '$lib/manifest/client.svelte';
 import { can, write } from '$lib/write';
 import { keyOf, quoteOf } from '$lib/fragments/quote';
 
@@ -102,14 +103,11 @@ export function placeOf(i: PlaceInput): Record<string, unknown> {
 	return out;
 }
 
-/** The annotation whose popup is open in `item`, or null: an item that annotates keeps it on its state. */
+/** The annotation whose popup is open in `item`, or null: an item that annotates keeps it on its state, where a pending change's popup is kept too and is no annotation. */
 function openIn(item: Item | null): string | null {
 	if (!item) return null;
-	if (item.kind === 'document') return documentState(item).notes.open;
-	if (item.kind === 'node') return nodeState(item).notes.open;
-	if (item.kind === 'work') return workState(item).notes.open;
-	if (item.kind === 'file') return fileState(item).notes.open;
-	return null;
+	const open = item.kind === 'document' ? documentState(item).notes.open : item.kind === 'node' ? nodeState(item).notes.open : item.kind === 'work' ? workState(item).notes.open : item.kind === 'file' ? fileState(item).notes.open : null;
+	return open && store.manifest?.annotations[open] ? open : null;
 }
 
 /** Words selected in a document's text, as Quote quotes them; null when the selection is elsewhere or empty. */

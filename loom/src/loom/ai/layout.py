@@ -21,9 +21,9 @@ RULES = "rules.md"  # `.loom/ai/rules.md`: not a mode, and no longer filed among
 AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
-        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion", "write",
-        # a suggested edit, and discarding one of its own; keeping one is the author's
-        "suggest", "suggestion discard",
+        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "write",
+        # a suggested edit, and withdrawing one of its own; what waits on the person, and a change's patch, which it reads; keeping and discarding are the author's
+        "suggest", "changes",
         # the bridge: where the person is looking in the viewer, and what they did since this agent last looked
         "here", "since",
         "ai annotations", "ai drafts", "ai refresh", "ai orient", "ai mode",
@@ -41,7 +41,7 @@ ACTS: dict[str, str] = {
     **dict.fromkeys(
         (
             "deps", "doctor", "downstream", "here", "history", "history show", "history verify", "link", "lint", "search",
-            "source", "status", "suggestion", "ai annotations", "ai drafts", "ai mode", "ai orient", "session list",
+            "source", "status", "changes", "ai annotations", "ai drafts", "ai mode", "ai orient", "session list",
             "library", "library check", "library locate", "library read", "library review", "library search",
             "library why",
         ),
@@ -50,13 +50,17 @@ ACTS: dict[str, str] = {
     **dict.fromkeys(("build", "check", "compile", "id", "serve"), "derive"),
     **dict.fromkeys(
         (
-            "annotate", "suggest", "suggestion discard", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
+            "annotate", "suggest", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
             "library propose", "library relate", "library update", "mcp",
         ),
         "write",
     ),
     "write": "replace",
 }  # fmt: skip
+#: The options of an agent command that are the author's acts, which its MCP tool leaves out: an agent reads what waits on the person, and only the person keeps or discards it.
+AUTHOR_OPTIONS: dict[str, frozenset[str]] = {
+    "changes": frozenset({"--keep", "--discard", "--keep-all", "--discard-all", "--why"}),
+}
 #: Agent commands that are no MCP tool: the server itself, and `serve`, which runs until stopped.
 NOT_TOOLS = frozenset({"mcp", "serve"})
 #: The one agent command that may reach the network, when the quilt's config allows it.

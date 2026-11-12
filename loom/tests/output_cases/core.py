@@ -51,9 +51,6 @@ KIND: dict[str, str] = {
     "serve": "running",
     "source": "raw",
     "suggest": "report",
-    "suggestion": "raw",
-    "suggestion apply": "report",
-    "suggestion discard": "report",
     "status": "report",
     "upgrade": "report",
 }
@@ -97,28 +94,6 @@ CASES: dict[str, list[Case]] = {
         ),
         Case(("dm-9999", "--with", "x", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
     ],
-    "suggestion": [
-        Case((), unchanged=True, why="the open edits"),
-        Case(("--status", "kept"), unchanged=True, why="none kept"),
-        Case((EDIT, "--json"), unchanged=True, why="its patch, in the report"),
-        Case(("e-2026-09-16-v37pth",), exit=2, unchanged=True, why="no such edit"),
-    ],
-    "suggestion apply": [
-        Case((EDIT, "--as", "Tester")),
-        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
-        Case((EDIT, "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
-    ],
-    "suggestion discard": [
-        Case((EDIT, "--why", "not needed", "--as", "Tester")),
-        Case(
-            (EDIT, "--as", "Referee (Agent)"),
-            env=(("AI_AGENT", "1"),),
-            exit=2,
-            unchanged=True,
-            why="not the agent's own",
-        ),
-        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
-    ],
     "annotate": [
         Case(("dm-0002", "Which orbits?", "--as", "Tester")),
         Case(("dm-0002", "Which orbits?", "--type", "revision", "--as", "Tester")),
@@ -153,9 +128,11 @@ CASES: dict[str, list[Case]] = {
         Case((), setup=author, unchanged=True, why="no look yet"),
         Case((), setup=looked, unchanged=True),
         Case(("--keep", "README.md"), setup=looked),
-        Case(("--undo", "README.md"), setup=looked),
+        Case(("--discard", "README.md"), setup=looked),
         Case(("--keep-all",), setup=author),
-        Case(("--undo", "nope.md"), setup=looked, exit=2, unchanged=True, why="nothing there at the look"),
+        Case(("--by", "Referee Agent"), setup=looked, unchanged=True, why="an author's suggested edits"),
+        Case(("c-00000000",), setup=looked, exit=2, unchanged=True, why="no such change"),
+        Case(("--discard", "c-00000000"), setup=looked, exit=2, unchanged=True, why="no such change"),
         Case(
             ("--keep-all",), env=(("AI_AGENT", "1"),), exit=2, unchanged=True, why="the author's, refused to an agent"
         ),

@@ -41,19 +41,39 @@ export interface Corpus {
 }
 
 /** An open file changed since the reviewer's look (plan 0.22.8). */
-export interface FileChange {
+/** One pending change to the person's text (specs/manifest.md §9): an edit made in a file since their look (`edit`), or a suggested edit not yet kept or discarded (`suggested`). Words, not hunks: each run of changed words is one change, its id stable while it stands. Keep makes it what the person has; Discard puts their words back, or drops the suggestion. */
+export interface PendingChange {
+  id: string;
+  kind: "edit" | "suggested" | (string & {});
+  /** The file it is in. */
   path: string;
-  kind: "changed" | "new" | "gone" | (string & {});
-  /** The unified diff, by its path under the build directory. */
-  diff?: string;
-  /** The file's hash as the publisher saw it, which a keep or an undo sends back as `seen`; null for a gone file. */
-  hash?: string | null;
-  /** How many changes (`@@` hunks) the diff holds, each kept or undone alone by its number from 0. */
-  hunks?: number;
-  /** The statements and proofs each change touches, by its number, in the file's order: what is drawn under a block in Your Changes; an empty list is text outside any block. */
-  blocks?: string[][];
-  /** The person's documents whose text this file is part of; empty for a file in none. */
-  documents?: string[];
+  /** The statement or proof whose text it is in; null for text outside any block. */
+  key: string | null;
+  /** The person's documents whose text it is part of; empty for a file in none. */
+  documents: string[];
+  /** The words it takes out, as TeX; '' for words only added. */
+  old: string;
+  /** The words it puts in, as TeX; '' for words only taken out. */
+  new: string;
+  /** `new` as the publisher rendered it, where it could. */
+  new_html?: string | null;
+  /** Who made it, by name; null for an edit made in the file, which no record names. */
+  author?: string | Author | null;
+  created?: string | null;
+  /** What a suggestion's writer says of it. */
+  comment_html?: string | null;
+  /** The annotation it answers, which Keep resolves. */
+  answers?: string | null;
+  /** `ready` to keep or discard; `taken` when the text already reads so; `unplaced` with `why`; `on-a-copy` for one on an agent's copy, which comes in with the copy. */
+  state: "ready" | "taken" | "unplaced" | "on-a-copy" | (string & {});
+  /** Why Keep or Discard is refused, for a change that is not `ready`. */
+  why?: string | null;
+  /** The block it is drawn in: the block's `data-src`, and a fragment holding the block with every change in it, its old and new words in `span.change[data-change][data-side]`, by its path under the build directory. Null for one not merged into the text. */
+  block?: { src: string; fragment: string } | null;
+  /** For a change to the text's structure, which no single block holds: the source range of its own words, `PATH:START:END`, by which it is drawn as a marker beside the element holding them. */
+  place?: { src: string } | null;
+  /** Its patch, by its path under the build directory. */
+  diff?: string | null;
 }
 
 /** A file of the project the viewer shows, by its quilt-relative path (plan 0.22.7). */
@@ -430,6 +450,8 @@ export interface Annotation {
   resolved_why?: string | null;
   /** The version it was written on, for one whose words are gone (`detached`) and whose version is kept (`recorded`): that version's hash, its key's text as it was with every annotation on it marked (`fragment`, under the build directory), and whether an empty `mark.annotation.gone` stands where its words were in the text now (`at`). */
   version?: AnnotationVersion | null;
+  /** For one carried onto new words when a change was kept: the words it was written on, and the change that replaced them. */
+  earlier?: { quote: string; change: string } | null;
   /** On a PDF page that is not the one it was written on: true when its words, or the words its drawing stands beside, were found again on the changed file, `target.page`, `rects` and `strokes` being where it stands now. A changed PDF keeps no version, so there is nothing else to open. */
   refound?: boolean | null;
   /** A drawing's place beside the first word under it, `[dx, dy]` in points, by which it is found again on a changed file. */
@@ -466,8 +488,6 @@ export interface SuggestedEdit {
   status: 'open' | 'kept' | 'discarded';
   /** Why it was discarded, when it was. */
   why: string | null;
-  /** An open one's key as it would read with it kept: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why it has no place. Null once kept or discarded. */
-  change: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string } | null;
 }
 
 export interface Attachment {
@@ -728,8 +748,8 @@ export interface Manifest {
   research_state?: Page;
   /** Every file of the project the viewer shows, hidden ones left out (plan 0.22.7); absent from an older publisher. */
   files?: ProjectFile[];
-  /** The open files changed since the reviewer's look, and that look; absent before a first look. */
-  changes?: FileChange[];
+  /** Every pending change, edits since the reviewer's look and open suggested edits, in each file's order; absent before a first look. */
+  changes?: PendingChange[];
   changes_since?: { who: string; when: string };
   /** The quilt's configuration, for Settings; absent from an older publisher. */
   config?: QuiltSettings;

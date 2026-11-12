@@ -45,6 +45,8 @@ class Annotation:
     origin: dict[str, Any] | None = None
     #: A mark drawn on a PDF page, not on words: its top left less its pin word's, by which it is found again on a changed file (`marks.context_at`).
     gap: list[float] | None = None
+    #: Carried by a kept change onto its new words (`records/carry.py`): `{quote, change}`, the words it was on and the change that replaced them.
+    earlier: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,7 +66,7 @@ class Annotation:
             "resolved_why": self.resolved_why,
             **{
                 k: getattr(self, k)
-                for k in ("page", "rects", "strokes", "mark", "artifact", "origin", "gap")
+                for k in ("page", "rects", "strokes", "mark", "artifact", "origin", "gap", "earlier")
                 if getattr(self, k) is not None
             },
         }
@@ -97,6 +99,7 @@ class Annotation:
             artifact=d.get("artifact") or None,
             origin=d.get("origin") if isinstance(d.get("origin"), dict) else None,
             gap=d.get("gap") if isinstance(d.get("gap"), list) else None,
+            earlier=d.get("earlier") if isinstance(d.get("earlier"), dict) else None,
         )
 
 

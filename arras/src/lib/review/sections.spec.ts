@@ -28,21 +28,25 @@ const m = {
 	threads: {},
 	diagnostics: [],
 	files: [{ path: 'notes/a.md', kind: 'markdown', bytes: 1 }, { path: 'notes/a.pdf', kind: 'pdf', bytes: 1 }],
-	changes: [{ path: 'notes/a.md', kind: 'changed', diff: 'changes/notes/a.md.diff' }],
+	changes: [
+		{ id: 'c-1a2b3c4d', kind: 'edit', path: 'notes/a.md', key: null, documents: [], old: 'a', new: 'b', state: 'ready' },
+		{ id: 'e-2026-10-01-cvhc9q', kind: 'suggested', path: 'paper/main.tex', key: 'q-0001', documents: ['paper/main.tex'], old: 'Every orbit', new: 'Each orbit', state: 'ready', answers: 'a-2026-10-01-7r1qv5' }
+	],
 	changes_since: { who: 'Tester', when: '2026-10-01T08:00:00Z' }
 } as unknown as Manifest;
 
 describe('Review as the meta view', () => {
-	it("leads with the person's text, and counts the open suggested edits", () => {
+	it("leads with the person's text, and counts every pending change there, a suggested edit among them", () => {
 		const sections = sectionsOf(m);
 		expect(sections.map((s) => s.id)).toEqual(['changes', 'proposed', 'problems', 'library', 'record']);
-		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(1);
+		expect(sections.find((s) => s.id === 'changes')!.waits).toBe(2);
 		// a count is what waits for the author: an open session waits for no one
 		expect(sections.find((s) => s.id === 'record')!.waits).toBe(0);
 		expect(reviewLanding(sections)).toBe(sections.find((s) => s.id === 'changes')!.href);
 		// a discarded one is not counted
 		expect(openEdits(m).map((e) => e.id)).toEqual(['e-2026-10-01-cvhc9q']);
-		expect(sections.find((s) => s.id === 'proposed')!.waits).toBe(1);
+		// it is kept or discarded where it stands, so nothing is proposed
+		expect(sections.find((s) => s.id === 'proposed')!.waits).toBe(0);
 		// and the annotation it answers knows it
 		expect(editAnswering(m, 'a-2026-10-01-7r1qv5')?.id).toBe('e-2026-10-01-cvhc9q');
 		expect(editAnswering(m, 'a-2026-10-01-5qj7dk')).toBeUndefined();

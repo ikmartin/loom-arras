@@ -27,6 +27,8 @@ class MarkEntry:
     #: an empty mark where the annotation's words were: just after the words `quote` holds, or just before them when `lead`
     gone: bool = False
     lead: bool = False
+    #: drawn again on a change's new words, which the annotation's words touch (`render/pending.py`): `mark.annotation.moved`
+    moved: bool = False
 
 
 @dataclass
@@ -92,6 +94,7 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
     block_level: dict[int, list[str]] = {}
     spans: dict[tuple[int, int], list[str]] = {}
     points: list[tuple[int, str]] = []
+    moved: set[tuple[int, int]] = set()  # the ranges marked for an entry drawn again on a change's new words
     for e in entries:
         candidates = [
             b
@@ -130,25 +133,33 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
         if _is_source(html[blk.open_start : blk.open_end]):
             found = _at_offsets(html, blk.open_end, blk.close_start, e.start - blk.start, e.end - blk.start)
             if found is not None:
+                # a change's side marked into the source is taken in whole where the range opens or closes it
+                found = _widen(html, *found)
                 spans.setdefault(found, []).append(e.ann_id)
+                if e.moved:
+                    moved.add(found)
                 placed = True
         elif not _is_math(html[blk.open_start : blk.open_end]):
             for a_, b_ in _locate(html, blk.open_end, blk.close_start, e.quote):
                 spans.setdefault((a_, b_), []).append(e.ann_id)
+                if e.moved:
+                    moved.add((a_, b_))
                 placed = True
         if not placed:
             block_level.setdefault(blk.open_start, []).append(e.ann_id)
     # Two comments on the same words are one mark carrying both ids, which is the shape the viewer already reads; two edits over one range would otherwise be applied one inside the other and emit the tag as text. A span that overlaps a kept one without matching it joins that mark rather than cutting it.
-    kept: list[tuple[int, int, list[str]]] = []
+    kept: list[tuple[int, int, list[str], list[bool]]] = []
     for (a_, b_), ids in sorted(spans.items()):
         hit = next((k for k in kept if a_ < k[1] and k[0] < b_), None)
         if hit is None:
-            kept.append((a_, b_, list(ids)))
+            kept.append((a_, b_, list(ids), [(a_, b_) in moved]))
         else:
             hit[2].extend(ids)
-    for a_, b_, ids in kept:
+            hit[3].append((a_, b_) in moved)
+    for a_, b_, ids, flags in kept:
         joined_ids = " ".join(dict.fromkeys(ids))
-        edits.append((a_, b_, f'<mark class="annotation" data-annotation="{joined_ids}">{html[a_:b_]}</mark>'))
+        kind = "annotation moved" if all(flags) else "annotation"
+        edits.append((a_, b_, f'<mark class="{kind}" data-annotation="{joined_ids}">{html[a_:b_]}</mark>'))
     for open_start, ids in block_level.items():
         tag_end = html.index(">", open_start)
         open_tag = html[open_start:tag_end]
@@ -170,7 +181,7 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
         edits.append((open_start, tag_end, new_tag))
     # after every other edit, so one at the same offset is applied first and the empty mark stands before it, and reversed, so two at one place stand in the order given; never inside a mark
     for at, ann_id in reversed(points):
-        at = next((b_ for a_, b_, _ in kept if a_ < at < b_), at)
+        at = next((b_ for a_, b_, _, _f in kept if a_ < at < b_), at)
         edits.append((at, at, f'<mark class="annotation gone" data-annotation="{ann_id}"></mark>'))
     out = html
     for a, b, rep in sorted(edits, key=lambda x: x[0], reverse=True):
@@ -228,13 +239,17 @@ def _is_source(open_tag: str) -> bool:
 
 
 def _at_offsets(html: str, a: int, b: int, start: int, end: int) -> tuple[int, int] | None:
-    """Where the characters `start` to `end` of the text in html[a:b] stand, entities read as the characters they are; None when they are not all there."""
+    """Where the characters `start` to `end` of the text in html[a:b] stand, entities read as the characters they are and tags as none; None when they are not all there."""
     if start < 0 or end <= start:
         return None
     count = 0
     lo = hi = None
     i = a
     while i < b:
+        if html[i] == "<":
+            # a tag marked into the source (a change's side) is no character of it
+            i = html.index(">", i) + 1
+            continue
         if count == start and lo is None:
             lo = i
         m = _ENTITY.match(html, i)

@@ -7,11 +7,11 @@ test('keeping an edit keeps a version of the document, which Restore puts back a
 	const node = join(served.root, 'drafting/nodes/sy-0002.tex');
 	writeFileSync(node, readFileSync(node, 'utf8').replace('Every orbit', 'Each orbit'));
 	await page.goto('/review');
-	const row = page.locator('[data-testid="review-row"][data-key="sy-0002"]');
-	await row.getByTestId('edit-keep').click();
-	// a kept block still waits to be accepted, so the answer stays in its row
-	await expect(row.getByTestId('review-said')).toContainText('a version of main.tex');
-	await expect(row.getByTestId('tag-edited')).toHaveCount(0);
+	const card = page.getByTestId('change-card').filter({ has: page.locator('.ins', { hasText: 'Each' }) });
+	await card.getByTestId('card-keep').click();
+	await expect(card).toHaveCount(0);
+	// a kept block still waits to be accepted
+	await expect(page.locator('[data-testid="review-row"][data-key="sy-0002"]').getByTestId('review-accept')).toBeVisible();
 	await page.goto('/review/record?document=drafting%2Fmain.tex');
 	await expect(page.getByTestId('history-tick').last()).toContainText('Kept an edit');
 	// another edit, then the kept version put back

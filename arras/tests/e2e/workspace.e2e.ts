@@ -647,8 +647,10 @@ test.describe('the toolbar', () => {
 		await page.goto('/master/drafting/main');
 		const bar = controls(page, 0);
 		await expect(bar.getByTestId('tool-annotate')).toBeVisible();
+		// the stepper once the document has said what it holds: its annotations and its pending changes
+		await expect(bar.getByTestId('step-prev')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'step-prev', 'step-next', 'open-comments', 'open-notes', 'toolbar-history', 'toolbar-view']);
+		expect(order).toEqual(['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'changes-toggle', 'step-prev', 'step-next', 'open-comments', 'open-notes', 'toolbar-history', 'toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 		await expect(page.getByTestId('toolbar-view')).toHaveAttribute('aria-label', 'view menu for main.tex');
 		await viewMenu(page);
