@@ -3,7 +3,7 @@
 // The stream says nothing of what changed in the manifest, so what the viewer does with a new one is what it does after a poll (spec README, viewer obligation 3). It also says how each document's compile stands, which no manifest carries.
 
 import { base } from '$app/paths';
-import { capabilities } from '$lib/write';
+import { capabilities, forgetCapabilities } from '$lib/write';
 import { store } from './client.svelte';
 import { compiles } from './compiles.svelte';
 
@@ -12,6 +12,8 @@ const NET = 5000;
 const UNASSISTED = 1000;
 
 let source: EventSource | null = null;
+/** The stream dropped: the publisher may come back as another one, restarted with other code and another token. */
+let dropped = false;
 
 /** Listen to the publisher's stream, if it offers one. */
 export async function listen(): Promise<void> {
@@ -21,7 +23,18 @@ export async function listen(): Promise<void> {
 	source = new EventSource(base + '/_api/stream');
 	source.addEventListener('manifest', () => void store.refresh());
 	source.addEventListener('compiles', (e) => compiles.take((e as MessageEvent<string>).data));
-	source.onopen = () => store.pace(NET);
+	source.onopen = () => {
+		store.pace(NET);
+		// back after a drop: ask again what the publisher is, so a restart under this page is noticed
+		if (dropped) {
+			dropped = false;
+			forgetCapabilities();
+			void capabilities();
+		}
+	};
 	// the browser reconnects by itself; until it does, the poll is back at its own pace
-	source.onerror = () => store.pace(UNASSISTED);
+	source.onerror = () => {
+		dropped = true;
+		store.pace(UNASSISTED);
+	};
 }

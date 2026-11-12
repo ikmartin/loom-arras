@@ -38,7 +38,6 @@
 			<ToolbarItem
 				label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
 				name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
-				checked={ui.showSettled}
 				testid="toggle-settled"
 				onclick={() => (ui.showSettled = !ui.showSettled)}
 			/>

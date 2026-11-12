@@ -152,7 +152,7 @@ class Records:
         t = self.types.get(a.type)
         if t is None and a.drawn:
             return dict(a.drawn)
-        return drawn_look(t, a.own_look)
+        return drawn_look(t, a.own_look, self.types.plain)
 
     # ---- text helpers --------------------------------------------------------
 
@@ -880,11 +880,12 @@ class Records:
         states = self.key_states(result)
         derived = self.derived(result, states)
         manifest["reviewer"] = {"name": self.reviewer, "source": self.reviewer_source}
-        # the quilt's annotation types, in its file's order: what a viewer offers and how an untouched annotation of each is drawn
+        # the quilt's annotation types, in its file's order: what a viewer offers and how an untouched annotation of each is drawn; and the plain look, how an untouched one with no type is
         from loom.ai.orient import modes_using
 
         using = modes_using(self.root)
         manifest["annotation_types"] = [{**t.to_dict(), "modes": using.get(t.id, [])} for t in self.types.types]
+        manifest["annotation_plain"] = self.types.plain.to_dict()
         for author in sorted({row.author for row in self.rows if row.author}):
             # One ledger/source snapshot for every perspective; summaries never observe or write.
             other = copy.copy(self)

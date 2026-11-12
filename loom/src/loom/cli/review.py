@@ -579,14 +579,15 @@ def _type_and_look(
     root: Path, given: str | None, look: dict[str, Any]
 ) -> tuple[str | None, dict[str, Any], dict[str, Any]]:
     """(type id, the look set on the annotation, the whole look it is drawn with) for a new one, refused when the type is not the quilt's or the look cannot be drawn."""
+    types = load_types(root)
     try:
-        t = type_named(load_types(root), given)
+        t = type_named(types, given)
     except ValueError as exc:
         raise EnvError(str(exc)) from exc
     why = look_problem(look)
     if why:
         raise EnvError(f"--{why}")
-    return (t.id if t else None), look, drawn_look(t, look)
+    return (t.id if t else None), look, drawn_look(t, look, types.plain)
 
 
 def _work_target(result: ScanResult, target: str) -> tuple[str, Any] | None:
@@ -886,7 +887,7 @@ def edit_annotation(
         if why:
             raise EnvError(f"--{why}")
         own = {**({} if clear_look else ann.own_look), **(look or {})}
-        restyled = {"look": own, "drawn": drawn_look(t, own)}
+        restyled = {"look": own, "drawn": drawn_look(t, own, types.plain)}
         if type_given is not None:
             restyled["type"] = t.id if t else None
     if rects or strokes:

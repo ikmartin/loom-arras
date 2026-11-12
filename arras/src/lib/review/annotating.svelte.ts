@@ -9,19 +9,27 @@ import { COLORS, STYLES, typeOf } from './annotationTypes';
 import { acted } from './acted.svelte';
 import { authorOf, changeById } from './changes';
 
-/** How an annotation with no type is drawn when nothing is set on it, as loom draws it: a thin grey underline. */
-export const UNTYPED: Look = { color: 'grey', style: 'underline', weight: 1, opacity: 100 };
+/** loom's plain look, where the quilt's types file sets none (records/types.py `PLAIN`). */
+export const PLAIN: Look = { color: 'yellow', style: 'highlight', weight: 2, opacity: 60 };
 
-/** What is in hand: a type, or none, and the look set over it. With no type the look is whole; with one, only what differs from the type's. */
+/** What is in hand: a type, or Plain (none), each with what is set over its look, only where it differs. What is set over Plain is kept while a type is held, so Plain comes back as it was left whatever was held between. */
 export interface Hand {
 	type: string | null;
+	/** Set over the type's look; empty while Plain is held. */
 	over: Partial<Look>;
+	/** Set over the quilt's plain look. */
+	plain: Partial<Look>;
 }
 
-/** What a reader holds before choosing anything: no type, a yellow highlight. */
-export const FIRST_HAND: Hand = { type: null, over: { color: 'yellow', style: 'highlight', weight: 2, opacity: 60 } };
+/** What a reader holds before choosing anything: Plain, in the quilt's plain look. */
+export const FIRST_HAND: Hand = { type: null, over: {}, plain: {} };
 
-type Typed = Pick<Manifest, 'annotation_types'> | null | undefined;
+type Typed = Pick<Manifest, 'annotation_types' | 'annotation_plain'> | null | undefined;
+
+/** The quilt's plain look: how an annotation with no type that sets no look is drawn. */
+export function plainOf(m: Typed): Look {
+	return m?.annotation_plain ?? PLAIN;
+}
 
 /** The type `id` names, while the quilt has it. */
 export function typeById(m: Typed, id: string | null | undefined): AnnotationType | undefined {
@@ -41,26 +49,28 @@ export function typeById(m: Typed, id: string | null | undefined): AnnotationTyp
  * Returns
  * -------
  * Look
- *     Its type's look, or the untyped one, under what is set on it.
+ *     Its type's look, or with Plain the quilt's plain look, under what is set on it.
  */
 export function lookOf(m: Typed, hand: Hand): Look {
-	return { ...(typeById(m, hand.type)?.look ?? UNTYPED), ...hand.over };
+	const t = typeById(m, hand.type);
+	return t ? { ...t.look, ...hand.over } : { ...plainOf(m), ...hand.plain };
 }
 
-/** `hand` with one field of its look set: kept as an override only where it differs from the type's, so a hand that matches its type follows the type. */
+/** `hand` with one field of its look set: kept as an override only where it differs from the look under it, so a hand that matches its type, or the plain look, follows it. */
 export function withLook(m: Typed, hand: Hand, change: Partial<Look>): Hand {
-	const base = typeById(m, hand.type)?.look;
-	const over: Partial<Look> = { ...hand.over };
+	const t = typeById(m, hand.type);
+	const base = t ? t.look : plainOf(m);
+	const set: Partial<Look> = { ...(t ? hand.over : hand.plain) };
 	for (const [k, v] of Object.entries(change) as [keyof Look, never][]) {
-		if (base && base[k] === v) delete over[k];
-		else over[k] = v;
+		if (base[k] === v) delete set[k];
+		else set[k] = v;
 	}
-	return { type: hand.type, over };
+	return t ? { ...hand, over: set } : { ...hand, type: null, over: {}, plain: set };
 }
 
-/** `hand` with type `id`: a type takes its own look, no type keeps the look the hand had, whole. */
+/** `hand` with type `id`, or Plain for null: a type takes its own look; Plain takes its own, as it was last left. */
 export function withType(m: Typed, hand: Hand, id: string | null): Hand {
-	return id ? { type: id, over: {} } : { type: null, over: lookOf(m, hand) };
+	return { type: typeById(m, id) ? id : null, over: {}, plain: { ...hand.plain } };
 }
 
 /** A look as read from storage or a write, each field kept only when it can be drawn. */
@@ -81,26 +91,29 @@ const HAND_KEY = 'arras.annotate.hand';
 class HandState {
 	type = $state<string | null>(FIRST_HAND.type);
 	over = $state<Partial<Look>>({ ...FIRST_HAND.over });
+	plain = $state<Partial<Look>>({ ...FIRST_HAND.plain });
 
 	constructor() {
 		try {
 			const raw = globalThis.localStorage?.getItem(HAND_KEY);
 			if (!raw) return;
-			const o = JSON.parse(raw) as { type?: unknown; over?: unknown };
+			const o = JSON.parse(raw) as { type?: unknown; over?: unknown; plain?: unknown };
 			this.type = typeof o.type === 'string' && o.type ? o.type : null;
-			this.over = cleanLook(o.over);
+			this.over = this.type ? cleanLook(o.over) : {};
+			this.plain = cleanLook(o.plain);
 		} catch {
 			// a browser that stores nothing starts from the first hand
 		}
 	}
 
 	get value(): Hand {
-		return { type: this.type, over: { ...this.over } };
+		return { type: this.type, over: { ...this.over }, plain: { ...this.plain } };
 	}
 
 	set(next: Hand): void {
 		this.type = next.type;
 		this.over = { ...next.over };
+		this.plain = { ...next.plain };
 		try {
 			globalThis.localStorage?.setItem(HAND_KEY, JSON.stringify(next));
 		} catch {
@@ -111,19 +124,41 @@ class HandState {
 
 export const hand = new HandState();
 
-/** What the hand writes on an `annotate`: its type, and its look only where it sets one. */
+/** What the hand writes on an `annotate`: its type, and its look only where it sets one, so what it leaves follows the type or the quilt's plain look. */
 export function handPayload(m: Typed, h: Hand): { type?: string; look?: Partial<Look> } {
 	const out: { type?: string; look?: Partial<Look> } = {};
 	if (h.type && typeById(m, h.type)) out.type = h.type;
-	const over = out.type ? h.over : lookOf(m, h);
-	if (Object.keys(over).length) out.look = over;
+	const set = out.type ? h.over : h.plain;
+	if (Object.keys(set).length) out.look = { ...set };
 	return out;
 }
 
-/** What an `edit` sends to give annotation `a` type `id`: a type drops the annotation's own look (`look: null`), so it is drawn in the type's and follows later edits to it; no type keeps the look it is drawn with, whole. */
-export function retype(m: Typed, a: Annotation, id: string | null): { type: string | null; look: Look | null } {
+/** What an `edit` sends to give annotation `a` type `id`, or Plain for null: either drops the annotation's own look (`look: null`), so it is drawn in the type's or the plain look and follows later edits to it. */
+export function retype(m: Typed, a: Annotation, id: string | null): { type: string | null; look: null } {
 	const t = typeById(m, id);
-	return t ? { type: t.id, look: null } : { type: null, look: { ...a.look } };
+	return { type: t ? t.id : null, look: null };
+}
+
+/** What an `edit` sends to take annotation `a`'s type away and keep the look it is drawn with, as its own. */
+export function keepLook(a: Annotation): { type: null; look: Look } {
+	return { type: null, look: { ...a.look } };
+}
+
+/** The first keys of a comment typed at an annotation just marked, before its popup opened: the popup starts its field with them. */
+class Seed {
+	id = $state('');
+	text = $state('');
+}
+
+export const commentSeed = new Seed();
+
+/** The keys typed for annotation `id` before its popup opened, taken once; null when none were. */
+export function takeSeed(id: string): string | null {
+	if (!id || commentSeed.id !== id) return null;
+	const text = commentSeed.text;
+	commentSeed.id = '';
+	commentSeed.text = '';
+	return text;
 }
 
 /** The type an annotation's look has been changed from, while the quilt has it and the look differs from it; null otherwise. What the "Changed from" line names. */
@@ -180,6 +215,10 @@ export class Annotating {
 	todo = $state(false);
 	/** Whether the fragment shows anything to annotate yet. */
 	ready = $state(false);
+	/** A new annotation being written in a popup, not saved until its button is pressed: words marked (`annotate`) or a place clicked (`comment`). */
+	drafting = $state<'annotate' | 'comment' | null>(null);
+	/** The annotation Annotate just marked, whose comment typing starts until the next selection. */
+	marked = $state<string | null>(null);
 
 	/** Open annotation or change `id` at its mark, scrolled to it; registered by the fragment. False when it has no mark here. */
 	show: (id: string) => boolean = () => false;
@@ -202,10 +241,12 @@ export class Annotating {
  * -------
  * str
  */
-export function hintFor(m: (Pick<Manifest, 'annotation_types'> & Partial<Pick<Manifest, 'changes'>>) | null | undefined, s: Pick<Annotating, 'tool' | 'open'>, h: Hand): string {
+export function hintFor(m: (Pick<Manifest, 'annotation_types'> & Partial<Pick<Manifest, 'changes'>>) | null | undefined, s: Pick<Annotating, 'tool' | 'open'> & Partial<Pick<Annotating, 'drafting' | 'marked'>>, h: Hand): string {
+	if (s.drafting) return `Not saved yet: write the comment, then press ${s.drafting === 'annotate' ? 'Annotate' : 'Comment'}. Esc discards it.`;
+	if (s.tool === 'annotate' && s.marked) return 'Marked. Start typing to add a comment, or select more text.';
 	if (s.tool === 'annotate') {
 		const t = typeById(m, h.type);
-		return `Annotate is on. Select text to mark it${t ? ` as ${t.name}` : ''}. Number keys switch type, 0 for none. Esc stops.`;
+		return `Annotate is on. Select text to mark it ${t ? `as ${t.name}` : 'in the plain look'}. Number keys switch type, 0 for Plain. Esc stops.`;
 	}
 	if (s.tool === 'comment') return 'Comment is on. Click where the comment should go. Esc stops.';
 	if (s.open && changeById(m, s.open)) return 'Change selected. Keep or Discard it in its popup, Esc closes it.';
@@ -343,9 +384,18 @@ export function notesIn(m: Manifest | null | undefined): NotesGroup[] {
 	return [...groups].map(([at, notes]) => ({ label: m.masters.some((x) => x.path === at) ? documentLabel(m.masters, at) : (at.split('/').pop() ?? at), notes }));
 }
 
-/** How many annotations the Notes list holds. */
+/** How many annotations the Notes list holds, from every document. */
 export function notesCount(m: Manifest | null | undefined): number {
 	return notesIn(m).reduce((n, g) => n + g.notes.length, 0);
+}
+
+/** How many of the annotations read here are listed in Notes: what the Notes badge on this item's toolbar counts. */
+export function notesHere(m: Manifest | null | undefined, s: Pick<Annotating, 'order'>): number {
+	if (!m) return 0;
+	return s.order.filter((id) => {
+		const a = m.annotations[id];
+		return !!a && !a.in_reply_to && !!typeOf(m, a)?.notes;
+	}).length;
 }
 
 /** Where `a` stands, in the words a reader uses: the page of a PDF or a work, else the key's name. */

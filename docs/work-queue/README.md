@@ -43,6 +43,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-64](WQ-64-html-file-reach.md) | what an HTML file in a quilt can reach: loom's records, lasting state, and a list of open boxes in loom itself | loom, arras | an HTML file the author keeps opening has to export loom's records by hand or loses state they wanted kept, or a second quilt builds a list of open boxes |
 | [WQ-66](WQ-66-documents-that-need-shell-escape.md) | a document that needs shell escape or its own build rules, approved per machine | loom | a document the author wants loom to compile needs `-shell-escape`, or a build rule only a `latexmkrc` can add |
 | [WQ-67](WQ-67-corrections-to-a-digest.md) | corrections to a digest's results: annotations while a digest stays read-only, or edits the author keeps | loom, arras | the author asks for an ingest correction to be made in a digest, or edits a digest's file by hand to make one |
+| [WQ-68](WQ-68-toolbar-changes.md) | UI changes to the toolbar, workshopped through a demo the author revises | arras | the author starts the toolbar workshop, or a control that must be visible at rest has no room on a pane's toolbar at the width two panes leave it |
 
 Twenty-four active, twenty-one slots of headroom.
 

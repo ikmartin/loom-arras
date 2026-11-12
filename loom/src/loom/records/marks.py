@@ -561,13 +561,14 @@ def take_in(
     from loom.locks import locked
     from loom.records.ids import draw
     from loom.records.log import log_path, replay
-    from loom.records.types import COLORS, drawn_look
+    from loom.records.types import COLORS, drawn_look, load_types
 
     on, pdf = pdf_target(result, target)
     if pdf is None or not pdf.is_file():
         raise MarkRefused("not-a-pdf", f"{target} is not a PDF held on this machine")
     akind, aid = writer
     root = result.quilt.root
+    plain = load_types(root).plain
     out = {"taken": 0, "already": 0, "skipped": 0}
     # one lock over the whole run, so no writer beside it draws an id from it
     with locked(log_path(root)):
@@ -618,7 +619,7 @@ def take_in(
                 "artifact": artifact,
                 "type": None,
                 "look": look,
-                "drawn": drawn_look(None, look),
+                "drawn": drawn_look(None, look, plain),
                 "body": body,
             }
             event.update(around)

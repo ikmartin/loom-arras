@@ -1,6 +1,6 @@
 // The side panel: the documents and their contents, the Nodes and Library sections, the write target pinned in a footer, and the session list in a picker it opens. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane, scrollPane } from '../workspace';
+import { beside, pane, scrollPane, viewMenu } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { QUICK, REFEREE, serveKept } from '../manifest';
 
@@ -339,10 +339,12 @@ test.describe('sessions', () => {
 		await expect(counted).toHaveCount(1);
 		await pickSession(page, REFEREE);
 		await expect(counted).toHaveCount(1);
-		// the pane's `a` draws no annotation at all in it, whatever is selected
-		await pane(page, 0).locator('.fragment').first().press('a');
+		// turned off, the pane draws no annotation at all, whatever is selected
+		await viewMenu(page, 0);
+		await page.getByTestId('toggle-hide-notes').click();
 		await expect(pane(page, 0).locator('.fragment mark.annotation:not(.hidden)')).toHaveCount(0);
-		await pane(page, 0).locator('.fragment').first().press('a');
+		await viewMenu(page, 0);
+		await page.getByTestId('toggle-hide-notes').click();
 		await expect(counted).toHaveCount(1);
 	});
 });

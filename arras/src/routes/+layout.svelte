@@ -11,6 +11,7 @@
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
 	import DeletedBar from '$lib/review/DeletedBar.svelte';
+	import OutOfStep from '$lib/components/OutOfStep.svelte';
 	import Toast from '$lib/review/Toast.svelte';
 	import Column from '$lib/shell/Column.svelte';
 	import Workspace from '$lib/workspace/Workspace.svelte';
@@ -181,4 +182,5 @@
 <LinkPreview />
 <PdfViewer />
 <DeletedBar />
+<OutOfStep />
 <Toast />

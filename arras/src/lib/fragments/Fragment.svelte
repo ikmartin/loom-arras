@@ -550,7 +550,7 @@
 		scrollToHash();
 		const id = note;
 		if (!id || !el) return;
-		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as `s` would turn it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then
+		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as the view menu turns it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then
 		if (settled(store.manifest?.annotations[id]) && !ui.showSettled) {
 			ui.showSettled = true;
 			await tick();
@@ -617,15 +617,6 @@
 		untrack(margin);
 	});
 
-	// `s` only while the content has focus, so it never fires while somebody is typing in a field. Not on a modifier and not global. It flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts); `a`, which hides every annotation, is the pane's (Pane.svelte).
-	function keys(e: KeyboardEvent): void {
-		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
-		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-		if (e.key === 's') ui.showSettled = !ui.showSettled;
-		else return;
-		e.preventDefault();
-	}
-
 	$effect(() => {
 		const m = store.manifest;
 		counts();
@@ -637,9 +628,7 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<!-- A focusable region with a shortcut key: the rule below models a static div, not a labelled region a reader tabs into deliberately to reach the key it answers. -->
 	<div class="framed" bind:this={frame}>
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="fragment"
 			class:read={margins}
@@ -653,7 +642,6 @@
 			tabindex="-1"
 			role="region"
 			aria-label="the document"
-			onkeydown={keys}
 		></div>
 		{#if annotations}<div class="ann-gutter" bind:this={gutter} data-testid="margin"></div>{/if}
 	</div>
@@ -674,7 +662,7 @@
 	.framed {
 		position: relative;
 	}
-	/* Focusable only so `s` reaches it. A browser rings it once a key is pressed, and around a document taller than the window the ring is two blue rules down the text's edges. */
+	/* Focusable so a click in it gives it the keys that scroll it. A browser rings it once a key is pressed, and around a document taller than the window the ring is two blue rules down the text's edges. */
 	.fragment:focus {
 		outline: none;
 	}

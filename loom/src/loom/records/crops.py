@@ -130,10 +130,11 @@ def _look(root: Path, a: Any) -> dict[str, Any]:
     """The look `a` is drawn with, as the manifest publishes it (`Records.look`)."""
     from loom.records.types import drawn_look, load_types
 
-    t = load_types(root).get(a.type)
+    types = load_types(root)
+    t = types.get(a.type)
     if t is None and a.drawn:
         return dict(a.drawn)
-    return drawn_look(t, a.own_look)
+    return drawn_look(t, a.own_look, types.plain)
 
 
 def _name(

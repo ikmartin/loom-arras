@@ -6,7 +6,7 @@ from pathlib import Path
 
 from loom.agents import denied_by
 from loom.paths import ANNOTATION_TYPES
-from loom.records.types import COLORS, default_text, load_types, parse_types
+from loom.records.types import COLORS, PLAIN, Look, default_text, drawn_look, load_types, parse_plain, parse_types
 from loom.scan.quilt import QuiltConfig
 from tests.helpers import json_of, ok
 
@@ -33,6 +33,30 @@ def test_the_defaults_are_four_types_with_their_looks() -> None:
         ("note", "Note", "grey", "highlight", 60, False, True),
     ]
     assert all(t.instructions and t.look.color in COLORS for t in types)
+
+
+def test_an_untyped_annotation_is_drawn_in_the_files_plain_look(tmp_path: Path) -> None:
+    """One plain look, the file's `[plain]`, for every annotation with no type that sets none; loom's where the file has none, and a bad one costs only itself."""
+    assert parse_plain(default_text()) == (Look(**PLAIN), None)
+    assert load_types(tmp_path).plain == Look(**PLAIN)
+    (tmp_path / ".loom").mkdir()
+    (tmp_path / ANNOTATION_TYPES).write_text(
+        FOUR + '\n[plain]\ncolor = "green"\nstyle = "underline"\n', encoding="utf-8"
+    )
+    got = load_types(tmp_path)
+    assert got.plain == Look("green", "underline", 2, 60) and got.problems == []
+    assert drawn_look(None, {"weight": 3}, got.plain) == {
+        "color": "green",
+        "style": "underline",
+        "weight": 3,
+        "opacity": 60,
+    }
+    (tmp_path / ANNOTATION_TYPES).write_text(FOUR + '\n[plain]\ncolor = "teal"\n', encoding="utf-8")
+    got = load_types(tmp_path)
+    assert got.plain == Look(**PLAIN) and [t.id for t in got.types] == ["hint"]
+    assert got.problems == [
+        f"{ANNOTATION_TYPES}: plain: color must be one of {', '.join(COLORS)}; the default plain look is used"
+    ]
 
 
 def test_a_quilt_without_the_file_has_the_defaults_and_is_told_the_command_that_writes_it(tmp_path: Path) -> None:

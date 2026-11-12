@@ -1285,9 +1285,12 @@ button.mark.annotation.settled { display: none; }
 	--ann-bar: 1.5px;
 }
 
-/* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
+/* The place a note is being written against, while its composer is open (fragments/pending.ts), drawn as not yet saved: the selected words washed and underlined in dashes, since focusing the composer ends the selection itself; a block chosen by a box, outlined in dashes. */
 ::highlight(note-pending) {
-	background-color: rgb(24 95 165 / 26%);
+	background-color: rgb(24 95 165 / 14%);
+	text-decoration: underline dashed var(--accent);
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 3px;
 }
 .note-pending {
 	outline: 2px dashed var(--accent);

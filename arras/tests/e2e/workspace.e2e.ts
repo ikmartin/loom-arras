@@ -656,9 +656,10 @@ test.describe('the toolbar', () => {
 		await viewMenu(page);
 		const menu = page.getByTestId('toolbar-menu');
 		await expect(menu).toHaveAttribute('role', 'menu');
-		await expect(menu.getByRole('menuitemcheckbox')).toHaveText(['show settled annotationss', 'annotations off in this panea']);
-		await expect(menu.getByTestId('toggle-settled')).toHaveAttribute('aria-keyshortcuts', 's');
-		await expect(menu.getByTestId('toggle-hide-notes')).toHaveAttribute('aria-keyshortcuts', 'a');
+		// each says what a click does, and neither has a key: a stray letter never hides what a reader is looking at
+		await expect(menu.getByRole('menuitem')).toHaveText(['show settled annotations', 'turn annotations off']);
+		await expect(menu.getByTestId('toggle-settled')).not.toHaveAttribute('aria-keyshortcuts');
+		await expect(menu.getByTestId('toggle-hide-notes')).not.toHaveAttribute('aria-keyshortcuts');
 		// its compiled PDF opens from its row in the tree, not from here
 		await expect(menu.getByTestId('open-pdf')).toHaveCount(0);
 		// a mode inside it is on: the dot on view says so, and the menu closed on the choice
@@ -667,8 +668,7 @@ test.describe('the toolbar', () => {
 		await expect(menu).toHaveCount(0);
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await viewMenu(page);
-		await expect(page.getByTestId('toggle-settled')).toHaveAttribute('aria-checked', 'true');
-		await expect(page.getByTestId('toggle-settled')).toHaveText(/^hide settled annotations/);
+		await expect(page.getByTestId('toggle-settled')).toHaveText('hide settled annotations');
 		// the keys move through the menu, and Escape hands focus back to view
 		await expect(page.getByTestId('toggle-settled')).toBeFocused();
 		await page.keyboard.press('ArrowDown');
@@ -690,7 +690,7 @@ test.describe('the toolbar', () => {
 	test('a node keeps its context and its source under view', async ({ page }) => {
 		await page.goto('/node/sy-0003');
 		await viewMenu(page);
-		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotationss', 'open its context beside', 'show verbatim code', 'annotations off in this panea']);
+		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open its context beside', 'show verbatim code', 'turn annotations off']);
 		await page.getByTestId('open-context').click();
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
 	});
@@ -700,7 +700,7 @@ test.describe('the toolbar', () => {
 		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
 		await viewMenu(page);
-		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open the PDF', 'annotations off in this panea']);
+		await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]')).toHaveText(['show settled annotations', 'open the PDF', 'turn annotations off']);
 		await expect(page.getByTestId('open-pdf')).toHaveAttribute('href', /paper\.pdf$/);
 		await page.getByTestId('toggle-settled').click();
 		await expect(page.getByTestId('marked-doc')).toHaveClass(/show-settled/);
@@ -733,13 +733,13 @@ test.describe('the toolbar', () => {
 			await page.goto(at);
 			await expect(controls(page, 0), at).toBeVisible();
 			await viewMenu(page);
-			await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]'), at).toHaveText(['annotations off in this panea']);
+			await expect(page.getByTestId('toolbar-menu').locator('[role^="menuitem"]'), at).toHaveText(['turn annotations off']);
 			await page.keyboard.press('Escape');
 		}
 		await expect(controls(page, 0).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Transcript', 'What it did']);
 	});
 
-	test('annotations off hides every mark in its own pane only, from view or by `a`', async ({ page }) => {
+	test('turning annotations off hides every mark in its own pane only, from view and never by a letter', async ({ page }) => {
 		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
 		const mark = (i: number) => pane(page, i).locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').first();
 		for (const i of [0, 1]) await expect(mark(i)).not.toHaveClass(/hidden/);
@@ -748,11 +748,13 @@ test.describe('the toolbar', () => {
 		await expect(mark(0)).toHaveClass(/hidden/);
 		await expect(mark(1)).not.toHaveClass(/hidden/);
 		await expect(controls(page, 0).getByTestId('toolbar-view-on')).toBeVisible();
-		// `a` from inside the other pane hides that pane's, and again shows them
-		await pane(page, 1).locator('.fragment').first().press('a');
-		await expect(mark(1)).toHaveClass(/hidden/);
+		// `a` typed in the other pane hides nothing
 		await pane(page, 1).locator('.fragment').first().press('a');
 		await expect(mark(1)).not.toHaveClass(/hidden/);
-		await expect(mark(0)).toHaveClass(/hidden/);
+		// the menu says what a click does now, and turns them on again
+		await viewMenu(page, 0);
+		await expect(page.getByTestId('toggle-hide-notes')).toHaveText('turn annotations on');
+		await page.getByTestId('toggle-hide-notes').click();
+		await expect(mark(0)).not.toHaveClass(/hidden/);
 	});
 });

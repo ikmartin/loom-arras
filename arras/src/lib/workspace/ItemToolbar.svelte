@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A pane's toolbar: one row in the pane's own flow beneath its tabs, drawn by every pane for every kind, dimmer in the one not focused. At its left the item's views; at its right the kind's bar, a document's **history ▾**, compare's counter and stop while the two panes are compared, then **view ▾**, the menu holding every other control in full words, which always ends with hiding every annotation in this pane (`a`). Each control acts on its own pane only; compare, started from a draft's history, is the one that reaches across.
+	// A pane's toolbar: one row in the pane's own flow beneath its tabs, drawn by every pane for every kind, dimmer in the one not focused. At its left the item's views; at its right the kind's bar, a document's **history ▾**, compare's counter and stop while the two panes are compared, then **view ▾**, the menu holding every other control in full words, which always ends with turning every annotation in this pane off or on, a control with no key, since a stray letter must never hide what a reader is looking at. Each control acts on its own pane only; compare, started from a draft's history, is the one that reaches across.
 	import { untrack, type Snippet } from 'svelte';
 	import CompareControls from './CompareControls.svelte';
 	import PaneViews from './PaneViews.svelte';
@@ -60,10 +60,8 @@
 		<ToolbarMenu label="view" name="view menu for {name}" menuName="view of {name}" testid="toolbar-view" menuTestid="toolbar-menu" divided={!!bar || !!history || comparing} dot={on || hidden}>
 			{#if view}{@render view()}<hr />{/if}
 			<ToolbarItem
-				label="annotations off in this pane"
-				name="annotations off in the pane showing {name}"
-				key="a"
-				checked={hidden}
+				label={hidden ? 'turn annotations on' : 'turn annotations off'}
+				name="{hidden ? 'turn annotations on' : 'turn annotations off'} in the pane showing {name}"
 				testid="toggle-hide-notes"
 				onclick={() => workspace.hideNotes(pane.index, !hidden)}
 			/>

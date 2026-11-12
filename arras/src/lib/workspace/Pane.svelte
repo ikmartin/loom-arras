@@ -1,5 +1,5 @@
 <script lang="ts">
-	// One pane (plan 0.13.3 W1, W10–W11): its tab strip, its toolbar beneath (ItemToolbar, drawn by the kind's controls), and the active item's renderer in a body that scrolls. Neither pane is primary; both hold every kind and behave alike, and each draws its own toolbar, the unfocused one's dimmer, as its tabs are. `a` anywhere in the pane hides or shows every annotation in it.
+	// One pane (plan 0.13.3 W1, W10–W11): its tab strip, its toolbar beneath (ItemToolbar, drawn by the kind's controls), and the active item's renderer in a body that scrolls. Neither pane is primary; both hold every kind and behave alike, and each draws its own toolbar, the unfocused one's dimmer, as its tabs are.
 	//
 	// **Focus is taken by any interaction** — a press on its text, a wheel over it, a tab into it — in the capture phase, so whatever acts on the focused pane reads the new value in the same frame. A pane scrolling itself (a paper sent to its page) is not an interaction, which is why the scroll event is not what is listened for. **The focused pane is marked** by its shadow while both are open, and the other is not dimmed: making a document harder to read to say it is not the current one is the wrong trade in a reading tool.
 	import { onDestroy, tick, untrack } from 'svelte';
@@ -31,20 +31,6 @@
 	const dim = $derived(workspace.panes.length === 2 && workspace.focus !== index);
 	const Controls = $derived(item ? kinds[item.kind].controls : undefined);
 	const name = $derived(item && store.manifest ? nameOf(item, store.manifest) : '');
-
-	// `a` hides or shows every annotation in this pane, from anywhere in it but a field being typed in; listened for on the pane, so it reaches every kind's renderer alike
-	$effect(() => {
-		const el = frame;
-		if (!el) return;
-		const hide = (e: KeyboardEvent) => {
-			if (e.key !== 'a' || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
-			if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
-			workspace.hideNotes(index, !workspace.hidesNotes(index));
-			e.preventDefault();
-		};
-		el.addEventListener('keydown', hide);
-		return () => el.removeEventListener('keydown', hide);
-	});
 
 	// a wheel takes focus without ever being cancelled, so it is listened for passively: a listener that could cancel it makes the browser wait for the page's thread before every step of a scroll, and a long document's typesetting or a new manifest then stalls the scroll itself
 	$effect(() => {
