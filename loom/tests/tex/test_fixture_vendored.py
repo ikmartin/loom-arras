@@ -1,4 +1,4 @@
-"""TeX tier: loom's build of the synthetic quilt equals the vendored conformance fixture (docs/specs/fixture.md §3): the manifest by section, and every other file the fixture vendors by path, none missing and none extra, modulo timestamps and SVG bodies, which depend on the TeX Live version."""
+"""TeX tier: loom's build of the synthetic quilt equals the vendored conformance fixture (docs/specs/fixture.md §3): the manifest by section, and every other file the fixture vendors by path, none missing and none extra, modulo timestamps, SVG bodies and the whitespace in what TeX made, which depend on the TeX Live version."""
 
 from __future__ import annotations
 
@@ -22,7 +22,23 @@ VENDORED = ("fragments", "svg", "source", "diffs", "transcripts", "files", "chan
 
 
 def _norm_fragment(text: str) -> str:
-    return PICTURE.sub(r'src="svg/PICTURE.\1"', SVG.sub("<svg/>", text))
+    return _unspaced(PICTURE.sub(r'src="svg/PICTURE.\1"', SVG.sub("<svg/>", text)))
+
+
+def _unspaced(html: str) -> str:
+    """`html` without its whitespace, which TeX4ht writes differently from one TeX Live to the next (`By Lemma~` is a no-break space and two spaces in 2024's, the space alone in 2026's) where the words and the markup agree."""
+    return re.sub(r"\s+", "", html)
+
+
+def _norm_html(value: object) -> object:
+    """Every `*_html` string in `value`, at any depth, without its whitespace (`_unspaced`)."""
+    if isinstance(value, dict):
+        return {
+            k: _unspaced(v) if k.endswith("_html") and isinstance(v, str) else _norm_html(v) for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_norm_html(v) for v in value]
+    return value
 
 
 def published(root: Path) -> dict[str, bytes]:
@@ -55,7 +71,7 @@ def _norm_manifest(m: dict) -> dict:  # type: ignore[type-arg]
     for canon in m.get("canon", []):
         canon.pop("hash", None)
     m["publisher"].pop("version", None)
-    return m
+    return _norm_html(m)  # type: ignore[return-value]
 
 
 @pytest.mark.tex

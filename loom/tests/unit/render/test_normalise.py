@@ -105,3 +105,31 @@ def test_a_paragraph_left_open_at_a_snippet_mark_is_closed_there() -> None:
         '<div class="math display" data-at=":0">\\[\\begin {tikzcd} A \\end {tikzcd}\\]</div>'
     )
     assert re.search(r'<div class="node"[^>]*>\s*<p[^>]*>Kept\.</p>\s*</div>', html[marks[1] : marks[2]])
+
+
+def test_texts_tex4ht_set_in_no_paragraph_are_each_given_one() -> None:
+    """TeX Live 2026's TeX4ht opens no paragraph for a text of a run that follows another text's paragraph, and closes that one only after the run: each text is given a paragraph of its own, closed at the next mark."""
+    page = """<html><body><!-- loomsnippet 36 --><p> By Lemma <span class='loom-ref' data-label='sy-0002'>1.2</span>, two.
+<!-- loomsnippet 37 --> Kreschmer, Cycle groups, 1999
+<!-- loomsnippet 38 --> any standard text
+<!-- loomsnippet 39 --> </p><div class='loom-node' data-env='lemma' data-file='' data-line='3'><p>Kept.</p></div>
+<!-- loomsnippet end --></body></html>"""
+    html = normalise(page).html
+    texts = re.split(r'<span class="loom-snippet" data-snippet="[^"]+"></span>', html)[1:]
+    assert re.fullmatch(r'\s*<p data-at="[^"]*"> Kreschmer, Cycle groups, 1999\s*</p>\s*', texts[1])
+    assert re.fullmatch(r'\s*<p data-at="[^"]*"> any standard text\s*</p>\s*', texts[2])
+    assert re.search(r'<div class="node"[^>]*><p[^>]*>Kept\.</p></div>', texts[3])
+    assert all(t.count("<p") == t.count("</p>") for t in texts)
+
+
+def test_the_words_after_a_proof_s_last_display_stand_in_a_paragraph() -> None:
+    """TeX4ht leaves the words after a display that ends a proof in the proof itself, outside any paragraph; they are given one, which ends with the proof."""
+    page = """<html><body><div class='proof'><!-- l. 5 --><p class='indent'>Because </p><div class='mathjax-env mathjax-equation'>\\begin{equation} x \\end{equation}</div>by (1). <span class='qed'>&#x25A1;</span></div><p>After.</p></body></html>"""
+    html = normalise(page).html
+    assert '</div><p data-at=":5">by (1). □</p></div><p data-at=":5">After.</p>' in html, html
+
+
+def test_a_title_is_a_second_level_heading_whichever_tex4ht_set_it_as() -> None:
+    for level in ("h1", "h2"):
+        html = normalise(f"<html><body><{level} class='titleHead'>A Title</{level}></body></html>").html
+        assert html.startswith('<h2 data-head="titleHead"'), html
