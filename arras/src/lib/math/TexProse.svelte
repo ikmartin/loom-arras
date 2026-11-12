@@ -12,6 +12,9 @@
 
 	const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
 
+	/** The environments MathJax typesets; any other `\begin` stays literal. */
+	const MATH_ENV = /^(?:equation|align|alignat|flalign|gather|multline|eqnarray|displaymath|math|split|aligned|alignedat|gathered|cases|array|[pbvBV]?matrix|smallmatrix|subequations)\*?$/;
+
 	/** The text commands a proposed sentence uses. Everything else stays literal. */
 	const MARKUP: [RegExp, string, string][] = [
 		[/\\emph\{([^{}]*)\}/g, '<em>', '</em>'],
@@ -37,8 +40,8 @@
 			.replace(/~/g, '\u00a0')
 			.replace(/[&<>]/g, (c) => ESC[c]);
 		for (const [re, open, close] of MARKUP) out = out.replace(re, (_, inner: string) => open + inner + close);
-		// MathJax's delimiters here are \( \) and \[ \], matching what the publisher emits; an escaped \$ is a dollar sign
-		return delimit(out);
+		// MathJax's delimiters here are \( \) and \[ \], matching what the publisher emits; an escaped \$ is a dollar sign. An environment that is not mathematics, a list or a proof, is source to read, which MathJax would typeset as an error
+		return delimit(out).replace(/\\(?:begin|end)\{([^{}]*)\}/g, (all: string, env: string) => (MATH_ENV.test(env) ? all : `<span class="tex2jax_ignore">${all}</span>`));
 	});
 
 	$effect(() => {

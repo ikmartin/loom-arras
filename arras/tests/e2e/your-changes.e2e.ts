@@ -160,3 +160,15 @@ test('a card reads an escaped dollar as a dollar, and however long its words it 
 	const box = (await c.boundingBox())!;
 	expect(box.height).toBeLessThan(400);
 });
+
+test('a passage is shown as TeX made it, and raw source keeps its lists and proofs as text, never a typesetting error', async ({ page }) => {
+	const passage = { ...rows[1], id: 'e-2026-09-18-made01', old: '', new: '\\section*{Problem 1}\n\n\\begin{enumerate}\\item What is $x$?\\end{enumerate}', new_html: '<p>Problem 1, as TeX made it.</p>' };
+	const source = { ...rows[1], id: 'e-2026-09-18-raw001', old: '', new: 'Answer: \\begin{proof}[Answer] It is $x$. \\end{proof}', new_html: null };
+	await serve(page, (m) => (m.changes = [passage, source]));
+	await page.goto('/review');
+	await expect(card(page, passage.id).getByTestId('change-new-made')).toHaveText('Problem 1, as TeX made it.');
+	const raw = card(page, source.id).getByTestId('change-words');
+	await expect(raw).toContainText('\\begin{proof}[Answer]');
+	await expect(raw.locator('mjx-container')).toHaveCount(1);
+	await expect(raw.locator('mjx-merror, [data-mjx-error]')).toHaveCount(0);
+});
