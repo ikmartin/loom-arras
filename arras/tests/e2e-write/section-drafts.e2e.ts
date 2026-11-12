@@ -43,7 +43,8 @@ for (const width of [736, 1100, 1440]) {
   await expect(preamble).toContainText('to decide');
   await row.click();
   await expect(shown).toContainText('Proposed');
-  await expect(shown.locator('mjx-container').first()).toBeVisible();
+  // the proposed text is new, so it is typeset where TeX is installed to make it and shown as its source where it is not, as on CI's runner
+  await expect(shown.locator('mjx-container, pre.source').first()).toBeVisible();
   const [decision] = await Promise.all([
    page.waitForResponse(r => r.url().endsWith('/_api/adopt-decision')),
    page.getByTestId('take-it').click()

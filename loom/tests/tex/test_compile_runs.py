@@ -65,5 +65,23 @@ def test_a_run_that_never_ends_is_killed_with_everything_it_started(tmp_path: Pa
     held = []
     res = compile_document(q, "", "main.tex", q / ".loom/build/main", timeout=3, started=held.append)
     assert res.returncode == 124 and "timed out" in res.first_error
-    with pytest.raises(ProcessLookupError):
-        os.killpg(held[0].pid, 0)
+    assert not _running(held[0].pid)
+
+
+def _running(group: int) -> bool:
+    """Whether any process of `group` still runs: a zombie has stopped, though a container whose first process is not an init never reaps it and `killpg` still finds it."""
+    try:
+        os.killpg(group, 0)
+    except ProcessLookupError:
+        return False
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return True
+    for d in proc.iterdir():
+        try:
+            state, _ppid, pgrp = (d / "stat").read_text().rsplit(")", 1)[1].split()[:3]
+        except (OSError, ValueError, IndexError):
+            continue
+        if int(pgrp) == group and state != "Z":
+            return True
+    return False

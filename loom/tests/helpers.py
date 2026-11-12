@@ -160,7 +160,7 @@ def edit(path: Path, old: str, new: str, count: int = 1) -> None:
 
 
 def same_tree(got: Mapping[str, bytes], expected: Mapping[str, bytes], what: str, regenerate: str) -> None:
-    """Compare two trees of file bytes path by path, naming the first path missing (in `expected` only), extra or different, up to five more, and the command that regenerates the expected tree."""
+    """Compare two trees of file bytes path by path, naming the first path missing (in `expected` only), extra or different, with where a different one first differs, up to five more, and the command that regenerates the expected tree."""
     bad = [
         (rel, "missing" if rel not in got else "extra" if rel not in expected else "different")
         for rel in sorted(set(got) | set(expected))
@@ -171,8 +171,13 @@ def same_tree(got: Mapping[str, bytes], expected: Mapping[str, bytes], what: str
         more = (
             f" (and {len(bad) - 1} more: {', '.join(f'{r} {h}' for r, h in bad[1:6])}{', ...' if len(bad) > 6 else ''})"
         )
+        where = ""
+        if how == "different":
+            a, b = got[rel].decode("utf-8", "replace"), expected[rel].decode("utf-8", "replace")
+            at = next((i for i, (x, y) in enumerate(zip(a, b, strict=False)) if x != y), min(len(a), len(b)))
+            where = f"\n  made:     {a[max(0, at - 160) : at + 240]!r}\n  expected: {b[max(0, at - 160) : at + 240]!r}"
         raise AssertionError(
-            f"{what}: {rel} is {how}{more if len(bad) > 1 else ''}; if the change is intended, regenerate with `{regenerate}`"
+            f"{what}: {rel} is {how}{more if len(bad) > 1 else ''}; if the change is intended, regenerate with `{regenerate}`{where}"
         )
 
 

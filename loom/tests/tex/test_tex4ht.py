@@ -291,7 +291,7 @@ def test_a_document_is_read_from_its_html_and_an_edit_since_is_made_again_by_tex
     assert 'class="included" data-key="drafting/nodes/sy-0002.tex" data-file="drafting/nodes/sy-0002.tex"' in frag
     assert re.search(r'<details class="env env-proof"[^>]*data-of="sy-0002"', frag)
     # a reference to an equation names the anchor the equation carries
-    eq = re.search(r'<a class="ref ref-eq" data-target="([^"]+)"[^>]*href="#([^"]+)"', frag)
+    eq = re.search(r'<a [^>]*class="ref ref-eq" data-target="([^"]+)"[^>]*href="#([^"]+)"', frag)
     assert eq is not None and f'id="{eq.group(2)}"' in frag
     assert len(re.findall(r'<p data-src="drafting/[^"]+:\d+:\d+"', frag)) >= 10
     # every picture is one the build publishes under svg/: the one TeX drew, and an included graphic
