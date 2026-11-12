@@ -142,6 +142,7 @@ class _Rebuild(HTMLParser):
         self.cites = 0  # citations open around the parser
         self.loose = 0  # paragraphs closed at a mark whose own `</p>` is still to come
         self.bib = 0  # bibliographies set as a list, as TeX Live 2026's TeX4ht sets one, open around the parser
+        self.bibwrap = 0  # what holds a bibliography (`div.thebibliography`, `section.thebibliography` in TeX Live 2026), open around the parser
 
     # -- the parser's events --------------------------------------------------------------------------------------
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -174,7 +175,11 @@ class _Rebuild(HTMLParser):
             return
         a = {k: (v or "") for k, v in attrs}
         # a bibliography is a paragraph to an entry, its label first, as TeX4ht wrote it before TeX Live 2026, which sets it as a list
-        if tag == "dl" and "thebibliography" in cls:
+        if tag in ("div", "section") and "thebibliography" in cls:
+            self.bibwrap += 1
+            self.stack.append("bibwrap")
+            return
+        if tag == "dl" and (self.bibwrap or "thebibliography" in cls):
             self.bib += 1
             self.stack.append("bib")
             return
@@ -249,6 +254,9 @@ class _Rebuild(HTMLParser):
             self.cites -= 1
         if made == "bib":
             self.bib -= 1
+            return
+        if made == "bibwrap":
+            self.bibwrap -= 1
             return
         if self.bib and tag == "dt":
             self.out.append(" ")  # between an entry's label and its text
@@ -400,7 +408,7 @@ class _Rebuild(HTMLParser):
 
     def _para(self) -> None:
         """Begin a paragraph for text standing in none: directly in a container or outside every element, as TeX4ht leaves the words after a display that ends a proof, and in TeX Live 2026 a text of a run that follows another's paragraph, which it closes only after."""
-        kept = [made for made in self.stack if made is not None]
+        kept = [made for made in self.stack if made not in (None, "bibwrap")]
         if not kept or kept[-1] == "div":
             self._emit("p", {})
             self.stack.append("p auto")

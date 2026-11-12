@@ -138,7 +138,11 @@ def test_a_title_is_a_second_level_heading_whichever_tex4ht_set_it_as() -> None:
 def test_a_bibliography_is_a_paragraph_to_an_entry_whichever_way_tex4ht_set_it() -> None:
     """TeX4ht before TeX Live 2026 sets each entry as a paragraph, its label first; TeX Live 2026's sets the bibliography as a list of labels and entries. Both read as a paragraph to an entry."""
     before = """<html><body><div class='thebibliography'><p class='bibitem'><span class='biblabel'><span class='cmr-8'>1. </span><span class='bibsp'>   </span></span><a id='XHar77'></a><span class='cmr-8'>Robin Hartshorne, </span><span class='cmti-8'>Algebraic geometry</span><span class='cmr-8'>, 1977.</span></p><p class='bibitem'><span class='biblabel'><span class='cmr-8'>2. </span></span><span class='cmr-8'>Andrew Kresch.</span></p></div></body></html>"""
-    after = """<html><body><dl class='thebibliography'><dt id='X0-Har77' class='thebibliography'><span class='cmr-8'>1.</span></dt><dd id='bib-1' class='thebibliography'><a id='XHar77'></a><span class='cmr-8'>Robin Hartshorne, </span><span class='cmti-8'>Algebraic geometry</span><span class='cmr-8'>, 1977.</span></dd><dt id='X0-Kre99' class='thebibliography'><span class='cmr-8'>2.</span></dt><dd id='bib-2' class='thebibliography'><span class='cmr-8'>Andrew Kresch.</span></dd></dl></body></html>"""
+    after = """<html><body><section class='thebibliography' role='doc-bibliography'><dl><dt>
+<span class='cmr-8'>1.</span> </dt><dd><a id='XHar77'></a><span class='cmr-8'>Robin Hartshorne, </span><span class='cmti-8'>Algebraic geometry</span><span class='cmr-8'>, 1977.</span>
+  </dd><dt>
+<span class='cmr-8'>2.</span> </dt><dd><span class='cmr-8'>Andrew Kresch.</span>
+  </dd></dl></section></body></html>"""
 
     def entries(page: str) -> list[str]:
         html = normalise(page).html
