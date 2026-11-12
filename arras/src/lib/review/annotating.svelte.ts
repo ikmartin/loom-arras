@@ -3,7 +3,7 @@
 // Nothing here reads a type's id to decide anything: a type's `open`, `notes` and look do.
 
 import type { Annotation, AnnotationType, Look, Manifest, PendingChange } from '$lib/manifest/types';
-import { documentLabel, keyName } from '$lib/workspace/names';
+import { keyName } from '$lib/workspace/names';
 import { ui } from '$lib/ui.svelte';
 import { COLORS, STYLES, typeOf } from './annotationTypes';
 import { acted } from './acted.svelte';
@@ -342,13 +342,7 @@ export function says(a: Annotation): boolean {
 	return plain(a.body_html) !== '';
 }
 
-/** One group of the Notes list: a document, a work or a PDF, by the name a reader uses. */
-export interface NotesGroup {
-	label: string;
-	notes: Annotation[];
-}
-
-/** The document `a` is read in, as the Notes list groups it: the document it names; else, for a key, the document it is, or the first that reaches its node; a cited work's citekey; a project PDF's path. */
+/** The document `a` is read in, as Review's To do groups it: the document it names; else, for a key, the document it is, or the first that reaches its node; a cited work's citekey; a project PDF's path. */
 export function documentOf(m: Manifest, a: Annotation): string {
 	if (a.in) return a.in;
 	if (a.target.file) return a.target.file;
@@ -360,42 +354,26 @@ export function documentOf(m: Manifest, a: Annotation): string {
 }
 
 /**
- * The Notes list: every top-level annotation whose type is listed in Notes, from every document and work, grouped by document in the order the groups first appear.
+ * The Notes list beside an item: the top-level annotations read here whose type is listed in Notes, in reading order.
  *
  * Parameters
  * ----------
  * m : Manifest
+ * s : Annotating
+ *     The item's annotating, whose `order` is what is read here.
  *
  * Returns
  * -------
- * NotesGroup[]
- *     Each group's label is the document's file name, a work's citekey or a PDF's file name.
+ * list of Annotation
  */
-export function notesIn(m: Manifest | null | undefined): NotesGroup[] {
+export function notesOf(m: Manifest | null | undefined, s: Pick<Annotating, 'order'>): Annotation[] {
 	if (!m) return [];
-	const groups = new Map<string, Annotation[]>();
-	for (const a of Object.values(m.annotations ?? {})) {
-		if (a.in_reply_to || !typeOf(m, a)?.notes) continue;
-		const at = documentOf(m, a);
-		const list = groups.get(at);
-		if (list) list.push(a);
-		else groups.set(at, [a]);
-	}
-	return [...groups].map(([at, notes]) => ({ label: m.masters.some((x) => x.path === at) ? documentLabel(m.masters, at) : (at.split('/').pop() ?? at), notes }));
+	return s.order.map((id) => m.annotations[id]).filter((a): a is Annotation => !!a && !a.in_reply_to && !!typeOf(m, a)?.notes);
 }
 
-/** How many annotations the Notes list holds, from every document. */
-export function notesCount(m: Manifest | null | undefined): number {
-	return notesIn(m).reduce((n, g) => n + g.notes.length, 0);
-}
-
-/** How many of the annotations read here are listed in Notes: what the Notes badge on this item's toolbar counts. */
+/** How many notes are read here: what the Notes badge on this item's toolbar counts, and what its list holds. */
 export function notesHere(m: Manifest | null | undefined, s: Pick<Annotating, 'order'>): number {
-	if (!m) return 0;
-	return s.order.filter((id) => {
-		const a = m.annotations[id];
-		return !!a && !a.in_reply_to && !!typeOf(m, a)?.notes;
-	}).length;
+	return notesOf(m, s).length;
 }
 
 /** Where `a` stands, in the words a reader uses: the page of a PDF or a work, else the key's name. */

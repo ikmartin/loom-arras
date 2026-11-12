@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The list beside a text. **Comments**: every annotation and pending change here in reading order, a card each, which opens it at its mark: an annotation's with its colour, author, quoted words and comment (a PDF's mark not found again on the changed file says so, having none), a change's with its words out and in and Keep and Discard (`ChangeCard`). Where the text has changes, All, Annotations and Changes choose what is listed, and with annotations alone the text shows what the person has kept. To do keeps the changes and the open annotations of types that stay open, from others than the reader; the filter leaves out people, an edit made in the file being its own, and shows or hides the resolved. **Notes**: every annotation whose type is listed in Notes, from every document and work, grouped by document, each a link back to where it was left. Both are built from the manifest; nobody edits them.
+	// The list beside a text. **Comments**: every annotation and pending change here in reading order, a card each, which opens it at its mark: an annotation's with its colour, author, quoted words and comment (a PDF's mark not found again on the changed file says so, having none), a change's with its words out and in and Keep and Discard (`ChangeCard`). Where the text has changes, All, Annotations and Changes choose what is listed, and with annotations alone the text shows what the person has kept. To do keeps the changes and the open annotations of types that stay open, from others than the reader; the filter leaves out people, an edit made in the file being its own, and shows or hides the resolved. **Notes**: the annotations here whose type is listed in Notes, in reading order, each a link to where it was left. Both are built from the manifest; nobody edits them.
 	import Icon from '$lib/components/Icon.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
@@ -9,7 +9,7 @@
 	import { repliesTo } from '$lib/annotations';
 	import { ui } from '$lib/ui.svelte';
 	import { staysOpen, typeOf } from './annotationTypes';
-	import { authors, changePasses, entries, isTodo, notesIn, placeOf, plain, type Annotating, type Layer } from './annotating.svelte';
+	import { authors, changePasses, entries, isTodo, notesOf, placeOf, plain, type Annotating, type Layer } from './annotating.svelte';
 	import { authorOf, changeById } from './changes';
 	import { dotVars } from '$lib/fragments/gutter';
 	import ChangeCard from './ChangeCard.svelte';
@@ -33,7 +33,7 @@
 		['annotations', 'Annotations'],
 		['changes', 'Changes']
 	];
-	const groups = $derived(notesIn(m));
+	const here = $derived(notesOf(m, notes));
 
 	let filtering = $state(false);
 	let list = $state<HTMLElement | null>(null);
@@ -59,21 +59,18 @@
 	{#if notes.side === 'notes'}
 		<div class="shead">
 			<div class="row"><span class="stitle">Notes</span><button type="button" class="x" aria-label="Close notes" title="Close notes" data-testid="side-close" onclick={() => (notes.side = null)}><Icon name="close" size={14} /></button></div>
-			<p class="nsub">Every annotation whose type is listed in Notes, from every document, each linked back to where it was left.</p>
+			<p class="nsub">The annotations here whose type is listed in Notes, each linked to where it was left.</p>
 		</div>
 		<div class="cards" bind:this={list}>
-			{#each groups as g (g.label)}
-				<div class="ngroup" data-testid="notes-group">{g.label}<span class="badge">{g.notes.length}</span></div>
-				{#each g.notes as a (a.id)}
-					<a class="card ncard" class:on={notes.open === a.id} href="quilt:{a.id}" data-testid="note-card" data-annotation={a.id}>
-						<div class="ch"><span class="dot2" style={dotVars(a)}></span><span class="who">{a.author.label ?? a.author.id}</span><span>{typeLine(a)}</span></div>
-						{#if a.quote}<div class="q"><TexProse text={a.quote} /></div>{/if}
-						{#if plain(a.body_html)}<div class="ct"><Prose html={a.body_html} /></div>{:else}<div class="ct none">No comment</div>{/if}
-						<div class="nfoot"><span>{m ? placeOf(m, a) : ''}</span><span class="go">Go to it →</span></div>
-					</a>
-				{/each}
+			{#each here as a (a.id)}
+				<a class="card ncard" class:on={notes.open === a.id} href="quilt:{a.id}" data-testid="note-card" data-annotation={a.id}>
+					<div class="ch"><span class="dot2" style={dotVars(a)}></span><span class="who">{a.author.label ?? a.author.id}</span><span>{typeLine(a)}</span></div>
+					{#if a.quote}<div class="q"><TexProse text={a.quote} /></div>{/if}
+					{#if plain(a.body_html)}<div class="ct"><Prose html={a.body_html} /></div>{:else}<div class="ct none">No comment</div>{/if}
+					<div class="nfoot"><span>{m ? placeOf(m, a) : ''}</span><span class="go">Go to it →</span></div>
+				</a>
 			{:else}
-				<div class="sempty">No notes yet. Annotate with a type listed in Notes.</div>
+				<div class="sempty">No notes here yet. Annotate with a type listed in Notes.</div>
 			{/each}
 		</div>
 	{:else}
@@ -355,15 +352,6 @@
 	.stat.done {
 		color: var(--ink-faint);
 		border-color: var(--rule-strong);
-	}
-	.ngroup {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-top: 4px;
-		font-size: 11px;
-		font-weight: 600;
-		color: var(--ink-soft);
 	}
 	.sempty {
 		padding: 16px 4px;

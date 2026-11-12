@@ -44,6 +44,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-66](WQ-66-documents-that-need-shell-escape.md) | a document that needs shell escape or its own build rules, approved per machine | loom | a document the author wants loom to compile needs `-shell-escape`, or a build rule only a `latexmkrc` can add |
 | [WQ-67](WQ-67-corrections-to-a-digest.md) | corrections to a digest's results: annotations while a digest stays read-only, or edits the author keeps | loom, arras | the author asks for an ingest correction to be made in a digest, or edits a digest's file by hand to make one |
 | [WQ-68](WQ-68-toolbar-changes.md) | UI changes to the toolbar, workshopped through a demo the author revises | arras | the author starts the toolbar workshop, or a control that must be visible at rest has no room on a pane's toolbar at the width two panes leave it |
+| [WQ-69](WQ-69-every-note.md) | a view of every note in the quilt, likely opened from the left column | arras | the author asks to see the notes of more than one document, work or PDF at once |
 
 Twenty-four active, twenty-one slots of headroom.
 

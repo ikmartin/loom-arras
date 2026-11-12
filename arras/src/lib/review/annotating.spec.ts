@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Annotation, Manifest } from '$lib/manifest/types';
-import { authors, changedFrom, commentSeed, earlier, handPayload, hintFor, keepLook, typesPayload, isTodo, lookOf, notesHere, notesIn, passes, plain, PLAIN, quoted, retype, sequence, takeSeed, withLook, withType } from './annotating.svelte';
+import { authors, changedFrom, commentSeed, earlier, handPayload, hintFor, keepLook, typesPayload, isTodo, lookOf, notesHere, notesOf, passes, plain, PLAIN, quoted, retype, sequence, takeSeed, withLook, withType } from './annotating.svelte';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 const RED = { color: 'red', style: 'highlight' as const, weight: 2, opacity: 65 };
@@ -136,23 +136,19 @@ describe('the Comments list and To do', () => {
 });
 
 describe('the Notes list', () => {
-	it('holds the annotations whose type is listed in Notes, grouped by the document, work or PDF they are on', () => {
+	it('holds the annotations read here whose type is listed in Notes, in reading order, and the badge counts them', () => {
 		const m = structuredClone(fixture) as Manifest;
 		m.annotations = {
 			n1: row({ id: 'n1', type: 'note', target: { key: 'sy-0003', hash: '' } }),
-			n2: row({ id: 'n2', type: 'note', target: { key: 'drafting/figures/fig.pdf', hash: '', file: 'drafting/figures/fig.pdf', page: 1 } }),
-			n3: row({ id: 'n3', type: 'note', target: { key: 'sy-0003', hash: '' }, in: 'drafting/talk.tex' }),
+			n2: row({ id: 'n2', type: 'note', target: { key: 'sy-0003', hash: '' } }),
+			elsewhere: row({ id: 'elsewhere', type: 'note', target: { key: 'sy-0002', hash: '' }, in: 'drafting/talk.tex' }),
 			q: row({ id: 'q', type: 'question', target: { key: 'sy-0003', hash: '' } }),
 			r: row({ id: 'r', type: 'note', in_reply_to: 'n1' })
 		};
-		const groups = notesIn(m);
-		expect(groups.map((g) => [g.label, g.notes.map((a) => a.id)])).toEqual([
-			['main.tex', ['n1']],
-			['fig.pdf', ['n2']],
-			['talk.tex', ['n3']]
-		]);
-		// the badge on an item's toolbar counts only those read there
-		expect(notesHere(m, { order: ['n1', 'q', 'r'] })).toBe(1);
+		// what is read here, in reading order: a note of another document never is
+		const here = { order: ['n2', 'q', 'n1', 'r'] };
+		expect(notesOf(m, here).map((a) => a.id)).toEqual(['n2', 'n1']);
+		expect(notesHere(m, here)).toBe(2);
 	});
 });
 

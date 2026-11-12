@@ -206,7 +206,7 @@
 				<section class="tp-sec">
 					<h4>Notes</h4>
 					<label class="chk"><input type="checkbox" bind:checked={t.notes} disabled={!editable} data-testid="type-notes" />List in Notes</label>
-					<p class="tp-hint">Annotations of this type also appear in Notes, from every document, each linked back to where it was left.</p>
+					<p class="tp-hint">Annotations of this type are also listed in Notes, beside the document they are on.</p>
 				</section>
 				<section class="tp-sec">
 					<h4>Instructions for agents</h4>

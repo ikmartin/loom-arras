@@ -977,19 +977,19 @@ test.describe('the Comments list', () => {
 	});
 });
 
-// Notes: every annotation whose type is listed in Notes, from every document, grouped by document, each linking back to its place.
+// Notes: the annotations here whose type is listed in Notes, each linking to its place.
 test.describe('the Notes list', () => {
-	test('holds the annotations of types listed in Notes, grouped by document, and a card goes back to its place with its popup open', async ({ page }) => {
+	test('holds the annotations here of types listed in Notes and none from another document, and a card goes to its place with its popup open', async ({ page }) => {
 		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-ecnav2'].type = 'note';
 			m.annotations['a-2026-09-16-xgtcve'].type = 'note';
 		});
-		// the badge counts the notes read here, main.tex's one; the list holds every document's
+		// main.tex reads one of them; the other is talk.tex's
 		await page.goto('/master/drafting/main');
 		await expect(page.getByTestId('open-notes')).toContainText('1');
-		await expect(page.getByTestId('open-notes')).toHaveAttribute('title', /^Notes: 1 here; the list holds every document/);
 		await page.getByTestId('open-notes').click();
-		await expect(page.getByTestId('notes-group')).toHaveText([/main\.tex\s*1/, /talk\.tex\s*1/]);
+		await expect(page.getByTestId('note-card')).toHaveCount(1);
+		await expect(page.locator('[data-testid="note-card"][data-annotation="a-2026-09-16-xgtcve"]')).toHaveCount(0);
 		const card = page.locator('[data-testid="note-card"][data-annotation="a-2026-09-16-ecnav2"]');
 		await expect(card).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 		await expect(card).toContainText('finite widget');
@@ -1000,7 +1000,7 @@ test.describe('the Notes list', () => {
 	test('with no type listed in Notes it says how one gets there', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await page.getByTestId('open-notes').click();
-		await expect(page.getByTestId('side-list')).toContainText('No notes yet');
+		await expect(page.getByTestId('side-list')).toContainText('No notes here yet');
 	});
 });
 
