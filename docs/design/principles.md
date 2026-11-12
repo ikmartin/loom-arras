@@ -34,7 +34,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | [P8](#p8-no-editor-server-model-or-credential-is-required-by-any-command) | No editor, server, model, or credential is required by any command. |
 | [P9](#p9-loom-calls-no-model-and-any-agent-may-attach) | Loom calls no model, and any agent may attach. |
 | [P10](#p10-comments-declare-they-never-command-they-never-change-typeset-output) | Comments declare; they never command; they never change typeset output. |
-| [P11](#p11-the-build-interface-and-the-write-api-are-the-product-boundaries) | The build interface and the write API are the product boundaries. |
+| [P11](#p11-the-viewer-is-part-of-loom-joined-to-it-wherever-that-buys-something) | The viewer is part of loom, joined to it wherever that buys something. |
 | [P12](#p12-a-document-compiles-from-its-own-directory-on-any-tex-on-overleaf) | A document compiles from its own directory, on any TeX, on Overleaf. |
 | [P13](#p13-loom-verifies-what-it-can-reports-what-diverges-repairs-nothing-and-never-blocks-work) | Loom verifies what it can, reports what diverges, repairs nothing, and never blocks work. |
 | [P14](#p14-no-unnecessary-friction) | No unnecessary friction. |
@@ -64,7 +64,7 @@ Loom does not require an AI. It is a complete tool for reading, exploring, draft
 | [C2](#c2-vertical-slices) | Vertical slices. |
 | [C3](#c3-the-fixture-is-the-contracts-executable-form) | The fixture is the contract's executable form. |
 | [C4](#c4-author-files-are-sacred-from-the-first-commit) | Author files are sacred from the first commit. |
-| [C5](#c5-two-codebases-in-two-languages-sharing-nothing-but-specs) | Two codebases, in two languages, sharing nothing but `specs/`. |
+| [C5](#c5-one-tool-in-two-languages-each-with-its-own-build-and-tests) | One tool in two languages, each with its own build and tests. |
 | [K1](#k1-one-action-one-command-one-name) | One action, one command, one name. |
 | [K2](#k2-one-idea-one-flag-one-meaning) | One idea, one flag, one meaning. |
 | [K3](#k3-refuse-what-is-not-understood) | Refuse what is not understood. |
@@ -118,9 +118,9 @@ A tool that holds keys or calls a provider ties its users to that provider. Cons
 
 A `% !LOOM` directive is a fact the scanner reads, never an action loom performs, and never something that alters the PDF. Consequence: `% !LOOM ignore` and `% !LOOM tags:` exist; `% !LOOM accept` does not. Anything that changes the typeset document is a macro (`\nest`), because LaTeX must see it.
 
-### P11. The build interface and the write API are the product boundaries.
+### P11. The viewer is part of loom, joined to it wherever that buys something.
 
-Loom and arras share no code; they share specifications. Consequence: loom publishes a build directory conforming to `docs/specs/`, and arras reads it and nothing else. Arras knows only that a directory changed, never what kind of change or why.
+The viewer is how a person reads and decides in loom, built and shipped with it, and nothing it does is meant for another publisher. Code and knowledge cross between them wherever that buys flexibility, speed, power or expressiveness, as the stream that tells the viewer how each document's compile stands does. Consequence: what stays apart is what protects the person, not a product line: every write goes through the write API with its token, and what a document or a file can author reaches the page only rebuilt from an allowlist.
 
 ### P12. A document compiles from its own directory, on any TeX, on Overleaf.
 
@@ -265,9 +265,9 @@ Every change to loom's output regenerates the fixture, and every change to the i
 
 The tests that enforce P7 are written before any command that touches a file.
 
-### C5. Two codebases, in two languages, sharing nothing but `specs/`.
+### C5. One tool in two languages, each with its own build and tests.
 
-Loom and its viewer, arras, live in one repository, each codebase with its own build and tests, and they meet only at the specifications, which is what keeps P11 a fact of the code and not only of the design.
+Loom is Python and its viewer, arras, is Svelte; they live in one repository and the viewer ships inside loom. The specifications describe what crosses between them, and a change on either side changes them in the same commit (P11).
 
 ## K · The command line
 

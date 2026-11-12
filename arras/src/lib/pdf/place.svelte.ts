@@ -1,6 +1,6 @@
 // Where a paper opens, and keeping where the reader goes from there: what a work's paper and a project's PDF share, each naming a place in its own way.
 
-import { onDestroy } from 'svelte';
+import { onDestroy, untrack } from 'svelte';
 import { keepPlace, keptPlace, type PagePlace } from './position';
 import type { PdfView } from './view.svelte';
 
@@ -31,18 +31,32 @@ export interface PaperPlace {
  *     The stamp of a link naming a place, 0 where none does, and the page it sends the paper to.
  * left : () => void, optional
  *     The reader has moved off the page the link sent them to, so the place comes off the item.
+ * again : () => string, optional
+ *     The paper's own address, for a paper whose bytes change under the reader, as a compile's do: a new address opens it again where the reader is, and the link in force then sends it nowhere. Its pages are not the old ones, so neither the opening told before nor the place kept for the old file would do.
  *
  * Returns
  * -------
  * PaperPlace
  *     Where to open, and what the renderer tells it.
  */
-export function paperPlace(view: () => PdfView, link: () => { seq: number; page: number }, left?: () => void): PaperPlace {
+export function paperPlace(view: () => PdfView, link: () => { seq: number; page: number }, left?: () => void, again?: () => string): PaperPlace {
 	const seq = $derived(link().seq);
 	const spent = $derived(!!seq && view().spent === seq);
 	let told: Opening | null = null;
+	let source = '';
+	let held = 0;
 	const opening = $derived.by<Opening>(() => {
-		if (seq && !spent) {
+		const now = again?.() ?? '';
+		if (now !== source) {
+			const was = source;
+			source = now;
+			if (was && told) {
+				const v = untrack(view);
+				held = seq;
+				return (told = { ...(v.place ?? { page: told.page, share: told.share }), seq: 0 });
+			}
+		}
+		if (seq && !spent && seq !== held) {
 			const at = link().page;
 			if (!told || told.page !== at || told.share || told.seq !== seq) told = { page: at, share: 0, seq };
 			return told;

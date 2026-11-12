@@ -21,7 +21,6 @@ async function shot(page: Page, name: string, path: string): Promise<void> {
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test('a corpus that has everything', async ({ page }) => {
-	// the counterpart to tests/shots-minimal: the same viewer against a corpus declaring all four capabilities, so the two images beside each other are the whole of what `publishes` does
 	await shot(page, 'capability-full-home', '/');
 	await shot(page, 'node-page', '/node/sy-0003');
 	await shot(page, 'review-ledger', '/review');

@@ -29,6 +29,8 @@ TOOLS = [
     "pdfinfo",
     "kpsewhich",
     "pdftocairo",
+    "make4ht",
+    "extractbb",
 ]
 
 

@@ -4,7 +4,7 @@
 import { expect, readOnly, test, type Served } from '../served';
 import type { Page } from '@playwright/test';
 import { openPicker, pickSession } from '../picker';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PAGE2 = '/library/Bellamy19?page=2';
@@ -472,12 +472,21 @@ readOnly('a mark round a formula leaves the formula typeset', async ({ page }) =
 	await expect(page.locator('[data-pane="0"] .fragment')).not.toContainText('\\(');
 });
 
-readOnly('a document never compiled shows none of another document’s numbers', async ({ page }) => {
-	// the talk has no compile of its own: the default document's `Theorem 3.1` would be plausible and wrong there (V3)
-	await page.goto('/master/drafting/talk');
-	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
-	await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);
-	await expect(page.getByTestId('item-controls')).not.toContainText('not yet numbered');
+test.describe('a document never compiled', () => {
+	// the talk's compile taken away, so it has none of its own: the default document's `Theorem 3.1` would be plausible and wrong there (V3)
+	test.use({
+		prepareQuilt: async ({}, use) => {
+			await use(({ root }) => rmSync(join(root, '.loom', 'build', 'drafting', 'talk'), { recursive: true, force: true }));
+		}
+	});
+
+	test('shows its source, and none of another document’s numbers', async ({ page }) => {
+		await page.goto('/master/drafting/talk');
+		await page.locator('[data-pane="0"] .fragment pre.source').first().waitFor();
+		await expect(page.locator('[data-pane="0"] .fragment .env-label').first()).toBeVisible();
+		await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);
+		await expect(page.getByTestId('item-controls')).not.toContainText('not yet numbered');
+	});
 });
 
 readOnly('a paper opened into half a pane fits its text, and its landing dot is in the pane', async ({ page }) => {

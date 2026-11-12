@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -52,7 +53,6 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert (b / "fragments" / "digests" / "Calloway14.html").exists()
     m = json.loads((b / "manifest.json").read_text())
     for field in (
-        "interface_version",
         "publisher",
         "generated",
         "corpus",
@@ -73,7 +73,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
         "search",
     ):
         assert field in m, field
-    assert m["interface_version"] == 2 and m["publisher"]["name"] == "loom"
+    assert m["publisher"]["name"] == "loom"
     assert m["corpus"]["root_label"] == "Widgets and their fixed loci"
     master = m["masters"][0]
     assert (
@@ -113,6 +113,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
 
 
 def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
+    """With no HTML from TeX (the unit tier's TeX makes none) every fragment is its source, node by node, and still valid: each node keeps its identity, label and number, and each run of source names the span it shows."""
     d = synthetic(tmp_path)
     ok("compile", cwd=d)
     exits(1, "build", cwd=d)  # the synthetic quilt has three intentional errors
@@ -123,8 +124,14 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     )  # a real anchor target, so a link into a document lands
     assert node.count("<details ") == 2 and 'data-of="sy-0003"' in node
     assert '<span class="number">2.1</span>' in node
+    text = (d / "drafting" / "sections" / "results.tex").read_text()
+    for m in re.finditer(r'<pre class="source" data-src="([^"]+):(\d+):(\d+)">([^<]*)</pre>', node):
+        assert m.group(1) == "drafting/sections/results.tex" or m.group(1).startswith("drafting/")
+        source = (d / m.group(1)).read_text()
+        assert html.unescape(m.group(4)) == source[int(m.group(2)) : int(m.group(3))]
+    assert text
     master = (b / "fragments" / "masters" / "drafting" / "main.html").read_text()
-    assert 'data-fragment="master"' in master
+    assert 'data-fragment="master"' in master and 'data-from="tex"' not in master
     assert (
         "data-included" not in master
         and '<div class="included" data-key="drafting/nodes/sy-0002.tex" data-file="drafting/nodes/sy-0002.tex"'
@@ -133,16 +140,13 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     assert '<section id="sy-0300" data-id="sy-0300" data-level="2"' in master and "<h2 " in master
     assert 'class="include"' not in master
     section = (b / "fragments" / "nodes" / "sy-0200.html").read_text()
-    assert section.count('<div class="include" data-key=') == 2  # the input of sy-0003 and the subsection
-    subsection = (b / "fragments" / "nodes" / "sy-0201.html").read_text()
-    assert subsection.count('<div class="include" data-key=') >= 4
+    assert 'data-key="sy-0003"' in section and 'id="sy-0201"' in section  # its statements and subsection, in place
     digest = (b / "fragments" / "digests" / "Kre99.html").read_text()
     assert 'data-macros="Kre99"' in digest and "Kre99-thm-2.1" in digest
-    for html in (node, master, section, digest):
-        assert "<script" not in html and "<html" not in html
+    for fragment in (node, master, section, digest):
+        assert "<script" not in fragment and "<html" not in fragment
     code, out = validate(b)
     assert code == 0, out
-    assert (b / "svg").is_dir() and any((b / "svg").iterdir())
 
 
 def test_build_incremental_by_hash(tmp_path: Path) -> None:
@@ -343,33 +347,23 @@ def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> N
     assert cycles(m["inclusion"]["drafting/main.tex"]) == 2  # each cycle named where it closes
 
 
-def test_a_render_on_one_thread_does_not_see_another_threads_inclusions(tmp_path: Path) -> None:
-    """`loom build` renders on a pool; a shared expansion stack made one thread's sections/results.tex a "cycle" in another thread's fragment, and the fixture refreshed with a false data-cycle."""
-    import threading
-
+def test_a_render_on_one_thread_collects_its_own_diagnostics(tmp_path: Path) -> None:
+    """`loom build` renders on a pool; each job's diagnostics are its own, so they are reported in job order whatever order the jobs finish in."""
     from loom.render.fragments import FragmentRenderer, RenderPlan
     from loom.scan.quilt import load_quilt
     from loom.scan.scan import scan
 
     ok("init", str(tmp_path / "q"), "--demo")
     renderer = FragmentRenderer(
-        RenderPlan(
-            result=scan(load_quilt(tmp_path / "q")), numbers={}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
-        )
+        RenderPlan(result=scan(load_quilt(tmp_path / "q")), numbers={}, cache=tmp_path / "c", svg_out=tmp_path / "s")
     )
-    renderer._expanding.append("drafting/sections/results.tex")
-    seen: list[list[str]] = []
-    t = threading.Thread(target=lambda: seen.append(list(renderer._expanding)))
-    t.start()
-    t.join()
-    assert seen == [[]] and renderer._expanding == ["drafting/sections/results.tex"]
     with renderer.collecting() as mine:
         renderer._sink.append("d")  # type: ignore[arg-type]
     assert mine == ["d"] and "d" not in renderer.plan.diagnostics
 
 
 def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Path) -> None:
-    """Each master's fragment is numbered from that master's own compile. A document never compiled shows no numbers, and a reference to a result it cannot number names the result's title."""
+    """Each document's fragment is numbered from that document's own compile, its source too: a document never compiled shows no numbers."""
     from loom.render.fragments import FragmentRenderer, RenderPlan
     from loom.scan.scan import scan
     from loom.tex.aux import AuxNumber
@@ -382,7 +376,7 @@ def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Pa
             RenderPlan(
                 result=scan(load_quilt(q)),
                 numbers={"drafting/main.tex": main_numbers, "drafting/talk.tex": talk},
-                svg_cache=tmp_path / "c",
+                cache=tmp_path / "c",
                 svg_out=tmp_path / "s",
             )
         )
@@ -391,15 +385,15 @@ def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Pa
     main_html, talk_html = render({})
     assert '<span class="number">2.1</span>' in main_html
     assert 'class="number"' not in talk_html
-    assert re.search(r'data-target="sy-0001" data-tex="[^"]*" data-at="\d+" href="#sy-0001">Widget</a>', talk_html)
 
     _, talk_html = render({"sy-0002": AuxNumber("3", 2)})
     assert '<span class="number">3</span>' in talk_html and "2.1" not in talk_html
 
 
 def test_a_reference_to_an_enumerated_item_is_not_an_equation(tmp_path: Path) -> None:
-    """A label on an `\\item` and one in a display are both regions of their result; only the display's number is set in parentheses."""
+    """A label on an `\\item` and one in a display are both regions of their result; only the display's number is set in parentheses, on a page TeX made."""
     from loom.render.fragments import FragmentRenderer, RenderPlan
+    from loom.render.fromhtml import DocumentHtml, Page
     from loom.scan.scan import scan
     from loom.tex.aux import AuxNumber
 
@@ -421,14 +415,15 @@ def test_a_reference_to_an_enumerated_item_is_not_an_equation(tmp_path: Path) ->
         "eq:x": AuxNumber("1", 1),
     }
     renderer = FragmentRenderer(
-        RenderPlan(
-            result=result, numbers={"drafting/main.tex": numbers}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
-        )
+        RenderPlan(result=result, numbers={"drafting/main.tex": numbers}, cache=tmp_path / "c", svg_out=tmp_path / "s")
     )
     assert renderer.equations == {"pp-0001#eq:x"} and "pp-0001#step:b" in result.assembly.regions
-    html = renderer.master_fragment("drafting/main.tex")
+    # the paragraph as TeX4ht prints it, normalised: its references are the numbers the aux holds
+    page = '<p data-at=":15">By Step <a class="ref" data-label="step:b" data-made="">2</a> and <a class="ref" data-label="eq:x" data-made="">1</a>.</p>'
+    doc = DocumentHtml(renderer, renderer.owner("drafting/main.tex"), Page(page, {}, "", normalised=True))
+    html = doc.master_html()
     assert re.search(r'class="ref" data-target="pp-0001#step:b"[^>]*>2</a>', html)
-    assert re.search(r'class="ref ref-eq" data-target="pp-0001#eq:x"[^>]*>\(1\)</a>', html)
+    assert re.search(r'class="ref ref-eq" data-target="pp-0001#eq:x" data-tex="\\ref\{eq:x\}"[^>]*>1</a>', html)
 
 
 #: One planted fragment per rule the dialect validator enforces, with the problem it must name.
@@ -540,15 +535,16 @@ def test_a_preview_and_a_state_are_made_once_while_their_inputs_hold(
 ) -> None:
     """A rebuild renders no review preview a build before it rendered from the same inputs, and computes each reviewer's acceptance states once (plan 0.18.2)."""
     from loom.records.store import Records
-    from loom.render import review_compare
+    from loom.render import changes
+    from loom.render.snippets import Snippet, Snippets
 
     d = demo(tmp_path)
     renders = [0]
-    real_render = review_compare._render_now
 
-    def counted_render(*args, **kwargs):  # type: ignore[no-untyped-def]
-        renders[0] += 1
-        return real_render(*args, **kwargs)
+    def counted_render(root, base, preamble, texts, cache, **kwargs):  # type: ignore[no-untyped-def]
+        # TeX stood in for: each text a paragraph, as a snippet of it would come back
+        renders[0] += len(texts)
+        return Snippets(made=[Snippet(f'<p data-at=":1">{html.escape(t)}</p>') for t in texts])
 
     states = [0]
     real_states = Records._acceptance_states
@@ -557,7 +553,8 @@ def test_a_preview_and_a_state_are_made_once_while_their_inputs_hold(
         states[0] += 1
         return real_states(self, result)
 
-    monkeypatch.setattr(review_compare, "_render_now", counted_render)
+    monkeypatch.setattr("loom.render.snippets.render_snippets", counted_render)
+    assert changes
     monkeypatch.setattr(Records, "_acceptance_states", counted_states)
     report = build(load_quilt(d))
     assert renders[0] > 0, "the demo has something to review"

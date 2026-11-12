@@ -305,7 +305,8 @@ def test_the_manifest_publishes_each_edit_with_its_text_and_its_change(tmp_path:
         "replace",
         "open",
     )
-    assert "<em>here</em>" in row["comment_html"] and "at most two points" in row["with_html"]
+    # `with_html` is made by TeX, so it is checked in the tex suite (test_review_commands.py, the proposed theorem)
+    assert "<em>here</em>" in row["comment_html"]
     change = row["change"]
     assert change["state"] == "ready" and change["moved"] is True and change["fragment"].startswith("fragments/edits/")
     assert "review-changed" in (q / ".loom/build" / change["fragment"]).read_text()

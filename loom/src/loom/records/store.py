@@ -819,7 +819,7 @@ class Records:
                             d["label"] = "Equation " + (number or label)
                             d["owner"] = result.dependencies.owners.get(c.id)
                         if c.kind == "dependency-changed" and c.id and not c.via and result.graph:
-                            from loom.render.convert import slug
+                            from loom.render.markup import slug
 
                             edge = next(
                                 (

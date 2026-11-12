@@ -1,6 +1,6 @@
 """Annotation marks in fragments: a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
 
-The quote is TeX and the block is HTML, so both are compared as the page prints them: the quote, a formula's TeX and the command a reference or citation carries in `data-tex` all read through `selectors.project`; printed text reads as it is, other tags as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
+The quote is TeX and the block is HTML, so both are compared as the page prints them, except in a block shown as its source (`pre.source`), where the quote stands at its own offsets: the quote, a formula's TeX and the command a reference or citation carries in `data-tex` all read through `selectors.project`; printed text reads as it is, other tags as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
 """
 
 from __future__ import annotations
@@ -114,7 +114,12 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
             continue
         blk = min(candidates, key=lambda b: b.end - b.start)
         placed = False
-        if not _is_math(html[blk.open_start : blk.open_end]):
+        if _is_source(html[blk.open_start : blk.open_end]):
+            found = _at_offsets(html, blk.open_end, blk.close_start, e.start - blk.start, e.end - blk.start)
+            if found is not None:
+                spans.setdefault(found, []).append(e.ann_id)
+                placed = True
+        elif not _is_math(html[blk.open_start : blk.open_end]):
             for a_, b_ in _locate(html, blk.open_end, blk.close_start, e.quote):
                 spans.setdefault((a_, b_), []).append(e.ann_id)
                 placed = True
@@ -180,6 +185,30 @@ _MATH_OPEN = re.compile(r'^<(span|div)\b[^>]*\bclass="[^"]*\bmath\b')
 _ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
 #: An element that carries the source of the command it draws (`convert._said`): a reference, a citation.
 _SAID = re.compile(r'^<([A-Za-z][\w-]*)\b[^>]*\bdata-tex="([^"]*)"')
+
+
+def _is_source(open_tag: str) -> bool:
+    """A `pre.source`, whose text is exactly the span its `data-src` names (`sourceview`)."""
+    return open_tag.startswith("<pre") and bool(re.search(r'class="[^"]*\bsource\b', open_tag))
+
+
+def _at_offsets(html: str, a: int, b: int, start: int, end: int) -> tuple[int, int] | None:
+    """Where the characters `start` to `end` of the text in html[a:b] stand, entities read as the characters they are; None when they are not all there."""
+    if start < 0 or end <= start:
+        return None
+    count = 0
+    lo = hi = None
+    i = a
+    while i < b:
+        if count == start and lo is None:
+            lo = i
+        m = _ENTITY.match(html, i)
+        i = m.end() if m else i + 1
+        count += 1
+        if count == end:
+            hi = i
+            break
+    return (lo, hi) if lo is not None and hi is not None else None
 
 
 def _is_math(open_tag: str) -> bool:

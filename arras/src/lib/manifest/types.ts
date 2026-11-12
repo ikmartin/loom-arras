@@ -1,7 +1,5 @@
-// Types mirroring docs/specs/manifest.md (interface version 2). Field names are fixed by the spec; unknown fields are ignored by the viewer, so every interface here is open.
+// Types mirroring docs/specs/manifest.md. Field names are fixed by the spec; unknown fields are ignored by the viewer, so every interface here is open.
 
-export const INTERFACE_VERSION = 2;
-export const ACCEPTED_INTERFACE_VERSIONS: readonly number[] = [2];
 
 export type Severity = "error" | "warning" | "info";
 export type ColorClass =
@@ -679,7 +677,6 @@ export interface QuiltSettings {
 
 export interface Manifest {
   reviewer?: { name: string; source: string };
-  interface_version: number;
   publisher: Publisher;
   publishes: Publishes;
   generated: string;

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import dataclasses
 import difflib
 import hashlib
-import json
 import re
 from collections.abc import Callable
 from functools import lru_cache
@@ -13,13 +11,10 @@ from typing import Any
 
 from loom.records.snapshots import read_snapshot
 from loom.records.store import Records
-from loom.render.convert import Converter
-from loom.render.fragments import FragmentRenderer
-from loom.render.publish import write_atomic
+from loom.render.fragments import FragmentRenderer, Later
 from loom.scan.hashing import normalize
 from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.model import Macro
-from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 from loom.scan.source import blank_comments
 
@@ -29,8 +24,18 @@ def _tokens(text: str) -> list[tuple[str, int, int]]:
 
 
 def _changed(before: str, after: str) -> tuple[list[list[int]], list[list[int]]]:
-    left, right = _tokens(before), _tokens(after)
-    match = difflib.SequenceMatcher(None, [x[0] for x in left], [x[0] for x in right], autojunk=False)
+    """The spans of `before` and of `after` whose words differ: `word_changes` with every word read as written."""
+    return word_changes(before, after, lambda word: word)
+
+
+def word_changes(before: str, after: str, read: Callable[[str], str]) -> tuple[list[list[int]], list[list[int]]]:
+    """The spans of `before` and of `after` whose words differ, each word compared as `read` makes it; a change of spacing alone is none.
+
+    Matched over the words alone, the spaces between them no tokens of their own: a whole document has thousands of single spaces, and a matcher indexing each made the diff of an agent's copy against its document take fourteen seconds, on every build.
+    """
+    left = [t for t in _tokens(before) if t[0].strip()]
+    right = [t for t in _tokens(after) if t[0].strip()]
+    match = difflib.SequenceMatcher(None, [read(x[0]) for x in left], [read(x[0]) for x in right], autojunk=False)
     out: list[list[list[int]]] = [[], []]
     for kind, a, b, c, d in match.get_opcodes():
         if kind == "equal":
@@ -53,55 +58,31 @@ def _preamble_mathjax(preamble: str) -> list[dict[str, object]]:
     return to_mathjax(_preamble_macros(preamble))
 
 
-def _fallback(
-    renderer: FragmentRenderer, result: ScanResult, node: NodeRec, key: str, preamble: str
-) -> Callable[[str, str, str], str]:
-    """The figure fallback for a preview: the fragments' own where `preamble` is a live document's, so a figure is compiled once and shared from the SVG cache, else one closed over the recorded preamble the preview shows.
-
-    A live document's previews pass its closure's raw text; the fragments compile against the document's own preamble only, which loads its local files itself, so the two must be matched here rather than compared as keys.
-    """
-    for master in result.masters:
-        closure = result.closures.get(master)
-        if closure is not None and closure.raw_text() == preamble:
-            return renderer._fallback(master, node.file, key)
-    return renderer._fallback_for_preamble(preamble, key)
-
-
 def _render(
     renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
-) -> str:
-    """One preview's markup, from `.loom/build/cache/previews/` when a build has rendered the same thing before.
+) -> Later:
+    """One preview, asked for now and made with the build's others at `FragmentRenderer.previews.make`, one batch per preamble: `text` read under `preamble` as the node `key` belongs to, its `spans` marked as changed.
 
-    Keyed on everything the markup is made from: the text, the preamble, the highlighted spans, the node it is drawn as, and the renderer's `salt`. A served quilt rebuilds on every change and a quilt with thousands of results has a preview for each, so rendering them all again on each rebuild was most of its time.
+    Cached under `.loom/build/cache/previews/`, keyed on all it is made from and the renderer's `salt`: a served quilt rebuilds on every change and a quilt with thousands of results has a preview for each.
     """
-    owner = result.dependencies.owners.get(key, key)
-    h = hashlib.sha256(json.dumps([renderer.salt, key, owner, text, preamble, spans]).encode()).hexdigest()[:32]
-    cached = renderer.plan.svg_cache.parent / "previews" / f"{h}.html"
-    if cached.is_file():
-        return cached.read_text(encoding="utf-8")
-    markup = _render_now(renderer, result, key, text, preamble, spans)
-    write_atomic(cached, markup)
-    return markup
+    return renderer.previews.ask(key, text, preamble, spans)
 
 
-def _render_now(
-    renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
-) -> str:
-    node = result.nodes[result.dependencies.owners.get(key, key)]
-    context = dataclasses.replace(
-        renderer._context(node, "master"),
-        file="review/" + hashlib.sha256(key.encode()).hexdigest()[:20] + ".tex",
-        text=text,
-        clean=blank_comments(text),
-        macros=dict(_preamble_macros(preamble)),
-        child_at={},
-        include_html=lambda _arg: "",
-        fallback=_fallback(renderer, result, node, key, preamble),
-        highlight_spans=[(a, b) for a, b in spans],
+def _render_into(
+    files: dict[str, str | bytes],
+    path: str,
+    renderer: FragmentRenderer,
+    result: ScanResult,
+    key: str,
+    text: str,
+    preamble: str,
+    spans: list[list[int]],
+) -> None:
+    """`_render`, its markup written to `files[path]` once made."""
+    files[path] = ""
+    renderer.previews.on_made(
+        _render(renderer, result, key, text, preamble, spans), lambda html: files.__setitem__(path, html)
     )
-    markup = Converter(context).render_range(0, len(text))
-    # This is displayed beside a live document whose anchors use the same labels.
-    return "\n".join(line.rstrip() for line in re.sub(r'(?<=\s)id="[^"]*"', "", markup).split("\n"))
 
 
 def _machine_made(result: ScanResult) -> set[str]:
@@ -143,7 +124,7 @@ def attach_comparisons(
             text = result.dependencies.texts.get(key) or ""
             digest = hashlib.sha256((key + text + current_preamble).encode()).hexdigest()[:20]
             path = f"fragments/review/{digest}-block.html"
-            files[path] = _render(renderer, result, key, text, current_preamble, [])
+            _render_into(files, path, renderer, result, key, text, current_preamble, [])
             manifest["keys"][key]["review_fragment"] = path
             manifest["keys"][key]["review_macros"] = current_macros
         if not state.row or key not in manifest["keys"]:
@@ -153,7 +134,7 @@ def attach_comparisons(
             if cause.id and (text := result.dependencies.texts.get(cause.id)) is not None:
                 digest = hashlib.sha256((cause.id + text + current_preamble).encode()).hexdigest()[:20]
                 path = f"fragments/review/{digest}-dependency.html"
-                files[path] = _render(renderer, result, cause.id, text, current_preamble, [])
+                _render_into(files, path, renderer, result, cause.id, text, current_preamble, [])
                 entry["current_fragment"] = path
                 entry["current_macros"] = current_macros
             if cause.kind not in ("own-text-changed", "dependency-changed") or not cause.before or cause.via:
@@ -173,8 +154,8 @@ def attach_comparisons(
             digest = hashlib.sha256((target + cause.before + after + pre_hash).encode()).hexdigest()[:20]
             old_path = f"fragments/review/{digest}-accepted.html"
             new_path = f"fragments/review/{digest}-current.html"
-            files[old_path] = _render(renderer, result, target, before, old_preamble, left)
-            files[new_path] = _render(renderer, result, target, after, current_preamble, right)
+            _render_into(files, old_path, renderer, result, target, before, old_preamble, left)
+            _render_into(files, new_path, renderer, result, target, after, current_preamble, right)
             macro_name = f"review:{digest}"
             manifest["macros"]["sets"][macro_name] = to_mathjax(parse_macros(blank_comments(old_preamble)))
             entry["comparison"] = {

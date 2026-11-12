@@ -1620,7 +1620,7 @@ def status(
 ) -> None:
     """List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
-    Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+    Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.
     """
     if f_in_order and f_master is None:
         raise EnvError("--in-order lists one document's keys; name it with --master DOC")
@@ -1669,6 +1669,11 @@ def status(
         a["summary"] = agent_summary(a["keys"])
     payload["summary"] = summarise(result, payload["keys"])
     payload["unmatched"] = unmatched_cites(result)
+    from loom.render.compiles import served
+
+    compiles = served(result.quilt.root)
+    if compiles is not None:
+        payload["compiles"] = compiles
     filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_type, f_status, f_detached))
     if f_in_order:
         assert f_master is not None
@@ -1894,6 +1899,27 @@ def _work_of(result: ScanResult, key: str) -> str:
     return result.assembly.digest_files.get(n.file) or n.file
 
 
+def _compile_problems(compiles: dict[str, Any]) -> list[Group]:
+    """The documents `loom serve` last compiled with errors or into no PDF, each with the line TeX stopped at and the command that shows the whole log."""
+    from loom.paths import document_name
+
+    items = []
+    for doc, c in sorted(compiles.items()):
+        last = c.get("last")
+        if not last or last.get("result") == "ok":
+            continue
+        said = "no PDF, the last good one kept" if last["result"] == "failed" else "PDF made with errors"
+        where = f" at {last['at']}" if last.get("at") else ""
+        items.append(
+            Item(
+                f"{said}: {last.get('error') or 'no error line'}{where}",
+                key=doc,
+                fixes=[f"loom compile {document_name(doc)}"],
+            )
+        )
+    return [Group("did not compile cleanly", items, limit=None, problem=True)] if items else []
+
+
 def _status_report(
     result: ScanResult, payload: dict[str, Any], filtered: bool, include_digests: bool, hidden: set[str]
 ) -> Report:
@@ -2005,6 +2031,7 @@ def _status_report(
                 said.append(f"incomplete: {'; '.join(e['incomplete'])}")
             rows_.append(((e["taxon"] or e["kind"], _row_title(e["title"], {}), "; ".join(said)), key))
         groups.append(Group(f"in {doc}", keyed(rows_), limit=None, next=f"loom status --master {doc} --in-order"))
+    groups.extend(_compile_problems(payload.get("compiles") or {}))
     if own:
         verdict = f"{counted(len(own), 'key')} of yours{' match' if filtered else ''}: " + ", ".join(parts)
     else:

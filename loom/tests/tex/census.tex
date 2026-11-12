@@ -1,0 +1,106 @@
+\documentclass{article}
+\usepackage{amsmath,amsthm,enumitem,xcolor,float}
+\usepackage{hyperref}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{defn}[theorem]{Definition}
+\newcounter{step}
+\newcommand{\nextstep}{\refstepcounter{step}Step~\thestep}
+\newcommand{\wordmacro}{expanded words}
+\newcommand{\twoargs}[2]{#2 then #1}
+\newenvironment{myquote}[1]{\par\textbf{#1:} }{\par}
+\newcommand{\cond}[1]{\ifx#1a yes\else no\fi}
+\renewcommand{\proofname}{Sketch}
+\title{Census}
+\begin{document}
+\section{One}\label{s1}
+F01 \wordmacro.
+
+F02 \twoargs{a}{b}.
+
+F03 \nextstep, \nextstep.
+
+F04 \begin{myquote}{Note}body\end{myquote}
+
+F05 \begin{enumerate}[label=(\roman*)]\item x \item y\label{it:y}\end{enumerate}
+
+F06 item ref \ref{it:y}.
+
+F07 \begin{enumerate}\setcounter{enumi}{4}\item five\end{enumerate}
+
+F08 \renewcommand{\labelenumi}{[\Alph{enumi}]}\begin{enumerate}\item alpha\end{enumerate}\renewcommand{\labelenumi}{\arabic{enumi}.}
+
+F09 \begin{enumerate}\item outer\begin{enumerate}\item inner\end{enumerate}\end{enumerate}
+
+F10 \begin{theorem}\label{t}stated\end{theorem}
+
+F11 \begin{defn}\label{d}defined\end{defn}
+
+F12 refs Theorem~\ref{t} and Definition~\ref{d} and section \ref{s1}.
+
+F13 \begin{theorem}\label{t2}stated\end{theorem}\begin{proof}done\end{proof}
+
+F14 \begin{theorem}\label{t3}stated\end{theorem}\begin{proof}[Reason]done\end{proof}
+
+F15 note\footnote{inner note} after.
+
+F16 \TeX{} and \LaTeX{} logos.
+
+F17 \textsc{Small} \textbf{bold} \S 3 \P 4 \copyright{} \ldots{} \dots{} end.
+
+F18 \ifdefined\nosuch yes\else no\fi.
+
+F19 \def\x{ex}\x{} value.
+
+F20 \ifnum 1<2 less\else more\fi.
+
+F21 \cond{a} and \cond{b}.
+
+F22 \MakeUppercase{abc} and \lowercase{DEF}.
+
+F23 \romannumeral 14{} and \Roman{section} and \alph{section} and \arabic{section} and \thesection.
+
+F24 \setcounter{step}{7}\thestep{} and \the\numexpr 2+3\relax.
+
+F25 \verb|x_y| verb.
+
+F26 \begin{center}centered text\end{center}
+
+F27 before\\after break.
+
+F28 \begin{figure}[H]\centering x\caption{A caption}\label{f}\end{figure} Figure \ref{f}.
+
+F29 \begin{table}[H]\centering y\caption{Table caption}\label{tb}\end{table} Table \ref{tb}.
+
+F30 \begin{tabular}{ll}a & b\\ c & d\end{tabular} grid.
+
+F31 \begin{tabular}{|c|}\hline \multicolumn{1}{|c|}{m}\\\hline\end{tabular} span.
+
+F32 \begin{equation}\label{e}x\end{equation} eqref \eqref{e}.
+
+F33 \begin{align}a&=b\label{a1}\\c&=d\label{a2}\end{align} refs \eqref{a1} \eqref{a2}.
+
+F34 \begin{description}\item[Key] value\end{description}
+
+F35 \begin{itemize}\item[$\star$] star\end{itemize}
+
+F36 \textcolor{red}{coloured} words.
+
+F37 \href{https://example.com}{linktext} and \url{https://example.org/a_b}.
+
+F38 quotes ``double'' `single' dash--dash em---dash ~tie.
+
+F39 \section*{Starred}
+F39b after starred.
+
+\appendix
+\section{Appendix head}\label{app}
+
+F40 appendix ref \ref{app}.
+
+F41 \begin{theorem}\label{t9}appendix thm\end{theorem}
+
+F42 \pageref{t} page.
+
+F43 end.
+\end{document}

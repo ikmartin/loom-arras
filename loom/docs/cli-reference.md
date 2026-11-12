@@ -149,7 +149,7 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 
 List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.
 
-Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+Annotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.
 
 | option | description |
 |---|---|
@@ -1174,12 +1174,13 @@ Build the site and the PDFs, serve them, and exchange sources with a workspace.
 
 Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
-Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
+A document is read from the HTML its compile made, and shows as its source until one has. Text no compile makes, a node no document reaches, a digest, a landmark, a comparison, is made by TeX as snippets. Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and makes again every text TeX refused before. Only errors are listed; `loom lint` lists every diagnostic.
 
 | option | description |
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
-| `--force` | Render every block again, ignoring the cache and retrying remembered SVG failures. |
+| `--force` | Render every block again, ignoring the cache and making again every text TeX refused. |
+| `--no-compile` | Run no TeX: text no compile makes comes from the cache, else shows as its source. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -1189,13 +1190,13 @@ Rendering is cached per block by its inputs, which include loom's own version an
 
 Serve the viewer for this quilt and keep it current: it republishes on every change until interrupted.
 
-The viewer is at /, and the build directory it reads at /build/. One server runs per quilt.
+The viewer is at /, and the build directory it reads at /build/. One server runs per quilt. Every document a change reaches compiles in the background, the one being read first, as does on starting each one never compiled or edited since; a compile that makes no PDF leaves the last good one, and `loom status` lists it.
 
 | option | description |
 |---|---|
 | `--port` | Port to listen on; fails if busy. |
 | `--open` | Open the browser. |
-| `--no-compile` | Never run latexmk after a change. |
+| `--no-compile` | Run no TeX: compile nothing, neither after a change nor on starting, and make no snippets. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom compile`
@@ -1204,7 +1205,7 @@ The viewer is at /, and the build directory it reads at /build/. One server runs
 
 Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.
 
-Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
+Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which its fragments are cut from: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.
 
 | option | description |
 |---|---|
@@ -1212,6 +1213,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | `--with` `FILE` | Substitute a unified diff, a .tex file, or a suggested edit's text (by its id) for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--session` `SESSION` | Log this call to the session. |
+| `--html` | Also make a document's HTML with TeX4ht, into .loom/build/<name>/html/, and say how much of it loom can place. |
 | `--json` | Print the report as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

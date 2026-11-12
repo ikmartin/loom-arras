@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate fragment HTML files against docs/specs/dialect.md (interface version 1).
+"""Validate fragment HTML files against docs/specs/dialect.md.
 
 Usage: validate-dialect.py FILE_OR_DIR... ; prints one line per problem and a summary; exit 1 if any fragment is invalid. Checks the envelope (no page shell, scripts, styles, iframes, forms, inline handlers), the element and class vocabulary, that block elements from source carry data-src, that inclusions carry data-key, and that no absolute URL appears outside a.url and img[src].
 """
@@ -15,19 +15,22 @@ FORBIDDEN = {"html", "head", "body", "script", "style", "link", "iframe", "form"
 ALLOWED = {
     "section", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "details", "summary", "span", "a", "em", "strong", "code", "u",
     "blockquote", "pre", "ul", "ol", "dl", "li", "dt", "dd", "hr", "mark", "figure", "figcaption", "img", "svg", "table",
-    "thead", "tbody", "tr", "th", "td", "br",
+    "thead", "tbody", "tr", "th", "td", "br", "sup", "sub",
 }
 ALLOWED_CLASSES = {
-    "div": {"env", "include", "included", "math", "display", "annotation-block", "review-changed"},
+    "div": {"env", "include", "included", "math", "display", "annotation-block", "review-changed", "center"},
     "details": {"env", "env-proof", "annotation-block"},
     "summary": {"env-label"},
-    "p": {"env-label", "annotation-block"},
-    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color", "review-changed", "review-change-point"},
+    "p": {"env-label", "annotation-block", "author", "date", "noindent"},
+    "pre": {"source", "annotation-block"},
+    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color", "review-changed", "review-change-point", "qed"},
     "a": {"ref", "ref-eq", "ref-dangling", "url"},
     "mark": {"annotation", "review-changed"},
-    "figure": {"diagram", "fallback", "failed"},
+    "figure": {"diagram", "failed"},
     "section": {"annotation-block"},
     "li": {"task"},
+    "sup": {"footnote-mark"},
+    "tr": {"rule"},
 }
 BLOCKS_NEEDING_SRC = {"section", "h1", "h2", "h3", "h4", "h5", "h6", "p", "details", "figure", "table", "pre", "ul", "ol", "dl", "blockquote"}
 
@@ -40,12 +43,15 @@ class Checker(HTMLParser):
         self.svg_depth = 0
         self.figure_depth = 0
         self.seen_any = False
+        self.from_tex = False  # made from the page TeX made: data-src only where loom placed a block
 
     def _add(self, msg: str) -> None:
         self.problems.append(f"{self.name}:{self.getpos()[0]}: {msg}")
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         a = {k: (v or "") for k, v in attrs}
+        if not self.seen_any and a.get("data-from") == "tex":
+            self.from_tex = True
         self.seen_any = True
         if tag == "svg":
             self.svg_depth += 1
@@ -70,9 +76,9 @@ class Checker(HTMLParser):
         if tag == "div":
             if "include" in classes and "data-key" not in a:
                 self._add("div.include without data-key")
-            if ("env" in classes or "math" in classes or "included" in classes) and "data-src" not in a and "include" not in classes:
+            if ("env" in classes or "math" in classes or "included" in classes) and "data-src" not in a and "include" not in classes and not (self.from_tex and "env" not in classes):
                 self._add(f"div.{'.'.join(sorted(classes))} without data-src")
-        elif tag in BLOCKS_NEEDING_SRC and "data-src" not in a and "env-label" not in classes and not (tag == "pre" and self.figure_depth):
+        elif tag in BLOCKS_NEEDING_SRC and "data-src" not in a and "env-label" not in classes and not (tag == "pre" and self.figure_depth) and not (self.from_tex and tag not in ("section", "details")):
             self._add(f"<{tag}> without data-src")
         if "data-src" in a and not re.match(r"^[^:]+:\d+:\d+$", a["data-src"]):
             self._add(f"malformed data-src {a['data-src']!r}")

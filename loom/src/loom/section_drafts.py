@@ -275,8 +275,8 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
 
 def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str, str | bytes]) -> None:
     """Render scoped copies and external references from the same pinned input set."""
-    from loom.render.convert import slug
     from loom.render.fragments import FragmentRenderer, RenderPlan
+    from loom.render.markup import slug
     from loom.scan.macros import to_mathjax
 
     for master in list(manifest["masters"]):
@@ -288,8 +288,10 @@ def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str
         context_source = meta["context"].get("source", meta["source"])
         context_id = "context/paper-" + Path(meta["context"]["path"]).name + "-" + Path(meta["source"]).stem + ".tex"
         renderer = FragmentRenderer(
-            RenderPlan(snap, {}, result.quilt.root / BUILD / "cache" / "svg", result.quilt.root / BUILD / "svg")
+            RenderPlan(snap, {}, result.quilt.root / BUILD / "cache", result.quilt.root / BUILD / "svg")
         )
+        # a section draft is compiled by no one: its document is made by TeX as snippets, in its saved context
+        renderer.prepare_document(copy)
         macro_name = "draft:" + copy
         manifest["macros"]["sets"][macro_name] = to_mathjax(snap.closures[copy].macros)
         master.update(macros=macro_name, context_document=context_id)
@@ -326,6 +328,7 @@ def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str
         if any(m["path"] == context_id for m in manifest["masters"]):
             continue
         fragment = "fragments/contexts/" + hashlib.sha256(context_id.encode()).hexdigest() + ".html"
+        renderer.prepare_document(context_source)
         files[fragment] = renderer.master_fragment(context_source)
         context_macros = "context:" + context_id
         manifest["macros"]["sets"][context_macros] = to_mathjax(snap.closures[context_source].macros)

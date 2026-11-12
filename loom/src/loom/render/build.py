@@ -226,10 +226,12 @@ def fragment_path(result: ScanResult, key: str) -> str:
     return f"fragments/keys/{quote(key, safe='')}.html"
 
 
-def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] | None = None) -> str:
-    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, and `aux` from `keys.aux_bytes`.
+def _input_hash(
+    result: ScanResult, key: str, aux: bytes, texts: dict[str, str] | None = None, pages: dict[str, Any] | None = None
+) -> str:
+    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, `aux` from `keys.aux_bytes`, and the digest of each page as TeX made it that the fragment may be cut from.
 
-    `texts` holds each file's text hash, filled as files are met, so a file every digest node draws on is hashed once per scan rather than once per node.
+    `texts` holds each file's text hash, filled as files are met, so a file every digest node draws on is hashed once per scan rather than once per node; `pages` maps each document to its current page, or None.
     """
     texts = {} if texts is None else texts
     n = result.nodes[key]
@@ -249,6 +251,9 @@ def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] 
         h.update(f.encode())
         h.update(texts[f].encode())
     h.update(aux)
+    for m in [key] if n.kind == "master" else n.reached_by:
+        page = (pages or {}).get(m)
+        h.update(f"{m}:{page.digest if page is not None else '-'}".encode())
     return h.hexdigest()
 
 
@@ -324,12 +329,30 @@ def _write_transcripts(root: Path, files: dict[str, str | bytes]) -> None:
 
     Out of the manifest, which every viewer polls: a long conversation would make every poll pay for it.
     """
-    from loom.mailbox import pages
+    from loom.mailbox import inbox_path, pages
     from loom.sessions import sessions
 
     for sid in sessions(root):
-        for n, page in pages(root, sid).items():
-            files[f"transcripts/{sid}/{n}.json"] = json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
+        inbox = inbox_path(root, sid)
+        try:
+            stamp: tuple[int, int] | None = (inbox.stat().st_mtime_ns, inbox.stat().st_size)
+        except OSError:
+            stamp = None
+        known = _TRANSCRIPTS.get(inbox)
+        if stamp is not None and known is not None and known[0] == stamp:
+            files.update(known[1])
+            continue
+        made = {
+            f"transcripts/{sid}/{n}.json": json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
+            for n, page in pages(root, sid).items()
+        }
+        if stamp is not None:
+            _TRANSCRIPTS[inbox] = (stamp, made)
+        files.update(made)
+
+
+#: Each session's transcript pages as last written, by its inbox's modification time and size: a session nobody wrote in since is not rendered again by a server that rebuilds on every change.
+_TRANSCRIPTS: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
 
 
 #: The fragments' input hashes for the last scan built from, the numbering they were hashed with, and each file's text hash; a build from the same scan (`reuse`) reads them rather than hashing every file again.
@@ -343,6 +366,7 @@ def build(
     force: bool = False,
     reuse: ScanResult | None = None,
     progress: Callable[[str, str, int, int | None], None] | None = None,
+    tex: bool = True,
 ) -> BuildReport:
     """Scan, read the records, render what changed and publish the build directory.
 
@@ -360,6 +384,8 @@ def build(
         A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone or a version kept, whose landmark is read again here.
     progress : callable, optional
         Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
+    tex : bool, default True
+        Whether TeX may run for text no compile makes (snippets, pictures); without it that text comes from the cache or shows as its source.
 
     Returns
     -------
@@ -387,12 +413,22 @@ def build(
     marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
+    from loom.render.fromhtml import page_for
+
+    # each document's page as TeX made it, where one is current with its sources; the rest show as their source
+    pages = {m: page_for(result, m) for m in result.masters}
     plan = RenderPlan(
-        result=result, numbers=numbers, cite_labels=cite_labels, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg"
+        result=result,
+        numbers=numbers,
+        cite_labels=cite_labels,
+        cache=cache_dir,
+        svg_out=build_dir / "svg",
+        pages=pages,
+        tex=tex,
     )
     if force:
-        # a remembered SVG failure may have been the machine's, a package since installed; --force tries each once more
-        for failed in plan.svg_cache.glob("*.failed"):
+        # a text TeX refused may have been refused for the machine's sake, a package since installed; --force tries each once more
+        for failed in [*(cache_dir / "snippets").glob("*.failed"), *(cache_dir / "previews").glob("*.html")]:
             failed.unlink()
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
@@ -451,7 +487,7 @@ def build(
         label = key if kind == "node" else f"{kind}:{key}"
         fragments[label] = rel
         if key not in hashes:
-            hashes[key] = _input_hash(result, key, aux, texts)
+            hashes[key] = _input_hash(result, key, aux, texts, pages)
         digest = hashes[key] + _marks_hash(marks, key, result)
         existing = build_dir / rel
         if (wanted is not None and key not in wanted) or (index.get(rel) == digest and existing.exists()):
@@ -474,8 +510,10 @@ def build(
             canon_jobs.append((doc, rel, digest))
         fragments[f"canon:{doc.path}"] = rel
         canon_entries.append(canon_entry(doc, rel, digest))
-    # Rendered on a pool, assembled in order. The expensive part is waiting on LaTeX -- a diagram the converter cannot draw is compiled to SVG, twice through latex and once through dvisvgm, up to three times with different preambles -- and with sixteen real digests carrying 74 diagrams the first build of the study quilt took 454 seconds on one thread. Waiting on a subprocess releases the GIL, so threads overlap exactly that.
-    # Landmarks share the pool and are submitted first: each is one long job that compiles its own preamble's diagrams one after another, so started last it would run alone after every node had finished.
+    # What no compile makes, nodes no document reaches and digests, is made by TeX first, one batch per preamble, so the pool below only cuts fragments.
+    renderer.prepare([key for key, _kind, _rel, _digest in jobs])
+    # Rendered on a pool, assembled in order. The expensive part is waiting on TeX, a landmark's snippets or a page's diagrams, and waiting on a subprocess releases the GIL, so threads overlap exactly that.
+    # Landmarks share the pool and are submitted first: each is one long job, so started last it would run alone after every node had finished.
     from concurrent.futures import ThreadPoolExecutor
     from functools import partial
 
@@ -530,6 +568,8 @@ def build(
     from loom.render.edits import attach_edits
 
     attach_edits(result, renderer, manifest, files)
+    # every preview asked for above, made by TeX together, one batch per preamble
+    renderer.previews.make()
     from loom.review_queue import rows_for
 
     manifest["unresolved"] = rows_for(result, manifest)

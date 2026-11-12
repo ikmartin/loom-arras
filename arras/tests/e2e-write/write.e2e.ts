@@ -36,9 +36,9 @@ test('a comment written from a selection lands in the log as a person, anchored 
 	await statement.locator('mjx-container').first().waitFor();
 	await select(statement);
 	await page.getByTestId('annotate-offer').click();
-	// the header names the words, then the place as the tab names it (this corpus is not compiled, so by its id); the quote carries the formula as TeX
+	// the header names the words, then the place as the tab names it (by its number, from the compile the suite's pages carry); the quote carries the formula as TeX
 	await expect(page.getByTestId('note-where')).toContainText('finite widget');
-	await expect(page.getByTestId('note-where')).toContainText('in sy-0003');
+	await expect(page.getByTestId('note-where')).toContainText('in Theorem 2.1');
 	// the selection stays lit while the comment is written, and the composer does not repeat it
 	await expect(page.getByTestId('note-quote')).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('widget');

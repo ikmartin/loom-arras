@@ -14,25 +14,30 @@ from tests.helpers import exits, ok, same_tree
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "tests" / "fixture"
 SVG = re.compile(r"<svg\b.*?</svg>", re.S)
+#: A picture published under svg/, named by its bytes, which dvisvgm writes differently from one TeX Live, and one environment, to another.
+PICTURE = re.compile(r'src="svg/[0-9a-f]+\.(svg|png|jpe?g)"')
 REFRESH = "if the change is intended, regenerate with docs/specs/tools/refresh-fixture.sh"
 #: The build directories refresh-fixture.sh copies into the fixture, besides manifest.json.
 VENDORED = ("fragments", "svg", "source", "diffs", "transcripts", "files", "changes")
 
 
 def _norm_fragment(text: str) -> str:
-    return SVG.sub("<svg/>", text)
+    return PICTURE.sub(r'src="svg/PICTURE.\1"', SVG.sub("<svg/>", text))
 
 
 def published(root: Path) -> dict[str, bytes]:
-    """Every file the fixture vendors beside the manifest, by path under `root`: fragments with SVG bodies blanked, SVG files by name alone (both depend on the TeX Live version), and source/, diffs/ and transcripts/ as written."""
+    """Every file the fixture vendors beside the manifest, by path under `root`: fragments with SVG bodies blanked and pictures unnamed, SVG files counted by kind (both depend on the TeX Live version), and source/, diffs/ and transcripts/ as written."""
     tree: dict[str, bytes] = {}
     for sub in VENDORED:
+        kinds = sorted(f.suffix.lower() for f in (root / sub).rglob("*") if f.is_file()) if sub == "svg" else []
+        for i, kind in enumerate(kinds):
+            tree[f"svg/picture-{i}{kind}"] = b""
         for f in sorted((root / sub).rglob("*")):
             if not f.is_file():
                 continue
             rel = f.relative_to(root).as_posix()
             if sub == "svg":
-                tree[rel] = b""
+                continue
             elif sub == "fragments":
                 tree[rel] = _norm_fragment(f.read_text(encoding="utf-8")).encode("utf-8")
             else:
@@ -63,8 +68,10 @@ def test_fixture_matches_vendored(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     save_author("The synthetic quilt")
     q = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q)
-    ok("compile", "drafting/main.tex", cwd=q)
-    ok("compile", "drafting/talk.tex", cwd=q)
+    # as refresh-fixture.sh compiles them: each with its HTML, which the build reads its documents from, the agent's copy too
+    ok("compile", "drafting/main.tex", "--html", cwd=q)
+    ok("compile", "drafting/talk.tex", "--html", cwd=q)
+    ok("compile", ".loom/copies/aidoc.tex", "--html", cwd=q)
     exits(1, "build", cwd=q)  # the synthetic quilt carries intentional errors
     ours = _norm_manifest(json.loads((q / ".loom/build" / "manifest.json").read_text()))
     theirs = _norm_manifest(json.loads((FIXTURE / "manifest.json").read_text()))

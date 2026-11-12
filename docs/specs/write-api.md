@@ -1,12 +1,12 @@
 # Write API
 
-The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit document-workspace steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`. Interface version 1; status: extended for source sync and pending review.
+The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit document-workspace steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`.
 
 **[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 
 ## 1. Discovery
 
-**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "...", "stream": true, "frames": "http://127.0.0.1:PORT"}` or 404, and 403 to a request a browser says came from another page (§3). `frames` is the frames origin an HTML file is shown from (§3), absent where none runs. `stream` says `GET /_api/stream` is served: a `text/event-stream` with an event `manifest`, carrying nothing, each time a new manifest is published, and a comment every fifteen seconds while idle. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
+**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "...", "stream": true, "frames": "http://127.0.0.1:PORT"}` or 404, and 403 to a request a browser says came from another page (§3). `frames` is the frames origin an HTML file is shown from (§3), absent where none runs. `stream` says `GET /_api/stream` is served: a `text/event-stream` with an event `manifest`, carrying nothing, each time a new manifest is published; an event `compiles` on opening and each time a compile starts, ends or is asked for, carrying one JSON object keyed by document path, each `{"state": "queued"|"compiling"|"idle", "again": bool, "last": null | {"result": "ok"|"errors"|"failed", "ended", "error", "at"}}`, where `errors` made a PDF though LaTeX reported errors, `failed` made none so the last good one stays, and `at` is the log's `l.N` line where TeX stopped; and a comment every fifteen seconds while idle. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
 
 ## 2. Endpoints
 
@@ -118,7 +118,7 @@ A browser blocks a cross-origin *response* and never the *request*, so any page 
 
 ## 5. Selection to quote
 
-**[decided]** The viewer computes the `quote` for an annotation from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses converted markup and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block annotation instead.
+**[decided]** The viewer computes the `quote` for an annotation from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses markup TeX made and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block annotation instead.
 
 
 | method | path | body | effect |

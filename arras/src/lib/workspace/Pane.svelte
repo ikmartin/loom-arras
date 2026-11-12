@@ -46,6 +46,14 @@
 		return () => el.removeEventListener('keydown', hide);
 	});
 
+	// a wheel takes focus without ever being cancelled, so it is listened for passively: a listener that could cancel it makes the browser wait for the page's thread before every step of a scroll, and a long document's typesetting or a new manifest then stalls the scroll itself
+	$effect(() => {
+		const el = frame;
+		if (!el) return;
+		el.addEventListener('wheel', take, { capture: true, passive: true });
+		return () => el.removeEventListener('wheel', take, { capture: true });
+	});
+
 	/** The body's width when the divider was taken, kept while it moves, the pane clipping it or leaving room beside it, so the item is laid out once at the drop. Laid out at every width, a long paper's frame cost 50–60 ms of layout and pre-paint, and the divider trailed the pointer at about 20 frames a second. */
 	let held = $state<number | null>(null);
 	$effect(() => {
@@ -65,25 +73,39 @@
 		});
 	});
 
-	let pending = 0;
+	/** How long a scroll runs between two readings of the place: each is a hit test, a few milliseconds in a typeset paper, too much for every frame. The last movement is always read, since it falls inside a wait already begun, and a wait still running when the pane's item changes is cut short and read then. */
+	const EVERY = 120;
+	let pending: { timer: ReturnType<typeof setTimeout>; el: HTMLElement; key: string } | null = null;
 	function remember(): void {
 		const el = body;
 		const k = key;
-		if (!el || !k || restoring) return;
-		cancelAnimationFrame(pending);
-		pending = requestAnimationFrame(() => {
-			// a pane being taken down loses its content first, and the scroll that follows is not the reader's
-			if (!el.isConnected || !workspace.onScreen || !el.querySelector('[data-src]')) return;
-			const r = el.getBoundingClientRect();
-			// a point in the text column just below the pane's top, clear of the toolbar at its right
-			const hit = document.elementFromPoint(r.left + r.width * 0.3, r.top + 48)?.closest<HTMLElement>('[data-src]');
-			const block = hit && el.contains(hit) ? hit : null;
-			workspace.scrolls.set(k, { top: el.scrollTop, src: block?.dataset.src ?? null, below: block ? block.getBoundingClientRect().top - r.top : 0 });
-			// and where the reader is, for `loom here`: the block by the key it belongs to
-			const belongs = block ? keyOf(block, '') : '';
-			here.setBlock(k, block?.dataset.src && belongs ? { src: block.dataset.src, key: belongs } : null);
-		});
+		if (!el || !k || restoring || pending !== null) return;
+		pending = { timer: setTimeout(settle, EVERY), el, key: k };
 	}
+
+	/** Read the place a wait was begun for, now, and end the wait. */
+	function settle(): void {
+		if (pending === null) return;
+		const { timer, el, key: k } = pending;
+		clearTimeout(timer);
+		pending = null;
+		// a pane being taken down loses its content first, and the scroll that follows is not the reader's; nor is the place of another item shown here since
+		if (shown !== k || !el.isConnected || !workspace.onScreen || !el.querySelector('[data-src]')) return;
+		const r = el.getBoundingClientRect();
+		// a point in the text column just below the pane's top, clear of the toolbar at its right
+		const hit = document.elementFromPoint(r.left + r.width * 0.3, r.top + 48)?.closest<HTMLElement>('[data-src]');
+		const block = hit && el.contains(hit) ? hit : null;
+		workspace.scrolls.set(k, { top: el.scrollTop, src: block?.dataset.src ?? null, below: block ? block.getBoundingClientRect().top - r.top : 0 });
+		// and where the reader is, for `loom here`: the block by the key it belongs to
+		const belongs = block ? keyOf(block, '') : '';
+		here.setBlock(k, block?.dataset.src && belongs ? { src: block.dataset.src, key: belongs } : null);
+	}
+
+	// before the pane's content changes to another item, while the one left is still in it
+	$effect.pre(() => {
+		void key;
+		untrack(settle);
+	});
 
 	function restore(el: HTMLElement, k: string, place: Place | undefined): void {
 		if (!place || (!place.top && !place.src)) {
@@ -114,7 +136,9 @@
 		attempt();
 	}
 
-	onDestroy(() => cancelAnimationFrame(pending));
+	onDestroy(() => {
+		if (pending !== null) clearTimeout(pending.timer);
+	});
 
 	const take = () => workspace.focusOn(index);
 </script>
@@ -131,7 +155,6 @@
 	bind:this={frame}
 	{style}
 	onpointerdowncapture={take}
-	onwheelcapture={take}
 	onfocusincapture={take}
 >
 	{#if head}<PaneHead {index} />{/if}

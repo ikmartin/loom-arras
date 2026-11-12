@@ -80,6 +80,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **2026-10-28.** The client files live in the quilt, gitignored, rather than being passed to the client by name. Only Claude Code takes a file by name; every other app reads one in the project or in the person's home. So the guard moved from where the file is to whether git tracks it (plan 0.21.6).
 
+**2026-11-10.** The rule covers TeX tooling too, at the author's word (plan 0.29). `latexmk` runs with `-norc`, because a `latexmkrc` is a Perl program, one in a quilt ran on every compile, and the author's own adds `-shell-escape`, which let any document's `\write18` run a command. Since `loom serve` compiles every document a change reaches, and `loom library update` compiles every fetched paper, either was a quilt's command run unasked. TeX4ht runs on a copy outside the quilt with an empty home, from which a `.mk4` build file and a `.make4ht` configuration, both Lua, and a `tex4ht.env`, which names the commands `t4ht` runs, are removed. Guards: `loom/tests/tex/test_compile_runs.py::test_neither_a_quilt_s_latexmkrc_nor_a_write18_runs_with_shell_escape_in_the_home_rc`, `loom/tests/tex/test_tex4ht.py::test_nothing_a_quilt_carries_for_tex4ht_runs`.
+
 ### Generated agent configuration is tested against the real client
 
 **Rule.** A change to what loom generates for an agent client (permission files, Codex rules, MCP client files) is tried with the client itself, run as a person starting an agent in the quilt would run it (`claude -p --settings …`), before it ships. Unit tests check only the shape loom believes right.

@@ -47,14 +47,6 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 	await expect(group.locator('.code')).toBeVisible();
 });
 
-test('interface version mismatch shows one diagnostic and nothing else', async ({ page }) => {
-	await serve(page, (m) => (m.interface_version = 99));
-	await page.goto('/node/sy-0003');
-	await expect(page.locator('main h1')).toHaveText('Problems');
-	await expect(page.locator('main code', { hasText: 'arras:interface-version' })).toBeVisible();
-	await expect(page.locator('.fragment')).toHaveCount(0);
-});
-
 test('search finds by id, alias, title, and tag', async ({ page }) => {
 	await page.goto('/');
 	const data = await page.locator('ninja-keys').evaluate((el) => (el as unknown as { data: { id: string; keywords: string; title: string }[] }).data);

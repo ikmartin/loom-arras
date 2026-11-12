@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from loom.paths import AI, LOOM_GITIGNORE
-from loom.version import INTERFACE_VERSION, __version__
+from loom.version import __version__
 
 if TYPE_CHECKING:
     from loom.cli.report import Report as OutReport
@@ -76,19 +76,27 @@ class Tool:
 TOOLS = [
     Tool("latexmk", REQUIRED, ("-v",), TEX, "every compile runs it"),
     Tool("pdflatex", REQUIRED, ("--version",), TEX, "the default engine"),
-    Tool("dvisvgm", REQUIRED, ("--version",), TEX, "the SVG of every block the viewer cannot typeset, and figures"),
+    Tool("dvisvgm", REQUIRED, ("--version",), TEX, "the pictures TeX draws in a document's HTML, and PDF figures"),
     Tool(
         "latex",
         OPTIONAL,
         ("--version",),
         TEX,
-        "the SVG fallback; without it those blocks show as source, with a warning",
+        "the DVI TeX4ht makes a document's HTML from; without it documents show as their source",
     ),
     Tool("xelatex", OPTIONAL, ("--version",), TEX, "an engine a quilt may name"),
     Tool("lualatex", OPTIONAL, ("--version",), TEX, "an engine a quilt may name"),
     Tool("bibtex", OPTIONAL, ("--version",), TEX, "bibliographies made with \\bibliography"),
     Tool("biber", OPTIONAL, ("--version",), "tlmgr install biber", "bibliographies made with biblatex"),
     Tool("kpsewhich", OPTIONAL, ("--version",), TEX, "finding the TeX tree's files a source reads"),
+    Tool(
+        "make4ht",
+        OPTIONAL,
+        ("--version",),
+        "tlmgr install make4ht tex4ht",
+        "a document's HTML as TeX makes it, and text no compile makes; without it they show as their source",
+    ),
+    Tool("extractbb", OPTIONAL, ("--version",), TEX, "the size of a PDF or image figure in a document's HTML"),
     Tool("pdftotext", OPTIONAL, ("-v",), POPPLER, "cited works' page text and geometry, and the identity test"),
     Tool("pdfinfo", OPTIONAL, ("-v",), POPPLER, "cited works' page rotation"),
     Tool("pdftocairo", OPTIONAL, ("-v",), POPPLER, "PDF figures; dvisvgm --pdf stands in, less faithfully"),
@@ -106,7 +114,6 @@ TOOLS = [
 class Report:
     python: str
     loom: str
-    interface_version: int
     quilt: Path | None = None
     items: list[Item] = field(default_factory=list)
     strict: bool = False
@@ -128,7 +135,6 @@ class Report:
         return {
             "python": self.python,
             "loom": self.loom,
-            "interface_version": self.interface_version,
             "quilt": str(self.quilt) if self.quilt else None,
             "ok": self.exit_code == 0,
             "failing": self.failing,
@@ -183,14 +189,14 @@ class Report:
             self.summary(),
             ok=self.exit_code == 0,
             exit=self.exit_code,
-            lines=[f"loom {self.loom}, interface {self.interface_version}, python {self.python}"],
+            lines=[f"loom {self.loom}, python {self.python}"],
             groups=groups,
             data=data,
         )
 
 
 def _bundle_words(source: str, version: str) -> str:
-    """Which viewer `loom serve` serves, in words: where it comes from, the arras commit it was built from and when, and the interface it reads."""
+    """Which viewer `loom serve` serves, in words: where it comes from, and the arras commit it was built from and when."""
     from loom.arras_bundle import STAMP
 
     whose = _whose(source)
@@ -198,11 +204,7 @@ def _bundle_words(source: str, version: str) -> str:
     when = re.search(r"vendored (\d{4}-\d{2}-\d{2})", version)
     if m is None:
         return f"{whose}, {version}" if version else whose
-    return (
-        f"{whose}, built from arras {m.group(1)}"
-        + (f" on {when.group(1)}" if when else "")
-        + f", interface {m.group(2)}"
-    )
+    return f"{whose}, built from arras {m.group(1)}" + (f" on {when.group(1)}" if when else "")
 
 
 def _whose(source: str) -> str:
@@ -428,7 +430,6 @@ def check_bundle() -> Item:
     extra: dict[str, Any] = {
         "source": info.source if info else None,
         "path": str(info.path) if info else None,
-        "interface": stamp[1] if stamp else None,
     }
     item = Item("arras bundle", OK, REQUIRED, _bundle_words(info.source, info.version) if info else "", "", extra)
     bad_env = env_problem()
@@ -443,18 +444,14 @@ def check_bundle() -> Item:
         )
     elif stamp is None:
         item.status = WARN
-        item.detail += f": its interface cannot be compared with loom's {INTERFACE_VERSION}"
+        item.detail += ": its stamp names no arras commit, so whether it is current cannot be told"
         item.remedy = "use a bundle loom/scripts/vendor_arras.py stamped"
-    elif stamp[1] != INTERFACE_VERSION:
-        item.status = FAIL
-        item.detail = f"{_whose(info.source)}, interface {stamp[1]}, but loom writes interface {INTERFACE_VERSION}: the viewer misreads the manifest"
-        item.remedy = VENDOR if checkout else "install the loom and the arras of one release"
     elif checkout is not None:
-        why = staleness(checkout, stamp[0], PROBE_TIMEOUT)
+        why = staleness(checkout, stamp, PROBE_TIMEOUT)
         if why:
             item.status, item.detail = WARN, f"{_whose('vendored')}, {'; '.join(why)}"
             # vendor_arras.py refuses an arras with uncommitted changes
-            item.remedy = ("commit arras, then " if stamp[0].endswith("-dirty") else "") + VENDOR
+            item.remedy = ("commit arras, then " if stamp.endswith("-dirty") else "") + VENDOR
     return item
 
 
@@ -664,7 +661,7 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
     """
     from loom.scan.quilt import NoQuiltError, find_quilt
 
-    report = Report(sys.version.split()[0], __version__, INTERFACE_VERSION, strict=strict)
+    report = Report(sys.version.split()[0], __version__, strict=strict)
     quilt, bad_quilt = None, None
     try:
         quilt = find_quilt(Path(quilt_path).expanduser() if quilt_path else None)

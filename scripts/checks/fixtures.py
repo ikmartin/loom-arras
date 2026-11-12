@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every copy of a fixture equals its source (plan 0.14.1 phase 4; docs/specs/fixture.md §3 and §5, demos/README.md).
+"""Every copy of a fixture equals its source (plan 0.14.1 phase 4; docs/specs/fixture.md §3, demos/README.md).
 
 Usage:
     scripts/checks/fixtures.py
@@ -7,7 +7,6 @@ Usage:
 Compared byte for byte, over the files git would commit (tracked, or untracked and not ignored):
 
 - `docs/specs/fixture/` and its vendored copies `loom/tests/fixture/` and `arras/tests/fixture/`;
-- `docs/specs/fixture-minimal/` and `arras/tests/fixture-minimal/`;
 - `demos/demo/`, `demos/synthetic/` and `demos/showcase/` and the quilts under `loom/tests/quilts/` that `demos/build.py` copies them from, less the `EXPECTED-LINT.txt` it drops from demo and showcase, and less `.loom/review-observations.json`, which loom rewrites whenever it scans a quilt, so serving a demo would change it under the check.
 
 Exit 0 when every copy agrees, 1 otherwise.
@@ -29,12 +28,6 @@ STATE = (".loom/review-observations.json",)
 PAIRS = [
     ("docs/specs/fixture", "loom/tests/fixture", (), REFRESH),
     ("docs/specs/fixture", "arras/tests/fixture", (), REFRESH),
-    (
-        "docs/specs/fixture-minimal",
-        "arras/tests/fixture-minimal",
-        (),
-        "rm -rf arras/tests/fixture-minimal && cp -R docs/specs/fixture-minimal arras/tests/fixture-minimal",
-    ),
     ("loom/tests/quilts/demo", "demos/demo", ("EXPECTED-LINT.txt", *STATE), DEMOS),
     ("loom/tests/quilts/synthetic", "demos/synthetic", STATE, DEMOS),
     ("loom/tests/quilts/showcase", "demos/showcase", ("EXPECTED-LINT.txt", *STATE), DEMOS),

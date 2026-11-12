@@ -36,7 +36,6 @@ These are warning signs. Each is a reason to think again, not an automatic veto:
 - it creates a second source of truth, or stores a state that could be computed (P3);
 - it needs a running process for something a command could do;
 - it only makes sense with a model in the loop, or needs an API key;
-- it teaches arras what a kind of event means rather than how to render it (P11);
 - it names a directory for a property loom can compute;
 - it reinvents something LaTeX already has.
 

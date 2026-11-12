@@ -27,7 +27,7 @@ Two steps, and the first may be all that is ever wanted:
 - **Make the condition visible.** `loom build` reports a manifest over some threshold, saying what the largest contributors are. A diagnostic costs nothing and turns "the viewer feels slow on this corpus" into a sentence naming the cause. It also means the trigger fires by itself rather than waiting to be noticed.
 - **Move the prose** if it does. `.loom/build/annotations/<id>.html` beside `.loom/build/source/<key>.tex`, with the manifest keeping every field a reader filters or sorts by — author, type, look, status, target, anchor — and carrying the body only as a length. Geometry leaves the row for the sidecar a work already has (`spans`) and one like it for a project PDF, named by its hash and fetched by the one surface drawing that PDF; rows keep `mark`, `quote` and `page`. Everything that lists, counts or filters annotations keeps working from the manifest alone; only the surfaces that *render* prose fetch.
 
-The second step is additive and needs no interface version: a viewer that finds a body inline uses it, and one that finds a path fetches.
+The second step changes both sides at once, as every change to what crosses does: the viewer fetches a body by its path.
 
 ## Blast radius
 

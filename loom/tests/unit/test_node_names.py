@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from loom.cli._quilt import open_scan
@@ -90,17 +91,38 @@ def test_display_name_hash_does_not_hide_math_or_other_directives() -> None:
     )
 
 
-def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -> None:
-    from tests.unit.render.test_inline_env import quilt
+MASTER = r"""\documentclass{amsart}
+\usepackage{amsthm}
+\usepackage{loom}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\begin{document}
+\section{Setup}\label{pp-0001}
+\begin{definition}[Widget]\label{pp-0002}
+A widget is a pair $(X,\sigma)$.
+% !LOOM name: Invisible display name
+\end{definition}
+\begin{theorem}[Parity]\label{pp-0003}
+Every widget has a fixed point.
+\end{theorem}
+\begin{proof}
+By the orbit decomposition.
+\end{proof}
+\end{document}
+"""
 
-    q = quilt(tmp_path)
-    source = q / "drafting/main.tex"
-    source.write_text(
-        source.read_text().replace("\\end{definition}", "% !LOOM name: Invisible display name\n\\end{definition}")
-    )
+
+def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -> None:
+    """A name is the author's handle on a node, never its title: no fragment prints it but as the source a node is shown as."""
+    q = tmp_path / "q"
+    ok("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path)
+    (q / "drafting").mkdir()
+    (q / "drafting" / "main.tex").write_text(MASTER, encoding="utf-8")
     ok("build", cwd=q)
     fragments = list((q / ".loom/build/fragments").rglob("*.html"))
-    assert fragments and not any("Invisible display name" in p.read_text() for p in fragments)
+    outside_source = [re.sub(r'<pre class="source"[^>]*>.*?</pre>', "", p.read_text(), flags=re.S) for p in fragments]
+    assert fragments and not any("Invisible display name" in text for text in outside_source)
     ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     assert any(
         "% !LOOM name: Invisible display name" in p.read_text() for p in (q / "drafting" / "nodes").glob("*.tex")

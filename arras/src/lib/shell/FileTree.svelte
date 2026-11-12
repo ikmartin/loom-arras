@@ -1,8 +1,10 @@
 <script lang="ts">
-	// Docs as the project's tree (plan 0.22.7): the person's directories and the files the viewer shows, each directory folding as an explorer's does. A document opens as itself, with the agent's copies of it beneath its row; the research state opens as the page it is, where it lives; an included `.tex` file opens the document that reads it, at its place (V7); every other file opens as a file. Which directories are open is the reader's, kept per quilt in this browser; the ones holding a live document start open, and the one holding what is being read opens when it is read.
+	// Docs as the project's tree (plan 0.22.7): the person's directories and the files the viewer shows, each directory folding as an explorer's does. A document opens as itself, with its compiled PDF and the agent's copies of it beneath its row; the research state opens as the page it is, where it lives; an included `.tex` file opens the document that reads it, at its place (V7); every other file opens as a file. Which directories are open is the reader's, kept per quilt in this browser; the ones holding a live document start open, and the one holding what is being read opens when it is read.
 	import { store } from '$lib/manifest/client.svelte';
+	import { compileError, compileWord, compiles } from '$lib/manifest/compiles.svelte';
 	import type { Master, ProjectFile } from '$lib/manifest/types';
 	import { masterUrl } from '$lib/nav';
+	import { pdfRoute } from '$lib/workspace/item';
 	import { documentLabel } from '$lib/workspace/names';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
@@ -76,11 +78,13 @@
 		return parts.map((_, i) => parts.slice(0, i + 1).join('/'));
 	}
 
-	/** What is being read, as a path in the tree: a document's, a file's, the research state's. */
+	/** What is being read, as a path in the tree: a document's, a file's, the research state's; a compiled PDF's is its document's with `PDF` after it, which opens the same directories and marks only its own row. */
+	const PDF = '#pdf';
 	const reading = $derived.by(() => {
 		const c = workspace.onScreen ? workspace.current : null;
 		if (!c) return '';
 		if (c.kind === 'document' || c.kind === 'file') return c.id;
+		if (c.kind === 'pdf') return c.id + PDF;
 		if (c.kind === 'page' && c.id === 'state') return statePath;
 		return '';
 	});
@@ -126,6 +130,18 @@
 	<a href={masterUrl(d.path)} class:here aria-current={here ? 'page' : undefined}>{documentLabel(masters, d.path)}{#if section(d)}<span class="aside">{section(d)}</span>{/if}</a>
 {/snippet}
 
+{#snippet compiled(d: Master)}
+	<!-- the document's compiled PDF, to read; it opens once there is one, and says while it compiles and when its last compile went wrong -->
+	{@const c = compiles.all[d.path]}
+	{@const word = compileWord(c)}
+	{#if d.pdf || word}
+		{@const here = reading === d.path + PDF}
+		<li class="pdf" data-testid="docs-pdf" data-document={d.path}>
+			{#if d.pdf}<a href={pdfRoute(d.path)} class:here aria-current={here ? 'page' : undefined} title="The PDF loom compiled from {d.path}">PDF</a>{:else}<span class="faint">PDF</span>{/if}{#if word}<span class="aside" class:wrong={!!c?.last && c.last.result !== 'ok' && c.state === 'idle'} title={compileError(c) || undefined} data-testid="docs-compile">{word}</span>{/if}
+		</li>
+	{/if}
+{/snippet}
+
 {#snippet mark(f: ProjectFile)}
 	{@const a = accessOf(f)}
 	{#if a}<AgentMark agents={a.agents} said={explain(a, { kind: f.kind, statePath })} testid="access-{f.path}" />{/if}
@@ -143,6 +159,7 @@
 	{#each d.files as f (f.path)}
 		{@const here = reading === f.path}
 		{@const copies = f.kind === 'document' ? copiesOf(f.path) : []}
+		{@const doc = f.kind === 'document' ? masters.find((x) => x.path === f.path) : undefined}
 		{#if f.path === statePath}
 			<li data-testid="docs-state" class="file state">
 				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>Research state</a>{@render mark(f)}
@@ -150,10 +167,11 @@
 		{:else}
 			<li class="file" class:document={f.kind === 'document'} class:live={ownPaths.has(f.path)} data-kind={f.kind} data-testid="docs-file">
 				<a href={href(f)} class:here aria-current={here ? 'page' : undefined} title={f.path}>{name(f.path)}</a>{@render mark(f)}
+				{#if doc}<ul class="plain docs compiled">{@render compiled(doc)}</ul>{/if}
 				{#if copies.length}
 					<!-- the agent's copies of this document, which the person and an agent both edit -->
 					<ul class="plain docs copies" data-testid="docs-copies">
-						{#each copies as c (c.path)}<li>{@render link(c)}{#if marks}<AgentMark agents={true} said={explain({ agents: true }, { copyOf: f.path })} testid="access-{c.path}" />{/if}</li>{/each}
+						{#each copies as c (c.path)}<li>{@render link(c)}{#if marks}<AgentMark agents={true} said={explain({ agents: true }, { copyOf: f.path })} testid="access-{c.path}" />{/if}<ul class="plain docs compiled">{@render compiled(c)}</ul></li>{/each}
 					</ul>
 				{/if}
 			</li>
@@ -196,5 +214,11 @@
 		margin-left: 0.4em;
 		color: var(--ink-faint);
 		font-size: 0.9em;
+	}
+	.aside.wrong {
+		color: var(--ink-soft);
+	}
+	.compiled > .pdf > a {
+		color: var(--ink-soft);
 	}
 </style>

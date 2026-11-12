@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 
-from loom.render.convert import IGNORED_ARGS, IGNORED_CMDS, SYMBOLS
+from loom.records.printed import IGNORED_ARGS, IGNORED_CMDS, SYMBOLS
 from loom.scan.tokenize import read_args
 
 CONTEXT = 32
@@ -60,7 +60,7 @@ def _find(own_text: str, quote: str) -> tuple[tuple[int, int], ...]:
 
 
 _SIMPLE = ("emph", "textit", "textbf", "texttt", "textrm", "textsf", "textsc", "textup")
-#: What the renderer prints for the source's quotes and dashes (`ligatures` in render/convert.py), longest first: a reader's selection carries `Ehrhart’s` where the source has `Ehrhart's`.
+#: What TeX prints for the source's quotes and dashes, longest first: a reader's selection carries `Ehrhart’s` where the source has `Ehrhart's`.
 _TYPOGRAPHY = {"---": "—", "--": "–", "``": "“", "''": "”", "`": "‘", "'": "’"}
 _CONTROL = re.compile(r"\\([A-Za-z@]+\*?|.)", re.S)
 

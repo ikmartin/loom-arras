@@ -27,7 +27,7 @@ from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher, scan_unread, snapshot
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
-from loom.tex.runner import compile_document, normalise_engine
+from loom.tex.runner import CompileResult, compile_document, normalise_engine
 
 DEFAULT_PORT = 8791
 ASSET_SUFFIXES = {
@@ -82,16 +82,25 @@ def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
 
 
 class Publications:
-    """Every publication the server makes, counted, so `/_api/stream` can say that one happened."""
+    """Every publication the server makes, counted, and how its compiles stand, so `/_api/stream` can say that either changed."""
 
     def __init__(self) -> None:
         self._cond = threading.Condition()
         self.count = 0
+        self.compiles = 0
+        self.compile_state = b"{}"
         self._closed = False
 
     def published(self) -> None:
         with self._cond:
             self.count += 1
+            self._cond.notify_all()
+
+    def compiled(self, state: bytes) -> None:
+        """How the compiles stand now, as one line of JSON."""
+        with self._cond:
+            self.compiles += 1
+            self.compile_state = state
             self._cond.notify_all()
 
     def close(self) -> None:
@@ -100,11 +109,11 @@ class Publications:
             self._closed = True
             self._cond.notify_all()
 
-    def wait(self, seen: int, timeout: float) -> int | None:
-        """The count once it is past `seen`, or as it stands after `timeout`; None once closed."""
+    def wait(self, seen: tuple[int, int], timeout: float) -> tuple[int, int] | None:
+        """The publication and compile counts once either is past `seen`, or as they stand after `timeout`; None once closed."""
         with self._cond:
-            self._cond.wait_for(lambda: self._closed or self.count != seen, timeout)
-            return None if self._closed else self.count
+            self._cond.wait_for(lambda: self._closed or (self.count, self.compiles) != seen, timeout)
+            return None if self._closed else (self.count, self.compiles)
 
 
 def write_serve_json(root: Path, port: int) -> str:
@@ -484,9 +493,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self._json(HTTPStatus.OK, {"jobs": self.jobs.recent()})
 
     def _stream(self) -> None:
-        """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else.
+        """`GET /_api/stream`: a server-sent event, `manifest`, carrying nothing, each time a new manifest is published, and `compiles`, carrying how every compile stands, on opening and each time that changes.
 
-        It says only that one exists: the viewer fetches the manifest as it would on a poll and learns nothing of what changed, so it still reacts to the manifest alone. Held open on its own thread; a comment every `HEARTBEAT` seconds keeps an idle one alive, and the server's stop ends it.
+        The viewer fetches the manifest as it would on a poll and learns nothing of what changed. Held open on its own thread; a comment every `HEARTBEAT` seconds keeps an idle one alive, and the server's stop ends it.
         """
         pubs = self.publications
         if pubs is None or self.quilt_root is None:
@@ -496,18 +505,21 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        seen = pubs.count
+        seen = (pubs.count, pubs.compiles)
         try:
-            self.wfile.write(b": open\n\n")
+            self.wfile.write(b": open\n\nevent: compiles\ndata: " + pubs.compile_state + b"\n\n")
+            self.wfile.flush()
             while True:
                 now = pubs.wait(seen, HEARTBEAT)
                 if now is None:
                     return
                 if now == seen:
                     self.wfile.write(b": still open\n\n")
-                else:
-                    seen = now
+                if now[0] != seen[0]:
                     self.wfile.write(b"event: manifest\ndata:\n\n")
+                if now[1] != seen[1]:
+                    self.wfile.write(b"event: compiles\ndata: " + pubs.compile_state + b"\n\n")
+                seen = now
                 self.wfile.flush()
         except OSError:
             return
@@ -622,8 +634,14 @@ class ServeSession:
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
         self.publications = Publications()
         from loom.jobs import Jobs
+        from loom.render.compiles import Compiles
 
         self.jobs = Jobs(self._run_job)
+        self.compiles = (
+            Compiles(self._compile, first=self._reading, told=self._compiles_told, made=lambda doc: self.rebuild())
+            if compile_masters
+            else None
+        )
 
     def rebuild(
         self,
@@ -652,9 +670,9 @@ class ServeSession:
                 from loom.cli.report import Progress
 
                 with Progress("rebuilding") as shown:
-                    report = build(self.quilt, reuse=reuse, progress=shown.told)
+                    report = build(self.quilt, reuse=reuse, progress=shown.told, tex=self.compile_masters)
             else:
-                report = build(self.quilt, reuse=reuse, progress=progress)
+                report = build(self.quilt, reuse=reuse, progress=progress, tex=self.compile_masters)
             self.last_report = report
             self.builds += 1
             self.published = seen
@@ -669,12 +687,10 @@ class ServeSession:
                 f"loom serve: rebuilt after change to {names}{' …' if len(changed) > 3 else ''}; {counted(len(report.rendered), 'block')} re-rendered",
                 file=sys.stderr,
             )
-        if (
-            self.compile_masters
-            and changed is not None
-            and any(p.suffix in (".tex", ".sty", ".cls", ".bib") for p in changed)
-        ):
-            threading.Thread(target=self._compile_default, name="loom-compile", daemon=True).start()
+        if self.compiles is not None and changed is not None:
+            from loom.render.compiles import needs_compiling
+
+            self.compiles.want(needs_compiling(report.result, changed, self._built))
 
     def _run_job(self, job: Any, progress: Callable[[str, str, int, int], None]) -> dict[str, Any]:
         """One library run the viewer started: `refs.update.update` on the quilt as it is now, outside the publication lock, then a rebuild, so the manifest shows what it made. Its report is what `loom library update` prints."""
@@ -717,26 +733,66 @@ class ServeSession:
         ]
         return self.last_report.result if scan_unread(self.quilt.root, changed) else None
 
-    def _compile_default(self) -> None:
+    def _built(self, doc: str) -> Path:
+        """Where a document's compiled PDF is, as `loom compile` writes it."""
+        return self.quilt.root / document_build(doc) / f"{Path(doc).stem}.pdf"
+
+    def _compile(self, doc: str, started: Callable[[Any], None]) -> CompileResult:
+        """One run of the compile queue: the document as the last publication's scan read it, carried on past a recoverable error, then its HTML from that compile's aux.
+
+        The PDF is published as soon as it is made, since its pages answer before TeX4ht's longer pass; the page then replaces the translator's rendering at the next publication.
+        """
+        import shutil
+
         from loom.scan.scan import scan
+        from loom.tex.tex4ht import compile_html
 
-        # the scan the rebuild that started this compile has just made
         result = self.last_report.result if self.last_report is not None else scan(self.quilt)
-        master = result.default_master
-        if master is None:
-            return
-        closure = result.closures.get(master)
+        closure = result.closures.get(doc)
         engine = normalise_engine((closure.engine if closure else None) or self.quilt.config.engine)
-        from loom.cli.report import Progress
-
-        with Progress("compiling", 1) as shown:
-            shown.item(master)
-            res = compile_document(
-                self.quilt.root, result.base_of(master), master, self.quilt.root / document_build(master), engine
-            )
-        print(f"loom serve: compiled {master}: {'ok' if res.ok else 'FAILED ' + res.first_error}", file=sys.stderr)
-        if res.ok:
+        build = self.quilt.root / document_build(doc)
+        res = compile_document(
+            self.quilt.root, result.base_of(doc), doc, build, engine, halt_on_error=False, started=started
+        )
+        said = "ok" if res.pdf is not None and not res.errors else ("with errors" if res.pdf else "FAILED")
+        print(f"loom serve: compiled {doc}: {said}{'' if said == 'ok' else ': ' + res.first_error}", file=sys.stderr)
+        if res.pdf is not None and shutil.which("make4ht"):
             self.rebuild()
+            envs = [*(closure.taxa if closure else ()), "proof"]
+            page = compile_html(
+                self.quilt.root,
+                result.base_of(doc),
+                doc,
+                build / "html",
+                envs=envs,
+                engine=engine,
+                seed=build,
+                started=started,
+            )
+            if page.html is None:
+                print(f"loom serve: no HTML for {doc}: {page.first_error}", file=sys.stderr)
+        return res
+
+    def _reading(self) -> str | None:
+        """The document the reader has open, as text or as its PDF, which compiles before any other."""
+        from loom.render.api import reading_place
+
+        item = ((reading_place(self.quilt.root).get("place") or {}).get("item")) or {}
+        return item.get("id") if item.get("kind") in ("document", "pdf") else None
+
+    def _compiles_told(self) -> None:
+        """Say how the compiles stand, on the stream and in the build output for `loom status`."""
+        from loom.render.compiles import COMPILES_JSON
+        from loom.render.publish import write_atomic
+
+        if self.compiles is None:
+            return
+        state = json.dumps(self.compiles.state(), separators=(",", ":"))
+        try:
+            write_atomic(self.quilt.root / BUILD / COMPILES_JSON, state)
+        except OSError:
+            pass  # the stream still says it
+        self.publications.compiled(state.encode("utf-8"))
 
     def listen(self) -> None:
         """Bind the port and start serving. The build has not run yet, so until `start` finishes it `/build/` serves what an earlier build left, or 404."""
@@ -802,6 +858,15 @@ class ServeSession:
         started = time.perf_counter()
         with Progress("scanning") as progress:
             self.rebuild(progress=progress.told)
+        if self.compiles is not None and self.last_report is not None:
+            import shutil
+
+            from loom.render.compiles import needs_compiling
+
+            # what changed while no server watched: a document never compiled, edited since its PDF, or without the page its text is read from
+            self.compiles.want(
+                needs_compiling(self.last_report.result, None, self._built, pages=shutil.which("make4ht") is not None)
+            )
         errors = [d for d in self.last_report.diagnostics if d.severity == "error"] if self.last_report else []
         blocks = len(self.last_report.rendered) if self.last_report else 0
         # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered
@@ -814,6 +879,11 @@ class ServeSession:
         )
 
     def stop(self) -> None:
+        from loom.render.compiles import COMPILES_JSON
+
+        if self.compiles is not None:
+            self.compiles.stop()
+        (self.quilt.root / BUILD / COMPILES_JSON).unlink(missing_ok=True)
         self.publications.close()
         if self.watcher:
             self.watcher.stop()

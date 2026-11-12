@@ -276,12 +276,12 @@
    "read_only_hint": false
   },
   "command": "loom build",
-  "description": "Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nRendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.",
+  "description": "Scan, derive, render, and publish .loom/build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).\n\nA document is read from the HTML its compile made, and shows as its source until one has. Text no compile makes, a node no document reaches, a digest, a landmark, a comparison, is made by TeX as snippets. Rendering is cached per block by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and makes again every text TeX refused before. Only errors are listed; `loom lint` lists every diagnostic.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
     "force": {
-     "description": "Render every block again, ignoring the cache and retrying remembered SVG failures.",
+     "description": "Render every block again, ignoring the cache and making again every text TeX refused.",
      "type": "boolean"
     },
     "json": {
@@ -294,6 +294,10 @@
       "type": "string"
      },
      "type": "array"
+    },
+    "no_compile": {
+     "description": "Run no TeX: text no compile makes comes from the cache, else shows as its source.",
+     "type": "boolean"
     }
    },
    "type": "object"
@@ -339,7 +343,7 @@
    "read_only_hint": false
   },
   "command": "loom compile",
-  "description": "Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.",
+  "description": "Run latexmk from a master's own directory into .loom/build/<name>/ (default: the default master), its name its path without .tex, or for a key.\n\nCompiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing. `--html` also makes a document's HTML as TeX makes it, which its fragments are cut from: the page, the fragment loom rebuilt from it, and how many of the document's nodes and blocks it places.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -356,6 +360,10 @@
       "xelatex"
      ],
      "type": "string"
+    },
+    "html": {
+     "description": "Also make a document's HTML with TeX4ht, into .loom/build/<name>/html/, and say how much of it loom can place.",
+     "type": "boolean"
     },
     "json": {
      "description": "Print the report as one JSON object.",
@@ -1472,7 +1480,7 @@
    "read_only_hint": true
   },
   "command": "loom status",
-  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nAnnotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.",
+  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nAnnotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {

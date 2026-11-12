@@ -9,6 +9,8 @@
 // double-clicked. No approximate destination is invented — sending a reader to roughly the right place is worse than
 // telling them there is no place, because they will believe it.
 
+import { INPUT, scrollerOf } from '$lib/fragments/hold';
+
 /** How long the destination is marked after arriving. Long enough to find, short enough not to be decoration. */
 const FLASH = 700;
 /** How long the notice stands when there is nowhere to go. */
@@ -59,7 +61,30 @@ export function travel(to: Element | null | undefined, from: Element): boolean {
 		nowhere(from);
 		return false;
 	}
+	arriveAt(to);
 	to.scrollIntoView({ block: 'center', behavior: 'smooth' });
 	flash(to);
 	return true;
+}
+
+/** Put `to` back at the centre once a smooth scroll to it ends: the blocks a read view skips are laid out at their real size as the scroll passes them, so the place it set out for can be thousands of pixels from where `to` stands when it gets there. Nothing waits when `to` is centred already; the reader taking over, or a scroll that never ends, cancels it. */
+function arriveAt(to: Element): void {
+	if (!('onscrollend' in window)) return;
+	const scroller = scrollerOf(to);
+	const view = scroller === document.scrollingElement ? { top: 0, height: window.innerHeight } : scroller.getBoundingClientRect();
+	const r = to.getBoundingClientRect();
+	if (Math.abs(r.top + r.height / 2 - (view.top + view.height / 2)) < 2) return;
+	const ends: EventTarget = scroller === document.scrollingElement ? document : scroller;
+	const quit = setTimeout(done, 5000);
+	function done(): void {
+		clearTimeout(quit);
+		ends.removeEventListener('scrollend', end);
+		for (const e of INPUT) window.removeEventListener(e, done, true);
+	}
+	function end(): void {
+		done();
+		if (to.isConnected) to.scrollIntoView({ block: 'center' });
+	}
+	ends.addEventListener('scrollend', end);
+	for (const e of INPUT) window.addEventListener(e, done, { capture: true, passive: true });
 }

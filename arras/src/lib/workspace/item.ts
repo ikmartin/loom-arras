@@ -8,14 +8,14 @@ import { anchorId, canonStem, canonUrl, keyFromParam, masterName, masterUrl, nod
 import { route } from '$lib/paths';
 import { placeParams, readKeys, type WorkLink } from '$lib/worklink';
 
-export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session' | 'page' | 'file';
+export type ItemKind = 'document' | 'work' | 'node' | 'context' | 'session' | 'page' | 'file' | 'pdf';
 
 /** A place on a work's page: the work-link keys without the work's identifier, which the item already names. */
 export type Place = Omit<WorkLink, 'id'>;
 
 export interface Item {
 	kind: ItemKind;
-	/** A document's path, a work's citekey, a node's key, a session's id, a project file's path. */
+	/** A document's path, a work's citekey, a node's key, a session's id, a project file's path; a compiled PDF's is its document's. */
 	id: string;
 	/** An internal view: a work's `info`; absent means the first. */
 	view?: string;
@@ -111,6 +111,10 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 			return { kind: 'page', id: safe(tail) };
 		case 'file':
 			return { kind: 'file', id: tail.split('/').map(safe).join('/'), ...(anchor ? { anchor } : {}) };
+		case 'pdf': {
+			const at = tail.split('/').map(safe).join('/');
+			return { kind: 'pdf', id: (m?.masters ?? []).find((d) => masterName(d.path) === at)?.path ?? at, ...(anchor ? { anchor } : {}) };
+		}
 		default:
 			return null;
 	}
@@ -156,7 +160,14 @@ export function pathFor(m: Documents | null, item: Item): string {
 			return route('/page/' + encodeURIComponent(item.id));
 		case 'file':
 			return fileRoute(item.id) + hash;
+		case 'pdf':
+			return pdfRoute(item.id) + hash;
 	}
+}
+
+/** A document's compiled PDF's address in the viewer: `/pdf/` and the document's name, as `/master/` has it. */
+export function pdfRoute(path: string): string {
+	return route('/pdf/' + masterName(path).split('/').map(encodeURIComponent).join('/'));
 }
 
 /**

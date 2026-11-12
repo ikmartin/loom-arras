@@ -109,6 +109,12 @@ test('Show ids puts the id and the state in the key gutter, beside a node in a d
 	expect(marginBox.x + marginBox.width).toBeLessThanOrEqual(envBox.x + 1);
 	// and an id is never broken across lines, however narrow the gutter gets
 	expect(await margin.locator('.mid').evaluate((e) => e.getClientRects().length)).toBe(1);
+	// and it takes a click, hung outside the environment as it is: the read view skips what an environment holds while off screen, never the environment, whose clip would leave the id painted and dead
+	const hit = await margin.locator('.mid').evaluate((a) => {
+		const r = a.getBoundingClientRect();
+		return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === a;
+	});
+	expect(hit, 'the id is what a click on it reaches').toBe(true);
 
 	// a node's own page carries the same gutter
 	await page.goto('/node/sy-0003');

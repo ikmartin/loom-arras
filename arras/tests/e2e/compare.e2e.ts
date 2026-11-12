@@ -5,8 +5,8 @@ import { beside, pane } from '../workspace';
 /** The two items side by side and compared, as the address `?compare=1` asks. */
 async function open(page: Page, left: string, right: string): Promise<void> {
 	await page.goto(left + beside(right) + '&compare=1');
-	// both panes typeset, so that nothing reflows under a step
-	for (const i of [0, 1]) await expect(pane(page, i).locator('.fragment mjx-container').first()).toBeAttached();
+	// both panes typeset, so that nothing reflows under a step; a document shown as its source (the beamer talk, whose page lost its frames' statements) has nothing to typeset
+	for (const i of [0, 1]) await expect(pane(page, i).locator('.fragment mjx-container, .fragment pre.source').first()).toBeAttached();
 	await page.evaluate(() => document.fonts.ready);
 	await expect(page.getByTestId('compare-count')).toBeVisible();
 	// the comparison drawn in both panes before anything is measured against it
