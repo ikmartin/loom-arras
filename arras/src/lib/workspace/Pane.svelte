@@ -172,7 +172,8 @@
 		--toolbar-h: 32px;
 	}
 	/* the unfocused pane's toolbar is quieter, as its tabs are */
-	.pane.dim :global(.toolbar) {
+	.pane.dim :global(.toolbar),
+	.pane.dim :global(.tools-row) {
 		opacity: 0.72;
 	}
 	.pane.holding {

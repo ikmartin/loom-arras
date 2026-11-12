@@ -174,8 +174,10 @@ test.describe('the toolbar', () => {
 		}
 	});
 
-	/** A document's annotating bar, then the PDF's drawing tools, PDF ▾, and the zoom and the page, left to right. */
-	const BAR = ['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'open-comments', 'open-notes', 'tool-ink', 'tool-text', 'tool-rect', 'tool-oval', 'tool-arrow', 'pdf-menu', 'zoom-fit', 'zoom-out', 'zoom-at', 'zoom-in', 'page-at'];
+	/** The row that reads, left to right: Annotate, Comments and Notes, PDF ▾, and the zoom and the page. */
+	const BAR = ['toggle-annotation-row', 'open-comments', 'open-notes', 'pdf-menu', 'zoom-fit', 'zoom-out', 'zoom-at', 'zoom-in', 'page-at'];
+	/** The annotation row beneath it, left to right: a document's annotating tools, then the PDF's drawing tools. */
+	const ROW = ['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'tool-ink', 'tool-text', 'tool-rect', 'tool-oval', 'tool-arrow'];
 
 	/** How light a colour an element is drawn in, 0 to 1, read off a canvas so that any notation the browser gives it is read alike; a background is the first one not transparent, from the element out. */
 	const lightness = (loc: Locator, prop: 'color' | 'backgroundColor') =>
@@ -197,14 +199,19 @@ test.describe('the toolbar', () => {
 			for (const url of ['/library/Bellamy19?page=1', `/file/${FILE}`]) {
 				await page.goto(url);
 				await toPage(page, 1);
-				let left = -Infinity;
-				for (const id of BAR) {
-					const at = page.getByTestId(id);
-					await expect(at, `${url}: ${id}`).toBeVisible();
-					const box = (await at.boundingBox())!;
-					expect(box.x, `${url}: ${id} after the one before it`).toBeGreaterThan(left);
-					left = box.x;
+				const tops: number[] = [];
+				for (const row of [BAR, ROW]) {
+					let left = -Infinity;
+					for (const id of row) {
+						const at = page.getByTestId(id);
+						await expect(at, `${url}: ${id}`).toBeVisible();
+						const box = (await at.boundingBox())!;
+						expect(box.x, `${url}: ${id} after the one before it`).toBeGreaterThan(left);
+						left = box.x;
+					}
+					tops.push((await page.getByTestId(row[0]).boundingBox())!.y);
 				}
+				expect(tops[1], `${url}: the annotation row beneath the row that reads`).toBeGreaterThan(tops[0]);
 				// drawn in the theme: dark words on light, light on dark, in the bar and in the menus it opens
 				const words = await lightness(page.getByTestId('open-comments'), 'color');
 				expect(scheme === 'light' ? words < 0.5 : words > 0.5, `${url}: the bar's words in the ${scheme} theme`).toBe(true);

@@ -29,15 +29,15 @@
 	});
 </script>
 
-{#snippet tools()}<PdfBar view={held.pdf} notes={held.notes} desk={held.desk} of={name} {writes} disabled={!readable || !onPaper} />{/snippet}
+{#snippet reading()}<PdfBar view={held.pdf} notes={held.notes} desk={held.desk} of={name} part="read" {writes} disabled={!readable || !onPaper} />{/snippet}
+{#snippet writing()}<PdfBar view={held.pdf} notes={held.notes} desk={held.desk} of={name} part="write" {writes} disabled={!readable || !onPaper} />{/snippet}
 
 {#if ref}
-	<ItemToolbar {name} bar={tools} on={ui.showSettled} hint={writes && readable && onPaper ? hintFor(m, held.notes, hand.value) : ''}>
+	<ItemToolbar {name} bar={reading} tools={writes ? writing : undefined} on={ui.showSettled} hint={writes && readable && onPaper ? hintFor(m, held.notes, hand.value) : ''}>
 		{#snippet view()}
 			<ToolbarItem
 				label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
 				name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
-				checked={ui.showSettled}
 				testid="toggle-settled"
 				onclick={() => (ui.showSettled = !ui.showSettled)}
 			/>

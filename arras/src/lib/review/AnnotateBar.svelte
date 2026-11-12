@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A text's annotating toolbar: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes; a document's Changes menu where its text has pending changes (`changes`); the stepper over the annotations and changes in reading order (the arrows, J and K); Comments, counting the annotations here, and Notes, counting those here of a type Notes lists, which open the list beside the text.
+	// A text's annotating, in two halves (`part`). The half that writes stands on the annotation row: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes. The half that reads stands on the toolbar's own row: a document's Changes menu where its text has pending changes (`changes`); the stepper over the annotations and changes in reading order (the arrows, J and K); Comments, counting the annotations here, and Notes, counting those here of a type Notes lists, which open the list beside the text. The keys are the reading half's, since it is always drawn, and putting the annotation row away puts the tool in hand down.
 	//
 	// Annotate stays on until it is turned off, and selecting words while it is on marks them in the look in hand. Comment leaves a comment at the next place clicked. The format menu sets the look in hand: the Type list (Add new… starts a type the hand takes), the look controls, the line saying what the look was changed from, a type or Plain (Reset, Update it), Save as new type, and Customize, which opens Settings › Annotations. Number keys choose a type while Annotate is on, 0 for Plain. Undo and Redo, and ⌘Z and ⇧⌘Z, go back and forth over this page's annotation writes (`history.svelte.ts`); Delete or Backspace removes the annotation open, with the same undo.
 	import Icon from '$lib/components/Icon.svelte';
@@ -7,6 +7,8 @@
 	import { getPane } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { openSettings } from '$lib/shell/settings/opener.svelte';
+	import { annotationRow } from '$lib/workspace/annotationRow.svelte';
+	import { untrack } from 'svelte';
 	import { can, write } from '$lib/write';
 	import { linkName } from '$lib/workspace/names';
 	import type { Snippet } from 'svelte';
@@ -21,15 +23,18 @@
 	let {
 		notes,
 		of,
+		part,
 		writes = false,
 		changes
 	}: {
 		notes: Annotating;
+		/** Which half: the tools that write, for the annotation row, or what reads, for the toolbar's own row. */
+		part: 'read' | 'write';
 		/** What the tools act on, for their accessible names. */
 		of: string;
 		/** Whether the publisher takes annotations, which the tools need. */
 		writes?: boolean;
-		/** A document's Changes menu, after Undo and Redo. */
+		/** A document's Changes menu, first on the reading half. */
 		changes?: Snippet;
 	} = $props();
 
@@ -154,8 +159,17 @@
 		notes.side = notes.side === which ? null : which;
 	}
 
+	// the annotation row put away puts the tool in hand down, so none is armed out of sight
+	$effect(() => {
+		if (part !== 'read' || annotationRow.open) return;
+		untrack(() => {
+			if (notes.tool) notes.tool = null;
+		});
+	});
+
 	// J and K step, from anywhere in the focused pane but a field; while Annotate is on, a number chooses a type
 	$effect(() => {
+		if (part !== 'read') return;
 		const key = (e: KeyboardEvent) => {
 			if (e.altKey || e.defaultPrevented) return;
 			if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable], [role="dialog"][aria-modal="true"]')) return;
@@ -190,8 +204,9 @@
 	});
 </script>
 
-<span class="annotate-bar" role="group" aria-label="annotating {of}">
+{#if part === 'write'}
 	{#if writes}
+	<span class="annotate-bar" role="group" aria-label="annotating {of}">
 		<span class="split">
 			<button type="button" class="tool main" class:on={notes.tool === 'annotate'} aria-pressed={notes.tool === 'annotate'} title="Annotate: select words and they are marked" aria-label="Annotate in {of}" data-testid="tool-annotate" onclick={() => toggle('annotate')}><Icon name="highlighter" size={15} /><Sample {look} /></button>
 			<button type="button" class="tool" class:on={notes.tool === 'comment'} aria-pressed={notes.tool === 'comment'} title="Comment: click a place to leave a comment there" aria-label="Comment in {of}" data-testid="tool-comment" onclick={() => toggle('comment')}><Icon name="pin" size={14} /></button>
@@ -200,20 +215,24 @@
 		<span class="sep" aria-hidden="true"></span>
 		<button type="button" class="tool" title={nextUndo() ? `Undo ${nextUndo()} (⌘Z)` : 'Undo'} aria-label="Undo in {of}" aria-keyshortcuts="Control+Z Meta+Z" disabled={!history.done.length || history.busy} data-testid="annotate-undo" onclick={() => void back('undo')}><Icon name="undo" size={14} /></button>
 		<button type="button" class="tool" title={nextRedo() ? `Redo ${nextRedo()} (⇧⌘Z)` : 'Redo'} aria-label="Redo in {of}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabled={!history.undone.length || history.busy} data-testid="annotate-redo" onclick={() => void back('redo')}><Icon name="redo" size={14} /></button>
+	</span>
 	{/if}
+{:else}
+<span class="annotate-bar" role="group" aria-label="reading {of}">
 	{#if changes}{@render changes()}{/if}
 	{#if seq.length}
-		<span class="sep" aria-hidden="true"></span>
+		{#if changes}<span class="sep" aria-hidden="true"></span>{/if}
 		<button type="button" class="tool" title="Previous (K)" aria-label="Previous annotation in {of}" aria-keyshortcuts="k" data-testid="step-prev" onclick={() => step(-1)}><Icon name="left" size={14} /></button>
 		<span class="count" data-testid="step-count">{at >= 0 ? `${at + 1} of ${seq.length}` : things(seq.length)}</span>
 		<button type="button" class="tool" title="Next (J)" aria-label="Next annotation in {of}" aria-keyshortcuts="j" data-testid="step-next" onclick={() => step(1)}><Icon name="right" size={14} /></button>
 	{/if}
-	<span class="sep" aria-hidden="true"></span>
+	{#if changes || seq.length}<span class="sep" aria-hidden="true"></span>{/if}
 	<button type="button" class="tool words" class:on={notes.side === 'comments'} aria-pressed={notes.side === 'comments'} title="The annotations here in reading order, with the changes among them" aria-label="Comments in {of}, {said}" data-testid="open-comments" onclick={() => side('comments')}><Icon name="panel" size={14} />Comments<span class="badge">{said}</span></button>
 	<button type="button" class="tool words" class:on={notes.side === 'notes'} aria-pressed={notes.side === 'notes'} title="Notes: {notesN} here; the list holds every document's" aria-label="Notes, {notesN} here, the list from every document, beside {of}" data-testid="open-notes" onclick={() => side('notes')}><Icon name="note" size={14} />Notes<span class="badge">{notesN}</span></button>
 </span>
+{/if}
 
-{#if menu}
+{#if menu && part === 'write'}
 	<div class="format-menu" bind:this={menuEl} role="dialog" aria-label="Format for annotations and comments" style="left: {place.left}px; top: {place.top}px;" data-testid="format-menu">
 		<div class="sec">Type</div>
 		<TypeList {types} {current} {plain} keys onpick={(id) => hand.set(withType(m, hand.value, id))} onadd={saves ? () => customize({}) : undefined} />
@@ -285,6 +304,10 @@
 		height: 16px;
 		margin: 0 5px;
 		background: var(--rule);
+	}
+	/* a document with no pending changes draws no Changes menu, and nothing then stands before the divider */
+	.annotate-bar > .sep:first-child {
+		display: none;
 	}
 	.count {
 		min-width: 3.2em;

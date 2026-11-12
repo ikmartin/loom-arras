@@ -34,12 +34,13 @@
 </script>
 
 {#snippet changes()}{#if master}<ChangesMenu {notes} document={master.path} of={name} />{/if}{/snippet}
-{#snippet tools()}<AnnotateBar {notes} of={name} {writes} {changes} />{/snippet}
+{#snippet reading()}<AnnotateBar {notes} of={name} part="read" {writes} {changes} />{/snippet}
+{#snippet writing()}<AnnotateBar {notes} of={name} part="write" {writes} />{/snippet}
 {#snippet versions()}<HistoryMenu {item} {name} divided={(!!master && !master.closed && !master.context_only) || !!draft} />{/snippet}
 {#snippet live()}<VersionControls {item} {draft} />{/snippet}
 
 {#if master && !master.closed && !master.context_only}
-	<ItemToolbar {name} bar={tools} history={history ? versions : undefined} on={ui.showSettled} hint={writes ? hintFor(m, notes, hand.value) : ''}>
+	<ItemToolbar {name} bar={reading} tools={writes ? writing : undefined} history={history ? versions : undefined} on={ui.showSettled} hint={writes ? hintFor(m, notes, hand.value) : ''}>
 		{#snippet view()}
 			{#if notes.ready || anySettled}
 				<!-- Settled annotations are hidden at rest; this shows them faintly, for the sitting, on every document and node. -->

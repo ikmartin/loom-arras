@@ -59,7 +59,8 @@ test.describe('V1 · open on the thing itself', () => {
 			expect(await head.evaluate((h) => [...h.children].map((c) => c.getAttribute('role')))).toEqual(['tablist']);
 			const kinds = await head.getByRole('tablist').evaluate((t) => [...t.children].map((c) => (c as HTMLElement).dataset.testid));
 			expect(kinds).toEqual(kinds.map(() => 'item-tab'));
-			const first = await controls(page, i).evaluate((t) => t.firstElementChild?.getAttribute('aria-label') ?? '');
+			// the row that reads, the toolbar's first
+			const first = await controls(page, i).evaluate((t) => t.firstElementChild?.firstElementChild?.getAttribute('aria-label') ?? '');
 			if (views) expect(first).toBe('views of Kre99');
 			else expect(first).not.toMatch(/^views of /);
 		}
@@ -642,7 +643,7 @@ test.describe('the toolbar', () => {
 		expect([await firstLine(page, 0), await firstLine(page, 1)]).toEqual(before);
 	});
 
-	test('the bar, then view with every other control in full words and its key, the pane\'s own line last; the divider only when something stands left of view', async ({ page }) => {
+	test('Annotate, the bar, then view with every other control in full words, the pane\'s own line last, and the tools that write on a row beneath; the divider only when something stands left of view', async ({ page }) => {
 		await writes(page);
 		await page.goto('/master/drafting/main');
 		const bar = controls(page, 0);
@@ -650,7 +651,8 @@ test.describe('the toolbar', () => {
 		// the stepper once the document has said what it holds: its annotations and its pending changes
 		await expect(bar.getByTestId('step-prev')).toBeVisible();
 		const order = await bar.locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo', 'changes-toggle', 'step-prev', 'step-next', 'open-comments', 'open-notes', 'toolbar-history', 'toolbar-view']);
+		expect(order).toEqual(['toggle-annotation-row', 'changes-toggle', 'step-prev', 'step-next', 'open-comments', 'open-notes', 'toolbar-history', 'toolbar-view', 'tool-annotate', 'tool-comment', 'format-toggle', 'annotate-undo', 'annotate-redo']);
+		await expect(bar.getByTestId('annotation-row').getByTestId('tool-annotate')).toBeVisible();
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
 		await expect(page.getByTestId('toolbar-view')).toHaveAttribute('aria-label', 'view menu for main.tex');
 		await viewMenu(page);
@@ -683,8 +685,35 @@ test.describe('the toolbar', () => {
 		await expect(page.getByTestId('toolbar-view')).toBeVisible();
 		const reading = await controls(page, 0).locator('button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
 		expect(reading).not.toContain('tool-annotate');
+		expect(reading).not.toContain('toggle-annotation-row');
+		await expect(controls(page, 0).getByTestId('annotation-row')).toHaveCount(0);
 		expect(reading.slice(-3)).toEqual(['open-comments', 'open-notes', 'toolbar-view']);
 		await expect(page.getByTestId('toolbar-view')).toHaveCSS('border-left-style', 'solid');
+	});
+
+	test('Annotate puts the annotation row away and shows it again, everywhere and on the next visit, and the tool in hand goes down with it', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		const row = controls(page, 0).getByTestId('annotation-row');
+		const toggle = controls(page, 0).getByTestId('toggle-annotation-row');
+		await expect(row).toBeVisible();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		// the row that reads holds no tool that writes
+		const reads = await controls(page, 0).locator('.toolbar button').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+		expect(reads).not.toContain('tool-annotate');
+		// armed, its hint at the row's right; put away, the tool goes down with it
+		await row.getByTestId('tool-annotate').click();
+		await expect(row.getByTestId('annotate-hint')).toContainText('Annotate is on');
+		await toggle.click();
+		await expect(row).toHaveCount(0);
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await expect(page.getByTestId('annotate-hint')).toHaveCount(0);
+		// kept in this browser, and shown again with nothing armed
+		await page.reload();
+		await expect(controls(page, 0).getByTestId('toggle-annotation-row')).toHaveAttribute('aria-expanded', 'false');
+		await expect(controls(page, 0).getByTestId('annotation-row')).toHaveCount(0);
+		await controls(page, 0).getByTestId('toggle-annotation-row').click();
+		await expect(controls(page, 0).getByTestId('tool-annotate')).toHaveAttribute('aria-pressed', 'false');
 	});
 
 	test('a node keeps its context and its source under view', async ({ page }) => {
