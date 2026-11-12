@@ -77,3 +77,31 @@ def test_the_structure_tex4ht_made_is_kept_in_the_dialect_s_names() -> None:
     assert '<a class="url" href="https://example.com">out</a> in' in h
     # where an included file ends, the reader is back in the file that input it, at the place it had reached
     assert '<p data-at=":19">Back home.</p>' in h
+
+
+#: A display as TeX Live 2024's TeX4ht writes it, between paragraphs, and as TeX Live 2026's does, inside its paragraph.
+BETWEEN = """<html><body><!-- l. 7 --><p class='noindent'>A display </p><div class='mathjax-block'>\\[x^2\\]</div><p> and </p><div class='mathjax-env mathjax-equation'>\\begin{equation}\\label {e1} y = 1 \\end{equation}</div><p> after.</p></body></html>"""
+INSIDE = """<html><body><!-- l. 7 --><p class='noindent'>A display <span class='mathjax-block'>\\[x^2\\]</span> and <span class='mathjax-env mathjax-equation'>\\begin{equation}\\label {e1} y = 1 \\end{equation}</span> after.</p></body></html>"""
+
+
+def test_a_display_inside_its_paragraph_is_read_as_one_between_paragraphs() -> None:
+    """TeX4ht since TeX Live 2026 writes a display as a `span` inside the paragraph it stands in: it is read as the display it is, the paragraph closed before it and begun again after, which is the page an earlier TeX4ht writes."""
+    inside = normalise(INSIDE).html
+    assert inside == normalise(BETWEEN).html
+    assert '<div class="math display" data-at=":7">\\begin{equation}\\label {e1} y = 1 \\end{equation}</div>' in inside
+    assert inside.count("<p") == 3 and "\\[" not in re.sub(r"<div class=\"math display\"[^>]*>[^<]*</div>", "", inside)
+
+
+def test_a_paragraph_left_open_at_a_snippet_mark_is_closed_there() -> None:
+    """A text ending in a display leaves its paragraph open past the next text's mark, closed only at the page's end (TeX Live 2026): it is closed at the mark, so the text stands whole between its marks, and its late `</p>` closes nothing else."""
+    page = """<html><body><!-- loomsnippet 0 --><p> A diagram: <span class='mathjax-block'>\\[\\begin {tikzcd} A \\end {tikzcd}\\]</span>
+<!-- loomsnippet 1 --><div class='loom-node' data-env='lemma' data-file='' data-line='3'><p>Kept.</p></p></div>
+<!-- loomsnippet end --></body></html>"""
+    html = normalise(page).html
+    marks = [m.start() for m in re.finditer(r'<span class="loom-snippet"', html)]
+    first = html[marks[0] : marks[1]]
+    # balanced, and the paragraph begun again after the display, empty, gone as every empty paragraph is
+    assert first.count("<p") == first.count("</p>") == 1 and first.endswith(
+        '<div class="math display" data-at=":0">\\[\\begin {tikzcd} A \\end {tikzcd}\\]</div>'
+    )
+    assert re.search(r'<div class="node"[^>]*>\s*<p[^>]*>Kept\.</p>\s*</div>', html[marks[1] : marks[2]])
