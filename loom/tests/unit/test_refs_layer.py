@@ -406,7 +406,7 @@ def test_a_link_needs_a_kind_from_the_vocabulary_two_ends_and_a_reason(tmp_path:
     except ValueError:
         pass
     made = add_link(q, a, b, "generalises", "The first is stated for every DM-type morphism.", "isaac")
-    assert made.id == "link-0001" and read_links(q)[0].why.startswith("The first")
+    assert read_links(q)[0].id == made.id and read_links(q)[0].why.startswith("The first")
     assert set(KINDS) == {"same-notion", "generalises", "specialises", "depends-on", "contradicts"}
     assert remove_link(q, made.id).id == made.id and read_links(q) == []
 
@@ -418,9 +418,9 @@ def test_links_are_never_citable_and_never_in_a_digest(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
-    add_link(q, f"{ck}-thm-1.1", f"{ck}-thm-4.1", "depends-on", "Because.", "isaac")
+    made = add_link(q, f"{ck}-thm-1.1", f"{ck}-thm-4.1", "depends-on", "Because.", "isaac")
     for tex in q.rglob("*.tex"):
-        assert "link-0001" not in tex.read_text(), f"{tex} names a link"
+        assert made.id not in tex.read_text(), f"{tex} names a link"
     ok("build", cwd=q)
     m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     assert [x["kind"] for x in m["links"]] == ["depends-on"]
@@ -1490,7 +1490,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         *who,
         cwd=q,
@@ -1504,7 +1504,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "2",
         "--box",
         "82,278,529,316",
-        "--kind",
+        "--type",
         "note",
         *who,
         cwd=q,
@@ -1596,9 +1596,9 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         "A. Author",
         "--quilt",
         str(q),
-        stdin='{"target":"Bellamy19","message":"batched","page":2,"box":"82,278,529,316","kind":"note"}\n',
+        stdin='{"target":"Bellamy19","message":"batched","page":2,"box":"82,278,529,316","type":"note"}\n',
     )
-    assert "(box)" in batched.output, batched.output
+    assert "(box)  note" in batched.output, batched.output
 
 
 @pytest.mark.poppler
@@ -1619,7 +1619,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
             "message": "so it is integral",
             "page": 2,
             "quote": text,
-            "kind": "note",
+            "type": "note",
             "author": "A. Author",
         },
     )
@@ -1638,7 +1638,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
             "message": "that display",
             "page": 2,
             "rects": [[82, 278, 529, 316]],
-            "kind": "note",
+            "type": "note",
             "author": "A. Author",
         },
     )
@@ -1661,7 +1661,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
         *who,
         cwd=q,
@@ -1674,7 +1674,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         "2",
         "--box",
         "82,278,529,316",
-        "--kind",
+        "--type",
         "note",
         *who,
         cwd=q,
@@ -1683,12 +1683,19 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     exits(1, "build", cwd=q)
     manifest = json.loads((q / ".loom/build" / "manifest.json").read_text())
     ref = manifest["references"]["Bellamy19"]
-    assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 2
+    assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 1
+    # open counts only what is of a type that stays open: the question, and not the note, which only informs
+    staying = {t["id"] for t in manifest["annotation_types"] if t["open"]}
+    on_work = [x for x in manifest["annotations"].values() if x["target"].get("work") == "Bellamy19"]
+    asking = [x for x in on_work if x["status"] == "open" and not x["in_reply_to"] and x["type"] in staying]
+    assert ref["reading"]["open"] == len(asking) and a in {x["id"] for x in asking}
+    assert b not in {x["id"] for x in asking}
     assert manifest["annotations"][a]["target"] == {
         "key": "doi:10.4171/showcase/19-2",
         "hash": manifest["annotations"][a]["target"]["hash"],
         "work": "Bellamy19",
         "page": 2,
+        "file": None,
     }
     assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
     assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]
@@ -1767,10 +1774,8 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "2",
         "--quote",
         "totally unimodular",
-        "--kind",
+        "--type",
         "question",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q,
@@ -1779,10 +1784,8 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "annotate",
         "sh-0003",
         "and one on a key, which has no work",
-        "--kind",
+        "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q,
@@ -1946,28 +1949,26 @@ def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Pa
     """`why --depth` follows relations out from the result in one call; `relate --undo` removes one by id, records why, and refuses an unknown one."""
     q = demo(tmp_path)
     a, b, c, d = (f"Calloway14-{x}" for x in ("def-3.1", "prop-3.2", "prop-3.3", "thm-3.4"))
-    for frm, to in ((a, b), (b, c), (c, d)):
-        ok("library", "relate", frm, to, "--kind", "depends-on", "--why", "Because.", "--as", "isaac", cwd=q)
+    relate = ("--kind", "depends-on", "--why", "Because.", "--as", "isaac", "--json")
+    ab, bc, cd = (
+        json_of("library", "relate", frm, to, *relate, cwd=q)["link"]["id"] for frm, to in ((a, b), (b, c), (c, d))
+    )
 
     def walk(*extra: str) -> list[str]:
         return [x["id"] for x in json_of("library", "why", *extra, "--json", cwd=q)["links"]]
 
-    assert walk(a) == ["link-0001"]
-    assert walk(a, "--depth", "2") == ["link-0001", "link-0002"]
-    assert walk(a, "--depth", "5") == ["link-0001", "link-0002", "link-0003"]
-    assert walk(c) == ["link-0002", "link-0003"]  # both directions
+    assert walk(a) == [ab]
+    assert walk(a, "--depth", "2") == [ab, bc]
+    assert walk(a, "--depth", "5") == [ab, bc, cd]
+    assert walk(c) == [bc, cd]  # both directions
     every = [x["id"] for x in json_of("library", "--json", cwd=q)["links"]]
-    assert every == ["link-0001", "link-0002", "link-0003"]
-    undo = ("library", "relate", "--undo", "link-0002", "--why", "A misreading.", "--as", "A. Author")
-    assert ok(*undo, cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
+    assert every == [ab, bc, cd]
+    undo = ("library", "relate", "--undo", bc, "--why", "A misreading.", "--as", "A. Author")
+    assert ok(*undo, cwd=q).output.strip() == f"removed {bc}: {b} depends-on {c}"
     removed = json.loads((q / ".loom/digests" / "links-removed.jsonl").read_text())
-    assert (
-        removed["link"]["id"] == "link-0002"
-        and removed["why"] == "A misreading."
-        and removed["removed_by"] == "A. Author"
-    )
-    assert walk(a, "--depth", "5") == ["link-0001"]  # the chain is cut
-    refused(*undo, cwd=q, code=2, match="link-0002")
+    assert removed["link"]["id"] == bc and removed["why"] == "A misreading." and removed["removed_by"] == "A. Author"
+    assert walk(a, "--depth", "5") == [ab]  # the chain is cut
+    refused(*undo, cwd=q, code=2, match=bc)
     assert ok("library", "why", "Calloway14-setup", cwd=q).stdout.splitlines()[0].endswith("; no relations")
 
 

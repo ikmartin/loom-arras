@@ -10,6 +10,7 @@
 	import Palette from '$lib/components/Palette.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
+	import DeletedBar from '$lib/review/DeletedBar.svelte';
 	import Column from '$lib/shell/Column.svelte';
 	import Workspace from '$lib/workspace/Workspace.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
@@ -178,3 +179,4 @@
 <Palette />
 <LinkPreview />
 <PdfViewer />
+<DeletedBar />

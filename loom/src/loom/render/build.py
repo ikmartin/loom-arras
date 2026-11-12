@@ -74,7 +74,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
 
     Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
 
-    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the notes on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the annotations on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
 
     Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
@@ -92,22 +92,26 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                 if a.anchor is not None and a.anchor.basis == "box" and a.anchor.quads:
                     drawn[a.id] = a.anchor.quads
 
+    # open means of a type that stays open until resolved, and not resolved yet
+    staying = {t["id"] for t in manifest.get("annotation_types", []) if t.get("open")}
     for citekey, ref in manifest.get("references", {}).items():
-        notes = [a for a in published.values() if a["target"].get("work") == citekey and not a["discarded"]]
+        on_work = [a for a in published.values() if a["target"].get("work") == citekey]
         ref["reading"] = {
-            "total": len(notes),
-            "open": sum(1 for a in notes if a["status"] == "open" and a["in_reply_to"] is None),
+            "total": len(on_work),
+            "open": sum(
+                1 for a in on_work if a["status"] == "open" and a["in_reply_to"] is None and a.get("type") in staying
+            ),
         }
         artifacts = ref.get("artifacts") or {}
         home = store_home(root, str(artifacts.get("dir", "")))
         if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
         results = {rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page}
-        if not results and not notes:
+        if not results and not on_work:
             continue
         m = read_map(home)
         rel = f"spans/{home.relative_to(storage_root(root)).as_posix()}.json"
-        # what the geometry is made from: the results' anchors and words, the notes on the pages and their drawn boxes, the copy filed, and the matching code
+        # what the geometry is made from: the results' anchors and words, the annotations on the pages and their drawn boxes, the copy filed, and the matching code
         key = hashlib.sha256(
             json.dumps(
                 [
@@ -118,8 +122,14 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                         for rid, r in results.items()
                     ),
                     sorted(
-                        [a["id"], a["target"].get("page"), a.get("basis"), a.get("quote"), drawn.get(a["id"])]
-                        for a in notes
+                        [
+                            a["id"],
+                            a["target"].get("page") or 0,
+                            a.get("basis") or "",
+                            a.get("quote") or "",
+                            drawn.get(a["id"]) or a.get("rects") or [],
+                        ]
+                        for a in on_work
                     ),
                 ]
             ).encode()
@@ -144,9 +154,14 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
             span = locate_span(xml, needle, r.anchor.page) if xml else None
             if span is not None:
                 quads[rid] = [list(q) for q in span.lines]
-        for a in notes:
+        for a in on_work:
             page = int(a["target"].get("page") or 0)
             if not page:
+                continue
+            if a.get("basis") is None and a.get("rects"):
+                # drawn on the page with its own place, which the record holds
+                marks[a["id"]] = a["rects"]
+                table.boxes_of(page)  # for the page table
                 continue
             if a.get("basis") == "box":
                 if a["id"] in drawn:
@@ -274,8 +289,6 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
     """
     out: dict[str, list[MarkEntry]] = {}
     for res in records.resolved(result):
-        if res.record.discarded:
-            continue
         # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
         if not res.recorded:
             continue
@@ -552,10 +565,9 @@ def build(
     from loom.render.incoming import attach_adoptions
 
     attach_adoptions(result, renderer, manifest, files)
-    from loom.render.payloads import attach_changes, attach_payloads
+    from loom.render.edits import attach_edits
 
-    attach_payloads(result, renderer, manifest)
-    attach_changes(result, records, renderer, manifest, files)
+    attach_edits(result, renderer, manifest, files)
     # every preview asked for above, made by TeX together, one batch per preamble
     renderer.previews.make()
     from loom.review_queue import rows_for
@@ -569,9 +581,6 @@ def build(
     from loom.scan.quilt import reviewer_identity
 
     attach_files(result, manifest, files)
-    from loom.notes import published as published_notes
-
-    manifest["notes"] = published_notes(result)
     from loom.render.threads import last_active
 
     for s in manifest.get("sessions", []):

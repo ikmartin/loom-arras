@@ -280,26 +280,26 @@ def render(events: list[Event]) -> str:
 
 
 def render_changes(changed: list[dict[str, Any]]) -> str:
-    """The annotations a message carries, or `loom since` reports, as an agent reads them: one line each, then the words it is on, its body and what it proposes."""
+    """The annotations a message carries, or `loom since` reports, as an agent reads them: one line each, then the words it is on and its body."""
     lines: list[str] = []
     for c in changed:
         who = c.get("by", "")
-        # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
+        # what a reader can act on: the citekey and the page for an annotation on a cited work, the key otherwise
         where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
         mine = " · to your annotation" if c.get("yours") else ""
         now = f" · now {c['status']}" if c.get("status") else ""
-        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}{mine}{now}")
+        lines.append(
+            f"  {c.get('id', '')}  {c.get('type') or 'untyped'} · {where} · {c.get('act', '')} by {who}{mine}{now}"
+        )
         if c.get("quote"):
             lines.append(f'      on "{c["quote"]}"')
         if c.get("body"):
             lines.append(f'      "{c["body"]}"')
-        if c.get("payload"):
-            lines.append(f"      proposes ({c.get('placement') or 'replace'}): {c['payload']}")
     return "\n".join(lines)
 
 
 def work_of(root: Path, annotation: Any) -> str | None:
-    """The citekey a page note's target names, or None when the target is a key in the corpus.
+    """The citekey an annotation on a cited work names, or None when the target is a key in the corpus.
 
     The record stores the work's identifier, which is what two quilts agree on; every `loom library` command wants the citekey, which is what this machine calls it. Nothing mapped one to the other, so an agent given a changed-annotation block had an address it could not use.
     """
@@ -322,13 +322,13 @@ def work_of(root: Path, annotation: Any) -> str | None:
 
 
 def annotation_row(root: Path, a: Any) -> dict[str, Any]:
-    """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on and what it proposes.
+    """One annotation or reply as a message carries it and `loom since` reports it: whole, with the words it is on.
 
-    A page note's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
+    Such an annotation's target is the work's identifier, which no `loom library` command takes, so the citekey and the page travel with it, as `ai annotations` prints them.
     """
     row: dict[str, Any] = {
         "id": a.id,
-        "kind": a.kind,
+        "type": a.type,
         "target": a.target_key,
         "work": work_of(root, a),
         "page": a.anchor.page if a.anchor else None,
@@ -338,16 +338,13 @@ def annotation_row(root: Path, a: Any) -> dict[str, Any]:
     }
     if a.selector is not None and a.selector.exact:
         row["quote"] = a.selector.exact
-    for field in ("severity", "payload", "placement"):
-        if getattr(a, field):
-            row[field] = getattr(a, field)
     return row
 
 
 def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
-    """The packet: what `who` wrote in this session since a message last carried any, carried by their next `loom session say` (plan 0.14).
+    """The packet: the annotations and replies `who` wrote since the session's round opened that no message of it has carried yet, carried by their next `loom session say` (plan 0.14).
 
-    Only the sender's own annotations and replies go, a person's: an agent's are its own, and sending them back would be telling it what it said. Each is carried whole (`annotation_row`), because the inbox is the record of what was sent.
+    An annotation belongs to no session, so the round's opening is what bounds the packet. Only a person's own go: an agent's are its own, and sending them back would be telling it what it said. Each is carried whole (`annotation_row`), because the inbox is the record of what was sent.
     """
     from loom.records.annotations import load_records
 
@@ -358,11 +355,8 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
     records, _ = load_records(root)
     out: list[dict[str, Any]] = []
     for record in records:
-        if record.rel != session.id:
-            continue
         for a in record.annotations:
-            if a.id in sent or a.created < since or a.status == "discarded" or a.author_kind != "person":
+            if a.id in sent or a.created < since or a.author_kind != "person" or a.author_id != who:
                 continue
-            if a.author_id == who:
-                out.append(annotation_row(root, a))
+            out.append(annotation_row(root, a))
     return out

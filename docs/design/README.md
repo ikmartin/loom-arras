@@ -6,7 +6,7 @@ Loom is a local command-line tool for mathematical research, and arras is the vi
 
 Loom is a tool for every stage of mathematical research, from learning a field to submitting a paper. It treats mathematics as a graph of addressable statements: your drafts, the papers and books you read, and the questions you are working on. Anything a person or an AI says about that mathematics attaches to the statement it concerns and can be found from there.
 
-Most of research is provisional, and loom lets it stay that way. As in a Zettelkasten, conversations and half-formed ideas are fleeting notes, kept while they are useful and allowed to fade. What proves worth keeping is distilled into durable notes, about the literature or in your own words, that are atomic, linked, and found from the mathematics they concern. Nothing fades while a durable note relies on it.
+Most of research is provisional, and loom lets it stay that way. As in a Zettelkasten, conversations and half-formed ideas are fleeting notes: one gesture to leave, asking nothing of anyone afterwards, so forgetting one costs nothing. What proves worth keeping is distilled into durable notes, about the literature or in your own words, that are atomic, linked, and found from the mathematics they concern.
 
 Loom is useful with no AI present and built to be excellent with one, from any provider, including local models. It assumes as little as possible about who you are, what stage you are at, or whether you have a draft or a problem at all. And it never lets a claim that nobody has checked look checked.
 
@@ -54,7 +54,8 @@ Two markers keep the text honest:
 
 ## Decided, not yet built
 
-- **Notes beyond their core.** Quoting, a note on anything shown, and fading are built; claims carrying their evidence, promotion to durable notes, and marks drawn in the text at a note's words are not. See `model.md`.
+- **Annotating in the viewer as plan 0.30 settled it.** Types, looks, deletion, and notes and PDF marks as annotations are built in loom, and the viewer draws them; the toolbar and its one popup, the Comments and Notes lists, Quote on a bare selection, Settings › Annotations, an annotation opening the version it was written on, and changes reviewed in the document are not. See `model.md` and `docs/plans/0.30-annotations.md`.
+- **Notes beyond annotations.** Claims carrying their evidence, and promotion to durable notes. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.
 - **The viewer's Library.** A Library view of the works; the frame it stands in, and Review as the quilt's management, are built. See `model.md` and plan 0.20.

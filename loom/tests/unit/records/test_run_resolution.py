@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
-from tests.helpers import json_of, ok, refused
+from tests.helpers import ok, refused
 
 
 def quilt(tmp_path: Path) -> Path:
@@ -31,15 +30,10 @@ def test_a_title_reaches_the_session_it_names(tmp_path: Path) -> None:
     assert not (d / "early").exists(), "an unmatched --session must never create a directory"
     assert (d / ".loom" / "sessions" / sid / "run.log").is_file(), "the title must reach the real session's log"
 
-    # and a write command files against the same session
-    ok("annotate", "dm-0003", "a finding", "--kind", "question", "--as", "A. Author", cwd=d)
-    events = [json.loads(x) for x in (d / ".loom/annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
-    created = [e for e in events if e["event"] == "created"]
-    assert created[-1]["session"] == sid, f"filed under {created[-1]['session']!r}, not the session that made it"
-
-    # which is what makes the re-check contract work
-    out = json_of("ai", "annotations", "--session", "early structural results review", "--json", cwd=d)
-    assert len(out["annotations"]) == 1
+    # and a session-bound write lands in the same session
+    ok("session", "say", "Read dm-0003.", "--session", "early structural results review", "--as", "A. Author", cwd=d)
+    said = (d / ".loom" / "sessions" / sid / "inbox.jsonl").read_text()
+    assert "Read dm-0003." in said
 
 
 @pytest.mark.parametrize("name", ["no-such-session-at-all", "build"])

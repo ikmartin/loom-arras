@@ -4,7 +4,9 @@ import type { Manifest } from '$lib/manifest/types';
 import { adoptionsOf, cardsOf, copySays, proposedCount, pullLabel, resultsOf } from './proposed';
 
 const m = fixture as unknown as Manifest;
-const TEXT = 'a-2026-09-17-0001';
+// the fixture's two open suggested edits: one on sy-0002, the newer, and one on sy-0004 answering an annotation
+const TEXT = 'e-2026-09-17-zwvx4m';
+const ANSWERING = 'e-2026-09-16-r2hw0m';
 const COPY = '.loom/copies/aidoc.tex';
 
 /** The fixture with `over` applied to a deep copy. */
@@ -15,8 +17,9 @@ function changed(over: (x: Manifest) => void): Manifest {
 }
 
 describe('what is proposed to the person', () => {
-	it('lists a copy, then suggestions with text and citations, one card each, prose left out', () => {
-		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy', 'suggestion', 'citation']);
+	it('lists a copy, then the open suggested edits, newest first, one card each', () => {
+		expect(cardsOf(m).map((c) => c.kind)).toEqual(['copy', 'edit', 'edit']);
+		expect(cardsOf(m).filter((c) => c.kind === 'edit').map((c) => c.id)).toEqual([TEXT, ANSWERING]);
 		expect(proposedCount(m)).toBe(3);
 		expect(adoptionsOf(m).map((a) => a.copy)).toEqual([COPY]);
 	});
@@ -29,25 +32,31 @@ describe('what is proposed to the person', () => {
 		expect(pullLabel(x)).toBe('Pull from https://git.overleaf.com/0123');
 	});
 
-	it('holds a suggestion on a copy on that copy, and counts it no longer', () => {
+	it('holds a suggested edit on a copy on that copy, and counts it no longer', () => {
 		const x = changed((y) => {
-			y.annotations[TEXT].in = COPY;
-			y.nodes['sy-0002'].reached_by.push(COPY);
+			y.nodes['sy-0002'].reached_by = [COPY];
 		});
 		const cards = cardsOf(x);
 		expect(cards.some((c) => c.id === TEXT)).toBe(false);
 		const copy = cards[0];
-		expect(copy.kind === 'copy' && copy.suggestions.map((a) => a.id)).toEqual([TEXT]);
+		expect(copy.kind === 'copy' && copy.edits.map((e) => e.id)).toEqual([TEXT]);
 		expect(proposedCount(x)).toBe(2);
 	});
 
-	it('gives a suggestion on a copy with no card one of its own', () => {
+	it('gives a suggested edit on a copy with no card one of its own', () => {
 		const x = changed((y) => {
-			y.annotations[TEXT].in = COPY;
-			y.nodes['sy-0002'].reached_by.push(COPY);
+			y.nodes['sy-0002'].reached_by = [COPY];
 			y.contributions = [];
 		});
 		expect(cardsOf(x).some((c) => c.id === TEXT)).toBe(true);
+	});
+
+	it('leaves out an edit once it is kept or discarded', () => {
+		const x = changed((y) => {
+			y.suggested_edits![TEXT].status = 'kept';
+			y.suggested_edits![ANSWERING].status = 'discarded';
+		});
+		expect(cardsOf(x).map((c) => c.kind)).toEqual(['copy']);
 	});
 
 	it('counts each work with results proposed once, however many it has', () => {

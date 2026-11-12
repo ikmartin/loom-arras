@@ -1,16 +1,8 @@
 <script lang="ts">
-	// The delete confirmation (plan 0.13.1, §18's mockup). A browser `confirm()` stood here, which could not say the one
-	// thing that decides the answer: **how much is still open in the session about to go**. It also could not offer the
-	// escape hatch, since purging is deliberately terminal-only and the sentence naming it is the only place a reader
-	// learns it exists.
+	// The delete confirmation (plan 0.13.1, §18's mockup): what deleting a session does and does not touch, and the escape hatch, since purging is deliberately terminal-only and the sentence naming it is the only place a reader learns it exists.
 	import Popover from '$lib/components/Popover.svelte';
 
-	let {
-		title,
-		open,
-		onCancel,
-		onDelete
-	}: { title: string; open: number; onCancel: () => void; onDelete: () => void } = $props();
+	let { title, onCancel, onDelete }: { title: string; onCancel: () => void; onDelete: () => void } = $props();
 
 	let box = $state<HTMLDivElement | null>(null);
 	$effect(() => box?.querySelector<HTMLButtonElement>('[data-testid=delete-confirm]')?.focus());
@@ -19,14 +11,8 @@
 <Popover modal open testid="delete-session" label="Delete “{title}”?" onclose={onCancel}>
 	<div class="modal" bind:this={box}>
 		<h3 id="delete-title">Delete “{title}”?</h3>
-		{#if open > 0}
-			<p data-testid="delete-open">
-				<strong>{open} annotation{open === 1 ? ' is' : 's are'} still OPEN.</strong> Are you sure you want to delete this session?
-			</p>
-		{:else}
-			<p data-testid="delete-open">Nothing in it is still open. Are you sure you want to delete this session?</p>
-		{/if}
-		<p>The session is removed from view. What was written stays in the log; <code>loom session delete --purge</code> erases it for good.</p>
+		<p>Are you sure you want to delete this session?</p>
+		<p data-testid="delete-says">The session is removed from view. Annotations belong to no session, so none goes with it; <code>loom session delete --purge</code> erases its transcript for good.</p>
 		<div class="buttons">
 			<button type="button" data-testid="delete-cancel" onclick={onCancel}>Cancel</button>
 			<button type="button" class="destroy" data-testid="delete-confirm" onclick={onDelete}>Delete</button>
@@ -52,9 +38,6 @@
 		font-size: 14px;
 		line-height: 1.5;
 		color: var(--ink-soft);
-	}
-	p strong {
-		color: var(--ink);
 	}
 	code {
 		font-size: 12.5px;

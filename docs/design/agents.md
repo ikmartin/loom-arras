@@ -8,12 +8,11 @@ An agent reads the quilt through loom, never by reading directories wholesale: `
 
 It writes the quilt's files where the quilt lets it (below), and everything else through loom's records and its own places:
 
-- **Annotations** on any target, with a kind, a severity where something is wrong, and proposed text as a payload the author can apply (`model.md`).
+- **Annotations** on any target, of one of the quilt's types or none, a note among them, and **suggested edits**, proposed text the author can take (`model.md`).
 - **Proposed library results**, each quotation checked against the page before it is stored, waiting for the author to verify.
 - **Relations** between results, each with its reason.
 - **Agent documents** in `.loom/copies/`, copies it makes with `loom draft DOC --ai NAME` and edits there; the author adopts what they want. A copy is how an agent works on a document the quilt protects, or gives the author changes to choose among before any lands.
 - **Pages**, through `loom write`: the quilt's research state, its goals, open problems, conventions and decisions, and each cited work's overview, a reading of the paper, which the first agent to read the work through writes without waiting to be asked. The author edits a page directly; an agent writes one only through the command, which refuses a write from a stale read (`--base`) and records who wrote what in the history. A page says who wrote it and is never a source.
-- **Notes** about the mathematics (not built yet, see [README](README.md#decided-not-yet-built)).
 - **The session's transcript**, with `loom session say` (below).
 - **Files it hands the author** in its session's directory, which is never deleted from, and intermediates in `.loom/build/SESSION/`, which it may overwrite.
 - **An HTML file** a quilt builds for itself, when the author asks for a view of their own such as what is still open. It runs in the viewer on an origin of its own: it reads the project's shown files, lists them at `/.loom/files.json`, and its `quilt:` links open in the viewer. It cannot write, its browser storage lasts only until `loom serve` restarts, and nothing stops it sending what it reads to the network (`specs/write-api.md` §3).
@@ -26,7 +25,7 @@ Anywhere the quilt does not protect. What is protected is one table in `loom/src
 
 - **Always:** loom's records under `.loom/` (every one named, since the agent's own places sit beside them there), the history wherever `[quilt] history` puts it, `config.toml`, and the research state, which an agent writes only through `loom write`. An agent that could edit the config could remove a protection, and P2 has only loom write its logs.
 - **What the person adds:** `[agents] deny` in `config.toml`, gitignore-style patterns from the quilt root, empty in a fresh quilt. `["paper/"]` keeps an agent out of a paper; it then works on a copy. A negated pattern is refused, since no client can let an allow undo a deny.
-- **The agent's own places,** whatever the list says: its session's directory, `.loom/build/` and `.loom/copies/`.
+- **The agent's own places,** whatever the list says: its session's directory, `.loom/build/` and `.loom/copies/`; and the one record of loom's an agent may edit, `.loom/annotation-types.toml`, since a type's instructions are written for agents.
 
 The table is enforced two ways, and the orientation says which holds where (P15). Loom's own commands refuse an agent a protected path in any client, by the same predicate (`denied_by`), which also marks each file in the viewer's tree as the person's alone or theirs and the agents'. Of the agents' apps, only Claude Code's permission file can refuse an edit by path, so loom renders the table into `.claude/settings.json`; Codex, Gemini CLI and Cursor are told the list and asked to keep it. The person's edit to the list, by hand or in the viewer's Settings, reaches Claude Code's file at `loom upgrade` or Settings' Update Claude Code, and `loom lint` warns until it has (`loom:agent-permissions-stale`). Outside the protected paths, whether Claude Code asks before an edit is the person's setting in it, not loom's.
 
@@ -42,7 +41,8 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom library verify`, `discard`, `ignore`, `add`, `import` and `drop`;
 - `loom adopt` and `loom sync incorporate`, which write the author's files (P7);
 - `loom changes --keep` and `--undo`, keeping or undoing a change to an open file since the author's look, the undo writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
-- `loom history restore`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`;
+- `loom history restore`, `loom session delete --purge`, `loom ai delete`, `loom sync publish --push`;
+- `loom suggestion apply`, writing a suggested edit into the author's file (`suggestion-apply` in the viewer);
 - saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - starting a library run in the viewer (`library-update`), which may use the network for that run on the person's word, as `--online` does;
 - adding a work to the library, filing a dropped PDF, and deleting a work from it (`library-add`, `library-upload`, `library-file`, `library-delete`), and any lookup that asks for the network (`library-lookup` with `online`);
@@ -53,7 +53,7 @@ Refusal is enforced, not requested. A declared name that calls itself an agent i
 
 In the viewer the author acts by their own click, and a write over the API that names no author is taken for one. So what an agent writes does not run as the viewer: every file `loom serve` serves from the quilt on the viewer's origin is sandboxed, so a page an agent leaves in `.loom/build/SESSION/` runs no script there, an HTML file the viewer frames runs on a frames origin that is not the viewer's, the HTML in a Markdown file passes an allowlist before the viewer draws it, and the write token is given only to the viewer's own origin ([invariant](invariants.md#a-page-the-quilt-holds-never-runs-as-the-viewer), which has one open hole: a built body an agent edits directly). An `app:` link and "Open in its application" are the person's clicks, and loom never opens a file that runs code ([invariant](invariants.md#loom-opens-only-documents-in-their-application)).
 
-An agent that wants one of these acts writes a suggestion on the thing concerned, with its reasoning. There is no request object: a request becomes a queue that nags, and an agent that "requested verification" is one summary away from reporting that it verified (P15).
+An agent that wants one of these acts writes an annotation on the thing concerned, with its reasoning. There is no request object: a request becomes a queue that nags, and an agent that "requested verification" is one summary away from reporting that it verified (P15).
 
 ## How an agent attaches
 
@@ -81,8 +81,8 @@ MCP is the intended way for any agent to attach. The server is `loom mcp --as NA
   Each names one server, `loom`: the absolute path of this machine's loom with `mcp --as "<App> Agent" --quilt <root>`. Codex's and Gemini's entries skip the per-tool prompt, as the shell allows do. The files are gitignored and never committed (`invariants.md`). The apps ask the person before they start a project's server, and Codex and Gemini CLI read the file only in a trusted folder. A file that holds settings of the person's is left alone. `loom ai init --client NAME` prints the entry to add to it, or to an app configured outside the quilt: Claude Desktop, LM Studio, Zed or JetBrains.
 - **`loom doctor` checks the variant.** It reports which one the permission files are in and whether they are current. Over MCP it also warns on a client file that is missing, holds the person's settings or names another loom or path, and on a missing MCP SDK. It fails when git tracks a client file. The SDK installs with loom, so it can be missing only from an environment older than that dependency, such as an editable install, which takes new code but not new dependencies. `loom ai init` and `loom upgrade` over MCP, and `loom init` with an AI chosen, warn on that too, and each warning names the reinstall that fits how this loom was installed.
 - **Two commands are the bridge**, the way a person points an agent at something now that the chat composer is retired:
-  - **`loom here`** says where the person is looking. That is the focused pane's document, result, paper or session, the block at the top of the pane, the selected words or the page and region of a PDF, the other pane's item, and the session annotations land in; in Review, it is the block under review. Each viewer tab reports its place to `loom serve` as it changes and again when it gains focus, so the tab touched last wins. The server keeps the place in memory only, and serves it with its token. With nothing serving the quilt, the command says so, so it needs no server (P8).
-  - **`loom since`** says what people did since this agent last looked. It reports their annotations and replies, whole; what they resolved, applied, discarded or reopened; their acceptances, and the accepted keys gone stale, with why; their edits to the research state, as a diff; and what they said in a transcript. The marker is one file per agent name under `.loom/since/`, uncommitted and unwatched, and a read moves it; an agent's first look starts at the active session's opening.
+  - **`loom here`** says where the person is looking. That is the focused pane's document, result, paper or session, the block at the top of the pane, the selected words or the page and region of a PDF, the other pane's item, and the session the person has chosen; in Review, it is the block under review. Each viewer tab reports its place to `loom serve` as it changes and again when it gains focus, so the tab touched last wins. The server keeps the place in memory only, and serves it with its token. With nothing serving the quilt, the command says so, so it needs no server (P8).
+  - **`loom since`** says what people did since this agent last looked. It reports their annotations and replies, whole; what they resolved or reopened; once, which of this agent's annotations they deleted, and what they kept or discarded of its suggested edits; their acceptances, and the accepted keys gone stale, with why; their edits to the research state, as a diff; and what they said in a transcript. The marker is one file per agent name under `.loom/since/`, uncommitted and unwatched, and a read moves it; an agent's first look starts at the active session's opening.
 - **It is optional.** The shell variant serves an agent without MCP. Both variants are tried with the real client before they ship, not only checked by unit tests. The client tier does this by hand (`invariants.md`).
 
 Every major coding agent can start a local MCP server: Claude Code and Claude desktop, Codex and ChatGPT desktop, Gemini's CLI, Cursor, VS Code, Zed, JetBrains, and local-model clients such as LM Studio. The web chat apps cannot, and they have no shell either.
@@ -98,13 +98,13 @@ An agent writes the transcript so that the person, coming back to it later, sees
 - what was asked;
 - the main line of the discussion;
 - what was decided or found, and what is still open;
-- links to everything durable that came of it: annotations, notes, drafts.
+- links to everything durable that came of it: annotations, suggested edits, drafts.
 
 It writes at natural pauses and before it stops, and it links rather than restates (`loom link` prints a correct link). The viewer shows the transcript beside the documents it refers to.
 
 The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks. With nobody posting to an agent, `loom session next` and `loom session watch`, which waited on the inbox, are retired too (plan 0.21.8); `loom since` is how an agent hears what a person did, and `loom ai orient` gives it the session's last twenty messages.
 
-The person points with a **quote**: one press on words of a document, a file or a message, or a region of a PDF or an image, writes a note there with no kind or severity, in the session annotations land in (`model.md`, Notes). The transcript shows it among the messages, and `loom since` lists it with its words and its link. Asking for a work's overview from its Info is one such note, on the whole work. An agent may write a note too, with `loom note`; a note asks nothing, and a finding is still an annotation. The marks a person draws on a PDF page are notes as well, listed by `loom since` with their kind, their words and any comment, and an agent draws one with `loom note --mark`, on the words of `--quote`.
+What the person annotates reaches an agent through `loom since`, with its type, its words, where it is and any comment, a mark drawn on a PDF page among them. Asking for a work's overview from its Info is the person's annotation on the whole work. A quote is not a record: selecting words with no tool on offers Quote, which hands the words and where they came from to an agent (`model.md`, Notes; not built yet). An agent annotates a PDF page as it annotates text, with `loom annotate FILE --page N`, on the words of `--quote` or drawn with `--mark`.
 
 ## What an agent is told
 
@@ -120,8 +120,8 @@ What an agent reads at the start is generated from `loom/src/loom/assets/ai/`, a
 
 - its report is a message in the session's transcript, the mode's blocks under their headings;
 - on an agent document it makes its changes and lists them in the report, annotating only where the author must look, and it may resolve any annotation there; it never merges the document into the author's (that is `loom adopt`);
-- on the author's text, a change is a suggestion the author can take on its own, however long, and changes that only work together, or that move or reorder results, are an agent document of the passage;
-- a dead end, a counterexample or a decision is a `note` annotation on what it concerns.
+- on the author's text, a change is a suggested edit (`loom suggest`) the author can take on its own, however long, and changes that only work together, or that move or reorder results, are an agent document of the passage;
+- a dead end, a counterexample or a decision is an annotation on what it concerns, of the type the quilt's instructions give for it (a Note by default).
 
 Epistemic labels are on claims in reports and annotations, not on every sentence of conversation, and a script a report cites is saved in the session's directory, named for what it computes.
 

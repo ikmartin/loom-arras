@@ -24,7 +24,7 @@ GROUP_WORDS = {
         "key",
         "A key, to list its recorded versions and whether its text now is one; with none, the history's steps.",
     ),
-    "suggestion": ("annotation", "The suggestion, by its id."),
+    "suggestion": ("edit", "A suggested edit, by its id, to print the patch that takes it; with none, the edits."),
     "library": (
         "work",
         "A work, by citekey, its identifier (doi:…, arXiv:…), a fragment of a citekey or of its author or title, or one of its result ids, to report that one work; with none, the whole library.",
@@ -32,8 +32,8 @@ GROUP_WORDS = {
 }
 
 
-#: The groups whose word is not optional: `suggestion` alone prints nothing.
-WORD_REQUIRED = frozenset({"suggestion"})
+#: The groups whose word is not optional.
+WORD_REQUIRED: frozenset[str] = frozenset()
 
 
 class CallRefused(ValueError):

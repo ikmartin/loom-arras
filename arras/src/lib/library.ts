@@ -62,7 +62,7 @@ export function ledgerRow(m: Manifest, ref: Reference, reached: Set<string>): Le
 	const digest = ref.digest?.nodes ?? [];
 	const mine = new Set(digest);
 	const onResults = Object.values(m.annotations).filter(
-		(a) => !a.discarded && !a.in_reply_to && a.status === 'open' && mine.has(m.keys[a.target.key]?.node ?? a.target.key)
+		(a) => !a.in_reply_to && a.status === 'open' && mine.has(m.keys[a.target.key]?.node ?? a.target.key)
 	).length;
 	const places = citedIn(m, ref).reduce((n, c) => n + Math.max(1, c.keys.length), 0);
 	return {

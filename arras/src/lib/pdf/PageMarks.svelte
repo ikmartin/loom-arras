@@ -149,7 +149,7 @@
 		if (m && to && to.some((v, i) => Math.abs(v - from[i]) >= 0.5)) onmove?.({ id, ...refit(m, to) });
 	}
 
-	const label = (m: PageMark) => (m.plain ? 'a note' : `${m.color ? `${m.color} ` : ''}${m.kind}`) + (m.quote ? `: ${m.quote}` : m.body ? `: ${m.body}` : '');
+	const label = (m: PageMark) => (m.plain ? 'a place being written about' : `${m.color ? `${m.color} ` : ''}${m.kind}`) + (m.quote ? `: ${m.quote}` : m.body ? `: ${m.body}` : '');
 </script>
 
 <svg class="bands" viewBox="0 0 {box.width} {box.height}" preserveAspectRatio="none" aria-hidden="true">

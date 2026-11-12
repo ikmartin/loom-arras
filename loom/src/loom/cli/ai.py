@@ -1,8 +1,9 @@
-"""`loom ai ...`: the agent layer, its orientation, its documents, and a session's annotations."""
+"""`loom ai ...`: the agent layer, its orientation, its documents, and an agent's annotations."""
 
 from __future__ import annotations
 
 import shlex
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -16,7 +17,6 @@ from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.cli.review import STATUSES
 from loom.paths import AI, COPIES, DIGESTS
-from loom.records.annotations import KINDS, SEVERITIES
 
 if TYPE_CHECKING:
     from loom.ai.clients import Client, ClientReport
@@ -31,130 +31,106 @@ def ai() -> None:
     """Set up the agent layer and read what an agent works from: its orientation, its documents and its annotations."""
 
 
-@ai.command()
-@click.argument("run", metavar="SESSION", required=False, default=None)
+@ai.command(name="delete")
+@click.option("--by", "by", default=None, metavar="NAME", help="Annotations NAME wrote.")
+@click.option("--target", default=None, metavar="KEY", help="Annotations on KEY.")
 @click.option(
     "--before",
     default=None,
     metavar="DATE",
     type=click.DateTime(formats=["%Y-%m-%d"]),
-    help="Withdraw every record created before this date (YYYY-MM-DD).",
-)
-@click.option("--by", "by", default=None, metavar="NAME", help="Withdraw every record with an annotation by NAME.")
-@click.option("--target", default=None, metavar="KEY", help="Withdraw every record with an annotation on KEY.")
-@click.option("--undo", is_flag=True, help="Restore the matching records instead.")
-@click.option(
-    "--why", default=None, help="Why they are withdrawn, which their listing shows; with --undo, why they are back."
+    help="Annotations written before this date (YYYY-MM-DD).",
 )
 @click.option(
-    "--as", "as_name", default=None, metavar="NAME", help="Who is withdrawing them; default your configured name."
+    "--version",
+    "version",
+    default=None,
+    metavar="HASH",
+    help="Annotations written on this version of their text: the hash `loom ai annotations --json` gives as `against`.",
 )
-@click.option("--dry-run", is_flag=True, help="Say what would be withdrawn and write nothing.")
+@click.option("--yes", is_flag=True, help="Delete without asking, where nobody is at a terminal to answer.")
+@click.option(
+    "--as", "as_name", default=None, metavar="NAME", help="Who is deleting them; default your configured name."
+)
+@click.option("--dry-run", is_flag=True, help="Say what would be deleted and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object.")
 @quilt_option
-def discard(
-    run: str | None,
-    before: datetime | None,
+def delete_command(
     by: str | None,
     target: str | None,
-    undo: bool,
-    why: str | None,
+    before: datetime | None,
+    version: str | None,
+    yes: bool,
     as_name: str | None,
     dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Withdraw a session's annotations, or those matching --before, --by or --target; --undo restores them.
+    """Delete the annotations matching every one of --by, --target, --before and --version, with their replies; this cannot be undone.
 
-    Withdrawing appends an event like any other change, so a sitting's annotations can be withdrawn and restored without anything being rewritten or lost. A withdrawn session is closed, and a restored one opened again.
+    Deleting removes them from the log rather than marking them, so nothing of them stays to be read; an agent whose annotation is deleted hears so once, from `loom since`. One annotation is deleted with `loom annotate --delete ID`.
     """
-    from loom.cli._common import agent_marker, refuse_under_agent
-    from loom.clock import stamp
-    from loom.records.log import append
+    from loom.cli._common import refuse_under_agent, whoever
+    from loom.records.log import delete
     from loom.records.store import Records
+    from loom.since import note_deletion
 
     refuse_under_agent(
-        "loom ai discard",
-        "Withdrawing a session's annotations is the author's; ask the author, or withdraw one of your own with loom annotate --discard.",
+        "loom ai delete",
+        "Deleting annotations in bulk is the author's; delete one of your own with loom annotate --delete ID.",
         as_name,
     )
+    if not (by or target or before or version):
+        raise EnvError("give --by, --target, --before or --version: which annotations to delete")
     quilt = open_quilt(quilt_path)
     root = quilt.root
     records = Records(root, quilt.history_dir).records
-    sources: list[str] = []
-    if run:
-        found = find_session(root, run)
-        sources.append(found.id)
-    elif before or by or target:
-        if target and not any(a.target_key == target for rec in records for a in rec.annotations):
-            from loom.scan.scan import scan
+    if target and not any(a.target_key == target for rec in records for a in rec.annotations):
+        from loom.scan.scan import scan
 
-            if target not in scan(quilt).nodes:
-                raise NotFoundError("key", f"{target} is no key of this quilt and no annotation's target")
-        for rec in records:
-            created = min((a.created for a in rec.annotations), default="")
-            # compared as ISO dates, which order as their strings do once both are YYYY-MM-DD
-            if before and not (created and created[:10] < before.date().isoformat()):
-                continue
-            if by and not any(a.author_id == by for a in rec.annotations):
-                continue
-            if target and not any(a.target_key == target for a in rec.annotations):
-                continue
-            sources.append(rec.rel)
-    else:
-        raise EnvError("give SESSION, or --before, --by, or --target")
-    verb = "restored" if undo else "withdrew"
-    # one already as asked is said so and left alone, so a second run records nothing (T7)
-    standing = {rec.rel: rec.discarded for rec in records}
-    already = sorted(rel for rel in sources if standing.get(rel, False) != undo)
-    sources = [rel for rel in sources if rel not in already]
-    data = {"sessions": sorted(sources), "already": already, "undo": undo}
-    if not sources:
-        Report(
-            f"already {'restored' if undo else 'withdrawn'}: {', '.join(already)}; nothing written"
-            if already
-            else f"no matching records; nothing {'restored' if undo else 'withdrawn'}",
-            data=data,
-        ).emit(as_json)
+        if target not in scan(quilt).nodes:
+            raise NotFoundError("key", f"{target} is no key of this quilt and no annotation's target")
+    hits = [
+        a
+        for rec in records
+        for a in rec.annotations
+        if a.in_reply_to is None
+        and (not by or a.author_id == by)
+        and (not target or a.target_key == target)
+        # compared as ISO dates, which order as their strings do once both are YYYY-MM-DD
+        and (not before or (a.created and a.created[:10] < before.date().isoformat()))
+        and (not version or a.target_hash == version)
+    ]
+    data = {"deleted": [a.id for a in hits]}
+    if not hits:
+        Report("no annotation matches; nothing deleted", data=data).emit(as_json)
         return
-    heading = ("would be " if dry_run else "") + ("restored" if undo else "withdrawn")
-    listed = [Group(heading, [Item("", key=rel) for rel in sorted(sources)], limit=None)]
+    listed = [
+        Group(
+            "would be deleted" if dry_run else "deleted",
+            [Item(f"{a.type or 'untyped'} on {a.target_key} by {a.author_id}", key=a.id) for a in hits],
+        )
+    ]
     if dry_run:
         Report(
-            f"would {'restore' if undo else 'withdraw'} the annotations of {counted(len(sources), 'session')}",
+            f"would delete {counted(len(hits), 'annotation')}, with their replies",
             dry_run=True,
             groups=listed,
             data=data,
         ).emit(as_json)
         return
-    from loom.cli._common import whoever
-    from loom.sessions import ID, close, resume
-
+    if not yes:
+        if not sys.stdin.isatty():
+            raise EnvError(
+                f"this deletes {counted(len(hits), 'annotation')} for good; --dry-run lists them, and --yes deletes them"
+            )
+        if not click.confirm(f"delete {counted(len(hits), 'annotation')}, with their replies, for good?", err=True):
+            Report("nothing deleted", data={**data, "deleted": []}).emit(as_json)
+            return
     who = whoever(root, as_name)
-    for rel in sources:
-        event: dict[str, object] = {
-            "event": "discarded",
-            "source": rel,
-            "when": stamp(),
-            "author": who,
-            "kind": "agent" if agent_marker() else "human",
-            "session": rel,
-        }
-        if why:
-            event["body"] = why
-        if undo:
-            event["undo"] = True
-        append(root, event)
-        # withdrawing a sitting's annotations ends the sitting; a session whose every annotation is withdrawn has no business in the list of what is open
-        if ID.match(rel):
-            (resume if undo else close)(root, rel, who)
-    Report(
-        f"{verb} the annotations of {counted(len(sources), 'session')}"
-        + ("; each is open again" if undo else "; each is closed, and nothing is deleted")
-        + (f"; {counted(len(already), 'other')} already {'restored' if undo else 'withdrawn'}" if already else ""),
-        groups=listed,
-        data=data,
-    ).emit(as_json)
+    removed = delete(root, [a.id for a in hits])
+    note_deletion(root, removed, who)
+    Report(f"deleted {counted(len(hits), 'annotation')}, with their replies", groups=listed, data=data).emit(as_json)
 
 
 def install_layer(root: Path, *, write: bool = True, shell: bool | None = None) -> tuple[LayerReport, ClientReport]:
@@ -526,8 +502,8 @@ def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
     ).emit(as_json)
 
 
-def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
-    """Every digest proposal a run made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
+def proposals_by(root: Path, name: str) -> list[dict[str, Any]]:
+    """Every digest proposal `name` made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
     from loom.refs.proposals import DISCARDED, VERIFIED, edit_diff, load_results, read_events, state_of
 
     out: list[dict[str, Any]] = []
@@ -535,10 +511,7 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
         ck = path.name[: -len(".results.json")]
         reasons = {e.get("id"): e.get("reason", "") for e in read_events(root, ck) if e.get("event") == "discarded"}
         for rid, r in sorted(load_results(root, ck).items()):
-            if not any(
-                o.get("act") == "proposed" and run in (o.get("session"), Path(str(o.get("by", ""))).name)
-                for o in r.origin
-            ):
+            if not any(o.get("act") == "proposed" and o.get("by") == name for o in r.origin):
                 continue
             out.append(
                 {
@@ -556,74 +529,67 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 
 @ai.command(name="annotations")
 @click.option(
-    "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
+    "--by", "f_by", default=None, metavar="NAME", help="Only annotations NAME wrote; with it, NAME's proposals too."
 )
-@click.option(
-    "--severity", "f_severity", type=click.Choice(SEVERITIES), default=None, help="Only annotations of this severity."
-)
-@click.option("--kind", "f_kind", type=click.Choice(KINDS), default=None, help="Only annotations of this kind.")
+@click.option("--target", "f_target", default=None, metavar="KEY", help="Only annotations on KEY.")
+@click.option("--type", "f_type", default=None, metavar="TYPE", help="Only annotations of this type, by id or name.")
 @click.option("--status", "f_status", type=click.Choice(STATUSES), default=None, help="Only annotations in this state.")
-@click.option(
-    "--all", "f_all", is_flag=True, help="Include withdrawn annotations, with the reason they were withdrawn."
-)
 @click.option("--json", "as_json", is_flag=True, help="Print the annotations as JSON.")
 @quilt_option
 def ai_annotations(
-    session: str | None,
-    f_severity: str | None,
-    f_kind: str | None,
+    f_by: str | None,
+    f_target: str | None,
+    f_type: str | None,
     f_status: str | None,
-    f_all: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.
+    """List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.
 
-    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.
     """
     from loom.cli._quilt import open_scan
     from loom.records.store import Records
 
     result = open_scan(quilt_path)
     root = result.quilt.root
-    found = find_session(root, session)
-    rel = found.id
+    type_id = None
+    if f_type is not None:
+        from loom.records.types import load_types, type_named
+
+        try:
+            named = type_named(load_types(root), f_type)
+        except ValueError as exc:
+            raise EnvError(f"--type {f_type}: {exc}") from exc
+        type_id = named.id if named else None
+    resolved = Records(root, result.quilt.history_dir).resolved(result)
+    if f_target is not None and f_target not in result.nodes:
+        if not any(f_target in (a.annotation.target_key, a.work) for a in resolved):
+            raise NotFoundError("key", f"{f_target} is no key of this quilt and no annotation's target")
     rows = [
         {
             "id": a.annotation.id,
             "target": a.annotation.target_key,
-            # a note on a page of a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
+            # an annotation on a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
             "work": a.work or None,
             "page": a.annotation.anchor.page if a.annotation.anchor else None,
-            "kind": a.annotation.kind,
-            "severity": a.annotation.severity,
+            "type": a.annotation.type,
             "status": a.annotation.status,
             "reply_to": a.annotation.in_reply_to,
             "detached": a.detached,
             "recorded": a.recorded,
             "quote": a.annotation.selector.exact if a.annotation.selector else None,
             "message": a.annotation.body,
-            "payload": a.annotation.payload,
-            "placement": a.annotation.placement,
-            "discarded": a.annotation.status == "discarded" or a.record.discarded,
-            "discard_reason": a.annotation.discard_reason or a.record.discard_reason,
             # who wrote it, so an agent tells the author's from its own: it answers the author's, and may edit its own
             "author": {"kind": a.annotation.author_kind, "id": a.annotation.author_id},
         }
-        for a in Records(root, result.quilt.history_dir).resolved(result)
-        if a.record.rel == rel or a.record.rel.startswith(f"{rel}/")
+        for a in resolved
+        if (f_by is None or a.annotation.author_id == f_by)
+        and (f_target is None or f_target in (a.annotation.target_key, a.work))
     ]
-    hidden = sum(1 for r in rows if r["discarded"])
-    rows = [
-        r
-        for r in rows
-        if (f_all or not r["discarded"])
-        and (not f_severity or r["severity"] == f_severity)
-        and (not f_kind or r["kind"] == f_kind)
-        and (not f_status or r["status"] == f_status)
-    ]
-    proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
-    # what the author did with this run's proposals: a reattaching agent otherwise ran `library why` on each id it happened to know from the run's thread, which is how it learned the author's decisions three times over
+    rows = [r for r in rows if (not type_id or r["type"] == type_id) and (not f_status or r["status"] == f_status)]
+    proposals = proposals_by(root, f_by) if f_by else []
+    # what the author did with an agent's proposals: a reattaching agent otherwise ran `library why` on each id it happened to know, which is how it learned the author's decisions three times over
     lines: list[str] = []
     if proposals:
         lines += ["", f"proposals ({len(proposals)})"]
@@ -640,28 +606,24 @@ def ai_annotations(
             lines += [f"      {line}" for line in pr.get("edit") or []]
     cells = []
     for r in rows:
-        sev = f" {r['severity']}" if r["severity"] else ""
-        shown = "withdrawn" if r["status"] == "discarded" else r["status"]
-        mark = "" if shown == "open" or r["discarded"] else f" ({shown})"
+        mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"\u201c{r['quote']}\u201d" if r["quote"] else ""
         where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
-        withdrawn = f"withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
-        rest = "; ".join(x for x in (quote, withdrawn) if x)
+        rest = quote
         who = r["author"]["id"] if isinstance(r["author"], dict) else ""
-        cells.append((str(r["id"]), str(where), f"{r['kind']}{sev}{mark}", f"by {who}", rest))
+        cells.append((str(r["id"]), str(where), f"{r['type'] or 'untyped'}{mark}", f"by {who}", rest))
     items = [Item(line) for line in table(cells)]  # aligned, so the columns read down (T2)
-    verdict = f"{rel}: " + (
-        counted(len(rows), "annotation") if rows else "no annotations" if hidden else "no annotations yet"
-    )
-    if hidden and not f_all:
-        verdict += f"; {hidden} withdrawn: --all lists them"
+    narrowed = any(x is not None for x in (f_by, f_target, f_type, f_status))
+    verdict = (
+        counted(len(rows), "annotation") if rows else ("no annotations match" if narrowed else "no annotations yet")
+    ) + (f" by {f_by}" if f_by else "")
     if proposals:
         verdict += f", {counted(len(proposals), 'proposal')}"
     Report(
         verdict,
         groups=[Group("annotations", items, limit=None)] if items else [],
         lines=lines,
-        data={"session": found.id, "annotations": rows, "proposals": proposals},
+        data={"annotations": rows, "proposals": proposals},
     ).emit(as_json)
 
 

@@ -17,14 +17,14 @@ def write(root: Path, *events: dict[str, object]) -> None:
 
 def created(**over: object) -> dict[str, object]:
     base: dict[str, object] = {
-        "id": "a-2026-09-18-0001",
+        "id": "a-2026-09-18-fy08sq",
         "event": "created",
         "when": "2026-09-18T00:00:00Z",
         "author": "A Reader",
         "kind": "human",
-        "session": "s-2026-09-18-0001",
+        "session": "s-2026-09-18-6e3sw2",
         "target": "x-0001",
-        "annotation_kind": "objection",
+        "type": "revision",
         "body": "A finding.",
     }
     return {**base, **over}
@@ -34,24 +34,38 @@ def test_a_well_formed_log_reports_nothing(tmp_path: Path) -> None:
     write(tmp_path, created())
     records, problems = replay(tmp_path)
     assert problems == []
-    assert records[0].annotations[0].kind == "objection"
+    assert records[0].annotations[0].type == "revision"
 
 
-def test_an_unknown_kind_is_reported_and_kept(tmp_path: Path) -> None:
-    """`kind` is an open string a viewer must tolerate from any publisher, so the value stands; the silence was the fault."""
-    write(tmp_path, created(annotation_kind="catastrophe"))
+def test_a_type_the_quilt_lacks_or_none_at_all_is_no_problem(tmp_path: Path) -> None:
+    """A type is only a label: one the quilt no longer lists stands as written, and an annotation with none is untyped; both are drawn as `drawn` says."""
+    write(tmp_path, created(type="catastrophe"), created(id="a-2026-09-18-612336", type=None))
     records, problems = replay(tmp_path)
-    assert any("catastrophe" in p for p in problems)
-    assert records[0].annotations[0].kind == "catastrophe"  # published as written, not corrected to `objection`
+    assert problems == []
+    assert [a.type for a in records[0].annotations] == ["catastrophe", None]
 
 
-def test_a_missing_kind_is_reported_rather_than_assumed(tmp_path: Path) -> None:
-    """The column was spelled `annotation-kind` in an early draft; a log written that way lost its kind on every line and said nothing."""
-    e = created()
-    del e["annotation_kind"]
-    write(tmp_path, {**e, "annotation-kind": "question"})
+def test_a_type_that_is_not_an_id_is_reported(tmp_path: Path) -> None:
+    write(tmp_path, created(type=7))
     _records, problems = replay(tmp_path)
-    assert any("is not one of" in p for p in problems)
+    assert any("its type is not a type's id" in p for p in problems)
+
+
+def test_records_are_one_per_author_and_a_session_on_a_line_is_ignored(tmp_path: Path) -> None:
+    """An annotation belongs to no session: replay groups by who wrote it, whatever session an old line names."""
+    write(
+        tmp_path,
+        created(),
+        created(id="a-2026-09-18-612336", author="Wren Halloway", session="s-2026-09-18-w22p58"),
+        created(id="a-2026-09-18-by4q46", session="s-2026-09-18-w22p58"),
+        {k: v for k, v in created(id="a-2026-09-18-k6a9h1").items() if k != "session"},
+    )
+    records, problems = replay(tmp_path)
+    assert problems == []
+    assert [(r.rel, [a.id for a in r.annotations]) for r in records] == [
+        ("A Reader", ["a-2026-09-18-fy08sq", "a-2026-09-18-by4q46", "a-2026-09-18-k6a9h1"]),
+        ("Wren Halloway", ["a-2026-09-18-612336"]),
+    ]
 
 
 def test_an_id_that_is_a_path_is_reported(tmp_path: Path) -> None:
@@ -63,12 +77,12 @@ def test_an_id_that_is_a_path_is_reported(tmp_path: Path) -> None:
 
 def test_a_reply_to_nothing_is_reported(tmp_path: Path) -> None:
     """Otherwise it is in the record and on no page: not a finding, because it answers one, and under no finding."""
-    write(tmp_path, created(), created(id="a-2026-09-18-0002", event="replied", reply_to="a-1999-01-01-9999"))
+    write(tmp_path, created(), created(id="a-2026-09-18-612336", event="replied", reply_to="a-1999-01-01-k6a9h1"))
     _records, problems = replay(tmp_path)
     assert any("replies to unknown annotation" in p for p in problems)
 
     # and a reply whose parent IS there says nothing
-    write(tmp_path, created(), created(id="a-2026-09-18-0002", event="replied", reply_to="a-2026-09-18-0001"))
+    write(tmp_path, created(), created(id="a-2026-09-18-612336", event="replied", reply_to="a-2026-09-18-fy08sq"))
     _records, ok = replay(tmp_path)
     assert ok == []
 
@@ -80,12 +94,12 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
         json.dumps(created()),
         "{not json",
         json.dumps(["a", "list"]),
-        json.dumps({"event": "liked", "id": "a-2026-09-18-0001"}),
+        json.dumps({"event": "liked", "id": "a-2026-09-18-fy08sq"}),
         json.dumps({k: v for k, v in created().items() if k != "id"}),
-        json.dumps(created(id="a-2026-09-18-0003", session="")),
+        json.dumps(created(id="a-2026-09-18-by4q46", session="")),  # a session on a line is ignored
         json.dumps({"event": "resolved", "when": "x"}),
-        json.dumps({"event": "edited", "id": "a-1999-01-01-0001", "body": "x"}),
-        json.dumps(created(id="a-2026-09-18-0002", body="Still here.")),
+        json.dumps({"event": "edited", "id": "a-1999-01-01-ekn992", "body": "x"}),
+        json.dumps(created(id="a-2026-09-18-612336", body="Still here.")),
     ]
     (tmp_path / ".loom/annotations" / "log.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     records, problems = replay(tmp_path)
@@ -94,53 +108,56 @@ def test_each_kind_of_foreign_line_is_reported_by_line_and_skipped(tmp_path: Pat
         ".loom/annotations/log.jsonl:3: not a review event",
         ".loom/annotations/log.jsonl:4: not a review event",
         ".loom/annotations/log.jsonl:5: created without an id",
-        ".loom/annotations/log.jsonl:6: created 'a-2026-09-18-0003' names no session",
         ".loom/annotations/log.jsonl:7: resolved without an id",
-        ".loom/annotations/log.jsonl:8: edited names unknown annotation a-1999-01-01-0001",
+        ".loom/annotations/log.jsonl:8: edited names unknown annotation a-1999-01-01-ekn992",
     ]
-    assert [a.id for r in records for a in r.annotations] == ["a-2026-09-18-0001", "a-2026-09-18-0002"]
+    assert [a.id for r in records for a in r.annotations] == [
+        "a-2026-09-18-fy08sq",
+        "a-2026-09-18-by4q46",
+        "a-2026-09-18-612336",
+    ]
 
 
-def test_a_whole_source_discard_and_its_undo_replay_by_the_source_they_name(tmp_path: Path) -> None:
-    """A discard with no id names a whole record by `source`, which for a person's record carries the day it was written; its undo restores it."""
-    other = created(id="a-2026-09-18-0002", session="s-2026-09-18-0002")
-    discard: dict[str, object] = {"event": "discarded", "when": "x", "source": "s-2026-09-18-0001"}
-    write(tmp_path, created(), other, discard)
+def test_a_discarded_line_is_no_event_and_leaves_its_annotation_standing(tmp_path: Path) -> None:
+    """An annotation is deleted from the log rather than marked, so a `discarded` line is one loom did not write: reported, skipped, and the annotation it names still open."""
+    whole = {"event": "discarded", "when": "x", "source": "s-2026-09-18-6e3sw2"}
+    one = {"event": "discarded", "when": "x", "id": "a-2026-09-18-fy08sq", "body": "wrong"}
+    write(tmp_path, created(), whole, one)
     records, problems = replay(tmp_path)
-    assert problems == [] and {r.rel: r.discarded for r in records} == {
-        "s-2026-09-18-0001": True,
-        "s-2026-09-18-0002": False,
-    }
-    write(tmp_path, created(), other, discard, {**discard, "undo": True})
-    records, _ = replay(tmp_path)
-    assert not any(r.discarded for r in records)
-    # with no `source`, the event's own session names the record
-    write(tmp_path, created(), other, {"event": "discarded", "when": "x", "session": "s-2026-09-18-0002"})
-    records, _ = replay(tmp_path)
-    assert {r.rel: r.discarded for r in records} == {"s-2026-09-18-0001": False, "s-2026-09-18-0002": True}
+    assert problems == [
+        ".loom/annotations/log.jsonl:2: not a review event",
+        ".loom/annotations/log.jsonl:3: not a review event",
+    ]
+    assert [(a.id, a.status) for r in records for a in r.annotations] == [("a-2026-09-18-fy08sq", "open")]
 
 
 def test_an_edit_restates_the_fields_it_carries_and_repoints_against(tmp_path: Path) -> None:
     edited: dict[str, object] = {
         "event": "edited",
-        "id": "a-2026-09-18-0001",
+        "id": "a-2026-09-18-fy08sq",
         "when": "x",
         "body": "Restated.",
-        "severity": "major",
-        "placement": {"page": 2},
+        "type": "question",
+        "look": {"color": "green"},
+        "drawn": {"color": "green", "style": "highlight", "weight": 2, "opacity": 60},
         "against": "sha256:new",
     }
-    write(tmp_path, created(against="sha256:old", severity="minor"), edited)
+    write(tmp_path, created(against="sha256:old"), edited)
     records, problems = replay(tmp_path)
     a = records[0].annotations[0]
     assert problems == []
-    assert (a.body, a.severity, a.placement, a.target_hash) == ("Restated.", "major", {"page": 2}, "sha256:new")
+    assert (a.body, a.type, a.own_look, a.target_hash) == ("Restated.", "question", {"color": "green"}, "sha256:new")
+    assert a.drawn["color"] == "green"
     # an edit that carries only a body leaves everything else as the last edit set it
     write(
         tmp_path,
-        created(against="sha256:old", severity="minor"),
+        created(against="sha256:old"),
         edited,
         {"event": "edited", "id": a.id, "when": "y", "body": "Again."},
     )
     a = replay(tmp_path)[0][0].annotations[0]
-    assert (a.body, a.severity, a.target_hash) == ("Again.", "major", "sha256:new")
+    assert (a.body, a.type, a.own_look, a.target_hash) == ("Again.", "question", {"color": "green"}, "sha256:new")
+    # a type of null takes the type off and leaves the look
+    write(tmp_path, created(), {"event": "edited", "id": a.id, "when": "z", "type": None})
+    a = replay(tmp_path)[0][0].annotations[0]
+    assert a.type is None

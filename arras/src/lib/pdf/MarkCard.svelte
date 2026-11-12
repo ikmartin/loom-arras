@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The card beside a mark (plan 0.28): what it says, who drew it, and erasing it. It also composes what a pin or words on the page say before they exist, and reads out a comment the PDF itself holds.
+	// The card beside a mark (plan 0.28): what it says, who drew it, its colour, and deleting it, which the markup bar's undo puts back. It also composes what a pin or words on the page say before they exist, and reads out a comment the PDF itself holds.
 	//
 	// It stands beside the mark and never over it (A5), and follows it as the page scrolls. What was typed is written when the card closes, by a press of Done, by Enter with a modifier, or by looking elsewhere; Escape leaves it as it was.
 	import { untrack } from 'svelte';
@@ -92,7 +92,7 @@
 			</footer>
 		{:else}
 			<header>
-				<strong>{NAMES[desk.composing?.kind ?? mark?.kind ?? ''] ?? 'Note'}</strong>
+				<strong>{NAMES[desk.composing?.kind ?? mark?.kind ?? ''] ?? 'Annotation'}</strong>
 				{#if mark?.who}· {mark.who}{/if}
 				{#if mark?.when}· {mark.when.slice(0, 10)}{/if}
 			</header>
@@ -115,7 +115,7 @@
 			{#if desk.writes}
 				<footer>
 					<button type="button" class="plain" data-testid="mark-done" onclick={close}>Done</button>
-					{#if mark}<button type="button" class="plain erase" data-testid="mark-erase" onclick={() => desk.erase(mark.id)}>Erase</button>{/if}
+					{#if mark}<button type="button" class="plain erase" data-testid="mark-erase" onclick={() => desk.erase(mark.id)}>Delete</button>{/if}
 				</footer>
 			{/if}
 		{/if}

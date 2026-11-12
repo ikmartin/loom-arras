@@ -7,41 +7,17 @@
    "read_only_hint": true
   },
   "command": "loom ai annotations",
-  "description": "List a session's annotations: id, target, kind, status and the quoted text; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.",
+  "description": "List annotations: id, target, type, status, author and the quoted text, every one unless --by, --target, --type or --status narrows it; `--json` carries each one whole.\n\nAn agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it — so `--by` its own name lists them, with what the author decided on each result it proposed. The JSON form carries `message` too, so a re-check can tell what it already said without reading the log itself; `loom suggestion --by` lists the edits it suggested.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "all": {
-     "description": "Include withdrawn annotations, with the reason they were withdrawn.",
-     "type": "boolean"
+    "by": {
+     "description": "Only annotations NAME wrote; with it, NAME's proposals too.",
+     "type": "string"
     },
     "json": {
      "description": "Print the annotations as JSON.",
      "type": "boolean"
-    },
-    "kind": {
-     "description": "Only annotations of this kind.",
-     "enum": [
-      "objection",
-      "suggestion",
-      "question",
-      "citation",
-      "note"
-     ],
-     "type": "string"
-    },
-    "session": {
-     "description": "The session to report on.",
-     "type": "string"
-    },
-    "severity": {
-     "description": "Only annotations of this severity.",
-     "enum": [
-      "major",
-      "moderate",
-      "minor"
-     ],
-     "type": "string"
     },
     "status": {
      "description": "Only annotations in this state.",
@@ -49,6 +25,14 @@
       "open",
       "resolved"
      ],
+     "type": "string"
+    },
+    "target": {
+     "description": "Only annotations on KEY.",
+     "type": "string"
+    },
+    "type": {
+     "description": "Only annotations of this type, by id or name.",
      "type": "string"
     }
    },
@@ -168,28 +152,39 @@
    "read_only_hint": false
   },
   "command": "loom annotate",
-  "description": "Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work; a MESSAGE of `-` is read from stdin.\n\nA note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.",
+  "description": "Write an annotation on TARGET: a key, an equation's qualified key, a master path, a cited work, or a project PDF; a MESSAGE of `-` is read from stdin.\n\nAn annotation carries its author, its time and the version of the text it was written on, and belongs to no session. One on a cited work with no --page is on the whole work. One on a page of a PDF -- a cited work by citekey or identifier, or a project PDF by its path -- names the page with --page and the place with --quote (words on it), --box (a rectangle) or --stroke (ink), drawn with a --mark tool where it is not on words; `loom status --reading` lists those on cited works.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "applied": {
-     "description": "With --resolve, on a suggestion: it was taken. Refused until its key reads as the suggestion taken; the key's hash is then recorded.",
-     "type": "boolean"
-    },
     "box": {
-     "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
+     "description": "Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. With --edit, where a drawn one stands now.",
      "type": "string"
     },
-    "discard": {
-     "description": "Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
+    "color": {
+     "description": "Its colour, over its type's.",
+     "enum": [
+      "grey",
+      "brown",
+      "red",
+      "orange",
+      "yellow",
+      "green",
+      "blue",
+      "purple",
+      "pink"
+     ],
+     "type": "string"
+    },
+    "delete": {
+     "description": "Delete an annotation, with its replies; an agent deletes only its own. It is removed from the log, not marked.",
      "type": "string"
     },
     "dry_run": {
-     "description": "Say what would be written, and write nothing, not even a session.",
+     "description": "Say what would be written, and write nothing.",
      "type": "boolean"
     },
     "edit": {
-     "description": "Restate an annotation: a new body, --severity, --payload or --placement; never its anchor.",
+     "description": "Restate an annotation: a new body, --type, a look, or where a drawn one stands; never its anchor.",
      "type": "string"
     },
     "in": {
@@ -200,29 +195,29 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
-    "kind": {
-     "description": "What the annotation is; any unambiguous prefix. Default note.",
+    "mark": {
+     "description": "Draw it on the PDF page with this tool: a pin or words on the page in the --box, a box or an oval round it, ink or an arrow along each --stroke.",
+     "enum": [
+      "pin",
+      "ink",
+      "text",
+      "box",
+      "oval",
+      "arrow"
+     ],
      "type": "string"
     },
     "message": {
      "type": "string"
     },
-    "page": {
-     "description": "A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
+    "opacity": {
+     "description": "Its opacity, in percent.",
+     "minimum": 0,
      "type": "integer"
     },
-    "payload": {
-     "description": "A suggestion's proposed text, which loom shows in place and prints as a patch (`loom suggestion ID`); applying it is the author's. Empty, with --placement replace, it deletes the quoted words; `-` reads it from stdin.",
-     "type": "string"
-    },
-    "placement": {
-     "description": "Where the payload goes: replace takes exactly the quoted words' place; after and before go right beside them. With no --quote, of the key's body, inside its environment.",
-     "enum": [
-      "replace",
-      "after",
-      "before"
-     ],
-     "type": "string"
+    "page": {
+     "description": "Page N of a PDF: a cited work (TARGET a citekey or a work identifier) or a project PDF by its path; with --quote, --box or --stroke.",
+     "type": "integer"
     },
     "quote": {
      "description": "Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page.",
@@ -236,25 +231,37 @@
      "description": "Mark annotation ID resolved, with the message as why.",
      "type": "string"
     },
-    "session": {
-     "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
-     "type": "string"
+    "stroke": {
+     "description": "A line of ink or an arrow on the page, in points from its top left; repeat for more lines. With --edit, its lines now.",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
     },
-    "severity": {
-     "description": "How bad the fault is, not how keen you are.",
+    "style": {
+     "description": "How it is drawn on words, over its type's.",
      "enum": [
-      "major",
-      "moderate",
-      "minor"
+      "underline",
+      "highlight",
+      "strike"
      ],
      "type": "string"
     },
     "target": {
      "type": "string"
     },
+    "type": {
+     "description": "The annotation's type, by id or name, from the quilt's annotation types; default none. With --edit, '' takes it off.",
+     "type": "string"
+    },
     "undo": {
-     "description": "With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+     "description": "With --resolve, open the annotation again: an undo is another event, never a removal.",
      "type": "boolean"
+    },
+    "weight": {
+     "description": "An underline's or a strike's thickness, in whole pixels.",
+     "minimum": 1,
+     "type": "integer"
     }
    },
    "type": "object"
@@ -370,7 +377,7 @@
      "type": "string"
     },
     "with": {
-     "description": "Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
+     "description": "Substitute a unified diff, a .tex file, or a suggested edit's text (by its id) for KEY's text; the quilt is not touched.",
      "type": "string"
     }
    },
@@ -521,7 +528,7 @@
    "read_only_hint": true
   },
   "command": "loom here",
-  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
+  "description": "Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.\n\nThe viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -953,7 +960,7 @@
    "read_only_hint": true
   },
   "command": "loom library review",
-  "description": "List what waits for you to review: proposed results and open citation suggestions, one line each with its id.\n\nWith WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.",
+  "description": "List what waits for you to review: proposed results, one line each with its id.\n\nWith WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1087,7 +1094,7 @@
    "read_only_hint": true
   },
   "command": "loom library why",
-  "description": "Show where a result came from, what state it is in and who changed it, then its relations to other results.\n\nProvenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.",
+  "description": "Show where a result came from, what state it is in and who changed it, then its relations to other results.\n\nProvenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1229,100 +1236,6 @@
    "type": "object"
   },
   "name": "loom_new"
- },
- {
-  "annotations": {
-   "destructive_hint": false,
-   "idempotent_hint": false,
-   "open_world_hint": false,
-   "read_only_hint": false
-  },
-  "command": "loom note",
-  "description": "Write a note on THING, quoting words there or naming a region, or keep one.\n\nA note has no kind, severity or resolution: it says what someone wants kept beside a thing, and a quote is a note with the words it quotes. It fades from view after 14 days unless it is kept or something durable links to it -- an annotation, a message, the research state, a kept note -- and is never deleted. An agent reads a person's notes with `loom since`.",
-  "inputSchema": {
-   "additionalProperties": false,
-   "properties": {
-    "box": {
-     "description": "A region of the page or image, in points from its top left.",
-     "type": "string"
-    },
-    "color": {
-     "description": "The colour of a --mark, or with --edit its colour now; none is the neutral. What a colour means is the reader's.",
-     "enum": [
-      "none",
-      "yellow",
-      "green",
-      "blue",
-      "pink",
-      "purple"
-     ],
-     "type": "string"
-    },
-    "edit": {
-     "description": "Say TEXT in note ID instead. An agent changes only its own.",
-     "type": "string"
-    },
-    "erase": {
-     "description": "Erase note ID. The log keeps it. An agent erases only its own.",
-     "type": "string"
-    },
-    "json": {
-     "description": "Print the report as one JSON object.",
-     "type": "boolean"
-    },
-    "keep": {
-     "description": "Keep note ID, so it never fades.",
-     "type": "string"
-    },
-    "mark": {
-     "description": "Draw it on the PDF page: on the words of --quote, in the --box, or along each --stroke. It needs no session and never fades.",
-     "enum": [
-      "highlight",
-      "underline",
-      "strike",
-      "pin",
-      "ink",
-      "text",
-      "box",
-      "oval",
-      "arrow"
-     ],
-     "type": "string"
-    },
-    "on": {
-     "description": "What it is on: a key, a document, a cited work's citekey (the whole work, or one page of it with --page), a file the viewer shows by its path, a message as SESSION#SEQ, or a session.",
-     "type": "string"
-    },
-    "page": {
-     "description": "The page, on a cited work or a PDF file, from 1; without it a note on a work is on the whole work.",
-     "type": "integer"
-    },
-    "quote": {
-     "description": "The words it quotes there.",
-     "type": "string"
-    },
-    "restore": {
-     "description": "Put erased note ID back.",
-     "type": "string"
-    },
-    "session": {
-     "description": "Write into this session: an id, a title, or a unique id suffix. Default the active one.",
-     "type": "string"
-    },
-    "stroke": {
-     "description": "A line of ink or an arrow, in points from the page's top left; repeat for more lines.",
-     "items": {
-      "type": "string"
-     },
-     "type": "array"
-    },
-    "text": {
-     "type": "string"
-    }
-   },
-   "type": "object"
-  },
-  "name": "loom_note"
  },
  {
   "annotations": {
@@ -1471,7 +1384,7 @@
    "read_only_hint": false
   },
   "command": "loom session say",
-  "description": "Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.\n\nThe transcript is what the author reads afterwards. A person's message carries the annotations they made in the session since their last one, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.",
+  "description": "Say TEXT in a session's transcript, with what you marked since your last message; `-` reads TEXT from stdin.\n\nThe transcript is what the author reads afterwards. A person's message carries the annotations they wrote since the session's round opened that no message of it has carried yet, and with no TEXT it carries them alone. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1503,7 +1416,7 @@
    "read_only_hint": false
   },
   "command": "loom since",
-  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
+  "description": "Report what people did since you last looked, and move your marker past it.\n\nPeople's annotations and replies, whole, with the words they are on; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1567,7 +1480,7 @@
    "read_only_hint": true
   },
   "command": "loom status",
-  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nNotes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.",
+  "description": "List every key with its computed state, cause if stale, and review facts; it exits 0 whatever it finds, and 2 only on an argument it refuses.\n\nAnnotations on cited works are not on keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`. While `loom serve` runs, a document it last compiled with errors or into no PDF is listed too, and `--json` carries how each of its compiles stands under `compiles`.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
@@ -1599,10 +1512,6 @@
      "description": "Print the report as one JSON object.",
      "type": "boolean"
     },
-    "kind": {
-     "description": "Keys carrying an annotation of this kind.",
-     "type": "string"
-    },
     "loose": {
      "description": "Keys no live document reaches.",
      "type": "boolean"
@@ -1612,28 +1521,15 @@
      "type": "string"
     },
     "reading": {
-     "description": "List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
+     "description": "List the annotations on cited works, by work; they are in no row and count toward nothing otherwise.",
      "type": "boolean"
     },
     "retired": {
      "description": "Keys accepted once and defined by no document now.",
      "type": "boolean"
     },
-    "runs": {
-     "description": "Every session on record, with its annotations.",
-     "type": "boolean"
-    },
     "session": {
      "description": "Log this call to the session.",
-     "type": "string"
-    },
-    "severity": {
-     "description": "Keys carrying an annotation of this severity.",
-     "enum": [
-      "major",
-      "moderate",
-      "minor"
-     ],
      "type": "string"
     },
     "stale": {
@@ -1652,6 +1548,10 @@
      "description": "Keys carrying this tag.",
      "type": "string"
     },
+    "type": {
+     "description": "Keys carrying an annotation of this type, by id or name.",
+     "type": "string"
+    },
     "undigested": {
      "description": "Works cited with a locator and not digested.",
      "type": "boolean"
@@ -1668,30 +1568,136 @@
  {
   "annotations": {
    "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom suggest",
+  "description": "File a suggested edit on KEY: --with NEW in place of --quote OLD, or beside it with --before or --after; without --quote, of the key's body.\n\nThe person keeps or discards it: `loom suggestion apply ID` writes it into the file and keeps it, `loom suggestion discard ID` leaves the text as it is. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\\uses{…}` is proposed.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "description": "Put the new text right after the quoted words, or at the end of the body.",
+     "type": "boolean"
+    },
+    "answers": {
+     "description": "The annotation it answers; keeping the edit resolves it.",
+     "type": "string"
+    },
+    "before": {
+     "description": "Put the new text right before the quoted words, or at the head of the body.",
+     "type": "boolean"
+    },
+    "comment": {
+     "description": "What to say beside it, in Markdown.",
+     "type": "string"
+    },
+    "dry_run": {
+     "description": "Say what would be filed, and write nothing.",
+     "type": "boolean"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "key": {
+     "type": "string"
+    },
+    "quote": {
+     "description": "The words it replaces, once in the key's own text; without it, the key's body.",
+     "type": "string"
+    },
+    "with": {
+     "description": "The new text; '' deletes the quoted words, and - reads it from stdin.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "key",
+    "with"
+   ],
+   "type": "object"
+  },
+  "name": "loom_suggest"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
    "idempotent_hint": true,
    "open_world_hint": false,
    "read_only_hint": true
   },
   "command": "loom suggestion",
-  "description": "Print the patch that takes suggestion ANNOTATION: its payload in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `after` and `before` go right beside them; with no quote, of the key's body. Refused when the quote no longer stands in the text exactly once. Once the key reads as the suggestion taken, `loom annotate --resolve ANNOTATION --applied` records it; `loom suggestion apply ANNOTATION` does both, and is the author's.",
+  "description": "List suggested edits, or with EDIT print the patch that takes it: its new text in place, against its key's text now.\n\n`replace` takes exactly the quoted words' place; `before` and `after` go right beside them; with no quote, of the key's body. `loom suggestion apply EDIT` writes it in and keeps it, and is the author's; `loom suggestion discard EDIT` discards it, which an agent may do to its own.",
   "inputSchema": {
    "additionalProperties": false,
    "properties": {
-    "annotation": {
-     "description": "The suggestion, by its id.",
+    "by": {
+     "description": "Only the edits NAME suggested.",
+     "type": "string"
+    },
+    "edit": {
+     "description": "A suggested edit, by its id, to print the patch that takes it; with none, the edits.",
      "type": "string"
     },
     "json": {
      "description": "Print the report as one JSON object.",
      "type": "boolean"
+    },
+    "status": {
+     "default": "open",
+     "description": "Only the edits in this state.",
+     "enum": [
+      "open",
+      "kept",
+      "discarded"
+     ],
+     "type": "string"
+    },
+    "target": {
+     "description": "Only the edits on KEY.",
+     "type": "string"
     }
    },
-   "required": [
-    "annotation"
-   ],
    "type": "object"
   },
   "name": "loom_suggestion"
+ },
+ {
+  "annotations": {
+   "destructive_hint": false,
+   "idempotent_hint": false,
+   "open_world_hint": false,
+   "read_only_hint": false
+  },
+  "command": "loom suggestion discard",
+  "description": "Discard suggested edit EDIT, leaving the text as it is; a person discards any edit, an agent only its own. --undo opens it again.",
+  "inputSchema": {
+   "additionalProperties": false,
+   "properties": {
+    "edit_id": {
+     "type": "string"
+    },
+    "json": {
+     "description": "Print the report as one JSON object.",
+     "type": "boolean"
+    },
+    "undo": {
+     "description": "Open a kept or discarded edit again.",
+     "type": "boolean"
+    },
+    "why": {
+     "description": "Why it is discarded, which the agent that suggested it reads.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "edit_id"
+   ],
+   "type": "object"
+  },
+  "name": "loom_suggestion_discard"
  },
  {
   "annotations": {

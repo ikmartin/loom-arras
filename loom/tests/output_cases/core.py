@@ -37,7 +37,6 @@ def looked(q: Path) -> None:
 KIND: dict[str, str] = {
     "accept": "report",
     "annotate": "report",
-    "note": "report",
     "changes": "report",
     "build": "report",
     "check": "report",
@@ -51,13 +50,17 @@ KIND: dict[str, str] = {
     "search": "report",
     "serve": "running",
     "source": "raw",
+    "suggest": "report",
     "suggestion": "raw",
     "suggestion apply": "report",
+    "suggestion discard": "report",
     "status": "report",
     "upgrade": "report",
 }
 
 NOWHERE = (("FAKE_TEX_FAIL_MATCH", "closures/"),)
+#: The demo's open suggested edit, the clock being fixed.
+EDIT = "e-2026-09-16-r2hw0m"
 
 CASES: dict[str, list[Case]] = {
     "accept": [
@@ -79,23 +82,49 @@ CASES: dict[str, list[Case]] = {
         Case(("--all-live", "--yes", "--force"), setup=author, exit=1, why="an incomplete proof is in scope"),
         Case(("dm-0002",), setup=author, env=FAIL_TEX, exit=1, why="its document does not compile"),
     ],
+    "suggest": [
+        Case(("dm-0002", "--quote", "one or two points", "--with", "at most two points", "--as", "Tester")),
+        Case(
+            ("dm-0002", "--with", "\\uses{dm-0001}", "--before", "--as", "Tester"),
+            why="an edge, at the head of the body",
+        ),
+        Case(("dm-0002", "--with", "x", "--dry-run", "--as", "Tester"), unchanged=True),
+        Case(
+            ("dm-0002", "--quote", "no such words", "--with", "x", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="a quote not in the text",
+        ),
+        Case(("dm-9999", "--with", "x", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
+    ],
     "suggestion": [
-        Case(("a-2026-09-16-0002",), unchanged=True),
-        Case(("a-2026-09-16-0001",), exit=1, unchanged=True, why="a suggestion that carries no text"),
-        Case(("a-2026-09-16-9999",), exit=2, unchanged=True, why="no such annotation"),
+        Case((), unchanged=True, why="the open edits"),
+        Case(("--status", "kept"), unchanged=True, why="none kept"),
+        Case((EDIT, "--json"), unchanged=True, why="its patch, in the report"),
+        Case(("e-2026-09-16-v37pth",), exit=2, unchanged=True, why="no such edit"),
     ],
     "suggestion apply": [
-        Case(("a-2026-09-16-0002", "--as", "Tester")),
-        Case(("a-2026-09-16-0001", "--as", "Tester"), exit=1, unchanged=True, why="a suggestion that carries no text"),
-        Case(("a-2026-09-16-9999", "--as", "Tester"), exit=2, unchanged=True, why="no such annotation"),
-        Case(("a-2026-09-16-0002", "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
+        Case((EDIT, "--as", "Tester")),
+        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
+        Case((EDIT, "--as", "Referee (Agent)"), exit=2, unchanged=True, why="an agent does not apply"),
+    ],
+    "suggestion discard": [
+        Case((EDIT, "--why", "not needed", "--as", "Tester")),
+        Case(
+            (EDIT, "--as", "Referee (Agent)"),
+            env=(("AI_AGENT", "1"),),
+            exit=2,
+            unchanged=True,
+            why="not the agent's own",
+        ),
+        Case(("e-2026-09-16-v37pth", "--as", "Tester"), exit=2, unchanged=True, why="no such edit"),
     ],
     "annotate": [
         Case(("dm-0002", "Which orbits?", "--as", "Tester")),
-        Case(("dm-0002", "Which orbits?", "--kind", "objection", "--severity", "major", "--as", "Tester")),
+        Case(("dm-0002", "Which orbits?", "--type", "revision", "--as", "Tester")),
         Case(("dm-9999", "Nothing here", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
         Case(
-            ("--resolve", "a-2000-01-01-0001", "--as", "Tester"),
+            ("--resolve", "a-2000-01-01-w8gk02", "--as", "Tester"),
             exit=2,
             unchanged=True,
             why="an annotation that does not exist",
@@ -103,16 +132,22 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "x", "--in", "nope.tex", "--as", "Tester"), exit=2, unchanged=True, why="no such document"),
         Case(("dm-0002", "x", "--session", "nope", "--as", "Tester"), exit=2, unchanged=True, why="no such session"),
         Case(("dm-0002", "Which orbits?", "--as", "Tester", "--dry-run"), unchanged=True),
-        Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
-    ],
-    "note": [
-        Case(("Which orbits?", "--on", "dm-0002", "--quote", "orbit", "--as", "Tester")),
-        Case(("--on", "README.md", "--quote", "demo", "--as", "Tester")),
-        Case(("x", "--on", "dm-9999", "--as", "Tester"), exit=2, unchanged=True, why="a key that names nothing"),
+        Case(("--delete", "a-2026-09-16-tc3rcf", "--as", "Tester"), why="a person deletes an agent's annotation"),
+        Case(("--delete", "a-2026-09-16-tc3rcf", "--as", "Tester", "--dry-run"), unchanged=True),
         Case(
-            ("--keep", "n-2000-01-01-0001", "--as", "Tester"), exit=2, unchanged=True, why="a note that does not exist"
+            ("--delete", "a-2000-01-01-w8gk02", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="an annotation that does not exist",
         ),
-        Case(("--on", "dm-0002", "--as", "Tester"), exit=2, unchanged=True, why="a note that quotes and says nothing"),
+        Case(("dm-0002", "x", "--quote", "not in the text", "--as", "Tester"), exit=2, why="a quote not in the text"),
+        Case(("Calloway14", "Worth an overview.", "--as", "Tester"), why="a cited work as a whole"),
+        Case(
+            ("dm-0002", "x", "--mark", "pin", "--as", "Tester"),
+            exit=2,
+            unchanged=True,
+            why="a tool draws on a page of a PDF",
+        ),
     ],
     "changes": [
         Case((), setup=author, unchanged=True, why="no look yet"),
@@ -198,7 +233,9 @@ CASES: dict[str, list[Case]] = {
         Case(("dm-0002", "--at", "1", "--diff"), why="unchanged since the step: said so"),
         Case(("dm-0002", "--at", "accepted:The loom demo", "--diff")),
         Case(("dm-0002", "--at", "accepted:Nobody"), exit=2, unchanged=True, why="never accepted by that name"),
-        Case(("dm-0002", "--at", "a-2000-01-01-0001"), exit=2, unchanged=True, why="an annotation that names nothing"),
+        Case(
+            ("dm-0002", "--at", "a-2000-01-01-w8gk02"), exit=2, unchanged=True, why="an annotation that names nothing"
+        ),
         Case(("dm-0002", "--diff"), exit=2, unchanged=True, why="--diff needs --at"),
         Case(("drafting/main.tex", "--at", "1"), exit=2, unchanged=True, why="--at is for a key"),
         Case(("dm-9999",), exit=2, unchanged=True, why="a key that names nothing"),
@@ -211,18 +248,17 @@ CASES: dict[str, list[Case]] = {
         Case(("--explain", "dm-0003")),
         Case(("--explain", "dm-0002/proof"), setup=stale, why="a cause and its diff"),
         Case(("--reading",)),
-        Case(("--runs",)),
         Case(("--retired",)),
         Case(("--undigested",)),
         Case(("--unmatched-cites",)),
         Case((), setup=duplicate_id, why="a conflicted id is listed, and status still exits 0"),
-        Case(("--kind", "obj")),
+        Case(("--type", "revision")),
         Case(("--master", "drafting/main.tex")),
         Case(("--master", "drafting/main.tex", "--in-order"), why="the document's keys in the order it prints them"),
         Case(("--in-order",), exit=2, unchanged=True, why="--in-order needs --master"),
         Case(("--tag", "orbits")),
         Case(("--explain", "dm-9999"), exit=2, unchanged=True, why="a key that names nothing"),
-        Case(("--kind", "nonsense"), exit=2, unchanged=True, why="not an annotation's kind"),
+        Case(("--type", "nonsense"), exit=2, unchanged=True, why="not one of the quilt's annotation types"),
         Case(("--master", "nope.tex"), exit=2, unchanged=True, why="not a document of the quilt"),
         Case(("--tag", "nope"), exit=2, unchanged=True, why="a tag no node carries"),
         Case(("--session", "nope"), exit=2, unchanged=True, why="a session that names nothing"),

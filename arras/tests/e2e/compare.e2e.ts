@@ -18,7 +18,7 @@ async function open(page: Page, left: string, right: string): Promise<void> {
 const top = async (page: Page, index: number, pair: string) => (await pane(page, index).locator(`[data-pair="${pair}"]`).first().boundingBox())!.y;
 
 test('an address that compares two things that do not pair is let go, and nothing offers compare but a history', async ({ page }) => {
-	await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-0001') + '&compare=1');
+	await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-p9z37z') + '&compare=1');
 	await expect(pane(page, 1).getByTestId('item-controls')).toBeVisible();
 	await expect(page.getByTestId('compare-count')).toHaveCount(0);
 	await expect(page).not.toHaveURL(/compare=/);

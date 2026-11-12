@@ -91,7 +91,9 @@ Review:
 - `loom:retired-ledger-key` (info): a ledger row whose key no longer exists.
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
-- `loom:foreign-annotations` (warning): a line of `.loom/annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads.
+- `loom:foreign-annotations` (warning): a line of `.loom/annotations/log.jsonl` that is not a review event, or of `.loom/edits/log.jsonl` that is not a suggested edit's; it is skipped and the rest of the log still loads.
+- `loom:repeated-id` (warning, subject `record`): a line of the annotation log, the suggested edits' log, the session index or the links file that gives a second record an id another record already has, usually a line a hand-resolved merge kept twice. One per line, naming both lines and the edit that clears it; nothing is dropped or renumbered.
+- `loom:annotation-types` (warning, subject `record`): `.loom/annotation-types.toml` is not TOML, so the default types are used, or one of its types cannot be read and is skipped, naming what is wrong with it; info when there is no file, so the defaults are used and `loom upgrade` writes them. Annotations keep their own look either way, so nothing is drawn differently.
 
 References and digests:
 

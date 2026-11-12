@@ -1,6 +1,6 @@
 """`locked`: one writer at a time, across processes, between reading what is taken and writing what is new.
 
-Every id loom draws is the highest one it can see, plus one, so two writers that read at the same moment draw the same id. Holding a lock from the read to the write closes that, whichever process each writer is: two `loom` shells, two `loom mcp` servers, or a server and the viewer. A log's numbers are drawn under a lock on that log. Node ids are read from the whole quilt, so they take `paths.ID_LOCK`, a file that holds nothing.
+A number loom draws is the highest one it can see, plus one, so two writers that read at the same moment draw the same number; a token (`records/ids.py`) is drawn clear of the ids it can see, which stays true only until another writer appends. Holding a lock from the read to the write closes both, whichever process each writer is: two `loom` shells, two `loom mcp` servers, or a server and the viewer. What is drawn against a log is drawn under a lock on that log. Node ids are read from the whole quilt, so they take `paths.ID_LOCK`, a file that holds nothing.
 
 The lock is the operating system's, so it goes when its holder dies and never needs clearing. It is advisory on POSIX and a single byte far past the end of the file on Windows, so readers of a locked log read on without waiting, and neither changes the file.
 """

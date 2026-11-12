@@ -12,7 +12,7 @@ The umbrella decided that an open annotation on a node the person takes moves wi
 
 ## Rough design
 
-A log event, `retargeted`, naming the annotation, the plain key and the document it now reads in, appended when an adoption takes the node the annotation is on; the anchor re-resolved against the adopted text, which is the copy's once the suffix is stripped, so its quote and recorded version hold (DR-284-ikmartin). Kept nodes' annotations and settled ones stay on the copy. The adoption preview lists which annotations would move.
+A log event, `retargeted`, naming the annotation, the plain key and the document it now reads in, appended when an adoption takes the node the annotation is on; the anchor re-resolved against the adopted text, which is the copy's once the suffix is stripped, so its quote and recorded version hold (DR-284-ikmartin). Kept nodes' annotations and resolved ones stay on the copy. The adoption preview lists which annotations would move. Plan 0.30.3 builds the same carrying for Keep (decision 12): an annotation moves onto the new words, marked as written on earlier ones, and opens the version it was written on. Adoption should reuse that rather than add a second way to move an annotation.
 
 ## Blast radius
 

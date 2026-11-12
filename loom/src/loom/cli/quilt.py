@@ -14,7 +14,8 @@ import click
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli.paper import check_prefix
 from loom.cli.report import Group, Item, Report
-from loom.paths import AI, HISTORY, LOOM, LOOM_GITIGNORE
+from loom.paths import AI, ANNOTATION_TYPES, HISTORY, LOOM, LOOM_GITIGNORE
+from loom.records.types import default_text
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -166,6 +167,8 @@ def write_minimal_quilt(target: Path, prefix: str) -> list[Path]:
     write(target / "config.toml", CONFIG_TEMPLATE.format(name=target.resolve().name, prefix=prefix))
     write(target / history / "ledger.jsonl", "")
     write(target / LOOM_GITIGNORE, LOOM_IGNORE)
+    # the annotation types, the defaults listed so a person sees what there is to change
+    write(target / ANNOTATION_TYPES, default_text())
     # the tutorial is written with this quilt's own id prefix, so no example in it is one the person has to translate
     write(
         target / "README.md", (ASSETS / "init" / "readme.md").read_text(encoding="utf-8").replace("q-0", f"{prefix}-0")
@@ -204,6 +207,8 @@ def write_demo_quilt(target: Path) -> None:
     for cache in target.rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
     write_loom_ignore(target)
+    if not (target / ANNOTATION_TYPES).exists():
+        (target / ANNOTATION_TYPES).write_text(default_text(), encoding="utf-8")
     # the demo carries the agent layer, so it gets what starts the loom server, for this machine and this path, and the root lines that keep those files out of the repository
     write_clients(target)
     ensure(target)

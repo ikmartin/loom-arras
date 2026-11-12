@@ -1,8 +1,8 @@
-"""`.loom/sessions/`: where work belongs, as distinct from who did it (plan 0.13 §5).
+"""`.loom/sessions/`: stretches of work, each with its transcript and command log (plan 0.13 §5).
 
-A **session** is a stretch of work on the quilt -- a sitting, a review, a thread with an agent -- and it is what an annotation belongs to. An **author** is who wrote the thing. Loom conflated the two: an agent's annotation recorded the run directory as its author, so the log could say *who* only by naming a place, and a person and an agent working the same afternoon had no way to say they were doing one job.
+A **session** is a stretch of work on the quilt -- a sitting, a review, a thread with an agent -- and it holds what was said and run in it. An annotation belongs to no session: it carries its **author**, who wrote it, its time and the version of the text it was written on.
 
-Two facts are kept, and they are different kinds of fact. The **id** is `s-YYYY-MM-DD-NNNN`, is minted once and never changes, and is what a record, a URL and a directory name use. The **title** is what a person calls it, changes whenever they like, and is never an address.
+Two facts are kept, and they are different kinds of fact. The **id** is `s-YYYY-MM-DD-<token>` (`records/ids.py`), is minted once and never changes, and is what a record, a URL and a directory name use. The **title** is what a person calls it, changes whenever they like, and is never an address.
 
 The index is append-only, like every other record loom keeps: `created`, `renamed`, `resumed`, `closed`, `deleted`, replayed into the state that stands. A **round** is the span between an opening and the next close or resume, which is what "changed since last time" means. Deleting writes a tombstone and removes nothing; `loom session delete --purge` is the separate, louder act that really erases.
 """
@@ -18,6 +18,7 @@ from typing import Any
 from loom.clock import stamp
 from loom.locks import locked
 from loom.paths import SESSIONS
+from loom.records.ids import SESSION, draw
 
 DIR = SESSIONS
 INDEX = f"{DIR}/index.jsonl"
@@ -25,7 +26,7 @@ INDEX = f"{DIR}/index.jsonl"
 ACTIVE = f"{DIR}/active"
 
 EVENTS = ("created", "renamed", "purposed", "resumed", "closed", "deleted")
-ID = re.compile(r"^s-\d{4}-\d{2}-\d{2}-\d{4}$")
+ID = re.compile(rf"^{SESSION}$")
 
 
 @dataclass
@@ -140,17 +141,8 @@ def sessions(root: Path, *, deleted: bool = False) -> dict[str, Session]:
 
 
 def next_id(root: Path, date: str) -> str:
-    """The next `s-<date>-<nnnn>`, counted over every session the index has ever named, tombstones included."""
-    n = 0
-    prefix = f"s-{date}-"
-    for e in load_events(root):
-        sid = str(e["id"])
-        if sid.startswith(prefix):
-            try:
-                n = max(n, int(sid[len(prefix) :]))
-            except ValueError:
-                continue
-    return f"{prefix}{n + 1:04d}"
+    """A fresh `s-<date>-<token>`, none of the sessions the index has ever named, tombstones included."""
+    return draw(f"s-{date}-", {str(e["id"]) for e in load_events(root)})
 
 
 def create(root: Path, title: str, who: str, *, purpose: str = "") -> Session:
@@ -208,7 +200,7 @@ def resume(root: Path, sid: str, who: str) -> None:
 
 
 def delete(root: Path, sid: str, who: str, why: str = "") -> None:
-    """Tombstone a session: it leaves the viewer, and the log keeps every annotation written in it."""
+    """Tombstone a session: it leaves the viewer, and its transcript and directory stay."""
     _event(root, "deleted", sid, who, **({"why": why} if why else {}))
 
 

@@ -8,7 +8,7 @@ const states = {
 };
 
 function key(k: string, node: string, state: string, extra: Partial<Key> = {}): Key {
-	return { key: k, node, kind: k.includes('/proof') ? 'proof' : 'statement', file: 'f', src: [0, 1], hash: 'sha256:0', incomplete: [], state, reviews: { latest_current: null, latest_any: null, open: {}, detached: 0 }, uses: [], closure: [], previous_key_match: null, ...extra };
+	return { key: k, node, kind: k.includes('/proof') ? 'proof' : 'statement', file: 'f', src: [0, 1], hash: 'sha256:0', incomplete: [], state, reviews: { open: {}, detached: 0 }, uses: [], closure: [], previous_key_match: null, ...extra };
 }
 
 function node(id: string, extra: Partial<Node> = {}): Node {

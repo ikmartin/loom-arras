@@ -1,0 +1,70 @@
+# The annotation types of this quilt. A type is a label an annotation may carry, with a look and instructions for agents; an annotation needs none.
+#
+# Edit this file here or in the viewer's Settings › Annotations; an agent may edit it too. Each [[type]] has:
+#   id            fixed once annotations use it: they name their type by it, so change `name` to rename a type
+#   name          what the type is called everywhere
+#   color         grey, brown, red, orange, yellow, green, blue, purple or pink
+#   style         underline, highlight or strike
+#   weight        thickness of an underline or strike, in whole pixels, 1 to 10
+#   opacity       0 to 100
+#   open          true: an annotation of this type stays open until someone resolves it; false: it only informs
+#   notes         true: annotations of this type are also listed in Notes
+#   instructions  when an agent should use this type; the rules for every annotation are loom's own
+#
+# Deleting a type leaves its annotations untyped, looking as they did.
+
+[[type]]
+id = "revision"
+name = "Revision"
+color = "red"
+style = "highlight"
+weight = 2
+opacity = 65
+open = true
+notes = false
+instructions = """
+Something that is wrong and must change before the text is right: a wrong step, a gap in an argument, a false or unsupported claim, a citation that does not cover the use made of it, an unclear sentence, a loose definition, a misused term.
+
+Say in the comment how serious it is, by how bad the fault is rather than how strongly you feel about it.
+"""
+
+[[type]]
+id = "suggestion"
+name = "Suggestion"
+color = "orange"
+style = "highlight"
+weight = 2
+opacity = 60
+open = true
+notes = false
+instructions = """
+Something that could be better, for the writer to weigh: a clearer order, a sharper statement, a shorter proof, a better name. Nothing is wrong; if something is, it is a revision.
+
+A work worth citing that the bibliography lacks is a suggestion too: name the work.
+"""
+
+[[type]]
+id = "question"
+name = "Question"
+color = "blue"
+style = "highlight"
+weight = 2
+opacity = 60
+open = true
+notes = false
+instructions = """
+Something you could not decide and the writer should answer: an ambiguity in a statement, a choice between hypotheses or conventions that is theirs to make, a place they should look. Ask one thing, and say what would settle it if you know.
+"""
+
+[[type]]
+id = "note"
+name = "Note"
+color = "grey"
+style = "highlight"
+weight = 2
+opacity = 60
+open = false
+notes = true
+instructions = """
+An aside that asks nothing and is worth finding again: an explanation, a remark on why a step works, a sign that something checks out, or a dead end, counterexample or decision about this result, recorded when you find it.
+"""

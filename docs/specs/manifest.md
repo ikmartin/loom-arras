@@ -24,9 +24,10 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "relations": [ ... ],
   "inclusion": { "drafting/main.tex": { ... } },
   "states": { "labels": { ... } },
-  "annotations": { "a-2026-09-16-0007": { ... } },
+  "annotations": { "a-2026-09-16-xgtcve": { ... } },
+  "annotation_types": [ { "id": "revision", ... } ],
+  "suggested_edits": { "e-2026-09-16-q4hd2r": { ... } },
   "threads": { "2026-09-16T14-02-referee": { ... } },
-  "reference_notes": [ ... ],
   "diagnostics": [ ... ],
   "tags": { "localization": ["rl-0004", "rl-0012"] },
   "taxa": { "Lemma": {"style": "plain", "slug": "lemma", "count": 14} },
@@ -34,28 +35,23 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "macros": { "default": [ ... ], "sets": { "Man12": [ ... ] } },
   "search": [ ... ],
   "files": [ ... ],
-  "notes": { "n-2026-11-02-0001": { ... } },
   "changes": [ ... ],
   "changes_since": { "who": "…", "when": "…" },
   "config": { "quilt": { ... }, "library": { ... }, "lint": { ... }, "agents": { ... }, "sync": { ... } }
 }
 ```
 
+**[decided]** `annotation_types` is the quilt's annotation types in its file's order (`.loom/annotation-types.toml`, else the defaults): each `{id, name, look: {color, style, weight, opacity}, open, notes, instructions, modes}`, `modes` naming the modes whose text names the type. `color` is one of grey, brown, red, orange, yellow, green, blue, purple, pink; `style` is underline, highlight or strike; `weight` is whole pixels and `opacity` percent. `open` says an annotation of the type stays open until resolved; `notes` that it is listed in Notes. A viewer offers these types and draws an annotation in its own look; it never decides what to show by a type's id.
+
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it. `corpus.home` is the front door, the file a viewer opens on when it remembers no place: the file `[quilt] home` names when the viewer shows it, else the root `README.md`, else `null`. It may name a LaTeX document, the research state's file, or any other entry of `files`. `corpus.directory` is the name of the directory the project is, its root's own name (`relloc` for a quilt at `~/quilts/relloc`), whatever `name` says; a viewer names what `files` lists a view of by it. Optional and additive.
 
 **[decided]** **Files** (plan 0.22.7) are the project's files the viewer shows, one entry each, sorted by path: `{"path", "kind", "bytes", "body"?, "denied"}`. `path` is quilt-relative. `kind` says what a viewer does with it: `document` (a LaTeX document of `masters`), `tex` (any other `.tex` file, which a viewer opens as the document that reads it), `markdown`, `html`, `pdf`, `image`, `notebook`, `text` (UTF-8 up to 1 MB), or `other`. A publisher hides what the person would call noise, and loom hides a path with any segment starting with `.` (its own `.loom/` among them), tools' directories, the history and sync directories, and what the quilt's `.gitignore` files ignore. `body`, on a `markdown` or `notebook` entry, is the build-relative path of its rendered HTML (`files/<path>.html`): a Markdown file rendered as a page is, with an `id` on each heading and its relative links resolved (a link to a shown file becomes `quilt:PATH`, an image `/_files/PATH`), and the HTML it holds through the allowlist of specs/dialect.md §1; a notebook drawn from its saved cells, its Markdown cells as a Markdown file is, an HTML or script output by its plain form. A body is beside the manifest for the reason `source/` is. `denied` says whether agents may edit the file: `null` where they may, and on a file none may write `{"by", "always"}`, `by` being what keeps them out, the `[agents] deny` entry as written (`drafting/`) or the path loom protects (`config.toml`, the research state's file), and `always` true for a protection that holds whatever the list says. Loom answers it with the predicate its own commands ask, so a viewer never matches the list itself; an entry with no `denied` is from a publisher that does not say, and a viewer marks nothing for it. A viewer reads a file's bytes from the publisher at `/_files/PATH` (`write-api.md` §3). Optional and additive: a viewer that finds no `files` shows the documents alone.
-
-**[decided]** **Notes** (plan 0.22.8), by id, are what someone wants kept beside a thing the viewer shows, a quote among them: `{"id", "when", "author": {"kind", "id"}, "session", "target", "body", "quote"?, "page"?, "rects"?, "kept"?, "mark"?, "strokes"?, "artifact"?, "origin"?, "erased"?, "hides"?, "faded", "detached"}`. `target` is one of `{"key"}` (a node, a region or a document), `{"work", "citekey"}` (a cited work: with `page`, one of its pages; without, the whole work, which a note says something about and quotes nothing of), `{"file"}` (a shown file, with `page` on a PDF), `{"message": {"session", "seq"}}` or `{"session"}`. `quote` is the words it quotes and `rects` where it is, each `[x0, y0, x1, y1]`, in points from a page's top left or in an image's pixels. A note has no kind, severity or resolution. `faded` is computed when the manifest is published: not `kept`, not a mark, older than 14 days, and linked from no annotation, message, page or kept note. `detached` says its words are no longer in what it is on. A viewer hides a faded note until asked, and draws a session's notes in its transcript by time.
-
-**[decided]** **A mark** (plan 0.28) is a note drawn on a page of a PDF, a shown file or a cited work's copy. `mark` is how: `highlight`, `underline` or `strike` on words (`rects`, one per line), `pin` or `text` saying its `body` in its one rectangle, `box` or `oval` in its one rectangle, `ink` or `arrow` along its `strokes`, each stroke `x, y, x, y…` with `rects` the one rectangle round them all. `color` is the colour it was given, `yellow`, `green`, `blue`, `pink` or `purple`, and is absent on a neutral mark; what a colour means is its reader's. A mark's `session` is empty unless its writer named one, and it never fades. `artifact` is the hash of the PDF the note was written on, present on any note on a PDF's page. When the file's hash differs a note with a `quote` is found again on its page, and published with the `rects` found there; one that is not found, or that has no quote, is `detached`, and a viewer draws a detached note nowhere and lists it (A3). `origin` is where a mark taken in from a PDF came from, `{"by"?, "subtype", "color"?, "ref"?, "sha"?}`: its own author, annotation subtype and colour, and for one taken in from the file it is on, its reference in that file and the file's hash. `hides` is that reference while the file is still that one: a viewer leaves that annotation off the page, since the note stands for it. An erased note is published only while it `hides` something, carrying `erased`, the time; a viewer treats it as gone but goes on hiding the annotation. A plain note with `rects` on a page is drawn faintly, an underline for a quote and an outline for a region.
 
 **[decided]** **Changes** (plan 0.22.8) are the open files changed since the reviewer's look, `[{"path", "kind": "changed"|"new"|"gone", "diff"?, "hash", "hunks", "blocks", "documents"}]`, with `diff` the build-relative path of a unified diff (`changes/<path>.diff`, three lines of context), `hash` the file's hash now (null for a gone file), which a keep or an undo sends back as `seen`, and `hunks` how many `@@` groups the diff holds, each kept or undone alone by its number from 0 (plan 0.25.1), `blocks` the keys of the statements and proofs each of those groups touches, by that number and in the file's order, empty for text outside any block, and `documents` the person's documents whose text the file is part of, empty for a file in none; `changes_since` is that look, `{"who", "when"}`, its time that of the reviewer's last look at every file. Both are absent before the reviewer's first look. A viewer offers keep and undo through the write API (`changes-keep`, `changes-undo`).
 
 **[decided]** **Config** (plan 0.23) is what the quilt's configuration holds and what follows from it, for a viewer's Settings: `{"editable", "read_only", "quilt", "library", "lint", "agents", "sync", "warnings"}`. `quilt` is `{"name", "main", "home", "prefix", "engine", "history", "research_state"}`, `library` `{"online", "contact"}`, and `lint` `{"disable", "codes"}`, `codes` being every diagnostic code that can be silenced. `agents` is `{"deny", "protected", "layer", "variant", "stale", "command", "clients"}`: the deny list as loom accepted it; what is always protected, as the orientation names it; whether the quilt has an agent layer; how its agents reach loom, `"mcp"`, `"shell"` or null; whether Claude Code's permission file lags the list (`loom:agent-permissions-stale`); and per agent app with a file in the quilt, `{"key", "label", "file", "set_up", "command"}`. `sync` is `{"paired": true, "directory", "workspace", "branch", "documents"}` or `{"paired": false, "command"}`. `editable` and `read_only` are the `table.key` names a viewer may change through `settings-save` and the ones it shows only (`write-api.md`). `warnings` are the configuration's own. Each `command` is what a person runs for what the viewer cannot do, given here because a viewer names no command of its own; empty when there is nothing to run. Optional and additive: a viewer that finds no `config` shows its own preferences alone.
 
 **[decided]** **Pages** (plan 0.21.3) are a reading loom keeps for one thing, which a person edits and an agent writes through the publisher, never a source. Each is `{"path", "hash", "body_html", "by": {"kind": "agent"|"person", "id"}, "when", "edited_since", "links": {"broken": [{"href", "why"}], "moved": [{"href", "key"}]}}`: `hash` the exact text's, `body_html` its Markdown rendered as a transcript message's (§10.1), `by` and `when` the last write through the publisher (absent when there was none), `edited_since` true when the text has changed since that write, `broken` the links that name nothing now and `moved` the linked results whose text has changed since the write. `research_state`, at the top level, is the quilt's; a work's is `references[CK].overview` (§13). Both are optional, and absent until one is written.
-
-**[decided]** `reference_notes` lists works an agent proposed citing and a person accepted: `{"work": "…the work the suggestion named", "for": ["rl-0004"], "claim": "…the argument for citing it", "identifier": {"verified": false}, "accepted": {"when": "…", "who": "…"}, "from": {"session": "s-…", "annotation": "a-…"}}`. **[decided]** `work` is the work and `claim` is what the agent said it supports, in that order and not the other way round: a note whose `work` held the argument could never become a bibliography entry, which is the one thing the breadcrumb exists for (DR-170). It is a **breadcrumb and never a second source of identity truth**: `identifier.verified` is false until a person confirms it in the bibliography, and nothing here enters `references`, the bibliography, or any closure. A viewer shows them on the keys in `for`. Optional, like every other section.
 
 **[decided]** Beside `manifest.json` and `fragments/`, a publisher may write **`source/<key>.tex`**: one file per key holding that key's own source text before macro expansion, which a viewer fetches lazily for a verbatim view. It is beside the manifest rather than inside it because the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks. Optional: a viewer that finds nothing there shows the rendered form and no toggle.
 
@@ -80,7 +76,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 ]
 ```
 
-`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `in` is the live document the landmark's step was about (the draft a stamp kept, the working document an import drafted), where the history's moves have taken it; it is absent when no live document leads to the landmark. `kept_for` names the act a version was kept at: `adopt` before an adoption, `sync` before incorporating or publishing a pull, `keep` when the author kept an edit in Changes, `undo` for the text an undo set aside, `restore` for the text a restore replaced, `apply` before a suggestion was written in; it is absent for a version the author recorded or imported. `message` says the act in the person's words ("Kept an edit", "Before taking changes from the copy “x”") or is the name the author gave. `action` is the step's (`import` or `stamp`), and `cannot_restore` why the version cannot be put back into its document (the paper as received, which has no ids; a version kept as one flat text of a document now of several files; a document no longer the person's), `""` when it can. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `in` is the live document the landmark's step was about (the draft a stamp kept, the working document an import drafted), where the history's moves have taken it; it is absent when no live document leads to the landmark. `kept_for` names the act a version was kept at: `adopt` before an adoption, `sync` before incorporating or publishing a pull, `keep` when the author kept an edit in Changes, `undo` for the text an undo set aside, `restore` for the text a restore replaced, `apply` before a suggested edit was written in; it is absent for a version the author recorded or imported. `message` says the act in the person's words ("Kept an edit", "Before taking changes from the copy “x”") or is the name the author gave. `action` is the step's (`import` or `stamp`), and `cannot_restore` why the version cannot be put back into its document (the paper as received, which has no ids; a version kept as one flat text of a document now of several files; a document no longer the person's), `""` when it can. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
 
 `history` lists the history's steps, oldest first, and every line of it: `{steps: [{step, action, name, when, actor?, message?, document?, in?, landmark?}], acts: [{action, when, actor?, step?, path?, paths?, in?, landmark?, message?, hunks?, kept_for?, copy?, page?, from?, to?, version?, line?, done?}]}`. An act is any ledger line (`keep`, `undo`, `restore`, `apply`, `page-write`, `move`, `tick`, a step…); `in` is the document as it is now named, `from` and `to` a text's hash for the acts that set one aside or wrote one, `version` the landmark a restore put back, and `line` and `done` the source line and state of a box set in the viewer. `action` is `import`, `stamp`, `copy` or `adopt`; `document` is the document the step concerns as the ledger names it, and `in` that document where it is now, absent when it is no longer live; `landmark` is the path of the landmark the step kept, matching a `canon` entry's `path`. A step of the whole quilt (a `loom stamp` with no document) has no `document`.
 
@@ -180,10 +176,7 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
     ]
   },
   "reviews": {
-    "latest_current": {"author": {"kind": "agent", "id": "Referee Agent"},
-                       "date": "2026-09-16T14:31:08Z"},
-    "latest_any": {"author": {"kind": "person", "id": "Tom Graber"}, "date": "2026-09-10T09:00:00Z"},
-    "open": {"objection": 2, "suggestion": 0, "question": 1, "ok": 0},
+    "open": {"revision": 2, "question": 1},
     "detached": 2
   },
   "uses": ["rl-0002", "Man12-thm-4.1"],
@@ -268,17 +261,20 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ## 9. Annotations
 
-**[decided]** Every non-discarded annotation, plus discarded ones with `discarded: true` so the viewer can offer to show them.
+**[decided]** Every annotation in the log; a deleted one is not there.
+
+**[decided]** An annotation and a session are keyed by `a-` or `s-`, the day it was written as `YYYY-MM-DD`, `-`, and a token of lower-case letters and digits, as in `a-2026-11-05-k2m9xq`; a link between results is `link-` and a token. A viewer treats the token as opaque and takes no order from it, since clones of a quilt draw tokens apart. The entries of `annotations` and `threads` are written oldest first, by the record's own `created` or `when`, and in the order they were written within one second; every other object in the manifest has its keys sorted.
 
 ```json
-"a-2026-09-16-0007": {
-  "id": "a-2026-09-16-0007",
+"a-2026-09-16-xgtcve": {
+  "id": "a-2026-09-16-xgtcve",
   "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
   "created": "2026-09-16T14:31:08Z",
-  "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
+  "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null, "file": null},
   "in": null,
   "basis": null,
-  "kind": "objection",
+  "type": "revision",
+  "look": {"color": "red", "style": "highlight", "weight": 2, "opacity": 65},
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
   "status": "open",
   "in_reply_to": null,
@@ -286,25 +282,30 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "detached": false,
   "recorded": true,
   "quote": "the inclusion is open by the rigidity lemma",
-  "severity": "major",
-  "payload": "\\begin{lemma}\\label{rl-0021}...",
-  "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
-  "placement": "after",
-  "run": "s-2026-09-16-0001",
-  "discarded": false,
-  "discard_reason": null
+  "rects": null,
+  "strokes": null,
+  "mark": null,
+  "origin": null,
+  "hides": null,
+  "resolved_why": null
 }
 ```
 
 `body_html` is the Markdown body rendered by the publisher as CommonMark with tables, raw HTML not passed through and alignment not carried, so a table is the dialect's (§2.12 of specs/dialect.md) and its cells hold inline markup and math.
 
-**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because viewers read it by that name.
+**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**. An annotation belongs to no session: it carries its author, its time (`created`) and the version of the text it was written on (`target.hash`), and a viewer groups annotations by those (plan 0.30, decision 8).
 
-**[decided]** `target.key` is a key in the corpus, or — for a note on a page of a cited work (DR-209) — the work's identifier as `references[].work` spells it; `target.work` is then the citekey and `target.page` the page, so a viewer needs no lookup to say where the note is, and `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record). Both are null on a note on a key. The rectangles are in the work's sidecar (§13) under `marks`; the body is here, with every other annotation.
+**[decided]** `target.key` is a key in the corpus; or, for an annotation on a cited work (DR-209), the work's identifier as `references[].work` spells it, with `target.work` the citekey and `target.page` the page, or null for one on the whole work, so a viewer needs no lookup to say where it is; or, for one on a page of a project PDF, the PDF's quilt-relative path, which `target.file` repeats, with `target.page` its page. On a cited work's page `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record), and those rectangles are in the work's sidecar (§13) under `marks`; both are null elsewhere.
+
+**[decided]** **An annotation on a PDF page that records its own place** (plan 0.28, plan 0.30 decision 1) is one drawn with a tool, anywhere, or any one on a project PDF. `mark` names the tool: `pin` or `text` saying its body in its one rectangle, `box` or `oval` in its one rectangle, `ink` or `arrow` along its `strokes`, each stroke `x, y, x, y…` with `rects` the one rectangle round them all; it is null on one on words, whose `rects` are one per line and which is drawn in its look's style. Coordinates are points from the page's top left (§13). The PDF's hash when it was written is kept, so a changed file is noticed: one with a `quote` is found again on its page and published with the `rects` found there, and anything else is `detached`, drawn nowhere and listed (A3). `origin` is where one taken in from a PDF's own annotations came from, `{"by"?, "subtype", "color"?, "ref"?, "sha"?}`: that annotation's author, subtype and exact colour, and for one taken in from the file it is on, its reference in the file and the file's hash. `hides` is that reference while the file is still that one: a viewer leaves the file's own annotation off the page, since this one stands for it. All five are null on every other annotation.
 
 **[decided]** `in` is the document a claim about a node is read in, as a master path, or null for the node wherever it appears (plan 0.15, decision 9). It is published where the history's moves have taken the document, not as the record wrote it, so a viewer draws the annotation on the document as it is now; a document that is gone is published as written, and the annotation is `detached`. A `target.key` that is a master path is published the same way (DR-297-ikmartin). A viewer draws an annotation that names a document in that document only, lists it on the node's own page with the document named, and shows it in no other document; the publisher bakes its mark into that document's fragment alone. An annotation whose document no longer holds the node is `detached`.
 
-**[decided]** `kind` is one of five — `objection`, `suggestion`, `question`, `citation`, `note`. The first four **await an answer** and are what an open count counts; `note` records rather than ask, and is where "this checks out" goes (DR-204; plan 0.15, decision 2).
+**[decided]** `type` is the id of one of `annotation_types` (§1), or null: a type is a label an annotation may carry, and one the quilt no longer lists is published as null. `look` is the whole look to draw it with, its type's under what was set on the annotation itself, or, its type gone, the look it last had. An annotation is **open**, and counted by `reviews.open` under its type, only while its type stays open until resolved; an untyped annotation, or one of a type that only informs, asks nothing (plan 0.30, decisions 4–6).
+
+**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version an annotation is written against, so this is a version lost outside loom, or a paper on file that is not the one the annotation was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+
+`resolved_why` is the text given when the annotation was resolved, or null; one resolved by keeping a suggested edit that answers it says so (§9.2).
 
 ## 9.1 Sessions
 
@@ -312,66 +313,81 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ```json
 "sessions": [
-  {"id": "s-2026-09-16-0001", "title": "referee pass", "state": "open",
+  {"id": "s-2026-09-16-p9z37z", "title": "referee pass", "state": "open",
    "created": "2026-09-16T14:02:00Z", "opened": "2026-09-16T14:02:00Z", "rounds": 1, "active": true,
    "seq": 4, "last": "2026-09-17T09:12:00Z"}
 ]
 ```
 
-The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10), the annotations and notes written in it, and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; a viewer's writes name their own (specs/write-api.md). A tombstoned session is not published at all.
+The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from; `last` is when the session was last written in, the newest of its logged commands (§10) and its transcript's last message, `""` when nothing was. `active` marks the session a command run at a terminal writes in; the viewer's footer names the one the person has chosen, which `loom here` reports. A tombstoned session is not published at all.
 
-**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version a note is written against, so this is a version lost outside loom, or a paper on file that is not the one the note was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+## 9.2 Suggested edits
 
-**[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
+**[decided]** `suggested_edits` holds every suggested edit, oldest first, by an id of `e-`, the day it was written and a token, as an annotation's is (plan 0.30, decision 10). An edit replaces old words with new on a key; it is a record of its own, and an annotation carries no proposed text.
 
-**[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text a suggestion proposes, and `placement` says where it goes: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them; on a suggestion with no quote, they are of the key's body, its own text inside its environment's head (`\begin`, title, `\label`, leading `\uses`) and before its `\end`. An empty payload with `replace` deletes the quoted words. On a citation, `payload` is the work proposed. A viewer never applies a payload; the author does. `payload_html` is the payload as TeX makes it (the dialect, without element ids), made as a snippet under the preamble of the result the annotation is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where there is no payload or TeX refused it or made nothing of it, and a viewer then renders the TeX as prose.
+```json
+"e-2026-09-16-q4hd2r": {
+  "id": "e-2026-09-16-q4hd2r",
+  "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
+  "created": "2026-09-16T14:31:08Z",
+  "target": {"key": "rl-0004", "hash": "sha256:5d2f..."},
+  "quote": "the inclusion is open",
+  "with": "the inclusion is open by Lemma~\\ref{rl-0021}",
+  "with_html": "the inclusion is open by Lemma <a ...>3.2</a>",
+  "placement": "replace",
+  "comment": "Cite the lemma rather than the word.",
+  "comment_html": "<p>Cite the lemma rather than the word.</p>",
+  "answers": "a-2026-09-16-xgtcve",
+  "status": "open",
+  "why": null,
+  "change": {"state": "ready", "fragment": "fragments/edits/e-2026-09-16-q4hd2r.html", "diff": "fragments/edits/e-2026-09-16-q4hd2r.diff", "moved": false}
+}
+```
 
-**[decided]** An open suggestion carrying a payload has a `change`, its key as it would read with the suggestion taken, rendered at build so a static host shows it too:
-- `{"state": "ready", "fragment", "diff", "moved"}`: `fragment` is the key with the payload in place, its changed words marked as Review marks them; `diff` is the patch that takes it, as `loom suggestion` prints it; both are paths under the build directory. `moved` is true when the key has changed since the suggestion was written, though the words it quotes still stand.
-- `{"state": "taken"}`: the key already reads as the suggestion taken.
-- `{"state": "unplaced", "why"}`: the payload has no place in the text now, said as the author is told: the quoted words no longer stand once, or there is no placement.
+**[decided]** `quote` is the words it replaces or stands beside, and `placement` says where `with` goes: `replace` takes exactly the quoted words' place, and `after` and `before` go right beside them. With a null `quote` the edit is about the key's body, its own text inside its environment's head (`\begin`, title, `\label`, leading `\uses`) and before its `\end`: `replace` replaces the body, `before` goes at its head (how a `\uses{…}` is proposed), `after` at its end. An empty `with` deletes the quoted words. `target.hash` is the key's hash when the edit was written. `with_html` is `with` as the publisher's converter renders it (the dialect, without element ids), read in the context of the result it is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where `with` is empty or the converter refused it, and a viewer then renders the TeX as prose. `comment` is Markdown, rendered as `comment_html` as an annotation's body is, both null when there is none. `answers` is the annotation the edit answers, or null.
 
-`resolved_why` is the text given when the annotation was resolved, or null. `applied` is `{"hash"}` on a suggestion resolved as applied: the hash of its key's own text once the suggestion was taken; null otherwise.
+**[decided]** `status` is `open`, `kept` or `discarded`; `why` is the reason given with a discard, or null. A viewer never writes an edit into the text; the author keeps or discards it (specs/write-api.md). Keeping an edit that answers an open annotation resolves that annotation.
 
-**[decided]** `run` is the id of the session the annotation belongs to, and is the key a viewer groups by.
+**[decided]** An open edit has a `change`, its key as it would read with the edit taken, rendered at build so a static host shows it too; a kept or discarded one has null:
+- `{"state": "ready", "fragment", "diff", "moved"}`: `fragment` is the key with the edit in place, its changed words marked as Review marks them; `diff` is the patch that takes it, as `loom suggestion` prints it; both are paths under the build directory, in `fragments/edits/`. `moved` is true when the key has changed since the edit was written, though the words it quotes still stand.
+- `{"state": "taken"}`: the key already reads as the edit taken, so keeping it is offered.
+- `{"state": "unplaced", "why"}`: its text has no place in the key now, said as the author is told: the quoted words no longer stand once, or the key is gone.
 
 ## 10. Threads
 
 **[decided]** Sessions as the viewer displays them, keyed by session id. Loom publishes one thread of `kind` `session` per session; `kind` is an open string, and a viewer shows a kind it does not know generically.
 
 ```json
-"s-2026-09-16-0002": {
-  "id": "s-2026-09-16-0002",
+"s-2026-09-16-cd0j88": {
+  "id": "s-2026-09-16-cd0j88",
   "kind": "session",
   "title": "referee rl-0004",
   "created": "2026-09-16T14:02:00Z",
-  "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
-  "targets": ["rl-0004", "rl-0004/proof"],
+  "participants": [],
+  "targets": [],
   "attachments": [
-    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-0002/orbit-counts.py"},
-    {"name": "annotations", "kind": "annotations", "count": 3}
+    {"name": "orbit-counts.py", "kind": "file", "path": ".loom/sessions/s-2026-09-16-cd0j88/orbit-counts.py"}
   ],
-  "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]},
-          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-0001"}],
+  "log": [{"time": "...", "command": "loom source rl-0004 --closure", "names": [{"key": "rl-0004"}]}],
   "discarded": false
 }
 ```
 
-A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom annotate` line made or changed, written after an arrow in the log, and absent on every other line. `names` lists the keys (`{key}`) and files (`{path}`) a line's command names, each once, a document under where the history's moves have taken it; a word naming nothing in the quilt is left out, nothing is read from the command's verb, and the field is absent when the line names nothing. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
+A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `names` lists the keys (`{key}`) and files (`{path}`) a line's command names, each once, a document under where the history's moves have taken it; a word naming nothing in the quilt is left out, nothing is read from the command's verb, and the field is absent when the line names nothing. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` and `targets` empty, since an annotation belongs to no session, and `attachments` named by file with kinds `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
 
 ## 10.1 Transcripts
 
 **[decided]** A session's conversation is published beside the manifest, never in it, because every viewer polls the manifest and a long conversation would make every poll pay for it. The build writes `transcripts/<session>/<n>.json`, page `n` (from 1) holding the events numbered `100(n-1)+1` to `100n`:
 
 ```json
-{"session": "s-2026-09-17-0002", "page": 1, "events": [
+{"session": "s-2026-09-17-nhv9jv", "page": 1, "events": [
   {"seq": 1, "kind": "message", "who": "A. Author", "when": "2026-09-17T11:00:00Z",
    "body": "Have a look at Theorem 3.2.", "body_html": "<p>Have a look at Theorem 3.2.</p>",
-   "changed": [{"id": "a-2026-09-17-0001", "kind": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
+   "changed": [{"id": "a-2026-09-17-rvgxnv", "type": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
 ]}
 ```
 
-The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body, except that a report's blocks — each `## [NAME]` heading an agent wrote and what follows it — are each a `<section data-block="NAME">` headed by the name without its brackets, which a viewer may fold after the first (specs/dialect.md §2.1); `changed` lists the annotations a message carried, each whole: `id`, `kind`, `target`, `work` and `page` for a note on a page, `act` (`created` or `replied`), `by`, `body`, and `quote`, `severity`, `payload` and `placement` where the annotation has them. A publisher that serves live answers the pages itself, from the inbox, so they are never stale under it, and adds new events through its own channel (specs/write-api.md; DR-278-ikmartin).
+The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body, except that a report's blocks — each `## [NAME]` heading an agent wrote and what follows it — are each a `<section data-block="NAME">` headed by the name without its brackets, which a viewer may fold after the first (specs/dialect.md §2.1); `changed` lists the annotations a message carried, each whole: `id`, `type`, `target`, `work` and `page` for an annotation on a cited work's page, `act` (`created` or `replied`), `by`, `body`, and `quote` where the annotation has one. A publisher that serves live answers the pages itself, from the inbox, so they are never stale under it, and adds new events through its own channel (specs/write-api.md; DR-278-ikmartin).
 
 ## 11. Diagnostics
 
@@ -425,7 +441,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is the address of what loom holds for the work, `digests/storage/<scheme>/<id>` under the viewer's root, which a publisher serves from its store wherever that sits (DR-192), and the two flags say which of the source and the PDF are present; both are false until someone fetches, adds or drops a copy, and neither the PDF nor the source is in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5.
 
-**[decided]** `spans` points at a **sidecar** holding the geometry of the work's anchors: `{"artifact": <sha256>, "pages": {"2": {"width": 612, "height": 792, "rotate": 0}}, "quads": {"<result id>": [[x0, y0, x1, y1], …]}, "marks": {"<annotation id>": [[x0, y0, x1, y1], …]}}`, one rectangle per line — `quads` for the work's results by result id, `marks` for the notes on its pages by annotation id (DR-209). `rotate` is the page's own rotation in degrees, read from the document. `reading` on the reference counts those notes, and how many still await an answer, since they are in no key's row. It stands **beside** the manifest rather than inside it, for the reason `source` does: the manifest is loaded whole on every poll and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, so a stale copy is noticed while the publisher rebuilds underneath. **Quads are derived and never recorded for a text anchor**: an anchor says where it is in the page's text, and the rectangles are computed from the word boxes at build time; a box anchor's rectangles are the anchor itself and are recorded. A work whose PDF is not on the publishing machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+**[decided]** `spans` points at a **sidecar** holding the geometry of the work's anchors: `{"artifact": <sha256>, "pages": {"2": {"width": 612, "height": 792, "rotate": 0}}, "quads": {"<result id>": [[x0, y0, x1, y1], …]}, "marks": {"<annotation id>": [[x0, y0, x1, y1], …]}}`, one rectangle per line — `quads` for the work's results by result id, `marks` for the annotations on its pages anchored by their words or a box, by annotation id (DR-209). `rotate` is the page's own rotation in degrees, read from the document. `reading` on the reference counts the annotations on the work, and how many are open, since they are in no key's row. It stands **beside** the manifest rather than inside it, for the reason `source` does: the manifest is loaded whole on every poll and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, so a stale copy is noticed while the publisher rebuilds underneath. **Quads are derived and never recorded for a text anchor**: an anchor says where it is in the page's text, and the rectangles are computed from the word boxes at build time; a box anchor's rectangles are the anchor itself and are recorded. A work whose PDF is not on the publishing machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
 
 **[decided]** **Coordinates are points with a top-left origin** — what `pdftotext -bbox-layout` emits — and never PDF user space, whose origin is at the bottom left. A viewer that hands these to a renderer's own transform draws every highlight mirrored about the middle of the page.
 

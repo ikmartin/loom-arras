@@ -9,8 +9,8 @@ from tests.output_cases.base import Case
 AS = ("--as", "Tester")
 #: A quotation that is on the demo's p.1 of Calloway14.
 QUOTED = "An involution of a topological space fixes a subspace"
-#: The id `suggested` gives its citation suggestion, the clock being fixed.
-SUGGESTION = "a-2026-01-02-0001"
+#: The id `suggested` gives its suggestion, the clock being fixed.
+SUGGESTION = "a-2026-01-02-w4pkx8"
 
 
 def proposed(q: Path) -> None:
@@ -21,13 +21,12 @@ def proposed(q: Path) -> None:
 
 
 def suggested(q: Path) -> None:
-    """An open citation suggestion on dm-0002, `SUGGESTION`, naming a work in its payload."""
+    """An open suggestion on dm-0002, `SUGGESTION`, naming a work to cite: an annotation on the text, which the library never decides."""
     from tests.helpers import ok
 
     ok(
-        "annotate", "dm-0002", "Cite Kreck rather than reproving it.", "--kind", "citation",
-        "--payload", "M. Kreck, Surgery and duality, Ann. of Math. 149 (1999)", "--as", "Referee Agent",
-        cwd=q, env={"LOOM_FIXED_TIME": "2026-01-02T00:00:00Z"},
+        "annotate", "dm-0002", "Cite M. Kreck, Surgery and duality, Ann. of Math. 149 (1999), rather than reproving it.",
+        "--type", "suggestion", "--as", "Referee Agent", cwd=q, env={"LOOM_FIXED_TIME": "2026-01-02T00:00:00Z"},
     )  # fmt: skip
 
 
@@ -57,8 +56,7 @@ CASES: dict[str, list[Case]] = {
     "library verify": [
         Case(("Calloway14-rem-9.1", "--yes", *AS), proposed),
         Case(("Calloway14-prop-3.2", "--yes", *AS), why="verifying an extracted result", shown=True),
-        Case((SUGGESTION, *AS), suggested, why="accepting a citation suggestion"),
-        Case(("Calloway14-rem-9.1", SUGGESTION, "--yes", *AS), both, why="a result and a suggestion at once"),
+        Case((SUGGESTION, *AS), suggested, exit=2, unchanged=True, why="an annotation, which is no result"),
         Case(("Calloway14-rem-9.1", "--dry-run", *AS), proposed, unchanged=True),
         Case(("Calloway14-prop-3.2", *AS), exit=2, unchanged=True, why="no --yes and no terminal to ask"),
         Case(
@@ -69,7 +67,7 @@ CASES: dict[str, list[Case]] = {
             why="--statement with two ids",
         ),
         Case(("nope", "--yes", *AS), exit=2, unchanged=True, why="an unknown id"),
-        Case(("a-1999-01-01-0001", *AS), exit=2, unchanged=True, why="an unknown annotation"),
+        Case(("a-1999-01-01-ekn992", *AS), exit=2, unchanged=True, why="an annotation id that names nothing"),
         Case(
             ("Calloway14-rem-9.1", "--yes", *AS),
             proposed,
@@ -81,7 +79,13 @@ CASES: dict[str, list[Case]] = {
     ],
     "library discard": [
         Case(("Calloway14-rem-9.1", "--why", "r", *AS), proposed),
-        Case((SUGGESTION, "--why", "already cited", *AS), suggested, why="rejecting a citation suggestion"),
+        Case(
+            (SUGGESTION, "--why", "already cited", *AS),
+            suggested,
+            exit=2,
+            unchanged=True,
+            why="an annotation, which is no result",
+        ),
         Case(("Calloway14-rem-9.1", "--why", "r", "--dry-run", *AS), proposed, unchanged=True),
         Case(("Calloway14-prop-3.2", "--why", "r", *AS), exit=1, unchanged=True, why="an extracted result stays"),
         Case(("Calloway14-rem-9.1", *AS), proposed, exit=2, unchanged=True, why="no --why"),
@@ -97,7 +101,7 @@ CASES: dict[str, list[Case]] = {
     ],
     "library review": [
         Case(),
-        Case((), both, why="a proposal and a suggestion waiting"),
+        Case((), both, why="a proposal waiting, and a suggestion that waits on the text instead"),
         Case(("Calloway14",), proposed),
         Case(("Nobody99xyz",), exit=2, unchanged=True, why="names no work"),
     ],
@@ -119,6 +123,6 @@ CASES: dict[str, list[Case]] = {
         Case((), exit=2, unchanged=True, why="none of --work, --session, --proposed"),
         Case(("--work", "Calloway14"), exit=2, unchanged=True, why="no --yes and no terminal to ask"),
         Case(("--work", "Nobody99xyz", "--yes"), exit=2, unchanged=True, why="an unknown work"),
-        Case(("--session", "s-1999-01-01-0001", "--yes"), exit=2, unchanged=True, why="an unknown session"),
+        Case(("--session", "s-1999-01-01-bfyfgz", "--yes"), exit=2, unchanged=True, why="an unknown session"),
     ],
 }

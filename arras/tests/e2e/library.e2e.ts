@@ -8,14 +8,14 @@ async function infoTab(page: Page): Promise<void> {
 	await page.getByTestId('tab-info').click();
 }
 
-/** A node lists no annotations; its first mark opens the objection whose body the tests below put a link in. */
+/** A node lists no annotations; its first mark opens the revision whose body the tests below put a link in. */
 async function openFirstMark(page: Page): Promise<void> {
 	await page.locator('[data-pane] .fragment mark.annotation').first().click();
 	await expect(page.locator('[data-testid="comment-expanded"] article.box').first()).toBeVisible();
 }
 
 function linkInComment(m: typeof manifest, href: string): void {
-	m.annotations['a-2026-09-16-0001'].body_html = `<p>The hypothesis is used in <a href="${href}">Kresch, Theorem 2.1</a>.</p>`;
+	m.annotations['a-2026-09-16-ecnav2'].body_html = `<p>The hypothesis is used in <a href="${href}">Kresch, Theorem 2.1</a>.</p>`;
 }
 
 test.describe('the ledger', () => {

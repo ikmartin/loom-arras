@@ -13,16 +13,17 @@ from typing import TYPE_CHECKING
 from loom.paths import (
     ADOPTION_DECISIONS,
     AI,
+    ANNOTATION_TYPES,
     ANNOTATIONS,
     BUILD,
     COPIES,
     DIGESTS,
+    EDITS,
     LAST_SEEN,
     LEDGER,
     LOOKED,
     LOOM,
     LOOM_GITIGNORE,
-    REFERENCE_NOTES,
     RETIRED,
     REVIEW_DECISIONS,
     REVIEW_OBSERVATIONS,
@@ -39,14 +40,15 @@ if TYPE_CHECKING:
 CONFIG = "config.toml"
 #: Where an agent always writes, whatever the list says: its session's directory, the build output and its copies.
 AGENT_PLACES = (SESSIONS, BUILD, COPIES)
+#: Files inside `.loom/` an agent may edit: the annotation types, which a quilt grows with its agents.
+AGENT_FILES = (ANNOTATION_TYPES,)
 #: The session index, a record inside an agent's place that only loom writes.
 SESSION_INDEX = f"{SESSIONS}/index.jsonl"
 #: Loom's record directories under `.loom/`, each named, since a Claude Code deny of `.loom/` would beat the places' allows; the history is the quilt's `[quilt] history` beside them.
-LOOM_DIRS = (DIGESTS, ANNOTATIONS, AI, RETIRED, SINCE, LOOKED)
+LOOM_DIRS = (DIGESTS, ANNOTATIONS, EDITS, AI, RETIRED, SINCE, LOOKED)
 #: Loom's record files under `.loom/`, each named for the same reason.
 LOOM_FILES = (
     LEDGER,
-    REFERENCE_NOTES,
     SERVE_JSON,
     REVIEW_DECISIONS,
     REVIEW_ORIGINS,
@@ -138,8 +140,8 @@ def _under(rel: str, dirs: tuple[str, ...]) -> bool:
 
 
 def always_protected(config: QuiltConfig) -> list[str]:
-    """What no agent writes whatever the list says, as the orientation names it: loom's directory but for the agent's places, the history wherever it sits, the config and the research state."""
-    out = [f"{LOOM}/ (but {', '.join(f'{p}/' for p in AGENT_PLACES)})"]
+    """What no agent writes whatever the list says, as the orientation names it: loom's directory but for the agent's places and the files it may edit, the history wherever it sits, the config and the research state."""
+    out = [f"{LOOM}/ (but {', '.join([*(f'{p}/' for p in AGENT_PLACES), *AGENT_FILES])})"]
     if not _under(config.history, (LOOM,)):
         out.append(f"{config.history}/")
     return [*out, CONFIG, config.research_state]
@@ -150,7 +152,7 @@ def denied_by(config: QuiltConfig, rel: str) -> str | None:
     rel = PurePosixPath(rel).as_posix()
     if rel == SESSION_INDEX:
         return rel
-    if _under(rel, AGENT_PLACES):
+    if _under(rel, AGENT_PLACES) or rel in AGENT_FILES:
         return None
     if _under(rel, (LOOM,)):
         return f"{LOOM}/"
@@ -185,7 +187,7 @@ def refusal(config: QuiltConfig, rel: str) -> str | None:
 
 def claude_allows() -> list[str]:
     """The paths Claude Code lets an agent edit without asking: its places, relative to the quilt root it is started in (DR-343-ikmartin)."""
-    return [f"{p}/**" for p in AGENT_PLACES]
+    return [f"{p}/**" for p in AGENT_PLACES] + list(AGENT_FILES)
 
 
 def claude_denies(config: QuiltConfig) -> list[str]:

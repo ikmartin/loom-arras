@@ -10,7 +10,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	// what changed since it was accepted, or was taken in, and the one file edited since the look; a block never accepted is listed there, not counted
 	const unresolved = (manifest.unresolved ?? []).filter((r: { cause: string }) => r.cause !== 'never-accepted').length;
 	await expect(page.getByTestId('section-count-changes')).toHaveText(String(unresolved + 1));
-	// an agent's copy, a suggestion with text and a citation
+	// an agent's copy and two suggested edits
 	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
 	// an open session waits for no one: it is said on hover, never counted
 	await expect(page.getByTestId('section-record')).toHaveAttribute('title', /1 open session/);
@@ -31,10 +31,10 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	}
 });
 
-test('The Record\'s Sessions lists every session with what awaits an answer and when it was last active, each opening its transcript', async ({ page }) => {
+test('The Record\'s Sessions lists every session with when it was last active, and counts no annotation, each opening its transcript', async ({ page }) => {
 	await page.goto('/review/record/sessions');
 	const table = page.getByTestId('sessions-table');
-	await expect(table.locator('thead')).toContainText('Awaiting an answer');
+	await expect(table.locator('thead')).not.toContainText('Awaiting an answer');
 	await expect(table.locator('thead')).toContainText('Last active');
 	for (const s of manifest.sessions) await expect(table.getByTestId(`session-row-${s.id}`)).toContainText(s.state);
 	// last active is the newest thing done in it, which opening it never moves

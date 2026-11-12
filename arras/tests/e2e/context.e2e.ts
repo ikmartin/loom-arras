@@ -1,4 +1,4 @@
-// A node's context, read beside the node: its lists named as a reader names things, what it rests on and what rests on it, its relations and citations, and nothing said about what is absent. Each test is named for the rule it holds.
+// A node's context, read beside the node: its lists named as a reader names things, what it rests on and what rests on it, its relations, and nothing said about what is absent. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { beside, pane } from '../workspace';
 import { manifest, serve } from '../manifest';
@@ -38,7 +38,6 @@ test('what the node is about stands in its context, with the landmark its text w
 	await page.goto('/node/sy-0002' + beside('/context/sy-0002'));
 	const context = pane(page, 1).getByTestId('context');
 	await expect(context.getByTestId('version').first()).toContainText('text of @1');
-	await expect(context.getByTestId('reference-notes')).toBeVisible();
 	await expect(context.getByTestId('closure-open')).toBeVisible();
 });
 
@@ -81,25 +80,15 @@ test('an unknown relation kind renders as a labelled list of links', async ({ pa
 	await expect(list.getByRole('link').first()).toHaveAttribute('href', '/node/sy-0001');
 });
 
-test('it shows the citations suggested for the node and those already accepted', async ({ page }) => {
-	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
-	const notes = pane(page, 1).getByTestId('reference-notes');
-	await expect(notes).toBeVisible();
-	await expect(notes).toContainText('Accepted, not yet in the bibliography');
-	await expect(notes).toContainText('identifier unconfirmed'); // a breadcrumb, never a second source of identity truth
-	await page.goto('/node/sy-0002' + beside('/context/sy-0002'));
-	await expect(pane(page, 1).getByTestId('reference-notes')).toContainText('Suggested citations');
-});
-
-test("a detached annotation is a row: a dot in the kind's hue and a link to it, its words one click away rather than restated", async ({ page }) => {
+test("a detached annotation is a row: a dot in its own colour, named by its type, and a link to it, its words one click away rather than restated", async ({ page }) => {
 	// sy-0001's question was written against words the statement no longer has; it is drawn nowhere and listed here (annotation study A2, A3)
 	await page.goto('/context/sy-0001');
 	const rows = page.getByTestId('detached-list').locator('li');
 	await expect(rows).toHaveCount(1);
-	await expect(rows.first()).not.toContainText('question');
-	await expect(rows.first().locator('.ann-dot')).toHaveClass(/k-question/);
-	await expect(rows.first().locator('.ann-dot')).toHaveAttribute('aria-label', 'question');
-	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-0010');
+	await expect(rows.first()).not.toContainText('Question');
+	await expect(rows.first().locator('.ann-dot')).toHaveCSS('background-color', 'rgb(26, 111, 196)');
+	await expect(rows.first().locator('.ann-dot')).toHaveAttribute('aria-label', 'Question');
+	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-a91hwf');
 	await expect(rows.first().locator('a')).toHaveText(/\S/);
 });
 

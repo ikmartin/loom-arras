@@ -1,17 +1,15 @@
 <script lang="ts">
 	// The composer (annotation study fixes 5 and 18–21): what opens when a reader selects on a page or draws a box — on a cited work's page, or on a node's or a document's text, where the place is a key of the corpus and the quote is the selection's TeX.
 	//
-	// **The place stays lit and the composer is only what is said about it.** The words selected, or the box drawn, stay marked on the page while the composer is open (`fragments/pending.ts`); the header names them — the quoted words and the place they are in, or the whole of the place, or the page and a box — and never the place's key. The five kinds are a row of buttons in their hues, `note` chosen until the reader picks another; severity is three buttons that stand whatever the kind and take a press only for the two graded kinds, so the form never moves; the submit says the kind's verb. × and Escape cancel; nothing is written until the verb is pressed. On the corpus's own text the quote is checked by loom against the source when it is written, and a quote loom cannot find is refused in loom's words with the offer to annotate the whole place instead, so nothing is filed as anchored that is not. The document the place is read in, when there is one, travels with the write as `in`, so the annotation is filed with that document.
+	// **The place stays lit and the composer is only what is said about it.** The words selected, or the box drawn, stay marked on the page while the composer is open (`fragments/pending.ts`); the header names them — the quoted words and the place they are in, or the whole of the place, or the page and a box — and never the place's key. The quilt's annotation types are a row of buttons, each in its look's colour, then No type, which is chosen until the reader picks another; the type is sent by its id, and loom gives the annotation the type's look, or its plain one for none. Words are needed only for a type that stays open until resolved. × and Escape cancel; nothing is written until Annotate is pressed. On the corpus's own text the quote is checked by loom against the source when it is written, and a quote loom cannot find is refused in loom's words with the offer to annotate the whole place instead, so nothing is filed as anchored that is not. The document the place is read in, when there is one, travels with the write as `in`, so the annotation is filed with that document.
 	//
 	// It stands where the selection is, inset from the window like a floating box, because a form that opened in the pane beside would ask the eye to leave the sentence it is about.
 	import { onMount } from 'svelte';
 	import { write, type WriteResult } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
-	import NoSession from '$lib/sessions/NoSession.svelte';
-	import { writable } from '$lib/sessions/sessions.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
-	import { GRADED, KINDS, SEVERITIES, VERBS, type Kind } from '$lib/review/kinds';
-	import { quote } from '$lib/notes';
+	import { colorOf } from '$lib/review/annotationTypes';
+	import type { Look } from '$lib/manifest/types';
 
 	let {
 		citekey = '',
@@ -49,15 +47,16 @@
 	/** On a cited work's page, what loom found for the place before anything is written, in its own words. */
 	let located = $state('');
 	let message = $state('');
-	let kind = $state<Kind>('note');
-	let severity = $state('');
+	/** The chosen type's id; '' for none. */
+	let type = $state('');
 	let busy = $state(false);
 	let said = $state('');
 	/** A quote loom could not find: the offer is to annotate the whole place instead. */
 	let unanchored = $state(false);
-	// An annotation is a write, so it needs an open session selected like any other (plan 0.13.1).
-	const why = $derived(writable(store.manifest));
-	const graded = $derived(GRADED.includes(kind));
+	const types = $derived(store.manifest?.annotation_types ?? []);
+	const chosen = $derived(types.find((t) => t.id === type));
+	/** Loom refuses an annotation of a type that stays open without words saying what is to be done. */
+	const wordless = $derived(!!chosen?.open && !message.trim());
 	let form = $state<HTMLFormElement | null>(null);
 	let body = $state<HTMLTextAreaElement | null>(null);
 
@@ -88,15 +87,12 @@
 		return `left: ${left}px; top: ${top}px; width: ${w}px;`;
 	});
 
-	/** A kind that takes no severity drops the one chosen, so nothing greyed is left looking chosen. */
-	function pick(k: Kind): void {
-		kind = k;
-		if (!GRADED.includes(k)) severity = '';
-	}
+	/** A type's button, and the form once it is chosen, in the look's colour: its line for the words, its band for the wash. */
+	const tint = (look?: Look) => (look ? `--k: var(--ann-${colorOf(look)}); --k-wash: color-mix(in srgb, var(--ann-${colorOf(look)}-band) 45%, transparent);` : '');
 
 	async function submit(e: SubmitEvent, whole = false): Promise<void> {
 		e.preventDefault();
-		if (why || !message.trim() || busy) return;
+		if (wordless || busy) return;
 		busy = true;
 		said = '';
 		// `in` goes with a place inside a document, never with the document itself as the place
@@ -105,9 +101,8 @@
 			: { target: citekey, page, ...(rects ? { rects } : { quote: text }) };
 		const res: WriteResult = await write('annotate', {
 			...place,
-			message: message.trim(),
-			kind,
-			severity: (graded && severity) || undefined
+			...(message.trim() ? { message: message.trim() } : {}),
+			...(type ? { type } : {})
 		});
 		busy = false;
 		if (!res.ok) {
@@ -120,23 +115,6 @@
 		onwritten?.({ id });
 	}
 
-	/** A note in place of an annotation: the place quoted, what was typed as its words, no kind or severity (plan 0.22.8). */
-	async function quoting(): Promise<void> {
-		if (why || busy) return;
-		busy = true;
-		said = '';
-		const place = target
-			? { target, ...(text ? { quote: text } : {}) }
-			: { target: citekey, page, ...(rects ? { rects } : { quote: text }) };
-		const refused = await quote({ ...place, body: message.trim() || undefined });
-		busy = false;
-		if (refused) {
-			said = refused;
-			return;
-		}
-		onwritten?.({ id: '' });
-	}
-
 	function keys(e: KeyboardEvent): void {
 		if (e.key === 'Escape') {
 			e.preventDefault();
@@ -147,7 +125,7 @@
 
 <svelte:window onkeydown={keys} />
 
-<form class="note-at k-{kind}" {style} bind:this={form} onsubmit={submit} data-testid="note-at" aria-label="Annotate this place">
+<form class="note-at" style="{style} {tint(chosen?.look)}" bind:this={form} onsubmit={submit} data-testid="note-at" aria-label="Annotate this place">
 	<p class="place">
 		<span class="where" data-testid="note-where">
 			{#if target}
@@ -165,20 +143,15 @@
 		<button type="button" class="close" title="Cancel (Escape)" aria-label="Cancel" data-testid="note-close" onclick={() => onclose?.()}>×</button>
 	</p>
 	{#if located}<p class="located" data-testid="note-located">{located}</p>{/if}
-	<textarea bind:this={body} bind:value={message} rows="3" required placeholder="what you want to say" aria-label="what you want to say" data-testid="note-body"></textarea>
-	<div class="kinds" role="group" aria-label="kind" data-testid="note-kind">
-		{#each KINDS as k (k)}
-			<button type="button" class="k k-{k}" class:on={kind === k} aria-pressed={kind === k} data-kind={k} onclick={() => pick(k)}>{k}</button>
+	<textarea bind:this={body} bind:value={message} rows="3" placeholder="what you want to say" aria-label="what you want to say" data-testid="note-body"></textarea>
+	<div class="kinds" role="group" aria-label="type" data-testid="note-type">
+		{#each types as t (t.id)}
+			<button type="button" class="k" class:on={type === t.id} aria-pressed={type === t.id} data-type={t.id} style={tint(t.look)} onclick={() => (type = t.id)}>{t.name}</button>
 		{/each}
+		<button type="button" class="k" class:on={type === ''} aria-pressed={type === ''} data-type="" onclick={() => (type = '')}>No type</button>
 	</div>
 	<div class="foot">
-		<div class="sev" class:off={!graded} role="group" aria-label="severity" data-testid="note-severity">
-			{#each SEVERITIES as s (s)}
-				<button type="button" class="s" class:on={severity === s} aria-pressed={severity === s} disabled={!graded} data-severity={s} onclick={() => (severity = severity === s ? '' : s)}>{s}</button>
-			{/each}
-		</div>
-		<button type="button" class="as-link quote" disabled={!!why || busy} title="A note quoting this place, with no kind: an agent reads it with loom since" data-testid="note-quote-it" onclick={quoting}>quote it</button>
-		<button type="submit" class="go" disabled={!!why || busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : VERBS[kind]}</button>
+		<button type="submit" class="go" disabled={busy || wordless} title={wordless ? `${chosen?.name} stays open until resolved, so it needs words` : undefined} data-testid="note-submit">{busy ? 'writing…' : 'Annotate'}</button>
 	</div>
 	{#if said}
 		<p class="said" role="status" data-testid="note-said">
@@ -186,17 +159,16 @@
 			{#if unanchored}<button type="button" class="as-link" data-testid="note-whole" onclick={(e) => submit(e as unknown as SubmitEvent, true)}>annotate the whole of {name || target}</button>{/if}
 		</p>
 	{/if}
-	<NoSession />
 </form>
 
 <style>
-	/* The hue is the kind's (theme.css, 15.6): each kind button carries its own, and the form carries the chosen one, which the severity and the submit take. */
-	.k-objection { --k: var(--ann-objection); --k-wash: var(--ann-objection-wash); }
-	.k-suggestion { --k: var(--ann-suggestion); --k-wash: var(--ann-suggestion-wash); }
-	.k-question { --k: var(--ann-question); --k-wash: var(--ann-question-wash); }
-	.k-citation { --k: var(--ann-citation); --k-wash: var(--ann-citation-wash); }
-	.k-note { --k: var(--ann-neutral); --k-wash: var(--ann-neutral-wash); }
 	/* Set 1.2× the viewer's other small controls: the width in the script and every size here, since the composer is where the reader writes. */
+	/* The colour is the look's (`tint`): each type's button carries its own, and the form carries the chosen one, which the submit takes; No type is the neutral. */
+	.note-at,
+	.k {
+		--k: var(--ann-neutral);
+		--k-wash: var(--ann-neutral-wash);
+	}
 	.note-at {
 		position: fixed;
 		z-index: 40;
@@ -288,35 +260,10 @@
 	.k.on { background: var(--k-wash); }
 	.foot {
 		display: flex;
-		justify-content: space-between;
+		justify-content: flex-end;
 		align-items: center;
 		gap: 9.6px;
 		flex-wrap: wrap;
-	}
-	.sev {
-		display: flex;
-		gap: 2.4px;
-		align-items: center;
-	}
-	.s {
-		font: inherit;
-		font-size: 13.2px;
-		padding: 1.2px 8.4px;
-		border: 1px solid var(--rule);
-		border-radius: 3.6px;
-		background: none;
-		color: var(--ink-soft);
-		cursor: pointer;
-	}
-	.s.on {
-		background: var(--k-wash);
-		color: var(--k);
-		border-color: var(--k);
-	}
-	/* Present but not for this kind: greyed, never removed, so the form never moves as the kind changes. */
-	.sev.off .s {
-		opacity: 0.35;
-		cursor: default;
 	}
 	.go {
 		font: inherit;

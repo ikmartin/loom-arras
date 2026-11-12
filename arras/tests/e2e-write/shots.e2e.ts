@@ -25,8 +25,8 @@ test('the editing surfaces', async ({ page, served }) => {
 	});
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Is the singleton orbit counted once or twice here?');
-	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
-	await expect(page.getByTestId('note-kind').locator('[aria-pressed="true"]')).toHaveAttribute('data-kind', 'question');
+	await page.getByTestId('note-type').locator('[data-type="question"]').click();
+	await expect(page.getByTestId('note-type').locator('[aria-pressed="true"]')).toHaveAttribute('data-type', 'question');
 	await page.screenshot({ path: `${OUT}/composer.png`, animations: 'disabled' });
 
 	await page.goto('/master/drafting/main');

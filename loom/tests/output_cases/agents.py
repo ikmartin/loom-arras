@@ -10,7 +10,7 @@ from unittest import mock
 
 from tests.output_cases.base import Case, ai_copy, author
 
-S1, S2 = "s-2026-09-16-0001", "s-2026-09-16-0002"
+S1 = "s-2026-09-16-p9z37z"
 AGENT = ("--as", "Probe Agent")
 
 KIND: dict[str, str] = {
@@ -24,7 +24,7 @@ KIND: dict[str, str] = {
     "here": "report",
     "since": "report",
     "mcp": "running",
-    "ai discard": "report",
+    "ai delete": "report",
     "ai init": "report",
     "ai orient": "raw",
     "ai mode": "raw",
@@ -60,7 +60,7 @@ def marked(q: Path) -> None:
     from tests.helpers import ok
 
     author(q)
-    ok("annotate", "dm-0003", "Is this right?", "--kind", "question", "--session", S1, cwd=q)
+    ok("annotate", "dm-0003", "Is this right?", "--type", "question", cwd=q)
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -174,14 +174,21 @@ CASES: dict[str, list[Case]] = {
         Case((*AGENT, "--dry-run"), setup=marked, unchanged=True),
         Case((), env=(("AI_AGENT", "1"),), exit=2, why="an agent that has not said who it is", unchanged=True),
     ],
-    "ai discard": [
-        Case((S1,)),
-        Case(("--before", "2000-01-01")),
-        Case((S1, "--dry-run"), unchanged=True),
-        Case(("--by", "Tester", "--dry-run"), unchanged=True),
-        Case((), exit=2, why="names nothing to withdraw", unchanged=True),
-        Case(("no-such-session",), exit=2, why="names no session", unchanged=True),
-        Case(("--target", "dm-9999"), exit=2, why="names no key", unchanged=True),
+    "ai delete": [
+        Case(("--by", "agent", "--yes", "--as", "Tester"), why="an agent's annotation, which its next look reports"),
+        Case(("--target", "dm-0003", "--before", "2026-09-17", "--yes", "--as", "Tester"), why="every filter together"),
+        Case(("--by", "The loom demo", "--dry-run"), unchanged=True),
+        Case(("--before", "2000-01-01", "--yes", "--as", "Tester"), unchanged=True, why="nothing matches"),
+        Case(("--by", "agent", "--as", "Tester"), exit=2, unchanged=True, why="no --yes and no terminal to ask"),
+        Case((), exit=2, why="names nothing to delete", unchanged=True),
+        Case(("--target", "dm-9999", "--yes"), exit=2, why="names no key", unchanged=True),
+        Case(
+            ("--by", "agent", "--yes"),
+            env=(("AI_AGENT", "1"),),
+            exit=2,
+            unchanged=True,
+            why="the author's, refused under an agent",
+        ),
     ],
     "ai init": [
         Case((), setup=no_ai),
@@ -218,9 +225,12 @@ CASES: dict[str, list[Case]] = {
         Case(("contribution.tex", "--dry-run"), setup=closed_copy, unchanged=True),
     ],
     "ai annotations": [
-        Case(("--session", S2)),
-        Case(("--session", S2, "--kind", "objection", "--severity", "major", "--status", "open")),
-        Case(NOWHERE, exit=2, why="names no session"),
+        Case((), why="every annotation"),
+        Case(("--by", "The loom demo", "--type", "revision", "--status", "open")),
+        Case(("--target", "dm-0003/proof")),
+        Case(("--by", "Nobody"), why="nothing matches"),
+        Case(("--target", "dm-9999"), exit=2, unchanged=True, why="names no key"),
+        Case(NOWHERE, exit=2, unchanged=True, why="an annotation belongs to no session"),
     ],
     "ai refresh": [
         Case(("contribution.tex",), setup=ai_copy),

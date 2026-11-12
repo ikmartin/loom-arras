@@ -1,6 +1,7 @@
-// What a mark on a PDF page is, and the geometry drawing one needs (plan 0.28). A mark is a note whose `mark` says how it is drawn (specs/manifest.md, Notes); all of it is in points from the page's top left, the space the rest of `lib/pdf` draws in.
+// What a mark on a PDF page is, and the geometry drawing one needs (plan 0.28). A mark is an annotation on a PDF page that records its own place: drawn with a tool its `mark` names, or on words, which its look's style draws (specs/manifest.md, Annotations); all of it is in points from the page's top left, the space the rest of `lib/pdf` draws in.
 
-import type { Note } from '$lib/manifest/types';
+import type { Annotation } from '$lib/manifest/types';
+import { COLORS, colorOf, RGB, styleOf, type Color } from '$lib/review/annotationTypes';
 
 export type MarkKind = 'highlight' | 'underline' | 'strike' | 'pin' | 'ink' | 'text' | 'box' | 'oval' | 'arrow';
 
@@ -13,20 +14,20 @@ export const SAYING: readonly string[] = ['pin', 'text'];
 /** The tools that take the pointer from the page's words: everything but reading and the word marks. */
 export const DRAWING: readonly string[] = ['pin', 'ink', 'text', 'rect', 'oval', 'arrow'];
 
-/**
- * The colours a mark can be given; what each means is its reader's (A4).
- *
- * `band` fills a highlight or a pin, multiplied over the page so the words under it stay black, and goes as it is into a saved copy. `line` is anything drawn in a line, dark enough to read on the page's white. `hue` is where the colour stands on the wheel, for `nearestColor`.
- */
-export const MARK_COLORS = {
-	yellow: { band: [255, 235, 60], line: [150, 112, 0], hue: 52 },
-	green: { band: [160, 232, 140], line: [30, 125, 54], hue: 125 },
-	blue: { band: [140, 205, 255], line: [26, 111, 196], hue: 205 },
-	pink: { band: [255, 166, 208], line: [196, 42, 117], hue: 332 },
-	purple: { band: [208, 176, 255], line: [116, 67, 204], hue: 265 }
-} as const;
-export type MarkColor = keyof typeof MARK_COLORS;
-export const COLOR_NAMES = Object.keys(MARK_COLORS) as MarkColor[];
+/** The colours a mark can be given, the nine an annotation's look names; what each means is its reader's (A4). */
+export type MarkColor = Color;
+export const COLOR_NAMES: MarkColor[] = [...COLORS];
+
+/** Where the chromatic colours stand on the wheel, for `nearestColor`; brown is the orange that is dark or dull, and grey the colour with no hue. */
+const HUES: [MarkColor, number][] = [
+	['red', 0],
+	['orange', 30],
+	['yellow', 55],
+	['green', 125],
+	['blue', 210],
+	['purple', 268],
+	['pink', 326]
+];
 
 export interface PageMark {
 	id: string;
@@ -36,9 +37,9 @@ export interface PageMark {
 	strokes?: number[][];
 	body: string;
 	quote?: string;
-	/** The colour it was given; absent or '' is the neutral. */
+	/** Its colour, one of the nine; '' is the neutral, which only a place still being written has. */
 	color?: MarkColor | '';
-	/** A plain note with a place, drawn faintly: a quote, or a region. It has no `mark`, so it fades and does not move. */
+	/** A place being written about, drawn faintly until it is written. */
 	plain?: boolean;
 	who?: string;
 	when?: string;
@@ -50,39 +51,60 @@ export function kindOf(tool: string): MarkKind | null {
 	return tool === 'select' || tool === 'box' ? null : (tool as MarkKind);
 }
 
-/** How a note is drawn on its page, or null where it is not: no place, faded or detached (A3, A6), or erased. */
-export function markOf(n: Note): PageMark | null {
-	if (!n.page || !n.rects?.length || n.detached || n.faded || n.erased) return null;
-	const base = { id: n.id, page: n.page, rects: n.rects, body: n.body, quote: n.quote, who: n.author?.id, when: n.when };
-	if (n.mark) return { ...base, kind: n.mark as MarkKind, strokes: n.strokes, color: n.color as MarkColor | undefined };
-	return { ...base, kind: n.quote ? 'underline' : 'box', plain: true };
+/** An annotation's words as plain text: its body as published, its markup taken off. */
+export function textOf(html: string): string {
+	return html
+		.replace(/<br\s*\/?>/gi, '\n')
+		.replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+		.replace(/<[^>]*>/g, '')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&amp;/g, '&')
+		.trim();
 }
 
-/** A colour as the custom properties a mark's drawing reads; '' for the neutral, and for a colour this viewer does not know. */
+/** How an annotation is drawn on its page, or null where it is not: no page or place, detached (A3, A6), or a reply. A drawing's kind is its tool, one on words its look's style. */
+export function markOf(a: Annotation): PageMark | null {
+	const page = a.target.page;
+	if (!page || !a.rects?.length || a.detached || a.in_reply_to) return null;
+	return {
+		id: a.id,
+		page,
+		kind: (a.mark ?? styleOf(a.look)) as MarkKind,
+		rects: a.rects,
+		...(a.strokes?.length ? { strokes: a.strokes } : {}),
+		body: textOf(a.body_html),
+		...(a.quote ? { quote: a.quote } : {}),
+		color: colorOf(a.look),
+		who: a.author?.id,
+		when: a.created
+	};
+}
+
+/** A colour as the custom properties a mark's drawing reads, from the theme's tokens; '' for the neutral, and for a colour this viewer does not know. */
 export function paintOf(color?: MarkColor | ''): string {
-	const c = color ? MARK_COLORS[color] : undefined;
-	return c ? `--band: rgb(${c.band.join(' ')}); --band-strength: 1; --line: rgb(${c.line.join(' ')});` : '';
+	return color && (COLORS as readonly string[]).includes(color) ? `--band: var(--ann-${color}-band); --band-strength: 1; --line: var(--ann-${color});` : '';
 }
 
-/** The colour nearest a PDF annotation's own, by hue; undefined for black, white and greys, which stay the neutral. */
-export function nearestColor(rgb: ArrayLike<number>): MarkColor | undefined {
+/** The nearest of the nine to a PDF annotation's own colour, 0–255, by hue: one with little hue is grey, and a dark or dull orange brown. The name is what `annotations-take` writes, so loom's own matching by value is not used. */
+export function nearestColor(rgb: ArrayLike<number>): MarkColor {
 	const [r, g, b] = [rgb[0], rgb[1], rgb[2]];
 	const [most, least] = [Math.max(r, g, b), Math.min(r, g, b)];
 	const spread = most - least;
-	if (most === 0 || spread / most < 0.15) return undefined;
+	if (most === 0 || spread / most < 0.15) return 'grey';
 	const hue = 60 * (most === r ? ((g - b) / spread + 6) % 6 : most === g ? (b - r) / spread + 2 : (r - g) / spread + 4);
-	const away = (name: MarkColor) => {
-		const d = Math.abs(hue - MARK_COLORS[name].hue);
-		return Math.min(d, 360 - d);
-	};
-	return COLOR_NAMES.reduce((best, name) => (away(name) < away(best) ? name : best));
+	const away = (at: number) => Math.min(Math.abs(hue - at), 360 - Math.abs(hue - at));
+	const name = HUES.reduce((best, c) => (away(c[1]) < away(best[1]) ? c : best))[0];
+	return name === 'orange' && (most / 255 < 0.6 || spread / most < 0.45) ? 'brown' : name;
 }
 
-/** What a saved copy writes for a mark, 0–255: the PDF's own colour while the mark is still that colour, otherwise the palette's; undefined leaves the writer's default. */
+/** What a saved copy writes for a mark, 0–255: the PDF's own colour while the mark is still that colour, otherwise the theme's in the light; undefined leaves the writer's default. */
 export function copyColor(kind: MarkKind, color?: MarkColor | '', origin?: number[]): number[] | undefined {
-	if (!color || !MARK_COLORS[color]) return origin;
+	if (!color || !RGB[color]) return origin;
 	if (origin && nearestColor(origin) === color) return origin;
-	return [...MARK_COLORS[color][kind === 'highlight' || kind === 'pin' ? 'band' : 'line']];
+	return [...RGB[color][kind === 'highlight' || kind === 'pin' ? 'band' : 'line']];
 }
 
 /** Whether a mark has a place of its own to move: words are the place of a mark on them. */

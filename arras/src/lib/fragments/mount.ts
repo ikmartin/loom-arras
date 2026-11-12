@@ -6,7 +6,7 @@ import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 import { travel } from '$lib/travel/travel';
-import { visible } from '$lib/sessions/sessions.svelte';
+import { lookProps, lookVars, styleOf, typeOf } from '$lib/review/annotationTypes';
 
 export interface WireOptions {
 	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation. */
@@ -72,7 +72,7 @@ function set(el: Element, name: string, value: string): void {
 	if (el.getAttribute(name) !== value) el.setAttribute(name, value);
 }
 
-/** Of the annotations a mark stands for, the one to select and to take the hue from: an open one with a card of its own, since a reply is shown inside its parent. */
+/** Of the annotations a mark stands for, the one to select and to take the look from: an open one with a card of its own, since a reply is shown inside its parent. */
 function leadOf(manifest: Manifest | null, ids: string[]): string {
 	const leads = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to);
 	return leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';
@@ -88,12 +88,12 @@ export function resetComments(root: HTMLElement): void {
 	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
 }
 
-/** Whether an annotation is settled: resolved or discarded, so its mark is not drawn at rest. */
-export function settled(a: { status: string; discarded: boolean } | undefined): boolean {
-	return !!a && (a.discarded || a.status !== 'open');
+/** Whether an annotation is settled, that is resolved, so its mark is not drawn at rest. */
+export function settled(a: { status: string } | undefined): boolean {
+	return !!a && a.status !== 'open';
 }
 
-/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or excluded by the session filter. */
+/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or hidden with every annotation in its pane. */
 export function inert(mark: HTMLElement): boolean {
 	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
 }
@@ -227,7 +227,7 @@ export function wire(
 			}
 		}
 	}
-	// Every mark, the publisher's and the label marks made above. What a mark looks like is CSS keyed on its classes (theme.css, 15.3.1): `k-<kind>` for the hue, `s-<severity>` for the weight, `settled` for one whose annotation is resolved or discarded, `hidden` for one the session filter excludes. The classes are read from the manifest on every wire, since a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
+	// Every mark, the publisher's and the label marks made above. What a mark looks like is its lead annotation's look, as inline variables and an `ann-<style>` class that theme.css draws, with `settled` for one whose annotation is resolved and `hidden` while the pane hides annotations. The look and classes are read from the manifest on every wire, since a restyle, a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
 		// several annotations can share one phrase, and the mark lists them in no particular order
@@ -235,16 +235,21 @@ export function wire(
 		const lead = leadOf(manifest, ids);
 		const first = manifest?.annotations[lead];
 		const judged = (leads.length ? leads : ids).map((i) => manifest?.annotations[i]).filter((a) => !!a);
-		// a block mark answers every rule a phrase's does: its hue, its weight, settled and hidden are all keyed on `.annotation`
-		const want = new Set(['annotation']);
+		// a block mark answers every rule a phrase's does: its look, settled and hidden are all keyed on `.annotation`
+		const want = new Set(['annotation', 'ann-' + styleOf(first?.look)]);
 		if (first) {
-			set(mark, 'title', `${first.kind}: ${first.author.label ?? first.author.id}`);
-			want.add('k-' + first.kind);
-			if (first.severity) want.add('s-' + first.severity);
+			const named = typeOf(manifest, first)?.name;
+			set(mark, 'title', `${named ? named + ': ' : ''}${first.author.label ?? first.author.id}`);
+			// set only when it changed, as `set` does for an attribute
+			const vars = lookVars(first.look);
+			if (mark.dataset.look !== vars) {
+				mark.dataset.look = vars;
+				for (const [name, value] of Object.entries(lookProps(first.look))) mark.style.setProperty(name, value);
+			}
 		}
 		if (judged.length > 0 && judged.every(settled)) want.add('settled');
-		if (judged.length > 0 && (opts.hide || !judged.some((a) => visible(manifest, a)))) want.add('hidden');
-		for (const c of [...mark.classList]) if (/^(k|s)-|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
+		if (judged.length > 0 && opts.hide) want.add('hidden');
+		for (const c of [...mark.classList]) if (/^ann-(underline|highlight|strike)$|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
 		for (const c of want) if (!mark.classList.contains(c)) mark.classList.add(c);
 		set(mark, 'tabindex', inert(mark) ? '-1' : '0');
 		if (mark.dataset.wiredMark) continue;

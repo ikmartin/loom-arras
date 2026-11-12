@@ -6,12 +6,11 @@ What you say in the chat (`loom session say`) and what you write in an annotatio
 
 Link to the thing, not to a description of where it is. A reader clicks a link and the viewer opens what it names, beside what they are reading.
 
-- **`loom link THING` prints a correct link.** Use it rather than composing one: THING is a node or any key in it (`sh-0009`, an equation's label, `sh-0009/proof`), a document's path (`drafting/main.tex`, with `--at KEY` for a place in it), an annotation's id (`a-2026-09-16-0003`), a session's id, a cited work's citekey (with `--page N` and `--quote TEXT` for a place on its pages), or a file the viewer shows by its path (`notes/day1.md`, with `--at` a heading's id, or `--at page=N` in a PDF).
+- **`loom link THING` prints a correct link.** Use it rather than composing one: THING is a node or any key in it (`sh-0009`, an equation's label, `sh-0009/proof`), a document's path (`drafting/main.tex`, with `--at KEY` for a place in it), an annotation's id (`a-2026-09-16-6sn46y`), a session's id, a cited work's citekey (with `--page N` and `--quote TEXT` for a place on its pages), or a file the viewer shows by its path (`notes/day1.md`, with `--at` a heading's id, or `--at page=N` in a PDF).
 - **Two forms.** `[](quilt:KEY)` names something this quilt owns; `[](cited:SCHEME:VALUE?page=N)` names a place in a cited work by its identifier, never by a citekey.
 - **Empty text is named by the viewer.** `[](quilt:sh-0009)` reads `Theorem 3.1`, and stays right when the document is renumbered. `[the rank theorem](quilt:sh-0009)` reads as you wrote it. Which to use is your choice.
 - **Link only what the viewer shows.** It shows the project's Markdown, HTML, notebooks, PDFs, images and text files, by their path with the suffix (`[](quilt:notes/day1.md#setup)`), and hides loom's `.loom/`, dot-directories and what `.gitignore` ignores. A file in a session's directory, such as a script, is hidden, so it is not linkable: cite it by its path. A `.tex` file is linked by its document or its keys. A link to one is refused when you post it, and so is a link to a key that does not exist. The message names the bad link, and nothing is written.
 - **An application is opened by `[Open Anki](app:Anki)`**, on the person's click in the viewer; never send one where it would surprise them.
-- **Link a note by its id**, `[](quilt:n-2026-11-02-0001)`, which the viewer names by its words and opens where it is; a link from your report keeps a note from fading.
 - **Text the author will paste elsewhere** — an issue for a list, a paragraph for an email — gets links with words of their own, or none: an empty link is named only by the viewer.
 - **Link the annotations you write.** When you tell the author what you found, a link to each annotation takes them to it with its box open.
 - **Working in a copy, link the copy.** A plain key opens the author's version of a node, in their document; while you and the author are editing a copy in `.loom/copies/`, link what is in it: `loom link .loom/copies/NAME.tex --at KEY-ai` for the place in the copy, which is usually what the author wants to see, or `loom link KEY-ai` for the copy's node alone. Link a plain key only when you mean the author's text rather than the copy's.
@@ -25,8 +24,8 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 
 ## Proposed text
 
-- **On the author's text, propose text as a suggestion, never as a file.** (On an agent document you edit it yourself.) `loom annotate KEY "why" --kind suggestion --quote "the old text" --payload "the new text" --placement replace` shows the key in the viewer with the new text in place of exactly the quoted words, where the author reads and applies it. A file in your session's directory is not displayed.
-- **Propose a dependency the same way.** When one result uses another that its source does not declare, write a suggestion on it with no quote whose payload is the edge, `\uses{sh-0004}`, placed `before`: it goes at the head of the body, beside the others. Loom never writes an edge into the author's source; the author applies the suggestion.
+- **On the author's text, propose text as a suggested edit, never as a file.** (On an agent document you edit it yourself.) `loom suggest KEY --quote "the old text" --with "the new text" --comment "why"` shows the key in Review with the new text in place of exactly the quoted words, where the author reads it and keeps or discards it. A file in your session's directory is not displayed.
+- **Propose a dependency the same way.** When one result uses another that its source does not declare, suggest the edge with no quote, `loom suggest KEY --with "\uses{sh-0004}" --before`: it goes at the head of the body, beside the others. Loom never writes an edge into the author's source; the author keeps it.
 
 ## What renders what
 

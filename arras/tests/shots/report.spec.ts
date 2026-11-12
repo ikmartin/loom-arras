@@ -27,21 +27,14 @@ test('a corpus that has everything', async ({ page }) => {
 });
 
 test('a run reviewed', async ({ page }) => {
-	// a session read on its own: what it did, beside the document it is about, and its Chat; and the link working, a finding opening its mark in the other pane
-	const beside = '/master/drafting/main?beside=' + encodeURIComponent('/session/s-2026-09-16-0001?view=did');
+	// a session read on its own: what it did, beside the document it is about, and its Chat
+	const beside = '/master/drafting/main?beside=' + encodeURIComponent('/session/s-2026-09-16-p9z37z?view=did');
 	await shot(page, 'session-did', beside);
-	await shot(page, 'session-discussion', '/session/s-2026-09-16-0001');
-	await page.goto(beside);
-	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
-	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
-	await page.locator('[data-pane="1"]').getByTestId('did-annotation').first().click();
-	await expect(page.locator('[data-pane="0"]').getByTestId('comment-expanded').first()).toBeVisible();
-	await settle(page);
-	await page.screenshot({ path: `${OUT}/session-linked.png` });
+	await shot(page, 'session-discussion', '/session/s-2026-09-16-p9z37z');
 });
 
-test('a node read three ways', async ({ page }) => {
-	// what a result rests on, what it says as written, and what an agent proposed for it
+test('a node read two ways', async ({ page }) => {
+	// what a result rests on, and what it says as written
 	await under(page);
 
 	// what it rests on stands in its context, beside it
@@ -59,16 +52,6 @@ test('a node read three ways', async ({ page }) => {
 	await expect(page.getByTestId('verbatim').first()).toBeVisible();
 	await still(page);
 	await page.screenshot({ path: `${OUT}/verbatim.png` });
-
-	// the fixture's suggestion is resolved, so settled annotations are shown before all are opened
-	await page.goto('/node/sy-0004');
-	await viewMenu(page);
-	await page.getByTestId('toggle-settled').click();
-	await viewMenu(page);
-	await page.getByTestId('toggle-annotations').click();
-	await expect(page.getByTestId('payload').first()).toBeVisible();
-	await settle(page);
-	await page.screenshot({ path: `${OUT}/payload.png` });
 });
 
 test('the graph coloured by taxon', async ({ page }) => {

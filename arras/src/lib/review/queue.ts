@@ -1,6 +1,7 @@
 // The acceptance half of Your Changes: one document's blocks not freshly accepted, grouped by why they wait.
 import type { Key, Manifest, UnresolvedReview } from '$lib/manifest/types';
 import { documentKeys } from './documents';
+import { typeName } from './annotationTypes';
 
 export interface TakenIn {
 	label: string;
@@ -55,10 +56,10 @@ export function documentsWithBlocks<T extends { path: string }>(m: Pick<Manifest
 	return documents.filter((d) => reached.has(d.path));
 }
 
-/** What a row says beside its name: a statement still owed a proof, and the annotations open on it by kind ("1 open objection"). */
-export function notesOf(m: Pick<Manifest, 'keys' | 'diagnostics'>, key: string): string[] {
+/** What a row says beside its name: a statement still owed a proof, and the annotations open on it by type, named as the quilt names the type ("1 open revision"). */
+export function notesOf(m: Pick<Manifest, 'keys' | 'diagnostics'> & Partial<Pick<Manifest, 'annotation_types'>>, key: string): string[] {
 	const out: string[] = [];
 	if (m.diagnostics.some((d) => d.code.endsWith('missing-proof') && d.keys.includes(key))) out.push('no proof yet');
-	for (const [kind, n] of Object.entries(m.keys[key]?.reviews?.open ?? {})) if (n > 0) out.push(`${n} open ${kind}${n === 1 ? '' : 's'}`);
+	for (const [type, n] of Object.entries(m.keys[key]?.reviews?.open ?? {})) if (n > 0) out.push(`${n} open ${typeName(m, { type }).toLowerCase()}${n === 1 ? '' : 's'}`);
 	return out;
 }

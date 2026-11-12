@@ -17,6 +17,7 @@ from typing import Any
 from loom.clock import stamp
 from loom.locks import locked
 from loom.paths import LINKS, LINKS_REMOVED
+from loom.records.ids import draw
 
 #: The vocabulary, closed. Each is read "<from> <kind> <to>".
 KINDS: dict[str, str] = {
@@ -87,11 +88,7 @@ def write_links(root: Path, links: list[Link]) -> None:
 
 
 def next_id(links: list[Link]) -> str:
-    taken = {x.id for x in links}
-    n = 1
-    while f"link-{n:04d}" in taken:
-        n += 1
-    return f"link-{n:04d}"
+    return draw("link-", {x.id for x in links})
 
 
 def check_link(links: list[Link], frm: str, to: str, kind: str, why: str) -> None:

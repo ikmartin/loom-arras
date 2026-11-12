@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The one selection chip: a selection stays a selection, and this offers the other things, **annotate** (the composer, with a kind) and **quote** (a note quoting the words, in one press, plan 0.22.8). Where an annotation cannot go -- a project file, a message -- it offers quote alone. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter does what a press on its first button does. The caller shows it while a selection is offered and takes it down once the composer opens or the quote is written.
+	// The one selection chip: a selection stays a selection, and this offers the other things, **annotate** (the composer, with a type) and on a PDF page **highlight** in one press. It stands at the selection's end in the annotation neutral, on the text and on a PDF page alike, follows that end as the page scrolls, and Enter opens the composer. The caller shows it while a selection is offered where an annotation can go, and takes it down once the composer opens.
 	import Swatches from '$lib/pdf/Swatches.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 
@@ -9,32 +9,17 @@
 		at,
 		range,
 		onaccept,
-		onquote,
-		onhighlight,
-		ondone
+		onhighlight
 	}: {
 		/** The selection's bounding box, in window coordinates when it was made: where the chip stands when there is no range, and so it does not follow a scroll. */
 		at: Box;
 		/** The selection itself, when the caller has it: the chip stands after its last line, re-measured on every scroll, and is hidden while that line is scrolled out of view or no longer in the page. */
 		range?: Range;
-		/** Open the composer; absent where an annotation cannot go. */
+		/** Open the composer. */
 		onaccept?: () => void;
-		/** Write a note quoting the selection; the refusal, or '' once written. */
-		onquote?: () => Promise<string>;
 		/** Mark the selection on a PDF page, in one press and the colour in the hand; absent anywhere else. */
 		onhighlight?: () => void;
-		/** The quote is written and said: the caller takes the chip down. */
-		ondone?: () => void;
 	} = $props();
-	/** What the quote came to, said on the chip for a moment: `quoted`, or the refusal. */
-	let said = $state('');
-	async function quoting(): Promise<void> {
-		if (!onquote || said) return;
-		said = '…';
-		const why = await onquote();
-		said = why || 'quoted';
-		setTimeout(() => ondone?.(), why ? 2400 : 900);
-	}
 
 	/** Room kept from the selection's last line, and from the window's edges. */
 	const GAP = 6;
@@ -103,11 +88,10 @@
 	// Enter while a selection is offered is the chip pressed. Not while typing, and not with a modifier: those are somebody else's keys.
 	$effect(() => {
 		const key = (e: KeyboardEvent) => {
-			if (e.key !== 'Enter' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+			if (e.key !== 'Enter' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || !onaccept) return;
 			if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
 			e.preventDefault();
-			if (onaccept) onaccept();
-			else void quoting();
+			onaccept();
 		};
 		document.addEventListener('keydown', key);
 		return () => document.removeEventListener('keydown', key);
@@ -115,23 +99,17 @@
 </script>
 
 <span class="chips" bind:this={el} style="left: {place.left}px; top: {place.top}px;" style:visibility={seen ? null : 'hidden'} role="group" aria-label="the selection">
-	{#if said}
-		<span class="chip said" role="status" data-testid="quote-said">{said}</span>
-	{:else}
-		{#if onaccept}<button type="button" class="chip" data-testid="annotate-offer" onmousedown={(e) => e.preventDefault()} onclick={onaccept}>annotate</button>{/if}
-		{#if onquote}<button type="button" class="chip" data-testid="quote-offer" title="Quote it into the session: a note an agent reads with loom since" onmousedown={(e) => e.preventDefault()} onclick={quoting}>quote</button>{/if}
-		{#if onhighlight}<button type="button" class="chip" data-testid="highlight-offer" title="Highlight these words on the page" onmousedown={(e) => e.preventDefault()} onclick={onhighlight}>highlight</button>
-			<span class="tray">
-				<Swatches
-					value={prefs.markColor}
-					neutral={false}
-					onpick={(c) => {
-						prefs.markColor = c;
-						onhighlight();
-					}}
-				/>
-			</span>
-		{/if}
+	{#if onaccept}<button type="button" class="chip" data-testid="annotate-offer" onmousedown={(e) => e.preventDefault()} onclick={onaccept}>annotate</button>{/if}
+	{#if onhighlight}<button type="button" class="chip" data-testid="highlight-offer" title="Highlight these words on the page" onmousedown={(e) => e.preventDefault()} onclick={onhighlight}>highlight</button>
+		<span class="tray">
+			<Swatches
+				value={prefs.markColor}
+				onpick={(c) => {
+					prefs.markColor = c;
+					onhighlight();
+				}}
+			/>
+		</span>
 	{/if}
 </span>
 

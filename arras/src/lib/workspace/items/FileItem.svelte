@@ -1,6 +1,6 @@
 <script lang="ts">
 	// A file of the project (plan 0.22.7), drawn by its kind: a Markdown file or a notebook as the publisher drew it, an HTML page in its own frame, a PDF by pdf.js, an image, text as text. Anything else is named, with "Open in its application" where the publisher can open it, and loom never opens a file that runs code.
-	// Anything drawn here can be quoted (plan 0.22.8): words selected in a drawn body, in text or on a PDF page, and a box drawn on a PDF page or an image, each offered by the chip's one gesture, **quote**.
+	// A PDF's pages carry annotations (`pdf/desk.svelte.ts`): words selected on a page are offered **highlight**, and the drawing tools draw the rest.
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import { dataUrl, filesUrl } from '$lib/paths';
@@ -10,7 +10,6 @@
 	import { paperPlace } from '$lib/pdf/place.svelte';
 	import PdfTools from '$lib/pdf/PdfTools.svelte';
 	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
-	import { quote } from '$lib/notes';
 	import { can, write } from '$lib/write';
 	import { itemKey, type Item } from '../item';
 	import { openOutside } from '../links';
@@ -37,7 +36,7 @@
 		() => ({ seq: named ? (item.seq ?? 0) : 0, page: pdfPage }),
 		() => workspace.update(itemKey(item), { anchor: undefined, note: undefined })
 	);
-	const desk = new MarkDesk(() => ({ on: item.id, owns: (n) => n.target.file === item.id, url: filesUrl(item.id), name }));
+	const desk = new MarkDesk(() => ({ on: item.id, owns: (a) => a.target.file === item.id, words: true, url: filesUrl(item.id), name }));
 	const holder = paneOf();
 	const hidesNotes = $derived(holder ? workspace.hidesNotes(holder.index) : false);
 	let canOpen = $state(false);
@@ -186,18 +185,8 @@
 	}
 
 	type Box = { left: number; top: number; width: number; height: number };
-	/** What the chip offers to quote: words, or a region of a PDF page or the image, and where it stands. */
-	let offered = $state<{ text?: string; page?: number; rects?: number[][]; lines?: number[][]; at: Box; range?: Range } | null>(null);
-
-	/** Words selected in the drawn body or the text, offered once the mouse is up. */
-	function selected(): void {
-		const sel = window.getSelection();
-		const words = sel?.toString().trim();
-		if (!sel || !words || !sel.rangeCount || !el?.contains(sel.anchorNode)) return;
-		const range = sel.getRangeAt(0);
-		const r = range.getBoundingClientRect();
-		offered = { text: words.slice(0, 4000), at: { left: r.left, top: r.top, width: r.width, height: r.height }, range: range.cloneRange() };
-	}
+	/** Words selected on a PDF page, offered to highlight, and where they stand. */
+	let offered = $state<{ text: string; page: number; lines: number[][]; at: Box; range?: Range } | null>(null);
 
 	// words let go of take their offer with them, as a fragment's do
 	$effect(() => {
@@ -208,40 +197,9 @@
 		return () => document.removeEventListener('selectionchange', gone);
 	});
 
-	// a box drawn on the image, in the image's own pixels from its top left
-	let img = $state<HTMLImageElement | null>(null);
-	let drag = $state<{ x: number; y: number; x2: number; y2: number } | null>(null);
-	function press(e: PointerEvent): void {
-		if (!img || e.button !== 0) return;
-		e.preventDefault();
-		const b = img.getBoundingClientRect();
-		drag = { x: e.clientX - b.left, y: e.clientY - b.top, x2: e.clientX - b.left, y2: e.clientY - b.top };
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-	}
-	function move(e: PointerEvent): void {
-		if (!drag || !img) return;
-		const b = img.getBoundingClientRect();
-		drag = { ...drag, x2: Math.max(0, Math.min(b.width, e.clientX - b.left)), y2: Math.max(0, Math.min(b.height, e.clientY - b.top)) };
-	}
-	function release(): void {
-		if (!drag || !img) return;
-		const b = img.getBoundingClientRect();
-		const [x, y, w, h] = [Math.min(drag.x, drag.x2), Math.min(drag.y, drag.y2), Math.abs(drag.x2 - drag.x), Math.abs(drag.y2 - drag.y)];
-		if (w > 4 && h > 4) {
-			const k = img.naturalWidth / (b.width || 1);
-			offered = { rects: [[x * k, y * k, (x + w) * k, (y + h) * k].map((v) => Math.round(v * 10) / 10)], at: { left: b.left + x, top: b.top + y, width: w, height: h } };
-		} else drag = null;
-	}
-
-	function quoting(): Promise<string> {
-		const o = offered;
-		if (!o || !file) return Promise.resolve('');
-		return quote({ target: file.path, ...(o.page ? { page: o.page } : {}), ...(o.rects ? { rects: o.rects } : { quote: o.text, ...(o.lines ? { rects: o.lines } : {}) }) });
-	}
-
 	function highlight(): void {
 		const o = offered;
-		if (!o?.page || !o.lines || !o.text) return;
+		if (!o) return;
 		desk.markWords('highlight', { page: o.page, text: o.text, rects: o.lines });
 		offered = null;
 		window.getSelection()?.removeAllRanges();
@@ -274,18 +232,15 @@
 				const sel = window.getSelection();
 				offered = { page: e.page, text: e.text, lines: mergeLines(e.rects), at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
 			}}
-			onbox={(e) => (offered = { page: e.page, rects: e.rects, at: e.client })}
 		/>
 	</div>
 {:else}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="page item file" data-testid="file-item" data-kind={file.kind} data-file={file.path} bind:this={el} onmouseup={selected} onchange={ticked}>
+	<div class="page item file" data-testid="file-item" data-kind={file.kind} data-file={file.path} bind:this={el} onchange={ticked}>
 		{#if tickRefused}<p class="tick-refused" role="alert" data-testid="file-tick-refused">{tickRefused}</p>{/if}
 		{#if file.kind === 'image'}
-			<!-- a box drawn on the image is a region it quotes -->
-			<div class="image-frame" onpointerdown={press} onpointermove={move} onpointerup={release} data-testid="image-frame">
-				<img class="file-image" bind:this={img} src={filesUrl(file.path)} alt={name} draggable="false" />
-				{#if drag}<div class="drawn" style="left: {Math.min(drag.x, drag.x2)}px; top: {Math.min(drag.y, drag.y2)}px; width: {Math.abs(drag.x2 - drag.x)}px; height: {Math.abs(drag.y2 - drag.y)}px;"></div>{/if}
+			<div class="image-frame" data-testid="image-frame">
+				<img class="file-image" src={filesUrl(file.path)} alt={name} draggable="false" />
 			</div>
 		{:else if body !== null}
 			<Prose html={body} class="body file-body" />
@@ -307,32 +262,14 @@
 		{/if}
 	</div>
 {/if}
-{#if offered}
-	<AnnotateChip
-		at={offered.at}
-		range={offered.range}
-		onquote={quoting}
-		onhighlight={desk.writes && offered.lines ? highlight : undefined}
-		ondone={() => {
-			offered = null;
-			drag = null;
-			window.getSelection()?.removeAllRanges();
-		}}
-	/>
+{#if offered && desk.writes}
+	<AnnotateChip at={offered.at} range={offered.range} onhighlight={highlight} />
 {/if}
 
 <style>
 	.image-frame {
 		position: relative;
 		display: inline-block;
-		cursor: crosshair;
-		user-select: none;
-	}
-	.drawn {
-		position: absolute;
-		border: 1.5px solid var(--ann-neutral);
-		background: color-mix(in srgb, var(--ann-neutral) 12%, transparent);
-		pointer-events: none;
 	}
 	.file-pdf {
 		height: 100%;

@@ -52,6 +52,5 @@ def test_the_showcase_referee_findings_are_the_agents() -> None:
     """The showcase's referee findings are recorded as the agent's, so none goes back to the agent in the author's packet."""
     log = REPO / "tests" / "quilts" / "showcase" / ".loom/annotations" / "log.jsonl"
     events = [json.loads(line) for line in log.read_text().splitlines()]
-    first = {f"a-2026-09-16-000{i}" for i in range(1, 6)}
-    got = {e["id"]: (e["author"], e["kind"]) for e in events if e.get("event") == "created" and e.get("id") in first}
-    assert got == {i: ("Referee (Agent)", "agent") for i in first}
+    first = [e for e in events if e.get("event") == "created"][:5]
+    assert [(e["author"], e["kind"]) for e in first] == [("Referee (Agent)", "agent")] * 5

@@ -8,8 +8,8 @@ import { base } from '$app/paths';
 import { store } from '$lib/manifest/client.svelte';
 import { sessionView, writable } from '$lib/sessions/sessions.svelte';
 
-/** The endpoints that record work into a session, and therefore must name one. The session verbs carry their own subject and are not among them, and neither is `locate`, which reads. */
-const SESSIONED = new Set(['annotate', 'note', 'note-keep', 'reply', 'resolve', 'edit', 'discard', 'suggestion-apply', 'library-cite', 'library-verify', 'library-discard']);
+/** The endpoints that record work into a session, and therefore must name one. An annotation belongs to no session, so its endpoints are not among them; nor are the session verbs, which carry their own subject, nor `locate`, which reads. */
+const SESSIONED = new Set(['library-verify', 'library-discard']);
 
 export interface Capabilities {
 	write_api: number;
@@ -72,6 +72,8 @@ export interface WriteResult {
 	result?: string;
 	/** `fields`, on a form's refusal, says why each field it refused was refused. */
 	error?: { code: string; message: string; fields?: Record<string, string> };
+	/** `delete`'s answer: the log events it took out, the annotation's and its replies', which `restore` puts back. */
+	removed?: Record<string, unknown>[];
 }
 
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused annotation is an answer a reader needs to see. */
@@ -84,8 +86,7 @@ export async function write(endpoint: string, body: Record<string, unknown>): Pr
 		// write from the writer's own context rather than from a pointer the publisher keeps: a call site that forgot
 		// would fall back to that pointer and file work wherever it happened to point. Refusing here rather than at the
 		// publisher makes a mis-wired button fail where it was wired, not somewhere in the log.
-		// A mark is the one note that files itself in no session: a person drawing on a page they are reading has not said it belongs to one.
-		if (SESSIONED.has(endpoint) && body.session === undefined && !(endpoint === 'note' && body.mark)) {
+		if (SESSIONED.has(endpoint) && body.session === undefined) {
 			const why = writable(store.manifest);
 			if (why) return { ok: false, error: { code: 'no-session', message: why } };
 			body = { ...body, session: sessionView.selected };

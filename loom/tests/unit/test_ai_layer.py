@@ -75,9 +75,13 @@ def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) ->
 
 def test_ai_annotations_refuses_a_filter_value_it_does_not_know(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("session", "new", "--name", "x", cwd=q).stdout.split()[0]
-    for flag, value in (("--kind", "objecton"), ("--severity", "huge"), ("--status", "discarded")):
-        refused("ai", "annotations", "--session", sid, flag, value, cwd=q, code=2, match=f"Invalid value for '{flag}'")
+    refused("ai", "annotations", "--status", "discarded", cwd=q, code=2, match="Invalid value for '--status'")
+    # the quilt's types are not the command's to know, so an unknown one is refused by naming them
+    r = refused("ai", "annotations", "--type", "objection", cwd=q, code=2, match="no type 'objection'")
+    assert "question (Question)" in flat(r.output)
+    refused("ai", "annotations", "--target", "dm-9999", cwd=q, code=2, match="dm-9999 is no key of this quilt")
+    # an annotation belongs to no session, so there is no session to ask about
+    refused("ai", "annotations", "--session", "x", cwd=q, code=2, match="No such option '--session'")
 
 
 def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
@@ -246,26 +250,47 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
         "clarity",
     ):
         assert wanted in text, wanted
-    assert "--severity" in text and "--payload" in text
+    assert "{type:revision}" in text and "--answers" in text  # a type by placeholder; a fix is an edit answering it
     assert "[referee-review]" in text  # reused, not a new block: blocks are structures, modes are procedures
     assert "There is no compiled LaTeX or PDF pair" in text
 
     blocks = (q / ".loom/ai" / "rules.md").read_text()
     assert "a reply is for talking to the author" in blocks  # the edit-not-reply rule
-    assert "`citation` for a work" in blocks
+    assert "a work worth citing is a {type:suggestion} naming it" in blocks
 
 
 def test_ai_mode_prints_the_quilts_copy_and_refuses_what_loom_does_not_ship(tmp_path: Path) -> None:
     """`loom ai mode NAME` is how an agent reads a mode, so an author's edit holds; a mode loom no longer ships is refused even where its old file was left behind."""
     q = bare(tmp_path)
+    from loom.ai.orient import expand_types
+    from loom.records.types import load_types
+
+    # printed with each type placeholder filled with the type's name in this quilt
+    referee = q / ".loom/ai" / "modes" / "referee.md"
+    assert "{type:revision}" in referee.read_text()
+    assert ok("ai", "mode", "referee", cwd=q).stdout == expand_types(referee.read_text(), load_types(q))
     flow = q / ".loom/ai" / "modes" / "flow.md"
-    assert ok("ai", "mode", "flow", cwd=q).stdout == flow.read_text()
     flow.write_text(flow.read_text().replace("When it fits: ", "When it fits: (house) ", 1))
     assert "(house)" in ok("ai", "mode", "flow", cwd=q).stdout
     (q / ".loom/ai" / "modes" / "brainstorm.md").write_text("# Mode: brainstorm\n\nWhen it fits: never.\n")
     refused("ai", "mode", "brainstorm", cwd=q, code=2, match="no mode 'brainstorm'")
     shutil.rmtree(q / ".loom/ai")
     assert ok("ai", "mode", "flow", cwd=q).stdout.startswith("# Mode: flow\n\nWhen it fits: reading order")
+
+
+def test_renaming_a_type_renames_it_in_every_mode_that_names_it_and_in_the_orientation(tmp_path: Path) -> None:
+    """Plan 0.30's acceptance: a mode names a type by its id, so renaming the type in the quilt's file changes the name every mode prints, and the rules' too."""
+    q = bare(tmp_path)
+    types = q / ".loom" / "annotation-types.toml"
+    types.write_text(types.read_text().replace('name = "Revision"', 'name = "Correction"', 1))
+    modes = q / ".loom" / "ai" / "modes"
+    naming = [m for m in MODES if "{type:revision}" in (modes / f"{m}.md").read_text()]
+    assert {"referee", "review"} <= set(naming)
+    for m in naming:
+        out = ok("ai", "mode", m, cwd=q).stdout
+        assert "Correction" in out and "{type:" not in out, m
+    orient = ok("ai", "orient", cwd=q).stdout
+    assert "a Correction" in orient and "{type:" not in orient
 
 
 def test_orient_ends_with_the_index_of_the_modes(tmp_path: Path) -> None:
@@ -304,7 +329,7 @@ def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) 
     q = bare(tmp_path)
     r = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED)
     sid = r.stdout.split()[0]
-    assert sid == "s-2026-09-16-0001"  # the id is minted, never slugified from the title
+    assert sid == "s-2026-09-16-p9z37z"  # the id is minted, never slugified from the title
     index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
     assert '"title": "Referee of dm-0003"' in index and '"event": "created"' in index
     rel = f".loom/sessions/{sid}"
@@ -330,7 +355,7 @@ def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) 
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
     second = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED).stdout.split()[0]
-    assert second == "s-2026-09-16-0002"  # two sessions may share a title; the id is what distinguishes them
+    assert second == "s-2026-09-16-cd0j88"  # two sessions may share a title; the id is what distinguishes them
 
 
 def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -> None:
@@ -345,7 +370,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     assert f"{other}  Ingest of Hartshorne" in listing
 
     # "Referee **of**…" and "Ingest **of**…": named, not guessed
-    refused("ai", "annotations", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
+    refused("ai", "orient", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
 
     ok("session", "rename", "parity", "--name", "Parity, revisited", cwd=q)
     assert "Parity, revisited" in ok("session", "list", cwd=q).output
@@ -356,22 +381,20 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
         "Say where finiteness is used.",
         "--quote",
         "with $X$ a finite set",
-        "--kind",
+        "--type",
         "suggestion",
-        "--session",
-        ref,
         "--as",
         "An Agent",
         cwd=q,
         env=FIXED,
     )
     # part of a title reaches the session, which is how a person addresses one
-    ok("ai", "annotations", "--session", "revisited", cwd=q)
+    ok("ai", "orient", "--session", "revisited", cwd=q)
 
-    f = ok("ai", "annotations", "--session", "parity", cwd=q)
+    f = ok("ai", "annotations", "--by", "An Agent", cwd=q)
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
-    ok("ai", "discard", ref, cwd=q)
+    ok("session", "close", "parity", cwd=q)
     assert "Parity, revisited" not in ok("session", "list", cwd=q).output
     assert "Parity, revisited" in ok("session", "list", "--all", cwd=q).output
     refused("ai", "runs", cwd=q, code=2, match="No such command 'runs'")
@@ -414,10 +437,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         "Closedness is asserted.",
         "--quote",
         "diagonal is closed",
-        "--kind",
-        "objection",
-        "--session",
-        sid,
+        "--type",
+        "revision",
         "--as",
         "An Agent",
         cwd=q,
@@ -429,7 +450,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     m = json.loads((q / ".loom/build" / "manifest.json").read_text())
     t = m["threads"][sid]
     assert t["kind"] == "session" and t["created"] == "2026-09-16T14:02:00Z"
-    assert t["targets"] == ["dm-0003/proof"] and t["discarded"] is False
+    # an annotation is no session's, so the thread neither counts it nor takes who or what from it
+    assert (t["targets"], t["participants"], t["discarded"]) == ([], [], False)
     # the conversation is not in the manifest, which every viewer polls; the build pages it beside it
     assert "messages" not in t
     page = json.loads((q / ".loom/build" / "transcripts" / sid / "1.json").read_text())
@@ -437,20 +459,11 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         ("Referee Agent", "<p>Refereed dm-0003; one objection.</p>")
     ]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
-    assert kinds == {"annotations": "annotations", "orbit-counts.py": "file"}  # reading leaves no file
+    assert kinds == {"orbit-counts.py": "file"}  # reading leaves no file
     assert "pipeline" not in t  # a report is a transcript message, not a file the build indexes
-    assert [entry["command"] for entry in t["log"]][:2] == [
-        "loom source dm-0003 --closure",
-        "loom annotate dm-0003/proof --quote --kind objection",
-    ]
+    assert [entry["command"] for entry in t["log"]] == ["loom source dm-0003 --closure"]
+    assert all("run" not in a for a in m["annotations"].values())
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
-    # a person writing in the same session is a participant in the same thread, which is the point of the split
-    ok("annotate", "dm-0002", "Mine.", "--as", "Tom", "--session", sid, cwd=q, env=FIXED)
-    ok("build", cwd=q)
-    m2 = json.loads((q / ".loom/build" / "manifest.json").read_text())
-    again = m2["threads"][sid]
-    assert {"kind": "person", "id": "Tom"} in again["participants"]
-    assert {"kind": "agent", "id": "An Agent"} in again["participants"]
     # a .tex file in a session is not scanned: an id it repeats is no duplicate (test_lint_exit_codes is the control)
     (q / rel / "scratch.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     assert "duplicate-id" not in ok("lint", cwd=q).output
@@ -466,17 +479,15 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         "annotate",
         "dm-0003",
         "Fine.",
-        "--kind",
+        "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q / "drafting" / "nodes",
         env=FIXED,
     )
     log = (q / rel / "run.log").read_text()
-    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate dm-0003" in log
+    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate" not in log
     assert (q / ".loom/annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
     assert not (q / "drafting" / "nodes" / ".loom/ai").exists()  # nothing landed relative to the shell's directory
 
@@ -519,7 +530,6 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     # and the files those commands own, which a direct edit would otherwise reach
     for d in (".loom/digests", ".loom/annotations", ".loom/history", ".loom/ai", ".loom/retired", ".loom/since"):
         assert f"Edit(/{d}/**)" in denied_paths, d
-    assert "Edit(/.loom/reference-notes.jsonl)" in denied_paths
 
     q = bare(tmp_path)
     assert (q / ".claude" / "settings.json").read_text() == permissions_json(QuiltConfig())
@@ -609,7 +619,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "library drop",
         "library import",
         "session delete",
-        "ai discard",
+        "ai delete",
         "sync publish",
         "sync incorporate",
         "ai init",
@@ -617,6 +627,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "session use",
         "adopt",  # the orientation names incorporation as author-only
         "history restore",
+        "suggestion apply",  # named among the author's acts; the agent files with `loom suggest`
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
     assert told <= named_to_refuse, sorted(told - named_to_refuse)
@@ -624,15 +635,16 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
 
 
 def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> None:
-    """`ai annotations` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `library why` id by id."""
+    """`ai annotations --by NAME` shows the author's decision on each result NAME proposed, so an agent that reattaches need not ask `library why` id by id."""
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
-    runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", **{"as": "Reader Agent"})
     ok("library", "discard", f"{ck}-thm-1.1", "--why", "wrong theorem", "--as", "i", cwd=q)
-    out = ok("ai", "annotations", "--session", runname, cwd=q).output
+    out = ok("ai", "annotations", "--by", "Reader Agent", cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out
+    # with nobody named, the listing is of annotations alone
+    assert f"{ck}-thm-1.1" not in ok("ai", "annotations", cwd=q).output
 
 
 def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
@@ -645,18 +657,6 @@ def test_upgrade_leaves_a_loom_sty_alone(tmp_path: Path) -> None:
     kept.write_text("% my own\n")
     r = json_of("upgrade", "--json", cwd=q)
     assert "loom.sty" not in r["written"] and kept.read_text() == "% my own\n" and not (q / "loom.sty").exists()
-
-
-def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:
-    """T7: a session whose annotations were all withdrawn is not "no annotations yet"."""
-    q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
-    before = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
-    assert before
-    ok("ai", "discard", sid, cwd=q)
-    said = ok("ai", "annotations", "--session", sid, cwd=q).stdout.splitlines()[0]
-    assert "no annotations yet" not in said
-    assert f"{len(before)} withdrawn" in said and "--all lists them" in said, said
 
 
 def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_printed(tmp_path: Path) -> None:
@@ -683,26 +683,23 @@ def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_print
     assert run(*argv[1:], cwd=q).exit_code == 1  # the same conflict, not an unexpected argument
 
 
-def test_a_withdrawal_carries_its_reason_and_is_not_made_twice(tmp_path: Path) -> None:
-    """K2: `ai discard` took no `--why`, so every withdrawal read "no reason given"; T7: run twice, it said "withdrew" twice and recorded it twice."""
+def test_a_deletion_run_twice_deletes_once(tmp_path: Path) -> None:
+    """T7: run again, a bulk delete finds nothing left and says so, and writes nothing."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
     log = q / ".loom/annotations" / "log.jsonl"
-    ok("ai", "discard", sid, "--why", "an early, mistaken pass", cwd=q)
+    first = json_of("ai", "delete", "--by", "The loom demo", "--yes", "--as", "The loom demo", "--json", cwd=q)
+    assert len(first["deleted"]) == 3
     lines = log.read_text()
-    again = ok("ai", "discard", sid, cwd=q)
-    assert again.stdout.startswith(f"already withdrawn: {sid}; nothing written") and log.read_text() == lines
-    listed = ok("ai", "annotations", "--session", sid, "--all", cwd=q).stdout
-    assert "withdrawn: an early, mistaken pass" in listed and "no reason given" not in listed, listed
+    again = ok("ai", "delete", "--by", "The loom demo", "--yes", "--as", "The loom demo", cwd=q)
+    assert again.stdout.startswith("no annotation matches; nothing deleted") and log.read_text() == lines
 
 
 def test_ai_annotations_says_who_wrote_each_and_lines_its_columns_up(tmp_path: Path) -> None:
     """An agent answers the author's annotations and may edit its own, so it must tell them apart; T2: the columns did not line up."""
     q = demo(tmp_path)
-    sid = "s-2026-09-16-0002"
-    rows = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
-    assert rows and all(set(r["author"]) == {"kind", "id"} for r in rows), rows
-    text = ok("ai", "annotations", "--session", sid, cwd=q).stdout
+    rows = json_of("ai", "annotations", "--json", cwd=q)["annotations"]
+    assert {r["author"]["id"] for r in rows} == {"The loom demo", "agent"}, rows
+    text = ok("ai", "annotations", cwd=q).stdout
     lines = [ln for ln in text.splitlines() if ln.startswith("  a-")]
     assert lines and all(f"by {r['author']['id']}" in text for r in rows)
     assert len({ln.index(" by ") for ln in lines}) == 1, lines  # one column, whatever the row

@@ -15,6 +15,8 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { asPercent, document_, pdfjs } from './document';
 	import { markAt, type PageMark } from './marks';
+	import type { Look } from '$lib/manifest/types';
+	import { lookVars, styleOf } from '$lib/review/annotationTypes';
 	import PageMarks, { type Drawn, type Moved } from './PageMarks.svelte';
 
 	type Rect = readonly number[];
@@ -45,8 +47,8 @@
 	}: {
 		url: string;
 		page?: number;
-		/** Rectangles to draw, in loom's space: points, origin top left, one per line. An annotation is marked `note` and carries its kind, severity, basis and whether it is settled, which the mark's classes say and theme.css draws; a result carries none of these. */
-		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
+		/** Rectangles to draw, in loom's space: points, origin top left, one per line. An annotation is marked `note` and carries its look, basis and whether it is settled, which the mark's classes and variables say and theme.css draws; a result carries none of these. */
+		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; look?: Look; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		scale?: number;
 		/** Whether to draw at all. False keeps the page's size and releases everything that costs memory. */
 		render?: boolean;
@@ -66,11 +68,11 @@
 		onsized?: (e: { page: number; width: number; height: number }) => void;
 		/** The reader followed a link inside the paper to another of its pages; a link out of it opens in a new tab and is not reported. */
 		onlink?: (e: { page: number }) => void;
-		/** The notes drawn on this page. */
+		/** The marks drawn on this page: annotations that record their own place. */
 		marks?: PageMark[];
 		/** The mark being looked at, which can be moved. */
 		selected?: string;
-		/** Annotations in the PDF that a note now stands for, by their reference: left off the canvas, so nothing is drawn twice. */
+		/** Annotations in the PDF that one of loom's now stands for, by their reference: left off the canvas, so nothing is drawn twice. */
 		hide?: string[];
 		/** The reader drew a mark with a tool that takes the pointer. */
 		ondraw?: (e: Drawn & { page: number }) => void;
@@ -159,7 +161,7 @@
 			if (!ctx) return;
 			ctx.scale(ratio, ratio);
 			const t1 = performance.now();
-			// an annotation a note stands for stays out of the drawing, through the document's annotation storage, which no page saves
+			// a PDF annotation one of loom's stands for stays out of the drawing, through the document's annotation storage, which no page saves
 			for (const id of hide) doc.annotationStorage.setValue(id, { noView: true });
 			const task = p.render({ canvasContext: ctx, viewport, canvas, ...(hide.length ? { annotationMode: lib.AnnotationMode.ENABLE_STORAGE } : {}) }) as unknown as Cancellable;
 			running = task;
@@ -368,8 +370,7 @@
 		<PageMarks {marks} {box} {scale} {tool} {selected} {embedded} ondraw={(e) => ondraw?.({ ...e, page })} {onpick} {onmove} />
 		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
 		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once.
-		     An annotation's mark is one button per line of its span, classed as a mark in a fragment is (`annotation`,
-		     `k-<kind>`, `s-<severity>`, `settled`, `basis-box`), so theme.css draws both surfaces from one rule. -->
+		     An annotation's mark is one button per line of its span, classed and styled as a mark in a fragment is (`annotation`, `ann-<style>`, the look's variables, `settled`, `basis-box`), so theme.css draws both surfaces from one rule. -->
 		<div class="marks" aria-hidden={quads.length === 0}>
 			{#each quads as q (q.id)}
 				{#each q.rects as r, i (i)}
@@ -379,7 +380,7 @@
 						<span class="mark result" class:on={focus === q.id} class:lead={i === 0} data-mark={q.id} data-testid="mark-{q.id}" aria-hidden="true" style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"></span>
 					{:else}
 					<button
-						class="mark {q.note ? 'annotation' : ''} {q.note && q.kind ? 'k-' + q.kind : ''} {q.note && q.severity ? 's-' + q.severity : ''}"
+						class="mark {q.note ? 'annotation ann-' + styleOf(q.look) : ''}"
 						class:note={q.note}
 						class:settled={q.note && q.settled}
 						class:basis-box={q.note && q.basis === 'box'}
@@ -389,8 +390,8 @@
 						data-mark={q.id}
 						data-annotation={q.note ? (q.ids ?? [q.id]).join(' ') : undefined}
 						data-testid="mark-{q.id}"
-						aria-label="{q.transient ? 'the place this link points at' : q.note ? `${q.kind ?? 'annotation'} ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
-						style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"
+						aria-label="{q.transient ? 'the place this link points at' : q.note ? `annotation ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
+						style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};{q.note ? ' ' + lookVars(q.look) : ''}"
 						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: !!q.note, el: e.currentTarget })}
 						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: !!q.note, el: e.currentTarget })}
 					></button>

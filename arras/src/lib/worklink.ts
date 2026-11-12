@@ -57,7 +57,7 @@ export function readKeys(link: WorkLink, query: string): WorkLink {
 			const nums = value.split(',').map(Number);
 			if (nums.length === 4 && nums.every((n) => Number.isFinite(n))) link.box = [nums[0], nums[1], nums[2], nums[3]];
 		}
-		if (key === 'annot' && /^a-\d{4}-\d{2}-\d{2}-\d+$/.test(value)) link.annot = value;
+		if (key === 'annot' && /^a-\d{4}-\d{2}-\d{2}-[0-9a-z]+$/.test(value)) link.annot = value;
 		if (key === 'result' && /^[A-Za-z0-9][\w.:-]*$/.test(value)) link.result = value;
 	}
 	return link;

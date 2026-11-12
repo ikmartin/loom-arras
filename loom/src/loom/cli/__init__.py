@@ -28,7 +28,6 @@ from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
 from loom.cli.mcp_cmd import mcp_command
 from loom.cli.nodes import new, search
-from loom.cli.note_cmd import note_command
 from loom.cli.page import write
 from loom.cli.paper import atomize, deloom_command, id_command, import_command
 from loom.cli.quilt import init
@@ -36,7 +35,7 @@ from loom.cli.review import accept, annotate, status
 from loom.cli.serve_cmd import serve
 from loom.cli.session import session
 from loom.cli.since_cmd import since_command
-from loom.cli.suggestion import suggestion
+from loom.cli.suggestion import suggest_command, suggestion
 from loom.cli.sync import sync
 from loom.cli.upgrade import upgrade
 from loom.version import __version__
@@ -74,6 +73,7 @@ main.add_command(source)
 main.add_command(serve)
 main.add_command(accept)
 main.add_command(annotate)
+main.add_command(suggest_command)
 main.add_command(suggestion)
 main.add_command(status)
 main.add_command(ai)
@@ -91,7 +91,6 @@ main.add_command(write)
 main.add_command(here_command)
 main.add_command(since_command)
 main.add_command(changes_command)
-main.add_command(note_command)
 main.add_command(mcp_command)
 main.add_command(sync)
 

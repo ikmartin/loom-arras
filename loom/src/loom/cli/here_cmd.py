@@ -22,7 +22,7 @@ from loom.scan.scan import ScanResult
 )
 @quilt_option
 def here_command(as_json: bool, quilt_path: str | None) -> None:
-    """Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session their annotations land in.
+    """Say where the person is looking in the viewer: the document, result, paper or session in front of them, the block at the top of the pane, the words they selected or the region of a page, and the session they have chosen.
 
     The viewer tab they touched last reports it to `loom serve`, which keeps it in memory only. With nothing serving the quilt, or no tab open, it says so. Each thing is named with the link `loom link` prints.
     """
@@ -218,7 +218,7 @@ def _lines(looking: dict[str, Any]) -> list[str]:
         out += line("beside", looking.get("beside"))
     session = looking.get("session")
     if session:
-        out += line("session", session, " (annotations land here)")
+        out += line("session", session, " (the one they have chosen)")
     return out
 
 

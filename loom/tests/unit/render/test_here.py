@@ -51,7 +51,7 @@ def test_a_document_a_block_and_the_words_selected_are_named_with_their_links(se
     assert got["session"]["link"] == f"quilt:{sid}"
     text = ok("here", cwd=q).stdout
     assert text.startswith("the person is looking at drafting/main.tex, at dm-0003 (")
-    assert '"a finite set"' in text and "[](quilt:dm-0003)" in text and "annotations land here" in text
+    assert '"a finite set"' in text and "[](quilt:dm-0003)" in text and "the one they have chosen" in text
     assert "by the viewer tab touched last" in text
 
 

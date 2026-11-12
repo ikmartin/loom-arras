@@ -13,8 +13,7 @@
 	import LibraryRow, { type Caps, type Done, type RowAct } from '$lib/review/LibraryRow.svelte';
 	import { can, write } from '$lib/write';
 	import { jobs, running } from '$lib/jobs.svelte';
-	import { askOverview } from '$lib/notes';
-	import { writable } from '$lib/sessions/sessions.svelte';
+	import { askOverview } from '$lib/review/ask';
 	import JobProgress from '$lib/components/JobProgress.svelte';
 	import LibraryRun from '$lib/components/LibraryRun.svelte';
 	import NetworkAsk from '$lib/components/NetworkAsk.svelte';
@@ -63,7 +62,7 @@
 	let caps = $state<Caps>({ runs: false, upload: false, ask: false, ignore: false, delete: false });
 	let canAdd = $state(false);
 	onMount(() => {
-		void Promise.all(['library-update', 'library-file', 'note', 'library-ignore', 'library-delete', 'library-add'].map((e) => can(e))).then(([runs, upload, ask, ignore, del, add]) => {
+		void Promise.all(['library-update', 'library-file', 'annotate', 'library-ignore', 'library-delete', 'library-add'].map((e) => can(e))).then(([runs, upload, ask, ignore, del, add]) => {
 			caps = { runs, upload, ask, ignore, delete: del };
 			canAdd = add;
 			if (runs) jobs.ask();
@@ -126,7 +125,7 @@
 		return { ok: true, said: capital(String(answer.result ?? '')) };
 	}
 
-	/** What a row's act does: a run, an upload, a note asking for the overview, a claim about its paper, or deleting it, or the copy `why` names. */
+	/** What a row's act does: a run, an upload, an annotation asking for the overview, a claim about its paper, or deleting it, or the copy `why` names. */
 	async function onact(ck: string, act: RowAct, why?: string): Promise<Done> {
 		if (act === 'run' || act === 'redo') return runOn([ck], act === 'redo');
 		if (act === 'upload') {
@@ -178,8 +177,6 @@
 		}
 		bulkSaid = [gone ? `Deleted ${gone} work${gone === 1 ? '' : 's'}.` : '', ...refused.map((r) => capital(r) + '.')].filter(Boolean).join(' ');
 	}
-
-	const why = $derived(writable(m));
 </script>
 
 <main class="page scrollbar-shown">
@@ -207,7 +204,7 @@
 			{#if picked.size}
 				<span>{picked.size} selected</span>
 				{#if caps.runs}<button class="add" onclick={() => void runPicked()} data-testid="bulk-run">Fetch and digest selected</button>{/if}
-				{#if caps.ask}<button class="add" disabled={!!why} title={why || undefined} onclick={() => void askPicked()} data-testid="bulk-ask">Ask an agent for overviews</button>{/if}
+				{#if caps.ask}<button class="add" onclick={() => void askPicked()} data-testid="bulk-ask">Ask an agent for overviews</button>{/if}
 				{#if caps.delete}<button class="add" onclick={() => (deleting = true)} data-testid="bulk-delete">Delete selected</button>{/if}
 				<button class="as-link" onclick={() => ((picked = new Set()), (bulkSaid = ''), (deleting = false))} data-testid="bulk-clear">Clear</button>
 			{:else}

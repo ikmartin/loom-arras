@@ -29,8 +29,8 @@ def test_each_kind_resolves(q: Path) -> None:
     assert resolve(result, q, "quilt:dm-0003/proof").kind == "node"
     doc = resolve(result, q, "quilt:drafting/main.tex#dm-0003")
     assert (doc.kind, doc.key, doc.place) == ("document", "drafting/main.tex", "dm-0003")
-    assert resolve(result, q, "quilt:a-2026-09-16-0001").kind == "annotation"
-    assert resolve(result, q, "quilt:s-2026-09-16-0001").kind == "session"
+    assert resolve(result, q, "quilt:a-2026-09-16-ecnav2").kind == "annotation"
+    assert resolve(result, q, "quilt:s-2026-09-16-p9z37z").kind == "session"
     work = resolve(result, q, "cited:doi:10.4171/demo/14-1?page=2")
     assert (work.kind, work.key, work.place) == ("work", "Calloway14", "page=2")
     assert resolve(result, q, "cited:arxiv:0805.2065v2").key == "Man12"
@@ -46,8 +46,8 @@ def test_what_the_viewer_does_not_show_is_refused(q: Path) -> None:
     for href, why in [
         ("quilt:dm-9999", "no key"),
         ("quilt:drafting/nodes/dm-0001.tex", "file the documents include"),
-        ("quilt:a-2026-01-01-0099", "no annotation"),
-        ("quilt:s-2026-01-01-0099", "no session"),
+        ("quilt:a-2026-01-01-zjcz9t", "no annotation"),
+        ("quilt:s-2026-01-01-54qgjt", "no session"),
         (f"quilt:drafting/main.tex#{unreached}", "does not include"),
         ("quilt:dm-0003#dm-0001", "is not in"),
         ("cited:doi:10.0/nobody", "no entry in the bibliography"),
@@ -61,9 +61,9 @@ def test_what_the_viewer_does_not_show_is_refused(q: Path) -> None:
 def test_a_deleted_session_is_not_linkable(q: Path) -> None:
     from loom.links import LinkError, resolve
 
-    ok("session", "delete", "s-2026-09-16-0001", "--as", "A. Author", cwd=q)
+    ok("session", "delete", "s-2026-09-16-p9z37z", "--as", "A. Author", cwd=q)
     with pytest.raises(LinkError, match="no session"):
-        resolve(scanned(q), q, "quilt:s-2026-09-16-0001")
+        resolve(scanned(q), q, "quilt:s-2026-09-16-p9z37z")
 
 
 def test_check_names_every_bad_link(q: Path) -> None:
@@ -81,8 +81,8 @@ def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
 
     assert link("dm-0003") == "[](quilt:dm-0003)"
     assert link("drafting/main.tex", "--at", "dm-0003") == "[](quilt:drafting/main.tex#dm-0003)"
-    assert link("a-2026-09-16-0004") == "[](quilt:a-2026-09-16-0004)"
-    assert link("s-2026-09-16-0002") == "[](quilt:s-2026-09-16-0002)"
+    assert link("a-2026-09-16-tc3rcf") == "[](quilt:a-2026-09-16-tc3rcf)"
+    assert link("s-2026-09-16-p9z37z") == "[](quilt:s-2026-09-16-p9z37z)"
     assert (
         link("Calloway14", "--page", "2", "--quote", "a phrase")
         == "[](cited:doi:10.4171/demo/14-1?page=2&quote=a%20phrase)"
@@ -95,7 +95,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
     from loom.mailbox import read_events
 
     agent = {"AI_AGENT": "1"}
-    sid = "s-2026-09-16-0002"
+    sid = "s-2026-09-16-p9z37z"
     bad = refused(
         "session",
         "say",
@@ -117,10 +117,8 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "annotate",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
-        "--kind",
+        "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "Referee Agent",
         cwd=q,
@@ -133,10 +131,8 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "annotate",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
-        "--kind",
+        "--type",
         "note",
-        "--session",
-        sid,
         "--as",
         "A. Author",
         cwd=q,

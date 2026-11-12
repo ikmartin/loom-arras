@@ -29,7 +29,7 @@ def test_source_at_an_annotation_prints_the_text_it_was_written_against_and_diff
         "annotate",
         "dm-0002",
         "Is this right?",
-        "--kind",
+        "--type",
         "question",
         "--quote",
         "one or two points",

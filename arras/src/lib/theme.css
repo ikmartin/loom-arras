@@ -51,19 +51,29 @@
 	--state-loose: #888780;
 	--state-loose-wash: transparent;
 
-	/* annotations: four hues and one neutral, each with its wash. Hue is the kind; nothing else about an annotation is a colour. */
-	--ann-objection: #a32d2d;
-	--ann-objection-wash: rgb(163 45 45 / 10%);
-	--ann-suggestion: #a07a0a;
-	--ann-suggestion-wash: rgb(160 122 10 / 10%);
-	--ann-question: #185fa5;
-	--ann-question-wash: rgb(24 95 165 / 10%);
-	--ann-citation: #6b3fa0;
-	--ann-citation-wash: rgb(107 63 160 / 10%);
+	/* annotations: the nine colours an annotation's look names, each a line (underline, strike, a box's stripe, a list's dot) and a band (highlight); a colour means whatever its reader decides. The neutral is the chrome's grey for what belongs to annotations but has no look of its own. */
+	--ann-grey: #888780;
+	--ann-grey-band: #d8d5cd;
+	--ann-brown: rgb(128 80 42);
+	--ann-brown-band: rgb(215 178 135);
+	--ann-red: rgb(204 28 28);
+	--ann-red-band: rgb(255 125 115);
+	--ann-orange: rgb(196 90 10);
+	--ann-orange-band: rgb(255 190 120);
+	--ann-yellow: rgb(218 172 0);
+	--ann-yellow-band: rgb(255 235 60);
+	--ann-green: rgb(30 125 54);
+	--ann-green-band: rgb(160 232 140);
+	--ann-blue: rgb(26 111 196);
+	--ann-blue-band: rgb(140 205 255);
+	--ann-purple: rgb(116 67 204);
+	--ann-purple-band: rgb(208 176 255);
+	--ann-pink: rgb(208 54 142);
+	--ann-pink-band: rgb(255 174 220);
 	--ann-neutral: #6f6d66;
 	--ann-neutral-wash: rgb(111 109 102 / 10%);
 
-	/* compare with a base: git's red on the side holding the base, its green on the other; drawn only while annotations are off, so red is not read as an objection */
+	/* compare with a base: git's red on the side holding the base, its green on the other; drawn only while annotations are off, so its red is not read as an annotation's */
 	--diff-del: #a32d2d;
 	--diff-del-wash: #fcebeb;
 	--diff-add: #0f6e56;
@@ -132,14 +142,24 @@
 		--state-incomplete: #e8827c;
 		--state-incomplete-wash: rgb(232 130 124 / 14%);
 		--state-loose: #85837c;
-		--ann-objection: #e8827c;
-		--ann-objection-wash: rgb(232 130 124 / 10%);
-		--ann-suggestion: #d9b24f;
-		--ann-suggestion-wash: rgb(217 178 79 / 10%);
-		--ann-question: #7fb0e8;
-		--ann-question-wash: rgb(127 176 232 / 10%);
-		--ann-citation: #b48ee0;
-		--ann-citation-wash: rgb(180 142 224 / 10%);
+		--ann-grey: #9a988f;
+		--ann-grey-band: #4c4c55;
+		--ann-brown: #c9a079;
+		--ann-brown-band: rgb(108 76 48);
+		--ann-red: #f2706a;
+		--ann-red-band: rgb(150 38 38);
+		--ann-orange: #f0a060;
+		--ann-orange-band: rgb(150 85 25);
+		--ann-yellow: #e0b84a;
+		--ann-yellow-band: rgb(140 112 20);
+		--ann-green: #6fcf8a;
+		--ann-green-band: rgb(46 110 60);
+		--ann-blue: #7fb0e8;
+		--ann-blue-band: rgb(40 90 140);
+		--ann-purple: #b48ee0;
+		--ann-purple-band: rgb(90 60 150);
+		--ann-pink: #f594cc;
+		--ann-pink-band: rgb(146 50 112);
 		--ann-neutral: #9a988f;
 		--ann-neutral-wash: rgb(154 152 143 / 10%);
 		color-scheme: dark;
@@ -174,14 +194,24 @@
 	--state-incomplete: #e8827c;
 	--state-incomplete-wash: rgb(232 130 124 / 14%);
 	--state-loose: #85837c;
-	--ann-objection: #e8827c;
-	--ann-objection-wash: rgb(232 130 124 / 10%);
-	--ann-suggestion: #d9b24f;
-	--ann-suggestion-wash: rgb(217 178 79 / 10%);
-	--ann-question: #7fb0e8;
-	--ann-question-wash: rgb(127 176 232 / 10%);
-	--ann-citation: #b48ee0;
-	--ann-citation-wash: rgb(180 142 224 / 10%);
+	--ann-grey: #9a988f;
+	--ann-grey-band: #4c4c55;
+	--ann-brown: #c9a079;
+	--ann-brown-band: rgb(108 76 48);
+	--ann-red: #f2706a;
+	--ann-red-band: rgb(150 38 38);
+	--ann-orange: #f0a060;
+	--ann-orange-band: rgb(150 85 25);
+	--ann-yellow: #e0b84a;
+	--ann-yellow-band: rgb(140 112 20);
+	--ann-green: #6fcf8a;
+	--ann-green-band: rgb(46 110 60);
+	--ann-blue: #7fb0e8;
+	--ann-blue-band: rgb(40 90 140);
+	--ann-purple: #b48ee0;
+	--ann-purple-band: rgb(90 60 150);
+	--ann-pink: #f594cc;
+	--ann-pink-band: rgb(146 50 112);
 	--ann-neutral: #9a988f;
 	--ann-neutral-wash: rgb(154 152 143 / 10%);
 	color-scheme: dark;
@@ -1149,84 +1179,102 @@ a.heading-link:focus {
 	--taxon-definition: #63c0b8;
 }
 
-/* The mark: what is drawn on the text, one rule set for every surface. Hue is the kind, `k-<kind>`; a note and any kind the viewer has never heard of take the neutral. Weight is the severity, `s-<severity>`: 1px minor, 3px major, 2px for moderate and for the kinds that take none. The wash is the hue at 5% at rest and at 10% (`--ann-<kind>-wash`) on the one mark whose box is open (`open`), the same whatever the severity. Nothing else is tinted or outlined. */
+/* The mark: what is drawn on the text, one rule set for every surface. A mark carries its annotation's look as inline variables (`lookVars`, review/annotationTypes.ts): `--ann-line` and `--ann-band`, one colour's two tokens, `--ann-weight` and `--ann-opacity`; and its style as a class, `ann-underline`, `ann-highlight` or `ann-strike`. A mark with no look is a grey underline. Underline and strike are a line of the weight, at the foot of the words or through them at 58%; highlight is the band behind them; the opacity is the line's or the band's. The one mark whose box is open (`open`) adds what its style lacks: a faint band behind a line, a line beneath a band. The box takes `--ann-line` for its stripe and a list's dot for its fill. Nothing else is tinted or outlined. */
 .annotation {
-	--ann-hue: var(--ann-neutral);
-	--ann-wash: var(--ann-neutral-wash);
+	--ann-line: var(--ann-grey);
+	--ann-band: var(--ann-grey-band);
 	--ann-weight: 2px;
-	/* what is drawn: the hue, the weight and the background as the state leaves them */
-	--ann: var(--ann-hue);
-	--ann-w: var(--ann-weight);
-	--ann-bg: color-mix(in srgb, var(--ann-hue) 5%, transparent);
+	--ann-opacity: 100%;
+	/* the state's share of the opacity (`--ann-k`) and the style's share of the band (`--ann-band-k`); a line `--ann-bar` thick at `--ann-at` of the words' height */
+	--ann-k: 1;
+	--ann-band-k: 0;
+	--ann-bar: var(--ann-weight);
+	--ann-at: 100%;
+	/* what is drawn */
+	--ann-ink: color-mix(in srgb, var(--ann-line) calc(var(--ann-opacity) * var(--ann-k)), transparent);
+	--ann-bg: color-mix(in srgb, var(--ann-band) calc(var(--ann-opacity) * var(--ann-k) * var(--ann-band-k)), transparent);
 }
-:is(.annotation, .box, .ann-dot).k-objection { --ann-hue: var(--ann-objection); --ann-wash: var(--ann-objection-wash); }
-:is(.annotation, .box, .ann-dot).k-suggestion { --ann-hue: var(--ann-suggestion); --ann-wash: var(--ann-suggestion-wash); }
-:is(.annotation, .box, .ann-dot).k-question { --ann-hue: var(--ann-question); --ann-wash: var(--ann-question-wash); }
-:is(.annotation, .box, .ann-dot).k-citation { --ann-hue: var(--ann-citation); --ann-wash: var(--ann-citation-wash); }
-/* The box takes the same hue for its left stripe, from the same class; settled, the stripe keeps the hue at half strength, as the settled mark does. */
-article.box { --ann-hue: var(--ann-neutral); }
-article.box.settled { border-left-color: color-mix(in srgb, var(--ann-hue) 50%, transparent); }
-/* A list names the kind by hue and not by word: a 7px dot in the kind's hue before the row's link, from the same `k-<kind>` seam; a reply's is a ring, since a reply's kind is its thread's. The word stays in the dot's label for a screen reader. Severity is not shown in a list. */
+.annotation.ann-strike { --ann-at: 58%; }
+.annotation.open { --ann-band-k: 0.35; }
+.annotation.ann-highlight {
+	--ann-band-k: 1;
+	--ann-bar: 0px;
+}
+.annotation.ann-highlight.open { --ann-bar: 2px; }
+article.box { --ann-line: var(--ann-neutral); }
+/* settled, the stripe keeps its colour at half strength, as the settled mark does */
+article.box.settled { border-left-color: color-mix(in srgb, var(--ann-line) 50%, transparent); }
+/* A list shows an annotation's colour and not its type: a 7px dot before the row's link; a reply's is a ring. The type's name stays in the dot's label for a screen reader. */
 .ann-dot {
-	--ann-hue: var(--ann-neutral);
+	--ann-line: var(--ann-neutral);
 	display: inline-block;
 	flex: none;
 	width: 7px;
 	height: 7px;
 	border-radius: 50%;
-	background: var(--ann-hue);
+	background: var(--ann-line);
 	vertical-align: middle;
 }
 .ann-dot.reply {
 	background: transparent;
-	box-shadow: inset 0 0 0 1.5px var(--ann-hue);
+	box-shadow: inset 0 0 0 1.5px var(--ann-line);
 }
-.annotation.s-minor { --ann-weight: 1px; }
-.annotation.s-major { --ann-weight: 3px; }
-/* Settled, resolved or discarded: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), the hue survives at a 3% wash with the underline at half its weight and 50% opacity. A mark the session filter excludes (`hidden`) is not drawn either way. */
+/* Settled, that is resolved: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), it is drawn at 40% of its opacity. A mark in a pane that hides its annotations (`hidden`) is not drawn either way. */
 .annotation.settled {
-	--ann: transparent;
-	--ann-bg: transparent;
+	--ann-k: 0;
 	cursor: auto;
 	pointer-events: none;
 }
 .show-settled .annotation.settled {
-	--ann: color-mix(in srgb, var(--ann-hue) 50%, transparent);
-	--ann-w: calc(var(--ann-weight) / 2);
-	--ann-bg: color-mix(in srgb, var(--ann-hue) 3%, transparent);
+	--ann-k: 0.4;
 	cursor: pointer;
 	pointer-events: auto;
 }
-.annotation.open,
-.show-settled .annotation.settled.open { --ann-bg: var(--ann-wash); }
 .annotation.hidden,
 .show-settled .annotation.hidden {
-	--ann: transparent;
-	--ann-bg: transparent;
+	--ann-k: 0;
 	cursor: auto;
 	pointer-events: none;
 }
 
-/* The shapes, one per anchor. A phrase is bordered beneath, line by line; the border is in the layout at rest and transparent when not drawn, so nothing moves when a mark opens or a settled one is shown. A block is underlined line by line rather than barred down its edge, since a bar at a paragraph's start reads as punctuation; a displayed formula is drawn, not set in lines, so its underline is a rule beneath the display. */
+/* The shapes, one per anchor. A phrase is drawn line by line, the line and the band as backgrounds, so nothing moves when a mark opens or a settled one is shown. A block is underlined or struck line by line with text decoration, since a bar at a paragraph's start reads as punctuation; a displayed formula is drawn, not set in lines, so its underline is a rule beneath the display and its strike a rule across it. */
 .fragment mark.annotation {
 	color: inherit;
-	background: var(--ann-bg);
+	background-color: var(--ann-bg);
+	background-image: linear-gradient(var(--ann-ink), var(--ann-ink));
+	background-size: 100% var(--ann-bar);
+	background-position: 0 var(--ann-at);
+	background-repeat: no-repeat;
 	padding: 0 0 1px;
-	border-bottom: var(--ann-w) solid var(--ann);
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
 .fragment .annotation-block {
 	background: var(--ann-bg);
-	text-decoration: underline var(--ann-w) var(--ann);
+	text-decoration: underline var(--ann-bar) var(--ann-ink);
 	text-underline-offset: 0.22em;
 	text-decoration-skip-ink: none;
 }
+.fragment .annotation-block.ann-strike { text-decoration-line: line-through; }
+.fragment .annotation-block.ann-highlight:not(.open) { text-decoration: none; }
 .fragment .math.display.annotation-block {
-	/* beneath the display's scroll shadows, whose `background` shorthand would otherwise clear the wash */
+	/* beneath the display's scroll shadows, whose `background` shorthand would otherwise clear the band */
 	background-color: var(--ann-bg);
 	text-decoration: none;
-	box-shadow: inset 0 calc(-1 * var(--ann-w)) 0 var(--ann);
+	box-shadow: inset 0 calc(-1 * var(--ann-bar)) 0 var(--ann-ink);
+}
+.fragment .math.display.annotation-block.ann-strike {
+	position: relative;
+	box-shadow: none;
+}
+.fragment .math.display.annotation-block.ann-strike::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 58%;
+	border-top: var(--ann-bar) solid var(--ann-ink);
+	pointer-events: none;
 }
 .fragment mark.annotation,
 .fragment .annotation-block { cursor: pointer; }
@@ -1235,13 +1283,19 @@ article.box.settled { border-left-color: color-mix(in srgb, var(--ann-hue) 50%, 
 .show-settled .fragment .annotation.settled,
 .fragment.show-settled .annotation.settled { cursor: pointer; }
 .fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
-/* On a PDF page the mark is a button over each line of the span (pdf/PdfPage.svelte): the same underline beneath each line, and a box anchor an outline in the hue. A button has no words under it, so one not drawn is not there at all. */
+/* On a PDF page the mark is a button over each line of the span (pdf/PdfPage.svelte), drawn as a phrase is; a box anchor is an outline of the weight in the line's colour. A button has no words under it, so one not drawn is not there at all. */
 button.mark.annotation {
-	background: var(--ann-bg);
 	border: 0;
-	border-bottom: var(--ann-w) solid var(--ann);
+	background-color: var(--ann-bg);
+	background-image: linear-gradient(var(--ann-ink), var(--ann-ink));
+	background-size: 100% var(--ann-bar);
+	background-position: 0 var(--ann-at);
+	background-repeat: no-repeat;
 }
-button.mark.annotation.basis-box { border: var(--ann-w) solid var(--ann); }
+button.mark.annotation.basis-box {
+	border: var(--ann-weight) solid var(--ann-ink);
+	background-image: none;
+}
 button.mark.annotation.settled { display: none; }
 .show-settled button.mark.annotation.settled { display: block; }
 

@@ -6,7 +6,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### The author's acts refuse any agent, whatever name it declares
 
-**Rule.** The author's acts (`accept`; `library verify`, `discard`, `ignore`, `add`, `import` and `drop`; `session delete --purge`; `ai discard`; `sync publish --push` and `sync incorporate`) refuse a declared agent name, and under an agent marker refuse any name (K5). `refuse_under_agent` is the guard.
+**Rule.** The author's acts (`accept`; `library verify`, `discard`, `ignore`, `add`, `import` and `drop`; `session delete --purge`; `ai delete`; `suggestion apply`; `sync publish --push` and `sync incorporate`) refuse a declared agent name, and under an agent marker refuse any name (K5). `refuse_under_agent` is the guard.
 
 **Why.** In the first study an agent verified its own proposal and loom named the author as verifier, since the name came from git, which the agent's shell shares. Later, `accept --author …` and `refs verify --author …` from an agent's shell were accepted.
 
@@ -115,6 +115,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **2026-11-02.** The viewer's Settings edits `[agents] deny` and rewrites Claude Code's permission file to it, each only on the author's act: `settings-save` and `agents-update` refuse a declared agent like every other author act over the API (plan 0.23).
 
+**2026-11-11.** `.loom/annotation-types.toml` is the one file of loom's under `.loom/` that an agent may edit (`AGENT_FILES`): a type's instructions are written for agents, and an agent asked to write one should not need the person to paste it in (plan 0.30, decision 4). Guarded by `loom/tests/unit/records/test_types.py::test_an_agent_may_edit_the_types_but_nothing_else_of_loom_s`.
+
 ### Agent instructions name only commands the agent may run
 
 **Rule.** The orientation, the rules and the mode files tell an agent to run only commands in `AGENT_COMMANDS`; an author's command appears in them only where the text says it refuses the agent.
@@ -127,7 +129,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### An agent deletes nothing from a session's directory
 
-**Rule.** An agent never deletes a file in a session's directory, since an annotation or a note may point at it. Its scripts, backups and staging files go under `.loom/build/SESSION/`, and the permission file denies `Bash(rm *)`.
+**Rule.** An agent never deletes a file in a session's directory, since an annotation or a message may point at it. Its scripts, backups and staging files go under `.loom/build/SESSION/`, and the permission file denies `Bash(rm *)`.
 
 **Why.** An agent tidying a session cluttered with its own intermediates tried to `rm` a file one of its own annotations pointed at. A shell permission cannot be confined to one directory, so the fix was a separate place for intermediates.
 
@@ -137,13 +139,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Upgrade never destroys an author's edit
 
-**Rule.** `loom upgrade` and `loom ai init` keep one line of loom's in `CLAUDE.md`, `AGENTS.md` and `GEMINI.md`, replacing the other variant's line where it stands, and touch nothing else there. An edited mode file or orientation is kept, with the shipped text written beside it as `.new`; an edited `loom.sty` is kept as `loom.sty.old` before it is replaced.
+**Rule.** `loom upgrade` and `loom ai init` keep one line of loom's in `CLAUDE.md`, `AGENTS.md` and `GEMINI.md`, replacing the other variant's line where it stands, and touch nothing else there. An edited mode file or orientation is kept, with the shipped text written beside it as `.new`; an edited `loom.sty` is kept as `loom.sty.old` before it is replaced. `.loom/annotation-types.toml` is written only where there is none.
 
 **Why.** Upgrade wrote `CLAUDE.md` and `AGENTS.md` whole whenever they differed from the shipped copy, so an author who had added instructions lost them, and an edited orientation was overwritten with no warning and no backup.
 
 **Guard.** `loom/tests/unit/test_ai_layer.py::test_root_files_carry_one_line_and_keep_the_authors`, `loom/tests/unit/test_ai_layer.py::test_upgrade_preserves_edited_modes`, `loom/tests/unit/test_ai_layer.py::test_upgrade_keeps_an_edited_loom_sty_as_old_and_says_so`
 
 **Record.** DR-151, DR-170, DR-333-ikmartin
+
+**2026-11-11.** The annotation types file joined the rule (plan 0.30, decision 4): it is the person's from the moment `loom init` writes it, so upgrade adds it to a quilt that lacks it and never rewrites it. Guarded by `loom/tests/unit/records/test_types.py::test_init_writes_the_defaults_listed_and_upgrade_keeps_an_edited_file`.
 
 ### Where the person is looking is never written down
 
@@ -169,15 +173,27 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Drawing an id takes a lock
 
-**Rule.** Whatever draws an id from what it can see holds an exclusive lock from the read to the write, in the command itself, so the lock holds across shells, servers and the viewer alike (`loom/src/loom/locks.py`). What is numbered in a log is drawn under a lock on that log: an annotation's, a note's, a session's and a link's id, a step's number, a message's sequence number. A node id has no one file to draw from, so `loom new`, `loom fork` and `loom history restore` hold `.loom/build/ids.lock` from before their scan until their file is written, as `loom draft` and `loom stamp` do for the step they plan. A step planned from a history the ledger has since moved past is refused before anything is written. `loom new` also creates its file exclusively, so it never overwrites what no lock could stop: a person saving at that moment, or a filesystem with no locks, on which loom says so and goes on (P13).
+**Rule.** Whatever draws an id from what it can see holds an exclusive lock from the read to the write, in the command itself, so the lock holds across shells, servers and the viewer alike (`loom/src/loom/locks.py`). What is drawn against a log is drawn under a lock on that log: an annotation's, a session's and a link's id, a step's number, a message's sequence number. A node id has no one file to draw from, so `loom new`, `loom fork` and `loom history restore` hold `.loom/build/ids.lock` from before their scan until their file is written, as `loom draft` and `loom stamp` do for the step they plan. A step planned from a history the ledger has since moved past is refused before anything is written. `loom new` also creates its file exclusively, so it never overwrites what no lock could stop: a person saving at that moment, or a filesystem with no locks, on which loom says so and goes on (P13).
 
 `loom import`, `loom linearize` and incorporating an agent document hold no lock while they draw node ids, since a compile, a prompt or a preview stands between the draw and the write. They write those ids into a document, never into a file the id names, so a collision is two definitions of one id, which is reported and overwrites nothing (P13). `loom id` says ids and reserves none: `--next` prints one, and a patch or a labelled copy holds them only once the author puts it in a document.
 
 **Why.** A study of `loom mcp` beside `loom` in a shell, on copies of the demo, with writers started at the same moment. Two `loom new` calls both reported success with one file written in ten trials of twelve, a node silently lost; through two servers, sixteen calls reported success and eight files existed. Two `loom annotate` calls drew one id in ten trials of twelve, so a reply to that id could not say which annotation it meant. A lock inside one server had hidden this from any agent with one server.
 
-**Guard.** `loom/tests/unit/test_parallel_writers.py::test_parallel_new_each_make_a_file_of_their_own_or_refuse_cleanly`, `loom/tests/unit/test_parallel_writers.py::test_parallel_annotate_gives_every_annotation_its_own_id`, `loom/tests/unit/test_parallel_writers.py::test_parallel_note_gives_every_note_its_own_id`, `loom/tests/unit/test_parallel_writers.py::test_parallel_steps_each_draw_a_number_of_their_own`, `loom/tests/unit/test_mcp_server.py::test_two_servers_on_one_quilt_never_lose_a_node`
+**Guard.** `loom/tests/unit/test_parallel_writers.py::test_parallel_new_each_make_a_file_of_their_own_or_refuse_cleanly`, `loom/tests/unit/test_parallel_writers.py::test_parallel_annotate_gives_every_annotation_its_own_id`, `loom/tests/unit/test_parallel_writers.py::test_parallel_steps_each_draw_a_number_of_their_own`, `loom/tests/unit/test_mcp_server.py::test_two_servers_on_one_quilt_never_lose_a_node`
 
 **Record.** The study of 2026-11-04.
+
+**2026-11-05.** "What is numbered in a log" became "what is drawn against a log", because an annotation's, a note's, a session's and a link's id stopped being a number (the next entry). The lock is unchanged: a draw still reads what the log holds so as not to repeat it, and this rule keeps writers on one machine apart, where the next keeps clones apart.
+
+### A record's id is drawn, never counted
+
+**Rule.** An annotation's, a session's and a link's id ends in a token drawn at random (`loom/src/loom/records/ids.py`), so two clones that write apart draw two ids. Nothing reads an order out of a token. Two records that still reach a log under one id are reported as `loom:repeated-id`, and loom changes neither (P13).
+
+**Why.** Two clones of a quilt, each writing on one day and merged keeping both sides of git's conflict. Each clone's first annotation that day was `0001`, so `loom ai annotations` listed two under one id, a reply could not say which it meant, and `loom lint` said nothing. A note or a session under a shared id was worse: the reader kept the last, so the earlier one left every view with no word. A link's count held no day, so it shared an id on any day, and undoing either removed both.
+
+**Guard.** `loom/tests/unit/records/test_record_ids.py::test_two_clones_merge_into_records_each_with_an_id_of_its_own`, `loom/tests/unit/records/test_record_ids.py::test_lint_reports_two_records_under_one_id`
+
+**Record.** The study of 2026-11-05.
 
 ### Resolving a name never creates anything
 
@@ -191,7 +207,7 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### A write that says nothing is refused
 
-**Rule.** A reply with no message, an edit that changes nothing, and an edit to an empty body are refused with a non-zero exit and write nothing. A bare resolution, and a note that only records a reading, stay legal.
+**Rule.** A reply with no message, an edit that changes nothing, and an edit to an empty body are refused with a non-zero exit and write nothing. A bare resolution, and an annotation whose type does not stay open until resolved, a highlight with nothing said among them, stay legal.
 
 **Why.** `--reply` and `--resolve` read their one argument as a target, so the author's answers to findings were filed as `body: ""`, with exit 0 and no warning. Loom's own fixture generator did it twice, and the synthetic quilt shipped two empty replies nobody saw.
 
@@ -201,13 +217,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Review records are appended, never rewritten
 
-**Rule.** Every review event is one line appended to `.loom/annotations/log.jsonl`, and an annotation's state is the replay of its events. The history ledger and a session's inbox are appended the same way (P2).
+**Rule.** Every review event is one line appended to `.loom/annotations/log.jsonl`, and an annotation's state is the replay of its events. The one rewrite is a deletion, which removes an annotation's events and its replies' under the log's lock, in place, so no append lands between its read and its write. The history ledger and a session's inbox are appended the same way (P2).
 
 **Why.** Records were files rewritten whole. When an agent resolved its own finding, the parent and the writer were two copies of one file and the second write clobbered the resolution, which is the case an agent hits on every re-check.
 
 **Guard.** `loom/tests/unit/records/test_review_commands.py::test_a_run_resolves_its_own_annotation`
 
 **Record.** DR-147 (the annotation log, 2026-09-18; a second DR-147 is about base paths)
+
+**Changed 2026-11-11** (plan 0.30, decision 7, approved by the author): deleting an annotation removes it from the log instead of appending a discard, since a record nobody can see is not worth keeping. The clobbering this invariant records cannot recur, because a deletion holds the same lock every append takes and rewrites the file in place.
 
 ### A re-check edits a finding; it does not reply to it
 
@@ -221,13 +239,15 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### The log's columns use underscores, and a line that does not read is reported
 
-**Rule.** Log lines carry `annotation_kind` and `reply_to`. A line with an unknown or missing kind, a malformed id, or a reply to nothing is reported as `loom:foreign-annotations`, never silently defaulted.
+**Rule.** Log lines carry `reply_to`, and an annotation's type as `type`, the id of one in the types file. A line whose type is not an id, a malformed id, or a reply to nothing is reported as `loom:foreign-annotations`, never silently defaulted. A type the quilt no longer lists is no problem, since a type is a label and the annotation keeps the look it was drawn in.
 
 **Why.** The only written column list, in plan 0.10, spelled `annotation-kind` and `reply-to`. A log written from it lost its kind and its parent on every line and said nothing, because a missing kind silently became `objection`.
 
-**Guard.** `loom/tests/unit/records/test_hostile_log.py::test_a_missing_kind_is_reported_rather_than_assumed`
+**Guard.** `loom/tests/unit/records/test_hostile_log.py::test_a_type_that_is_not_an_id_is_reported`, `loom/tests/unit/records/test_hostile_log.py::test_a_reply_to_nothing_is_reported`
 
 **Record.** DR-165
+
+**2026-11-11.** `annotation_kind` gave way to `type` (plan 0.30, decision 4). A line with no type is an untyped annotation rather than a defaulted one, so the silent default this records has nowhere to recur.
 
 ### Printing a patch records nothing
 
@@ -413,7 +433,9 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Why.** P3: a state stored is a state that goes stale. A note linked tomorrow must come back without anyone writing that it did.
 
-**Guard.** `loom/tests/unit/test_notes.py::test_a_note_fades_after_two_weeks_unless_kept_or_linked`
+**Guard.** None since 2026-11-11.
 
 **Record.** Plan 0.22.8
+
+**2026-11-11.** Retired with notes (plan 0.30, decision 1): a note is an annotation whose type is listed in Notes, and an annotation never fades. P3 still holds for what replaced it, since whether an annotation is open is computed from its type.
 

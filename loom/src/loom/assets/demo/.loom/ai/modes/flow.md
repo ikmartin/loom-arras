@@ -30,4 +30,4 @@ Core: [structure-map], [flow-edits], [rejected], [meaning-drift-check]. Optional
 
 ## Where changes go
 
-On the author's text, the sentence-level types are suggestions, and the structural ones — dissolve, a reordering, a hypothesis moved between results — are an agent document of the passage.
+On the author's text, the sentence-level types are suggested edits carrying the new text, and the structural ones — dissolve, a reordering, a hypothesis moved between results — are an agent document of the passage.

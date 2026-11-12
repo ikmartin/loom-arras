@@ -76,7 +76,7 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
     "with_file",
     default=None,
     metavar="FILE",
-    help="Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
+    help="Substitute a unified diff, a .tex file, or a suggested edit's text (by its id) for KEY's text; the quilt is not touched.",
 )
 @click.option("--draft", "draft_file", default=None, metavar="FILE", help="Compile a node file not yet in the quilt.")
 @click.option(
@@ -259,29 +259,26 @@ def html_report(result: ScanResult, master: str, engine: str) -> dict[str, Any]:
 
 
 def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
-    """Resolve `--with`: a file on disk, else a suggestion's id, its payload taken in place as `loom suggestion` prints it.
+    """Resolve `--with`: a file on disk, else a suggested edit's id, its text taken in place as `loom suggestion` prints it.
 
-    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. A suggestion is accepted because its payload **is** the proposal, and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
+    A file is tried first, because a path is what the option takes and a filename could otherwise be shadowed by an id. An edit is accepted because its text **is** the proposal, and asking an agent to copy its own edit into a file before compiling it is a step with nothing in it.
     """
-    from loom.records.annotations import find_annotation
-    from loom.records.store import Records
-    from loom.records.suggestions import Unplaced, place, taken_file
+    from loom.records.edits import Unplaced, find, place, taken_file
 
     root = result.quilt.root
     p = Path(with_file).expanduser()
     try:
         if p.is_file():
             return substituted_region(result, key, p)
-        found = find_annotation(Records(root, result.quilt.history_dir).records, with_file)
-        if found is None:
-            raise EnvError(f"--with {with_file}: no such file, and no annotation has that id")
-        _, ann = found
+        edit = find(root, with_file)
+        if edit is None:
+            raise EnvError(f"--with {with_file}: no such file, and no suggested edit has that id")
         try:
-            placed = place(result, ann)
+            placed = place(result, edit)
         except Unplaced as exc:
             raise ContentError(f"--with {with_file}: {exc}") from exc
         if placed.key != key:
-            raise ContentError(f"--with {with_file}: that suggestion is on {placed.key}, not {key}")
+            raise ContentError(f"--with {with_file}: that edit is on {placed.key}, not {key}")
         return region_from_text(result, key, taken_file(result, placed), result.nodes[key])
     except OSError as exc:
         raise EnvError(f"--with {with_file}: {exc.strerror or exc}") from exc
@@ -573,13 +570,14 @@ def text_at(result: ScanResult, key: str, ref: str) -> tuple[str, str]:
     """
     from loom.history.versions import read_version, version_at
     from loom.records.annotations import find_annotation, load_records
+    from loom.records.ids import ANNOTATION
     from loom.records.ledger import latest_rows
     from loom.records.snapshots import read_snapshot
     from loom.records.store import Records
     from loom.scan.hashing import normalize
 
     root, history_dir = result.quilt.root, result.quilt.history_dir
-    if re.fullmatch(r"a-\d{4}-\d{2}-\d{2}-\d+", ref):
+    if re.fullmatch(ANNOTATION, ref):
         found = find_annotation(load_records(root)[0], ref)
         if found is None:
             raise NotFoundError("annotation", f"no annotation {ref}")

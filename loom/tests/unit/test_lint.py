@@ -30,6 +30,14 @@ def _unreadable_log_line(q: Path) -> None:
         fh.write("{not json\n")
 
 
+def _log_line_kept_twice(q: Path) -> None:
+    log = q / ".loom/annotations" / "log.jsonl"
+    lines = log.read_text(encoding="utf-8").splitlines()
+    created = next(ln for ln in lines if '"event": "created"' in ln)
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write(created + "\n")
+
+
 def _missing_main(q: Path) -> None:
     edit(q / "config.toml", 'main = "drafting/main.tex"', 'main = "drafting/missing.tex"')
 
@@ -48,6 +56,7 @@ def _mac_roman_node(q: Path) -> None:
 #: code -> (what provokes it on the demo, what its line must name)
 WARNINGS: dict[str, tuple[Callable[[Path], None], str]] = {
     "loom:foreign-annotations": (_unreadable_log_line, ".loom/annotations/log.jsonl"),
+    "loom:repeated-id": (_log_line_kept_twice, ".loom/annotations/log.jsonl"),
     "loom:main-not-found": (_missing_main, "drafting/missing.tex"),
     "loom:main-unset": (_unset_main, "[quilt] main is unset"),
     "loom:unknown-config-key": (_unknown_table, "[colour]"),
@@ -227,8 +236,19 @@ def test_every_finding_names_what_resolves_it_and_the_command_works(tmp_path: Pa
     )
     (q / "drafting" / "nodes" / "stray.tex").write_text("\\begin{remark}\\label{dm-0099}\nStray.\n\\end{remark}\n")
     a = ok(
-        "annotate", "dm-0002", "Which orbits?", "--quote", "one-point orbits", "--as", "Tester", cwd=q
+        "annotate",
+        "dm-0002",
+        "Which orbits?",
+        "--quote",
+        "one-point orbits",
+        "--type",
+        "question",
+        "--as",
+        "Tester",
+        cwd=q,
     ).output.split()[0]
+    # an untyped mark only informs, so nothing resolves it and its detachment names no fix
+    ok("annotate", "dm-0002", "--quote", "one-point orbits", "--as", "Tester", cwd=q)
     edit(q / "drafting" / "nodes" / "dm-0002.tex", "the one-point orbits", "the orbits of one point")
     assert "add dm-0001 to the \\uses of dm-0003/proof" in _fixes(q, "loom:uses-missing")
     assert _fixes(q, "loom:unmatched-postnote") == ["loom library Calloway14"]

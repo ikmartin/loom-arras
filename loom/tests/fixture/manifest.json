@@ -1,8 +1,80 @@
 {
+ "annotation_types": [
+  {
+   "id": "revision",
+   "instructions": "Something that is wrong and must change before the text is right: a wrong step, a gap in an argument, a false or unsupported claim, a citation that does not cover the use made of it, an unclear sentence, a loose definition, a misused term.\n\nSay in the comment how serious it is, by how bad the fault is rather than how strongly you feel about it.",
+   "look": {
+    "color": "red",
+    "opacity": 65,
+    "style": "highlight",
+    "weight": 2
+   },
+   "modes": [
+    "audit",
+    "referee",
+    "review",
+    "simplify",
+    "ingest"
+   ],
+   "name": "Revision",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "suggestion",
+   "instructions": "Something that could be better, for the writer to weigh: a clearer order, a sharper statement, a shorter proof, a better name. Nothing is wrong; if something is, it is a revision.\n\nA work worth citing that the bibliography lacks is a suggestion too: name the work.",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "modes": [
+    "audit",
+    "referee",
+    "review"
+   ],
+   "name": "Suggestion",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "question",
+   "instructions": "Something you could not decide and the writer should answer: an ambiguity in a statement, a choice between hypotheses or conventions that is theirs to make, a place they should look. Ask one thing, and say what would settle it if you know.",
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "modes": [
+    "audit",
+    "referee"
+   ],
+   "name": "Question",
+   "notes": false,
+   "open": true
+  },
+  {
+   "id": "note",
+   "instructions": "An aside that asks nothing and is worth finding again: an explanation, a remark on why a step works, a sign that something checks out, or a dead end, counterexample or decision about this result, recorded when you find it.",
+   "look": {
+    "color": "grey",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "modes": [
+    "ingest"
+   ],
+   "name": "Note",
+   "notes": true,
+   "open": false
+  }
+ ],
  "annotations": {
-  "a-2026-09-16-0001": {
+  "a-2026-09-16-ecnav2": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -12,31 +84,35 @@
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0001",
+   "hides": null,
+   "id": "a-2026-09-16-ecnav2",
    "in": null,
    "in_reply_to": null,
-   "kind": "objection",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "red",
+    "opacity": 65,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": "finite widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": "major",
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": "revision"
   },
-  "a-2026-09-16-0002": {
+  "a-2026-09-16-hwtkaw": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -46,31 +122,35 @@
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0002",
+   "hides": null,
+   "id": "a-2026-09-16-hwtkaw",
    "in": null,
    "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
-   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-a05f4bbdf79f9265f15e.tex:0:78\"> By Lemma   <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" href=\"#sy-0002\" data-at=\"9\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.\n  </p>",
-   "placement": "replace",
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": "minor",
    "status": "resolved",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
-  "a-2026-09-16-0003": {
+  "a-2026-09-16-6sn46y": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
@@ -80,99 +160,111 @@
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0003",
+   "hides": null,
+   "id": "a-2026-09-16-6sn46y",
    "in": null,
    "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": null,
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": "moderate",
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
     "key": "drafting/main.tex",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
-  "a-2026-09-16-0004": {
+  "a-2026-09-16-tc3rcf": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
     "label": "agent"
    },
    "basis": null,
-   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
+   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count: Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0004",
+   "hides": null,
+   "id": "a-2026-09-16-tc3rcf",
    "in": null,
    "in_reply_to": null,
-   "kind": "citation",
-   "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-1db4b6410fd0643e6a93.tex:0:61\"> Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999\n  </p>",
-   "placement": null,
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": null,
    "recorded": true,
-   "resolved_why": "accepted",
-   "run": "s-2026-09-16-0001",
-   "severity": null,
+   "rects": null,
+   "resolved_why": "Cited.",
    "status": "resolved",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
-  "a-2026-09-16-0005": {
+  "a-2026-09-16-hqnbz4": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "agent",
     "kind": "agent",
     "label": "agent"
    },
    "basis": null,
-   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
+   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do: any standard text on group actions.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0005",
+   "hides": null,
+   "id": "a-2026-09-16-hqnbz4",
    "in": null,
    "in_reply_to": null,
-   "kind": "citation",
-   "payload": "any standard text on group actions",
-   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-3ae1d1704d8e2f5bfc0c.tex:0:34\"> any standard text on group actions\n  </p>",
-   "placement": null,
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": null,
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
-  "a-2026-09-16-0006": {
+  "a-2026-09-16-bns3an": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -182,31 +274,35 @@
    "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0006",
+   "hides": null,
+   "id": "a-2026-09-16-bns3an",
    "in": null,
    "in_reply_to": null,
-   "kind": "question",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": "one or two points",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "question"
   },
-  "a-2026-09-16-0007": {
+  "a-2026-09-16-xgtcve": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -216,31 +312,35 @@
    "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0007",
+   "hides": null,
+   "id": "a-2026-09-16-xgtcve",
    "in": "drafting/talk.tex",
    "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "orange",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": "Every orbit of a widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
     "page": null,
     "work": null
-   }
+   },
+   "type": "suggestion"
   },
-  "a-2026-09-16-0008": {
+  "a-2026-09-16-hwnav1": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -250,31 +350,35 @@
    "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0008",
+   "hides": null,
+   "id": "a-2026-09-16-hwnav1",
    "in": null,
-   "in_reply_to": "a-2026-09-16-0001",
-   "kind": "question",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "in_reply_to": "a-2026-09-16-ecnav2",
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
+   "mark": null,
+   "origin": null,
    "quote": "finite widget",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
     "page": null,
     "work": null
-   }
+   },
+   "type": null
   },
-  "a-2026-09-16-0009": {
+  "a-2026-09-16-gahrrs": {
    "anchored": true,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -284,31 +388,35 @@
    "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0009",
+   "hides": null,
+   "id": "a-2026-09-16-gahrrs",
    "in": null,
-   "in_reply_to": "a-2026-09-16-0002",
-   "kind": "question",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "in_reply_to": "a-2026-09-16-hwtkaw",
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
+   "mark": null,
+   "origin": null,
    "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
     "page": null,
     "work": null
-   }
+   },
+   "type": null
   },
-  "a-2026-09-16-0010": {
+  "a-2026-09-16-a91hwf": {
    "anchored": false,
-   "applied": null,
    "author": {
     "id": "The synthetic quilt",
     "kind": "person",
@@ -318,101 +426,77 @@
    "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-16-0010",
+   "hides": null,
+   "id": "a-2026-09-16-a91hwf",
    "in": null,
    "in_reply_to": null,
-   "kind": "question",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "blue",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
+   },
+   "mark": null,
+   "origin": null,
    "quote": "an involution $\\sigma$ of $X$",
    "recorded": true,
+   "rects": null,
    "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
+    "file": null,
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
     "key": "sy-0001",
     "page": null,
     "work": null
-   }
+   },
+   "type": "question"
   },
-  "a-2026-09-16-0011": {
-   "anchored": false,
-   "applied": null,
+  "a-2026-09-16-pmjbhz": {
+   "anchored": true,
    "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
    },
    "basis": null,
-   "body_html": "<p>Gadgets of odd order cannot exist.</p>",
-   "created": "2026-09-16T00:00:00Z",
+   "body_html": "<p>the figure's corner</p>",
+   "created": "2026-09-16T11:30:00Z",
    "detached": false,
-   "discard_reason": null,
-   "discarded": true,
-   "id": "a-2026-09-16-0011",
+   "hides": null,
+   "id": "a-2026-09-16-pmjbhz",
    "in": null,
    "in_reply_to": null,
-   "kind": "note",
-   "payload": null,
-   "payload_html": null,
-   "placement": null,
+   "look": {
+    "color": "grey",
+    "opacity": 100,
+    "style": "underline",
+    "weight": 1
+   },
+   "mark": "box",
+   "origin": null,
    "quote": null,
    "recorded": true,
+   "rects": [
+    [
+     4.0,
+     4.0,
+     24.0,
+     16.0
+    ]
+   ],
    "resolved_why": null,
-   "run": "s-2026-09-15-0001",
-   "severity": null,
    "status": "open",
+   "strokes": null,
    "target": {
-    "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
-    "key": "sy-000A",
-    "page": null,
+    "file": "drafting/figures/fig.pdf",
+    "hash": "",
+    "key": "drafting/figures/fig.pdf",
+    "page": 1,
     "work": null
-   }
-  },
-  "a-2026-09-17-0001": {
-   "anchored": true,
-   "applied": null,
-   "author": {
-    "id": "agent",
-    "kind": "agent",
-    "label": "agent"
    },
-   "basis": null,
-   "body_html": "<p>Say what the comparison shows.</p>",
-   "change": {
-    "diff": "fragments/suggestions/a-2026-09-17-0001.diff",
-    "fragment": "fragments/suggestions/a-2026-09-17-0001.html",
-    "moved": false,
-    "state": "ready"
-   },
-   "created": "2026-09-17T09:00:00Z",
-   "detached": false,
-   "discard_reason": null,
-   "discarded": false,
-   "id": "a-2026-09-17-0001",
-   "in": null,
-   "in_reply_to": null,
-   "kind": "suggestion",
-   "payload": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "payload_html": "<p data-from=\"tex\" data-src=\"drafting/review-644d3b364fdc0285142f.tex:0:72\"> the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" href=\"#sy-0001-eq-fix\" data-at=\"30\">(2)</a> in Definition   <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" href=\"#sy-0001\" data-at=\"59\">1.1</a></p>",
-   "placement": "replace",
-   "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
-   "recorded": true,
-   "resolved_why": null,
-   "run": "s-2026-09-16-0001",
-   "severity": "minor",
-   "status": "open",
-   "target": {
-    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
-    "key": "sy-0002",
-    "page": null,
-    "work": null
-   }
+   "type": null
   }
  },
  "canon": [
@@ -420,7 +504,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "423bb24e1545382f0bf5d7b996d84ee6d7cecf0303bb79079f6487f62943a0a0",
+   "hash": "734a19b679042683139cc7de69243b7f2dbe5676295759a7ac6442dd0f26f03d",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -435,7 +519,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "94ee9a3c95a9be7b56707d7bed6ac8d33e36f1b475edc18582e8f4fcf954c8f9",
+   "hash": "f9a21fcae015953e53139c14cbf645a19c984b90cca0074e69302f230108ad25",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -450,7 +534,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "b627226551ff5c74c9a2a072d42821786d488d1531bce6a78ec054bdfcd93559",
+   "hash": "409719077b2b793778ad687ff5a3eba573d7942bcaf28cf8ad03d2e6d2f0c245",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
@@ -515,7 +599,7 @@
    "deny": [],
    "layer": false,
    "protected": [
-    ".loom/ (but .loom/sessions/, .loom/build/, .loom/copies/)",
+    ".loom/ (but .loom/sessions/, .loom/build/, .loom/copies/, .loom/annotation-types.toml)",
     "config.toml",
     "research-state.md"
    ],
@@ -541,6 +625,7 @@
    "codes": [
     "loom:agent-document-unrecorded",
     "loom:agent-permissions-stale",
+    "loom:annotation-types",
     "loom:citekey-slug-collision",
     "loom:cites-proposed-node",
     "loom:closure-failed",
@@ -582,6 +667,7 @@
     "loom:prefix-is-citekey",
     "loom:previous-key-match",
     "loom:reference-to-loose",
+    "loom:repeated-id",
     "loom:retired-ledger-key",
     "loom:see-redundant",
     "loom:snippet-failed",
@@ -664,10 +750,10 @@
      "documents": [
       "drafting/main.tex"
      ],
-     "incoming": "fragments/incoming/abf23dca7b125c373388-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/ae9544453caa00f1a2cf-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0001",
-     "local": "fragments/incoming/abf23dca7b125c373388-local.html",
+     "local": "fragments/incoming/ae9544453caa00f1a2cf-local.html",
      "math_changed": true,
      "merged": "",
      "name": "Widget",
@@ -705,10 +791,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/447b4c20c19b8b5ed4e6-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/54c22b4cc6a1fd2a7061-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0002",
-     "local": "fragments/incoming/447b4c20c19b8b5ed4e6-local.html",
+     "local": "fragments/incoming/54c22b4cc6a1fd2a7061-local.html",
      "math_changed": true,
      "merged": "",
      "name": "Orbits",
@@ -725,10 +811,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/1eb6eb51c86f339cb249-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/83c94f5ad52e2a4ce97c-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0008",
-     "local": "fragments/incoming/1eb6eb51c86f339cb249-local.html",
+     "local": "fragments/incoming/83c94f5ad52e2a4ce97c-local.html",
      "math_changed": false,
      "merged": "",
      "name": "Gadget",
@@ -750,9 +836,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0202",
-     "local": "fragments/incoming/34c8e81cebf58d8b32ac-local.html",
+     "local": "fragments/incoming/7dfc5cd074f30cf85267-local.html",
      "math_changed": true,
      "merged": "",
      "name": null,
@@ -769,9 +855,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-0202/proof",
-     "local": "fragments/incoming/5867f10407674ed391b7-local.html",
+     "local": "fragments/incoming/3f728bd4ec88e2716635-local.html",
      "math_changed": true,
      "merged": "",
      "name": null,
@@ -785,8 +871,8 @@
      "class": "new",
      "current": "",
      "documents": [],
-     "incoming": "fragments/incoming/d310d5b83e4557e79525-proposal.html",
-     "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+     "incoming": "fragments/incoming/b3f8333d1d840f5d5935-proposal.html",
+     "incoming_macros": "adopt:a172faad290a4482b84e",
      "key": "sy-999C",
      "local": null,
      "math_changed": true,
@@ -799,7 +885,7 @@
    ],
    "choices": {
     "document": false,
-    "fingerprint": "23d40bc1fcbb53ded531cd2ccd1552a2bbf7b5fbfb507edc6bc23c1ffec16d95",
+    "fingerprint": "a172faad290a4482b84e8b6430d31d82741176568296855ed58b3486c5a7c315",
     "invalidated": [],
     "kept": [],
     "keys": [],
@@ -811,13 +897,13 @@
    "document_comparison": {
     "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
     "incoming": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-incoming.html",
-    "incoming_macros": "adopt:23d40bc1fcbb53ded531",
+    "incoming_macros": "adopt:a172faad290a4482b84e",
     "local": "fragments/incoming/prose-d4fa7d3c5a1c0143b8d29d35-local.html",
     "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
    },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -144,10 +146,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -157,10 +156,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
-   "fingerprint": "23d40bc1fcbb53ded531cd2ccd1552a2bbf7b5fbfb507edc6bc23c1ffec16d95",
+   "fingerprint": "a172faad290a4482b84e8b6430d31d82741176568296855ed58b3486c5a7c315",
    "issues": [],
    "kind": "adopt",
    "label": "Incoming from agent document “aidoc”",
@@ -1558,7 +1644,7 @@
    "code": "loom:detached-annotation",
    "fixes": [
     {
-     "command": "loom annotate --resolve a-2026-09-16-0010 \"…\"",
+     "command": "loom annotate --resolve a-2026-09-16-a91hwf \"…\"",
      "label": "resolve it if its point is met"
     }
    ],
@@ -2831,8 +2917,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -2857,8 +2941,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -2888,8 +2970,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -2920,8 +3000,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -2946,8 +3024,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -2972,8 +3048,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3037,14 +3111,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 1,
-    "latest_any": {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": null,
     "open": {
      "question": 1
     }
@@ -3074,8 +3140,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3146,22 +3210,7 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-17T09:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-17T09:00:00Z"
-    },
     "open": {
-     "citation": 1,
      "question": 1,
      "suggestion": 2
     }
@@ -3196,8 +3245,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3227,8 +3274,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3282,8 +3327,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3324,22 +3367,8 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
     "open": {
-     "objection": 1
+     "revision": 1
     }
    },
    "src": [
@@ -3368,8 +3397,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3422,20 +3449,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
-    "latest_current": {
-     "author": {
-      "id": "agent",
-      "kind": "agent"
-     },
-     "date": "2026-09-16T00:00:00Z"
-    },
     "open": {}
    },
    "src": [
@@ -3470,8 +3483,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3544,8 +3555,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3581,8 +3590,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3610,8 +3617,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3640,8 +3645,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3667,8 +3670,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3695,8 +3696,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3724,8 +3723,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3756,8 +3753,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3788,8 +3783,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3818,8 +3811,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3848,8 +3839,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3881,8 +3870,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3914,8 +3901,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3944,8 +3929,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -3973,8 +3956,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4009,8 +3990,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4043,8 +4022,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4077,8 +4054,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4107,8 +4082,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4142,8 +4115,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4174,8 +4145,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4206,8 +4175,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4239,8 +4206,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4269,8 +4234,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4299,8 +4262,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4331,8 +4292,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4363,8 +4322,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4393,8 +4350,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4421,8 +4376,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4451,8 +4404,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4483,8 +4434,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4513,8 +4462,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4540,8 +4487,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4567,8 +4512,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4597,8 +4540,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4628,8 +4569,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4658,8 +4597,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4689,8 +4626,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4721,8 +4656,6 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4747,8 +4680,6 @@
    "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
     "open": {}
    },
    "src": [
@@ -4841,7 +4772,7 @@
      "name": "Hom"
     }
    ],
-   "adopt:23d40bc1fcbb53ded531": [
+   "adopt:a172faad290a4482b84e": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",
@@ -7413,98 +7344,6 @@
    "title": "Orbit pair"
   }
  },
- "notes": {
-  "n-2026-08-20-0001": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": true,
-   "id": "n-2026-08-20-0001",
-   "quote": "Notes on the widgets",
-   "session": "s-2026-09-16-0001",
-   "target": {
-    "file": "notes/intro.md"
-   },
-   "when": "2026-08-20T09:00:00Z"
-  },
-  "n-2026-09-16-0001": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-0001",
-   "quote": "Let $(X,\\sigma)$ be a finite widget.",
-   "session": "s-2026-09-16-0001",
-   "target": {
-    "key": "sy-0003"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-0002": {
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-0002",
-   "kept": "2026-09-16T11:30:00Z",
-   "quote": "A widget is fixed by its locus",
-   "session": "s-2026-09-16-0001",
-   "target": {
-    "file": "notes/intro.md"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-0003": {
-   "author": {
-    "id": "Referee Agent",
-    "kind": "agent"
-   },
-   "body": "the parity count, to check against the paper",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-0003",
-   "session": "s-2026-09-16-0001",
-   "target": {
-    "session": "s-2026-09-16-0001"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  },
-  "n-2026-09-16-0004": {
-   "artifact": "4631633d64d450f0e82b56d66dd9a41efcc5919df13107656a81627aa0d13239",
-   "author": {
-    "id": "The synthetic quilt",
-    "kind": "person"
-   },
-   "body": "the figure's corner",
-   "detached": false,
-   "faded": false,
-   "id": "n-2026-09-16-0004",
-   "mark": "box",
-   "page": 1,
-   "rects": [
-    [
-     4.0,
-     4.0,
-     24.0,
-     16.0
-    ]
-   ],
-   "session": "",
-   "target": {
-    "file": "drafting/figures/fig.pdf"
-   },
-   "when": "2026-09-16T11:30:00Z"
-  }
- },
  "publisher": {
   "name": "loom",
   "version": "0.1.0.dev0"
@@ -7515,26 +7354,6 @@
   "documents": true,
   "review": true
  },
- "reference_notes": [
-  {
-   "accepted": {
-    "when": "2026-09-16T09:00:00Z",
-    "who": "The synthetic quilt"
-   },
-   "claim": "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
-   "for": [
-    "sy-0003"
-   ],
-   "from": {
-    "annotation": "a-2026-09-16-0004",
-    "session": "s-2026-09-16-0001"
-   },
-   "identifier": {
-    "verified": false
-   },
-   "work": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999"
-  }
- ],
  "references": {
   "Har77": {
    "artifacts": {
@@ -8114,14 +7933,14 @@
   },
   {
    "aliases": [],
-   "key": "s-2026-09-15-0001",
+   "key": "s-2026-09-15-fk1w66",
    "kind": "thread",
    "tags": [],
    "title": "quick"
   },
   {
    "aliases": [],
-   "key": "s-2026-09-16-0001",
+   "key": "s-2026-09-16-p9z37z",
    "kind": "thread",
    "tags": [],
    "title": "referee"
@@ -8131,8 +7950,8 @@
   {
    "active": false,
    "created": "2026-09-15T10:00:00Z",
-   "id": "s-2026-09-15-0001",
-   "last": "2026-09-16T00:00:00Z",
+   "id": "s-2026-09-15-fk1w66",
+   "last": "",
    "opened": "2026-09-15T10:00:00Z",
    "purpose": "",
    "rounds": 1,
@@ -8143,7 +7962,7 @@
   {
    "active": true,
    "created": "2026-09-16T00:00:00Z",
-   "id": "s-2026-09-16-0001",
+   "id": "s-2026-09-16-p9z37z",
    "last": "2026-09-17T09:00:00Z",
    "opened": "2026-09-16T00:00:00Z",
    "purpose": "",
@@ -8190,6 +8009,64 @@
     "label": "stale",
     "modifier": true
    }
+  }
+ },
+ "suggested_edits": {
+  "e-2026-09-16-r2hw0m": {
+   "answers": "a-2026-09-16-hwtkaw",
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "change": {
+    "diff": "fragments/edits/e-2026-09-16-r2hw0m.diff",
+    "fragment": "fragments/edits/e-2026-09-16-r2hw0m.html",
+    "moved": false,
+    "state": "ready"
+   },
+   "comment": null,
+   "comment_html": null,
+   "created": "2026-09-16T00:00:00Z",
+   "id": "e-2026-09-16-r2hw0m",
+   "placement": "replace",
+   "quote": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
+   "status": "open",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   },
+   "why": null,
+   "with": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.",
+   "with_html": "<p data-from=\"tex\" data-src=\"drafting/review-a05f4bbdf79f9265f15e.tex:0:78\"> By Lemma   <a  class=\"ref\" data-target=\"sy-0002\" data-tex=\"\\ref{sy-0002}\" href=\"#sy-0002\" data-at=\"9\">1.2</a>, <span class=\"math inline\">\\(X\\)</span> is the disjoint union of orbits of size one or two.\n  </p>"
+  },
+  "e-2026-09-17-zwvx4m": {
+   "answers": null,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "change": {
+    "diff": "fragments/edits/e-2026-09-17-zwvx4m.diff",
+    "fragment": "fragments/edits/e-2026-09-17-zwvx4m.html",
+    "moved": false,
+    "state": "ready"
+   },
+   "comment": "Say what the comparison shows.",
+   "comment_html": "<p>Say what the comparison shows.</p>",
+   "created": "2026-09-17T09:00:00Z",
+   "id": "e-2026-09-17-zwvx4m",
+   "placement": "replace",
+   "quote": "compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   },
+   "why": null,
+   "with": "the fixed points are those of \\eqref{eq:fix} in Definition~\\ref{sy-0001}",
+   "with_html": "<p data-from=\"tex\" data-src=\"drafting/review-644d3b364fdc0285142f.tex:0:72\"> the fixed points are those of <a  class=\"ref ref-eq\" data-target=\"sy-0001#eq:fix\" data-tex=\"\\eqref{eq:fix}\" href=\"#sy-0001-eq-fix\" data-at=\"30\">(2)</a> in Definition   <a  class=\"ref\" data-target=\"sy-0001\" data-tex=\"\\ref{sy-0001}\" href=\"#sy-0001\" data-at=\"59\">1.1</a></p>"
   }
  },
  "tags": {
@@ -8249,155 +8126,27 @@
   }
  },
  "threads": {
-  "s-2026-09-15-0001": {
-   "attachments": [
-    {
-     "count": 1,
-     "kind": "annotations",
-     "name": "annotations"
-    }
-   ],
+  "s-2026-09-15-fk1w66": {
+   "attachments": [],
    "created": "2026-09-15T10:00:00Z",
    "discarded": true,
-   "id": "s-2026-09-15-0001",
+   "id": "s-2026-09-15-fk1w66",
    "kind": "session",
-   "log": [
-    {
-     "annotation": "a-2026-09-16-0011",
-     "command": "loom annotate sy-000A --kind note",
-     "names": [
-      {
-       "key": "sy-000A"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    }
-   ],
-   "participants": [
-    {
-     "id": "agent",
-     "kind": "agent"
-    }
-   ],
-   "path": ".loom/sessions/s-2026-09-15-0001",
-   "targets": [
-    "sy-000A"
-   ],
+   "log": [],
+   "participants": [],
+   "path": ".loom/sessions/s-2026-09-15-fk1w66",
+   "targets": [],
    "title": "quick"
   },
-  "s-2026-09-16-0001": {
-   "attachments": [
-    {
-     "count": 11,
-     "kind": "annotations",
-     "name": "annotations"
-    }
-   ],
+  "s-2026-09-16-p9z37z": {
+   "attachments": [],
    "created": "2026-09-16T00:00:00Z",
    "discarded": false,
-   "id": "s-2026-09-16-0001",
+   "id": "s-2026-09-16-p9z37z",
    "kind": "session",
    "log": [
     {
-     "annotation": "a-2026-09-16-0001",
-     "command": "loom annotate sy-0003 --quote --kind objection",
-     "names": [
-      {
-       "key": "sy-0003"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0002",
-     "command": "loom annotate sy-0004 --quote --kind suggestion",
-     "names": [
-      {
-       "key": "sy-0004"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0003",
-     "command": "loom annotate drafting/main.tex --kind suggestion",
-     "names": [
-      {
-       "path": "drafting/main.tex"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0004",
-     "command": "loom annotate sy-0003 --kind citation",
-     "names": [
-      {
-       "key": "sy-0003"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0005",
-     "command": "loom annotate sy-0002 --kind citation",
-     "names": [
-      {
-       "key": "sy-0002"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0006",
-     "command": "loom annotate sy-0002 --quote --kind question",
-     "names": [
-      {
-       "key": "sy-0002"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0007",
-     "command": "loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex",
-     "names": [
-      {
-       "key": "sy-0002"
-      },
-      {
-       "path": "drafting/talk.tex"
-      }
-     ],
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
      "command": "loom write state",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0008",
-     "command": "loom annotate --reply a-2026-09-16-0001",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0009",
-     "command": "loom annotate --reply a-2026-09-16-0002",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0002",
-     "command": "loom annotate --resolve a-2026-09-16-0002",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0010",
-     "command": "loom annotate sy-0001 --quote --kind question",
-     "names": [
-      {
-       "key": "sy-0001"
-      }
-     ],
      "time": "2026-09-16T00:00:00Z"
     },
     {
@@ -8435,36 +8184,11 @@
       }
      ],
      "time": "2026-09-17T09:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-17-0001",
-     "command": "loom annotate sy-0002 --quote --kind suggestion",
-     "names": [
-      {
-       "key": "sy-0002"
-      }
-     ],
-     "time": "2026-09-17T09:00:00Z"
     }
    ],
-   "participants": [
-    {
-     "id": "agent",
-     "kind": "agent"
-    },
-    {
-     "id": "The synthetic quilt",
-     "kind": "person"
-    }
-   ],
-   "path": ".loom/sessions/s-2026-09-16-0001",
-   "targets": [
-    "sy-0003",
-    "sy-0004",
-    "drafting/main.tex",
-    "sy-0002",
-    "sy-0001"
-   ],
+   "participants": [],
+   "path": ".loom/sessions/s-2026-09-16-p9z37z",
+   "targets": [],
    "title": "referee"
   }
  },

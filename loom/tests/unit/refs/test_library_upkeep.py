@@ -14,25 +14,29 @@ AS = ("--as", "A. Author")
 FIXED = {"LOOM_FIXED_TIME": "2026-01-02T00:00:00Z"}
 
 
-def test_review_lists_every_proposal_and_open_suggestion_with_its_id_last(tmp_path: Path) -> None:
-    """The queue a person works through: one line per thing, its id last, and the two commands that clear it."""
+def test_review_lists_every_proposed_result_with_its_id_last(tmp_path: Path) -> None:
+    """The queue a person works through: one line per proposed result, its id last, and the two commands that clear it. A suggestion naming a work is an annotation on the text, and waits there."""
     q, ck = mapped(tmp_path)
     assert ok("library", "review", cwd=q).stdout.startswith("nothing waits for review")
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
-    ok(
-        "annotate", "dm-0002", "Cite Kreck.", "--kind", "citation", "--payload", "M. Kreck, Surgery and duality",
+    ann = ok(
+        "annotate", "dm-0002", "Cite Kreck: M. Kreck, Surgery and duality.", "--type", "suggestion",
         "--as", "Referee Agent", cwd=q, env=FIXED,
-    )  # fmt: skip
+    ).stdout.split()[0]  # fmt: skip
     r = ok("library", "review", cwd=q)
-    assert r.stdout.startswith("waiting for review: 1 proposed result and 1 citation suggestion"), r.output
+    assert r.stdout.startswith("waiting for review: 1 proposed result\n"), r.output
     assert f"{ck}  theorem 4.1  p.12  {ck}-thm-4.1" in r.stdout
-    assert "on dm-0002: M. Kreck, Surgery and duality  a-2026-01-02-0001" in r.stdout
+    assert "Kreck" not in r.stdout
     assert "next: loom library verify ID, or loom library discard ID --why" in r.stdout
     # with a work, only that work's proposals
     only = json_of("library", "review", ck, "--json", cwd=q)
-    assert [p["id"] for p in only["proposed"]] == [f"{ck}-thm-4.1"] and only["citations"] == []
+    assert [p["id"] for p in only["proposed"]] == [f"{ck}-thm-4.1"] and "citations" not in only
+    # an annotation is not the library's to decide
+    refused(
+        "library", "discard", ann, "--why", "not needed", *AS, cwd=q, code=2, match="is an annotation, not a result"
+    )
     # and once decided, nothing waits
-    ok("library", "discard", f"{ck}-thm-4.1", "a-2026-01-02-0001", "--why", "not needed", *AS, cwd=q)
+    ok("library", "discard", f"{ck}-thm-4.1", "--why", "not needed", *AS, cwd=q)
     assert ok("library", "review", cwd=q).stdout.startswith("nothing waits for review")
 
 

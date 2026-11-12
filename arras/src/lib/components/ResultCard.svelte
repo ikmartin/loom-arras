@@ -91,8 +91,8 @@
 		color: var(--state-accepted);
 	}
 	.badge.proposed {
-		background: var(--ann-suggestion-wash);
-		color: var(--ann-suggestion);
+		background: var(--state-stale-wash);
+		color: var(--state-stale);
 	}
 	.where {
 		margin-left: auto;

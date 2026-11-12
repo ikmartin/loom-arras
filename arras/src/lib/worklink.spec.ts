@@ -16,6 +16,12 @@ describe('a work link', () => {
 		expect(parseWorkLink('cited:arxiv:1#page=0')).toEqual({ id: 'arxiv:1' });
 	});
 
+	it('reads an annotation by the id loom draws for it, or one written under a counter', () => {
+		expect(parseWorkLink('cited:arxiv:1?annot=a-2026-11-05-k2m9xq')?.annot).toBe('a-2026-11-05-k2m9xq');
+		expect(parseWorkLink('cited:arxiv:1?annot=a-2026-09-16-0001')?.annot).toBe('a-2026-09-16-0001');
+		expect(parseWorkLink('cited:arxiv:1?annot=a-2026-11-05-K2M9XQ')?.annot).toBeUndefined();
+	});
+
 	it('spells an identifier one way', () => {
 		expect(normalId('arXiv:2207.01652')).toBe('arxiv:2207.01652');
 		expect(normalId('doi:10.1353/AJM.1998.0020')).toBe('doi:10.1353/ajm.1998.0020');

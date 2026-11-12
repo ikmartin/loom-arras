@@ -287,7 +287,7 @@ test('each row says whether agents edit it too, and the mark says why under the 
 	expect(hook[1]).toContain('polygon');
 });
 
-test("words let go of on a project PDF take the quote chip with them", async ({ page }) => {
+test("words let go of on a project PDF take the highlight chip with them", async ({ page }) => {
 	const stream = 'BT /F1 24 Tf 72 700 Td (A gadget is a widget) Tj ET';
 	const pdf = `%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
@@ -304,6 +304,8 @@ trailer<</Root 1 0 R>>
 		m.files = [...(m.files ?? []), { path: 'notes/gadgets.pdf', kind: 'pdf', bytes: pdf.length }];
 	});
 	await page.route('**/_files/notes/gadgets.pdf', (route) => route.fulfill({ body: pdf, contentType: 'application/pdf' }));
+	// the chip offers a write, so it stands only where a publisher takes one
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['annotate'], token: 't' } }));
 	await page.goto('/file/notes/gadgets.pdf');
 	const words = page.locator('.page .text span').filter({ hasText: 'gadget' }).first();
 	await expect(words).toBeVisible();
@@ -313,9 +315,10 @@ trailer<</Root 1 0 R>>
 	await page.mouse.down();
 	await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 5 });
 	await page.mouse.up();
-	await expect(page.getByTestId('quote-offer')).toBeVisible();
-	await page.evaluate(() => getSelection()!.removeAllRanges());
+	await expect(page.getByTestId('highlight-offer')).toBeVisible();
 	await expect(page.getByTestId('quote-offer')).toHaveCount(0);
+	await page.evaluate(() => getSelection()!.removeAllRanges());
+	await expect(page.getByTestId('highlight-offer')).toHaveCount(0);
 });
 
 test('a shelf growing long enough to scroll narrows nothing in the column', async ({ page }) => {

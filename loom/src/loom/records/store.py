@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import today
-from loom.paths import REVIEW_OBSERVATIONS
-from loom.records.annotations import ASKING, Annotation, Record, load_records
+from loom.paths import ANNOTATION_LOG, ANNOTATION_TYPES, EDIT_LOG, LINKS, REVIEW_OBSERVATIONS
+from loom.records.annotations import Annotation, Record, load_records
+from loom.records.ids import repeated
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
 from loom.records.snapshots import read_snapshot
@@ -27,6 +28,7 @@ from loom.scan.hashing import hash_text, mathematical_hash, normalize
 from loom.scan.model import Diagnostic, Fix
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
+from loom.sessions import INDEX as SESSION_INDEX
 
 
 @dataclass
@@ -56,8 +58,7 @@ class KeyState:
     row: AcceptRow | None = None
     fresh: bool = True
     causes: list[Cause] = field(default_factory=list)
-    latest_current: Annotation | None = None
-    latest_any: Annotation | None = None
+    #: Open annotations on the key, by type id: only a type that stays open until resolved opens one.
     open: dict[str, int] = field(default_factory=dict)
     detached: int = 0
     previous_key_match: str | None = None
@@ -87,6 +88,10 @@ class ResolvedAnnotation:
     work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
     target: str = ""  # the target key now: a whole document's path followed across moves, else the key as written
     in_doc: str | None = None  # the document `in` names now, followed across moves; as written when it is gone
+    # on a PDF page: where it stands now, its words found again on a changed file
+    rects: list[list[float]] | None = None
+    # taken in from a PDF's own annotation that is still in the file as it is now: that annotation's reference
+    hides: str | None = None
 
 
 def is_document_path(result: ScanResult, path: str) -> bool:
@@ -123,9 +128,26 @@ class Records:
         self.latest = latest_rows(self.rows, self.reviewer)
         self.shared_latest = latest_rows(self.rows)
         self.records, self.problems = load_records(root)
+        from loom.records.types import load_types
+
+        self.types = load_types(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
         self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
+
+    def opens(self, a: Annotation) -> bool:
+        """Whether `a` is of a type that stays open until resolved; an untyped annotation, or one whose type the quilt no longer lists, only informs."""
+        t = self.types.get(a.type)
+        return bool(t and t.open)
+
+    def look(self, a: Annotation) -> dict[str, Any]:
+        """The whole look `a` is drawn with: its type's under what is set on it, or, its type gone, the look it was last drawn with."""
+        from loom.records.types import drawn_look
+
+        t = self.types.get(a.type)
+        if t is None and a.drawn:
+            return dict(a.drawn)
+        return drawn_look(t, a.own_look)
 
     # ---- text helpers --------------------------------------------------------
 
@@ -382,18 +404,13 @@ class Records:
         for res in self.resolved(result):
             a = res.annotation
             ks = states.get(a.target_key)
-            if ks is None or res.record.discarded:
+            if ks is None:
                 continue
-            # what awaits an answer, which is what a count is for: a note or a confirmation records rather than asks
-            if a.in_reply_to is None and a.status == "open" and a.kind in ASKING:
-                ks.open[a.kind] = ks.open.get(a.kind, 0) + 1
+            # what awaits an answer, which is what a count is for: an untyped annotation, or one of a type that only informs, asks nothing
+            if a.in_reply_to is None and a.status == "open" and self.opens(a):
+                ks.open[str(a.type)] = ks.open.get(str(a.type), 0) + 1
             if res.detached:
                 ks.detached += 1
-            if a.target_hash == current.get(a.target_key):
-                if ks.latest_current is None or a.created > ks.latest_current.created:
-                    ks.latest_current = a
-            if ks.latest_any is None or a.created > ks.latest_any.created:
-                ks.latest_any = a
 
     def _previous_key_matches(self, result: ScanResult, states: dict[str, KeyState], current: dict[str, str]) -> None:
         by_hash: dict[str, list[str]] = {}
@@ -492,6 +509,9 @@ class Records:
                     res.target = a.target_key
                     out.append(res)
                     continue
+                if a.target_key not in result.nodes and (a.page is not None or self._work(result, a, works)):
+                    out.append(self._on_pdf_or_work(result, a, rec, works))
+                    continue
                 # a document named by path is wherever the history's moves have taken it
                 in_doc = (result.current_document(a.in_doc) or a.in_doc) if a.in_doc else None
                 target = a.target_key
@@ -525,7 +545,7 @@ class Records:
         return out
 
     def _on_page(self, result: ScanResult, a: Annotation, rec: Record, works: dict[str, str]) -> ResolvedAnnotation:
-        """A note on a page of a cited work, resolved against the store rather than against a key's text.
+        """An annotation on a page of a cited work, resolved against the store rather than against a key's text.
 
         `recorded` is whether the artifact the anchor names is the one in the store -- copy-once makes that the normal case for ever. `detached` is a text anchor whose quotation no longer locates in the page's committed text; a box is never detached, because the rectangles are the record. The target is the work's identifier, and the citekey is looked up through the bibliography so that a renamed citekey changes nothing.
         """
@@ -554,6 +574,46 @@ class Records:
         span = locate_offsets(page, a.selector.exact) if page and a.selector and a.selector.exact else None
         return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
 
+    def _work(self, result: ScanResult, a: Annotation, works: dict[str, str]) -> str:
+        """The citekey of the cited work `a`'s target identifies, '' when it names none; looked up once per target."""
+        from loom.refs.identity import identify, parse
+
+        if a.target_key not in works:
+            wid = parse(a.target_key) if not a.target_key.lower().endswith(".pdf") else None
+            works[a.target_key] = next(
+                (
+                    ck
+                    for ck, entry in result.bib.items()
+                    if wid and any((w.scheme, w.value) == (wid.scheme, wid.value) for w in identify(entry))
+                ),
+                "",
+            )
+        return works[a.target_key]
+
+    def _on_pdf_or_work(
+        self, result: ScanResult, a: Annotation, rec: Record, works: dict[str, str]
+    ) -> ResolvedAnnotation:
+        """An annotation on a page of a PDF that records its own place, or on a cited work as a whole.
+
+        On a page, it is detached when the PDF's bytes changed under it and its words are not found again, and stands where they are found when they are (`marks.on_the_pdf_now`); a whole work has nothing to detach from.
+        """
+        from loom.records.marks import artifact_of, on_the_pdf_now, pdf_of
+
+        ck = self._work(result, a, works)
+        if a.page is None:
+            return ResolvedAnnotation(a, rec, None, False, True, ck, target=a.target_key)
+        pdf = pdf_of(result, a.target_key, ck)
+        if pdf is None:
+            return ResolvedAnnotation(a, rec, None, bool(a.artifact), True, ck, target=a.target_key, rects=a.rects)
+        quote = a.selector.exact if a.selector else None
+        detached, moved = on_the_pdf_now(pdf, a.artifact, a.page, quote)
+        ref, sha = (a.origin or {}).get("ref"), (a.origin or {}).get("sha")
+        # the PDF's own annotation it came from is still in the file, so a viewer drawing the file's annotations hides that one
+        hides = str(ref) if ref and pdf.is_file() and sha == artifact_of(pdf) else None
+        return ResolvedAnnotation(
+            a, rec, None, detached, True, ck, target=a.target_key, rects=moved or a.rects, hides=hides
+        )
+
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
@@ -574,11 +634,30 @@ class Records:
         diags: list[Diagnostic] = []
         for p in self.problems:
             diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid review record: {p}", []))
+        from loom.records.edits import replay as replay_edits
+
+        for p in replay_edits(self.root)[1]:
+            diags.append(Diagnostic("warning", "loom:foreign-annotations", f"not a valid suggested edit: {p}", []))
+        # a missing file is the defaults, which loses nothing, so it is said quietly; one that cannot be read is a warning
+        missing = not (self.root / ANNOTATION_TYPES).is_file()
+        for p in self.types.problems:
+            diags.append(Diagnostic("info" if missing else "warning", "loom:annotation-types", p, [], subject="record"))
+        for rel, events in (
+            (ANNOTATION_LOG, ("created", "replied")),
+            (EDIT_LOG, ("created",)),
+            (SESSION_INDEX, ("created",)),
+            (LINKS, ()),
+        ):
+            for _line, said in repeated(self.root, rel, events):
+                diags.append(Diagnostic("warning", "loom:repeated-id", f"{rel}: {said}", [], subject="record"))
         detached: dict[str, list[str]] = {}
+        opening: set[str] = set()
         for res in self.resolved(result):
-            # one resolved or withdrawn needs nothing more, so the finding counts the open ones its fix acts on
-            if res.detached and not res.record.discarded and res.annotation.status == "open":
+            # one resolved needs nothing more, so the finding counts the open ones its fix acts on
+            if res.detached and res.annotation.status == "open":
                 detached.setdefault(res.target, []).append(res.annotation.id)
+                if self.opens(res.annotation):
+                    opening.add(res.annotation.id)
         for key, ids in sorted(detached.items()):
             diags.append(
                 Diagnostic(
@@ -587,8 +666,12 @@ class Records:
                     f"{len(ids)} annotation(s) on {key} no longer match its text",
                     [],
                     [key],
-                    # resolved once its point is met, or written again on the text as it is now
-                    fixes=[Fix("resolve it if its point is met", f'loom annotate --resolve {i} "…"') for i in ids],
+                    # one that stays open is resolved once its point is met; one that only informs has nothing to resolve
+                    fixes=[
+                        Fix("resolve it if its point is met", f'loom annotate --resolve {i} "…"')
+                        for i in ids
+                        if i in opening
+                    ],
                 )
             )
         diags.extend(self._gone_documents(result, states))
@@ -629,7 +712,7 @@ class Records:
                     rows.setdefault(c.id, []).append(key)
         for res in self.resolved(result):
             a = res.annotation
-            if res.record.discarded or not res.detached:
+            if not res.detached:
                 continue
             named = [a.in_doc] if a.in_doc else []
             if a.anchor is None and a.target_key not in result.nodes and is_document_path(result, a.target_key):
@@ -699,6 +782,11 @@ class Records:
         states = self.key_states(result)
         derived = self.derived(result, states)
         manifest["reviewer"] = {"name": self.reviewer, "source": self.reviewer_source}
+        # the quilt's annotation types, in its file's order: what a viewer offers and how an untouched annotation of each is drawn
+        from loom.ai.orient import modes_using
+
+        using = modes_using(self.root)
+        manifest["annotation_types"] = [{**t.to_dict(), "modes": using.get(t.id, [])} for t in self.types.types]
         for author in sorted({row.author for row in self.rows if row.author}):
             # One ledger/source snapshot for every perspective; summaries never observe or write.
             other = copy.copy(self)
@@ -761,8 +849,6 @@ class Records:
                     acc["causes"] = causes
                 entry["acceptance"] = acc
             entry["reviews"] = {
-                "latest_current": _fact(ks.latest_current),
-                "latest_any": _fact(ks.latest_any),
                 "open": dict(ks.open),
                 "detached": ks.detached,
             }
@@ -774,41 +860,44 @@ class Records:
             if key in derived:
                 entry["derived"] = derived[key]
         anns: dict[str, Any] = {}
-        for res in self.resolved(result):
+        # oldest first, whichever clone wrote it: published in this order (`publish.WRITTEN_IN_ORDER`)
+        for res in sorted(self.resolved(result), key=lambda r: r.annotation.created):
             a = res.annotation
             anns[a.id] = {
                 "id": a.id,
                 "author": {"kind": a.author_kind, "id": a.author_id, "label": a.author_id},
                 "created": a.created,
-                # a note on a page of a cited work names the work by identifier; the citekey and the page travel
-                # beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
+                # an annotation on a cited work names the work by identifier; the citekey and the page travel beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
                 "target": {
                     "key": res.target,
                     "hash": a.target_hash,
                     "work": res.work or None,
-                    "page": a.anchor.page if a.anchor else None,
+                    "page": a.anchor.page if a.anchor else a.page,
+                    # a project PDF, by its path
+                    "file": a.target_key if a.target_key.lower().endswith(".pdf") else None,
                 },
                 # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9); where the history's moves have taken it, so a viewer draws it on the document as it is now
                 "in": res.in_doc,
                 "basis": a.anchor.basis if a.anchor else None,
-                "kind": a.kind,
+                # its type, while the quilt lists it: an annotation whose type was deleted reads as untyped, looking as it did
+                "type": a.type if self.types.get(a.type) else None,
+                "look": self.look(a),
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
-                "anchored": (a.selector is not None or a.anchor is not None) and not res.detached and res.recorded,
+                "anchored": (a.selector is not None or a.anchor is not None or bool(a.rects))
+                and not res.detached
+                and res.recorded,
                 "detached": res.detached,
                 "recorded": res.recorded,
                 "quote": a.selector.exact if a.selector else None,
-                "severity": a.severity,
-                "payload": a.payload,
-                "placement": a.placement,
-                "discard_reason": a.discard_reason,
+                # on a PDF page that records its own place: where it stands, its strokes, the tool it was drawn with, and where an import came from
+                "rects": res.rects,
+                "strokes": a.strokes,
+                "mark": a.mark,
+                "origin": a.origin,
+                "hides": res.hides,
                 "resolved_why": a.resolved_why,
-                # a suggestion resolved as applied: the hash its key had once it was taken
-                "applied": a.applied,
-                # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
-                "run": res.record.rel,
-                "discarded": res.record.discarded,
             }
         manifest["annotations"] = anns
         manifest["diagnostics"].extend(d.to_dict() for d in self.diagnostics(result, states))

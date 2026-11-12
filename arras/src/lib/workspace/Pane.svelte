@@ -3,7 +3,6 @@
 	//
 	// **Focus is taken by any interaction** — a press on its text, a wheel over it, a tab into it — in the capture phase, so whatever acts on the focused pane reads the new value in the same frame. A pane scrolling itself (a paper sent to its page) is not an interaction, which is why the scroll event is not what is listened for. **The focused pane is marked** by its shadow while both are open, and the other is not dimmed: making a document harder to read to say it is not the current one is the wrong trade in a reading tool.
 	import { onDestroy, tick, untrack } from 'svelte';
-	import NotesHere from './items/NotesHere.svelte';
 	import CompareLayer from './CompareLayer.svelte';
 	import PaneHead from './PaneHead.svelte';
 	import { itemKey } from './item';
@@ -166,7 +165,6 @@
 		{#if item}
 			{#each [item] as it (key)}
 				{@const Renderer = kinds[it.kind].renderer}
-				<NotesHere item={it} />
 				<Renderer item={it} />
 			{/each}
 		{/if}

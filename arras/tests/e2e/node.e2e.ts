@@ -11,11 +11,10 @@ test('a node draws its statement, typeset, and its proofs, and nothing about the
 	await expect(item.locator('.fragment .env-label .number')).toHaveText('2.1');
 	await expect(item.locator('.fragment mjx-container').first()).toBeVisible();
 	await expect(item.locator('.fragment details.env-proof')).toHaveCount(2);
-	// no heading repeating the tab, no list of annotations, no closure, no citation notes: those are the context's
+	// no heading repeating the tab, no list of annotations, no closure: those are the context's
 	await expect(item.locator('h1, h2')).toHaveCount(0);
 	await expect(page.getByTestId('annotation-list')).toHaveCount(0);
 	await expect(page.getByTestId('closure-open')).toHaveCount(0);
-	await expect(page.getByTestId('reference-notes')).toHaveCount(0);
 	// the statement leads: its first line within a few lines of the pane's toolbar
 	const bar = (await pane(page, 0).getByTestId('item-controls').boundingBox())!;
 	const top = (await statement.boundingBox())!;

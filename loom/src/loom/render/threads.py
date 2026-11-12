@@ -9,14 +9,14 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from loom.records.annotations import Record
+from loom.records.ids import ANNOTATION
 
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
 #: What loom keeps in a session's directory for itself, as opposed to what the session wrote there.
 SESSION_FILES = ("run.log", "inbox.jsonl")
-_MADE = re.compile(r"^(.*?)\s+→\s+(a-\d{4}-\d{2}-\d{2}-\d+)$")
+_MADE = re.compile(rf"^(.*?)\s+→\s+({ANNOTATION})$")
 KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 
 
@@ -53,26 +53,14 @@ def names(command: str, result: ScanResult | None) -> list[dict[str, str]]:
     return out
 
 
-def session_thread(
-    root: Path, session: Any, record: Record | None, run_dir: Path, result: ScanResult | None = None
-) -> dict[str, Any]:
-    """One session as a thread: what it wrote, who took part, what it touched, and its command log, each line with what it names (`names`) when a scan is given. Its conversation is not here: the build pages the transcript separately (`mailbox.pages`)."""
+def session_thread(root: Path, session: Any, run_dir: Path, result: ScanResult | None = None) -> dict[str, Any]:
+    """One session as a thread: the files it wrote and its command log, each line with what it names (`names`) when a scan is given. Annotations belong to no session, so a thread neither counts them nor takes its `participants` or `targets` from them, and both are empty. Its conversation is not here: the build pages the transcript separately (`mailbox.pages`)."""
     rel = run_dir.relative_to(root).as_posix() if run_dir.is_relative_to(root) else run_dir.as_posix()
     created = session.created
     participants: list[dict[str, str]] = []
     targets: list[str] = []
     attachments: list[dict[str, Any]] = []
     discarded = session.state != "open"
-    if record is not None:
-        discarded = discarded or record.discarded
-        attachments.append({"name": "annotations", "kind": "annotations", "count": len(record.annotations)})
-        for a in record.annotations:
-            if a.target_key not in targets:
-                targets.append(a.target_key)
-            # every party who wrote in the session, which is the point of separating the author from the place
-            who = {"kind": "agent" if a.author_kind == "agent" else "person", "id": a.author_id}
-            if who not in participants:
-                participants.append(who)
     for p in sorted(run_dir.iterdir()) if run_dir.is_dir() else []:
         if not p.is_file() or p.name in SESSION_FILES:
             continue
@@ -105,29 +93,21 @@ def session_thread(
     }
 
 
-def build_threads(root: Path, records: list[Record] | None = None, result: ScanResult | None = None) -> dict[str, Any]:
-    """Every session as a thread, keyed by its id; with a scan, each log line says what it names."""
-    from loom.records.annotations import load_records
+def build_threads(root: Path, result: ScanResult | None = None) -> dict[str, Any]:
+    """Every session as a thread, keyed by its id, oldest first; with a scan, each log line says what it names."""
     from loom.sessions import files_dir, sessions
 
-    if records is None:
-        records, _ = load_records(root)
-    by_rel = {r.rel: r for r in records}
     out: dict[str, Any] = {}
-    for s in sessions(root).values():
-        record = by_rel.get(s.id)
-        where = files_dir(root, s)
-        out[s.id] = session_thread(root, s, record, where, result)
+    for s in sorted(sessions(root).values(), key=lambda s: s.created):
+        out[s.id] = session_thread(root, s, files_dir(root, s), result)
     return out
 
 
 def last_active(root: Path, sid: str, manifest: dict[str, Any]) -> str:
-    """When session `sid` was last written in: the newest of its logged commands, the annotations and notes written in it, and its transcript's last message; '' when nothing was. Read from the manifest as built, and the transcript's end."""
+    """When session `sid` was last written in: the newest of its logged commands and its transcript's last message; '' when nothing was. Read from the manifest as built, and the transcript's end."""
     from loom.mailbox import last_event
 
     times = [e["time"] for e in (manifest.get("threads", {}).get(sid) or {}).get("log", [])]
-    times += [a.get("created") or "" for a in manifest.get("annotations", {}).values() if a.get("run") == sid]
-    times += [n.get("when") or "" for n in (manifest.get("notes") or {}).values() if n.get("session") == sid]
     said = last_event(root, sid)
     if said is not None:
         times.append(said.when)

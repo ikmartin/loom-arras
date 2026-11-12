@@ -5,12 +5,12 @@ import { REFEREE, saying, serve } from '../manifest';
 
 test.describe('naming', () => {
 	test('an empty link reads as the viewer names the thing; a titled one as written', async ({ page }) => {
-		await saying(page, '<p><a href="quilt:sy-0003"></a>, <a href="quilt:sy-0003">the parity theorem</a>, <a href="quilt:a-2026-09-16-0001"></a> and <a href="quilt:drafting/main.tex"></a>.</p>');
+		await saying(page, '<p><a href="quilt:sy-0003"></a>, <a href="quilt:sy-0003">the parity theorem</a>, <a href="quilt:a-2026-09-16-ecnav2"></a> and <a href="quilt:drafting/main.tex"></a>.</p>');
 		await page.goto('/session/' + REFEREE);
 		const links = page.getByTestId('message-1').locator('a');
 		await expect(links.nth(0)).toHaveText('Theorem 2.1');
 		await expect(links.nth(1)).toHaveText('the parity theorem');
-		await expect(links.nth(2)).toHaveText('objection on Theorem 2.1');
+		await expect(links.nth(2)).toHaveText('Revision on Theorem 2.1');
 		await expect(links.nth(3)).toHaveText('main.tex');
 	});
 });
@@ -74,21 +74,21 @@ test.describe('the one rule', () => {
 	});
 
 	test('a link to an annotation opens what it is on, with its box open', async ({ page }) => {
-		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const box = pane(page, 0).getByTestId('comment-expanded');
 		await expect(box).toBeVisible();
-		await expect(box.locator('[data-annotation-id="a-2026-09-16-0001"]')).toHaveCount(1);
-		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-0001');
+		await expect(box.locator('[data-annotation-id="a-2026-09-16-ecnav2"]')).toHaveCount(1);
+		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-ecnav2');
 	});
 
 	test("a bare id in an annotation reads as the result it names, and follows like any link", async ({ page }) => {
 		// an agent writes `sy-0002(a)` in prose as often as it writes a link; an id the quilt does not know is left as written
 		await serve(page, (m) => {
-			m.annotations['a-2026-09-16-0001'].body_html = '<p>This invokes sy-0002(a), not sy-9999.</p>';
+			m.annotations['a-2026-09-16-ecnav2'].body_html = '<p>This invokes sy-0002(a), not sy-9999.</p>';
 		});
-		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const body = pane(page, 0).getByTestId('comment-expanded').locator('.body').first();
@@ -97,7 +97,7 @@ test.describe('the one rule', () => {
 	});
 
 	test('reading is where it was left after a visit to Review: the same tabs, the same place, a closed box still closed', async ({ page }) => {
-		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		// a link opens the document at an annotation; the reader closes it and reads on
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
@@ -134,7 +134,7 @@ test.describe('the one rule', () => {
 			served += 1;
 			m.sessions[0].title = `A sitting, revision ${revision}`;
 		});
-		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/master/drafting/main' + beside('/session/' + REFEREE));
 		await pane(page, 1).getByTestId('message-1').locator('a').click();
 		const box = pane(page, 0).getByTestId('comment-expanded');
@@ -203,7 +203,7 @@ test.describe('cited works', () => {
 
 test.describe('previews', () => {
 	test('a quilt: link previews what it names, and a link to an annotation previews what it is on', async ({ page }) => {
-		await saying(page, '<p><a href="quilt:sy-0003"></a> and <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await saying(page, '<p><a href="quilt:sy-0003"></a> and <a href="quilt:a-2026-09-16-ecnav2"></a>.</p>');
 		await page.goto('/session/' + REFEREE);
 		const links = page.getByTestId('message-1').locator('a');
 		await links.nth(0).hover();

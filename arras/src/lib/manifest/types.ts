@@ -12,7 +12,7 @@ export type ColorClass =
   | (string & {});
 
 export interface Author {
-  /** Who wrote it; where it belongs is the annotation's session. */
+  /** Who wrote it. */
   kind: "agent" | "person" | (string & {});
   id: string;
   label?: string;
@@ -38,40 +38,6 @@ export interface Corpus {
   home?: string | null;
   /** The project root's own directory name, which `files` is a view of; absent from an older publisher. */
   directory?: string;
-}
-
-/** A note, a quote among them (plan 0.22.8): what someone wants kept beside a thing the viewer shows, with no kind or severity. */
-export interface Note {
-  id: string;
-  when: string;
-  author: { kind: "person" | "agent" | (string & {}); id: string };
-  session: string;
-  /** What it is on: one of a key, a cited work's page, a shown file, a transcript message, or the session alone. */
-  target: { key?: string; work?: string; citekey?: string; file?: string; message?: { session: string; seq: number }; session?: string };
-  body: string;
-  quote?: string;
-  page?: number;
-  rects?: number[][];
-  /** When it was kept, so it never fades. */
-  kept?: string;
-  /** How it is drawn on a PDF page: highlight, underline, strike, pin, ink, text, box, oval or arrow. A mark never fades. */
-  mark?: string;
-  /** The colour a mark was given, one of the viewer's `MARK_COLORS`; a mark without one is the neutral. */
-  color?: string;
-  /** A stroked mark's points, x, y, x, y… per stroke, in points from the page's top left. */
-  strokes?: number[][];
-  /** The hash of the PDF it was written on. */
-  artifact?: string;
-  /** Where a mark taken in from a PDF came from. */
-  origin?: { by?: string; subtype?: string; color?: number[]; ref?: string; sha?: string };
-  /** When it was erased; only a note still hiding an annotation in its file is published with this. */
-  erased?: string;
-  /** The reference of the annotation in the PDF that this note stands for, while the file is the one it was taken from: the viewer hides that annotation on the page. */
-  hides?: string;
-  /** Older than two weeks, not kept, not a mark, and linked from nothing durable: hidden until asked for. */
-  faded: boolean;
-  /** Its quote is no longer in what it is on, or the PDF it was drawn on has changed and its words are not found again. */
-  detached: boolean;
 }
 
 /** An open file changed since the reviewer's look (plan 0.22.8). */
@@ -335,8 +301,7 @@ export interface Acceptance {
 }
 
 export interface Reviews {
-  latest_current: { author: Author; date: string } | null;
-  latest_any: { author: Author; date: string } | null;
+  /** Open annotations by type id. */
   open: Record<string, number>;
   detached: number;
 }
@@ -407,44 +372,85 @@ export interface States {
   derived: Record<string, StateLabel>;
 }
 
+/** How an annotation is drawn: one of the nine colours, a style, a thickness in whole pixels and an opacity in percent. */
+export interface Look {
+  color: string;
+  style: 'underline' | 'highlight' | 'strike';
+  weight: number;
+  opacity: number;
+}
+
+/** A type an annotation may carry: a label with a look, whether its annotations stay open until resolved, whether they are listed in Notes, and instructions for agents. */
+export interface AnnotationType {
+  id: string;
+  name: string;
+  look: Look;
+  open: boolean;
+  notes: boolean;
+  instructions: string;
+  /** The modes whose text names this type. */
+  modes?: string[];
+}
+
 export interface Annotation {
   id: string;
   author: Author;
   created: string;
-  /** What it is about. A key in the corpus -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
-  target: { key: string; hash: string; work?: string | null; page?: number | null };
+  /** What it is about: a key in the corpus; a cited work's identifier, with `work` the citekey the viewer knows it by and `page` the page it is on, none for the whole work (plan 0.13 item 2); or a project PDF, with `file` its path and `page`. */
+  target: { key: string; hash: string; work?: string | null; page?: number | null; file?: string | null };
   /** The document a claim about a node is read in, as a master path; null for the node wherever it appears. Drawn in that document, listed on the node's page, absent elsewhere. */
   in?: string | null;
-  /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
+  /** On a cited work's page, anchored through its store: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. Null for one that records its own place (`rects`). */
   basis?: "text" | "box" | null;
-  kind: string;
+  /** On a PDF page, where it stands now, in points from the page's top left: its words found again on a changed file. */
+  rects?: number[][] | null;
+  /** A drawing's points, x, y, x, y… per stroke, in points from the page's top left. */
+  strokes?: number[][] | null;
+  /** The tool it was drawn with: `pin`, `ink`, `text`, `box`, `oval` or `arrow`; null for one on words, which its look's style draws. */
+  mark?: string | null;
+  /** Where one taken in from a PDF's own annotations came from. */
+  origin?: { by?: string; subtype?: string; color?: number[]; ref?: string; sha?: string } | null;
+  /** The reference of the PDF's own annotation it stands for, while the file is the one it was taken from: the viewer leaves that one undrawn. */
+  hides?: string | null;
+  /** The id of one of the quilt's `annotation_types`, or null for an untyped annotation. A type deleted since leaves an id no type has. */
+  type: string | null;
+  /** The whole look to draw it with, whatever its type now says. */
+  look: Look;
   body_html: string;
-  status: "open" | "resolved" | (string & {});
+  status: "open" | "resolved";
   in_reply_to: string | null;
   /** Whether the text this was written against can still be produced: the current text, or a version the publisher kept. */
   recorded?: boolean;
   anchored: boolean;
   detached: boolean;
   quote?: string;
-  /** Why it was withdrawn, when it was. The only record of why a finding should not have stood. */
-  discard_reason?: string | null;
-  /** How bad the fault is, not how strongly it is felt: `major` | `moderate` | `minor`. */
-  severity?: string | null;
-  /** Text a suggestion proposes, which the author applies; '' with `replace` deletes the quoted words. On a citation, the work. */
-  payload?: string | null;
-  /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
-  payload_html?: string | null;
-  /** Where the payload goes: `replace` takes exactly the quoted words' place, `after` and `before` go right beside them; with no quote, of the key's body. */
-  placement?: string | null;
-  /** An open suggestion's key as it would read with the suggestion taken: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why the payload has no place. */
-  change?: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string };
   /** Why it was resolved, when it was. */
   resolved_why?: string | null;
-  /** A suggestion resolved as applied: its key's hash once the suggestion was taken. */
-  applied?: { hash: string } | null;
-  /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
-  run: string;
-  discarded: boolean;
+}
+
+/** A suggested edit (specs/manifest.md §9.2): words a writer proposes to put in place of a quote, beside it or for it, which the person keeps or discards. */
+export interface SuggestedEdit {
+  id: string;
+  author: Author;
+  created: string;
+  target: { key: string; hash: string };
+  /** The words it replaces, or stands beside; with none, the key's body. */
+  quote: string | null;
+  /** What it puts in; '' with `replace` deletes the quoted words. */
+  with: string;
+  /** `with` as the publisher's converter renders it in the context of its key; null when it could not be. */
+  with_html: string | null;
+  /** `replace` takes exactly the quote's place, `after` and `before` go right beside it. */
+  placement: string;
+  comment: string | null;
+  comment_html: string | null;
+  /** The annotation it answers, or null. */
+  answers: string | null;
+  status: 'open' | 'kept' | 'discarded';
+  /** Why it was discarded, when it was. */
+  why: string | null;
+  /** An open one's key as it would read with it kept: `ready` with that rendering, its changed words marked, and the patch, both paths under the build directory, and whether the key has changed since though its quote stands; `taken` when the key already reads so; `unplaced` with why it has no place. Null once kept or discarded. */
+  change: { state: 'ready'; fragment: string; diff: string; moved: boolean } | { state: 'taken' } | { state: 'unplaced'; why: string } | null;
 }
 
 export interface Attachment {
@@ -452,16 +458,6 @@ export interface Attachment {
   kind: string;
   path?: string;
   count?: number;
-}
-
-/** A work an agent proposed citing and a person accepted: a breadcrumb, never a second source of identity truth. */
-export interface ReferenceNote {
-  work: string;
-  for?: string[];
-  claim?: string | null;
-  identifier?: { verified: boolean; id?: string };
-  accepted?: { when: string; who: string };
-  from?: { session: string; annotation: string };
 }
 
 /** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */
@@ -492,8 +488,8 @@ export interface Thread {
   participants: Author[];
   targets: string[];
   attachments: Attachment[];
-  /** The session's command log, a line each: what was run, the annotation it made when it made one, and the keys and files it names, a moved document under where it is now. */
-  log: { time: string; command: string; annotation?: string; names?: ({ key: string } | { path: string })[] }[];
+  /** The session's command log, a line each: what was run, and the keys and files it names, a moved document under where it is now. */
+  log: { time: string; command: string; names?: ({ key: string } | { path: string })[] }[];
   discarded: boolean;
 }
 
@@ -700,10 +696,13 @@ export interface Manifest {
   inclusion: Record<string, InclusionNode>;
   states: States;
   annotations: Record<string, Annotation>;
+  /** Every suggested edit, by id (specs/manifest.md §9.2). */
+  suggested_edits?: Record<string, SuggestedEdit>;
+  /** The quilt's annotation types, in its file's order (specs/manifest.md §1). */
+  annotation_types?: AnnotationType[];
   threads: Record<string, Thread>;
   /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
   sessions?: SessionRow[];
-  reference_notes?: ReferenceNote[];
   diagnostics: Diagnostic[];
   tags: Record<string, string[]>;
   taxa: Record<string, Taxon>;
@@ -712,8 +711,6 @@ export interface Manifest {
   research_state?: Page;
   /** Every file of the project the viewer shows, hidden ones left out (plan 0.22.7); absent from an older publisher. */
   files?: ProjectFile[];
-  /** Every note, by id (plan 0.22.8). */
-  notes?: Record<string, Note>;
   /** The open files changed since the reviewer's look, and that look; absent before a first look. */
   changes?: FileChange[];
   changes_since?: { who: string; when: string };

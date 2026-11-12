@@ -84,8 +84,8 @@ test('an edit keeps the blocks after it in its file, and moves their offsets', a
 });
 
 test('an annotation filed far above the reader leaves the text they are reading where it was', async ({ page, served }) => {
-	// a short window, so the document runs to several screens and what is far above the reader is skipped while off screen
-	await page.setViewportSize({ width: 1280, height: 360 });
+	// a short window, so the document runs to several screens and what is far above the reader is skipped while off screen; this wide, the paragraph annotated runs to four lines, a height a three-line placeholder is not
+	await page.setViewportSize({ width: 900, height: 360 });
 	await page.goto('/master/drafting/main');
 	await allTypeset(page);
 	const body = page.locator('[data-pane="0"] > .body');

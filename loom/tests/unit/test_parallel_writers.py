@@ -19,7 +19,7 @@ from loom.cli._common import EnvError
 from loom.history.ledger import append_entry, load_history
 from loom.history.steps import FreezePlan, refuse_interrupted, write_step
 from loom.locks import locked
-from loom.paths import ANNOTATION_LOG, NOTE_LOG
+from loom.paths import ANNOTATION_LOG
 from loom.sessions import INDEX, set_active
 from tests.helpers import ok
 from tests.unit._quilts import demo, new_session
@@ -138,31 +138,22 @@ def test_a_new_node_never_overwrites_a_file_that_arrived_after_the_scan(
 def test_parallel_annotate_gives_every_annotation_its_own_id(tmp_path: Path) -> None:
     """Measured before the lock: duplicate ids in ten trials of twelve, and a reply to such an id cannot say which it means."""
     q = demo(tmp_path)
-    sid = new_session(q)
-    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--kind", "question", "--as", AGENT] for i in range(N))))
+    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "question", "--as", AGENT] for i in range(N))))
     made = {str(e["id"]): str(e["body"]) for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))}
     assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
-    listed = json.loads(ok("ai", "annotations", "--session", sid, "--json", cwd=q).stdout)["annotations"]
+    listed = json.loads(ok("ai", "annotations", "--by", AGENT, "--json", cwd=q).stdout)["annotations"]
     assert sorted(a["id"] for a in listed if "race " in str(a["message"])) == sorted(made)
 
 
 def test_parallel_replies_and_new_annotations_draw_from_one_counter(tmp_path: Path) -> None:
     q = demo(tmp_path)
     new_session(q)
-    parent = ok("annotate", "dm-0002", "the question", "--kind", "question", "--as", AGENT, cwd=q).stdout.split()[0]
-    calls = [["annotate", "dm-0002", f"race {i}", "--kind", "note", "--as", AGENT] for i in range(2)]
+    parent = ok("annotate", "dm-0002", "the question", "--type", "question", "--as", AGENT, cwd=q).stdout.split()[0]
+    calls = [["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(2)]
     calls += [["annotate", "--reply", parent, f"race {i}", "--as", AGENT] for i in range(2, 4)]
     all_ok(racing(q, calls))
     ids = [str(e["id"]) for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
     assert len(ids) == 4 == len(set(ids)), ids
-
-
-def test_parallel_note_gives_every_note_its_own_id(tmp_path: Path) -> None:
-    q = demo(tmp_path)
-    new_session(q)
-    all_ok(racing(q, (["note", f"race {i}", "--on", "dm-0002", "--as", AGENT] for i in range(N))))
-    made = {str(e["id"]): str(e["body"]) for e in events(q / NOTE_LOG) if e.get("event") == "noted"}
-    assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
 
 
 def test_parallel_session_new_gives_every_session_its_own_id(tmp_path: Path) -> None:
@@ -172,14 +163,15 @@ def test_parallel_session_new_gives_every_session_its_own_id(tmp_path: Path) -> 
     assert sorted(made.values()) == [f"race {i}" for i in range(N)], made
 
 
-def test_writers_with_nothing_active_all_land_in_the_one_session_the_first_opens(tmp_path: Path) -> None:
+def test_annotating_with_nothing_active_opens_no_session(tmp_path: Path) -> None:
+    """An annotation belongs to no session, so racing writers open none and name none."""
     q = demo(tmp_path)
     set_active(q, None)
-    before = len(events(q / INDEX))
-    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--kind", "note", "--as", AGENT] for i in range(N))))
-    opened = [e for e in events(q / INDEX)[before:] if e["event"] == "created"]
+    before = events(q / INDEX)
+    all_ok(racing(q, (["annotate", "dm-0002", f"race {i}", "--type", "note", "--as", AGENT] for i in range(N))))
     wrote = [e for e in events(q / ANNOTATION_LOG) if "race " in str(e.get("body"))]
-    assert len(opened) == 1 and {e["session"] for e in wrote} == {opened[0]["id"]}, (opened, wrote)
+    assert len(wrote) == N and not [e for e in wrote if "session" in e]
+    assert events(q / INDEX) == before
 
 
 def test_parallel_links_each_get_an_id_and_none_is_lost(tmp_path: Path) -> None:

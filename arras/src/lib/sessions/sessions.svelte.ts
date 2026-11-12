@@ -6,23 +6,19 @@
 // attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
 // author has since moved.
 //
-// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits. Hiding every annotation is a pane's own (`workspace.hideNotes`), since clean text is about the page in front of you. The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
+// **Annotations belong to no session.** An annotation carries its author, time and version, and is written whatever is selected; a session is a sitting with its transcript, and the selection is where a write that names one goes, such as verifying a proposed result. Hiding every annotation is a pane's own (`workspace.hideNotes`).
 //
-// A write is available only while an *open* session is selected. Nothing is created automatically: the courtesy of
+// A write that names a session is available only while an *open* one is selected. Nothing is created automatically: the courtesy of
 // opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to
 // consult, and in the viewer it would silently decide where work was filed.
 
-import type { Annotation, Manifest, SessionRow } from '$lib/manifest/types';
+import type { Manifest, SessionRow } from '$lib/manifest/types';
 
 const KEY = 'arras.session-view';
 
 class SessionView {
 	/** The session writes land in, or null when none is selected. Open or closed — one selection covers both. */
 	selected = $state<string | null>(null);
-	/** `current` draws only the selected session's annotations; `all` draws every session `showClosed` admits. */
-	view = $state<View>('all');
-	/** Whether closed sessions' annotations are drawn at all. Hidden by default, which is what closing one is for. */
-	showClosed = $state(false);
 	/** Names asked for and not yet in the manifest, by session id: a rename shows at once rather than after the publisher rebuilds. */
 	renamed = $state<Record<string, string>>({});
 
@@ -31,47 +27,35 @@ class SessionView {
 			const raw = globalThis.localStorage?.getItem(KEY);
 			const o = raw ? JSON.parse(raw) : {};
 			this.selected = typeof o?.selected === 'string' ? o.selected : null;
-			this.view = view(o?.view);
-			this.showClosed = o?.showClosed === true;
 		} catch {
-			// a viewer that cannot read its stored view shows everything and selects nothing, which is the honest default
+			// a viewer that cannot read its stored selection selects nothing, which is the honest default
 		}
 	}
 
 	save(): void {
 		try {
-			globalThis.localStorage?.setItem(KEY, JSON.stringify({ selected: this.selected, view: this.view, showClosed: this.showClosed }));
+			globalThis.localStorage?.setItem(KEY, JSON.stringify({ selected: this.selected }));
 		} catch {
-			// a viewer that cannot store the view still uses it for this visit
+			// a viewer that cannot store the selection still uses it for this visit
 		}
 	}
 
 	/** Select one: where writes go. Selecting the selected session again keeps it; `clear` is how the author detaches from every session. Reading a session's transcript selects nothing; only choosing it does. */
-	select(id: string, m: Manifest | null): void {
+	select(id: string): void {
 		this.selected = id;
-		// A closed session cannot be selected and hidden at once, so selecting one admits the closed.
-		if (row(m, id)?.state !== 'open') this.showClosed = true;
 		this.save();
 	}
 
-	/** Select nothing: writes are refused until something is selected, and `current` would have nothing to draw. */
+	/** Select nothing: writes that name a session are refused until something is selected. */
 	clear(): void {
 		this.selected = null;
-		if (this.view === 'current') this.view = 'all';
 		this.save();
 	}
 
-	/** After a session closes or goes: the selection cannot stand, and `current` would have nothing to draw. */
+	/** After a session closes or goes: the selection cannot stand. */
 	dropped(id: string): void {
 		if (this.selected === id) this.clear();
 	}
-}
-
-export type View = 'current' | 'all';
-
-/** A stored view read back, anything unknown read as `all`. */
-function view(v: unknown): View {
-	return v === 'current' ? v : 'all';
 }
 
 export const sessionView = new SessionView();
@@ -91,7 +75,7 @@ export function selected(m: Manifest | null): SessionRow | null {
 }
 
 /**
- * Why a write is unavailable, or `''` when it is allowed.
+ * Why a write that names a session (verifying or discarding a proposed result) is unavailable, or `''` when it is allowed. An annotation names none.
  *
  * The two sentences live here and are read by every write surface, so the interface cannot word the same refusal two ways.
  */
@@ -100,19 +84,6 @@ export function writable(m: Manifest | null): string {
 	if (!s) return 'No session selected: either select a session or start a new session.';
 	if (s.state !== 'open') return 'Selected session is closed: either select an open session or reopen the closed session.';
 	return '';
-}
-
-/** Whether an annotation is drawn under the current view, in a pane that does not hide them all. */
-export function visible(m: Manifest | null, a: Annotation): boolean {
-	if (sessionView.view === 'current') return a.run === sessionView.selected;
-	if (sessionView.showClosed) return true;
-	const shut = new Set((m?.sessions ?? []).filter((s) => s.state !== 'open').map((s) => s.id));
-	return !shut.has(a.run);
-}
-
-/** How many of `list` the view is hiding, for the quiet notice beside what it hides. */
-export function hidden(m: Manifest | null, list: readonly Annotation[]): number {
-	return list.filter((a) => !visible(m, a)).length;
 }
 
 /** The one list the picker draws, and the closed ones behind their own section. */
@@ -136,18 +107,4 @@ export function findSessions(m: Manifest | null, find: string): { open: SessionR
 	const q = find.trim().toLowerCase();
 	const hit = (s: SessionRow) => !q || `${titleOf(s)} ${s.purpose ?? ''}`.toLowerCase().includes(q);
 	return { open: all.open.filter(hit), closed: all.closed.filter(hit), closedCount: all.closed.length };
-}
-
-/** The kinds that await an answer; a note records rather than asks, so it never keeps a count open. */
-const ASKING = new Set(['objection', 'suggestion', 'question', 'citation']);
-
-/** What one session holds: how many of its annotations await an answer, who wrote in it, and how many arrived in the current round. */
-export function summary(m: Manifest | null, id: string): { open: number; who: string[]; fresh: number } {
-	const rows = Object.values(m?.annotations ?? {}).filter((a) => a.run === id && !a.in_reply_to && !a.discarded);
-	const since = (m?.sessions ?? []).find((s) => s.id === id)?.opened ?? '';
-	return {
-		open: rows.filter((a) => a.status !== 'resolved' && ASKING.has(a.kind)).length,
-		who: [...new Set(Object.values(m?.annotations ?? {}).filter((a) => a.run === id).map((a) => a.author.id))],
-		fresh: since ? Object.values(m?.annotations ?? {}).filter((a) => a.run === id && a.created >= since).length : 0
-	};
 }

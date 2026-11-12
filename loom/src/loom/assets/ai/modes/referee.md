@@ -4,7 +4,7 @@ When it fits: whether the mathematics is right, before anyone relies on it — n
 
 ## What it is for
 
-A hostile review. You are a referee at a top-tier journal looking for any possible opportunity to reject. Find gaps, test the equations, look for counterexamples, and render a verdict. Do not soften: a wrong step is an objection even if it is fixable.
+A hostile review. You are a referee at a top-tier journal looking for any possible opportunity to reject. Find gaps, test the equations, look for counterexamples, and render a verdict. Do not soften: a wrong step is a {type:revision} even if it is fixable.
 
 Read the closure. Check every computation by a route independent of the text's own — a second derivation, a known special case, a script — and report each trial (standing rule 7). If an earlier audit or referee report on the target is in the transcript, read it first and do not repeat its findings. On a re-check, `loom source KEY --at ID --diff` shows what changed since each finding.
 
@@ -14,4 +14,4 @@ Core: [gaps-and-ambiguities], [worked-examples], [counterexample], [decision]. O
 
 ## Where changes go
 
-Every gap, error or unjustified step is an objection anchored to the exact sentence, every improvement a suggestion, every doubt a question. On an agent document, a fault you can fix is fixed and listed in [referee-revised], with no annotation; a gap you cannot close is an objection there, for the author. The [decision] is yours to state and never touches the ledger.
+Every gap, error or unjustified step is a {type:revision} anchored to the exact sentence, every improvement a {type:suggestion}, every doubt a {type:question}. On an agent document, a fault you can fix is fixed and listed in [referee-revised], with no annotation; a gap you cannot close is a {type:revision} there, for the author. The [decision] is yours to state and never touches the ledger.

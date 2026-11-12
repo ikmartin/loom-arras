@@ -1,0 +1,11 @@
+--- a/drafting/nodes/sy-0003.tex
++++ b/drafting/nodes/sy-0003.tex
+@@ -7,7 +7,7 @@
+ \end{theorem}
+ \begin{proof}[First proof]\label{sy-0004}
+ \uses{sy-0002}
+-By Lemma~\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.
++By Lemma~\ref{sy-0002}, $X$ is the disjoint union of orbits of size one or two.
+ \end{proof}
+ \begin{proof}[Second proof]\label{sy-0005}
+ \uses{sy-0002, sy-0001}

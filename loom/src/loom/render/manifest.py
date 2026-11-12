@@ -244,13 +244,6 @@ def _locator(node: NodeRec) -> str | None:
     return m.group(1).strip() if m else None
 
 
-def _published_notes(root: Path) -> list[dict[str, Any]]:
-    """Reference notes as the manifest carries them; `from.session` is the session the suggestion was written in."""
-    from loom.refs.notes import read_notes
-
-    return list(read_notes(root))
-
-
 # What a quilt has, never what a viewer should draw (specs/manifest.md §2, plan 0.9.5 §9). Every value is a property of
 # loom, not of this quilt's current contents: a quilt with no documents yet is still a project that assembles into
 # them, and "empty because not yet" is exactly what a viewer cannot tell from the data alone. A publisher whose corpora
@@ -301,7 +294,6 @@ def build_manifest(
         "threads": build_threads(result.quilt.root, result=result),
         # The selector's data (plan 0.13 §5): which sessions exist, which is active, and how much is open in each.
         "sessions": _sessions(result.quilt.root),
-        "reference_notes": _published_notes(result.quilt.root),
         "diagnostics": [d.to_dict() for d in diagnostics],
         "tags": {},
         "taxa": {},
@@ -656,7 +648,7 @@ def _conflict_key(n: NodeRec) -> dict[str, Any]:
         "hash": "",
         "incomplete": [],
         "state": "conflicted",
-        "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0},
+        "reviews": {"open": {}, "detached": 0},
         "uses": [],
         "closure": [n.key],
         "previous_key_match": None,
@@ -770,7 +762,7 @@ def _key_entry(result: ScanResult, n: NodeRec) -> dict[str, Any]:
         "hash": key_hash(result, n.key),
         "incomplete": list(n.incomplete),
         "state": "incomplete" if n.incomplete else "draft",
-        "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0},
+        "reviews": {"open": {}, "detached": 0},
         "uses": result.graph.direct(n.key),
         "closure": result.graph.closure(n.key),
         "previous_key_match": None,

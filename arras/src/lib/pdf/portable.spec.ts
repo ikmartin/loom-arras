@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import * as lib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { copyColor, MARK_COLORS } from './marks';
+import { RGB } from '$lib/review/annotationTypes';
+import { copyColor } from './marks';
 import { annotatedCopy, editedPages, notTheSamePaper, outlineOf, readAnnotations, renameSubtypes, wrapped, type Outgoing } from './portable';
 
 const pdfjs = lib as unknown as typeof import('pdfjs-dist');
@@ -49,14 +50,15 @@ describe('a copy with annotations', () => {
 		const { bytes } = await annotatedCopy(pdfjs, source(), marks);
 		const { items, skipped } = await readAnnotations(await open(bytes));
 		expect(skipped).toBe(0);
-		expect(items.map((i) => i.mark)).toEqual(['highlight', 'underline', 'strike', 'pin', 'text', 'ink', 'ink', 'ink', 'ink']);
+		expect(items.map((i) => i.style ?? i.mark)).toEqual(['highlight', 'underline', 'strike', 'pin', 'text', 'ink', 'ink', 'ink', 'ink']);
+		expect(items.slice(0, 3).map((i) => i.mark)).toEqual([undefined, undefined, undefined]);
 		expect(items[0].rects?.[0].map(Math.round)).toEqual(TITLE[0].map(Math.round));
 		expect(items[0]).toMatchObject({ page: 1, body: 'on the title', origin: { by: 'A Reader', subtype: 'Highlight' } });
 		expect(items[5].strokes?.[0].map(Math.round)).toEqual([60, 120, 110, 150, 160, 120]);
 		expect(items[0].origin.ref).toBeUndefined();
 	});
 
-	it('keeps a colour there and back, and a PDF\'s own black stays neutral', async () => {
+	it('keeps a colour there and back, and a PDF\'s own black comes back grey', async () => {
 		const coloured: Outgoing[] = [
 			{ page: 1, kind: 'highlight', rects: TITLE, body: '', by: '', color: copyColor('highlight', 'green') },
 			{ page: 1, kind: 'underline', rects: [[100, 300, 300, 312]], body: '', by: '', color: copyColor('underline', 'pink') },
@@ -64,8 +66,8 @@ describe('a copy with annotations', () => {
 		];
 		const { bytes } = await annotatedCopy(pdfjs, source(), coloured);
 		const { items } = await readAnnotations(await open(bytes));
-		expect(items.map((i) => i.color)).toEqual(['green', 'pink', undefined]);
-		expect(items[0].origin.color).toEqual([...MARK_COLORS.green.band]);
+		expect(items.map((i) => i.color)).toEqual(['green', 'pink', 'grey']);
+		expect(items[0].origin.color).toEqual([...RGB.green.band]);
 	});
 
 	it('says what it could not place, and leaves out what a note now stands for', async () => {
@@ -137,6 +139,6 @@ describe('page edits', () => {
 		const out = await editedPages(pdfjs, source(), [{ from: 0, index: 1, rotate: 0 }, { from: 0, index: 0, rotate: 0 }], [], [marks[1]]);
 		const { items } = await readAnnotations(await open(out));
 		expect(items).toHaveLength(1);
-		expect(items[0]).toMatchObject({ page: 2, mark: 'underline', body: 'a line under' });
+		expect(items[0]).toMatchObject({ page: 2, style: 'underline', body: 'a line under' });
 	});
 });

@@ -19,7 +19,7 @@ from loom.cli.report import Report, counted
 def since_command(declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Report what people did since you last looked, and move your marker past it.
 
-    People's annotations and replies, whole, with the words they are on and what they propose; what they resolved, applied, discarded or reopened; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
+    People's annotations and replies, whole, with the words they are on; what they resolved, deleted or reopened, and what they kept or discarded of your suggested edits; what they accepted, and every accepted key gone stale, with why; their edits to the research state, as a diff; what they said in a session's transcript; and the boxes they set in the viewer, each as it last stood. Your first look reports what happened since the active session was last opened. The marker is yours alone, one per name, and kept on this machine only.
     """
     from loom.since import since, write_marker
 
@@ -48,11 +48,11 @@ def _verdict(got: Any) -> str:
     said = [
         counted(len(got.annotations), "annotation") if got.annotations else "",
         counted(len(got.acts), "annotation settled", "annotations settled") if got.acts else "",
+        counted(len(got.edits), "suggested edit settled", "suggested edits settled") if got.edits else "",
         counted(len(got.accepted), "acceptance") if got.accepted else "",
         counted(len(got.stale), "key gone stale", "keys gone stale") if got.stale else "",
         "the research state changed" if got.state else "",
         counted(len(got.said), "message") if got.said else "",
-        counted(len(got.notes), "note") if got.notes else "",
         counted(len(got.ticks), "box set", "boxes set") if got.ticks else "",
     ]
     return f"{window}: " + ", ".join(s for s in said if s)
@@ -72,10 +72,18 @@ def _lines(got: Any) -> list[str]:
     acts = []
     for a in got.acts:
         whose = "yours" if a.get("yours") else f"{a['of']}'s"
-        acts.append(f"  {a['id']}  {a['kind']} · {a['target']} · {whose} · {a['act']} by {a['by']} at {_at(a['when'])}")
+        acts.append(
+            f"  {a['id']}  {a.get('type') or 'untyped'} · {a['target']} · {whose} · {a['act']} by {a['by']} at {_at(a['when'])}"
+        )
         if a.get("body"):
             acts.append(f'      "{a["body"]}"')
     block("annotations settled", len(got.acts), acts)
+    settled = []
+    for e in got.edits:
+        settled.append(f"  {e['id']}  on {e['target']} · {e['act']} by {e['by']} at {_at(e['when'])}")
+        if e.get("why"):
+            settled.append(f'      "{e["why"]}"')
+    block("your suggested edits", len(got.edits), settled)
     block(
         "accepted",
         len(got.accepted),
@@ -94,25 +102,6 @@ def _lines(got: Any) -> list[str]:
         if m["body"]:
             said.append(f'      "{m["body"]}"')
     block("said", len(got.said), said)
-    noted = []
-    for n in got.notes:
-        t = n["target"]
-        on = (
-            t.get("key")
-            or t.get("file")
-            or t.get("citekey")
-            or (f"{t['message']['session']} #{t['message']['seq']}" if "message" in t else t.get("session", ""))
-        )
-        at = f", page {n['page']}" if n.get("page") else ""
-        what = "".join(f"{n[k]} " for k in ("color", "mark") if n.get(k))
-        noted.append(f"  {n['id']} {what}on {on}{at}  {n['author']['id']} at {_at(n['when'])}  {n['link']}")
-        if n.get("quote"):
-            noted.append(f'      quoting "{n["quote"]}"')
-        elif n.get("rects") and n.get("mark") not in ("ink", "arrow"):
-            noted.append(f"      a region: {n['rects']}")
-        if n.get("body"):
-            noted.append(f"      {n['body']}")
-    block("noted", len(got.notes), noted)
     block(
         "boxes set",
         len(got.ticks),

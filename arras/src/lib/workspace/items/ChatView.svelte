@@ -16,9 +16,6 @@
 	import { capabilities } from '$lib/write';
 	import type { Item } from '../item';
 	import { soleSession } from '../links';
-	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
-	import { notesWhere, noteWhere, quote } from '$lib/notes';
-	import type { Note } from '$lib/manifest/types';
 
 	let { item }: { item: Item } = $props();
 
@@ -142,37 +139,6 @@
 		opened = { ...opened, [at]: !opened[at] };
 	}
 
-	// Notes written in this session read in its discussion, by time among the messages (plan 0.22.8): a quote entered the conversation where it was taken. Faded ones are left out, as everywhere.
-	const notes = $derived(notesWhere(m, (n) => n.session === item.id));
-	type Entry = { kind: 'message'; e: (typeof log.events)[number] } | { kind: 'note'; n: Note };
-	const entries = $derived.by<Entry[]>(() => {
-		const oldest = log.more ? (log.events[0]?.when ?? '') : '';
-		const out: Entry[] = log.events.map((e) => ({ kind: 'message', e }));
-		for (const n of [...notes].reverse()) if (n.when >= oldest) out.push({ kind: 'note', n });
-		return out.sort((a, b) => (a.kind === 'message' ? a.e.when : a.n.when).localeCompare(b.kind === 'message' ? b.e.when : b.n.when));
-	});
-
-	type Box = { left: number; top: number; width: number; height: number };
-	/** Words selected in one message, offered to quote. */
-	let offered = $state<{ seq: number; text: string; at: Box; range: Range } | null>(null);
-	function selected(): void {
-		const sel = window.getSelection();
-		const words = sel?.toString().trim();
-		if (!sel || !words || !sel.rangeCount) return;
-		const li = (n: Node | null) => (n instanceof Element ? n : n?.parentElement)?.closest<HTMLElement>('[data-seq]');
-		const a = li(sel.anchorNode);
-		if (!a || a !== li(sel.focusNode)) return;
-		const range = sel.getRangeAt(0);
-		const r = range.getBoundingClientRect();
-		offered = { seq: Number(a.dataset.seq), text: words.slice(0, 4000), at: { left: r.left, top: r.top, width: r.width, height: r.height }, range: range.cloneRange() };
-	}
-	let quoted = $state<Record<number, string>>({});
-	async function quoteMessage(e: { seq: number; body?: string }, el: HTMLElement | null): Promise<void> {
-		const words = (el?.querySelector('.body')?.textContent ?? e.body ?? '').trim().slice(0, 4000);
-		const why = await quote({ target: `${item.id}#${e.seq}`, quote: words });
-		quoted = { ...quoted, [e.seq]: why || 'quoted' };
-		setTimeout(() => (quoted = { ...quoted, [e.seq]: '' }), why ? 2400 : 1200);
-	}
 
 	function clock(stamp: string): string {
 		const d = new Date(stamp);
@@ -184,25 +150,15 @@
 	{#if row && writing?.id !== item.id}
 		<p class="writing" data-testid="chat-writing">
 			{writing ? `You are writing in “${titleOf(writing)}”.` : 'You are not writing in a session.'}
-			{#if row.state === 'open'}<button type="button" class="as-link" data-testid="chat-write-here" onclick={() => sessionView.select(item.id, m)}>Write here</button>{:else}This one is closed.{/if}
+			{#if row.state === 'open'}<button type="button" class="as-link" data-testid="chat-write-here" onclick={() => sessionView.select(item.id)}>Write here</button>{:else}This one is closed.{/if}
 		</p>
 	{/if}
 	<div class="log" bind:this={scroller} data-testid="chat-log">
 		<div class="top" bind:this={top} aria-hidden="true"></div>
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<ol class="messages" data-testid="transcript" onmouseup={selected}>
-			{#each entries as x (x.kind === 'message' ? `m${x.e.seq}` : x.n.id)}
-				{#if x.kind === 'note'}
-					{@const n = x.n}
-					<li class="noted" data-testid="noted-{n.id}">
-						<p class="meta"><span class="who">{n.author.id}</span> quoted · <span class="when" title={n.when}>{when(n.when)} {clock(n.when)}</span> · <a href="quilt:{n.id}">{noteWhere(n)}</a></p>
-						{#if n.quote}<q class="quoted">{n.quote}</q>{/if}
-						{#if n.body}<p class="note-body">{n.body}</p>{/if}
-					</li>
-				{:else}
-				{@const e = x.e}
+		<ol class="messages" data-testid="transcript">
+			{#each log.events as e (e.seq)}
 				<li class="message" class:agent={isAgent(e.who)} data-testid="message-{e.seq}" data-seq={e.seq}>
-					<p class="meta"><span class="who">{e.who}</span> · <span class="when" title={e.when}>{when(e.when)} {clock(e.when)}</span>{#if quoted[e.seq]} · <span class="faint" role="status">{quoted[e.seq]}</span>{:else} · <button type="button" class="as-link quote-message" data-testid="quote-message" onclick={(ev) => quoteMessage(e, (ev.currentTarget as HTMLElement).closest('li'))}>quote</button>{/if}</p>
+					<p class="meta"><span class="who">{e.who}</span> · <span class="when" title={e.when}>{when(e.when)} {clock(e.when)}</span></p>
 					{#if e.body_html}
 						{@const f = split(e.body_html)}
 						{#if f}
@@ -215,24 +171,12 @@
 					{/if}
 					{#if e.changed?.length}<p class="carried" data-testid="message-carried">{carried(e.changed)}</p>{/if}
 				</li>
-				{/if}
 			{:else}
 				<li class="empty muted" data-testid="transcript-empty">{log.loading ? 'Loading the transcript…' : 'Nothing has been said in this session yet.'}</li>
 			{/each}
 		</ol>
 	</div>
 </div>
-{#if offered}
-	<AnnotateChip
-		at={offered.at}
-		range={offered.range}
-		onquote={() => (offered ? quote({ target: `${item.id}#${offered.seq}`, quote: offered.text }) : Promise.resolve(''))}
-		ondone={() => {
-			offered = null;
-			window.getSelection()?.removeAllRanges();
-		}}
-	/>
-{/if}
 
 <style>
 	.chat {
@@ -256,26 +200,6 @@
 		max-width: var(--prose-measure);
 		margin: 0 auto;
 		padding: 0;
-	}
-	/* a note quoted into the session: quieter than a message, in the annotation neutral */
-	.noted {
-		margin-top: var(--gap);
-		padding-left: var(--gap-tight);
-		border-left: 2px solid var(--ann-neutral);
-		color: var(--ink-soft);
-	}
-	.noted .quoted {
-		font-style: italic;
-	}
-	.note-body {
-		margin: var(--gap-hair) 0 0;
-	}
-	.quote-message {
-		visibility: hidden;
-	}
-	.message:hover .quote-message,
-	.quote-message:focus-visible {
-		visibility: visible;
 	}
 	.message + .message {
 		margin-top: var(--gap);

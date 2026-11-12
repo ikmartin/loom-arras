@@ -299,8 +299,8 @@
 		font-weight: 600;
 		padding: 1px 7px;
 		border-radius: var(--rad-pill);
-		background: var(--ann-suggestion-wash);
-		color: var(--ann-suggestion);
+		background: var(--state-stale-wash);
+		color: var(--state-stale);
 		text-decoration: none;
 	}
 	.acts {

@@ -11,7 +11,7 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_bib, open_scan, quilt_option
-from loom.cli.library._works import find_result, is_suggestion, logged, one_work, present, works
+from loom.cli.library._works import find_result, logged, one_work, present, works
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.paths import DIGESTS
 from loom.scan.bib import BibEntry
@@ -546,12 +546,9 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
 def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) -> None:
     """Show where a result came from, what state it is in and who changed it, then its relations to other results.
 
-    Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.
+    Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked.
     """
     result = open_scan(quilt_path)
-    if is_suggestion(target):
-        _why_suggestion(result, target).emit(as_json)
-        return
     from loom.refs.proposals import edit_diff, read_events, said_state, state_of
     from loom.scan.digests import other_version_of
 
@@ -625,38 +622,6 @@ def _relations(root: Path, rid: str, depth: int) -> list[Any]:
                     nxt |= {x.frm, x.to}
         frontier = nxt - frontier
     return found
-
-
-def _why_suggestion(result: Any, ann_id: str) -> Report:
-    """A citation suggestion's provenance: who suggested which work for which key, and whether it is still open."""
-    from loom.cli._common import NotFoundError
-    from loom.records.annotations import find_annotation
-    from loom.records.store import Records
-
-    found = find_annotation(Records(result.quilt.root).records, ann_id)
-    if found is None:
-        raise NotFoundError("annotation", f"no annotation {ann_id}")
-    rec, ann = found
-    if ann.kind != "citation":
-        raise ContentError(f"{ann_id} is a {ann.kind}, not a citation suggestion or a result")
-    rows = [
-        ("state", ann.status),
-        ("suggested", f"{ann.author_id or '—'} ({ann.author_kind})  {ann.created[:19]}"),
-        ("session", rec.rel),
-        ("for", ann.target_key),
-        ("work", ann.payload or "—"),
-    ]
-    return Report(
-        f"{ann_id}, a citation suggestion, {ann.status}",
-        lines=[
-            "",
-            *(f"  {line}" for line in table(rows)),
-            "",
-            f"  {ann.body}",
-            *(["", "next: loom library review lists what is still open"] if ann.status == "open" else []),
-        ],
-        data={"annotation": ann.to_dict(), "session": rec.rel},
-    )
 
 
 #: The commands this module adds to `loom library`.

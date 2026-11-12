@@ -26,14 +26,13 @@ def test_an_agent_that_has_not_said_who_it_is_is_refused_rather_than_guessed_at(
 
 
 def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tmp_path: Path) -> None:
-    """`loom annotate` and `loom note` recorded such a write as `agent` while `loom new` and `loom session say` refused it; now all of them ask, and the refusal names what the app goes by."""
+    """`loom annotate` recorded such a write as `agent` while `loom new` and `loom session say` refused it; now all of them ask, and the refusal names what the app goes by."""
     q = demo(tmp_path)
     log = q / ".loom/annotations" / "log.jsonl"
     before = log.read_text()
     for act in (
-        ["annotate", "dm-0002", "A finding.", "--kind", "note"],
-        ["annotate", "dm-0002", "A finding.", "--kind", "note", "--dry-run"],
-        ["note", "Worth keeping.", "--on", "dm-0002"],
+        ["annotate", "dm-0002", "A finding.", "--type", "note"],
+        ["annotate", "dm-0002", "A finding.", "--type", "note", "--dry-run"],
         ["session", "say", "Said."],
         ["new", "lemma"],
         ["since"],
@@ -45,7 +44,7 @@ def test_a_write_that_names_nobody_under_a_marker_is_refused_by_every_command(tm
         "annotate",
         "dm-0002",
         "A finding.",
-        "--kind",
+        "--type",
         "note",
         "--as",
         "Claude Code Agent",
@@ -63,8 +62,7 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
     marked = {"CLAUDECODE": "1"}
     for name in ("Claude", "Claude Haiku 5.5", "A. Author"):
         for act in (
-            ["annotate", "dm-0002", "A finding.", "--kind", "note"],
-            ["note", "Worth keeping.", "--on", "dm-0002"],
+            ["annotate", "dm-0002", "A finding.", "--type", "note"],
             ["session", "say", "Said."],
             ["session", "new", "--name", "A sitting"],
             ["since"],
@@ -84,10 +82,9 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
         ):
             refused(*act, "--as", name, cwd=q, env=marked, code=2, match=f"{name} does not say it is an agent")
     refused(
-        "note",
-        "Worth keeping.",
-        "--on",
+        "annotate",
         "dm-0002",
+        "Worth keeping.",
         "--as",
         "Claude",
         cwd=q,
@@ -98,8 +95,8 @@ def test_under_a_marker_a_name_that_does_not_say_it_is_an_agent_is_refused(tmp_p
     assert log.read_text() == before
     # the same name in a shell with no marker is a person's, and a name that says so is an agent's in either
     unmarked = {m: None for m in AGENT_MARKERS}
-    assert ok("annotate", "dm-0002", "Mine.", "--kind", "note", "--as", "A. Author", cwd=q, env=unmarked)
-    assert ok("annotate", "dm-0002", "Theirs.", "--kind", "note", "--as", "Claude Agent", cwd=q, env=marked)
+    assert ok("annotate", "dm-0002", "Mine.", "--type", "note", "--as", "A. Author", cwd=q, env=unmarked)
+    assert ok("annotate", "dm-0002", "Theirs.", "--type", "note", "--as", "Claude Agent", cwd=q, env=marked)
     kinds = {e["body"]: (e["author"], e["kind"]) for e in map(json.loads, log.read_text().splitlines()) if "body" in e}
     assert kinds["Mine."] == ("A. Author", "human") and kinds["Theirs."] == ("Claude Agent", "agent")
 
@@ -156,10 +153,11 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
         ["library", "discard", "Bellamy19-prop-3.1", "--why", "no", "--as", "A. Author"],
         ["library", "ignore", "Bellamy19", "--why", "no", "--as", "A. Author"],
         ["library", "drop", "--work", "Bellamy19", "--yes"],
-        ["library", "verify", "a-0000-00-00-0000", "--as", "A. Author"],
+        ["library", "verify", "a-0000-00-00-m2qyj6", "--as", "A. Author"],
         ["library", "import", str(q / ".loom/digests" / "Bellamy19.tex"), "--name", "Other20"],
-        ["ai", "discard", "--before", "2100-01-01"],
-        ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--as", "A. Author"],
+        ["ai", "delete", "--before", "2100-01-01", "--yes"],
+        ["suggestion", "apply", "e-0000-00-00-m2qyj6", "--as", "A. Author"],
+        ["session", "delete", "s-2026-09-16-p9z37z", "--purge", "--yes", "--as", "A. Author"],
         ["sync", "publish", "--push"],
         ["sync", "incorporate"],
     ]
@@ -176,7 +174,7 @@ def test_an_agent_may_remove_only_a_link_a_session_asserted(tmp_path: Path) -> N
     q = showcase(tmp_path)
     theirs = add_link(q, "Bellamy19-thm-2.3", "Bellamy19-thm-3.2", "depends-on", "the author's reading", "A. Author")
     mine = add_link(
-        q, "Bellamy19-thm-3.2", "Bellamy19-thm-2.3", "same-notion", "an agent's reading", "s-2026-09-16-0001"
+        q, "Bellamy19-thm-3.2", "Bellamy19-thm-2.3", "same-notion", "an agent's reading", "s-2026-09-16-p9z37z"
     )
     marked = {"AI_AGENT": "1"}
     undo = ("library", "relate", "--quilt", str(q), "--why", "a misreading", "--undo")

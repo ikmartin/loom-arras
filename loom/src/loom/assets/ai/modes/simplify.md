@@ -8,7 +8,7 @@ Revise the text to be simpler and shorter while preserving its mathematical cont
 
 - **A new citation** replaces an argument only when it is verified against a digest node; otherwise the argument stays and the candidate goes in [rejected].
 - **An unnecessary hypothesis** is removed only with a demonstration that no step consumes it (`loom downstream ID --proofs` where it is a node). If removing it would need a new argument, propose it in [rejected] instead.
-- **An error** that surfaces incidentally is flagged in [summary] and as an objection, and its passage is left unsimplified rather than propagated.
+- **An error** that surfaces incidentally is flagged in [summary] and as a {type:revision}, and its passage is left unsimplified rather than propagated.
 - **What earlier passes added stays**: every justification a referee added, and the exact words an open annotation quotes, so it stays anchored — unless the annotation asks for those words to change, when the change answers it and you resolve it.
 
 If an audit of the target is in the transcript, its [patch-list] is where you start.
@@ -19,4 +19,4 @@ Core: [simplifications], [rejected], [meaning-drift-check]. Optional: [revised].
 
 ## Where changes go
 
-On the author's text, one suggestion per simplification, its quote exactly the old text and its payload the new. A merge-or-delete across results is an agent document of the passage (`.loom/ai/rules.md`, Suggestion or agent document).
+On the author's text, one suggested edit per simplification, its quote exactly the old text and `--with` the new. A merge-or-delete across results is an agent document of the passage (`.loom/ai/rules.md`, Proposed text or agent document).

@@ -1,4 +1,4 @@
-// The side panel: the documents and their contents, the Nodes and Library sections, the write target pinned in a footer, the session list in a picker it opens, and the annotation filter in the rail above the content. Each test is named for the rule it holds.
+// The side panel: the documents and their contents, the Nodes and Library sections, the write target pinned in a footer, and the session list in a picker it opens. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane, scrollPane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
@@ -41,21 +41,17 @@ test('the write target is stated once', async ({ page }) => {
 	expect(naming).toBe(1);
 });
 
-test("whose annotations the page shows is chosen in one place, the picker, and said in a word in the footer", async ({ page }) => {
-	for (const at of ['/master/drafting/main' + beside('/node/sy-0003'), '/node/sy-0002' + beside('/context/sy-0002'), '/library/Kre99']) {
-		await page.goto(at);
-		await expect(page.getByTestId('session-footer-scope')).toHaveText('· all');
-		await expect(page.getByTestId('show-current')).toHaveCount(0);
-		await openPicker(page);
-		const picker = page.getByTestId('session-picker');
-		await expect(picker.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(1);
-		await expect(page.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(1);
-		await expect(picker.getByTestId('show-all')).toHaveAttribute('aria-pressed', 'true');
-		await page.keyboard.press('Escape');
-	}
+test("the picker chooses where notes go, and nothing about which annotations the page draws", async ({ page }) => {
+	await page.goto('/node/sy-0002');
+	await openPicker(page);
+	const picker = page.getByTestId('session-picker');
+	await expect(picker.getByRole('group', { name: 'which annotations the page shows' })).toHaveCount(0);
+	await expect(picker.getByTestId('show-all')).toHaveCount(0);
+	await expect(picker.getByTestId(`session-${REFEREE}`)).not.toContainText('open');
+	await page.keyboard.press('Escape');
 });
 
-test('a refusal names its condition', async ({ page }) => {
+test('an annotation needs no session, and the footer says in its own tone when nothing is selected', async ({ page }) => {
 	await writes(page, ['annotate']);
 	await page.goto('/node/sy-0002');
 	// a selection on the node offers to annotate it, as on a paper's page
@@ -64,19 +60,15 @@ test('a refusal names its condition', async ({ page }) => {
 	await selectWithin(words);
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Say which orbit.');
-	const open = page.getByTestId('note-submit');
-	await expect(open).toBeDisabled();
-	// the sentence `writable()` returns, beside the control it refuses, for as long as the refusal holds
-	await expect(page.getByTestId('no-session-tip')).toHaveText('No session selected: either select a session or start a new session.');
-	// and the footer carries only the state: refused, in its own tone, without the sentence
+	await expect(page.getByTestId('note-submit')).toBeEnabled();
+	await expect(page.getByTestId('note-quote-it')).toHaveCount(0);
+	// the footer carries only the state: refused, in its own tone, without the sentence
 	const footer = page.getByTestId('session-footer');
-	await expect(footer).toHaveAttribute('aria-label', /^annotations cannot be written/);
+	await expect(footer).toHaveAttribute('aria-label', /^not writing in a session/);
 	await expect(page.getByTestId('session-footer-lead')).toHaveText('not writing in a session');
 	await expect(page.locator('.footer.refused')).toHaveCount(1);
 	await pickSession(page, REFEREE);
-	await expect(open).toBeEnabled();
-	await expect(page.getByTestId('no-session-tip')).toHaveCount(0);
-	await expect(footer).toHaveAttribute('aria-label', 'annotations are written into referee');
+	await expect(footer).toHaveAttribute('aria-label', 'writing in referee');
 	await expect(page.locator('.footer.refused')).toHaveCount(0);
 });
 
@@ -89,7 +81,7 @@ test('opening a session says it is working until the publisher answers, and open
 	await page.route('**/_api/session-new', async (route) => {
 		calls += 1;
 		await answered;
-		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-0009  a long sitting  (active)' } });
+		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-7z63as  a long sitting  (active)' } });
 	});
 	await page.goto('/master/drafting/main');
 	await openPicker(page);
@@ -327,7 +319,7 @@ test('accepting needs no session', async ({ page }) => {
 		await route.fulfill({ json: { ok: true, result: 'accepted 1 of 1', accepted, refused: [] } });
 	});
 	await page.goto('/review');
-	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations cannot be written/);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^not writing in a session/);
 	const accept = page.locator('[data-testid="review-row"][data-key="sy-0001"]').getByTestId('review-accept');
 	await expect(accept).toBeEnabled();
 	await accept.click();
@@ -338,9 +330,9 @@ test.describe('sessions', () => {
 	test('the chosen session is still chosen after a load', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await pickSession(page, REFEREE);
-		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^writing in /);
 		await page.reload();
-		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^writing in /);
 		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 	});
 
@@ -351,45 +343,14 @@ test.describe('sessions', () => {
 		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.session-view') ?? '{}').selected)).toBeFalsy();
 	});
 
-	test('one selection governs the page, and the view filters what the page draws', async ({ page }) => {
-		// the fixture's two sessions, with the closed one opened and one annotation on sy-0002 moved into it, so that one key carries work from two sessions: the state the filter exists for, which the fixture does not happen to contain
-		await serve(page, (m) => {
-			for (const s of m.sessions) if (s.id === QUICK) s.state = 'open';
-			m.annotations['a-2026-09-16-0006'].run = QUICK;
-		});
+	test('selecting a session narrows nothing on the page; the pane alone hides its annotations', async ({ page }) => {
 		await page.goto('/node/sy-0002');
-		// nothing is selected at rest and the page shows everything
-		await openPicker(page);
-		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
-		await expect(page.getByTestId('show-current')).toBeDisabled();
-		await page.keyboard.press('Escape');
-
-		// sy-0002 is now annotated from both sessions: its annotation with no mark, from the referee, is a mark on its label
 		const counted = pane(page, 0).locator('.fragment mark.annotation-label');
 		await expect(counted).toHaveCount(1);
-
-		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
-		await pickSession(page, QUICK);
+		await pickSession(page, REFEREE);
 		await expect(counted).toHaveCount(1);
-		// and the picker still lists every session, because it is how a reader navigates
-		await openPicker(page);
-		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
-		await page.keyboard.press('Escape');
-
-		// narrowing is the picker's setting, available now that something is selected: the referee's label mark goes, the quick session's mark on the text is what is drawn, and the footer says so
-		await openPicker(page);
-		await page.getByTestId('show-current').click();
-		await expect(counted).toHaveCount(0);
-		await expect(page.getByTestId('session-footer-scope')).toHaveText('· this session');
-
-		// and back to everything
-		await page.getByTestId('show-all').click();
-		await expect(counted).toHaveCount(1);
-		await page.keyboard.press('Escape');
-
 		// the pane's `a` draws no annotation at all in it, whatever is selected
 		await pane(page, 0).locator('.fragment').first().press('a');
-		await expect(counted).toHaveCount(0);
 		await expect(pane(page, 0).locator('.fragment mark.annotation:not(.hidden)')).toHaveCount(0);
 		await pane(page, 0).locator('.fragment').first().press('a');
 		await expect(counted).toHaveCount(1);

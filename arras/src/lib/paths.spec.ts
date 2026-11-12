@@ -40,7 +40,7 @@ describe('a route, under a base', () => {
 			workUrl: workUrl('Kre99'),
 			tagUrl: tagUrl('widgets'),
 			taxonUrl: taxonUrl('theorem'),
-			threadUrl: threadUrl('s-2026-09-16-0001')
+			threadUrl: threadUrl('s-2026-09-16-p9z37z')
 		}).toEqual({
 			route: '/sub/',
 			nodeUrl: '/sub/node/sy-0003/proof',
@@ -51,7 +51,7 @@ describe('a route, under a base', () => {
 			workUrl: '/sub/library/Kre99',
 			tagUrl: '/sub/tag/widgets',
 			taxonUrl: '/sub/taxon/theorem',
-			threadUrl: '/sub/session/s-2026-09-16-0001'
+			threadUrl: '/sub/session/s-2026-09-16-p9z37z'
 		});
 	});
 
@@ -60,17 +60,17 @@ describe('a route, under a base', () => {
 			{ kind: 'document', id: 'drafting/main.tex', anchor: 'sy-0003' },
 			{ kind: 'document', id: 'canon/widgets-v1.tex' },
 			{ kind: 'work', id: 'Kre99', view: 'info' },
-			{ kind: 'node', id: 'sy-0003', note: 'a-2026-09-16-0001' },
+			{ kind: 'node', id: 'sy-0003', note: 'a-2026-09-16-ecnav2' },
 			{ kind: 'context', id: 'sy-0003' },
-			{ kind: 'session', id: 's-2026-09-16-0001', view: 'did' }
+			{ kind: 'session', id: 's-2026-09-16-p9z37z', view: 'did' }
 		];
 		expect(items.map((i) => pathFor(m, i))).toEqual([
 			'/sub/master/drafting/main#sy-0003',
 			'/sub/canon/widgets-v1',
 			'/sub/library/Kre99?view=info',
-			'/sub/node/sy-0003?note=a-2026-09-16-0001',
+			'/sub/node/sy-0003?note=a-2026-09-16-ecnav2',
 			'/sub/context/sy-0003',
-			'/sub/session/s-2026-09-16-0001?view=did'
+			'/sub/session/s-2026-09-16-p9z37z?view=did'
 		]);
 		expect(items.map((i) => itemFromPath(m, pathFor(m, i)))).toEqual(items);
 		expect(itemFromPath(m, '/sub/master/drafting/main')).toEqual({ kind: 'document', id: 'drafting/main.tex' });

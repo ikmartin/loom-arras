@@ -1,12 +1,12 @@
 <script lang="ts">
-	// The column's footer (plan 0.13.3 S5–S8): where annotations will be written, pinned outside the column's scroll so a reader never goes looking for it, and the only thing that says so, since reading a session's transcript chooses nothing. It carries only the state — a dot, "writing in" and the session's name, whose annotations the page shows in a word, what is new — and opens the picker, where that scope is chosen; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
+	// The column's footer (plan 0.13.3 S5–S8): the session a write that names one goes into, pinned outside the column's scroll so a reader never goes looking for it, and the only thing that says so, since reading a session's transcript chooses nothing. It carries only the state — a dot, "writing in" and the session's name — and opens the picker; the sentence explaining a refusal stands beside the refused control, not here. Folded (`compact`), it is the dot alone.
 	//
-	// Its tone is `writable()`'s answer, which concerns annotations only: review decisions and incorporating a pull name no session, so an amber footer never means nothing can be written.
+	// Its tone is `writable()`'s answer, which concerns those writes only: annotations, review decisions and incorporating a pull name no session, so an amber footer never means nothing can be written.
 	import Popover from '$lib/components/Popover.svelte';
 	import DeleteSession from './DeleteSession.svelte';
 	import SessionPicker from './SessionPicker.svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import { selected, sessionView, summary, titleOf, writable } from './sessions.svelte';
+	import { selected, sessionView, titleOf, writable } from './sessions.svelte';
 	import { deleteSession } from './actions';
 	import type { SessionRow } from '$lib/manifest/types';
 
@@ -15,10 +15,7 @@
 	const m = $derived(store.manifest);
 	const here = $derived(selected(m));
 	const why = $derived(writable(m));
-	const fresh = $derived(here ? summary(m, here.id).fresh : 0);
 	const name = $derived(here ? titleOf(here) : 'no session');
-	// seeing one session's annotations only is a state that should not be hidden behind the picker
-	const scope = $derived(sessionView.view === 'current' ? 'this session' : 'all');
 
 	let open = $state(false);
 	// The confirmation stands outside the picker: a press inside a dialog is a press outside the picker, which would close it and take the dialog with it.
@@ -45,8 +42,8 @@
 				class="state"
 				aria-haspopup="dialog"
 				aria-expanded={open}
-				aria-label={why ? `annotations cannot be written: ${why}` : `annotations are written into ${name}`}
-				title={compact ? `${name} · showing ${scope}` : undefined}
+				aria-label={why ? `not writing in a session: ${why}` : `writing in ${name}`}
+				title={compact ? name : undefined}
 				data-testid="session-footer"
 				onclick={toggle}
 			>
@@ -54,8 +51,6 @@
 				{#if !compact}
 					<span class="lead" class:alone={!here} data-testid="session-footer-lead">{here ? 'writing in' : 'not writing in a session'}</span>
 					{#if here}<span class="name" data-testid="session-footer-name">{name}</span>{/if}
-					<span class="scope" title="showing annotations from {scope === 'all' ? 'every session' : 'this session only'}" data-testid="session-footer-scope">· {scope}</span>
-					{#if fresh}<span class="fresh" title="{fresh} new since you last opened it">{fresh}</span>{/if}
 					<span class="chev" aria-hidden="true"></span>
 				{/if}
 			</button>
@@ -71,7 +66,7 @@
 </div>
 
 {#if doomed}
-	<DeleteSession title={titleOf(doomed)} open={summary(m, doomed.id).open} onCancel={() => (doomed = null)} onDelete={() => remove(doomed!)} />
+	<DeleteSession title={titleOf(doomed)} onCancel={() => (doomed = null)} onDelete={() => remove(doomed!)} />
 {/if}
 
 <style>
@@ -111,10 +106,6 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.scope {
-		flex: none;
-		color: var(--ink-faint);
-	}
 	.lead {
 		flex: none;
 		color: var(--ink-soft);
@@ -125,15 +116,6 @@
 	.compact .state {
 		justify-content: center;
 		padding: 10px 0;
-	}
-	.fresh {
-		flex: none;
-		font-size: 11px;
-		font-variant-numeric: tabular-nums;
-		padding: 0 6px;
-		border-radius: var(--rad-pill);
-		background: var(--mark);
-		color: var(--state-stale);
 	}
 	.chev {
 		flex: none;

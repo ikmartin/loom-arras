@@ -1,131 +1,105 @@
-// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted, prose suggestions beneath; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggestion and a citation are decided in their cards. The acts are stubbed: e2e-write drives them against a running publisher.
+// Review › Proposed Changes, read from the fixture: one card for each thing to decide, in order and counted; a copy, a pull or a work's results opens in the page at its own address, reviewed in one pass (plan 0.25.2); a suggested edit is decided in its card. The acts are stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
-import { manifest, REFEREE, serve } from '../manifest';
+import { manifest, serve } from '../manifest';
 
 const COPY = '.loom/copies/aidoc.tex';
-const TEXT = 'a-2026-09-17-0001';
-const PROSE = 'a-2026-09-16-0003';
-const MINE = 'a-2026-09-16-0007';
-const CITATION = 'a-2026-09-16-0005';
+// the fixture's two open suggested edits: one on sy-0002, the newer, and one on sy-0004 answering an annotation
+const TEXT = 'e-2026-09-17-zwvx4m';
+const ANSWERING = 'e-2026-09-16-r2hw0m';
 
-const ACTS = ['suggestion-apply', 'resolve', 'discard', 'library-cite'];
+const ACTS = ['suggestion-apply', 'suggestion-discard'];
 
-/** A publisher serving the acts, writing in the referee session; what it was sent, by endpoint. */
+/** A publisher serving the acts; what it was sent, by endpoint. */
 async function serving(page: Page): Promise<Record<string, Record<string, unknown>>> {
 	const sent: Record<string, Record<string, unknown>> = {};
-	await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: false })), REFEREE);
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
 	for (const e of ACTS)
 		await page.route(`**/_api/${e}`, async (route) => {
 			sent[e] = route.request().postDataJSON();
-			await route.fulfill({ json: { ok: true, result: e === 'suggestion-apply' ? 'applied the suggestion in main.tex; a version of main.tex is kept' : `done ${sent[e].annotation}` } });
+			await route.fulfill({ json: { ok: true, result: e === 'suggestion-apply' ? 'applied the suggested edit in main.tex; a version of main.tex is kept' : `done ${sent[e].edit}` } });
 		});
 	return sent;
 }
 
 const card = (page: Page, id: string) => page.locator(`[data-testid="proposed-card"][data-id="${id}"]`);
-const suggestion = (page: Page, id: string) => page.locator(`[data-testid="suggestion"][data-id="${id}"]`);
+const edit = (page: Page, id: string) => page.locator(`[data-testid="suggestion"][data-id="${id}"]`);
 
-test('everything to decide is a card, in order, and counted; prose suggestions are to consider, and are not', async ({ page }) => {
+test('everything to decide is a card, in order, and counted: a copy, then the open suggested edits, newest first', async ({ page }) => {
 	await page.goto('/review/proposed');
 	await expect(page.getByTestId('section-count-proposed')).toHaveText('3');
-	await expect(page.getByTestId('proposed-summary')).toHaveText('3 to decide · 2 to consider');
+	await expect(page.getByTestId('proposed-summary')).toHaveText('3 to decide');
 	const kinds = await page.getByTestId('proposed-card').evaluateAll((els) => els.map((e) => e.getAttribute('data-kind')));
-	expect(kinds).toEqual(['copy', 'suggestion', 'citation']);
-	await expect(card(page, TEXT)).toHaveCount(1);
-	await expect(card(page, CITATION)).toHaveCount(1);
-	await expect(page.getByTestId('proposed-consider').getByTestId('suggestion')).toHaveCount(2);
-	// the lead says what taking each does, and promises no patch
-	await expect(page.getByTestId('proposed')).toContainText('a version of the document kept first');
-	await expect(page.getByTestId('proposed')).toContainText('nothing is written into the text');
-	await expect(page.getByTestId('proposed')).not.toContainText('the patch that takes it');
+	expect(kinds).toEqual(['copy', 'edit', 'edit']);
+	const ids = await page.locator('[data-testid="proposed-card"][data-kind="edit"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-id')));
+	expect(ids).toEqual([TEXT, ANSWERING]);
+	// what a person reads calls it a suggested edit, never a suggestion, since Suggestion is a type of annotation
+	await expect(card(page, TEXT).locator('.tag')).toHaveText('a suggested edit');
+	await expect(page.getByTestId('proposed')).toContainText('A suggested edit you take is written into its file, a version of the document kept first');
+	await expect(page.getByTestId('proposed')).not.toContainText(/\bsuggestions?\b/);
 });
 
-test('each names its document and who wrote it, its quote typeset rather than its LaTeX', async ({ page }) => {
+test('each names its document and who wrote it, its quote typeset rather than its LaTeX, what it says, its change, and the annotation it answers', async ({ page }) => {
 	await page.goto('/review/proposed');
-	const text = suggestion(page, TEXT);
+	const text = edit(page, TEXT);
 	await expect(text.getByTestId('suggestion-document')).toHaveText('in main.tex');
 	await expect(text.getByTestId('suggestion-quote')).not.toContainText('\\ref');
 	await expect(text.getByTestId('suggestion-writer')).toContainText('agent');
+	await expect(text).toContainText('Say what the comparison shows.');
 	await expect(text.getByTestId('diff')).toHaveCount(1);
-	// the person's own reads "you", and one read in the talk names the talk and opens there
-	const mine = suggestion(page, MINE);
-	await expect(mine.getByTestId('suggestion-writer')).toContainText('you');
-	await expect(mine.getByTestId('suggestion-document')).toHaveText('in talk.tex');
-	await expect(mine.getByTestId('suggestion-open')).toHaveAttribute('href', /^\/master\/drafting\/talk\?note=/);
-});
-
-test('a citation says what it claims and the work it proposes', async ({ page }) => {
-	await page.goto('/review/proposed');
-	const c = card(page, CITATION);
-	await expect(c).toContainText('a textbook reference would do');
-	await expect(c.getByTestId('citation-work')).toHaveText('Proposes citing: any standard text on group actions');
+	await expect(text.getByTestId('edit-answers')).toHaveCount(0);
+	// one that answers an annotation links to it, named as a reader names it
+	const answering = edit(page, ANSWERING);
+	await expect(answering.getByTestId('edit-answers')).toContainText('It answers Suggestion on');
+	await expect(answering.getByTestId('edit-answers').locator('a')).toHaveAttribute('href', /note=a-2026-09-16-hwtkaw/);
+	// the box links to its card by the card's own id
+	await expect(page.locator(`[id="${ANSWERING}"]`)).toHaveCount(1);
 });
 
 test('a static host offers no acts', async ({ page }) => {
 	await page.goto('/review/proposed');
-	for (const id of ['proposed-take', 'proposed-leave', 'suggestion-resolve', 'suggestion-dismiss']) await expect(page.getByTestId(id)).toHaveCount(0);
+	for (const id of ['proposed-take', 'proposed-leave']) await expect(page.getByTestId(id)).toHaveCount(0);
 	// reviewing a copy or a pull only reads, so it can still be opened
 	await expect(card(page, COPY).getByTestId('proposed-open')).toBeVisible();
 });
 
-test('Take it sends the suggestion in the session written in, and says what it did in the card', async ({ page }) => {
+test('Take it sends the suggested edit, naming no session, and says what it did in the card', async ({ page }) => {
 	const sent = await serving(page);
 	await page.goto('/review/proposed');
 	const c = card(page, TEXT);
 	await c.getByTestId('proposed-take').click();
-	await expect(c.getByTestId('suggestion-said')).toHaveText('Applied the suggestion in main.tex; a version of main.tex is kept.');
-	expect(sent['suggestion-apply']).toMatchObject({ annotation: TEXT, session: REFEREE });
-	// a prose suggestion has nothing to take
-	await expect(suggestion(page, PROSE).getByTestId('proposed-take')).toHaveCount(0);
+	await expect(c.getByTestId('suggestion-said')).toHaveText('Applied the suggested edit in main.tex; a version of main.tex is kept.');
+	expect(sent['suggestion-apply']).toEqual({ edit: TEXT });
 });
 
-test('Leave it resolves a suggestion without applying it, and the bar offers it back', async ({ page }) => {
+test('Leave it discards a suggested edit, and the bar offers it back', async ({ page }) => {
 	const sent = await serving(page);
 	await page.goto('/review/proposed');
 	const c = card(page, TEXT);
 	await c.getByTestId('proposed-leave').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('Left the suggestion on');
-	expect(sent.resolve).toMatchObject({ annotation: TEXT });
-	expect(sent.resolve.applied).toBeUndefined();
+	await expect(c.getByTestId('suggestion-said')).toContainText('Left the suggested edit on');
+	expect(sent['suggestion-discard']).toEqual({ edit: TEXT });
 	await page.getByTestId('proposed-undo').click();
-	await expect(page.getByTestId('proposed-bar-said')).toContainText('Put the suggestion on');
-	expect(sent.resolve).toMatchObject({ annotation: TEXT, undo: true });
+	await expect(page.getByTestId('proposed-bar-said')).toContainText('Put the suggested edit on');
+	expect(sent['suggestion-discard']).toEqual({ edit: TEXT, undo: true });
 });
 
-test('a citation is taken and left through its own decision', async ({ page }) => {
+test('one the text already reads as taken offers only to record it kept', async ({ page }) => {
+	await serve(page, (m) => (m.suggested_edits![TEXT].change = { state: 'taken' }));
 	const sent = await serving(page);
 	await page.goto('/review/proposed');
-	const c = card(page, CITATION);
-	await c.getByTestId('proposed-take').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('as a reference note');
-	expect(sent['library-cite']).toMatchObject({ annotation: CITATION, decision: 'accept', session: REFEREE });
-	await c.getByTestId('proposed-leave').click();
-	await expect(c.getByTestId('suggestion-said')).toContainText('Left the citation on');
-	expect(sent['library-cite']).toMatchObject({ annotation: CITATION, decision: 'reject' });
+	const c = card(page, TEXT);
+	await expect(c).toContainText('The text already reads as it taken.');
+	await expect(c.getByTestId('proposed-take')).toHaveCount(0);
+	await c.getByTestId('suggestion-applied').click();
+	await expect(c.getByTestId('suggestion-said')).toContainText('Kept the suggested edit on');
+	expect(sent['suggestion-apply']).toEqual({ edit: TEXT });
 });
 
-test('Resolve and Dismiss answer in the row; Dismiss asks why first, optionally', async ({ page }) => {
-	const sent = await serving(page);
-	await page.goto('/review/proposed');
-	const prose = suggestion(page, PROSE);
-	await prose.getByTestId('suggestion-resolve').click();
-	await expect(prose.getByTestId('suggestion-said')).toContainText('Resolved the suggestion on');
-	expect(sent.resolve).toMatchObject({ annotation: PROSE });
-	await prose.getByTestId('suggestion-dismiss').click();
-	expect(sent.discard).toBeUndefined();
-	await prose.getByTestId('suggestion-reason').fill('Already said in the introduction.');
-	await prose.getByTestId('suggestion-dismiss-go').click();
-	await expect(prose.getByTestId('suggestion-said')).toContainText('Dismissed the suggestion on');
-	expect(sent.discard).toMatchObject({ annotation: PROSE, reason: 'Already said in the introduction.' });
-});
-
-test('without a session nothing can be decided, and the page says so before anything is pressed', async ({ page }) => {
+test('a decision needs no session selected', async ({ page }) => {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ACTS, token: 't' } }));
 	await page.goto('/review/proposed');
-	await expect(page.getByTestId('proposed-no-session')).toBeVisible();
-	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeDisabled();
-	await expect(card(page, CITATION).getByTestId('proposed-leave')).toBeDisabled();
+	await expect(card(page, TEXT).getByTestId('proposed-take')).toBeEnabled();
+	await expect(card(page, TEXT).getByTestId('proposed-leave')).toBeEnabled();
 });
 
 test("a copy's card says where it stands and opens its review at its own address, and comes back", async ({ page }) => {
@@ -144,16 +118,15 @@ test("a copy's card says where it stands and opens its review at its own address
 	await expect(page.getByTestId('proposed-summary')).toBeVisible();
 });
 
-test("suggestions on a copy are folded on its card and not counted, since they come in with it", async ({ page }) => {
+test("suggested edits on a copy are folded on its card and not counted, since they come in with it", async ({ page }) => {
 	await serve(page, (m) => {
-		m.annotations[TEXT].in = COPY;
-		m.nodes['sy-0002'].reached_by.push(COPY);
+		m.nodes['sy-0002'].reached_by = [COPY];
 	});
 	await page.goto('/review/proposed');
 	await expect(card(page, TEXT)).toHaveCount(0);
 	await expect(page.getByTestId('section-count-proposed')).toHaveText('2');
 	const fold = card(page, COPY).getByTestId('proposed-on-copy');
-	await expect(fold).toContainText('1 suggestion on it');
+	await expect(fold).toContainText('1 suggested edit on it');
 	await fold.locator('summary').click();
 	await expect(fold.getByTestId('suggestion-on-copy')).toBeVisible();
 });

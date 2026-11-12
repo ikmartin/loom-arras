@@ -16,7 +16,7 @@ Say exactly where loom's copy of a paper and the paper differ. You are the verif
 4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s, and the extractor sees only what the source cites.
 5. **Locators.** Every node's title carries the paper's own number and page; what the extractor could not resolve is `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version, loom says so wherever the digest is read, and every number is then checked against the cited PDF with `loom library read CITEKEY N`.
 6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
-7. **Notes on the page.** What you notice that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page: `loom annotate CITEKEY "…" --page N --quote "…" --kind note`, the quote from `loom library read`.
+7. **Notes on the page.** What you notice that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a {type:note} on the page: `loom annotate CITEKEY "…" --page N --quote "…" --type ID`, ID the id Annotation types gives it, the quote from `loom library read`.
 
 ## When there is no source
 
@@ -45,4 +45,4 @@ Core: [summary], then one section per check above, by the paper's own numbers, a
 
 ## Where changes go
 
-Each correction is a suggestion on the digest node it concerns — a missing hypothesis as a payload placed where it goes, a missing edge as `\uses{…}` placed `before`, a wrong locator on the title's words — and a defect that matters is an objection with its severity. A finding on a digest node says the **copy** is wrong, never the paper. Applying a correction is the author's.
+Each correction is a suggested edit on the digest node it concerns — a missing hypothesis placed where it goes, a missing edge as `\uses{…}` with `--before`, a wrong locator on the title's words — and a defect that matters is a {type:revision} saying how serious it is, which the edit that fixes it `--answers`. A finding on a digest node says the **copy** is wrong, never the paper. Keeping a correction is the author's.

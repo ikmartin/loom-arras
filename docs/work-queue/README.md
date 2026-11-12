@@ -30,7 +30,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
 | [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename | loom, arras | ten or more forks, or a fork or rename by hand goes wrong once |
 | [WQ-30](WQ-30-history-gc.md) | `loom history gc` | loom | `.loom/history/texts/` exceeds a few thousand files or fifty megabytes |
-| [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose |
+| [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies and PDF geometry beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose, or one megabyte because of the rectangles and strokes of annotations on PDF pages |
 | [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
 | [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
 | [WQ-51](WQ-51-macro-sets-leak.md) | a view's macros stay its own: no page-wide `\renewcommand` leaking between documents | arras | a real quilt has two macro sets defining one name differently |
@@ -38,12 +38,12 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
 | [WQ-56](WQ-56-figures-cold-build.md) | a cold build's snippets: a preamble format, and the cited papers' statements TeX refuses | loom | `scripts/bench` shows a cold build over three minutes once cold builds are common, or a cited paper's statement shows as its source with TeX's complaint |
 | [WQ-58](WQ-58-lazy-digests.md) | lazy digests: the extraction as an index, a result a node only when used | loom, arras | after a persistent token cache and a linear `unmatched_cites`, lint or status still spends over about 1 s on digest nodes no document reaches |
-| [WQ-60](WQ-60-annotation-anchors.md) | annotation anchors: a mark placed from the source span, re-anchoring, where a mark landed, a replacement longer than its anchor | loom, arras | an annotation drawn at block level that its writer meant for a phrase, or a finding discarded and filed again only to move its quote |
+| [WQ-60](WQ-60-annotation-anchors.md) | annotation anchors: a mark placed from the source span, re-anchoring, where a mark landed | loom, arras | an annotation drawn at block level that its writer meant for a phrase, or one deleted and filed again only to move its quote |
 | [WQ-62](WQ-62-suggestions-folded-in.md) | a document read with its open suggestions folded in | loom, arras | a suggestion of a paragraph or more is too cramped to read in its in-place view, in a review of the author's own text |
 | [WQ-63](WQ-63-take-part-of-a-pull.md) | taking part of a pull | loom, arras | a pull holds a change the author wants and one they don't, and they take it whole and undo the rest by hand |
 | [WQ-64](WQ-64-html-file-reach.md) | what an HTML file in a quilt can reach: loom's records, lasting state, and a list of open boxes in loom itself | loom, arras | an HTML file the author keeps opening has to export loom's records by hand or loses state they wanted kept, or a second quilt builds a list of open boxes |
-| [WQ-65](WQ-65-marks-beside-the-manifest.md) | a PDF's marks in a sidecar rather than the manifest | loom, arras | the notes in a quilt's manifest cross one megabyte |
 | [WQ-66](WQ-66-documents-that-need-shell-escape.md) | a document that needs shell escape or its own build rules, approved per machine | loom | a document the author wants loom to compile needs `-shell-escape`, or a build rule only a `latexmkrc` can add |
+| [WQ-67](WQ-67-corrections-to-a-digest.md) | corrections to a digest's results: annotations while a digest stays read-only, or edits the author keeps | loom, arras | the author asks for an ingest correction to be made in a digest, or edits a digest's file by hand to make one |
 
 Twenty-four active, twenty-one slots of headroom.
 

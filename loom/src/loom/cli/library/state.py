@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from loom.cli.library._works import one_work, present
-from loom.cli.report import LIMIT, Group, Item, Report, counted, table
+from loom.cli.report import Group, Item, Report, counted, table
 from loom.refs.build import WorkState
 from loom.render.fragments import plain_text, plain_title
 from loom.scan.scan import ScanResult
@@ -166,19 +166,6 @@ def left(result: ScanResult, works: list[WorkState]) -> tuple[int, int]:
     )
 
 
-def open_suggestions(result: ScanResult) -> list[Any]:
-    """The citation suggestions still open, which `loom library review` lists beside the proposals."""
-    from loom.records.store import Records
-
-    return [
-        a
-        for rec in Records(result.quilt.root).records
-        if not rec.discarded
-        for a in rec.annotations
-        if a.kind == "citation" and a.status == "open"
-    ]
-
-
 def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
     """The library's report: verdict, then what needs the person by cause, what waits for review, what needs an agent, and what is done.
 
@@ -195,7 +182,6 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
         Groups only over the works the author's documents cite; the rest are one count. `data` carries every work's row, the accepted citations and the relations.
     """
     from loom.refs.links import read_links
-    from loom.refs.notes import read_notes
 
     root = result.quilt.root
     every = rows(result, works)
@@ -209,11 +195,8 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
     groups.append(
         Group(UNREAD[0], [Item(_unread_text(r), key=r.work.citekey) for r in by_key if r.unread], next=UNREAD[1])
     )
-    suggestions = open_suggestions(result)
-    waiting = sum(r.waiting for r in every) + len(suggestions)
+    waiting = sum(r.waiting for r in every)
     review = [Item(counted(r.waiting, "proposal"), key=r.work.citekey) for r in sorted(every, key=_key) if r.waiting]
-    if suggestions:
-        review.append(Item(counted(len(suggestions), "citation suggestion")))
     # the items count per work, so the heading carries the total itself
     groups.append(
         Group(
@@ -228,14 +211,6 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
     )
     ignored = [r for r in by_key if r.work.unreadable]
     groups.append(Group("set aside by you", [Item(r.work.unreadable, key=r.work.citekey) for r in ignored]))
-    notes = read_notes(root)
-    groups.append(
-        Group(
-            "accepted citations: works an agent suggested and you accepted",
-            [_note_item(n) for n in sorted(notes, key=lambda n: str(n.get("work", "")).lower())],
-            next="loom library --json lists every one" if len(notes) > LIMIT else None,
-        )
-    )
     shown = present(*groups)
     done = sum(1 for r in cited if r.done)
     # counts with nothing listed under them: the count is in the heading, so no `… and N more` line follows it
@@ -263,16 +238,13 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
             "need_an_agent": len(agent),
             "done": done,
             "works": [r.to_json() for r in every],
-            "reference_notes": notes,
             "links": [x.to_json() for x in read_links(root)],
         },
     )
 
 
 def work_report(result: ScanResult, citekey: str) -> Report:
-    """One work's report: its row of the store, what it needs and from whom, where the author cites it, and the citations accepted for it."""
-    from loom.refs.notes import read_notes
-    from loom.refs.resolve import _fold
+    """One work's report: its row of the store, what it needs and from whom, and where the author cites it."""
 
     row = next((r for r in rows(result) if r.work.citekey == citekey), None) or next(
         r for r in rows(result, fold=False) if r.work.citekey == citekey
@@ -335,19 +307,6 @@ def work_report(result: ScanResult, citekey: str) -> Report:
             "where it is cited", [Item(f"[{plain_text(pn)}]" if pn else "", key=src) for src, pn in sites], limit=None
         )
     )
-    title = _fold(str(result.bib[citekey].fields.get("title") or ""))
-    accepted = [
-        n
-        for n in read_notes(result.quilt.root)
-        if citekey in str(n.get("work", "")) or (title and title in _fold(str(n.get("work", ""))))
-    ]
-    groups.append(
-        Group(
-            "accepted citations naming it",
-            [_note_item(n) for n in accepted],
-            limit=None,
-        )
-    )
     state = (
         "digested" + (" from another version" if row.other_version is not None else "")
         if w.digest
@@ -385,7 +344,7 @@ def work_report(result: ScanResult, citekey: str) -> Report:
         ok=row.done,
         lines=[*said, "", *table(table_rows)],
         groups=present(*groups),
-        data={"work": {**row.to_json(), "overview": overview}, "reference_notes": accepted},
+        data={"work": {**row.to_json(), "overview": overview}},
     )
 
 
@@ -411,14 +370,6 @@ def show(quilt_path: str | None, work: str | None, as_json: bool) -> None:
         report(result).emit(as_json)
         return
     work_report(result, one_work(result, work)).emit(as_json)
-
-
-def _note_item(n: dict[str, Any]) -> Item:
-    """An accepted citation: when, the work as the suggestion named it, and the keys it was suggested for."""
-    return Item(
-        f"{str(n.get('accepted', {}).get('when', ''))[:10]}  {n.get('work', '')}",
-        key=", ".join(n.get("for", [])) or None,
-    )
 
 
 def _key(r: Row) -> str:

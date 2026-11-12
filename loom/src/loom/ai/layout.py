@@ -22,10 +22,10 @@ AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "downstream", "history show", "history verify", "suggestion", "write",
+        # a suggested edit, and discarding one of its own; keeping one is the author's
+        "suggest", "suggestion discard",
         # the bridge: where the person is looking in the viewer, and what they did since this agent last looked
         "here", "since",
-        # a note, a quote among them: what an agent wants kept beside something the viewer shows, and keeping one
-        "note",
         "ai annotations", "ai drafts", "ai refresh", "ai orient", "ai mode",
         # the agent opens and names the session it works in, and writes its transcript; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
         "session new", "session rename", "session list", "session say",
@@ -50,7 +50,7 @@ ACTS: dict[str, str] = {
     **dict.fromkeys(("build", "check", "compile", "id", "serve"), "derive"),
     **dict.fromkeys(
         (
-            "annotate", "note", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
+            "annotate", "suggest", "suggestion discard", "draft", "new", "since", "ai refresh", "session new", "session rename", "session say",
             "library propose", "library relate", "library update", "mcp",
         ),
         "write",

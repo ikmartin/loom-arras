@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
-from loom.paths import SINCE
+from loom.paths import DELETED, SINCE
 from loom.scan.scan import ScanResult
 
 #: Where the markers live, one file per agent name.
@@ -41,11 +41,11 @@ class Since:
     first: bool
     annotations: list[dict[str, Any]] = field(default_factory=list)
     acts: list[dict[str, Any]] = field(default_factory=list)
+    edits: list[dict[str, Any]] = field(default_factory=list)
     accepted: list[dict[str, Any]] = field(default_factory=list)
     stale: list[dict[str, Any]] = field(default_factory=list)
     state: list[dict[str, Any]] = field(default_factory=list)
     said: list[dict[str, Any]] = field(default_factory=list)
-    notes: list[dict[str, Any]] = field(default_factory=list)
     ticks: list[dict[str, Any]] = field(default_factory=list)
     marker: Marker | None = None
 
@@ -54,11 +54,11 @@ class Since:
         return not (
             self.annotations
             or self.acts
+            or self.edits
             or self.accepted
             or self.stale
             or self.state
             or self.said
-            or self.notes
             or self.ticks
         )
 
@@ -70,12 +70,11 @@ class Since:
             "to": self.marker.when if self.marker else self.start,
             "annotations": self.annotations,
             "acts": self.acts,
+            "edits": self.edits,
             "accepted": self.accepted,
             "stale": self.stale,
             "state": self.state,
             "said": self.said,
-            # `notes` is a report's own field, so a person's notes are reported as what they `noted`
-            "noted": self.notes,
             "ticks": self.ticks,
         }
 
@@ -115,6 +114,56 @@ def write_marker(root: Path, name: str, marker: Marker) -> None:
         "state": marker.state,
     }
     p.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # a deletion said to this agent has been said once now, so it goes
+    left = [e for e in deletions(root) if not (e.get("to") == name and str(e.get("when", "")) <= marker.when)]
+    if left != deletions(root):
+        dp = root / DELETED
+        dp.write_text("".join(json.dumps(e, ensure_ascii=False, sort_keys=True) + "\n" for e in left), encoding="utf-8")
+
+
+def deletions(root: Path) -> list[dict[str, Any]]:
+    """Every deletion of an agent's annotation not yet said to that agent, oldest first."""
+    p = root / DELETED
+    out: list[dict[str, Any]] = []
+    if not p.is_file():
+        return out
+    for line in p.read_text(encoding="utf-8").splitlines():
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(e, dict):
+            out.append(e)
+    return out
+
+
+def note_deletion(root: Path, removed: list[dict[str, Any]], by: str) -> None:
+    """Keep, for the agent that wrote it, one line per annotation of its a person deleted: its type, its place and its quoted words, until that agent's `loom since` says so."""
+    from loom.clock import stamp
+
+    lines = []
+    for e in removed:
+        if e.get("event") != "created" or e.get("kind") != "agent":
+            continue
+        anchor = e.get("anchor")
+        quote = anchor.get("exact") if isinstance(anchor, dict) else None
+        lines.append(
+            {
+                "to": str(e.get("author", "")),
+                "id": str(e.get("id", "")),
+                "type": e.get("type"),
+                "target": str(e.get("target", "")),
+                "quote": quote,
+                "by": by,
+                "when": stamp(),
+            }
+        )
+    if lines:
+        p = root / DELETED
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with p.open("a", encoding="utf-8") as fh:
+            for x in lines:
+                fh.write(json.dumps(x, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def since(result: ScanResult, name: str) -> Since:
@@ -159,23 +208,68 @@ def since(result: ScanResult, name: str) -> Since:
     states = Records(root, result.quilt.history_dir).key_states(result, observe=False)
     stale = {k for k, ks in states.items() if ks.state == "accepted" and not ks.fresh}
     _annotations(root, name, new, out)
+    _deleted(root, name, new, out)
+    _edits(root, name, new, out)
     _acceptances(result, window, new, out, states, stale)
     current = _state(result, window, new, out)
     _said(root, new, out)
-    _notes(root, new, out)
     _ticks(result, new, out)
     out.marker = Marker(when=now, seen=marks, stale=stale, state=current)
     return out
 
 
+def _edits(root: Path, name: str, new: Any, out: Since) -> None:
+    """What a person did to `name`'s suggested edits since it last looked: kept, discarded or reopened, each once."""
+    from loom.records.edits import replay
+
+    for edit in replay(root)[0]:
+        if edit.author_id != name:
+            continue
+        for e in edit.acts:
+            when = str(e.get("when", ""))
+            if e.get("kind") == "agent" or not new(when, f"{e.get('event')}:{edit.id}:{when}"):
+                continue
+            out.edits.append(
+                {
+                    "id": edit.id,
+                    "act": str(e.get("event")),
+                    "target": edit.target_key,
+                    "by": str(e.get("author", "")),
+                    "when": when,
+                    "why": str(e.get("why") or ""),
+                    "answers": edit.answers,
+                }
+            )
+
+
+def _deleted(root: Path, name: str, new: Any, out: Since) -> None:
+    """Each annotation of `name`'s a person deleted since it last looked, said as an act on it."""
+    for e in deletions(root):
+        if e.get("to") != name or not new(str(e.get("when", "")), f"deleted:{e.get('id')}"):
+            continue
+        out.acts.append(
+            {
+                "id": e.get("id"),
+                "act": "deleted",
+                "type": e.get("type"),
+                "target": e.get("target"),
+                "of": name,
+                "by": e.get("by"),
+                "when": e.get("when"),
+                "body": f'on "{e["quote"]}"' if e.get("quote") else "",
+                "yours": True,
+            }
+        )
+
+
 def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
-    """A person's annotations and replies, whole, then what a person did to an annotation: resolved, applied, discarded or reopened."""
+    """A person's annotations and replies, whole, then what a person did to an annotation: resolved or reopened."""
     from loom.mailbox import annotation_row
     from loom.records.annotations import load_records
     from loom.records.log import log_path
 
     records, _ = load_records(root)
-    by_id = {a.id: (a, r.rel) for r in records for a in r.annotations}
+    by_id = {a.id: a for r in records for a in r.annotations}
     try:
         lines = log_path(root).read_text(encoding="utf-8").splitlines()
     except OSError:
@@ -192,28 +286,26 @@ def _annotations(root: Path, name: str, new: Any, out: Since) -> None:
         mark = aid if kind in ("created", "replied") else f"{kind}:{aid}:{when}"
         if not new(when, mark) or e.get("kind") == "agent" or aid not in by_id:
             continue
-        a, session = by_id[aid]
+        a = by_id[aid]
         if kind in ("created", "replied"):
             # what a person wrote and settled in one window is reported once, as it stands
             made.add(aid)
-            if a.status == "discarded":
-                continue
-            row = {**annotation_row(root, a), "when": when, "session": session}
+            row = {**annotation_row(root, a), "when": when}
             if a.status != "open":
                 row["status"] = a.status
             parent = by_id.get(str(a.in_reply_to or ""))
             if parent is not None:
-                row["to"] = parent[0].author_id
-            if parent is not None and parent[0].author_id == name:
+                row["to"] = parent.author_id
+            if parent is not None and parent.author_id == name:
                 row["yours"] = True
             out.annotations.append(row)
-        elif kind in ("resolved", "discarded") and aid not in made:
+        elif kind == "resolved" and aid not in made:
             undo = bool(e.get("undo"))
-            act = "reopened" if undo else ("applied" if e.get("applied") else kind)
+            act = "reopened" if undo else kind
             row = {
                 "id": aid,
                 "act": act,
-                "kind": a.kind,
+                "type": a.type,
                 "target": a.target_key,
                 "of": a.author_id,
                 "by": str(e.get("author", "")),
@@ -297,17 +389,6 @@ def _said(root: Path, new: Any, out: Since) -> None:
             out.said.append(
                 {"session": s.id, "seq": e.seq, "by": e.who, "when": e.when, "body": e.body, "carried": len(e.changed)}
             )
-
-
-def _notes(root: Path, new: Any, out: Since) -> None:
-    """What a person quoted or noted since, each with what it is on and its link; a note keeps its words, so the agent reads the quote itself."""
-    from loom.notes import load
-
-    for n in load(root).values():
-        if n.author_kind == "agent" or n.erased or not new(n.when, f"note:{n.id}"):
-            continue
-        row = {**n.to_dict(), "link": f"[](quilt:{n.id})"}
-        out.notes.append(row)
 
 
 def _ticks(result: ScanResult, new: Any, out: Since) -> None:

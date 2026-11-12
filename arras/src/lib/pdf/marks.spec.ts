@@ -1,41 +1,45 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { Note } from '$lib/manifest/types';
-import { COLOR_NAMES, copyColor, kindOf, MARK_COLORS, markAt, markOf, mergeLines, movable, nearestColor, paintOf, refit, simplify, type MarkColor, type PageMark } from './marks';
+import type { Annotation } from '$lib/manifest/types';
+import { RGB } from '$lib/review/annotationTypes';
+import { COLOR_NAMES, copyColor, kindOf, markAt, markOf, mergeLines, movable, nearestColor, paintOf, refit, simplify, textOf, type MarkColor, type PageMark } from './marks';
 
 const mark = (over: Partial<PageMark>): PageMark => ({ id: 'n', page: 1, kind: 'highlight', rects: [[0, 0, 10, 10]], body: '', ...over });
 
 describe("a mark's colour", () => {
-	it('is the nearest by hue, and black, white and grey stay the neutral', () => {
-		expect([[255, 255, 0], [60, 200, 80], [30, 120, 255], [255, 105, 180], [140, 80, 220]].map(nearestColor)).toEqual(['yellow', 'green', 'blue', 'pink', 'purple']);
-		expect([[0, 0, 0], [255, 255, 255], [128, 128, 130]].map(nearestColor)).toEqual([undefined, undefined, undefined]);
+	it('is the nearest of the nine by hue: one with little hue is grey, a dark or dull orange brown', () => {
+		expect([[255, 255, 0], [60, 200, 80], [30, 120, 255], [255, 105, 180], [140, 80, 220], [255, 0, 0], [255, 140, 0]].map(nearestColor)).toEqual(['yellow', 'green', 'blue', 'pink', 'purple', 'red', 'orange']);
+		expect([[0, 0, 0], [255, 255, 255], [128, 128, 130]].map(nearestColor)).toEqual(['grey', 'grey', 'grey']);
+		expect([[120, 70, 30], [210, 175, 135]].map(nearestColor)).toEqual(['brown', 'brown']);
 	});
 
 	it('is itself when its own paint comes back from a PDF', () => {
 		for (const name of COLOR_NAMES) {
-			expect(nearestColor(MARK_COLORS[name].band)).toBe(name);
-			expect(nearestColor(MARK_COLORS[name].line)).toBe(name);
+			expect(nearestColor(RGB[name].band)).toBe(name);
+			expect(nearestColor(RGB[name].line)).toBe(name);
 		}
 	});
 
 	it('goes into a copy as the PDF had it until its reader changes it', () => {
 		expect(copyColor('highlight', 'yellow', [250, 240, 30])).toEqual([250, 240, 30]);
-		expect(copyColor('highlight', 'green', [250, 240, 30])).toEqual([...MARK_COLORS.green.band]);
-		expect(copyColor('underline', 'green')).toEqual([...MARK_COLORS.green.line]);
+		expect(copyColor('highlight', 'green', [250, 240, 30])).toEqual([...RGB.green.band]);
+		expect(copyColor('underline', 'green')).toEqual([...RGB.green.line]);
 		expect(copyColor('ink', '', [10, 10, 10])).toEqual([10, 10, 10]);
 		expect(copyColor('ink')).toBeUndefined();
 	});
 
-	it('paints nothing for a colour this viewer does not know', () => {
+	it("paints from the theme's tokens, and nothing for a colour this viewer does not know", () => {
 		expect(paintOf('teal' as MarkColor)).toBe('');
 		expect(paintOf('')).toBe('');
-		expect(paintOf('green')).toContain('--line: rgb(30 125 54)');
+		expect(paintOf('green')).toContain('--line: var(--ann-green)');
+		expect(paintOf('green')).toContain('--band: var(--ann-green-band)');
 	});
 
 	it('is one the record takes', () => {
-		const python = readFileSync(fileURLToPath(new URL('../../../../loom/src/loom/notes.py', import.meta.url)), 'utf8');
-		expect(/^MARK_COLORS = \((.*)\)$/m.exec(python)?.[1].replaceAll('"', '').split(', ')).toEqual(COLOR_NAMES);
+		const python = readFileSync(fileURLToPath(new URL('../../../../loom/src/loom/records/marks.py', import.meta.url)), 'utf8');
+		const block = /^RGB = \{([\s\S]*?)^\}/m.exec(python)?.[1] ?? '';
+		expect([...block.matchAll(/"(\w+)":/g)].map((x) => x[1])).toEqual(COLOR_NAMES);
 	});
 });
 
@@ -97,23 +101,29 @@ describe('markAt', () => {
 });
 
 describe('markOf', () => {
-	const note = (over: Partial<Note>): Note => ({ id: 'n', when: 'w', author: { kind: 'person', id: 'A' }, session: '', target: { file: 'a.pdf' }, body: '', faded: false, detached: false, page: 2, rects: [[1, 2, 3, 4]], ...over });
+	const ann = (over: Partial<Annotation> = {}, page: number | null = 2): Annotation =>
+		({ id: 'a', created: 'w', author: { kind: 'person', id: 'A' }, target: { key: 'a.pdf', hash: '', file: 'a.pdf', page }, body_html: '<p>said &amp; done</p>', type: null, look: { color: 'blue', style: 'highlight', weight: 2, opacity: 60 }, status: 'open', in_reply_to: null, anchored: true, detached: false, rects: [[1, 2, 3, 4]], ...over }) as Annotation;
 
-	it('draws a mark, and a plain note with a place faintly', () => {
-		expect(markOf(note({ mark: 'oval' }))).toMatchObject({ kind: 'oval' });
-		expect(markOf(note({ quote: 'words' }))).toMatchObject({ kind: 'underline', plain: true });
-		expect(markOf(note({}))).toMatchObject({ kind: 'box', plain: true });
+	it("draws a drawing as its tool and one on words as its look's style, in its look's colour, with its words as text", () => {
+		expect(markOf(ann({ mark: 'oval' }))).toMatchObject({ kind: 'oval', color: 'blue', body: 'said & done', page: 2 });
+		expect(markOf(ann({ quote: 'words' }))).toMatchObject({ kind: 'highlight', quote: 'words' });
+		expect(markOf(ann({ look: { color: 'red', style: 'strike', weight: 1, opacity: 100 } }))).toMatchObject({ kind: 'strike', color: 'red' });
 	});
 
 	it('draws nothing it does not know the place of', () => {
-		for (const over of [{ detached: true }, { faded: true }, { erased: 'w' }, { rects: undefined }, { page: undefined }]) expect(markOf(note(over))).toBeNull();
+		for (const over of [{ detached: true }, { rects: null }, { in_reply_to: 'a-x' }]) expect(markOf(ann(over))).toBeNull();
+		expect(markOf(ann({}, null))).toBeNull();
+	});
+
+	it('reads the words of a body as published', () => {
+		expect(textOf('<p>one &lt; two</p>\n<p>three</p>')).toBe('one < two\nthree');
 	});
 });
 
 it('a shape moves and words do not', () => {
 	expect(movable(mark({ kind: 'box' }))).toBe(true);
 	expect(movable(mark({ kind: 'highlight' }))).toBe(false);
-	expect(movable(mark({ kind: 'box', plain: true }))).toBe(false);
+	expect(movable(mark({ kind: 'box', plain: true }))).toBe(false); // a place still being written
 	expect(kindOf('rect')).toBe('box');
 	expect(kindOf('select')).toBeNull();
 });

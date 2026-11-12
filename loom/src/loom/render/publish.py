@@ -7,6 +7,27 @@ import os
 from pathlib import Path
 from typing import Any
 
+#: What a reader takes in the order it was written, since an id says nothing of when (`records/ids.py`). Everything else is sorted, so that a build is reproducible.
+WRITTEN_IN_ORDER = ("annotations", "threads")
+
+
+def _sorted(value: Any) -> Any:
+    """`value` with every dict in it sorted by key, as `json.dumps(sort_keys=True)` would write it."""
+    if isinstance(value, dict):
+        return {k: _sorted(value[k]) for k in sorted(value)}
+    if isinstance(value, list):
+        return [_sorted(v) for v in value]
+    return value
+
+
+def manifest_text(manifest: dict[str, Any]) -> str:
+    """The manifest as it is published: sorted, but for the entries of `WRITTEN_IN_ORDER`, which keep the order they are given in."""
+    out = _sorted(manifest)
+    for section in WRITTEN_IN_ORDER:
+        if section in manifest:
+            out[section] = {k: _sorted(v) for k, v in manifest[section].items()}
+    return json.dumps(out, indent=1, ensure_ascii=False)
+
 
 def write_atomic(path: Path, data: str | bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,4 +102,4 @@ def publish(
                     rel = p.relative_to(build_dir).as_posix()
                     if rel not in kept and not rel.endswith(".tmp"):
                         p.unlink()
-    write_atomic(build_dir / "manifest.json", json.dumps(manifest, indent=1, sort_keys=True, ensure_ascii=False))
+    write_atomic(build_dir / "manifest.json", manifest_text(manifest))

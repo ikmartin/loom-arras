@@ -25,9 +25,11 @@ CAPABILITIES = [
     "reply",
     "resolve",
     "edit",
-    "discard",
+    "delete",
+    "restore",
+    "annotations-take",
     "suggestion-apply",
-    "library-cite",
+    "suggestion-discard",
     "library-verify",
     "library-discard",
     "library-update",
@@ -66,12 +68,6 @@ CAPABILITIES = [
     "file-tick",
     "history-record",
     "history-restore",
-    "note",
-    "note-keep",
-    "note-change",
-    "note-erase",
-    "note-restore",
-    "notes-take",
     "pdf-save",
 ]
 
@@ -318,19 +314,15 @@ def _scan(root: Path) -> ScanResult:
 RECORD_WRITES = (
     "annotate",
     "file-tick",
-    "note",
-    "note-keep",
-    "note-change",
-    "note-erase",
-    "note-restore",
-    "notes-take",
+    "annotations-take",
+    "suggestion-discard",
     "changes-keep",
     "history-record",
     "reply",
     "resolve",
     "edit",
-    "discard",
-    "library-cite",
+    "delete",
+    "restore",
     "session-new",
     "session-use",
     "session-rename",
@@ -377,79 +369,6 @@ def _str(body: dict[str, Any], name: str, *, required: bool = False) -> str | No
     if not isinstance(value, str):
         raise ApiError("bad-field", f"{name} must be a string")
     return value
-
-
-def _note(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
-    """The notes' endpoints: `note` writes one, a quote or a mark among them; `note-keep` keeps one so it never fades; `note-change`, `note-erase` and `note-restore` change, erase and restore one; `notes-take` writes a PDF's own annotations as marks.
-
-    Every write but `note-keep` and a note with no mark may name no session: a mark is a person's on the page they are reading, and asks for none (P14). The viewer's `write` gate names one for the writes that must have it.
-    """
-    from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _writer
-    from loom.notes import NoteRefused, change, erase, keep, restore, take_in, write
-
-    which = _str(body, "session")
-    mark = _str(body, "mark")
-    if not which and (endpoint == "note-keep" or (endpoint == "note" and not mark)):
-        raise ApiError("no-session", "a write must name the session it belongs to")
-    try:
-        sid, kind, name = _writer(root, which, _str(body, "author"), sniff=False, dry_run=not which)
-    except NotFoundError as exc:
-        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
-    except (EnvError, ContentError) as exc:
-        raise ApiError("refused", str(exc)) from exc
-    sid = sid if which else ""
-    who = "agent" if kind == "agent" else "person"
-    try:
-        if endpoint == "note-keep":
-            note = keep(root, _str(body, "note", required=True) or "", name)
-            return {"ok": True, "result": f"kept {note.id}", "note": note.id}
-        if endpoint == "note-change":
-            note = change(
-                root,
-                _str(body, "note", required=True) or "",
-                name,
-                who,
-                body=_str(body, "body") if isinstance(body.get("body"), str) else None,
-                rects=body.get("rects"),
-                strokes=body.get("strokes"),
-                color=body["color"] if isinstance(body.get("color"), str) else None,
-            )
-            return {"ok": True, "result": f"changed {note.id}", "note": note.id}
-        if endpoint == "note-erase":
-            note = erase(root, _str(body, "note", required=True) or "", name, who)
-            return {"ok": True, "result": f"erased {note.id}", "note": note.id}
-        if endpoint == "note-restore":
-            note = restore(root, _str(body, "note", required=True) or "", name, who)
-            return {"ok": True, "result": f"restored {note.id}", "note": note.id}
-        if endpoint == "notes-take":
-            items = body.get("items")
-            if not isinstance(items, list):
-                raise ApiError("missing-field", "items is the list of annotations to take in")
-            took = take_in(
-                _scan(root), _str(body, "target", required=True) or "", items, author=name, author_kind=who, session=sid
-            )
-            return {"ok": True, "result": f"took in {took['taken']}", **took}
-        page = body.get("page")
-        if page is not None and (not isinstance(page, int) or page < 1):
-            raise ApiError("bad-field", "page must be a positive integer")
-        note = write(
-            _scan(root),
-            _str(body, "target", required=True) or "",
-            author=name,
-            author_kind=who,
-            session=sid,
-            body=_str(body, "body") or "",
-            quote=_str(body, "quote"),
-            page=page,
-            rects=body.get("rects"),
-            mark=mark,
-            strokes=body.get("strokes"),
-            color=_str(body, "color"),
-        )
-    except NoteRefused as exc:
-        raise ApiError(exc.code, exc.message, status=exc.status) from exc
-    return {"ok": True, "result": f"noted {note.id}", "note": note.id}
 
 
 def _pdf_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -745,12 +664,12 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _file_tick(root, body)
     if endpoint in ("history-record", "history-restore"):
         return _history(root, endpoint, body)
-    if endpoint in ("note", "note-keep", "note-change", "note-erase", "note-restore", "notes-take"):
-        return _note(root, endpoint, body)
+    if endpoint == "annotations-take":
+        return _take(root, body)
+    if endpoint in ("suggestion-apply", "suggestion-discard"):
+        return _suggested(root, endpoint, body)
     if endpoint == "pdf-save":
         return _pdf_save(root, body)
-    if endpoint == "library-cite":
-        return {"ok": True, "result": _library_cite(root, body)}
     if endpoint in ("library-verify", "library-discard"):
         return {"ok": True, "result": _library(root, endpoint, body)}
     if endpoint == "library-update":
@@ -1002,7 +921,35 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         }
     if endpoint.startswith("session-"):
         return {"ok": True, "result": _session(root, endpoint, body)}
+    if endpoint in ("delete", "restore"):
+        return _delete(root, endpoint, body)
     return {"ok": True, "result": _review(root, endpoint, body)}
+
+
+def _delete(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Delete an annotation, answering with the events removed, or put back events a delete removed: the viewer's undo of a delete is the second."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError
+    from loom.cli.review import _annotator, delete_annotation
+    from loom.records.log import EVENTS, restore
+
+    try:
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+        if endpoint == "delete":
+            said, removed = delete_annotation(root, _str(body, "annotation", required=True) or "", writer)
+            return {"ok": True, "result": said, "removed": removed}
+        events = body.get("events")
+        if (
+            not isinstance(events, list)
+            or not events
+            or not all(isinstance(e, dict) and e.get("event") in EVENTS and e.get("id") for e in events)
+        ):
+            raise ApiError("bad-field", "events must be the events a delete answered with")
+        put = restore(root, events)
+        return {"ok": True, "result": f"restored {', '.join(put)}"}
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
+    except (EnvError, ContentError, ValueError) as exc:
+        raise ApiError("refused", str(exc)) from exc
 
 
 def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
@@ -1177,79 +1124,71 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
     from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _one_comment, _writer, discard_annotation, edit_annotation
+    from loom.cli.review import _annotator, _one_comment, edit_annotation
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
-    needs = {"annotate": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
+    needs = {"annotate": ("target",), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
     for field in needs:
         _str(body, field, required=True)
 
-    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so nothing here reads `.loom/active`, which narrows to `loom annotate`'s terminal default. A request naming none is malformed rather than something to paper over: falling back would file work wherever the pointer happened to point, which is the failure this replaced.
-    which = _str(body, "session")
-    if not which:
-        raise ApiError("no-session", "a write must name the session it belongs to")
-
+    # An annotation belongs to no session, so a `session` sent with one is ignored.
     try:
-        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's
-        # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
-        # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
-        writer = _writer(root, which, _str(body, "author"), sniff=False)
+        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's terminal every annotation the author wrote in their own browser was recorded `author: "agent"` until this stopped sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
+        writer = _annotator(root, _str(body, "author"), sniff=False)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except (EnvError, ContentError) as exc:
         raise ApiError("refused", str(exc)) from exc
 
     try:
-        # `undo` puts a withdrawn or resolved finding back by appending another event; the viewer offers it in place
-        # of the verb that fired, so a wrong click is one click back (DR-174).
+        # `undo` opens a resolved annotation again by appending another event; the viewer offers it in place of the verb that fired, so a wrong click is one click back (DR-174).
         undo = bool(body.get("undo"))
-        if endpoint == "discard":
-            return discard_annotation(
-                root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
-            )
         result = _scan(root)
-        if endpoint == "suggestion-apply":
-            return _apply(root, result, _str(body, "annotation", required=True) or "", writer)
         if endpoint == "edit":
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
-            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
-            return edit_annotation(result, _str(body, "annotation", required=True) or "", writer, **fields)
+            fields = {"body": _str(body, "message")}
+            # a type of "" or null takes the type off; absent leaves it as it is
+            type_given = ("" if body["type"] is None else _str(body, "type")) if "type" in body else None
+            return edit_annotation(
+                result,
+                _str(body, "annotation", required=True) or "",
+                writer,
+                False,
+                type_given,
+                _look(body),
+                _geometry(body, "rects"),
+                _geometry(body, "strokes"),
+                **fields,
+            )
         if endpoint == "annotate":
-            # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
+            # an annotation on a PDF page carries the page and its rectangles or strokes (plan 0.13 item 2)
             page = body.get("page")
             if page is not None and (not isinstance(page, int) or page < 1):
                 raise ApiError("bad-field", "page must be a positive integer")
-            rects = [[float(v) for v in r] for r in body.get("rects") or []] or None
+            rects = _geometry(body, "rects")
             return _one_comment(
                 result,
                 writer,
                 _str(body, "target", required=True),
-                _str(body, "message", required=True),
+                _str(body, "message"),
                 _str(body, "quote"),
-                _str(body, "kind"),
+                _str(body, "type"),
                 None,
                 None,
-                _str(body, "severity"),
-                _str(body, "payload"),
-                _str(body, "placement"),
                 page=page,
                 rects=rects,
                 in_doc=_str(body, "in"),
+                look=_look(body),
+                strokes=_geometry(body, "strokes"),
+                mark=_str(body, "mark"),
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":
             return _one_comment(
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
-        applied = body.get("applied") is True
-        if applied and (endpoint != "resolve" or undo):
-            raise ApiError(
-                "bad-field", "applied says how a suggestion was resolved, so it goes with resolve and not undo"
-            )
-        return _one_comment(
-            result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo, applied=applied
-        )
+        return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
     except NotFoundError as exc:
         raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except ContentError as exc:
@@ -1258,59 +1197,77 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _apply(root: Path, result: ScanResult, annotation: str, writer: tuple[str, str, str]) -> str:
-    """`suggestion-apply`: write a suggestion's text into its file, as `loom suggestion apply ID`, then resolve it as applied against the file as written. The author's act, refused to a declared agent."""
-    from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli.review import _one_comment
-    from loom.records.annotations import find_annotation, load_records
-    from loom.records.suggestions import ApplyRefused, apply
+def _suggested(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+    """`suggestion-apply` writes a suggested edit into its file, as `loom suggestion apply ID` does, and records it kept, the author's act refused to a declared agent; `suggestion-discard` discards one, or with `undo` opens it again, a person any edit and an agent its own."""
+    from loom.cli._common import ContentError, EnvError
+    from loom.cli.review import _annotator
+    from loom.records.edits import EditRefused, apply, discard, find, is_taken, keep
 
-    if writer[1] == "agent":
-        raise ApiError("author-only", "An agent suggests; only the author puts a suggestion into the text", status=403)
-    found = find_annotation(load_records(root)[0], annotation)
-    if found is None:
-        raise NotFoundError("annotation", f"no annotation {annotation}")
+    edit_id = _str(body, "edit", required=True) or ""
     try:
-        documents, kept = apply(result, found[1], writer[2])
-    except ApplyRefused as exc:
-        raise ApiError(exc.code, exc.message, status=409) from exc
-    said = f"applied the suggestion in {' and '.join(Path(d).name for d in documents) or found[1].target_key}"
-    try:
-        _one_comment(_scan(root), writer, None, None, None, None, None, annotation, applied=True)
-    except (ContentError, EnvError) as exc:  # the text is in; only the record of it failed, and the person is told so
-        return f"{said}, but it could not be resolved as applied: {exc}"
-    return "; ".join(x for x in (said, kept.said()) if x)
-
-
-def _library_cite(root: Path, body: dict[str, Any]) -> str:
-    """Accept or reject a citation an agent suggested, through `decide_citation` as `loom library verify|discard` do."""
-    from loom.cli._common import ContentError, EnvError, NotFoundError, is_agent
-    from loom.cli.review import _writer
-    from loom.refs.notes import DECISIONS, decide_citation, find_citation
-
-    if is_agent(_str(body, "author") or ""):
-        raise ApiError(
-            "author-only", "An agent suggests a citation; only the author accepts or rejects one", status=403
-        )
-    decision = _str(body, "decision", required=True)
-    if decision not in DECISIONS:
-        raise ApiError("bad-field", "decision must be accept or reject")
-    ann_id = _str(body, "annotation", required=True) or ""
-    which = _str(body, "session")
-    if not which:
-        raise ApiError("no-session", "a write must name the session it belongs to")
-    try:
-        # the suggestion first: one that names nothing is the caller's mistake whoever is asking
-        find_citation(root, ann_id, decision)
-        session, _kind, who = _writer(root, which, _str(body, "author"), sniff=False)
-        decide_citation(root, ann_id, decision, _str(body, "why"), who, session)
-    except LookupError as exc:
-        raise ApiError("no-such-annotation", str(exc), status=404) from exc
-    except NotFoundError as exc:
-        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
-    except (EnvError, ContentError, ValueError) as exc:
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+    except (EnvError, ContentError) as exc:
         raise ApiError("refused", str(exc)) from exc
-    return f"{decision}ed {ann_id}; resolved {ann_id}"
+    edit = find(root, edit_id)
+    if edit is None:
+        raise ApiError("no-such-edit", f"no suggested edit {edit_id}", status=404)
+    try:
+        if endpoint == "suggestion-discard":
+            return {"ok": True, "result": discard(root, edit, writer, _str(body, "why"), undo=bool(body.get("undo")))}
+        if writer[0] == "agent":
+            raise ApiError("author-only", "An agent suggests; only the author puts a suggested edit into the text", 403)
+        result = _scan(root)
+        if edit.status == "open" and is_taken(result, edit):
+            # taken by an edit of the source already: there is nothing to write, only the keeping to record
+            return {"ok": True, "result": keep(result, edit, writer)}
+        documents, kept = apply(result, edit, writer[1])
+        said = f"applied {edit.id} in {' and '.join(Path(d).name for d in documents) or edit.target_key}"
+        try:
+            said += "; " + keep(_scan(root), edit, writer)
+        except EditRefused as exc:  # the text is in; only the record of it failed, and the person is told so
+            return {"ok": True, "result": f"{said}, but it could not be recorded kept: {exc.message}"}
+        return {"ok": True, "result": "; ".join(x for x in (said, kept.said()) if x)}
+    except EditRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+
+
+def _geometry(body: dict[str, Any], name: str) -> list[list[float]] | None:
+    """`rects` or `strokes` as a write gives them, each a list of numbers; refused when it is not."""
+    from loom.records.marks import MarkRefused, clean_rects, clean_strokes
+
+    try:
+        return (clean_rects if name == "rects" else clean_strokes)(body.get(name))
+    except MarkRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+
+
+def _take(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """`annotations-take`: a PDF's own annotations written as annotations on it, what is here already left alone (`marks.take_in`)."""
+    from loom.cli._common import ContentError, EnvError
+    from loom.cli.review import _annotator
+    from loom.records.marks import MarkRefused, take_in
+
+    items = body.get("items")
+    if not isinstance(items, list):
+        raise ApiError("missing-field", "items is the list of annotations to take in")
+    try:
+        writer = _annotator(root, _str(body, "author"), sniff=False)
+        took = take_in(_scan(root), _str(body, "target", required=True) or "", items, writer)
+    except MarkRefused as exc:
+        raise ApiError(exc.code, exc.message, status=exc.status) from exc
+    except (EnvError, ContentError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    return {"ok": True, "result": f"took in {took['taken']}", **took}
+
+
+def _look(body: dict[str, Any]) -> dict[str, Any]:
+    """The look a write sets, as `look: {color, style, weight, opacity}` with any field left out; refused when it is not a table."""
+    look = body.get("look")
+    if look is None:
+        return {}
+    if not isinstance(look, dict):
+        raise ApiError("bad-field", "look must be an object of color, style, weight and opacity")
+    return {k: look[k] for k in ("color", "style", "weight", "opacity") if k in look}
 
 
 def _accept_keys(body: dict[str, Any]) -> list[str]:

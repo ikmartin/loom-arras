@@ -13,10 +13,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote
 
+from loom.records import ids
+
 #: A markdown link whose destination is one of the two schemes.
 LINK = re.compile(r"\]\(((?:quilt|cited):[^)\s]+)\)")
-ANNOTATION = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
-SESSION = re.compile(r"^s-\d{4}-\d{2}-\d{2}-\d{4}$")
+ANNOTATION = re.compile(rf"^{ids.ANNOTATION}$")
+SESSION = re.compile(rf"^{ids.SESSION}$")
 
 
 class LinkError(ValueError):
@@ -27,7 +29,7 @@ class LinkError(ValueError):
 class Target:
     """What a link names: its kind, the key it is addressed by, and the place in it, if any."""
 
-    kind: str  # node | document | annotation | session | work | page | file | note
+    kind: str  # node | document | annotation | session | work | page | file
     key: str
     place: str = ""
     href: str = ""
@@ -79,13 +81,6 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
         if find_annotation(records, key) is None:
             raise LinkError(f"{href}: no annotation {key}")
         return Target("annotation", key, href=href)
-    if key.startswith("n-"):
-        from loom.notes import ID as NOTE
-        from loom.notes import load as load_notes
-
-        if NOTE.match(key) and key in load_notes(root):
-            return Target("note", key, href=href)
-        raise LinkError(f"{href}: no note {key}")
     if SESSION.match(key):
         from loom.sessions import sessions
 

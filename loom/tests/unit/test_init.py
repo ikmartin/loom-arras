@@ -19,6 +19,7 @@ def test_init_writes_a_config_a_readme_and_loom_s_directory_and_nothing_else(tmp
     assert sorted(p.name for p in q.iterdir()) == [".loom", "README.md", "config.toml"]
     assert sorted(p.relative_to(q).as_posix() for p in (q / ".loom").rglob("*")) == [
         ".loom/.gitignore",
+        ".loom/annotation-types.toml",
         ".loom/history",
         ".loom/history/ledger.jsonl",
     ]

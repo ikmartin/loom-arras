@@ -67,7 +67,7 @@ test.describe('V1 · open on the thing itself', () => {
 
 	test('every pane draws its own toolbar, for every kind, and no rail spans the panes', async ({ page }) => {
 		await withPapers(page);
-		for (const at of ['/master/drafting/main' + beside('/node/sy-0003'), '/library/Kre99' + beside('/context/sy-0003'), '/canon/widgets-v1' + beside('/session/s-2026-09-16-0001')]) {
+		for (const at of ['/master/drafting/main' + beside('/node/sy-0003'), '/library/Kre99' + beside('/context/sy-0003'), '/canon/widgets-v1' + beside('/session/s-2026-09-16-p9z37z')]) {
 			await page.goto(at);
 			await expect(pane(page, 1)).toBeVisible();
 			await expect(pane(page, 0)).toHaveClass(/focused/);
@@ -298,7 +298,7 @@ test.describe('coming back to a document', () => {
 		await tabs(page, 0).first().getByRole('tab').click();
 		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
 		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
-		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').click();
+		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
 		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
 	});
 
@@ -315,7 +315,7 @@ test.describe('coming back to a document', () => {
 		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
 		await allTypeset(page);
 		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
-		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').click();
+		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').click();
 		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
 	});
 });
@@ -377,7 +377,7 @@ test.describe('the tab strip', () => {
 		await expect(pane(page, 0).getByTestId('tab-paper')).toHaveAttribute('aria-pressed', 'true');
 
 		// a session beside a document: Transcript · What it did, in the unfocused pane
-		await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-0001'));
+		await page.goto('/master/drafting/main' + beside('/session/s-2026-09-16-p9z37z'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(pane(page, 1).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Transcript', 'What it did']);
 		await expect(pane(page, 1).getByTestId('tab-chat')).toHaveAttribute('aria-pressed', 'true');
@@ -725,7 +725,7 @@ test.describe('the toolbar', () => {
 	});
 
 	test("a landmark, a context and a session draw a toolbar too: their views, and view with the pane's own line", async ({ page }) => {
-		for (const at of ['/canon/widgets-v1', '/context/sy-0003', '/session/s-2026-09-16-0001']) {
+		for (const at of ['/canon/widgets-v1', '/context/sy-0003', '/session/s-2026-09-16-p9z37z']) {
 			await page.goto(at);
 			await expect(controls(page, 0), at).toBeVisible();
 			await viewMenu(page);
@@ -737,7 +737,7 @@ test.describe('the toolbar', () => {
 
 	test('annotations off hides every mark in its own pane only, from view or by `a`', async ({ page }) => {
 		await page.goto('/master/drafting/main' + beside('/node/sy-0003'));
-		const mark = (i: number) => pane(page, i).locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').first();
+		const mark = (i: number) => pane(page, i).locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-ecnav2"]').first();
 		for (const i of [0, 1]) await expect(mark(i)).not.toHaveClass(/hidden/);
 		await viewMenu(page, 0);
 		await page.getByTestId('toggle-hide-notes').click();

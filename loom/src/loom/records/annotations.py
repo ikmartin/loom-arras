@@ -1,6 +1,6 @@
 """What an annotation is, and the record one belongs to.
 
-Annotations are stored as events in `.loom/annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` and `loom library verify|discard` write them.
+Annotations are stored as events in `.loom/annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one author's annotations as they now stand, not a file. Only `loom annotate` writes them.
 """
 
 from __future__ import annotations
@@ -10,26 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from loom.anchors import Anchor
+from loom.records.ids import draw
 from loom.records.selectors import Selector
-
-#: What an annotation says (plan 0.15, decision 2). Four kinds ask something of the author; `note` remarks, and is where "this checks out" goes too, since agreement earns no kind of its own.
-KINDS = ("objection", "suggestion", "question", "citation", "note")
-#: The kinds that **await an answer**. A note records rather than asks, so a session where a paper was read closely does not show a number that only ever climbs.
-ASKING = ("objection", "suggestion", "question", "citation")
-SEVERITIES = ("major", "moderate", "minor")
-#: Severity grades a fault, and only two kinds claim one; a graded question is a category error.
-GRADED = ("objection", "suggestion")
-
-
-def full_kind(given: str) -> str | None:
-    """A kind from any unambiguous prefix of one: `obj`, `sug`, `q`, `c`, `n`."""
-    if given in KINDS:
-        return given
-    hits = [k for k in KINDS if k.startswith(given.lower())]
-    return hits[0] if len(hits) == 1 else None
-
-
-PLACEMENTS = ("replace", "after", "before")
 
 
 @dataclass
@@ -38,30 +20,29 @@ class Annotation:
     author_kind: str  # agent | person: who wrote it, which is not where it belongs (plan 0.13 §5)
     author_id: str
     created: str
-    target_key: str  # a key in the quilt, or -- for a note on a page of a cited work -- the work's identifier
+    target_key: str  # a key, a cited work's identifier (on one of its pages or the whole work), or a project PDF's path
     target_hash: str
     selector: Selector | None  # the text triple: what was quoted, and the words either side
-    kind: str
+    type: str | None  # the id of its type in the quilt's types, or None: a type is only a label
     body: str
     status: str = "open"
+    #: The look fields set on this annotation itself, drawn over its type's; empty: it looks as its type does.
+    own_look: dict[str, Any] = field(default_factory=dict)
+    #: Its whole look when it was written or last restyled: how it is drawn once its type is gone.
+    drawn: dict[str, Any] = field(default_factory=dict)
     anchor: Anchor | None = None  # the page anchor of a note on a cited work's page; None on a key (plan 0.13 item 2)
     in_reply_to: str | None = None
-    severity: str | None = None  # major | moderate | minor: how bad the fault is, not how keen the suggestion
-    payload: str | None = (
-        None  # suggested text; loom shows it in place and prints it as a patch, and the author applies it
-    )
-    placement: str | None = (
-        None  # replace (exactly the quote) | after | before (beside it); with no quote, of the key's body (records/suggestions.py)
-    )
-    discard_reason: str | None = (
-        None  # why it was withdrawn, from the discarding event's body; never typed, always replayed
-    )
     #: The document this is read in, for a claim about a node that holds only there (plan 0.15, decision 9); None means the node wherever it appears.
     in_doc: str | None = None
-    #: Why it was resolved, from the resolving event's body; replayed, like `discard_reason`.
+    #: Why it was resolved, from the resolving event's body; replayed.
     resolved_why: str | None = None
-    #: A suggestion resolved as applied: `{hash}`, its key's text once the suggestion was taken.
-    applied: dict[str, Any] | None = None
+    #: On a PDF page without a page anchor (`records/marks.py`): the page, its place and strokes in points from the page's top left, the drawing tool, the PDF's hash and where an import came from.
+    page: int | None = None
+    rects: list[list[float]] | None = None
+    strokes: list[list[float]] | None = None
+    mark: str | None = None
+    artifact: str | None = None
+    origin: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -72,16 +53,18 @@ class Annotation:
             "in": self.in_doc,
             "selector": self.selector.to_dict() if self.selector else None,
             "anchor": self.anchor.to_dict() if self.anchor else None,
-            "kind": self.kind,
+            "type": self.type,
+            "own_look": self.own_look,
+            "drawn": self.drawn,
             "body": self.body,
             "status": self.status,
             "in_reply_to": self.in_reply_to,
-            "severity": self.severity,
-            "payload": self.payload,
-            "placement": self.placement,
-            "discard_reason": self.discard_reason,
             "resolved_why": self.resolved_why,
-            "applied": self.applied,
+            **{
+                k: getattr(self, k)
+                for k in ("page", "rects", "strokes", "mark", "artifact", "origin")
+                if getattr(self, k) is not None
+            },
         }
 
     @classmethod
@@ -98,28 +81,28 @@ class Annotation:
             in_doc=d.get("in") or None,
             selector=Selector.from_dict(sel) if isinstance(sel, dict) else None,
             anchor=Anchor.from_dict(anc) if isinstance(anc, dict) else None,
-            kind=str(d.get("kind", "objection")),
+            type=d.get("type") or None,
+            own_look=dict(d.get("own_look") or {}),
+            drawn=dict(d.get("drawn") or {}),
             body=str(d.get("body", "")),
             status=str(d.get("status", "open")),
             in_reply_to=d.get("in_reply_to"),
-            severity=d.get("severity"),
-            payload=d.get("payload"),
-            placement=d.get("placement"),
-            discard_reason=d.get("discard_reason"),
             resolved_why=d.get("resolved_why"),
-            applied=d.get("applied") if isinstance(d.get("applied"), dict) else None,
+            page=d.get("page") if isinstance(d.get("page"), int) else None,
+            rects=d.get("rects") if isinstance(d.get("rects"), list) else None,
+            strokes=d.get("strokes") if isinstance(d.get("strokes"), list) else None,
+            mark=d.get("mark") or None,
+            artifact=d.get("artifact") or None,
+            origin=d.get("origin") if isinstance(d.get("origin"), dict) else None,
         )
 
 
 @dataclass
 class Record:
-    """One session's annotations, replayed from the log; `rel` is the session id."""
+    """One author's annotations, replayed from the log; `rel` is the author's name."""
 
     path: Path  # the log the record was replayed from
-    rel: str  # the grouping key: the session id
-    discarded: bool = False
-    #: Why the whole session's annotations were withdrawn, from the discarding event's body; replayed, never typed.
-    discard_reason: str | None = None
+    rel: str  # the grouping key: the author's name
     annotations: list[Annotation] = field(default_factory=list)
 
 
@@ -131,17 +114,8 @@ def load_records(root: Path) -> tuple[list[Record], list[str]]:
 
 
 def next_id(records: list[Record], date: str) -> str:
-    """The next `a-<date>-<nnnn>` over every record in the quilt, so ids are unique quilt-wide (amended: the counter is not per file). What is written draws it under the log's lock (`log.append_new`); with no lock it is only a preview."""
-    n = 0
-    prefix = f"a-{date}-"
-    for record in records:
-        for a in record.annotations:
-            if a.id.startswith(prefix):
-                try:
-                    n = max(n, int(a.id[len(prefix) :]))
-                except ValueError:
-                    continue
-    return f"{prefix}{n + 1:04d}"
+    """A fresh `a-<date>-<token>`, none of the ids in `records`. What is written draws it under the log's lock (`log.append_new`); with no lock it is only an example."""
+    return draw(f"a-{date}-", {a.id for record in records for a in record.annotations})
 
 
 def find_annotation(records: list[Record], ann_id: str) -> tuple[Record, Annotation] | None:

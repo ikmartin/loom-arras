@@ -19,20 +19,21 @@ export interface Outgoing {
 	color?: number[];
 }
 
-/** An annotation in the file to leave out of the copy, since a note now stands for it. */
+/** An annotation in the file to leave out of the copy, since one of loom's now stands for it. */
 export interface Replaced {
 	page: number;
 	ref: string;
 }
 
-/** What a PDF's annotation comes to as a mark: `notes-take`'s item. */
+/** What a PDF's annotation comes to as an annotation: `annotations-take`'s item. One on words carries its `style`, a drawing its `mark`. */
 export interface Incoming {
 	page: number;
-	mark: MarkKind;
+	mark?: MarkKind;
+	style?: MarkKind;
 	rects?: number[][];
 	strokes?: number[][];
 	body: string;
-	/** The nearest of a mark's colours to its own, where it has one. */
+	/** The nearest of the nine to its own colour, where it has one. */
 	color?: MarkColor;
 	origin: { by?: string; subtype: string; color?: number[]; ref?: string };
 }
@@ -254,7 +255,7 @@ export function renameSubtypes(bytes: Uint8Array, renames: readonly Rename[], fr
  * marks : Outgoing[]
  *     What to write.
  * replaced : Replaced[], default []
- *     Annotations in the file to leave out, since a note stands for each.
+ *     Annotations in the file to leave out, since one of loom's stands for each.
  *
  * Returns
  * -------
@@ -332,7 +333,7 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
 		...(keepRef ? { ref: a.id } : {})
 	};
 	const color = a.color?.length === 3 ? nearestColor(a.color) : undefined;
-	const base = { page: page.pageNumber, mark, body, origin, ...(color ? { color } : {}) };
+	const base = { page: page.pageNumber, ...(ON_WORDS.includes(mark) ? { style: mark } : { mark }), body, origin, ...(color ? { color } : {}) };
 	if (ON_WORDS.includes(mark)) {
 		const q = a.quadPoints;
 		const rects: number[][] = [];
@@ -365,7 +366,7 @@ function incoming(a: Raw, page: PDFPageProxy, keepRef: boolean): Incoming | null
  * Returns
  * -------
  * object
- *     `items`, what `notes-take` writes; `skipped`, how many a mark cannot hold.
+ *     `items`, what `annotations-take` writes; `skipped`, how many a mark cannot hold.
  */
 export async function readAnnotations(doc: PDFDocumentProxy, keepRef = false): Promise<{ items: Incoming[]; skipped: number }> {
 	const items: Incoming[] = [];
@@ -429,7 +430,7 @@ export interface NewPage {
  * marks : Outgoing[], default []
  *     What to write into the pages, as a saved copy holds it.
  * replaced : Replaced[], default []
- *     Annotations in the file to leave out, since a note stands for each.
+ *     Annotations in the file to leave out, since one of loom's stands for each.
  *
  * Returns
  * -------

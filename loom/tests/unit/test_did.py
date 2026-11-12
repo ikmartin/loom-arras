@@ -1,4 +1,4 @@
-"""What it did (plan 0.14 phase 6): `run.log` is the session's record of what was done through loom, and `loom annotate` says in it which annotation each line made or changed."""
+"""What it did (plan 0.14 phase 6): `run.log` is the session's record of what was done through loom; an annotation is no session's, so `loom annotate` writes nothing there."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.helpers import ok, refused
+from tests.helpers import ok
 from tests.unit._quilts import demo, new_session
 
 
@@ -22,36 +22,30 @@ def lines(q: Path, sid: str) -> list[str]:
     return [line.split("  ", 1)[1] for line in (files_dir(q, sessions(q)[sid]) / "run.log").read_text().splitlines()]
 
 
-def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
+def test_annotating_writes_nothing_into_the_active_session(q: Path) -> None:
+    """Every verb of `loom annotate`, a batch among them, leaves the active session's log as it was and names no session in the annotation log."""
+    from loom.sessions import files_dir, sessions
+
     sid = new_session(q)
-    who = ("--session", sid, "--as", "A. Author")
-    made = ok("annotate", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
+    log = files_dir(q, sessions(q)[sid]) / "run.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text("2026-09-01T00:00:00Z  loom source dm-0003\n")
+    who = ("--as", "A. Author")
+    made = ok("annotate", "dm-0003", "Which orbit?", "--quote", "finite set", "--type", "question", *who, cwd=q)
     first = made.output.split()[0]
     reply = ok("annotate", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
     ok("annotate", "--resolve", first, "Settled.", *who, cwd=q)
     ok("annotate", "--resolve", first, "--undo", *who, cwd=q)
     ok("annotate", "--edit", first, "Which orbits?", *who, cwd=q)
-    ok("annotate", "--discard", reply, "Said elsewhere.", *who, cwd=q)
+    ok("annotate", "--delete", reply, *who, cwd=q)
     batch = "\n".join(
         json.dumps(x)
-        for x in ({"target": "dm-0002", "message": "One.", "kind": "note"}, {"reply": first, "message": "Two."})
+        for x in ({"target": "dm-0002", "message": "One.", "type": "note"}, {"reply": first, "message": "Two."})
     )
     ok("annotate", "--batch", *who, cwd=q, stdin=batch)
-    got = lines(q, sid)
-    assert got[:6] == [
-        f"loom annotate dm-0003 --quote --kind question → {first}",
-        f"loom annotate --reply {first} → {reply}",
-        f"loom annotate --resolve {first} → {first}",
-        f"loom annotate --resolve {first} --undo → {first}",
-        f"loom annotate --edit {first} → {first}",
-        f"loom annotate --discard {reply} → {reply}",
-    ]
-    assert got[6].startswith("loom annotate dm-0002 --kind note → a-") and got[7].startswith(
-        f"loom annotate --reply {first} → a-"
-    )
-    # a refused comment did nothing, so it is not in the record
-    refused("annotate", "dm-9999", "Nowhere.", *who, cwd=q, code=2, match="no such key: dm-9999")
-    assert len(lines(q, sid)) == 8
+    assert lines(q, sid) == ["loom source dm-0003"]
+    logged = [json.loads(x) for x in (q / ".loom/annotations" / "log.jsonl").read_text().splitlines()]
+    assert logged and not [e for e in logged if "session" in e]
 
 
 def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> None:
@@ -59,13 +53,15 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
     from loom.sessions import files_dir, sessions
 
     sid = new_session(q)
-    ann = ok(
-        "annotate", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--as", "A. Author", cwd=q
-    ).output.split()[0]
-    with (files_dir(q, sessions(q)[sid]) / "run.log").open("a") as fh:
-        fh.write("2026-09-01T00:00:00Z  loom source dm-0003\n")  # a line from before, or from any other command
+    ann = ok("annotate", "dm-0003", "Which orbit?", "--type", "question", "--as", "A. Author", cwd=q).output.split()[0]
+    where = files_dir(q, sessions(q)[sid])
+    where.mkdir(parents=True, exist_ok=True)
+    with (where / "run.log").open("a") as fh:
+        # a logged annotate line names the annotation after its arrow; any other line is a command alone
+        fh.write(f"2026-09-01T00:00:00Z  loom annotate dm-0003 --type question → {ann}\n")
+        fh.write("2026-09-01T00:00:00Z  loom source dm-0003\n")
     log = build_threads(q)[sid]["log"]
-    assert log[0]["command"] == "loom annotate dm-0003 --kind question" and log[0]["annotation"] == ann
+    assert log[0]["command"] == "loom annotate dm-0003 --type question" and log[0]["annotation"] == ann
     assert log[1] == {"time": "2026-09-01T00:00:00Z", "command": "loom source dm-0003"}
 
 

@@ -6,7 +6,7 @@ When it fits: improving a text before someone else reads it — errors, citation
 
 A referee aiming to improve the source rather than to reject it. Where referee hunts for a reason the result is wrong, review reads for everything that would make the text better. Read the closure, then work through the source in order, and look for each of these in turn:
 
-- **new citations**: an argument that a citation could replace. Verify the source. Citing from memory, say so in the finding and mark the ledger entry `memory-grade`; propose a work the bibliography lacks with `--kind citation`.
+- **new citations**: an argument that a citation could replace. Verify the source. Citing from memory, say so in the finding and mark the ledger entry `memory-grade`; propose a work the bibliography lacks as a {type:suggestion} naming it.
 - **bad citations**: a citation that is wrong, or that does not cover the use made of it.
 - **unnecessary hypotheses**: a hypothesis no step consumes.
 - **merge-or-delete**: redundant lemmas, duplicated arguments, scaffolding.
@@ -16,7 +16,7 @@ A referee aiming to improve the source rather than to reject it. Where referee h
 - **grammar and wording**: grammar, punctuation, awkward phrasing.
 - **clarity**: unclear writing, with a suggested fix.
 
-**Every objection and suggestion is graded** with `--severity`, by how bad the fault is, and a fault you can fix is a suggestion carrying the fix as its `--payload`: drop-in text for every change you suggest. Errors and prose both go in [referee-review], which already groups by severity and carries a location, a fix and an annotation id per item. There is no compiled LaTeX or PDF pair: the annotations carry the findings, and the viewer draws them in place.
+**Every finding says how serious it is**, by how bad the fault is, and a fault you can fix is a {type:revision} and a suggested edit that `--answers` it with the fix: drop-in text for every change you propose. Errors and prose both go in [referee-review], which already groups by how serious each is and carries a location, a fix and an annotation id per item. There is no compiled LaTeX or PDF pair: the annotations carry the findings, and the viewer draws them in place.
 
 ## Report
 

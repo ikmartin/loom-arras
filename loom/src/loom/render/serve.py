@@ -381,9 +381,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
         """
         import re as _re
 
-        m = _re.fullmatch(
-            _re.escape(BUILD_URL) + r"transcripts/(s-\d{4}-\d{2}-\d{2}-\d{4})/(\d+)\.json", self.path.split("?", 1)[0]
-        )
+        from loom.records.ids import SESSION
+
+        m = _re.fullmatch(_re.escape(BUILD_URL) + rf"transcripts/({SESSION})/(\d+)\.json", self.path.split("?", 1)[0])
         if m is None or self.quilt_root is None:
             return False
         from loom.mailbox import page

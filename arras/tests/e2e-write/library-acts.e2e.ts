@@ -1,6 +1,5 @@
-// Acting from the library's page under a running `loom serve` (plan 0.24.4): a row's menu runs on its work and follows the run, stops asking for a paper and asks again, copies the entry, uploads a PDF for the work, and removes a work added by hand; selected rows run as one; a citation suggestion is decided in its line.
+// Acting from the library's page under a running `loom serve` (plan 0.24.4): a row's menu runs on its work and follows the run, stops asking for a paper and asks again, copies the entry, uploads a PDF for the work, and removes a work added by hand; selected rows run as one.
 import { expect, test } from '../served';
-import { pickSession } from '../picker';
 
 const ENTRY = '@article{Ost18,\n  author = {Ostrander, D.},\n  title = {Widget categories and their duals},\n  year = {2018},\n  journal = {J. Widget Theory}\n}';
 
@@ -51,20 +50,6 @@ test('two rows selected run as one, followed on the page', async ({ page }) => {
 	await expect(run).toHaveCount(1);
 	await expect(run).toHaveAttribute('data-state', 'done');
 	await expect(page.getByTestId('bulk-run')).toHaveCount(0);
-});
-
-test('a citation suggestion is taken in its card, which then leaves the list', async ({ page, served }) => {
-	await page.goto('/review/proposed');
-	const cards = page.locator('[data-testid="proposed-card"][data-kind="citation"]');
-	const take = cards.first().getByTestId('proposed-take');
-	// a decision is recorded in a session, so there is none to take without one
-	await expect(take).toBeDisabled();
-	await expect(page.getByTestId('proposed-no-session')).toBeVisible();
-	await pickSession(page, served.openSessions().at(-1)!);
-	const before = await cards.count();
-	await take.click();
-	await expect(cards).toHaveCount(before - 1);
-	await expect(page.getByTestId('proposed-bar-said')).toContainText('as a reference note');
 });
 
 test('a work nothing cites is deleted from its row, after saying what goes with it', async ({ page, served }) => {

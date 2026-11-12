@@ -129,38 +129,17 @@ def test_the_search_puts_a_cited_result_first_and_breaks_ties_by_id(tmp_path: Pa
     assert "loom library search involution --limit 5" in said
 
 
-def test_why_tells_a_citation_suggestion_apart_from_a_result(tmp_path: Path) -> None:
-    """An ID is a result's or a citation suggestion's; `why` says where either came from."""
-    from loom.scan.quilt import save_author
-
-    save_author("A. Author")
-    q = demo(tmp_path)
-    sid = ok("session", "new", "--name", "r", "--as", "A. Author", cwd=q).stdout.split()[0]
-    made = ok(
-        "annotate", "dm-0002", "Kreck 1999 proves this.", "--quote", "Every orbit", "--kind", "citation",
-        "--payload", "K. Kreck, Surgery and duality (1999).", "--session", sid, "--as", "Reader Agent", cwd=q, env={"AI_AGENT": "1"},
-    )  # fmt: skip
-    ann = made.output.split()[0]
-    doc = json_of("library", "why", ann, "--json", cwd=q)
-    assert doc["verdict"] == f"{ann}, a citation suggestion, open" and doc["annotation"]["payload"].startswith(
-        "K. Kreck"
-    )
-    assert "loom library review" in ok("library", "why", ann, cwd=q).output
-    note = ok("annotate", "dm-0002", "Not a citation.", "--quote", "Every orbit", "--session", sid, cwd=q)
-    refused("library", "why", note.output.split()[0], cwd=q, code=1, match="not a citation suggestion")
-
-
 def test_a_relation_dry_run_writes_nothing_and_says_what_it_would(tmp_path: Path) -> None:
     q = demo(tmp_path)
     args = ("library", "relate", "Calloway14-prop-3.2", "Calloway14-prop-3.3", "--kind", "depends-on", "--why", "w")
     r = json_of(*args, "--as", "Tester", "--dry-run", "--json", cwd=q)
-    assert r["dry_run"] is True and r["link"]["id"] == "link-0001" and r["link"]["by"] == "Tester"
+    assert r["dry_run"] is True and r["link"]["id"].startswith("link-") and r["link"]["by"] == "Tester"
     assert not (q / ".loom/digests" / "links.jsonl").exists()
-    ok(*args, "--as", "Tester", cwd=q)
-    refused(*args, "--as", "Tester", "--dry-run", cwd=q, code=2, match="link-0001 already says that")
-    refused(*args, "--undo", "link-0001", cwd=q, code=2, match="not both")
+    made = json_of(*args, "--as", "Tester", "--json", cwd=q)["link"]["id"]
+    refused(*args, "--as", "Tester", "--dry-run", cwd=q, code=2, match=f"{made} already says that")
+    refused(*args, "--undo", made, cwd=q, code=2, match="not both")
     lines = (q / ".loom/digests" / "links.jsonl").read_text().splitlines()
-    assert [json.loads(ln)["id"] for ln in lines] == ["link-0001"]
+    assert [json.loads(ln)["id"] for ln in lines] == [made]
 
 
 def test_search_reads_a_hyphenated_word_whole_and_never_the_citation_apparatus(tmp_path: Path) -> None:
