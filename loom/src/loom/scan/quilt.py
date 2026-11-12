@@ -28,6 +28,8 @@ CONFIG_KEYS: dict[str, set[str]] = {
     "lint": {"disable"},
     # `deny`: where an agent may not write, gitignore-style, beside what is always protected (`loom.agents`)
     "agents": {"deny"},
+    # `track_edits`: whether every edit to an open file since the person's look waits in Your Changes (`loom.pending`)
+    "review": {"track_edits"},
     "author": {"name"},
     # `[basis]` names environments, so any key is valid there and each value is checked instead
     "basis": set(),
@@ -61,6 +63,7 @@ class QuiltConfig:
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
     agents_deny: list[str] = field(default_factory=list)  # [agents] deny: the patterns loom accepted, in order
+    track_edits: bool = False  # [review] track_edits: whether edits in place since the person's look wait to be kept
     basis: dict[str, str] = field(default_factory=dict)  # [basis]: environment name -> basis, over the built-in names
     warnings: list[str] = field(default_factory=list)
 
@@ -102,6 +105,10 @@ class QuiltConfig:
         cfg.contact = str(table("library").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
         cfg.agents_deny = _agents_deny(table("agents").get("deny", []), cfg.warnings)
+        track = table("review").get("track_edits", False)
+        if not isinstance(track, bool):
+            cfg.warnings.append(f"config.toml: review.track_edits = {track!r} is not true or false; ignored")
+        cfg.track_edits = track is True
         from loom.scan.nodes import NAMED_BASES
 
         for env_name, basis in table("basis").items():

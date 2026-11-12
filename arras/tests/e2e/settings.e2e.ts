@@ -74,6 +74,10 @@ test("without a publisher, the quilt's settings are shown as published and chang
 	await expect(page.getByTestId('agents-protected')).toContainText('config.toml');
 	await expect(page.getByTestId('deny-pattern')).toHaveCount(0);
 	await expect(page.getByTestId('agents-update')).toHaveCount(0);
+	// the synthetic quilt reviews edits made in place, which its fixture's in-place edits need
+	await expect(page.getByTestId('config-review.track_edits')).toBeChecked();
+	await expect(page.getByTestId('config-review.track_edits')).toBeDisabled();
+	await expect(page.getByTestId('setting-review.track_edits')).toContainText('[review] track_edits');
 	// a quilt with no agent layer says what writes one, in the publisher's words
 	await expect(page.getByTestId('agents-no-layer')).toContainText('loom ai init');
 	await settings(page, 'overleaf');

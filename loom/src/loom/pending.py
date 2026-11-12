@@ -1,4 +1,4 @@
-"""One list of what waits on the person: the in-place edits to the open files since their look, cut by words, and the open suggested edits; and the two verbs on each, keep and discard.
+"""One list of what waits on the person: the open suggested edits and, where the quilt tracks edits (`[review] track_edits`), the in-place edits to the open files since their look, cut by words; and the two verbs on each, keep and discard.
 
 An in-place change is a run of words that differs between the person's look (`looks.py`) and the file now: words the diff finds apart by fewer than `NEAR` words are one change, never across a blank line, and a file new or gone since the look is one change. Its id is `c-` and eight hex digits of a hash of its path, its old and new text and the 32 characters of the look before it, so it stands while it does, whatever changes elsewhere. A suggested edit is its record's (`records/edits.py`), placed in its key's text now; several on one key combine (`edits.compose`).
 
@@ -145,9 +145,11 @@ _TEXTS: dict[tuple[str, str], tuple[Any, int, Any]] = {}
 
 
 def look_texts(result: ScanResult, who: str) -> tuple[dict[str, str], dict[str, str | None]] | None:
-    """`who`'s look as texts, `(look, now)` by path, for the files that changed since it; None before a first look. Read once for each scan and each state of the look."""
+    """`who`'s look as texts, `(look, now)` by path, for the files that changed since it; None before a first look, and when the quilt does not track edits (`[review] track_edits`). Read once for each scan and each state of the look."""
     from loom.looks import look_path
 
+    if not result.quilt.config.track_edits:
+        return None
     try:
         stamp = look_path(result.quilt.root, who).stat().st_mtime_ns if who else 0
     except OSError:
@@ -162,6 +164,7 @@ def look_texts(result: ScanResult, who: str) -> tuple[dict[str, str], dict[str, 
 
 
 def _look_texts(result: ScanResult, who: str) -> tuple[dict[str, str], dict[str, str | None]] | None:
+    from loom.files import is_latex_aux
     from loom.looks import open_texts, read_look
     from loom.records.snapshots import read_raw
     from loom.scan.hashing import sha256
@@ -173,7 +176,8 @@ def _look_texts(result: ScanResult, who: str) -> tuple[dict[str, str], dict[str,
     current = open_texts(quilt)
     then: dict[str, str] = {}
     now: dict[str, str | None] = {}
-    for rel in sorted(set(current) | set(look.files)):
+    # a look taken before LaTeX's auxiliary files were left out of it may still hold them
+    for rel in sorted(set(current) | {f for f in look.files if not is_latex_aux(f)}):
         held = look.files.get(rel)
         text = current.get(rel)
         if held == (sha256(text) if text is not None else None):
@@ -184,7 +188,7 @@ def _look_texts(result: ScanResult, who: str) -> tuple[dict[str, str], dict[str,
 
 
 def in_place(result: ScanResult, who: str | None = None) -> list[Pending]:
-    """The in-place changes since `who`'s look (the reviewer's by default), by path and place; empty before a first look."""
+    """The in-place changes since `who`'s look (the reviewer's by default), by path and place; empty before a first look, and when the quilt does not track edits."""
     from loom.history.acts import documents_reaching
 
     who = reviewer(result) if who is None else who

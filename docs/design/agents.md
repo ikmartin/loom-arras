@@ -40,7 +40,7 @@ Some acts make a claim only a person can make (*I checked this*, *I accept this 
 - `loom accept`, the author's claim that a key's mathematics is right;
 - `loom library verify`, `discard`, `ignore`, `add`, `import` and `drop`;
 - `loom adopt` and `loom sync incorporate`, which write the author's files (P7);
-- `loom changes --keep` and `--discard`, keeping or discarding a pending change (an agent's change to an open file since the author's look, or a suggested edit), a discard writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
+- `loom changes --keep` and `--discard`, keeping or discarding a pending change (a suggested edit, or, where the quilt tracks edits, a change to an open file since the author's look), a discard writing the file back with its text before kept ([invariant](invariants.md#undo-writes-a-persons-file-only-on-their-act-with-what-it-replaces-kept-first));
 - `loom history restore`, `loom session delete --purge`, `loom ai delete`, `loom sync publish --push`;
 - saving the quilt's settings to `config.toml` in the viewer, and rewriting the permission files to a changed deny list there (`settings-save`, `agents-update`), since an agent never moves its own boundary;
 - starting a library run in the viewer (`library-update`), which may use the network for that run on the person's word, as `--online` does;

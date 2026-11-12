@@ -1,4 +1,4 @@
-// Review › Your Changes: every pending change in the quilt, a card each grouped by the document that lists it, Keep and Discard acting as they do in the document, To do adding the open annotations from others; and beneath, one document's blocks waiting to be accepted. The change rows are hand-made and the acts stubbed: e2e-write drives them against a running publisher.
+// Review › Your Changes: first, one document's blocks waiting to be accepted; then every pending change in the quilt, a card each grouped by the document that lists it, Keep and Discard acting as they do in the document, To do adding the open annotations from others. The change rows are hand-made and the acts stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
@@ -113,7 +113,7 @@ test('To do adds the open annotations from others beside the changes, each linki
 	await expect(page.locator('[data-testid="todo-row"][data-annotation="a-2026-09-16-ecnav2"] a')).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 });
 
-test('the blocks waiting to be accepted stay beneath, one document at a time', async ({ page }) => {
+test('the blocks waiting to be accepted are listed one document at a time', async ({ page }) => {
 	await withChanges(page);
 	await page.goto('/review');
 	const picker = page.getByTestId('review-document');
@@ -135,4 +135,28 @@ test('with no change waiting it says so, and a static host offers no acts', asyn
 	await expect(card(page, EDIT).getByTestId('card-keep')).toBeDisabled();
 	await expect(group(page, MAIN).getByTestId('group-keep-all')).toBeDisabled();
 	await expect(page.getByTestId('review-undo')).toHaveCount(0);
+});
+
+test('the mathematics leads: the blocks waiting to be accepted stand above the changes to keep', async ({ page }) => {
+	await withChanges(page);
+	await page.goto('/review');
+	const accept = (await page.getByRole('heading', { name: 'Waiting to be accepted' }).boundingBox())!;
+	const keep = (await page.getByRole('heading', { name: 'Changes to keep' }).boundingBox())!;
+	const list = (await page.getByTestId('your-change-list').boundingBox())!;
+	expect(accept.y).toBeLessThan(keep.y);
+	expect(keep.y).toBeLessThan(list.y);
+});
+
+test('a card reads an escaped dollar as a dollar, and however long its words it stays inside the page', async ({ page }) => {
+	const words = 'You spend \\(100\\times 0.62 = 62\\) USD. If Yes, you win \\$100 for a profit of $100 - 62 = 38$ USD; if No, you lose all \\$62. ' + 'And so on. '.repeat(300) + '\\begin{align*} ' + 'x_1 + '.repeat(120) + 'y \\end{align*}';
+	const long = { ...rows[3], id: 'c-0a0b0c0d', old: '', new: words };
+	await serve(page, (m) => (m.changes = [long]));
+	await page.goto('/review');
+	const c = card(page, long.id);
+	await expect(c.getByTestId('change-words')).toContainText('win $100 for a profit');
+	await expect(c.getByTestId('change-words')).toContainText('lose all $62');
+	const main = page.getByTestId('your-changes');
+	expect(await main.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+	const box = (await c.boundingBox())!;
+	expect(box.height).toBeLessThan(400);
 });

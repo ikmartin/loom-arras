@@ -89,6 +89,7 @@
 	.ccard {
 		display: grid;
 		gap: 6px;
+		min-width: 0;
 		padding: 9px 10px;
 		font-family: var(--sans);
 		font-size: 12.5px;
@@ -137,7 +138,11 @@
 		font-family: var(--mono);
 		font-size: 11.5px;
 	}
+	/* a long change scrolls within its card, and a formula wider than the card scrolls sideways there, since typeset math never wraps */
 	.dx {
+		min-width: 0;
+		max-height: 14em;
+		overflow: auto;
 		font-family: var(--body-face);
 		font-size: 13.5px;
 		line-height: 1.45;

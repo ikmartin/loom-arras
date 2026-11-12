@@ -427,7 +427,7 @@ def _change(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     given = body.get("changes")
     if body.get("all") is True:
         document = _str(body, "document")
-        if endpoint == "change-keep" and who and read_look(root, who) is None:
+        if endpoint == "change-keep" and result.quilt.config.track_edits and who and read_look(root, who) is None:
             keep_all(result.quilt, who)
             return {"ok": True, "result": "took your first look", "done": [], "refused": []}
         ids = [c.id for c in pending(result, who) if document is None or document in c.documents]
@@ -617,13 +617,22 @@ def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]
     result = _scan(root)
     shown = Shown.of(quilt)
     own = {m for m in result.masters if result.document_role(m) == "person"}
+    tracked = quilt.config.track_edits
     try:
         save(quilt, changes, masters=own, shown=lambda rel: (root / rel).is_file() and shown.is_shown(rel))
     except ConfigRefused as exc:
         raise ApiError("bad-value", str(exc), status=409, fields=exc.refused) from exc
     except OSError as exc:
         raise ApiError("settings-refused", str(exc), status=409) from exc
-    return {"ok": True, "result": f"saved {', '.join(changes)} to config.toml"}
+    said = f"saved {', '.join(changes)} to config.toml"
+    who = reviewer_identity(root)[0]
+    if changes.get("review.track_edits") is True and not tracked and who:
+        from loom.looks import take
+
+        # tracking starts now, not from a look taken long ago
+        take(load_quilt(root), who)
+        said += "; took your look, so edits from now on wait in Your Changes"
+    return {"ok": True, "result": said}
 
 
 def _open(root: Path, body: dict[str, Any]) -> dict[str, Any]:

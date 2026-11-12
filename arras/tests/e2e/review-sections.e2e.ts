@@ -20,7 +20,7 @@ test('Review\'s column lists its sections, each counting what waits there, the c
 	// every landmark leads to a live draft, so The Record waits for nothing
 	await expect(page.getByTestId('section-count-record')).toHaveCount(0);
 	// each says what it is for
-	await expect(page.getByTestId('section-changes')).toContainText('changes to keep, mathematics to accept');
+	await expect(page.getByTestId('section-changes')).toContainText('mathematics to accept, changes to keep');
 	await expect(page.getByTestId('section-record')).toContainText('versions, sessions, everything done');
 	await expect(page.getByTestId('section-library')).toContainText('the works you read and cite');
 	await expect(page.getByTestId('section-proposed')).toHaveAttribute('title', /1 proposal to decide/);

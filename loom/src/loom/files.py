@@ -73,6 +73,16 @@ OPENABLE = frozenset(
     }
 )
 TEXT_LIMIT = 1 << 20
+#: LaTeX's auxiliary files, what a compile writes beside its document for its next run: the same list as the viewer's `arras/src/lib/shell/aux.ts`, which the Files tree hides. A look never holds them.
+LATEX_AUX = re.compile(
+    r"\.(?:aux|log|out|toc|lof|lot|loa|bbl|blg|bcf|run\.xml|fls|fdb_latexmk|synctex|synctex\.gz|synctex\(busy\)|nav|snm|vrb|xdv|dvi|idx|ind|ilg|glo|gls|glg|ist|acn|acr|alg|thm|brf|spl|ptc|maf|mtc\d*|nlo|nls|xref|4ct|4tc|lg|tmp|auxlock)$|-blx\.bib$",
+    re.I,
+)
+
+
+def is_latex_aux(rel: str) -> bool:
+    """Whether the file at quilt-relative `rel` is one LaTeX writes for its own next run (`LATEX_AUX`)."""
+    return LATEX_AUX.search(rel.rsplit("/", 1)[-1]) is not None
 
 
 @dataclass(frozen=True)

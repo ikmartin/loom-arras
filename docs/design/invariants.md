@@ -427,6 +427,8 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 **Record.** Plan 0.22.8
 
+**2026-11-12.** Edits in place wait in Your Changes only where the quilt tracks them, `[review] track_edits`, off by default (plan 0.31): the person was asked to keep edits they had just made themselves. Where a quilt does not track them there is no in-place change to discard; the rule holds where it does, and its guards run with tracking on.
+
 **2026-11-12.** Undo became Discard, per change cut by words rather than per hunk, and covers suggested edits too (plan 0.30, decision 11); what it writes and what it keeps first are unchanged.
 
 ### A note's fading is computed, never stored

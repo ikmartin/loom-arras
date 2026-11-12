@@ -3,6 +3,7 @@
 	//
 	// It is not a LaTeX engine and does not pretend to be one. loom renders documents; this renders the sentence or two an annotation proposes, which arrive as prose with inline math and the occasional `\emph`. Anything it does not know is left exactly as written, so what is on screen is never a silent misreading of what was proposed -- a reader who sees a command still in its braces knows to read the verbatim instead.
 	import { store } from '$lib/manifest/client.svelte';
+	import { delimit } from '$lib/math/delimit';
 	import { typeset } from '$lib/math/mathjax';
 
 	let { text }: { text: string } = $props();
@@ -36,8 +37,8 @@
 			.replace(/~/g, '\u00a0')
 			.replace(/[&<>]/g, (c) => ESC[c]);
 		for (const [re, open, close] of MARKUP) out = out.replace(re, (_, inner: string) => open + inner + close);
-		// MathJax's inline delimiters here are \( \), matching what the publisher emits
-		return out.replace(/\$([^$]*)\$/g, (_, m: string) => '\\(' + m + '\\)');
+		// MathJax's delimiters here are \( \) and \[ \], matching what the publisher emits; an escaped \$ is a dollar sign
+		return delimit(out);
 	});
 
 	$effect(() => {

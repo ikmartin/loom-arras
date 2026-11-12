@@ -496,7 +496,7 @@ def attach_pending(
     from loom.records.store import render_markdown
 
     who = reviewer(result)
-    look = read_look(result.quilt.root, who) if who else None
+    look = read_look(result.quilt.root, who) if who and result.quilt.config.track_edits else None
     if look is not None:
         manifest["changes_since"] = {"who": look.who, "when": look.when}
     changes = (in_place(result, who) if who else []) + suggested(result)

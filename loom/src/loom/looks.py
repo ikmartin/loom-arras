@@ -1,6 +1,6 @@
 """A person's look at the project's open files: each file's text as they last saw it, and which files changed since.
 
-A look is `.loom/looked/<reviewer>.json`, `{who, when, files: {path: hash}}`, each file's text stored exactly in the history's `texts/` (`write_raw`). It covers every open text file: one the viewer shows that reads as UTF-8 and is at most 1 MB, LaTeX included. It is personal, by the reviewer name Review resolves, and taken when the person acts or when `loom serve` starts and finds none, so it records what the person did, never a save (P13). What changed since it is cut into changes by words, and kept or discarded one by one, in `pending.py`. Loom cannot tell who changed a file, only that it changed since the look.
+A look is `.loom/looked/<reviewer>.json`, `{who, when, files: {path: hash}}`, each file's text stored exactly in the history's `texts/` (`write_raw`). It covers every open text file: one the viewer shows that reads as UTF-8 and is at most 1 MB, LaTeX included and LaTeX's auxiliary files left out (`files.LATEX_AUX`). It is kept only where the quilt tracks edits (`[review] track_edits`). It is personal, by the reviewer name Review resolves, and taken when the person acts, when tracking is turned on in Settings, or when `loom serve` starts and finds none, so it records what the person did, never a save (P13). What changed since it is cut into changes by words, and kept or discarded one by one, in `pending.py`. Loom cannot tell who changed a file, only that it changed since the look.
 """
 
 from __future__ import annotations
@@ -71,11 +71,13 @@ def _write(root: Path, look: Look) -> None:
 
 
 def open_texts(quilt: Quilt) -> dict[str, str]:
-    """Every open text file's text by its path: shown, UTF-8 and at most 1 MB."""
-    from loom.files import TEXT_LIMIT, Shown
+    """Every open text file's text by its path: shown, UTF-8, at most 1 MB and none of LaTeX's auxiliary files."""
+    from loom.files import TEXT_LIMIT, Shown, is_latex_aux
 
     out: dict[str, str] = {}
     for rel in Shown.of(quilt).walk():
+        if is_latex_aux(rel):
+            continue
         p = quilt.root / rel
         try:
             if p.stat().st_size > TEXT_LIMIT:
@@ -106,6 +108,7 @@ def _lines(text: str) -> list[str]:
 
 def changes(quilt: Quilt, who: str) -> list[Change]:
     """What changed in the open files since `who`'s last look, by path; empty before their first."""
+    from loom.files import is_latex_aux
     from loom.records.snapshots import read_raw
     from loom.scan.hashing import sha256
 
@@ -114,7 +117,7 @@ def changes(quilt: Quilt, who: str) -> list[Change]:
         return []
     now = open_texts(quilt)
     out: list[Change] = []
-    for rel in sorted(set(now) | set(look.files)):
+    for rel in sorted(set(now) | {f for f in look.files if not is_latex_aux(f)}):
         before_hash = look.files.get(rel)
         text = now.get(rel)
         after_hash = sha256(text) if text is not None else None

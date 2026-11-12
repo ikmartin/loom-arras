@@ -20,6 +20,15 @@ def demo(tmp_path: Path) -> Path:
     return tmp_path / "q"
 
 
+def track_edits(q: Path, on: bool = True) -> Path:
+    """Set `[review] track_edits` in `q`'s `config.toml`, so in-place edits since the look wait as changes; returns `q`."""
+    from loom.config_edit import set_values
+    from loom.scan.quilt import load_quilt
+
+    set_values(load_quilt(q), {"review.track_edits": on})
+    return q
+
+
 def new_session(q: Path, title: str = "a sitting", author: str = "A. Author") -> str:
     """A fresh session made by `loom session new`, returning its id; the demo's own sessions are left as they are."""
     return ok("session", "new", "--name", title, "--as", author, cwd=q).stdout.split()[0]

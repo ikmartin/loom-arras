@@ -4,7 +4,7 @@
  "files": {
   "EXPECTED-LINT.txt": "sha256:98efb400dd29a1f291fab5e42f83cbb332b82e708cc5a2b4a82db9f35553bc26",
   "README.md": "sha256:7b213ce775759639ff40866c989c945e0effc9e666a512397878fbdd70eb4b9b",
-  "config.toml": "sha256:f3d113dfcbc072fcef57d87997112b357864f48a866dbe368e4d7fad1e9881e9",
+  "config.toml": "sha256:2d96428200f2c361a41b06bbf5db387f06c60540824c184a1708fefb975c7e1d",
   "drafting/loom.sty": "sha256:c5eab6a24aeb9f46195ed8aef88628a99f2cbb84ca014177f152727174eab6ad",
   "drafting/macros.sty": "sha256:e2aa36d0e7e04de7582bd34d5993a3ff58cd563ce69d1bf2a369af67278a5534",
   "drafting/main.tex": "sha256:0f7ec9d8a6f05ce0d426feb4c613600a63016ec5aa94df8c7da206839dca68f4",

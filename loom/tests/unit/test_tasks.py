@@ -14,7 +14,7 @@ from loom.records.store import render_markdown
 from loom.scan.hashing import sha256
 from loom.scan.quilt import load_quilt, save_author
 from loom.tasks import Task, TickRefused, items, tick
-from tests.unit._quilts import demo
+from tests.unit._quilts import demo, track_edits
 
 WHO = "Tester"
 
@@ -69,7 +69,7 @@ def test_a_message_keeps_its_brackets() -> None:
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
     save_author(WHO)
-    root = demo(tmp_path)
+    root = track_edits(demo(tmp_path))
     (root / "notes").mkdir()
     (root / "notes" / "a.md").write_text("# A\n\n- [ ] one\n- [ ] two\n\nend\n", encoding="utf-8")
     (root / "notes" / "b.txt").write_text("- [ ] plain text\n", encoding="utf-8")
