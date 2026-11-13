@@ -109,3 +109,36 @@ def test_keeping_a_suggested_edit_carries_the_annotation_it_answers_and_resolves
     got = row(q, ann)
     assert got["status"] == "resolved" and got["earlier"] == {"quote": "one or two points", "change": made}
     assert got["quote"] == "at most two points" and not got["detached"]
+
+
+def test_an_annotation_on_a_key_named_by_place_goes_with_its_block_when_one_is_put_in_before_it(tmp_path: Path) -> None:
+    """`FILE#section:2` names another block once a section is put in before it; the annotation is drawn on the block it was written on, and the manifest names that block. In quant, keeping a suggested edit that put in a homework body renumbered every proof."""
+    from loom.scan.quilt import save_author
+
+    save_author(WHO)
+    root = demo(tmp_path)
+    outline = root / "drafting/outline.tex"
+    ann = ok(
+        "annotate",
+        "drafting/outline.tex#section:2",
+        "Which?",
+        "--quote",
+        "Neither of these is proved.",
+        "--type",
+        "question",
+        "--as",
+        WHO,
+        cwd=root,
+    ).output.split()[0]
+    edit(
+        outline,
+        "\\section{What the paper rests on}",
+        "\\section{Notation}\nA word on notation.\n\n\\section{What the paper rests on}",
+    )
+    got = row(root, ann)
+    assert got["target"]["key"] == "drafting/outline.tex#section:3"
+    assert (got["detached"], got["anchored"]) == (False, True)
+    # its block edited as well as moved: no block holds the text it was written on, so it stays on the key it names, where its words are not
+    edit(outline, "Neither of these is proved.", "Neither of these is proved yet.")
+    got = row(root, ann)
+    assert got["target"]["key"] == "drafting/outline.tex#section:2" and got["detached"] is True
