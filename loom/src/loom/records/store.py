@@ -104,6 +104,50 @@ def is_document_path(result: ScanResult, path: str) -> bool:
     return path.endswith(".tex") and not path.startswith("prose:")
 
 
+#: The scan the block hashes below were read from, and each key's hash; one scan at a time, held as one tuple so that a thread reading it never mixes two scans.
+_BLOCK_HASHES: tuple[ScanResult, dict[str, str]] | None = None
+
+
+def _block_hash(result: ScanResult, key: str) -> str:
+    """A block's hash as a record's `against` holds it (`key_hash`), remembered for the scan it was read from."""
+    global _BLOCK_HASHES
+    held = _BLOCK_HASHES
+    if held is None or held[0] is not result:
+        held = _BLOCK_HASHES = (result, {})
+    known = held[1].get(key)
+    if known is None:
+        known = held[1][key] = key_hash(result, key)
+    return known
+
+
+def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str) -> NodeRec | None:
+    """The block a record on `key` was written on: `node`, the block `key` names now, unless `key` is named by its place in its file and no longer holds the text `want` hashes while exactly one other block of that file does.
+
+    A key named by place (`FILE#proof:3`) names another block once a block is put in before it, so a record goes with the text it was written against wherever that now stands. A labelled key always names its own block, and so does a region inside one. None when `key` is gone and no block of its file holds that text.
+
+    Parameters
+    ----------
+    result : ScanResult
+    key : str
+        The key the record names.
+    node : NodeRec or None
+        The block `key` names now; None when it names none.
+    want : str
+        The record's `against`: the hash of the block's text when it was written; '' moves nothing.
+
+    Returns
+    -------
+    NodeRec or None
+    """
+    if not want or "#" not in key or key in result.assembly.regions:
+        return node
+    if node is not None and _block_hash(result, node.key) == want:
+        return node
+    path = node.file if node is not None else key.split("#", 1)[0]
+    same = [n for n in result.nodes.values() if n.file == path and n is not node and _block_hash(result, n.key) == want]
+    return same[0] if len(same) == 1 else node
+
+
 #: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.
 _ACCEPTANCE: dict[tuple[str | None, str], tuple[ScanResult, dict[str, KeyState], dict[str, str]]] = {}
 
@@ -408,7 +452,7 @@ class Records:
     def _review_facts(self, result: ScanResult, states: dict[str, KeyState], current: dict[str, str]) -> None:
         for res in self.resolved(result):
             a = res.annotation
-            ks = states.get(a.target_key)
+            ks = states.get(res.target or a.target_key)
             if ks is None:
                 continue
             # what awaits an answer, which is what a count is for: an untyped annotation, or one of a type that only informs, asks nothing
@@ -526,6 +570,10 @@ class Records:
                 if n is None:
                     region = result.assembly.regions.get(target)
                     n = result.nodes.get(region.container) if region else None
+                # a key named by place goes with the block it was written on, once a block put in before it renumbers the keys
+                moved = written_on(result, target, n, a.target_hash)
+                if moved is not None and moved is not n:
+                    n, target = moved, moved.key
                 if n is None:
                     out.append(
                         ResolvedAnnotation(a, rec, None, True, self._recorded(a, None), target=target, in_doc=in_doc)

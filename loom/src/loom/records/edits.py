@@ -190,36 +190,14 @@ def node_of(result: ScanResult, key: str) -> NodeRec | None:
     return node
 
 
-#: The scan the block hashes below were taken of, and each key's hash; one scan at a time, held as one tuple so that a thread reading it never mixes two scans.
-_HASHES: tuple[ScanResult, dict[str, str]] | None = None
-
-
-def _hash_of(result: ScanResult, key: str) -> str:
-    """A block's hash as `against` records it (`key_hash`), remembered for the scan it was read from."""
-    global _HASHES
-    from loom.render.manifest import key_hash
-
-    held = _HASHES
-    if held is None or held[0] is not result:
-        held = _HASHES = (result, {})
-    known = held[1].get(key)
-    if known is None:
-        known = held[1][key] = key_hash(result, key)
-    return known
-
-
 def home(result: ScanResult, edit: Edit) -> NodeRec | None:
-    """The block `edit` is on now: the key it names, unless that key no longer holds the text the edit was written against and exactly one other block of the same file does.
+    """The block `edit` is on now: the key it names, unless that key is named by its place in its file and no longer holds the text the edit was written against while exactly one other block of the same file does (`written_on`).
 
-    A key named by its place in its file, as `#proof:3`, names another block once a block is put in before it: keeping an edit that adds a proof renumbers every proof after it. The edit goes with the text it was written against, wherever that now stands; None when its key is gone and no block of its file holds that text.
+    Keeping an edit that adds a proof renumbers every proof after it; the edit goes with the text it was written against, wherever that now stands. None when its key is gone and no block of its file holds that text.
     """
-    node = node_of(result, edit.target_key)
-    want = edit.target_hash
-    if not want or (node is not None and node.key in result.nodes and _hash_of(result, node.key) == want):
-        return node
-    path = node.file if node is not None else edit.target_key.split("#", 1)[0]
-    same = [n for n in result.nodes.values() if n.file == path and n is not node and _hash_of(result, n.key) == want]
-    return same[0] if len(same) == 1 else node
+    from loom.records.store import written_on
+
+    return written_on(result, edit.target_key, node_of(result, edit.target_key), edit.target_hash)
 
 
 def _balanced(text: str, at: int, opening: str, closing: str) -> int:
