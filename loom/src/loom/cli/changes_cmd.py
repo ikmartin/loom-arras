@@ -1,4 +1,4 @@
-"""`loom changes`: what waits on the person, in-place edits since their look and suggested edits, by document; one change's patch; and the two verbs on a change, keep and discard."""
+"""`loom changes`: what waits on the person, suggested edits and, where the quilt tracks edits, in-place edits since their look, by document; one change's patch; and the two verbs on a change, keep and discard."""
 
 from __future__ import annotations
 
@@ -33,7 +33,11 @@ def _short(text: str | None, n: int = 40) -> str:
     metavar="ID|PATH",
     help="Discard the change ID, or every change in PATH; may repeat.",
 )
-@click.option("--keep-all", is_flag=True, help="Keep every change; before your first look, take it.")
+@click.option(
+    "--keep-all",
+    is_flag=True,
+    help="Keep every change; where the quilt tracks edits and you have no look yet, take it.",
+)
 @click.option("--discard-all", is_flag=True, help="Discard every change.")
 @click.option("--why", default=None, help="With a discard, why, which the agent that suggested an edit reads.")
 @click.option("--by", "f_by", default=None, metavar="NAME", help="NAME's suggested edits, in every state.")
@@ -51,9 +55,9 @@ def changes_command(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """List what waits on you, by document: each in-place edit to an open file since your last look, cut by words, and each open suggested edit; with ID, print the change's patch, which `git apply` takes as it stands.
+    """List what waits on you, by document: each open suggested edit and, where the quilt tracks edits (`[review] track_edits`), each in-place edit to an open file since your last look, cut by words; with ID, print the change's patch, which `git apply` takes as it stands.
 
-    The open files are the ones the viewer shows that are text, at most 1 MB; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+    The open files are the ones the viewer shows that are text, at most 1 MB, LaTeX's auxiliary files left out; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
     """
     from loom.cli.review import _annotator
     from loom.looks import keep_all as take_all
@@ -75,7 +79,7 @@ def changes_command(
         refuse_under_agent(
             "Keeping and discarding a change", "Keep and discard in a terminal of your own, or in the viewer."
         )
-        if keep_all and who and read_look(root, who) is None:
+        if keep_all and result.quilt.config.track_edits and who and read_look(root, who) is None:
             take_all(result.quilt, who)
             Report("took your first look at the open files", data={"done": [], "refused": []}).emit(as_json)
             return
@@ -116,8 +120,15 @@ def changes_command(
         return
     if document is not None:
         listed = [c for c in listed if document in c.documents]
-    look = read_look(root, who) if who else None
-    since = f"since your look ({look.when[:16].replace('T', ' ')})" if look else "before your first look"
+    tracked = result.quilt.config.track_edits
+    look = read_look(root, who) if who and tracked else None
+    since = (
+        f"since your look ({look.when[:16].replace('T', ' ')})"
+        if look
+        else "before your first look"
+        if tracked
+        else "suggested edits; edits in place are not tracked"
+    )
     verdict = f"{since}: " + (counted(len(listed), "change") if listed else "nothing waits on you")
     groups = []
     for doc in sorted({d for c in listed for d in c.documents}) + (

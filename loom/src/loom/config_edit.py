@@ -34,6 +34,7 @@ EDITABLE = (
     "library.contact",
     "lint.disable",
     "agents.deny",
+    "review.track_edits",
 )
 
 #: Keys shown and never written: each names where files already are, so changing it alone would lose them.
@@ -344,7 +345,7 @@ def check(
         if home and shown is not None and not shown(home):
             raise ValueError(f"{home} is not a file the viewer shows")
         return home or None
-    if key == "library.online":
+    if key in ("library.online", "review.track_edits"):
         if not isinstance(value, bool):
             raise ValueError("must be true or false")
         return value
@@ -468,6 +469,7 @@ def published(result: ScanResult) -> dict[str, Any]:
             "command": "" if layer else "loom ai init",
             "clients": clients,
         },
+        "review": {"track_edits": cfg.track_edits},
         "sync": sync,
         "warnings": list(cfg.warnings),
     }

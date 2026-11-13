@@ -1,4 +1,4 @@
-// Review › Your Changes: every pending change in the quilt, a card each grouped by the document that lists it, Keep and Discard acting as they do in the document, To do adding the open annotations from others; and beneath, one document's blocks waiting to be accepted. The change rows are hand-made and the acts stubbed: e2e-write drives them against a running publisher.
+// Review › Your Changes: first, one document's blocks waiting to be accepted; then every pending change in the quilt, a card each grouped by the document that lists it, Keep and Discard acting as they do in the document, To do adding the open annotations from others. The change rows are hand-made and the acts stubbed: e2e-write drives them against a running publisher.
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, serve } from '../manifest';
 
@@ -113,7 +113,7 @@ test('To do adds the open annotations from others beside the changes, each linki
 	await expect(page.locator('[data-testid="todo-row"][data-annotation="a-2026-09-16-ecnav2"] a')).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 });
 
-test('the blocks waiting to be accepted stay beneath, one document at a time', async ({ page }) => {
+test('the blocks waiting to be accepted are listed one document at a time', async ({ page }) => {
 	await withChanges(page);
 	await page.goto('/review');
 	const picker = page.getByTestId('review-document');
@@ -135,4 +135,50 @@ test('with no change waiting it says so, and a static host offers no acts', asyn
 	await expect(card(page, EDIT).getByTestId('card-keep')).toBeDisabled();
 	await expect(group(page, MAIN).getByTestId('group-keep-all')).toBeDisabled();
 	await expect(page.getByTestId('review-undo')).toHaveCount(0);
+});
+
+test('the mathematics leads: the blocks waiting to be accepted stand above the changes to keep', async ({ page }) => {
+	await withChanges(page);
+	await page.goto('/review');
+	const accept = (await page.getByRole('heading', { name: 'Waiting to be accepted' }).boundingBox())!;
+	const keep = (await page.getByRole('heading', { name: 'Changes to keep' }).boundingBox())!;
+	const list = (await page.getByTestId('your-change-list').boundingBox())!;
+	expect(accept.y).toBeLessThan(keep.y);
+	expect(keep.y).toBeLessThan(list.y);
+});
+
+test('a card reads an escaped dollar as a dollar, and however long its words it stays inside the page', async ({ page }) => {
+	const words = 'You spend \\(100\\times 0.62 = 62\\) USD. If Yes, you win \\$100 for a profit of $100 - 62 = 38$ USD; if No, you lose all \\$62. ' + 'And so on. '.repeat(300) + '\\begin{align*} ' + 'x_1 + '.repeat(120) + 'y \\end{align*}';
+	const long = { ...rows[3], id: 'c-0a0b0c0d', old: '', new: words };
+	await serve(page, (m) => (m.changes = [long]));
+	await page.goto('/review');
+	const c = card(page, long.id);
+	await expect(c.getByTestId('change-words')).toContainText('win $100 for a profit');
+	await expect(c.getByTestId('change-words')).toContainText('lose all $62');
+	const main = page.getByTestId('your-changes');
+	expect(await main.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+	const box = (await c.boundingBox())!;
+	expect(box.height).toBeLessThan(400);
+});
+
+test('a passage is shown as TeX made it, and raw source keeps its lists and proofs as text, never a typesetting error', async ({ page }) => {
+	const passage = { ...rows[1], id: 'e-2026-09-18-made01', old: '', new: '\\section*{Problem 1}\n\n\\begin{enumerate}\\item What is $x$?\\end{enumerate}', new_html: '<p>Problem 1, as TeX made it.</p>' };
+	const source = { ...rows[1], id: 'e-2026-09-18-raw001', old: '', new: 'Answer: \\begin{proof}[Answer] It is $x$. \\end{proof}', new_html: null };
+	await serve(page, (m) => (m.changes = [passage, source]));
+	await page.goto('/review');
+	await expect(card(page, passage.id).getByTestId('change-new-made')).toHaveText('Problem 1, as TeX made it.');
+	const raw = card(page, source.id).getByTestId('change-words');
+	await expect(raw).toContainText('\\begin{proof}[Answer]');
+	await expect(raw.locator('mjx-container')).toHaveCount(1);
+	await expect(raw.locator('mjx-merror, [data-mjx-error]')).toHaveCount(0);
+});
+
+test('a suggestion the text already reads as is kept to record it, saying so', async ({ page }) => {
+	const taken = { ...rows[1], id: 'e-2026-09-18-taken1', state: 'taken', why: 'Its block reads as it taken already; keeping it records it kept' };
+	await serve(page, (m) => (m.changes = [taken]));
+	const sent = await serving(page);
+	await page.goto('/review');
+	await expect(card(page, taken.id).getByTestId('change-card-why')).toContainText('keeping it records it kept');
+	await card(page, taken.id).getByTestId('card-keep').click();
+	expect(sent['change-keep']).toEqual({ changes: [taken.id] });
 });

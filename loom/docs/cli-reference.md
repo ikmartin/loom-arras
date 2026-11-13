@@ -304,16 +304,16 @@ Record that you accept KEYS as mathematically correct, each against the document
 
 `loom changes [OPTIONS] [ID]`
 
-List what waits on you, by document: each in-place edit to an open file since your last look, cut by words, and each open suggested edit; with ID, print the change's patch, which `git apply` takes as it stands.
+List what waits on you, by document: each open suggested edit and, where the quilt tracks edits (`[review] track_edits`), each in-place edit to an open file since your last look, cut by words; with ID, print the change's patch, which `git apply` takes as it stands.
 
-The open files are the ones the viewer shows that are text, at most 1 MB; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
+The open files are the ones the viewer shows that are text, at most 1 MB, LaTeX's auxiliary files left out; your look holds each one's text as you last saw it, and `loom serve` takes your first when it starts. Keeping and discarding are yours, never an agent's: keeping an in-place edit puts it into your look, keeping a suggested edit writes it into its file; discarding an in-place edit puts its old words back, discarding a suggested edit leaves the text as it is. A version of each document a write changes is kept first. Keeping says nothing about whether the mathematics is right, which is `loom accept`'s.
 
 | option | description |
 |---|---|
 | `--document` `DOC` | Only the changes in the files DOC is made of. |
 | `--keep` `ID|PATH` | Keep the change ID, or every change in PATH; may repeat. |
 | `--discard` `ID|PATH` | Discard the change ID, or every change in PATH; may repeat. |
-| `--keep-all` | Keep every change; before your first look, take it. |
+| `--keep-all` | Keep every change; where the quilt tracks edits and you have no look yet, take it. |
 | `--discard-all` | Discard every change. |
 | `--why` | With a discard, why, which the agent that suggested an edit reads. |
 | `--by` `NAME` | NAME's suggested edits, in every state. |

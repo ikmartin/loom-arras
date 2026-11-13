@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Review › Your Changes: every change waiting in the person's text, quilt-wide, a card each (`ChangeCard`) grouped by the document that lists it: edits made in their files since their look, and suggestions not yet kept or discarded. Keep and Discard act as they do in the document, one change or all of a document's at once, and the last discard is undone from the bar; neither says whether the mathematics is right. To do adds, beside each document's changes, the open annotations from others, each linking to its place. Beneath, one document at a time, the blocks waiting to be accepted (changed since accepted, or taken in from a copy or a pull): Accept records the person's reading, for one block or a selection; what loom cannot accept says why in its row. Never accepted and accepted blocks are folded beneath, uncounted. Each answer is said in its row while the row stands, else in the bar.
+	// Review › Your Changes: the mathematics first, then what waits to be kept. One document at a time, the blocks waiting to be accepted (changed since accepted, or taken in from a copy or a pull): Accept records the person's reading, for one block or a selection; what loom cannot accept says why in its row. Never accepted and accepted blocks are folded beneath, uncounted. Then every change waiting in the person's text, quilt-wide, a card each (`ChangeCard`) grouped by the document that lists it: suggestions not yet kept or discarded and, where the quilt tracks edits (`[review] track_edits`), edits made in their files since their look. Keep and Discard act as they do in the document, one change or all of a document's at once, and the last discard is undone from the bar; neither says whether the mathematics is right. To do adds, beside each document's changes, the open annotations from others, each linking to its place. Each answer is said in its row while the row stands, else in the bar.
 	import '$lib/review/review.css';
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';
@@ -53,6 +53,8 @@
 	const takenCount = $derived(y ? y.taken.reduce((n, t) => n + t.rows.length, 0) : 0);
 	const reviewer = $derived(m.reviewer?.name ?? '');
 	const since = $derived(m.changes_since ? m.changes_since.when.slice(0, 16).replace('T', ' ') : '');
+	// whether edits in place since the person's look wait here too, as well as suggestions
+	const tracked = $derived(m.config?.review?.track_edits === true);
 
 	let served = $state(false);
 	let writes = $state({ keep: false, discard: false });
@@ -209,7 +211,7 @@
 	<ReviewHeading title="Your Changes">{#snippet aside()}<HelpDot label="what the Your Changes page shows" topic="review" />{/snippet}</ReviewHeading>
 	<ActionBar said={said?.at === '*' ? said.text : ''} refused={said?.refused} testid="review-bar">
 		{#snippet lead()}
-			<span class="muted" data-testid="review-summary">{[part(changeCount, changeCount === 1 ? 'change waiting' : 'changes waiting'), part(changedCount, 'changed since you accepted'), part(takenCount, 'taken in'), reviewer ? `reviewing as ${reviewer}` : ''].filter(Boolean).join(' · ') || 'Nothing waits'}</span>
+			<span class="muted" data-testid="review-summary">{[part(changedCount, 'changed since you accepted'), part(takenCount, 'taken in'), part(changeCount, changeCount === 1 ? 'change waiting' : 'changes waiting'), reviewer ? `reviewing as ${reviewer}` : ''].filter(Boolean).join(' · ') || 'Nothing waits'}</span>
 		{/snippet}
 		{#snippet actions()}
 			<!-- a discard, here or in a document, is undone as the document's toolbar undoes it -->
@@ -222,8 +224,39 @@
 			{/if}
 		{/snippet}
 	</ActionBar>
-	<p class="lead">Every change waiting in your text{since ? `, since your look of ${since}` : ''}: edits made in your files, and suggestions not yet kept or discarded. <b>Keep</b> one to take it into what you have, or <b>Discard</b> it to put your words back or drop the suggestion; neither says whether the mathematics is right. <b>Accept</b>, beneath, vouches for a block's mathematics.</p>
+	<p class="lead">The mathematics first: the blocks of your documents changed since you accepted them, or taken in from a copy or a pull, and <b>Accept</b> records that you have read one and vouch for it. Then what waits to be kept: {tracked ? `suggestions not yet kept or discarded, and every edit made in your files since your look${since ? ` of ${since}` : ''}` : 'suggestions not yet kept or discarded'}. <b>Keep</b> one to take it into your text, or <b>Discard</b> it {tracked ? 'to put your words back or drop the suggestion' : 'to drop it'}; neither says whether the mathematics is right.</p>
 
+	<h2 class="part">Waiting to be accepted</h2>
+	{#if !reviewer}<p class="muted" data-testid="review-no-reviewer">Choose your reviewer name in Settings to accept.</p>
+	{:else if !served}<p class="muted" data-testid="review-read-only">This copy of the quilt only reads; accepting needs the quilt served for writing.</p>{/if}
+	{#if !mine.length}<NoDrafts what="blocks to review" />
+	{:else if y && doc}
+		<p class="pick">
+			{#if mine.length > 1}<select aria-label="Document" data-testid="review-document" value={doc.path} onchange={(e) => goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each mine as d (d.path)}<option value={d.path}>{d.path.split('/').pop()}{waiting(d.path) ? ` · ${waiting(d.path)}` : ''}</option>{/each}</select>{:else}<strong>{file}</strong>{/if}
+		</p>
+		{#if !lists.length && !y.never.length}<Empty text={`Every block of ${file} is accepted.`} testid="review-empty" />{/if}
+		{#if y.changed.length}{@render group('changed', 'Changed', y.changed, y.changed.length <= OPEN)}{/if}
+		{#each y.taken as t (t.label)}{@render group('taken', t.label, t.rows, true)}{/each}
+		{#if y.never.length}{@render group('never', 'Never accepted', y.never, false)}{/if}
+		{#if y.accepted.length}
+			<details class="group" data-testid="review-group" data-group="accepted">
+				<summary><span class="title">Accepted</span> <span class="count" data-testid="review-group-count">{y.accepted.length}</span></summary>
+				<ul>
+					{#each y.accepted as k (k.key)}
+						<li class="block" id={`review-${anchorId(k.key)}`} data-testid="review-row" data-key={k.key}>
+							<div class="line">
+								<a class="name" href={readUrl(doc.path, k.key)}>{name(k.key)}</a>
+								<Badge parts={reviewRowBadge(m, k)} />
+								{#if k.acceptance}<span class="of">by {k.acceptance.author}, {shortDate(k.acceptance.date)}</span>{/if}
+							</div>
+						</li>
+					{/each}
+				</ul>
+			</details>
+		{/if}
+	{/if}
+
+	<h2 class="part">Changes to keep</h2>
 	<section class="changes" data-testid="your-change-list">
 		{#each groups as g (g.path)}
 			{@const says = allSays(g.changes.filter(ready))}
@@ -257,36 +290,6 @@
 			{#if !todoCount}<p class="muted" data-testid="todo-none">No open annotations from others.</p>{/if}
 		{/if}
 	</section>
-
-	<h2 class="part">Waiting to be accepted</h2>
-	{#if !reviewer}<p class="muted" data-testid="review-no-reviewer">Choose your reviewer name in Settings to accept.</p>
-	{:else if !served}<p class="muted" data-testid="review-read-only">This copy of the quilt only reads; accepting needs the quilt served for writing.</p>{/if}
-	{#if !mine.length}<NoDrafts what="blocks to review" />
-	{:else if y && doc}
-		<p class="pick">
-			{#if mine.length > 1}<select aria-label="Document" data-testid="review-document" value={doc.path} onchange={(e) => goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each mine as d (d.path)}<option value={d.path}>{d.path.split('/').pop()}{waiting(d.path) ? ` · ${waiting(d.path)}` : ''}</option>{/each}</select>{:else}<strong>{file}</strong>{/if}
-		</p>
-		{#if !lists.length && !y.never.length}<Empty text={`Every block of ${file} is accepted.`} testid="review-empty" />{/if}
-		{#if y.changed.length}{@render group('changed', 'Changed', y.changed, y.changed.length <= OPEN)}{/if}
-		{#each y.taken as t (t.label)}{@render group('taken', t.label, t.rows, true)}{/each}
-		{#if y.never.length}{@render group('never', 'Never accepted', y.never, false)}{/if}
-		{#if y.accepted.length}
-			<details class="group" data-testid="review-group" data-group="accepted">
-				<summary><span class="title">Accepted</span> <span class="count" data-testid="review-group-count">{y.accepted.length}</span></summary>
-				<ul>
-					{#each y.accepted as k (k.key)}
-						<li class="block" id={`review-${anchorId(k.key)}`} data-testid="review-row" data-key={k.key}>
-							<div class="line">
-								<a class="name" href={readUrl(doc.path, k.key)}>{name(k.key)}</a>
-								<Badge parts={reviewRowBadge(m, k)} />
-								{#if k.acceptance}<span class="of">by {k.acceptance.author}, {shortDate(k.acceptance.date)}</span>{/if}
-							</div>
-						</li>
-					{/each}
-				</ul>
-			</details>
-		{/if}
-	{/if}
 </main>
 
 <style>
@@ -307,6 +310,7 @@
 	.cgroup {
 		display: grid;
 		gap: 8px;
+		min-width: 0;
 	}
 	.chead {
 		display: flex;
@@ -325,6 +329,7 @@
 	.cards {
 		display: grid;
 		gap: 8px;
+		min-width: 0;
 	}
 	.todo {
 		list-style: none;

@@ -15,7 +15,7 @@ const change = (over: Partial<PendingChange>): PendingChange => ({ id: 'c-0001',
 const live = { annotations: {}, annotation_types: [], reviewer: { name: 'me', source: '' }, masters: [], changes: [] as PendingChange[] };
 vi.mock('$lib/manifest/client.svelte', () => ({ store: { manifest: live, refresh: async () => {} } }));
 
-const { actSays, allSays, authorOf, byDocument, changeById, changesIn, IN_THE_FILE, kindName, pending, refusal, summary, whoMade } = await import('./changes');
+const { actSays, allSays, authorOf, byDocument, changeById, changesIn, IN_THE_FILE, kindName, pending, ready, refusal, summary, whoMade } = await import('./changes');
 const { acted, mark, prune } = await import('./acted.svelte');
 const { Annotating, entries } = await import('./annotating.svelte');
 const { discardChanges, history, keepChanges, undo, redo } = await import('./history.svelte');
@@ -66,6 +66,9 @@ describe('the pending changes the manifest lists', () => {
 		expect(refusal(change({ state: 'unplaced', why: 'an earlier suggestion overlaps it' }))).toBe('an earlier suggestion overlaps it');
 		expect(refusal(change({ state: 'on-a-copy' }))).toMatch(/agent's copy/);
 		expect(refusal(change({ state: 'taken' }))).toMatch(/already reads/);
+		// a suggestion the text already reads as is kept to record it, or discarded
+		expect(ready(change({ state: 'taken' }))).toBe(true);
+		expect(ready(change({ state: 'unplaced' }))).toBe(false);
 	});
 
 	it('says what Keep and Discard do, one and all', () => {

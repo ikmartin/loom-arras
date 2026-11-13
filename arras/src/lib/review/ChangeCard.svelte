@@ -1,5 +1,5 @@
 <script lang="ts">
-	// One pending change as a card: what it is and who made it, its words out and in (struck and underlined in teal), what a suggestion's writer says of it and the annotation it answers, why it cannot be kept or discarded where it cannot, and Keep and Discard, which act as its popup's do (`history.svelte.ts`). In the list beside a text a click opens it at its words; in Review it names where it is and links there.
+	// One pending change as a card: what it is and who made it, its words out and in (struck and underlined in teal; new words that hold an environment or a paragraph break as TeX made them, `new_html`), what a suggestion's writer says of it and the annotation it answers, why it cannot be kept or discarded where it cannot, and Keep and Discard, which act as its popup's do (`history.svelte.ts`). In the list beside a text a click opens it at its words; in Review it names where it is and links there.
 	import Icon from '$lib/components/Icon.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
@@ -33,6 +33,8 @@
 	const why = $derived(refusal(c));
 	const answers = $derived(c.answers ? m?.annotations[c.answers] : undefined);
 	const who = $derived(whoMade(m, c));
+	// a passage, not a few words: shown as TeX made it, since raw LaTeX environments read as nothing but source
+	const made = $derived(!!c.new_html && /\\begin\{|\n\s*\n/.test(c.new));
 
 	let allowed = $state({ keep: false, discard: false });
 	$effect(() => {
@@ -74,7 +76,8 @@
 	<div class="dx" data-testid="change-words">
 		{#if c.old}<span class="del"><TexProse text={c.old} /></span>{/if}
 		{#if c.old && c.new}{' '}{/if}
-		{#if c.new}<span class="ins"><TexProse text={c.new} /></span>{/if}
+		{#if made}<div class="ins made" data-testid="change-new-made"><Prose html={c.new_html ?? ''} /></div>
+		{:else if c.new}<span class="ins"><TexProse text={c.new} /></span>{/if}
 	</div>
 	{#if c.comment_html}<div class="ct"><Prose html={c.comment_html} /></div>{/if}
 	{#if answers && m}<div class="ct none" data-testid="change-card-answers">It answers <a href={placeUrl(m, answers.target.key, answers.id, answers.in)} onclick={(e) => e.stopPropagation()}>{linkName(m, `quilt:${answers.id}`)}</a>.</div>{/if}
@@ -89,6 +92,7 @@
 	.ccard {
 		display: grid;
 		gap: 6px;
+		min-width: 0;
 		padding: 9px 10px;
 		font-family: var(--sans);
 		font-size: 12.5px;
@@ -137,7 +141,11 @@
 		font-family: var(--mono);
 		font-size: 11.5px;
 	}
+	/* a long change scrolls within its card, and a formula wider than the card scrolls sideways there, since typeset math never wraps */
 	.dx {
+		min-width: 0;
+		max-height: 14em;
+		overflow: auto;
 		font-family: var(--body-face);
 		font-size: 13.5px;
 		line-height: 1.45;
@@ -151,6 +159,16 @@
 		color: var(--change);
 		text-decoration: underline;
 		text-underline-offset: 3px;
+	}
+	.ins.made {
+		margin-top: 4px;
+		padding-left: 8px;
+		color: var(--ink);
+		text-decoration: none;
+		border-left: 2px solid var(--change);
+	}
+	.made :global(p) {
+		margin: 0.3em 0;
 	}
 	.ct {
 		line-height: 1.45;

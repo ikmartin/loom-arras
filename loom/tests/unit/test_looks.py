@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from tests.helpers import json_of, ok, refused, run
-from tests.unit._quilts import demo
+from tests.unit._quilts import demo, track_edits
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def q(tmp_path: Path) -> Path:
     from loom.scan.quilt import save_author
 
     save_author("Tester")
-    root = demo(tmp_path)
+    root = track_edits(demo(tmp_path))
     (root / "notes").mkdir()
     (root / "notes" / "a.md").write_text("# A\n\nfirst\n", encoding="utf-8")
     (root / "notes" / "fig.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00")
@@ -128,3 +128,73 @@ def test_accepting_keeps_only_the_changes_that_touch_nothing_else(q: Path) -> No
     assert keep_accepted(result, "Tester", ["some-other-key"]) == []
     assert keep_accepted(result, "Tester", [key]) == [NODE]
     assert changes(q) == {"notes/a.md": "second"}
+
+
+def test_without_tracking_no_edit_in_place_waits_and_no_look_is_taken(q: Path) -> None:
+    """Off, the default: Keep all takes no look, an edit in place is no change, and the manifest says nothing of a look; a suggested edit still waits."""
+    from loom.looks import read_look
+
+    track_edits(q, on=False)
+    ok("changes", "--keep-all", cwd=q)
+    assert read_look(q, "Tester") is None
+    (q / "notes/a.md").write_text("# A\n\nsecond\n", encoding="utf-8")
+    listed = json_of("changes", "--json", cwd=q)
+    assert changes(q) == {} and listed["look"] is None
+    assert "not tracked" in ok("changes", cwd=q).stdout
+    run("build", cwd=q)
+    m = json.loads((q / ".loom/build/manifest.json").read_text())
+    assert "changes_since" not in m and m["config"]["review"] == {"track_edits": False}
+    assert not [c for c in m["changes"] if c["kind"] == "edit"]
+
+
+def test_serve_takes_a_first_look_only_where_edits_are_tracked(q: Path) -> None:
+    from loom.looks import read_look
+    from loom.render.serve import ServeSession
+    from loom.scan.quilt import load_quilt
+
+    track_edits(q, on=False)
+    ServeSession(load_quilt(q), q, port=0, compile_masters=False).first_look()
+    assert read_look(q, "Tester") is None
+    track_edits(q)
+    ServeSession(load_quilt(q), q, port=0, compile_masters=False).first_look()
+    assert read_look(q, "Tester") is not None
+
+
+def test_latexs_auxiliary_files_are_in_no_look_and_an_old_look_holding_one_reports_nothing(q: Path) -> None:
+    """What a compile writes beside its document, as an editor compiling in place leaves it, is neither in the look nor a change; a look taken before they were left out does not report one as gone."""
+    from loom.looks import _write, read_look
+
+    for name in ("main.aux", "main.log", "main.fls", "main.fdb_latexmk"):
+        (q / "drafting" / name).write_text("written by a compile\n", encoding="utf-8")
+    ok("changes", "--keep-all", cwd=q)
+    look = read_look(q, "Tester")
+    assert look is not None and not [
+        p for p in look.files if p.startswith("drafting/main.") and p != "drafting/main.tex"
+    ]
+    (q / "drafting/main.log").write_text("written again\n", encoding="utf-8")
+    look.files["drafting/main.aux"] = look.files["notes/a.md"]
+    _write(q, look)
+    (q / "drafting/main.aux").unlink()
+    assert changes(q) == {}
+
+
+def test_turning_tracking_on_in_settings_takes_the_look_then(q: Path) -> None:
+    from loom.looks import read_look
+    from loom.render.api import handle
+
+    track_edits(q, on=False)
+    said = handle(q, "settings-save", {"changes": {"review.track_edits": True}, "author": "Tester"})["result"]
+    assert "took your look" in said and read_look(q, "Tester") is not None
+    (q / "notes/a.md").write_text("# A\n\nsecond\n", encoding="utf-8")
+    assert changes(q) == {"notes/a.md": "second"}
+    # saved again while on, the look stands, and the edit with it
+    handle(q, "settings-save", {"changes": {"review.track_edits": True}, "author": "Tester"})
+    assert changes(q) == {"notes/a.md": "second"}
+
+
+def test_a_track_edits_that_is_not_a_boolean_is_off_and_warned_of() -> None:
+    from loom.scan.quilt import QuiltConfig
+
+    cfg = QuiltConfig.from_dict({"quilt": {"name": "x"}, "review": {"track_edits": "yes"}})
+    assert cfg.track_edits is False and any("review.track_edits" in w for w in cfg.warnings)
+    assert QuiltConfig.from_dict({"quilt": {"name": "x"}, "review": {"track_edits": True}}).track_edits is True

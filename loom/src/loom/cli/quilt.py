@@ -37,6 +37,9 @@ disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched
 [agents]
 # where an agent may not write, gitignore-style from the quilt root, e.g. ["paper/"]; .loom/, config.toml and the research state are always protected
 deny = []
+
+[review]
+track_edits = false         # list every edit to an open file since your look in Your Changes, to keep or undo; for agents that edit your files in place
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.

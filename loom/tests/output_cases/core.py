@@ -28,8 +28,10 @@ def stale(q: Path) -> None:
 def looked(q: Path) -> None:
     """A look by the author, then an edit to an open file, so `changes` has one to show."""
     from tests.helpers import ok
+    from tests.unit._quilts import track_edits
 
     author(q)
+    track_edits(q)
     ok("changes", "--keep-all", cwd=q)
     (q / "README.md").write_text("an edit since the look\n", encoding="utf-8")
 

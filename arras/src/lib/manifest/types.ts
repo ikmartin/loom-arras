@@ -708,6 +708,8 @@ export interface QuiltSettings {
     command: string;
     clients: AgentClient[];
   };
+  /** `track_edits`: whether edits in place since the person's look wait in Your Changes, beside suggestions. */
+  review?: { track_edits: boolean };
   sync: { paired: true; directory: string; workspace: string; branch: string; documents: string[] } | { paired: false; command: string };
   warnings: string[];
 }

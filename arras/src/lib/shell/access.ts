@@ -54,10 +54,10 @@ export function explain(a: Access, at: { dir?: boolean; kind?: string; copyOf?: 
 		return { title: 'You and agents edit this copy', body: `An agent's copy of ${of}. What you take from it comes back to ${of} through Review › Proposed Changes.` };
 	}
 	if (a.agents) {
-		if (at.dir) return { title: 'You and agents edit what is in here', body: 'An agent may change any file in this folder. Review › Your Changes shows what changed in a text file since you last looked, to keep or undo.' };
+		if (at.dir) return { title: 'You and agents edit what is in here', body: 'An agent may change any file in this folder. With Review edits made in place on, in Settings › Agents, Review › Your Changes lists what changed in a text file since you last looked, to keep or undo.' };
 		return {
 			title: 'You and agents edit this',
-			body: TEXT.has(at.kind ?? '') ? 'An agent may change this file. Review › Your Changes shows what changed since you last looked, to keep or undo.' : 'An agent may change or replace this file.'
+			body: TEXT.has(at.kind ?? '') ? 'An agent may change this file. With Review edits made in place on, in Settings › Agents, Review › Your Changes lists what changed since you last looked, to keep or undo.' : 'An agent may change or replace this file.'
 		};
 	}
 	const title = at.dir ? 'Only you edit what is in here' : 'Only you edit this';
