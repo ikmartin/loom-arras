@@ -245,12 +245,12 @@ def _blocks(result: ScanResult, path: str, a: int, b: int) -> tuple[str | None, 
 def suggested(result: ScanResult) -> list[Pending]:
     """The open suggested edits, each placed in its key's text now with its state: `ready` to keep, `taken` when its key reads as it taken already, `unplaced` when its words no longer stand once (or a suggested edit before it is on them), `on-a-copy` when none of the person's documents reads its key."""
     from loom.history.acts import documents_reaching
-    from loom.records.edits import Placed, compose, is_taken, node_of, replay
+    from loom.records.edits import Placed, compose, home, replay, taken_how
 
     out: list[Pending] = []
     edits = [e for e in replay(result.quilt.root)[0] if e.status == "open"]
     for edit, placed in compose(result, edits):
-        node = node_of(result, edit.target_key)
+        node = home(result, edit)
         p = Pending(
             id=edit.id,
             kind="suggested",
@@ -283,8 +283,13 @@ def suggested(result: ScanResult) -> list[Pending]:
                 if copy
                 else "It is on a block none of your documents reads"
             )
-        elif is_taken(result, edit):
-            p.state, p.why = "taken", "Its block reads as it taken already; keeping it records it kept"
+        elif (how := taken_how(result, edit)) is not None:
+            p.state = "taken"
+            p.why = (
+                "Its text is in its block already, edited since; keeping it records it kept and writes nothing"
+                if how == "edited"
+                else "Its block reads as it taken already; keeping it records it kept"
+            )
         elif not isinstance(placed, Placed):
             p.state, p.why = "unplaced", str(placed)
         out.append(p)
@@ -632,10 +637,10 @@ def _where_taken(result: ScanResult, edit: Edit) -> list[tuple[int, int]]:
 
     Looked for in the key's whole text, as `is_taken` does: new text that opens a section is the key's child once it is in.
     """
-    from loom.records.edits import node_of
+    from loom.records.edits import home
     from loom.records.selectors import find_quote
 
-    node = node_of(result, edit.target_key)
+    node = home(result, edit)
     if node is None or node.file not in result.files or not edit.with_text.strip():
         return []
     whole = result.files[node.file].text[node.start : node.end]

@@ -7,6 +7,7 @@ An edit names its key, the words it replaces as a selector (`anchor`; None means
 
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from dataclasses import dataclass, field
@@ -189,6 +190,38 @@ def node_of(result: ScanResult, key: str) -> NodeRec | None:
     return node
 
 
+#: The scan the block hashes below were taken of, and each key's hash; one scan at a time, held as one tuple so that a thread reading it never mixes two scans.
+_HASHES: tuple[ScanResult, dict[str, str]] | None = None
+
+
+def _hash_of(result: ScanResult, key: str) -> str:
+    """A block's hash as `against` records it (`key_hash`), remembered for the scan it was read from."""
+    global _HASHES
+    from loom.render.manifest import key_hash
+
+    held = _HASHES
+    if held is None or held[0] is not result:
+        held = _HASHES = (result, {})
+    known = held[1].get(key)
+    if known is None:
+        known = held[1][key] = key_hash(result, key)
+    return known
+
+
+def home(result: ScanResult, edit: Edit) -> NodeRec | None:
+    """The block `edit` is on now: the key it names, unless that key no longer holds the text the edit was written against and exactly one other block of the same file does.
+
+    A key named by its place in its file, as `#proof:3`, names another block once a block is put in before it: keeping an edit that adds a proof renumbers every proof after it. The edit goes with the text it was written against, wherever that now stands; None when its key is gone and no block of its file holds that text.
+    """
+    node = node_of(result, edit.target_key)
+    want = edit.target_hash
+    if not want or (node is not None and node.key in result.nodes and _hash_of(result, node.key) == want):
+        return node
+    path = node.file if node is not None else edit.target_key.split("#", 1)[0]
+    same = [n for n in result.nodes.values() if n.file == path and n is not node and _hash_of(result, n.key) == want]
+    return same[0] if len(same) == 1 else node
+
+
 def _balanced(text: str, at: int, opening: str, closing: str) -> int:
     """The index after the group `opening`…`closing` that opens at `at`, braces inside it kept whole; `at` itself when none opens there."""
     if at >= len(text) or text[at] != opening:
@@ -265,7 +298,7 @@ def place(result: ScanResult, edit: Edit) -> Placed:
     """
     from loom.render.manifest import key_hash
 
-    node = node_of(result, edit.target_key)
+    node = home(result, edit)
     if node is None or node.file not in result.files:
         raise Unplaced(f"{edit.target_key}, which {edit.id} is on, is no longer in the quilt")
     own, pieces = Records.own_pieces(result, node)
@@ -375,23 +408,44 @@ def _words(text: str) -> re.Pattern[str]:
     return re.compile(r"\s+".join(re.escape(w) for w in text.split()))
 
 
-def is_taken(result: ScanResult, edit: Edit) -> bool:
-    """Whether the key's text now reads as the edit taken.
+#: The share of a new text's words that must stand in order for it to read as written in and edited since, and the fewest words that judgement is made on: a shorter text must stand as it is.
+WRITTEN_SHARE = 0.9
+WRITTEN_WORDS = 20
 
-    The new text is looked for in the key's whole text, its children's included, since text that opens a section or an environment is read as the key's child once it is in. A replacement is taken when its text stands and its quote no longer does in the key's own text outside it; an insertion when its text stands; a deletion when its quote is gone from the own text. Whitespace is compared normalised, as a quote is.
+
+def _written_since(edit: Edit, whole: str) -> bool:
+    """Whether most of the edit's new text stands in `whole`, its words in order with others between: written in, then edited.
+
+    A text the person took in and then worked inside no longer stands as it was suggested, and writing it again would put in a second copy.
     """
-    node = node_of(result, edit.target_key)
-    if node is None or node.file not in result.files:
+    new = edit.with_text.split()
+    if len(new) < WRITTEN_WORDS:
         return False
+    matcher = difflib.SequenceMatcher(None, new, whole.split(), autojunk=False)
+    return sum(b.size for b in matcher.get_matching_blocks()) >= WRITTEN_SHARE * len(new)
+
+
+def taken_how(result: ScanResult, edit: Edit) -> str | None:
+    """How the block's text now reads as the edit taken: `as-written` when its new text stands, `edited` when most of it does with the person's words between, None when it is not taken.
+
+    The new text is looked for in the block's whole text, its children's included, since text that opens a section or an environment is read as the block's child once it is in. A replacement is taken when its text stands and its quote no longer does in the block's own text outside it, or, edited, when its quote is gone from the own text; an insertion when its text stands; a deletion when its quote is gone from the own text. Whitespace is compared normalised, as a quote is.
+    """
+    node = home(result, edit)
+    if node is None or node.file not in result.files:
+        return None
     text = result.files[node.file].text
     quote = _flat(edit.selector.exact) if edit.selector else ""
     if not edit.with_text.strip():
-        return bool(quote) and quote not in _flat(Records.own_pieces(result, node)[0])
+        return "as-written" if quote and quote not in _flat(Records.own_pieces(result, node)[0]) else None
     holes = [m.span() for m in _words(edit.with_text).finditer(text, node.start, node.end)]
     if not holes:
-        return False
+        if not _written_since(edit, text[node.start : node.end]):
+            return None
+        if edit.placement == "replace" and quote and quote in _flat(Records.own_pieces(result, node)[0]):
+            return None
+        return "edited"
     if edit.placement != "replace" or not quote:
-        return True
+        return "as-written"
 
     def blanked(a: int, b: int) -> str:
         piece = text[a:b]
@@ -401,7 +455,12 @@ def is_taken(result: ScanResult, edit: Edit) -> bool:
                 piece = piece[: lo - a] + "\0" * (hi - lo) + piece[hi - a :]
         return piece
 
-    return quote not in _flat("".join(blanked(a, b) for a, b in node.own))
+    return "as-written" if quote not in _flat("".join(blanked(a, b) for a, b in node.own)) else None
+
+
+def is_taken(result: ScanResult, edit: Edit) -> bool:
+    """Whether the block's text now reads as the edit taken, as written or edited since (`taken_how`)."""
+    return taken_how(result, edit) is not None
 
 
 # ---- what the person does with one ----------------------------------------------------------------------------------
@@ -427,7 +486,7 @@ def apply(result: ScanResult, edit: Edit, actor: str | None) -> tuple[list[str],
 
     if edit.status != "open":
         raise EditRefused("not-open", f"It is {edit.status} already")
-    node = node_of(result, edit.target_key)
+    node = home(result, edit)
     if node is not None and not any(result.document_role(d) == "person" for d in node.reached_by):
         copy = next((d for d in node.reached_by if result.document_role(d) == "agent"), None)
         raise EditRefused(
@@ -468,7 +527,7 @@ def keep(result: ScanResult, edit: Edit, writer: tuple[str, str], *, written: bo
             f"{edit.target_key} does not yet read as {edit.id} taken; `loom changes {edit.id}` prints the patch that takes it",
         )
     akind, aid = writer
-    node = node_of(result, edit.target_key)
+    node = home(result, edit)
     when = stamp()
     append(
         result.quilt.root,
