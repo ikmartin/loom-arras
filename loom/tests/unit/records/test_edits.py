@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from loom.records.edits import Edit, Unplaced, body_span, find, is_taken, patch, place, replay
+from loom.records.edits import Edit, Unplaced, body_span, find, is_taken, patch, place, replay, taken_how
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from tests.helpers import copy, edit, exits, flat, json_of, ok, refused, run
@@ -376,6 +376,66 @@ def test_new_text_that_opens_a_section_is_kept_once_and_never_written_twice(tmp_
         handle(q, "change-keep", {"changes": [a], "author": "Tom"})
     assert again.value.code == "no-such-change"
     assert main.read_text().count("A word before the setup.") == 1
+
+
+def test_text_written_in_and_edited_since_reads_as_taken_and_keep_writes_nothing(tmp_path: Path) -> None:
+    """A suggested edit whose text is in the file already, with the person's words worked into it, is not written a second time by Keep: in quant, keeping one such pasted a whole homework body again."""
+    q = demo(tmp_path)
+    main = q / "drafting/main.tex"
+    added = (
+        "\\section*{Preface}\nThese notes collect what is known about widgets, what each lemma rests on,"
+        " and which questions stay open for a reader to settle on a later pass through the text."
+    )
+    a = suggest(q, "--quote", "\\maketitle", "--with", added, "--after", key="drafting/main.tex")
+    assert taken_how(*placed(q, a)) is None
+    # written in by hand, then worked inside
+    worked = added.replace("what each lemma rests on,", "what each lemma rests on, with a sketch of each proof,")
+    edit(main, "\\maketitle", "\\maketitle\n" + worked)
+    assert taken_how(*placed(q, a)) == "edited"
+    ok("changes", "--keep", a, cwd=q)
+    assert main.read_text().count("These notes collect") == 1
+    assert placed(q, a)[1].status == "kept"
+    # a short text must stand as it was suggested, and a replacement whose words still stand is not taken
+    short = suggest(q, "--quote", "Every orbit", "--with", "Plainly, for a finite widget,", "--before")
+    edit(q / LEMMA, "Every orbit", "Plainly, for every finite widget, Every orbit")
+    assert taken_how(*placed(q, short)) is None
+    longer = "one or two points, never more, as the counting of orbits below shows for every widget and every finite group that acts on it"
+    rep = suggest(q, "--quote", "one or two points", "--with", longer)
+    edit(
+        q / LEMMA,
+        "one or two points",
+        "one or two points, never more, as counting orbits below shows for every widget and every finite group acting on it",
+    )
+    assert taken_how(*placed(q, rep)) is None
+
+
+def test_an_edit_goes_with_its_block_when_a_block_put_in_before_it_renumbers_the_keys(tmp_path: Path) -> None:
+    """A key named by its place in its file (`#section:2`) names another block once a block is put in before it; the edit goes with the text it was written against, and is unplaced only when no block holds that text."""
+    q = demo(tmp_path)
+    outline = q / "drafting/outline.tex"
+    a = suggest(
+        q,
+        "--quote",
+        "Neither of these is proved.",
+        "--with",
+        "Neither of these is proved yet.",
+        key="drafting/outline.tex#section:2",
+    )
+    b = suggest(q, "--quote", "These are settled", "--with", "These are proved", key="drafting/outline.tex#section:1")
+    edit(
+        outline,
+        "\\section{What the paper rests on}",
+        "\\section{Notation}\nA word on notation.\n\n\\section{What the paper rests on}",
+    )
+    assert place(*placed(q, a)).key == "drafting/outline.tex#section:3"
+    assert place(*placed(q, b)).key == "drafting/outline.tex#section:2"
+    ok("changes", "--keep", a, cwd=q)
+    text = outline.read_text()
+    assert text.count("Neither of these is proved yet.") == 1 and "A word on notation." in text
+    # its block edited as well as moved: no block holds the text it was written against, and its key names another
+    edit(outline, "already in the paper", "in the paper")
+    with pytest.raises(Unplaced, match="no longer stands in drafting/outline.tex#section:1"):
+        place(*placed(q, b))
 
 
 def test_a_replacement_that_keeps_its_quote_and_opens_a_section_reads_as_taken(tmp_path: Path) -> None:
