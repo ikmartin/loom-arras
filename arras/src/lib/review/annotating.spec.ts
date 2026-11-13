@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Annotation, Manifest } from '$lib/manifest/types';
-import { authors, changedFrom, earlier, handPayload, hintFor, typesPayload, isTodo, lookOf, notesIn, passes, plain, quoted, retype, sequence, UNTYPED, withLook, withType } from './annotating.svelte';
+import { authors, changedFrom, commentSeed, earlier, handPayload, hintFor, keepLook, typesPayload, isTodo, lookOf, notesHere, notesOf, passes, plain, PLAIN, quoted, retype, sequence, takeSeed, withLook, withType } from './annotating.svelte';
 
 const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
 const RED = { color: 'red', style: 'highlight' as const, weight: 2, opacity: 65 };
@@ -13,7 +13,7 @@ function row(over: Partial<Annotation> & { id: string }): Annotation {
 		created: '2026-11-12',
 		target: { key: 'sy-0001', hash: 'sha256:x' },
 		type: null,
-		look: { ...UNTYPED },
+		look: { ...PLAIN },
 		body_html: '',
 		status: 'open',
 		in_reply_to: null,
@@ -24,35 +24,49 @@ function row(over: Partial<Annotation> & { id: string }): Annotation {
 }
 
 describe('the look in hand', () => {
-	it('is its type’s look under what is set over it, or the untyped look when it has no type', () => {
-		expect(lookOf(fixture, { type: 'revision', over: {} })).toEqual(RED);
-		expect(lookOf(fixture, { type: 'revision', over: { color: 'blue' } })).toEqual({ ...RED, color: 'blue' });
-		expect(lookOf(fixture, { type: null, over: {} })).toEqual(UNTYPED);
-		// a type the quilt no longer has draws as no type would
-		expect(lookOf(fixture, { type: 'gone', over: { style: 'strike' } })).toEqual({ ...UNTYPED, style: 'strike' });
+	const held = (type: string | null, over = {}, plain = {}) => ({ type, over, plain });
+
+	it('is its type’s look under what is set over it, or with Plain the quilt’s plain look under what is set over that', () => {
+		expect(lookOf(fixture, held('revision'))).toEqual(RED);
+		expect(lookOf(fixture, held('revision', { color: 'blue' }))).toEqual({ ...RED, color: 'blue' });
+		expect(lookOf(fixture, held(null))).toEqual(PLAIN);
+		expect(lookOf(fixture, held(null, {}, { color: 'green' }))).toEqual({ ...PLAIN, color: 'green' });
+		// the quilt's own plain look, where it sets one
+		expect(lookOf({ ...fixture, annotation_plain: RED }, held(null))).toEqual(RED);
+		// a type the quilt no longer has draws as Plain
+		expect(lookOf(fixture, held('gone', {}, { style: 'strike' }))).toEqual({ ...PLAIN, style: 'strike' });
 	});
 
-	it('keeps a field set over a type only where it differs from the type, so a hand that matches its type follows it', () => {
-		const h = withLook(fixture, { type: 'revision', over: { color: 'blue' } }, { color: 'red' });
+	it('keeps a field set only where it differs from the look under it, so a hand that matches its type, or the plain look, follows it', () => {
+		const h = withLook(fixture, held('revision', { color: 'blue' }), { color: 'red' });
 		expect(h.over).toEqual({});
 		expect(withLook(fixture, h, { weight: 4 }).over).toEqual({ weight: 4 });
+		const p = withLook(fixture, held(null), { color: 'green' });
+		expect(p).toEqual(held(null, {}, { color: 'green' }));
+		expect(withLook(fixture, p, { color: PLAIN.color }).plain).toEqual({});
 	});
 
-	it('takes a type’s own look with the type, and keeps the look whole when the type is taken off', () => {
-		expect(withType(fixture, { type: null, over: { color: 'green' } }, 'question')).toEqual({ type: 'question', over: {} });
-		expect(withType(fixture, { type: 'revision', over: { weight: 3 } }, null)).toEqual({ type: null, over: { ...RED, weight: 3 } });
+	it('takes a type’s own look with the type, and Plain’s own look with Plain, whatever was held between', () => {
+		const p = held(null, {}, { color: 'green' });
+		const q = withType(fixture, p, 'question');
+		expect(q).toEqual(held('question', {}, { color: 'green' }));
+		expect(lookOf(fixture, q).color).toBe('blue');
+		const back = withType(fixture, withLook(fixture, q, { weight: 3 }), null);
+		expect(lookOf(fixture, back)).toEqual({ ...PLAIN, color: 'green' });
 	});
 
-	it('writes its type and only the look it sets; with no type, the whole look', () => {
-		expect(handPayload(fixture, { type: 'revision', over: {} })).toEqual({ type: 'revision' });
-		expect(handPayload(fixture, { type: 'revision', over: { opacity: 40 } })).toEqual({ type: 'revision', look: { opacity: 40 } });
-		expect(handPayload(fixture, { type: null, over: { color: 'yellow' } })).toEqual({ look: { ...UNTYPED, color: 'yellow' } });
+	it('writes its type and only the look it sets, so what it leaves follows the type or the plain look', () => {
+		expect(handPayload(fixture, held('revision'))).toEqual({ type: 'revision' });
+		expect(handPayload(fixture, held('revision', { opacity: 40 }))).toEqual({ type: 'revision', look: { opacity: 40 } });
+		expect(handPayload(fixture, held(null))).toEqual({});
+		expect(handPayload(fixture, held(null, {}, { color: 'green' }))).toEqual({ look: { color: 'green' } });
 	});
 
-	it('gives an annotation a type by dropping its own look, so it follows the type, and keeps its look when the type is taken off', () => {
-		const a = row({ id: 'x', look: { ...UNTYPED, color: 'pink' } });
-		expect(retype(fixture, a, 'question')).toEqual({ type: 'question', look: null });
-		expect(retype(fixture, a, null)).toEqual({ type: null, look: a.look });
+	it('gives an annotation a type, or Plain, by dropping its own look; keeping the look is a choice of its own', () => {
+		const a = row({ id: 'x', type: 'question', look: { ...PLAIN, color: 'pink' } });
+		expect(retype(fixture, a, 'revision')).toEqual({ type: 'revision', look: null });
+		expect(retype(fixture, a, null)).toEqual({ type: null, look: null });
+		expect(keepLook(a)).toEqual({ type: null, look: a.look });
 	});
 
 	it('says what an annotation’s look was changed from only while its type is the quilt’s and the look differs', () => {
@@ -69,12 +83,23 @@ describe('the look in hand', () => {
 		expect(saved[0]).toMatchObject({ color: 'red', opacity: 65 });
 	});
 
-	it('hints what the tool in hand does, and what can be done to the annotation open', () => {
-		expect(hintFor(fixture, { tool: 'annotate', open: null }, { type: 'question', over: {} })).toBe('Annotate is on. Select text to mark it as Question. Number keys switch type, 0 for none. Esc stops.');
-		expect(hintFor(fixture, { tool: 'annotate', open: null }, { type: null, over: {} })).toContain('Select text to mark it.');
-		expect(hintFor(fixture, { tool: 'comment', open: null }, { type: null, over: {} })).toContain('Click where the comment should go');
-		expect(hintFor(fixture, { tool: null, open: 'a' }, { type: null, over: {} })).toContain('Delete removes it');
-		expect(hintFor(fixture, { tool: null, open: null }, { type: null, over: {} })).toBe('');
+	it('hints what the tool in hand does, what a draft still needs, and what can be done to the annotation open', () => {
+		expect(hintFor(fixture, { tool: 'annotate', open: null }, held('question'))).toBe('Annotate is on. Select text to mark it as Question. Number keys switch type, 0 for Plain. Esc stops.');
+		expect(hintFor(fixture, { tool: 'annotate', open: null }, held(null))).toContain('Select text to mark it in the plain look.');
+		expect(hintFor(fixture, { tool: 'annotate', open: null, marked: 'a' }, held(null))).toBe('Marked. Start typing to add a comment, or select more text.');
+		expect(hintFor(fixture, { tool: 'annotate', open: null, drafting: 'annotate' }, held('question'))).toBe('Not saved yet: write the comment, then press Annotate. Esc discards it.');
+		expect(hintFor(fixture, { tool: null, open: null, drafting: 'comment' }, held(null))).toContain('then press Comment');
+		expect(hintFor(fixture, { tool: 'comment', open: null }, held(null))).toContain('Click where the comment should go');
+		expect(hintFor(fixture, { tool: null, open: 'a' }, held(null))).toContain('Delete removes it');
+		expect(hintFor(fixture, { tool: null, open: null }, held(null))).toBe('');
+	});
+
+	it('hands the keys typed at a mark to that annotation’s popup once, and to no other', () => {
+		commentSeed.id = 'a';
+		commentSeed.text = 'Hel';
+		expect(takeSeed('b')).toBeNull();
+		expect(takeSeed('a')).toBe('Hel');
+		expect(takeSeed('a')).toBeNull();
 	});
 });
 
@@ -111,21 +136,19 @@ describe('the Comments list and To do', () => {
 });
 
 describe('the Notes list', () => {
-	it('holds the annotations whose type is listed in Notes, grouped by the document, work or PDF they are on', () => {
+	it('holds the annotations read here whose type is listed in Notes, in reading order, and the badge counts them', () => {
 		const m = structuredClone(fixture) as Manifest;
 		m.annotations = {
 			n1: row({ id: 'n1', type: 'note', target: { key: 'sy-0003', hash: '' } }),
-			n2: row({ id: 'n2', type: 'note', target: { key: 'drafting/figures/fig.pdf', hash: '', file: 'drafting/figures/fig.pdf', page: 1 } }),
-			n3: row({ id: 'n3', type: 'note', target: { key: 'sy-0003', hash: '' }, in: 'drafting/talk.tex' }),
+			n2: row({ id: 'n2', type: 'note', target: { key: 'sy-0003', hash: '' } }),
+			elsewhere: row({ id: 'elsewhere', type: 'note', target: { key: 'sy-0002', hash: '' }, in: 'drafting/talk.tex' }),
 			q: row({ id: 'q', type: 'question', target: { key: 'sy-0003', hash: '' } }),
 			r: row({ id: 'r', type: 'note', in_reply_to: 'n1' })
 		};
-		const groups = notesIn(m);
-		expect(groups.map((g) => [g.label, g.notes.map((a) => a.id)])).toEqual([
-			['main.tex', ['n1']],
-			['fig.pdf', ['n2']],
-			['talk.tex', ['n3']]
-		]);
+		// what is read here, in reading order: a note of another document never is
+		const here = { order: ['n2', 'q', 'n1', 'r'] };
+		expect(notesOf(m, here).map((a) => a.id)).toEqual(['n2', 'n1']);
+		expect(notesHere(m, here)).toBe(2);
 	});
 });
 

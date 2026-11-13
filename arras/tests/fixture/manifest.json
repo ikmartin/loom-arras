@@ -1,4 +1,10 @@
 {
+ "annotation_plain": {
+  "color": "yellow",
+  "opacity": 60,
+  "style": "highlight",
+  "weight": 2
+ },
  "annotation_types": [
   {
    "id": "revision",
@@ -407,10 +413,10 @@
    "in": null,
    "in_reply_to": "a-2026-09-16-ecnav2",
    "look": {
-    "color": "grey",
-    "opacity": 100,
-    "style": "underline",
-    "weight": 1
+    "color": "yellow",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
    },
    "mark": null,
    "on_changes": [],
@@ -452,10 +458,10 @@
    "in": null,
    "in_reply_to": "a-2026-09-16-hwtkaw",
    "look": {
-    "color": "grey",
-    "opacity": 100,
-    "style": "underline",
-    "weight": 1
+    "color": "yellow",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
    },
    "mark": null,
    "on_changes": [],
@@ -546,10 +552,10 @@
    "in": null,
    "in_reply_to": null,
    "look": {
-    "color": "grey",
-    "opacity": 100,
-    "style": "underline",
-    "weight": 1
+    "color": "yellow",
+    "opacity": 60,
+    "style": "highlight",
+    "weight": 2
    },
    "mark": "box",
    "on_changes": [],
@@ -585,7 +591,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "0678372d3cfc4c6d3fba56f252c8ebf171446fa9fe3c6a6f17b7784f3400d9d1",
+   "hash": "c7a9166657a38e42fdb54ff319d145f71ab18699cb775d94c32e457e1e50968e",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
@@ -600,7 +606,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "1283fca3e4053d300b339dfe89a1760b2aed00d7139b8c9db1b5762943957246",
+   "hash": "166be79934b7bb7af19e6725a7be60597fd113bf9e4d8ece3d047966116172b6",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
@@ -615,7 +621,7 @@
    "action": "stamp",
    "cannot_restore": "",
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "933c8d7c3a3065d81058b0fdfa18e95757854e224aac541fb562130898d143a8",
+   "hash": "b8dc2a0849af1b4037b16a5c43342b9beef9964b4c84113a6260c79b9769482c",
    "in": "drafting/main.tex",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",

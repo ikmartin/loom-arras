@@ -1,9 +1,8 @@
 <script lang="ts">
 	// Settings, a window over the page (plan 0.23): a left panel of sections in two groups, Loom and Quilt, and the open section's page, which says where its settings are kept. This browser's preferences apply at once; your name is saved through the publisher; the quilt's settings are a draft until Save, since config.toml is committed and shared. A viewer with no publisher shows the quilt's settings as published, and changes none. The development shelf (threads, tags, taxa, what is in no document) is at the panel's foot: scaffolding kept while building, not part of the interface a reader is meant to learn.
-	import { onMount } from 'svelte';
 	import Popover from '$lib/components/Popover.svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import { can } from '$lib/write';
+	import { can, capabilities } from '$lib/write';
 	import type { Index } from './views';
 	import { GROUPS, SECTION, SECTIONS, type SectionId } from './settings/catalog';
 	import { draft } from './settings/draft.svelte';
@@ -28,12 +27,17 @@
 	let canName = $state(false);
 	let canUpdate = $state(false);
 	let canTypes = $state(false);
-	onMount(() => {
-		void Promise.all([can('settings-save'), can('reviewer-settings'), can('agents-update'), can('types-save')]).then(([save, name, update, types]) => {
+	/** Whether any loom serves this quilt: read-only then means the one serving it is older than this page. */
+	let served = $state(false);
+	// asked again at each opening, since the publisher may have restarted under the page since it was last asked
+	$effect(() => {
+		if (!open) return;
+		void Promise.all([can('settings-save'), can('reviewer-settings'), can('agents-update'), can('types-save'), capabilities()]).then(([save, name, update, types, caps]) => {
 			canSave = save;
 			canName = name;
 			canUpdate = update;
 			canTypes = types;
+			served = !!caps;
 		});
 	});
 	// another control asked for a section: Customize in a format menu asks for Annotations
@@ -112,7 +116,7 @@
 				<button class="close" aria-label="Close settings" onclick={() => (open = false)}>×</button>
 			</header>
 			<div class="body" data-testid="settings-page" data-section={shown}>
-				{#if readOnly}<p class="note info" data-testid="settings-read-only">Shown as published. Change these in {shown === 'annotations' ? '.loom/annotation-types.toml' : 'config.toml'}.</p>{/if}
+				{#if readOnly}<p class="note info" data-testid="settings-read-only">{#if served}The loom serving this quilt is older than this page and cannot save these. Stop <code>loom serve</code> and run it again, then reload.{:else}Shown as published. Change these in {shown === 'annotations' ? '.loom/annotation-types.toml' : 'config.toml'}.{/if}</p>{/if}
 				{#if config?.warnings.length && SECTION[shown].group === 'quilt'}
 					<div class="note warn">config.toml: {config.warnings.join('; ')}</div>
 				{/if}

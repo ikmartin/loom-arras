@@ -31,17 +31,16 @@
 	});
 </script>
 
-{#snippet tools()}<AnnotateBar notes={held.notes} of={name} writes={writes && !node?.external} />{/snippet}
+{#snippet reading()}<AnnotateBar notes={held.notes} of={name} part="read" writes={writes && !node?.external} />{/snippet}
+{#snippet writing()}<AnnotateBar notes={held.notes} of={name} part="write" writes={writes && !node?.external} />{/snippet}
 
 {#if node}
-	<ItemToolbar {name} bar={tools} on={ui.showSettled || held.verbatim} hint={writes && !node.external ? hintFor(store.manifest, held.notes, hand.value) : ''}>
+	<ItemToolbar {name} bar={reading} tools={writes && !node.external ? writing : undefined} on={ui.showSettled || held.verbatim} hint={writes && !node.external ? hintFor(store.manifest, held.notes, hand.value) : ''}>
 		{#snippet view()}
 			{#if held.notes.ready || anySettled}
 				<ToolbarItem
 					label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
 					name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
-					key="s"
-					checked={ui.showSettled}
 					testid="toggle-settled"
 					onclick={() => (ui.showSettled = !ui.showSettled)}
 				/>

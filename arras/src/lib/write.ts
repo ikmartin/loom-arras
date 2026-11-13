@@ -7,6 +7,7 @@
 import { base } from '$app/paths';
 import { store } from '$lib/manifest/client.svelte';
 import { sessionView, writable } from '$lib/sessions/sessions.svelte';
+import { judge } from '$lib/outOfStep.svelte';
 
 /** The endpoints that record work into a session, and therefore must name one. An annotation belongs to no session, so its endpoints are not among them; nor are the session verbs, which carry their own subject, nor `locate`, which reads. */
 const SESSIONED = new Set(['library-verify', 'library-discard']);
@@ -18,6 +19,10 @@ export interface Capabilities {
 	token?: string;
 	/** Whether the publisher says when it publishes a new manifest, at `/_api/stream` (manifest/stream.ts). */
 	stream?: boolean;
+	/** The viewer the publisher serves, by its build's version; a page of another version is out of step with it. */
+	viewer?: string;
+	/** Whether loom has been updated since the publisher started (outOfStep.svelte.ts). */
+	stale?: boolean;
 	/** The origin an HTML file is framed from, never the viewer's own; absent where none runs, and a page is then drawn with no script. */
 	frames?: string;
 }
@@ -43,7 +48,11 @@ export function capabilities(): Promise<Capabilities | null> {
 		} catch {
 			return null;
 		}
-	})();
+	})().then((caps) => {
+		settled = caps;
+		judge(caps);
+		return caps;
+	});
 	return probe;
 }
 

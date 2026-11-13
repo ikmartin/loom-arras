@@ -275,16 +275,80 @@ test.describe('the toolbar', () => {
 		await expect(tool).toHaveAttribute('aria-pressed', 'true');
 		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
 		await expect.poll(() => sent.annotate).toBeTruthy();
-		// no type in hand, so the whole look travels and no type does; the place is the result the words are in
-		expect(sent.annotate).toMatchObject({ target: 'sy-0003', look: { color: 'yellow', style: 'highlight', weight: 2, opacity: 60 } });
+		// Plain in hand, as it first is, so neither a type nor a look travels: it is drawn in the quilt's plain look; the place is the result the words are in
+		expect(sent.annotate).toMatchObject({ target: 'sy-0003' });
 		expect(sent.annotate.quote).toContain('finite widget');
 		expect(sent.annotate).not.toHaveProperty('type');
+		expect(sent.annotate).not.toHaveProperty('look');
 		expect(sent.annotate).not.toHaveProperty('message');
 		await expect(page.getByTestId('add-comment')).toBeVisible();
 		await expect(page.getByTestId('quote-offer')).toHaveCount(0);
 		await expect(tool).toHaveAttribute('aria-pressed', 'true');
+		// Add comment stands until the next selection, not for a moment
+		await page.waitForTimeout(4500);
+		await expect(page.getByTestId('add-comment')).toBeVisible();
 		await page.keyboard.press('Escape');
 		await expect(tool).toHaveAttribute('aria-pressed', 'false');
+		await expect(page.getByTestId('add-comment')).toHaveCount(0);
+	});
+
+	test('a drag that stops partway through a word marks the whole word; a selection inside one word is kept to the letter', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/node/sy-0003');
+		await page.getByTestId('tool-annotate').click();
+		const para = pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first();
+		/** Select from `a` letters into "finite widget" to `b`, as a drag ending there would, and let go. */
+		const select = (a: number, b: number) =>
+			para.evaluate(
+				(el, [from, to]) => {
+					const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+					let node = walker.nextNode() as Text | null;
+					while (node && !node.data.includes('finite widget')) node = walker.nextNode() as Text | null;
+					if (!node) throw new Error('no "finite widget" in the paragraph');
+					const at = node.data.indexOf('finite widget');
+					const range = document.createRange();
+					range.setStart(node, at + from);
+					range.setEnd(node, at + to);
+					const sel = window.getSelection()!;
+					sel.removeAllRanges();
+					sel.addRange(range);
+					el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+				},
+				[a, b]
+			);
+		// "fi|nite wid|get": both words whole
+		await select(2, 10);
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		expect(sent.annotate.quote).toBe('finite widget');
+		delete sent.annotate;
+		// "f|ini|te": inside one word, as chosen
+		await select(1, 4);
+		await expect.poll(() => sent.annotate).toBeTruthy();
+		expect(sent.annotate.quote).toBe('ini');
+	});
+
+	test('typing after words are marked starts their comment, so no letter meant for it reaches a shortcut', async ({ page }) => {
+		await writes(page);
+		// the write answers with an annotation the fixture has on sy-0003, so its popup can open
+		await page.route('**/_api/annotate', (r) => r.fulfill({ json: { ok: true, result: 'a-2026-09-16-ecnav2  sy-0003  untyped  (you)' } }));
+		await page.goto('/node/sy-0003');
+		await page.getByTestId('tool-annotate').click();
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
+		await expect(page.getByTestId('add-comment')).toBeVisible();
+		await expect(page.getByTestId('annotate-hint')).toHaveText('Marked. Start typing to add a comment, or select more text.');
+		const hidden = pane(page, 0).locator('.fragment mark.annotation.hidden');
+		const before = await hidden.count();
+		await page.keyboard.type('as');
+		const p = popup(page);
+		await expect(p).toHaveAttribute('data-annotation-id', 'a-2026-09-16-ecnav2');
+		const field = p.getByTestId('popup-comment-field');
+		await expect(field).toBeFocused();
+		await page.keyboard.type('df');
+		await expect(field).toHaveValue('asdf');
+		await expect(page.getByTestId('add-comment')).toHaveCount(0);
+		// nothing was turned off on the way
+		await expect(hidden).toHaveCount(before);
+		await expect(page.getByTestId('toolbar-view-on')).toHaveCount(0);
 	});
 
 	test('a type that stays open asks something, so words marked with it open the popup to say it, and are written with what is said', async ({ page }) => {
@@ -302,6 +366,30 @@ test.describe('the toolbar', () => {
 		await expect.poll(() => sent.annotate).toBeTruthy();
 		expect(sent.annotate).toMatchObject({ target: 'sy-0003', type: 'question', message: 'Is finiteness needed?', in: 'drafting/main.tex' });
 		expect(sent.annotate).not.toHaveProperty('look');
+	});
+
+	test('a draft says it is not saved, keeps its own type, and asks before Escape throws its words away', async ({ page }) => {
+		const sent = await writes(page);
+		await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: 'question', over: {}, plain: {} })));
+		await page.goto('/master/drafting/main');
+		await page.getByTestId('tool-annotate').click();
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] > p[data-src]').first());
+		const draft = popup(page);
+		await expect(page.getByTestId('annotate-hint')).toHaveText('Not saved yet: write the comment, then press Annotate. Esc discards it.');
+		// choosing a type in the draft changes this annotation, not the hand
+		await draft.getByTestId('popup-type').click();
+		await draft.getByTestId('popup-format').locator('[data-testid="type-row"][data-type="revision"]').click();
+		await expect(draft.getByTestId('popup-type')).toContainText('Revision');
+		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand') ?? '{}').type)).toBe('question');
+		await draft.getByTestId('popup-comment-field').fill('Wrong bound.');
+		await page.keyboard.press('Escape');
+		await expect(draft.getByTestId('popup-discard-ask')).toBeVisible();
+		await draft.getByTestId('popup-keep-writing').click();
+		await expect(draft.getByTestId('popup-comment-field')).toHaveValue('Wrong bound.');
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Escape');
+		await expect(draft).toHaveCount(0);
+		expect(sent.annotate).toBeUndefined();
 	});
 
 	test('Comment leaves a comment at the place clicked, on the result there, and goes off', async ({ page }) => {
@@ -338,7 +426,7 @@ test.describe('the toolbar', () => {
 
 // The format menu sets the look in hand: the Type list, the look controls and Customize. The hand is remembered in this browser.
 test.describe('the format menu', () => {
-	test('lists No type and the quilt’s types with their keys; a type chosen, or a look, is what Annotate shows and what the next visit holds', async ({ page }) => {
+	test('lists Plain and the quilt’s types with their keys; a type chosen, or a look, is what Annotate shows and what the next visit holds', async ({ page }) => {
 		await writes(page);
 		await page.goto('/master/drafting/main');
 		const sample = page.getByTestId('tool-annotate').getByTestId('sample');
@@ -346,6 +434,7 @@ test.describe('the format menu', () => {
 		await page.getByTestId('format-toggle').click();
 		const menu = page.getByTestId('format-menu');
 		await expect(menu.getByTestId('type-none')).toHaveAttribute('aria-selected', 'true');
+		await expect(menu.getByTestId('type-none')).toContainText('Plain');
 		await expect(menu.getByTestId('type-row')).toHaveText(['Ab Revision 1', 'Ab Suggestion 2', 'Ab Question 3', 'Ab Note 4'].map((t) => new RegExp(t.replace(/ /g, '\\s*'))));
 		await menu.locator('[data-testid="type-row"][data-type="revision"]').click();
 		await expect(menu.locator('[data-testid="type-row"][data-type="revision"]')).toHaveAttribute('aria-selected', 'true');
@@ -358,12 +447,12 @@ test.describe('the format menu', () => {
 		await page.keyboard.press('Escape');
 		await expect(menu).toHaveCount(0);
 		const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand') ?? '{}'));
-		expect(kept).toEqual({ type: 'revision', over: { style: 'strike', color: 'green' } });
+		expect(kept).toEqual({ type: 'revision', over: { style: 'strike', color: 'green' }, plain: {} });
 		await page.reload();
 		await expect(page.getByTestId('tool-annotate').getByTestId('sample')).toHaveClass(/\bann-strike\b/);
 	});
 
-	test('while Annotate is on, a number key chooses a type and 0 none', async ({ page }) => {
+	test('while Annotate is on, a number key chooses a type and 0 Plain, which keeps its own look whatever was held between', async ({ page }) => {
 		await writes(page);
 		await page.goto('/master/drafting/main');
 		await page.getByTestId('tool-annotate').click();
@@ -373,7 +462,14 @@ test.describe('the format menu', () => {
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('0');
 		await page.getByTestId('format-toggle').click();
-		await expect(page.getByTestId('format-menu').getByTestId('type-none')).toHaveAttribute('aria-selected', 'true');
+		const menu = page.getByTestId('format-menu');
+		await expect(menu.getByTestId('type-none')).toHaveAttribute('aria-selected', 'true');
+		const sample = page.getByTestId('tool-annotate').getByTestId('sample');
+		const plain = await drawn(sample);
+		// Revision held between, then Plain again: Plain is drawn as it was, not in Revision's red
+		await menu.locator('[data-testid="type-row"][data-type="revision"]').click();
+		await menu.getByTestId('type-none').click();
+		expect(await drawn(sample)).toEqual(plain);
 	});
 
 	test('Customize opens Settings at Annotations', async ({ page }) => {
@@ -424,7 +520,11 @@ test.describe('the popup', () => {
 		await format.getByTestId('style-underline').click();
 		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', look: { style: 'underline' } });
 		await expect(format.getByTestId('type-none')).toBeEnabled();
+		// Plain drops its own look, so it is drawn in the plain look; keeping the look is a choice of its own
 		await format.getByTestId('type-none').click();
+		await expect.poll(() => sent.edit).toEqual({ annotation: 'a-2026-09-16-bns3an', type: null, look: null });
+		await expect(format.getByTestId('type-keep-look')).toBeEnabled();
+		await format.getByTestId('type-keep-look').click();
 		await expect.poll(() => sent.edit).toMatchObject({ annotation: 'a-2026-09-16-bns3an', type: null, look: { color: 'blue', style: 'highlight' } });
 	});
 
@@ -528,13 +628,13 @@ test.describe('changed from a type', () => {
 		await expect(menu.getByTestId('modified-line')).toContainText('Changed from Revision');
 		await menu.getByTestId('modified-reset').click();
 		await expect(menu.getByTestId('modified-line')).toHaveCount(0);
-		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {} });
+		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {}, plain: {} });
 		await menu.getByTestId('swatch-blue').click();
 		await menu.getByTestId('modified-update').click();
 		await expect.poll(() => sent['types-save']).toBeTruthy();
 		expect((sent['types-save'].types as Record<string, unknown>[])[0]).toMatchObject({ id: 'revision', name: 'Revision', color: 'blue', style: 'highlight', opacity: 65 });
 		await expect(menu.getByTestId('modified-line')).toHaveCount(0);
-		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {} });
+		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'revision', over: {}, plain: {} });
 	});
 
 	test('Save as new type starts a type in the look in hand, and once it is saved the hand holds it', async ({ page }) => {
@@ -555,7 +655,7 @@ test.describe('changed from a type', () => {
 		await page.getByTestId('types-save').click();
 		await expect.poll(() => sent['types-save']).toBeTruthy();
 		expect((sent['types-save'].types as Record<string, unknown>[]).at(-1)).toEqual({ name: 'Hint', color: 'yellow', style: 'highlight', weight: 2, opacity: 60, open: false, notes: false, instructions: '' });
-		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'hint', over: {} });
+		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.annotate.hand')!))).toEqual({ type: 'hint', over: {}, plain: {} });
 	});
 });
 
@@ -679,9 +779,9 @@ test.describe('the hint', () => {
 		const hint = page.getByTestId('annotate-hint');
 		await expect(hint).toHaveCount(0);
 		await page.getByTestId('tool-annotate').click();
-		await expect(hint).toHaveText('Annotate is on. Select text to mark it as Question. Number keys switch type, 0 for none. Esc stops.');
+		await expect(hint).toHaveText('Annotate is on. Select text to mark it as Question. Number keys switch type, 0 for Plain. Esc stops.');
 		await page.keyboard.press('0');
-		await expect(hint).toHaveText('Annotate is on. Select text to mark it. Number keys switch type, 0 for none. Esc stops.');
+		await expect(hint).toHaveText('Annotate is on. Select text to mark it in the plain look. Number keys switch type, 0 for Plain. Esc stops.');
 		await page.getByTestId('tool-comment').click();
 		await expect(hint).toHaveText('Comment is on. Click where the comment should go. Esc stops.');
 		await page.keyboard.press('Escape');
@@ -877,17 +977,19 @@ test.describe('the Comments list', () => {
 	});
 });
 
-// Notes: every annotation whose type is listed in Notes, from every document, grouped by document, each linking back to its place.
+// Notes: the annotations here whose type is listed in Notes, each linking to its place.
 test.describe('the Notes list', () => {
-	test('holds the annotations of types listed in Notes, grouped by document, and a card goes back to its place with its popup open', async ({ page }) => {
+	test('holds the annotations here of types listed in Notes and none from another document, and a card goes to its place with its popup open', async ({ page }) => {
 		await serveKept(page, (m) => {
 			m.annotations['a-2026-09-16-ecnav2'].type = 'note';
 			m.annotations['a-2026-09-16-xgtcve'].type = 'note';
 		});
-		await page.goto('/node/sy-0001');
-		await expect(page.getByTestId('open-notes')).toContainText('2');
+		// main.tex reads one of them; the other is talk.tex's
+		await page.goto('/master/drafting/main');
+		await expect(page.getByTestId('open-notes')).toContainText('1');
 		await page.getByTestId('open-notes').click();
-		await expect(page.getByTestId('notes-group')).toHaveText([/main\.tex\s*1/, /talk\.tex\s*1/]);
+		await expect(page.getByTestId('note-card')).toHaveCount(1);
+		await expect(page.locator('[data-testid="note-card"][data-annotation="a-2026-09-16-xgtcve"]')).toHaveCount(0);
 		const card = page.locator('[data-testid="note-card"][data-annotation="a-2026-09-16-ecnav2"]');
 		await expect(card).toHaveAttribute('href', 'quilt:a-2026-09-16-ecnav2');
 		await expect(card).toContainText('finite widget');
@@ -898,7 +1000,7 @@ test.describe('the Notes list', () => {
 	test('with no type listed in Notes it says how one gets there', async ({ page }) => {
 		await page.goto('/master/drafting/main');
 		await page.getByTestId('open-notes').click();
-		await expect(page.getByTestId('side-list')).toContainText('No notes yet');
+		await expect(page.getByTestId('side-list')).toContainText('No notes here yet');
 	});
 });
 
@@ -985,6 +1087,46 @@ test.describe('Settings › Annotations', () => {
 		await expect(page.getByTestId('type-name')).toBeDisabled();
 		await expect(page.getByTestId('types-add')).toHaveCount(0);
 	});
+
+	test('the two ways a type resolves are short options, each explained on hover', async ({ page }) => {
+		await writes(page);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		const open = page.getByTestId('type-open-option-true');
+		const tip = page.getByTestId('type-open-tip-true');
+		await expect(open).toContainText('Stay open until resolved');
+		await expect(page.getByTestId('type-open-option-false')).toContainText('Static annotation');
+		await expect(tip).toBeHidden();
+		await open.hover();
+		await expect(tip).toBeVisible();
+		await expect(tip).toHaveText('This annotation suggests an action and appears in "To Do" list until it is resolved.');
+		await page.getByTestId('type-open-option-false').hover();
+		await expect(page.getByTestId('type-open-tip-false')).toBeVisible();
+		await expect(page.getByTestId('type-open-tip-false')).toContainText('requires no action');
+	});
+
+	test('Plain comes first, a look and nothing else, and is saved with the types', async ({ page }) => {
+		const sent = await writes(page);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		await page.getByTestId('type-tab-plain').click();
+		await expect(page.getByTestId('plain-detail')).toBeVisible();
+		await expect(page.getByTestId('type-name')).toHaveCount(0);
+		await page.getByTestId('plain-detail').getByTestId('swatch-green').click();
+		await page.getByTestId('types-save').click();
+		await expect.poll(() => sent['types-save']).toBeTruthy();
+		expect(sent['types-save'].plain).toEqual({ color: 'green', style: 'highlight', weight: 2, opacity: 60 });
+		expect((sent['types-save'].types as unknown[]).length).toBe(4);
+	});
+
+	test('served by a loom that cannot save types, it says the server is older than the page and to restart it', async ({ page }) => {
+		await writes(page, ['annotate']);
+		await page.goto('/master/drafting/main');
+		await settings(page, 'annotations');
+		await expect(page.getByTestId('settings-read-only')).toContainText('older than this page');
+		await expect(page.getByTestId('settings-read-only')).toContainText('loom serve');
+		await expect(page.getByTestId('types-add')).toHaveCount(0);
+	});
 });
 
 test.describe('the settled control', () => {
@@ -1006,10 +1148,10 @@ test.describe('the settled control', () => {
 		expect((await drawn(m)).band.a).toBe(0);
 		const control = await settled(page);
 		await expect(control).toHaveText(/^show settled annotations/);
-		await expect(control).toHaveAttribute('aria-checked', 'false');
+		// an action that says what a click does, not a box to tick
+		await expect(control).toHaveAttribute('role', 'menuitem');
 		await control.click();
 		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
-		await expect(control).toHaveAttribute('aria-checked', 'true');
 		await shut(page);
 		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('.fragment').first()).toHaveClass(/show-settled/);
@@ -1027,7 +1169,7 @@ test.describe('the settled control', () => {
 		await expect(page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-tc3rcf"]')).toHaveCount(0);
 	});
 
-	test('on a node the same control, and the s key', async ({ page }) => {
+	test('on a node the same control, and no key: a stray s changes nothing', async ({ page }) => {
 		await page.goto('/node/sy-0004');
 		const m = settledMark(page);
 		expect((await drawn(m)).band.a).toBe(0);
@@ -1035,12 +1177,6 @@ test.describe('the settled control', () => {
 		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
 		await shut(page);
 		expect((await drawn(m)).band.a).toBeCloseTo(0.24, 2);
-		// the key, from inside the document, flips it back and forth
-		await page.locator('.fragment').first().focus();
-		await page.keyboard.press('s');
-		expect((await drawn(m)).band.a).toBe(0);
-		await expect(await settled(page)).toHaveText(/^show settled annotations/);
-		await shut(page);
 		await page.locator('.fragment').first().focus();
 		await page.keyboard.press('s');
 		expect((await drawn(m)).band.a).toBeCloseTo(0.24, 2);
@@ -1053,7 +1189,7 @@ test.describe('the settled control', () => {
 		await page.waitForSelector('.fragment mjx-container');
 		const fragment = page.locator('.fragment');
 		await fragment.locator('p').first().click();
-		await page.keyboard.press('s');
+		await page.keyboard.press('ArrowDown');
 		expect(await fragment.evaluate((el) => el.matches(':focus-visible'))).toBe(true);
 		await expect(fragment).toHaveCSS('outline-style', 'none');
 	});

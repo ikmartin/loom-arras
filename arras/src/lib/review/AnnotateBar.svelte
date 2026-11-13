@@ -1,16 +1,18 @@
 <script lang="ts">
-	// A text's annotating toolbar: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes; a document's Changes menu where its text has pending changes (`changes`); the stepper over the annotations and changes in reading order (the arrows, J and K); Comments and Notes with their counts, which open the list beside the text.
+	// A text's annotating, in two halves (`part`). The half that writes stands on the annotation row: Annotate, Comment and the format menu beside them, and Undo and Redo, where the publisher takes writes. The half that reads stands on the toolbar's own row: a document's Changes menu where its text has pending changes (`changes`); the stepper over the annotations and changes in reading order (the arrows, J and K); Comments, counting the annotations here, and Notes, counting and listing those here of a type Notes lists, which open the list beside the text. The keys are the reading half's, since it is always drawn, and putting the annotation row away puts the tool in hand down.
 	//
-	// Annotate stays on until it is turned off, and selecting words while it is on marks them in the look in hand. Comment leaves a comment at the next place clicked. The format menu sets the look in hand: the Type list (Add new… starts a type the hand takes), the look controls, the line saying what the look was changed from (Reset, Update the type), Save as new type, and Customize, which opens Settings › Annotations. Number keys choose a type while Annotate is on, 0 for none. Undo and Redo, and ⌘Z and ⇧⌘Z, go back and forth over this page's annotation writes (`history.svelte.ts`); Delete or Backspace removes the annotation open, with the same undo.
+	// Annotate stays on until it is turned off, and selecting words while it is on marks them in the look in hand. Comment leaves a comment at the next place clicked. The format menu sets the look in hand: the Type list (Add new… starts a type the hand takes), the look controls, the line saying what the look was changed from, a type or Plain (Reset, Update it), Save as new type, and Customize, which opens Settings › Annotations. Number keys choose a type while Annotate is on, 0 for Plain. Undo and Redo, and ⌘Z and ⇧⌘Z, go back and forth over this page's annotation writes (`history.svelte.ts`); Delete or Backspace removes the annotation open, with the same undo.
 	import Icon from '$lib/components/Icon.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { getPane } from '$lib/workspace/state.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { openSettings } from '$lib/shell/settings/opener.svelte';
+	import { annotationRow } from '$lib/workspace/annotationRow.svelte';
+	import { untrack } from 'svelte';
 	import { can, write } from '$lib/write';
 	import { linkName } from '$lib/workspace/names';
 	import type { Snippet } from 'svelte';
-	import { entries, hand, lookOf, notesCount, typeById, typesPayload, withLook, withType, type Annotating, type Side } from './annotating.svelte';
+	import { entries, hand, lookOf, notesHere, typeById, typesPayload, withLook, withType, type Annotating, type Side } from './annotating.svelte';
 	import { history, nextRedo, nextUndo, redo, remove, undo } from './history.svelte';
 	import { say } from './toasts.svelte';
 	import Changed from './Changed.svelte';
@@ -21,15 +23,18 @@
 	let {
 		notes,
 		of,
+		part,
 		writes = false,
 		changes
 	}: {
 		notes: Annotating;
+		/** Which half: the tools that write, for the annotation row, or what reads, for the toolbar's own row. */
+		part: 'read' | 'write';
 		/** What the tools act on, for their accessible names. */
 		of: string;
 		/** Whether the publisher takes annotations, which the tools need. */
 		writes?: boolean;
-		/** A document's Changes menu, after Undo and Redo. */
+		/** A document's Changes menu, first on the reading half. */
 		changes?: Snippet;
 	} = $props();
 
@@ -37,14 +42,18 @@
 	const m = $derived(store.manifest);
 	const types = $derived(m?.annotation_types ?? []);
 	const look = $derived(lookOf(m, hand.value));
+	/** Plain as the hand holds it, whatever type is held now. */
+	const plain = $derived(lookOf(m, withType(m, hand.value, null)));
 	const current = $derived(hand.type && types.some((t) => t.id === hand.type) ? hand.type : null);
 	const seq = $derived(entries(m, notes));
 	const at = $derived(notes.open ? seq.findIndex((e) => e.id === notes.open) : -1);
 	/** What the stepper and the list count: annotations, or items where changes are among them. */
 	const things = $derived((n: number) => (seq.some((e) => e.c) ? `${n} ${n === 1 ? 'item' : 'items'}` : `${n} ${n === 1 ? 'annotation' : 'annotations'}`));
-	const notesN = $derived(notesCount(m));
-	/** The type the look in hand was changed from, while it differs from it. */
-	const from = $derived(hand.type && Object.keys(hand.over).length ? (typeById(m, hand.type) ?? null) : null);
+	/** What Comments counts: the annotations here; the changes among them in the list have their own count. */
+	const said = $derived(seq.filter((e) => e.a).length);
+	const notesN = $derived(notesHere(m, notes));
+	/** What the look in hand was changed from, while it differs from it: the type held, or Plain. */
+	const from = $derived(current ? (Object.keys(hand.over).length ? (typeById(m, current)?.name ?? null) : null) : Object.keys(hand.plain).length ? 'Plain' : null);
 
 	let saves = $state(false);
 	let deletes = $state(false);
@@ -104,14 +113,18 @@
 		openSettings('annotations', fork ? { ...fork, take: { kind: 'hand' } } : null);
 	}
 
-	/** Update the type in hand to the look in hand, in the quilt's types, and hold the type as it now is. */
+	/** Update the type in hand, or the quilt's plain look, to the look in hand, and hold it as it now is. */
 	async function update(): Promise<void> {
-		const t = from;
-		if (!t) return;
-		const res = await write('types-save', { types: typesPayload(m, t.id, look) });
+		if (!from) return;
+		const res = await write('types-save', current ? { types: typesPayload(m, current, look) } : { types: typesPayload(m), plain: look });
 		if (!res.ok) return say({ title: 'Not updated', lines: [res.error?.message ?? 'the publisher refused it'] });
 		void store.refresh();
-		hand.set({ type: t.id, over: {} });
+		reset();
+	}
+
+	/** Back to the look under the hand's: its type's, or the quilt's plain look. */
+	function reset(): void {
+		hand.set(current ? { ...hand.value, over: {} } : { ...hand.value, plain: {} });
 	}
 
 	/** Undo or redo, saying loom's refusal where there is one. */
@@ -146,8 +159,17 @@
 		notes.side = notes.side === which ? null : which;
 	}
 
+	// the annotation row put away puts the tool in hand down, so none is armed out of sight
+	$effect(() => {
+		if (part !== 'read' || annotationRow.open) return;
+		untrack(() => {
+			if (notes.tool) notes.tool = null;
+		});
+	});
+
 	// J and K step, from anywhere in the focused pane but a field; while Annotate is on, a number chooses a type
 	$effect(() => {
+		if (part !== 'read') return;
 		const key = (e: KeyboardEvent) => {
 			if (e.altKey || e.defaultPrevented) return;
 			if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable], [role="dialog"][aria-modal="true"]')) return;
@@ -182,8 +204,9 @@
 	});
 </script>
 
-<span class="annotate-bar" role="group" aria-label="annotating {of}">
+{#if part === 'write'}
 	{#if writes}
+	<span class="annotate-bar" role="group" aria-label="annotating {of}">
 		<span class="split">
 			<button type="button" class="tool main" class:on={notes.tool === 'annotate'} aria-pressed={notes.tool === 'annotate'} title="Annotate: select words and they are marked" aria-label="Annotate in {of}" data-testid="tool-annotate" onclick={() => toggle('annotate')}><Icon name="highlighter" size={15} /><Sample {look} /></button>
 			<button type="button" class="tool" class:on={notes.tool === 'comment'} aria-pressed={notes.tool === 'comment'} title="Comment: click a place to leave a comment there" aria-label="Comment in {of}" data-testid="tool-comment" onclick={() => toggle('comment')}><Icon name="pin" size={14} /></button>
@@ -192,26 +215,30 @@
 		<span class="sep" aria-hidden="true"></span>
 		<button type="button" class="tool" title={nextUndo() ? `Undo ${nextUndo()} (⌘Z)` : 'Undo'} aria-label="Undo in {of}" aria-keyshortcuts="Control+Z Meta+Z" disabled={!history.done.length || history.busy} data-testid="annotate-undo" onclick={() => void back('undo')}><Icon name="undo" size={14} /></button>
 		<button type="button" class="tool" title={nextRedo() ? `Redo ${nextRedo()} (⇧⌘Z)` : 'Redo'} aria-label="Redo in {of}" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabled={!history.undone.length || history.busy} data-testid="annotate-redo" onclick={() => void back('redo')}><Icon name="redo" size={14} /></button>
+	</span>
 	{/if}
+{:else}
+<span class="annotate-bar" role="group" aria-label="reading {of}">
 	{#if changes}{@render changes()}{/if}
 	{#if seq.length}
-		<span class="sep" aria-hidden="true"></span>
+		{#if changes}<span class="sep" aria-hidden="true"></span>{/if}
 		<button type="button" class="tool" title="Previous (K)" aria-label="Previous annotation in {of}" aria-keyshortcuts="k" data-testid="step-prev" onclick={() => step(-1)}><Icon name="left" size={14} /></button>
 		<span class="count" data-testid="step-count">{at >= 0 ? `${at + 1} of ${seq.length}` : things(seq.length)}</span>
 		<button type="button" class="tool" title="Next (J)" aria-label="Next annotation in {of}" aria-keyshortcuts="j" data-testid="step-next" onclick={() => step(1)}><Icon name="right" size={14} /></button>
 	{/if}
-	<span class="sep" aria-hidden="true"></span>
-	<button type="button" class="tool words" class:on={notes.side === 'comments'} aria-pressed={notes.side === 'comments'} title="Every annotation and change here, in reading order" aria-label="Comments in {of}, {seq.length}" data-testid="open-comments" onclick={() => side('comments')}><Icon name="panel" size={14} />Comments<span class="badge">{seq.length}</span></button>
-	<button type="button" class="tool words" class:on={notes.side === 'notes'} aria-pressed={notes.side === 'notes'} title="Notes: every annotation whose type is listed in Notes, from every document" aria-label="Notes, from every document, beside {of}, {notesN}" data-testid="open-notes" onclick={() => side('notes')}><Icon name="note" size={14} />Notes<span class="badge">{notesN}</span></button>
+	{#if changes || seq.length}<span class="sep" aria-hidden="true"></span>{/if}
+	<button type="button" class="tool words" class:on={notes.side === 'comments'} aria-pressed={notes.side === 'comments'} title="The annotations here in reading order, with the changes among them" aria-label="Comments in {of}, {said}" data-testid="open-comments" onclick={() => side('comments')}><Icon name="panel" size={14} />Comments<span class="badge">{said}</span></button>
+	<button type="button" class="tool words" class:on={notes.side === 'notes'} aria-pressed={notes.side === 'notes'} title="Notes: the annotations here whose type is listed in Notes" aria-label="Notes in {of}, {notesN}" data-testid="open-notes" onclick={() => side('notes')}><Icon name="note" size={14} />Notes<span class="badge">{notesN}</span></button>
 </span>
+{/if}
 
-{#if menu}
+{#if menu && part === 'write'}
 	<div class="format-menu" bind:this={menuEl} role="dialog" aria-label="Format for annotations and comments" style="left: {place.left}px; top: {place.top}px;" data-testid="format-menu">
 		<div class="sec">Type</div>
-		<TypeList {types} {current} {look} keys onpick={(id) => hand.set(withType(m, hand.value, id))} onadd={saves ? () => customize({}) : undefined} />
+		<TypeList {types} {current} {plain} keys onpick={(id) => hand.set(withType(m, hand.value, id))} onadd={saves ? () => customize({}) : undefined} />
 		<div class="sec">Look</div>
 		<LookControls {look} onpick={(c) => hand.set(withLook(m, hand.value, c))} />
-		{#if from}<Changed name={from.name} onreset={() => hand.set({ type: from.id, over: {} })} onupdate={saves ? () => void update() : undefined} />{/if}
+		{#if from}<Changed name={from} onreset={reset} onupdate={saves ? () => void update() : undefined} />{/if}
 		<div class="mfoot">
 			{#if saves}<button type="button" class="lnk" data-testid="format-save-type" onclick={() => customize({ look })}>Save as new type…</button>{/if}
 			<button type="button" class="lnk" data-testid="format-customize" onclick={() => customize()}>Customize…</button>
@@ -277,6 +304,10 @@
 		height: 16px;
 		margin: 0 5px;
 		background: var(--rule);
+	}
+	/* a document with no pending changes draws no Changes menu, and nothing then stands before the divider */
+	.annotate-bar > .sep:first-child {
+		display: none;
 	}
 	.count {
 		min-width: 3.2em;

@@ -739,6 +739,8 @@ export interface Manifest {
   suggested_edits?: Record<string, SuggestedEdit>;
   /** The quilt's annotation types, in its file's order (specs/manifest.md §1). */
   annotation_types?: AnnotationType[];
+  /** The plain look: how an annotation with no type that sets no look of its own is drawn (specs/manifest.md §1). */
+  annotation_plain?: Look;
   threads: Record<string, Thread>;
   /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
   sessions?: SessionRow[];

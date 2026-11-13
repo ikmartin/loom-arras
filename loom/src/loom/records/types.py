@@ -1,6 +1,6 @@
 """The quilt's annotation types: `.loom/annotation-types.toml`, the presets a person picks from and an agent reads.
 
-A type is a label with a look, whether its annotations stay open until resolved, whether they are listed in Notes, and instructions for agents. An annotation names its type by id and keeps its own look, so nothing here is needed to read one: a missing or malformed file loads the defaults with a diagnostic and never stops a quilt from loading.
+A type is a label with a look, whether its annotations stay open until resolved, whether they are listed in Notes, and instructions for agents. The file's `[plain]` is the look of an annotation with no type. An annotation names its type by id and keeps its own look, so nothing here is needed to read one: a missing or malformed file loads the defaults with a diagnostic and never stops a quilt from loading.
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ STYLES = ("underline", "highlight", "strike")
 ID = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
 WEIGHTS = (1, 5)
 OPACITIES = (0, 100)
-#: How an annotation with no type is drawn when nothing is set on it: a thin grey underline.
-UNTYPED = {"color": "grey", "style": "underline", "weight": 1, "opacity": 100}
+#: The plain look where the file sets none: how an annotation with no type is drawn when nothing is set on it.
+PLAIN: dict[str, Any] = {"color": "yellow", "style": "highlight", "weight": 2, "opacity": 60}
 
 
 @dataclass(frozen=True)
@@ -61,11 +61,12 @@ class AnnotationType:
 
 @dataclass
 class Types:
-    """The quilt's types in file order, the file they came from (None: the defaults), and one problem per thing that could not be read."""
+    """The quilt's types in file order, the file they came from (None: the defaults), one problem per thing that could not be read, and the plain look an untyped annotation is drawn in."""
 
     types: list[AnnotationType]
     source: str | None
     problems: list[str]
+    plain: Look = Look(**PLAIN)
 
     def get(self, type_id: str | None) -> AnnotationType | None:
         return next((t for t in self.types if t.id == type_id), None)
@@ -87,9 +88,13 @@ def type_named(types: Types, given: str | None) -> AnnotationType | None:
     return t
 
 
-def drawn_look(t: AnnotationType | None, own: dict[str, Any]) -> dict[str, Any]:
-    """The whole look an annotation is drawn with: its type's, or the untyped one, under what is set on it."""
-    return {**(t.look.to_dict() if t else UNTYPED), **own}
+def drawn_look(t: AnnotationType | None, own: dict[str, Any], plain: Look | None = None) -> dict[str, Any]:
+    """The whole look an annotation is drawn with: its type's, or with none the quilt's plain look, under what is set on it.
+
+    `plain` is `Types.plain`; None takes loom's default, for a caller with no quilt to read.
+    """
+    base = t.look.to_dict() if t else (plain.to_dict() if plain else PLAIN)
+    return {**base, **own}
 
 
 def default_text() -> str:
@@ -166,6 +171,20 @@ def parse_types(text: str) -> tuple[list[AnnotationType], list[str]]:
     return out, problems
 
 
+def parse_plain(text: str) -> tuple[Look, str | None]:
+    """The plain look a file's text sets, or loom's where it sets none, and why a `[plain]` given was not used; raises `tomllib.TOMLDecodeError` when it is not TOML."""
+    entry = tomllib.loads(text).get("plain")
+    if entry is None:
+        return Look(**PLAIN), None
+    if not isinstance(entry, dict):
+        return Look(**PLAIN), "`plain` must be a table, written [plain]; the default plain look is used"
+    look = {k: entry[k] for k in ("color", "style", "weight", "opacity") if k in entry}
+    why = look_problem(look)
+    if why:
+        return Look(**PLAIN), f"plain: {why}; the default plain look is used"
+    return Look(**{**PLAIN, **look}), None
+
+
 def defaults() -> list[AnnotationType]:
     types, _ = parse_types(default_text())
     return types
@@ -186,9 +205,11 @@ def load_types(root: Path) -> Types:
     try:
         text = path.read_text(encoding="utf-8")
         types, problems = parse_types(text)
+        plain, why = parse_plain(text)
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         return Types(defaults(), None, [f"{ANNOTATION_TYPES} cannot be read ({exc}); the default types are used"])
-    return Types(types, ANNOTATION_TYPES, [f"{ANNOTATION_TYPES}: {p}" for p in problems])
+    said = [*problems, *([why] if why else [])]
+    return Types(types, ANNOTATION_TYPES, [f"{ANNOTATION_TYPES}: {p}" for p in said], plain)
 
 
 class TypesRefused(ValueError):
@@ -220,20 +241,40 @@ def _block(text: str) -> str:
     return fence + "\n" + body + "\n" + fence if body else '""'
 
 
-def types_text(given: list[Any]) -> str:
+def _look_lines(look: dict[str, Any]) -> list[str]:
+    return [
+        f"color = {_quoted(str(look['color']))}",
+        f"style = {_quoted(str(look['style']))}",
+        f"weight = {look['weight']}",
+        f"opacity = {look['opacity']}",
+    ]
+
+
+def types_text(given: list[Any], plain: dict[str, Any] | None = None) -> str:
     """The types file for `given`, in its order and with the defaults' header comment, an id drawn from the name where none is given; TypesRefused names the type it cannot write.
 
     Parameters
     ----------
     given : list of dict
         The types as a write sends them, each `{id?, name, color, style, weight, opacity, open, notes, instructions}`.
+    plain : dict, optional
+        The plain look, `{color, style, weight, opacity}`; default loom's.
 
     Returns
     -------
     str
-        The file's text, which `parse_types` reads back to the same types.
+        The file's text, which `parse_types` and `parse_plain` read back to the same types and plain look.
     """
-    header = default_text().split("\n[[type]]", 1)[0].rstrip() + "\n"
+    header = re.split(r"\n\[", default_text(), maxsplit=1)[0].rstrip() + "\n"
+    plain = dict(PLAIN) if plain is None else plain
+    if not isinstance(plain, dict):
+        raise TypesRefused("the plain look is color, style, weight and opacity")
+    missing = [k for k in ("color", "style", "weight", "opacity") if plain.get(k) is None]
+    if missing:
+        raise TypesRefused(f"the plain look has no {', '.join(missing)}")
+    why = look_problem(plain)
+    if why:
+        raise TypesRefused(f"the plain look: {why}")
     ids: set[str] = set()
     names: set[str] = set()
     blocks: list[str] = []
@@ -275,20 +316,18 @@ def types_text(given: list[Any]) -> str:
                     "[[type]]",
                     f"id = {_quoted(tid)}",
                     f"name = {_quoted(name)}",
-                    f"color = {_quoted(str(look['color']))}",
-                    f"style = {_quoted(str(look['style']))}",
-                    f"weight = {look['weight']}",
-                    f"opacity = {look['opacity']}",
+                    *_look_lines(look),
                     f"open = {'true' if flags['open'] else 'false'}",
                     f"notes = {'true' if flags['notes'] else 'false'}",
                     f"instructions = {_block(instructions)}",
                 ]
             )
         )
-    return header + "".join(f"\n{b}\n" for b in blocks)
+    plain_block = "\n".join(["[plain]", *_look_lines(plain)])
+    return header + f"\n{plain_block}\n" + "".join(f"\n{b}\n" for b in blocks)
 
 
-def save_types(root: Path, given: list[Any] | None) -> Types:
+def save_types(root: Path, given: list[Any] | None, plain: dict[str, Any] | None = None) -> Types:
     """Write the quilt's types file whole: `given` in its order, or the defaults for None; TypesRefused when one cannot be written, and nothing is written then.
 
     Parameters
@@ -296,14 +335,18 @@ def save_types(root: Path, given: list[Any] | None) -> Types:
     root : Path
         The quilt.
     given : list of dict, optional
-        The types, as `types_text` takes them; None writes the defaults.
+        The types, as `types_text` takes them; None writes the defaults, plain look included.
+    plain : dict, optional
+        The plain look, `{color, style, weight, opacity}`; default the one the file has now.
 
     Returns
     -------
     Types
         The types as the file now reads.
     """
-    text = default_text() if given is None else types_text(given)
+    if given is not None and plain is None:
+        plain = load_types(root).plain.to_dict()
+    text = default_text() if given is None else types_text(given, plain)
     _parsed, problems = parse_types(text)
     if problems:
         raise TypesRefused("; ".join(problems))

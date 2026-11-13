@@ -15,7 +15,7 @@ export interface Pane {
 	items: Item[];
 	/** The active item's key. */
 	active: string;
-	/** Whether the pane hides every annotation, so its text is read clean (its `view ▾`, key `a`). The pane's own, and it moves with the pane. */
+	/** Whether the pane hides every annotation, so its text is read clean (its `view ▾`). The pane's own, and it moves with the pane. */
 	hide?: boolean;
 	/** What the reader had chosen before compare hid this pane's annotations, put back when compare ends. */
 	hideBefore?: boolean;

@@ -1168,6 +1168,14 @@ def _types_save(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ):
         refuses(s, "types-save", body, 400, "bad-field", match)
     assert (q / ".loom" / "annotation-types.toml").read_text(encoding="utf-8") == text
+    # the plain look is saved with the types when sent, and kept when not
+    plain = {"color": "green", "style": "underline", "weight": 1, "opacity": 100}
+    assert succeeds(s, "types-save", {"types": given, "plain": plain})["plain"] == plain
+    assert load_types(q).plain.to_dict() == plain
+    assert succeeds(s, "types-save", {"types": given})["plain"] == plain
+    assert json.loads(get(s.url + "build/manifest.json")[2])["annotation_plain"] == plain
+    refuses(s, "types-save", {"types": given, "plain": {**plain, "color": "mauve"}}, 400, "bad-field", "the plain look")
+    refuses(s, "types-save", {"types": given, "plain": "green"}, 400, "bad-field", "plain is a look")
     refuses(s, "types-save", {}, 400, "missing-field", "types is the list")
     refuses(s, "types-save", {"defaults": True, "author": "Referee (Agent)"}, 403, "author-only", "only the author")
     said = succeeds(s, "types-save", {"defaults": True})

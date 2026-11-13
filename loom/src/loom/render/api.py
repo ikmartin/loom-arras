@@ -563,7 +563,7 @@ def _history(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def _types_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
-    """`types-save` writes `.loom/annotation-types.toml` whole from Settings › Annotations, or with `defaults` the defaults; the author's act, refused to a declared agent, which edits the file itself."""
+    """`types-save` writes `.loom/annotation-types.toml` whole from Settings › Annotations, the plain look with the types when `plain` is sent, or with `defaults` the defaults; the author's act, refused to a declared agent, which edits the file itself."""
     from loom.cli._common import is_agent
     from loom.records.types import TypesRefused, save_types
     from loom.scan.quilt import reviewer_identity
@@ -577,12 +577,15 @@ def _types_save(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         given = None
     elif not isinstance(given, list):
         raise ApiError("missing-field", "types is the list of the quilt's annotation types, or send defaults: true")
+    plain = body.get("plain")
+    if plain is not None and not isinstance(plain, dict):
+        raise ApiError("bad-field", "plain is a look: color, style, weight and opacity")
     try:
-        saved = save_types(root, given)
+        saved = save_types(root, given, plain)
     except TypesRefused as exc:
         raise ApiError("bad-field", str(exc)) from exc
     said = "restored the default annotation types" if given is None else f"saved {len(saved.types)} annotation types"
-    return {"ok": True, "result": said, "types": [t.to_dict() for t in saved.types]}
+    return {"ok": True, "result": said, "types": [t.to_dict() for t in saved.types], "plain": saved.plain.to_dict()}
 
 
 def _settings(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:

@@ -1,19 +1,19 @@
 <script lang="ts">
-	// The one popup, for every annotation wherever it is drawn: its type and look (changeable from the head, with "Changed from" its type when the look differs from the type's), when the words it was written on are gone the words as they were and the version that holds them, its comment (edited in place), the replies and a reply, then Resolve where its type stays open and Delete. Given a `draft` instead of an id, it writes a new one: a comment at a place, or words marked with a type that asks something, which loom takes only with words.
+	// The one popup, for every annotation wherever it is drawn: its type and look (changeable from the head, with "Changed from" its type, or Plain, when the look differs from that one's), when the words it was written on are gone the words as they were and the version that holds them, its comment (edited in place), the replies and a reply, then Resolve where its type stays open and Delete. Given a `draft` instead of an id, it writes a new one: a comment at a place, or words marked with a type that asks something, which loom takes only with words. A draft starts from the hand and keeps its own type and look, so choosing them here changes this annotation and not what the next one is marked with; leaving a draft with words in it asks first (`leave`).
 	//
 	// It reads the annotation from the manifest by id, so a write that comes back on the next poll is shown without the popup being made again, and an annotation deleted elsewhere closes it. Every write goes through the history (`history.svelte.ts`), so the toolbar's Undo takes it back. Each verb is offered only where the publisher serves its endpoint.
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import TexProse from '$lib/math/TexProse.svelte';
 	import { shortDate } from '$lib/badges';
 	import { store } from '$lib/manifest/client.svelte';
-	import type { Look } from '$lib/manifest/types';
+	import type { AnnotationType, Look } from '$lib/manifest/types';
 	import { repliesTo } from '$lib/annotations';
 	import { can, known, write, type WriteResult } from '$lib/write';
 	import { linkName } from '$lib/workspace/names';
 	import { staysOpen, typeOf } from './annotationTypes';
-	import { changedFrom, earlier, hand, handPayload, lookOf, retype, typeById, typesPayload, withLook, withType, type Draft } from './annotating.svelte';
+	import { changedFrom, earlier, hand, handPayload, keepLook, lookOf, plainOf, retype, takeSeed, typeById, typesPayload, withLook, withType, type Draft, type Hand } from './annotating.svelte';
 	import { annotate, edit, remove as removeAnnotation, reply as replyTo, resolve } from './history.svelte';
 	import Changed from './Changed.svelte';
 	import LookControls from './LookControls.svelte';
@@ -49,17 +49,43 @@
 
 	const ENDPOINTS = ['annotate', 'edit', 'reply', 'resolve', 'delete', 'types-save'];
 	let allowed = $state<Record<string, boolean>>(Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false])));
+	let fieldEl = $state<HTMLTextAreaElement | null>(null);
 	onMount(() => {
 		for (const v of ENDPOINTS) void can(v).then((ok) => (allowed[v] = ok));
+		// the keys typed at an annotation just marked, before this opened, start its comment
+		const seeded = takeSeed(id);
+		if (seeded !== null) {
+			text = seeded;
+			void tick().then(() => {
+				const el = fieldEl;
+				if (!el) return;
+				el.focus();
+				el.setSelectionRange(el.value.length, el.value.length);
+			});
+		}
 	});
 
-	/** The look shown and the type chosen: the annotation's own, or, for a draft, what is in hand. */
-	const look = $derived<Look>(a ? a.look : lookOf(m, hand.value));
-	const current = $derived<string | null>(a ? (typeOf(m, a) ? a.type : null) : hand.type && types.some((t) => t.id === hand.type) ? hand.type : null);
-	const typeName = $derived(current ? (types.find((t) => t.id === current)?.name ?? '') : 'No type');
+	/** A draft's own type and look, started from the hand; choosing them here leaves the hand as it is. */
+	let own = $state<Hand>(hand.value);
+	/** The look shown and the type chosen: the annotation's own, or the draft's. */
+	const look = $derived<Look>(a ? a.look : lookOf(m, own));
+	const current = $derived<string | null>(a ? (typeOf(m, a) ? a.type : null) : own.type && types.some((t) => t.id === own.type) ? own.type : null);
+	const typeName = $derived(current ? (types.find((t) => t.id === current)?.name ?? '') : 'Plain');
 	const changeable = $derived(draft ? true : allowed.edit);
-	/** The type the look differs from, for the "Changed from" line. */
-	const from = $derived(a ? changedFrom(m, a) : hand.type && Object.keys(hand.over).length ? (typeById(m, hand.type) ?? null) : null);
+	/** Plain as it would be drawn here: the draft's, or the quilt's for an annotation, which Plain takes with no look of its own. */
+	const plain = $derived(a ? plainOf(m) : lookOf(m, withType(m, own, null)));
+	const same = (x: Look, y: Look) => x.color === y.color && x.style === y.style && x.weight === y.weight && x.opacity === y.opacity;
+	/** What the look was changed from, for the "Changed from" line: its type, or Plain; null while it is that look. */
+	const from = $derived.by<{ type: AnnotationType | null; name: string } | null>(() => {
+		if (a) {
+			const t = changedFrom(m, a);
+			if (t) return { type: t, name: t.name };
+			return a.type === null && !same(a.look, plainOf(m)) ? { type: null, name: 'Plain' } : null;
+		}
+		const t = typeById(m, own.type);
+		if (t) return Object.keys(own.over).length ? { type: t, name: t.name } : null;
+		return Object.keys(own.plain).length ? { type: null, name: 'Plain' } : null;
+	});
 
 	let formatting = $state(false);
 	let busy = $state(false);
@@ -77,7 +103,25 @@
 	let text = $state<string | null>(null);
 	const editing = $derived(text !== null || !!draft || (!!a && !comment && allowed.edit));
 	const value = $derived(text ?? (draft ? '' : comment));
-	const dirty = $derived(draft ? value.trim() !== '' : value.trim() !== comment);
+	/** A draft loom takes only with words: a comment at a place, or words marked with a type that stays open. */
+	const needsWords = $derived(!!draft && (!draft.quote || !!typeById(m, own.type)?.open));
+	const dirty = $derived(draft ? !needsWords || value.trim() !== '' : value.trim() !== comment);
+	/** Asking whether to throw away a draft's words, before it closes. */
+	let confirming = $state(false);
+
+	/**
+	 * Whether the popup may close now: a draft with words in it asks first, and closes on the second asking.
+	 *
+	 * Returns
+	 * -------
+	 * bool
+	 *     True to close; false while it asks.
+	 */
+	export function leave(): boolean {
+		if (!draft || !value.trim() || confirming) return true;
+		confirming = true;
+		return false;
+	}
 
 	let reply = $state('');
 	let showVersion = $state(false);
@@ -98,8 +142,8 @@
 
 	async function save(): Promise<void> {
 		if (draft) {
-			if (!value.trim()) return;
-			const body = { target: draft.target, ...(draft.quote ? { quote: draft.quote } : {}), ...(draft.in ? { in: draft.in } : {}), ...(draft.extra ?? {}), ...handPayload(m, hand.value), message: value.trim() };
+			if (needsWords && !value.trim()) return;
+			const body = { target: draft.target, ...(draft.quote ? { quote: draft.quote } : {}), ...(draft.in ? { in: draft.in } : {}), ...(draft.extra ?? {}), ...handPayload(m, own), ...(value.trim() ? { message: value.trim() } : {}) };
 			const result = await send(() => annotate(body));
 			if (result !== null) onwritten?.(result.split(/\s+/)[0] ?? '');
 			return;
@@ -110,34 +154,51 @@
 	}
 
 	async function pickType(next: string | null): Promise<void> {
-		if (draft) return hand.set(withType(m, hand.value, next));
-		if (!a || next === current) return;
+		if (draft) {
+			own = withType(m, own, next);
+			return;
+		}
+		if (!a || (next === current && (next !== null || a.type === null))) return;
 		const at = a;
 		await send(() => edit(at, retype(m, at, next)));
 	}
 
+	/** Take the type away and keep the look it is drawn with. */
+	async function keep(): Promise<void> {
+		if (!a) return;
+		const at = a;
+		await send(() => edit(at, keepLook(at)));
+	}
+
 	async function pickLook(change: Partial<Look>, done: boolean): Promise<void> {
-		if (draft) return hand.set(withLook(m, hand.value, change));
+		if (draft) {
+			own = withLook(m, own, change);
+			return;
+		}
 		if (!a || !done) return;
 		const at = a;
 		await send(() => edit(at, { look: change }));
 	}
 
-	/** Reset: the look the type gives, dropping what is set over it. */
+	/** Reset: the look the type or Plain gives, dropping what is set over it. */
 	async function reset(): Promise<void> {
-		if (!a) return hand.set({ type: hand.type, over: {} });
+		if (!a) {
+			own = typeById(m, own.type) ? { ...own, over: {} } : { ...own, plain: {} };
+			return;
+		}
 		const at = a;
 		await send(() => edit(at, { look: null }));
 	}
 
-	/** Update the type: its look becomes this one's, written into the quilt's types, and this one follows it again. */
+	/** Update the type, or the quilt's plain look, to this look, written into the quilt's types, and this one follows it again. */
 	async function update(): Promise<void> {
-		const t = from;
-		if (!t) return;
-		const saved = await send(() => write('types-save', { types: typesPayload(m, t.id, look) }));
+		const f = from;
+		if (!f) return;
+		const body = f.type ? { types: typesPayload(m, f.type.id, look) } : { types: typesPayload(m), plain: look };
+		const saved = await send(() => write('types-save', body));
 		if (saved === null) return;
 		void store.refresh();
-		if (!a) return hand.set({ type: t.id, over: {} });
+		if (!a) return void reset();
 		const at = a;
 		await send(() => edit(at, { look: null }));
 	}
@@ -168,6 +229,7 @@
 		el.style.height = el.scrollHeight + 2 + 'px';
 	}
 	function field(el: HTMLTextAreaElement): void {
+		fieldEl = el;
 		grow(el);
 		if (draft || text !== null) el.focus();
 	}
@@ -178,7 +240,7 @@
 </script>
 
 {#if a || draft}
-	<div class="ann-popup" data-testid="ann-popup" data-annotation-id={a?.id ?? ''} role="dialog" aria-label={a ? `${typeName === 'No type' ? 'annotation' : typeName} by ${a.author.label ?? a.author.id}` : 'new annotation'}>
+	<div class="ann-popup" data-testid="ann-popup" data-annotation-id={a?.id ?? ''} role="dialog" aria-label={a ? `${current ? typeName : 'annotation'} by ${a.author.label ?? a.author.id}` : 'new annotation'}>
 		<div class="phead">
 			<button type="button" class="ptype" aria-expanded={formatting} disabled={!changeable} title={changeable ? 'Type and look' : undefined} data-testid="popup-type" onclick={() => (formatting = !formatting)}><Sample {look} text={typeName} />{#if changeable}<Icon name="caret" size={12} />{/if}</button>
 			<span class="meta">{#if a}<span title={a.author.id}>{a.author.label ?? a.author.id}</span> · {shortDate(a.created)}{:else}{draft?.name}{/if}</span>
@@ -186,7 +248,7 @@
 		</div>
 		{#if formatting && changeable}
 			<div class="pformat" data-testid="popup-format">
-				<TypeList {types} {current} {look} disabled={busy} onpick={(t) => void pickType(t)} onadd={allowed['types-save'] ? () => openSettings('annotations', { take: a ? { kind: 'annotation', id: a.id } : { kind: 'hand' } }) : undefined} />
+				<TypeList {types} {current} {plain} disabled={busy} onpick={(t) => void pickType(t)} onkeep={a && current ? () => void keep() : undefined} onadd={allowed['types-save'] ? () => openSettings('annotations', { take: a ? { kind: 'annotation', id: a.id } : { kind: 'hand' } }) : undefined} />
 				<LookControls {look} disabled={busy} onpick={(c, done) => void pickLook(c, done)} />
 				{#if from}<Changed name={from.name} disabled={busy} onreset={() => void reset()} onupdate={allowed['types-save'] ? () => void update() : undefined} />{/if}
 			</div>
@@ -203,8 +265,14 @@
 			{#if showVersion && a && version.fragment}<VersionView path={version.fragment} focus={a.id} {onmark} />{/if}
 		{/if}
 		{#if editing && (draft || allowed.edit)}
-			<textarea class="cmt" rows="2" placeholder={draft?.quote === undefined && draft ? 'Write the comment' : 'Add a comment'} aria-label="Comment" data-testid="popup-comment-field" value={value} use:field oninput={(e) => { text = e.currentTarget.value; grow(e.currentTarget); }} onkeydown={keys}></textarea>
-			{#if dirty || draft}
+			<textarea class="cmt" rows="2" placeholder={draft?.quote === undefined && draft ? 'Write the comment' : 'Add a comment'} aria-label="Comment" data-testid="popup-comment-field" value={value} use:field oninput={(e) => { text = e.currentTarget.value; confirming = false; grow(e.currentTarget); }} onkeydown={keys}></textarea>
+			{#if confirming}
+				<div class="pact ask" role="alert" data-testid="popup-discard-ask">
+					<span>Discard this comment?</span>
+					<button type="button" class="lnk" data-testid="popup-keep-writing" onclick={() => ((confirming = false), fieldEl?.focus())}>Keep writing</button>
+					<button type="button" class="btn small" data-testid="popup-discard" onclick={onclose}>Discard</button>
+				</div>
+			{:else if dirty || draft}
 				<div class="pact">
 					{#if text !== null && !draft}<button type="button" class="lnk" onclick={() => (text = null)}>Discard</button>{/if}
 					<button type="button" class="btn small primary" disabled={busy || !dirty} data-testid="popup-save" onclick={() => void save()}>{draft ? (draft.quote ? 'Annotate' : 'Comment') : 'Save'}</button>
@@ -360,6 +428,10 @@
 		align-items: center;
 		gap: 12px;
 		font-size: 12px;
+	}
+	.pact.ask span {
+		margin-right: auto;
+		color: var(--ink-soft);
 	}
 	.thread {
 		display: flex;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Annotating on the corpus's own text, a node's or a document's: what the toolbar's tools do here.
 	//
-	// **Annotate** on, selected words are marked at once in the look in hand, and Add comment stands at their end for a moment; a type that stays open until resolved asks something, so its words open the popup to say it first, since loom takes such an annotation only with words. **Comment** on, a click leaves a comment at the place clicked, on the result it is in, and turns the tool off. With neither on, a selection offers **Quote**, which copies the words and where they came from and writes nothing. Alt-drag draws a box round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
+	// **Annotate** on, selected words, widened to whole words where a drag stops partway through one, are marked at once in the look in hand, and Add comment stands at their end until the next selection: typing there starts the comment, so a letter meant for it never reaches a shortcut. A type that stays open until resolved asks something, so its words open the popup to say it first, since loom takes such an annotation only with words; that draft is not saved until its button is pressed, and leaving it with words in it asks first. **Comment** on, a click leaves a comment at the place clicked, on the result it is in, and turns the tool off. With neither on, a selection offers **Quote**, which copies the words and where they came from and writes nothing. Alt-drag draws a box round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
 	//
 	// A quote is what was selected with each formula it touches given as its TeX, the form loom finds in the source, so a selection across `$c$` anchors where the words on screen alone would not.
 	import { untrack, type Snippet } from 'svelte';
@@ -13,11 +13,12 @@
 	import AnnotationPopup from '$lib/review/AnnotationPopup.svelte';
 	import AtSelection from '$lib/review/AtSelection.svelte';
 	import QuoteChip from '$lib/review/QuoteChip.svelte';
-	import { hand, handPayload, typeById, type Annotating, type Draft } from '$lib/review/annotating.svelte';
+	import { commentSeed, hand, handPayload, typeById, type Annotating, type Draft } from '$lib/review/annotating.svelte';
 	import { say } from '$lib/review/toasts.svelte';
 	import { placeAt } from './popup';
 	import { quoteOf, keyOf, texOf } from './quote';
 	import { clearPending, showPending } from './pending';
+	import { snapToWords } from './snap';
 
 	let {
 		notes,
@@ -49,27 +50,71 @@
 	let offered = $state<{ words: string; target: string; at: Box; range: Range } | null>(null);
 	/** A new annotation being written in the popup, and where the popup stands. */
 	let drafting = $state<{ draft: Draft; at: Box } | null>(null);
-	/** Words just marked by Annotate, with Add comment at their end for a few seconds. */
+	/** The draft's popup, which says whether it may close. */
+	let popup = $state<ReturnType<typeof AnnotationPopup> | undefined>();
+	/** Words just marked by Annotate, with Add comment at their end until the next selection. */
 	let marked = $state<{ id: string; at: Box } | null>(null);
-	let markedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// what the hint under the toolbar says follows the draft and the words just marked
+	$effect(() => {
+		notes.drafting = drafting ? (drafting.draft.quote ? 'annotate' : 'comment') : null;
+	});
+	$effect(() => {
+		notes.marked = marked?.id ?? null;
+	});
 
 	onDestroy(() => {
 		clearPending();
-		clearTimeout(markedTimer);
+		notes.drafting = null;
+		notes.marked = null;
 	});
 
-	/** The tool goes off with Escape, as a highlighter is put down. */
+	/** Close the draft unless it holds words, which its popup asks about first. */
+	function leaveDraft(): void {
+		if (popup?.leave() ?? true) closeDraft();
+	}
+
+	/** The tool goes off with Escape, as a highlighter is put down; a draft is left first. */
 	$effect(() => {
 		const key = (e: KeyboardEvent) => {
 			if (e.key !== 'Escape' || e.defaultPrevented) return;
 			if (drafting) {
 				e.preventDefault();
-				return closeDraft();
+				return leaveDraft();
 			}
+			marked = null;
 			if (notes.tool && !notes.open) notes.tool = null;
 		};
 		document.addEventListener('keydown', key);
 		return () => document.removeEventListener('keydown', key);
+	});
+
+	/** Typing while Add comment stands starts the comment: the keys are kept until the popup opens and its field takes them (`commentSeed`). A number still switches type and a space still scrolls, until the first letter. Listened for before anything else, so no key meant for the comment reaches a shortcut. */
+	$effect(() => {
+		const id = marked?.id;
+		if (!id) return;
+		const typed = (e: KeyboardEvent) => {
+			if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+			if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')) return;
+			const started = commentSeed.id === id;
+			if (e.key === 'Backspace' && started) commentSeed.text = commentSeed.text.slice(0, -1);
+			else if (e.key === 'Enter' && !started) {
+				commentSeed.id = id;
+				commentSeed.text = '';
+				void openWritten(id);
+			} else if (e.key.length === 1 && (started || !/[\s0-9]/.test(e.key))) {
+				if (started) commentSeed.text += e.key;
+				else {
+					commentSeed.id = id;
+					commentSeed.text = e.key;
+					void openWritten(id);
+				}
+			} else return;
+			e.preventDefault();
+			e.stopPropagation();
+		};
+		document.addEventListener('keydown', typed, true);
+		return () => document.removeEventListener('keydown', typed, true);
 	});
 
 	$effect(() => {
@@ -85,6 +130,7 @@
 		void notes.tool;
 		untrack(() => {
 			offered = null;
+			marked = null;
 		});
 	});
 
@@ -133,6 +179,12 @@
 		if (!root.contains(range.commonAncestorContainer)) return;
 		// only the text's own words: a popup, the margin or compare's drawing stands in the fragment without being its text
 		if ([range.startContainer, range.endContainer, range.commonAncestorContainer].some(notText)) return;
+		marked = null;
+		// Annotate marks whole words: a drag that stops partway through one takes the rest of it, and the selection shows what is marked
+		if (notes.tool === 'annotate' && allowed && snapToWords(range)) {
+			sel.removeAllRanges();
+			sel.addRange(range);
+		}
 		const words = quoteOf(range);
 		if (!words) return;
 		const target = keyOf(range.commonAncestorContainer, fallback);
@@ -158,24 +210,27 @@
 			return;
 		}
 		const id = (res.result ?? '').split(/\s+/)[0] ?? '';
-		clearTimeout(markedTimer);
 		marked = id ? { id, at } : null;
-		markedTimer = setTimeout(() => (marked = null), 4000);
 	}
 
-	/** Open the popup on an annotation just written, once the manifest that holds it has been drawn. */
+	/** Open the popup on an annotation just written, once the manifest that holds it has been drawn. Add comment stands, and keeps the keys typed, until it opens. */
 	async function openWritten(id: string): Promise<void> {
-		marked = null;
 		await store.refresh();
 		for (let i = 0; i < 20; i++) {
-			if (notes.show(id)) return;
+			if (notes.show(id)) {
+				if (marked?.id === id) marked = null;
+				return;
+			}
 			await new Promise((r) => setTimeout(r, 100));
 		}
+		if (marked?.id === id) marked = null;
+		if (commentSeed.id === id) commentSeed.id = '';
 	}
 
 	function openDraft(draft: Draft, at: Box): void {
 		notes.close();
 		offered = null;
+		marked = null;
 		drafting = { draft, at };
 	}
 
@@ -296,12 +351,12 @@
 		};
 	}
 
-	/** A press outside the draft's popup puts it away, as a press outside any popup does. */
+	/** A press outside the draft's popup puts it away, as a press outside any popup does, once its words have been asked about. */
 	$effect(() => {
 		if (!drafting) return;
 		const away = (e: PointerEvent) => {
 			const t = e.target as Element | null;
-			if (!t?.closest?.('.ann-popup-host, [data-testid="settings-window"]')) closeDraft();
+			if (!t?.closest?.('.ann-popup-host, [data-testid="settings-window"]')) leaveDraft();
 		};
 		document.addEventListener('pointerdown', away, true);
 		return () => document.removeEventListener('pointerdown', away, true);
@@ -329,6 +384,7 @@
 {#if drafting}
 	<aside class="ann-popup-host" use:placed={drafting.at} data-testid="draft-host">
 		<AnnotationPopup
+			bind:this={popup}
 			draft={drafting.draft}
 			onclose={closeDraft}
 			onwritten={(id) => {

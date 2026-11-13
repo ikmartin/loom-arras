@@ -86,7 +86,7 @@ async function pdfMenu(page: Page, testid: string): Promise<void> {
 }
 
 /** The look in hand, set before the page loads, as the format menu leaves it. */
-async function holding(page: Page, h: { type: string | null; over: Record<string, unknown> }): Promise<void> {
+async function holding(page: Page, h: { type: string | null; over: Record<string, unknown>; plain?: Record<string, unknown> }): Promise<void> {
 	await page.addInitScript((v) => localStorage.setItem('arras.annotate.hand', JSON.stringify(v)), h);
 }
 
@@ -187,7 +187,7 @@ test.describe('on a project PDF', () => {
 
 	test('Comment writes a pin once it says something, the drawing tools each leave a mark in the look in hand, and a shape moves, resizes and comes back with Undo', async ({ page, served }) => {
 		test.slow();
-		await holding(page, { type: null, over: { color: 'purple', style: 'highlight', weight: 3, opacity: 80 } });
+		await holding(page, { type: null, over: {}, plain: { color: 'purple', style: 'highlight', weight: 3, opacity: 80 } });
 		await openPaper(page, `/file/${FILE}`);
 
 		await page.getByTestId('tool-comment').click();
@@ -263,7 +263,7 @@ test.describe('on a project PDF', () => {
 	});
 
 	test('a saved copy holds the marks as a PDF reader finds them, in their looks, and its original bytes', async ({ page, served }) => {
-		await holding(page, { type: null, over: { color: 'green', style: 'highlight', weight: 2, opacity: 55 } });
+		await holding(page, { type: null, over: {}, plain: { color: 'green', style: 'highlight', weight: 2, opacity: 55 } });
 		await openPaper(page, `/file/${FILE}`);
 		await annotate(page, 1, 'Cycle');
 		await published(served, 1);
@@ -287,7 +287,7 @@ test.describe('on a project PDF', () => {
 
 	test('a colour is set in the popup, with Undo, and the look in hand is what the next mark is drawn in', async ({ page, served }) => {
 		test.slow();
-		await holding(page, { type: null, over: { color: 'green', style: 'highlight', weight: 2, opacity: 100 } });
+		await holding(page, { type: null, over: {}, plain: { color: 'green', style: 'highlight', weight: 2, opacity: 100 } });
 		await openPaper(page, `/file/${FILE}`);
 		await annotate(page, 1, 'Cycle');
 		await published(served, 1);

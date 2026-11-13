@@ -5,13 +5,21 @@
 #   name          what the type is called everywhere
 #   color         grey, brown, red, orange, yellow, green, blue, purple or pink
 #   style         underline, highlight or strike
-#   weight        thickness of an underline or strike, in whole pixels, 1 to 10
+#   weight        thickness of an underline or strike, in whole pixels, 1 to 5
 #   opacity       0 to 100
 #   open          true: an annotation of this type stays open until someone resolves it; false: it only informs
 #   notes         true: annotations of this type are also listed in Notes
 #   instructions  when an agent should use this type; the rules for every annotation are loom's own
 #
 # Deleting a type leaves its annotations untyped, looking as they did.
+#
+# [plain] is the look of an annotation with no type that sets none of its own: color, style, weight and opacity, as a type has.
+
+[plain]
+color = "yellow"
+style = "highlight"
+weight = 2
+opacity = 60
 
 [[type]]
 id = "revision"

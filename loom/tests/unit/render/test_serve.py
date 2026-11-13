@@ -38,6 +38,18 @@ def test_serve_static_routes(session) -> None:  # type: ignore[no-untyped-def]
     assert get(s.url + "_api")[0] == 200  # the write API answers here now; 404 is what a read-only publisher sends
 
 
+def test_serve_keeps_the_viewer_it_started_with_and_says_when_loom_moves_on(session) -> None:  # type: ignore[no-untyped-def]
+    """A viewer vendored while a server runs is not served beside the code it was not built for: the server serves the copy it took at start, and `/_api` says it is stale, so the page can say to restart."""
+    s, _ = session
+    body = json.loads(get(s.url + "_api")[2])
+    assert body["viewer"] == "" and body["stale"] is False
+    # vendored again: a new version named, the old script gone
+    (s.bundle_dir / "_app" / "version.json").write_text('{"version":"2"}', encoding="utf-8")
+    (s.bundle_dir / "_app" / "x.js").unlink()
+    assert get(s.url + "_app/x.js")[2] == b"console.log(1)"
+    assert json.loads(get(s.url + "_api")[2])["stale"] is True
+
+
 def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untyped-def]
     s, d = session
     _, headers, _ = get(s.url + "build/manifest.json")

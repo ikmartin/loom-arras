@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A document's toolbar: the annotating bar (Annotate, Comment, the format menu and Undo and Redo where a publisher serves writes, with the hint beneath saying what the tool in hand does; Changes where its text has pending changes; the stepper, Comments and Notes), then **history ▾** where the document has one; under *view*, `show settled annotations` and its key, which `s` does from inside the document. Its compiled PDF opens from its row in the tree. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
+	// A document's toolbar: the annotating bar (Annotate, Comment, the format menu and Undo and Redo where a publisher serves writes, with the hint beneath saying what the tool in hand does; Changes where its text has pending changes; the stepper, Comments and Notes), then **history ▾** where the document has one; under *view*, `show settled annotations`. Its compiled PDF opens from its row in the tree. A version (a landmark) has the history alone, and on its bar its own controls (`VersionControls`): older and newer, live text, compare with now, restore; a closed or context-only agent document has none of these.
 	import { store } from '$lib/manifest/client.svelte';
 	import { isLandmark, type Item } from '../item';
 	import { historyOf } from '../history';
@@ -34,20 +34,19 @@
 </script>
 
 {#snippet changes()}{#if master}<ChangesMenu {notes} document={master.path} of={name} />{/if}{/snippet}
-{#snippet tools()}<AnnotateBar {notes} of={name} {writes} {changes} />{/snippet}
+{#snippet reading()}<AnnotateBar {notes} of={name} part="read" {writes} {changes} />{/snippet}
+{#snippet writing()}<AnnotateBar {notes} of={name} part="write" {writes} />{/snippet}
 {#snippet versions()}<HistoryMenu {item} {name} divided={(!!master && !master.closed && !master.context_only) || !!draft} />{/snippet}
 {#snippet live()}<VersionControls {item} {draft} />{/snippet}
 
 {#if master && !master.closed && !master.context_only}
-	<ItemToolbar {name} bar={tools} history={history ? versions : undefined} on={ui.showSettled} hint={writes ? hintFor(m, notes, hand.value) : ''}>
+	<ItemToolbar {name} bar={reading} tools={writes ? writing : undefined} history={history ? versions : undefined} on={ui.showSettled} hint={writes ? hintFor(m, notes, hand.value) : ''}>
 		{#snippet view()}
 			{#if notes.ready || anySettled}
 				<!-- Settled annotations are hidden at rest; this shows them faintly, for the sitting, on every document and node. -->
 				<ToolbarItem
 					label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
 					name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
-					key="s"
-					checked={ui.showSettled}
 					testid="toggle-settled"
 					onclick={() => (ui.showSettled = !ui.showSettled)}
 				/>

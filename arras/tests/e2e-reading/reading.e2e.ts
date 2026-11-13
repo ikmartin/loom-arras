@@ -123,13 +123,9 @@ test('a selection stays selected and offers only Quote; a note on its words is d
 	expect(anchor.page).toBe(2);
 	expect(String(anchor.exact)).toContain('incidence matrix');
 	expect(anchor).not.toHaveProperty('quads'); // derived at build time, never recorded for text
-	// with no type, a thin grey underline beneath each line and no band
-	await expect(page.getByTestId(`page-mark-${id}`)).toHaveAttribute('data-kind', 'underline');
-	const rule = page.getByTestId(`mark-line-${id}`).locator('line').first();
-	await expect(rule).toBeAttached();
-	expect(await rule.evaluate((el) => getComputedStyle(el).stroke)).toMatch(GREY);
-	expect(await rule.evaluate((el) => getComputedStyle(el).strokeWidth)).toBe('1px');
-	await expect(page.getByTestId(`mark-band-${id}`)).toHaveCount(0);
+	// with no type, the quilt's plain look: a yellow highlight, a band over each line
+	await expect(page.getByTestId(`page-mark-${id}`)).toHaveAttribute('data-kind', 'highlight');
+	await expect(page.getByTestId(`mark-band-${id}`)).toBeAttached();
 });
 
 test('a selection across a citation and a reference is quoted as they were written, and anchors', async ({ page, served }) => {
@@ -169,7 +165,7 @@ test('a selection across a citation and a reference is quoted as they were writt
 });
 
 test('a region drawn with Alt is commented on, recorded as drawn, and drawn as an outline in the look in hand', async ({ page, served }) => {
-	await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: null, over: { color: 'grey', style: 'underline', weight: 1, opacity: 100 } })));
+	await page.addInitScript(() => localStorage.setItem('arras.annotate.hand', JSON.stringify({ type: null, over: {}, plain: { color: 'grey', style: 'underline', weight: 1, opacity: 100 } })));
 	await opened(page, served);
 	const canvas = page.locator('[data-testid="pdf-page-2"] canvas');
 	// the column, not the window: the page's top at the top of the reader, so the display a third of the way down is in view

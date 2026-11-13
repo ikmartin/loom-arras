@@ -190,8 +190,51 @@ def open_url(root: Path, path: str = "") -> str:
     return f"http://127.0.0.1:{port}/{path.lstrip('/')}"
 
 
+def viewer_version(bundle: Path) -> str:
+    """The version a built viewer names itself by (`_app/version.json`); '' where it names none."""
+    try:
+        return str(json.loads((bundle / "_app" / "version.json").read_text(encoding="utf-8")).get("version", ""))
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def code_stamp() -> tuple[int, int]:
+    """loom's Python as it stands on disk: how many modules, and the newest one's mtime, which an edit, a merge or an install moves."""
+    import loom
+
+    times = [p.stat().st_mtime_ns for p in Path(loom.__file__).parent.rglob("*.py")]
+    return len(times), max(times, default=0)
+
+
+class HeldBundle:
+    """The viewer a server started with, copied aside and served from the copy, and whether loom on disk has moved on since.
+
+    `loom serve` keeps the Python it started with, so serving the bundle from where it is vendored would hand a newer viewer to an older server once it is vendored again. `stale()` is what `/_api` reports, so a viewer can say to restart.
+    """
+
+    def __init__(self, source: Path) -> None:
+        import shutil
+        import tempfile
+
+        self.source = source
+        self._tmp = tempfile.TemporaryDirectory(prefix="loom-viewer-")
+        self.path = Path(self._tmp.name) / "viewer"
+        shutil.copytree(source, self.path)
+        self.version = viewer_version(self.path)
+        self.code = code_stamp()
+
+    def stale(self) -> bool:
+        """Whether the viewer vendored, or loom's code, has changed since the server started."""
+        return viewer_version(self.source) != self.version or code_stamp() != self.code
+
+    def close(self) -> None:
+        self._tmp.cleanup()
+
+
 class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
+    #: The viewer copied aside at start, which `/_api` reports on; None where the bundle is served from where it lies.
+    held: HeldBundle | None = None
     build_dir: Path = Path(".")
     refs_dir: Path = Path(".")
     #: The quilt to write into. `None` serves the corpus read-only and answers `/_api` with 404, which is the
@@ -418,8 +461,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": elsewhere}})
                 return
             frames = {"frames": self.frames} if self.frames else {}
+            # the viewer this server serves, and whether loom has been updated under it, so a page can say to reload or to restart
+            served = {"viewer": self.held.version, "stale": self.held.stale()} if self.held else {}
             self._json(
-                HTTPStatus.OK, {**discovery(), "token": self.token, "stream": self.publications is not None, **frames}
+                HTTPStatus.OK,
+                {**discovery(), "token": self.token, "stream": self.publications is not None, **frames, **served},
             )
             return
         target = self._resolve()
@@ -630,6 +676,7 @@ class ServeSession:
         self.frames: ThreadingHTTPServer | None = None
         self.shown = Shown.of(quilt)
         self.watcher: Watcher | None = None
+        self.held: HeldBundle | None = None
         self.last_report: BuildReport | None = None
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
         self.publications = Publications()
@@ -801,11 +848,13 @@ class ServeSession:
 
     def listen(self) -> None:
         """Bind the port and start serving. The build has not run yet, so until `start` finishes it `/build/` serves what an earlier build left, or 404."""
+        self.held = HeldBundle(self.bundle_dir)
         handler = type(
             "Handler",
             (LoomHandler,),
             {
-                "bundle_dir": self.bundle_dir,
+                "bundle_dir": self.held.path,
+                "held": self.held,
                 "build_dir": self.quilt.root / BUILD,
                 "refs_dir": storage_root(self.quilt.root),
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
@@ -898,6 +947,8 @@ class ServeSession:
                 server.server_close()
         # nothing is listening any more, so nothing should tell a command that something is
         (self.quilt.root / SERVE_JSON).unlink(missing_ok=True)
+        if self.held:
+            self.held.close()
         from loom.render.api import forget_place
 
         forget_place(self.quilt.root)
