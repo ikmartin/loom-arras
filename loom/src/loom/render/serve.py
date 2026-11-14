@@ -83,8 +83,6 @@ def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
     return ""
 
 
-class Publications:
-    """Every publication the server makes, counted, and how its compiles stand, so `/_api/stream` can say that either changed."""
 def addressed_here(request: SimpleHTTPRequestHandler) -> bool:
     """Whether the request's `Host` is this server's own: `127.0.0.1` or `localhost`, at its port.
 
@@ -94,6 +92,8 @@ def addressed_here(request: SimpleHTTPRequestHandler) -> bool:
     return (request.headers.get("Host") or "").lower() in (f"127.0.0.1:{port}", f"localhost:{port}")
 
 
+class Publications:
+    """Every publication the server makes, counted, and how its compiles stand, so `/_api/stream` can say that either changed."""
 
     def __init__(self) -> None:
         self._cond = threading.Condition()
@@ -138,21 +138,24 @@ def write_serve_json(root: Path, port: int) -> str:
     token = secrets.token_urlsafe(24)
     p = root / SERVE_JSON
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(
-        json.dumps(
-            {
-                "port": port,
-                "pid": os.getpid(),
-                "token": token,
-                "url": f"http://127.0.0.1:{port}/",
-                # a copied quilt carries the file, and a link it printed would open the other quilt's viewer
-                "root": str(Path(root).resolve()),
-            },
-            indent=1,
+    # the token is for this person's programs alone, so nobody else on the machine may read the file; one an earlier server left keeps the mode it was made with, so it is emptied and closed to others before the token goes in
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {
+                    "port": port,
+                    "pid": os.getpid(),
+                    "token": token,
+                    "url": f"http://127.0.0.1:{port}/",
+                    # a copied quilt carries the file, and a link it printed would open the other quilt's viewer
+                    "root": str(Path(root).resolve()),
+                },
+                indent=1,
+            )
+            + "\n"
         )
-        + "\n",
-        encoding="utf-8",
-    )
     return token
 
 
@@ -270,11 +273,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if os.environ.get("LOOM_SERVE_LOG"):
             super().log_message(format, *args)
 
-    def _resolve(self) -> Path | None:
-        path = self.path.split("?", 1)[0].split("#", 1)[0]
-        if path.startswith(BUILD_URL):
-            rel = path[len(BUILD_URL) :]
-            target = (self.build_dir / rel).resolve()
     def parse_request(self) -> bool:
         """Refuse, before any method answers it, a request that names another host (`addressed_here`): the token at `/_api` and every file the server reads out would otherwise go to a rebinding domain's page."""
         if not super().parse_request():
@@ -284,6 +282,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
             return False
         return True
 
+    def _resolve(self) -> Path | None:
+        path = self.path.split("?", 1)[0].split("#", 1)[0]
+        if path.startswith(BUILD_URL):
+            rel = path[len(BUILD_URL) :]
+            target = (self.build_dir / rel).resolve()
             return target if str(target).startswith(str(self.build_dir.resolve())) and target.is_file() else None
         if path.startswith(STORE_URL):
             # the first thing the server offers that it did not generate: a work's fetched PDF or source, so the

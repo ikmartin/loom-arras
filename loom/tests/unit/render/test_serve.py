@@ -182,6 +182,26 @@ def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.M
     assert s.builds == settled
 
 
+def test_the_file_holding_the_token_is_readable_by_its_owner_alone(tmp_path: Path) -> None:
+    """On a machine other people have accounts on, the token would otherwise be anyone's to read: whatever the umask, and over a file an earlier server left open to all."""
+    import os
+    import stat
+
+    from loom.render.serve import SERVE_JSON, read_serve_json, write_serve_json
+
+    root = tmp_path / "quilt"
+    old = os.umask(0)
+    try:
+        token = write_serve_json(root, 8791)
+        assert stat.S_IMODE((root / SERVE_JSON).stat().st_mode) == 0o600
+        (root / SERVE_JSON).chmod(0o644)
+        again = write_serve_json(root, 8791)
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE((root / SERVE_JSON).stat().st_mode) == 0o600
+    assert again != token and read_serve_json(root)["token"] == again
+
+
 def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp_path: Path) -> None:
     """`serve.json` outlives the process that wrote it, so a command that printed a link from the file alone would send its reader to a tab that never loads (plan 0.13 §9, the `open:` line)."""
     import json as _json

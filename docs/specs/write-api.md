@@ -92,7 +92,7 @@ Every successful mutation triggers a republish before it answers, so the manifes
 
 **[decided]** **Every write carries three checks.** They are CSRF protection and not a login: they keep other *pages* out, not other people.
 
-1. **`X-Loom-Token`** must equal the token in `.loom/serve.json`, which `GET /_api` serves and the viewer reads.
+1. **`X-Loom-Token`** must equal the token in `.loom/serve.json`, a file only its owner can read, which `GET /_api` serves and the viewer reads.
 2. **The page it came from** must be this server's: `Origin`, when present, is this server's own, and `Sec-Fetch-Site`, when present, is `same-origin` (or `none`, the person typing the address).
 3. **`Content-Type: application/json`** is required.
 
