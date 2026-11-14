@@ -191,6 +191,36 @@ def test_the_token_is_served_only_to_the_viewers_own_origin(session) -> None:  #
         assert status == 200 and json.loads(raw)["token"] == read_serve_json(d)["token"], headers
 
 
+def test_a_request_that_names_another_host_is_answered_nothing(session) -> None:  # type: ignore[no-untyped-def]
+    """DNS rebinding: a domain pointed at 127.0.0.1 is same-origin with the server as the browser sees it, so its page's reads carry no foreign `Origin` and would be given the token and every file; each still names the domain as its `Host`."""
+    import urllib.error
+    import urllib.request
+
+    from loom.render.serve import read_serve_json
+    from tests.helpers import PATIENCE
+
+    s, d = session
+    token = str(read_serve_json(d)["token"])
+    for host in (f"rebound.example:{s.port}", "rebound.example", f"127.0.0.1:{s.port + 1}", "127.0.0.1"):
+        for path in ("_api", "", "node/dm-0003", "build/manifest.json", "_app/x.js", "_api/stream", "_api/jobs"):
+            status, _, _ = get(s.url + path, {"Host": host, "X-Loom-Token": token})
+            assert status == 403, (host, path)
+        for method, data in (("HEAD", None), ("POST", b"{}")):
+            asked = urllib.request.Request(
+                s.url + ("_api/here" if data else ""),
+                data=data,
+                method=method,
+                headers={"Host": host, "X-Loom-Token": token, "Content-Type": "application/json"},
+            )
+            with pytest.raises(urllib.error.HTTPError) as refused:
+                urllib.request.urlopen(asked, timeout=PATIENCE)
+            assert refused.value.code == 403 and token.encode() not in refused.value.read(), (host, method)
+    for host in (f"127.0.0.1:{s.port}", f"localhost:{s.port}", f"LOCALHOST:{s.port}"):
+        status, _, raw = get(s.url + "_api", {"Host": host})
+        assert status == 200 and json.loads(raw)["token"] == token, host
+        assert get(s.url + "build/manifest.json", {"Host": host})[0] == 200, host
+
+
 def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

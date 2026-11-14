@@ -83,6 +83,15 @@ def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
 
 class Publications:
     """Every publication the server makes, counted, and how its compiles stand, so `/_api/stream` can say that either changed."""
+def addressed_here(request: SimpleHTTPRequestHandler) -> bool:
+    """Whether the request's `Host` is this server's own: `127.0.0.1` or `localhost`, at its port.
+
+    A browser sends the name its page was loaded by. A domain pointed at 127.0.0.1 (DNS rebinding) is same-origin with this server as the browser sees it, so `from_elsewhere` finds nothing wrong with its page's requests, and they still name the domain here.
+    """
+    port = request.server.server_address[1] if isinstance(request.server.server_address, tuple) else 0
+    return (request.headers.get("Host") or "").lower() in (f"127.0.0.1:{port}", f"localhost:{port}")
+
+
 
     def __init__(self) -> None:
         self._cond = threading.Condition()
@@ -264,6 +273,15 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if path.startswith(BUILD_URL):
             rel = path[len(BUILD_URL) :]
             target = (self.build_dir / rel).resolve()
+    def parse_request(self) -> bool:
+        """Refuse, before any method answers it, a request that names another host (`addressed_here`): the token at `/_api` and every file the server reads out would otherwise go to a rebinding domain's page."""
+        if not super().parse_request():
+            return False
+        if not addressed_here(self):
+            self.send_error(HTTPStatus.FORBIDDEN, "This server answers only as 127.0.0.1 or localhost, at its own port")
+            return False
+        return True
+
             return target if str(target).startswith(str(self.build_dir.resolve())) and target.is_file() else None
         if path.startswith(STORE_URL):
             # the first thing the server offers that it did not generate: a work's fetched PDF or source, so the
@@ -594,8 +612,7 @@ class FramesHandler(SimpleHTTPRequestHandler):
             super().log_message(format, *args)
 
     def _target(self) -> Path | None:
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}") or self.shown is None:
+        if not addressed_here(self) or self.shown is None:
             return None
         rel = unquote(self.path.split("?", 1)[0].split("#", 1)[0].lstrip("/"))
         if not self.shown.is_shown(rel):
@@ -606,10 +623,7 @@ class FramesHandler(SimpleHTTPRequestHandler):
 
     def _listing(self) -> bytes | None:
         """`/.loom/files.json`: every shown file's path, the one thing here that is not a shown file, at an address no shown file can have since `.loom` is never shown; so a page can find what the project holds."""
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if self.path.split("?", 1)[0] != "/.loom/files.json" or self.shown is None:
-            return None
-        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+        if self.path.split("?", 1)[0] != "/.loom/files.json" or self.shown is None or not addressed_here(self):
             return None
         return json.dumps({"files": self.shown.walk()}).encode("utf-8")
 
