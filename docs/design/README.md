@@ -1,14 +1,16 @@
 # Loom
 
-Loom is a local command-line tool for mathematical research, and arras is the viewer it publishes to. This directory is their design: what they are for, the principles they follow, the model they share, how agents take part, and the invariants that must not be lost. It replaces the design book, whose decision records are frozen in [`decision-records-frozen.md`](decision-records-frozen.md); the book itself is deleted, and git history keeps it.
+Loom is a local application for mathematical research: a person reads, annotates and decides in its viewer, arras, and their own AI agent works beside them through loom's commands. This directory is their design: what they are for, the principles they follow, the model they share, how agents take part, and the invariants that must not be lost. It replaces the design book, whose decision records are frozen in [`decision-records-frozen.md`](decision-records-frozen.md); the book itself is deleted, and git history keeps it.
 
 ## What loom is for
 
-Loom is a tool for every stage of mathematical research, from learning a field to submitting a paper. It treats mathematics as a graph of addressable statements: your drafts, the papers and books you read, and the questions you are working on. Anything a person or an AI says about that mathematics attaches to the statement it concerns and can be found from there.
+Mathematicians do not finally care whether a theorem is true so much as understand why it is. Loom is a tool for building that understanding at every stage of research, from learning a field to submitting a paper, and it uses AI to deepen it. It treats mathematics as a graph of addressable statements: your drafts, the papers and books you read, and the questions you are working on. Anything a person or an AI says about that mathematics attaches to the statement it concerns and can be found from there, so that the connections in your head have a counterpart you can follow.
 
 Most of research is provisional, and loom lets it stay that way. As in a Zettelkasten, conversations and half-formed ideas are fleeting notes: one gesture to leave, asking nothing of anyone afterwards, so forgetting one costs nothing. What proves worth keeping is distilled into durable notes, about the literature or in your own words, that are atomic, linked, and found from the mathematics they concern.
 
-Loom is useful with no AI present and built to be excellent with one, from any provider, including local models. It assumes as little as possible about who you are, what stage you are at, or whether you have a draft or a problem at all. And it never lets a claim that nobody has checked look checked.
+AI-written mathematics and documents are welcome in loom and will be a large part of research. Loom's part is a clear boundary around what an AI may change, so that the person keeps control of their own text and of how they work. Loom calls no model and stays useful with none present; it is built to be excellent with one, from any provider, including local models (P9). It assumes as little as possible about who you are, what stage you are at, or whether you have a draft or a problem at all. And it never lets a claim that nobody has checked look checked.
+
+A person uses loom as an application: they launch it, open a quilt or start one, drag in papers and drafts, and read, annotate and decide in the viewer. They need no command line, and loom is not a text editor: they write in their own editor, or on Overleaf. An agent uses loom through its commands, in a shell or over MCP. The viewer's controls, the commands and the MCP tools are surfaces over one set of operations. Much of this is [not built yet](#decided-not-yet-built): today a person still starts loom, makes a quilt and sets up an agent from a terminal.
 
 ## Three people
 
@@ -34,7 +36,7 @@ These are warning signs. Each is a reason to think again, not an automatic veto:
 - it asks for configuration where the preamble already says the answer;
 - it writes to an author's file outside an incorporation the author chose (P7);
 - it creates a second source of truth, or stores a state that could be computed (P3);
-- it needs a running process for something a command could do;
+- it makes a person type a command for something a control could do, or makes an agent need the viewer for something a command could do;
 - it only makes sense with a model in the loop, or needs an API key;
 - it names a directory for a property loom can compute;
 - it reinvents something LaTeX already has.
@@ -54,6 +56,7 @@ Two markers keep the text honest:
 
 ## Decided, not yet built
 
+- **Loom as an application.** Installing with one line; a home page that opens, creates and lists quilts; dropping a paper in; connecting an agent from the viewer and seeing that it is connected; and no step that makes a person type a command. See `docs/plans/0.32-v0.1.md`, which also holds what is recommended and not yet decided.
 - **Annotating PDFs and reviewing changes as plan 0.30 settled them.** Annotating documents is built: the toolbar and its one popup, the Comments and Notes lists, Quote, Settings › Annotations, and an annotation opening the version it was written on. Not built: the same toolbar on a PDF page, a mark found again on a changed PDF and a crop of it for an agent (0.30.2), and changes reviewed in the document (0.30.3). See `model.md` and `docs/plans/0.30-annotations.md`.
 - **Notes beyond annotations.** Claims carrying their evidence, and promotion to durable notes. See `model.md`.
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.

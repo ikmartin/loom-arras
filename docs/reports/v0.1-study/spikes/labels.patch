@@ -1,0 +1,1558 @@
+diff --git a/loom/scripts/spikes/labels/aggregate.py b/loom/scripts/spikes/labels/aggregate.py
+new file mode 100644
+index 00000000..7444d5e8
+--- /dev/null
++++ b/loom/scripts/spikes/labels/aggregate.py
+@@ -0,0 +1,61 @@
++"""Sum harness outcomes over papers: per scenario, per target kind, and per record type. Usage: aggregate.py RUN_DIR [RUN_DIR2] (two dirs print side by side)."""
++
++import json
++import sys
++from collections import Counter, defaultdict
++from pathlib import Path
++
++PAPERS = ["man12", "acgs", "kpsv", "quant", "showcase", "mzk", "relloc"]
++OUT = ("right", "wrong", "detached", "lost")
++
++
++def load(d: Path):
++    per_sc = defaultdict(Counter)
++    per_kind = defaultdict(Counter)
++    detail = defaultdict(Counter)
++    per_type = defaultdict(Counter)
++    wrong_rows = []
++    for p in PAPERS:
++        f = d / f"{p}.json"
++        if not f.exists():
++            continue
++        data = json.loads(f.read_text())
++        for sc, rows in data["rows"].items():
++            for r in rows:
++                o = r.get("outcome", "error")
++                per_sc[sc][o] += 1
++                per_kind[r.get("kind", "?")][o] += 1
++                per_type[(r.get("type"), r.get("quoted"))][o] += 1
++                per_sc["ALL"][o] += 1
++                if r.get("detail"):
++                    detail[o + ":" + r["detail"]][sc] += 1
++                    detail[o + ":" + r["detail"]]["ALL"] += 1
++                if o == "wrong":
++                    wrong_rows.append((p, sc, r["tid"], r["type"], r["quoted"], r.get("detail"), r.get("now"), r.get("truth")))
++    return per_sc, per_kind, detail, per_type, wrong_rows
++
++
++def fmt(c: Counter) -> str:
++    return " ".join(f"{c[k]:4d}" for k in OUT)
++
++
++if __name__ == "__main__":
++    dirs = [Path(a) for a in sys.argv[1:] if not a.startswith("-")]
++    loaded = [load(d) for d in dirs]
++    print(f"{'scenario':30s} " + "  |  ".join(" ".join(f"{k[:4]:>4s}" for k in OUT) for _ in dirs))
++    for sc in loaded[0][0]:
++        print(f"{sc:30s} " + "  |  ".join(fmt(x[0][sc]) for x in loaded))
++    print()
++    for kind in sorted(loaded[0][1]):
++        print(f"{kind:30s} " + "  |  ".join(fmt(x[1][kind]) for x in loaded))
++    print()
++    for t in sorted(loaded[0][3], key=str):
++        print(f"{str(t):30s} " + "  |  ".join(fmt(x[3][t]) for x in loaded))
++    print()
++    for k in sorted(set().union(*[x[2] for x in loaded])):
++        print(f"{k:30s} " + "  |  ".join(f"{x[2][k]['ALL']:4d}" for x in loaded))
++    if "-w" in sys.argv:
++        for i, x in enumerate(loaded):
++            print(f"-- wrong rows in {dirs[i]}")
++            for row in x[4]:
++                print("  ", row)
+diff --git a/loom/scripts/spikes/labels/count_keys.py b/loom/scripts/spikes/labels/count_keys.py
+new file mode 100644
+index 00000000..6714b532
+--- /dev/null
++++ b/loom/scripts/spikes/labels/count_keys.py
+@@ -0,0 +1,68 @@
++"""Count key kinds in each scratch quilt as scanned today: statements, proofs, sections, equation labels; by id / ordinary label / none; and how many keys are named by place."""
++
++import re
++import sys
++from collections import Counter
++from pathlib import Path
++
++from loom.scan.labels import is_id_shaped
++from loom.scan.quilt import load_quilt
++from loom.scan.scan import scan
++
++EQ_ENVS = ("equation", "align", "gather", "multline", "eqnarray", "flalign", "alignat")
++
++
++def count(root: Path) -> dict:
++    result = scan(load_quilt(root))
++    slugs = result.assembly.citeslugs
++    c = Counter()
++    for key, n in result.nodes.items():
++        if n.external or n.file.startswith(".loom"):
++            continue
++        if n.kind == "environment":
++            first = n.labels[0] if n.labels else None
++            kind = "id" if n.id else ("label" if first else "none")
++            c[f"stmt_{kind}"] += 1
++            c["place_keyed"] += 0 if n.id else 1
++        elif n.kind == "proof":
++            if n.id:
++                c["proof_id"] += 1
++            elif n.of is None:
++                c["proof_unattached_label" if n.labels else "proof_unattached_none"] += 1
++                c["place_keyed"] += 0 if n.labels else 1
++                c["label_keyed_now"] += 1 if n.labels else 0
++            else:
++                st = result.nodes.get(n.of)
++                c["proof_of_id" if st is not None and st.id else "proof_of_place"] += 1
++                c["place_keyed"] += 0 if (st is not None and st.id) else 1
++        elif n.kind == "section":
++            first = n.labels[0] if n.labels else None
++            kind = "id" if n.id else ("label" if first else "none")
++            c[f"sec_{kind}"] += 1
++            c["place_keyed"] += 1 if kind == "none" else 0
++            c["label_keyed_now"] += 1 if kind == "label" else 0
++    for r in result.assembly.regions.values():
++        if r.file.startswith(".loom"):
++            continue
++        c["region_labels"] += 1
++        cont = result.nodes.get(r.container)
++        if cont is not None and not cont.id and "#" in cont.key:
++            c["region_in_place_keyed"] += 1
++    # equations in the source, labelled or not
++    for path, src in result.files.items():
++        if path.startswith(".loom") or src.ignored:
++            continue
++        for m in re.finditer(r"\\begin\{(" + "|".join(EQ_ENVS) + r")(\*?)\}(.*?)\\end\{\1\2\}", src.clean, re.S):
++            c["eq_env"] += 1
++            if "\\label" in m.group(3):
++                c["eq_env_labelled"] += 1
++    dup = [d for d in result.diagnostics + result.lint if d.code == "loom:duplicate-label"]
++    c["dup_label_diags"] = len(dup)
++    total = sum(c[k] for k in ("stmt_id", "stmt_label", "stmt_none", "proof_id", "proof_of_id", "proof_of_place", "proof_unattached_label", "proof_unattached_none", "sec_id", "sec_label", "sec_none"))
++    c["pieces"] = total
++    return dict(c)
++
++
++if __name__ == "__main__":
++    for arg in sys.argv[1:]:
++        print(Path(arg).name, count(Path(arg)))
+diff --git a/loom/scripts/spikes/labels/harness.py b/loom/scripts/spikes/labels/harness.py
+new file mode 100644
+index 00000000..d5a7de85
+--- /dev/null
++++ b/loom/scripts/spikes/labels/harness.py
+@@ -0,0 +1,769 @@
++"""File annotations and suggested edits on a copy of a paper, apply co-author edits, and classify where each record now sits.
++
++Usage: python harness.py PAPER_DIR OUT_DIR RESULTS_JSON
++
++Truth is tracked by anchors (file, offset) moved through every text operation the scenario performs: each target's block start and its quote's start. A record is `right` when it resolves to the block now at the truth anchor and, when it quotes, to the truth quote offset; `wrong` when it resolves anywhere else while not detached; `detached` when shown detached on a key that still names a block (`honest` when its truth is gone, `miss` when its block and words still stand); `lost` when its key names nothing now.
++"""
++
++from __future__ import annotations
++
++import json
++import re
++import shutil
++import sys
++from collections import Counter
++from dataclasses import dataclass, field
++from pathlib import Path
++
++from loom.cli.review import _one_comment, _version
++from loom.clock import stamp, today
++from loom.records import edits as E
++from loom.records.selectors import find_quote, make_selector
++from loom.records.store import Records
++from loom.render.manifest import key_hash
++from loom.scan.labels import is_id_shaped, rename_labels
++from loom.scan.quilt import load_quilt
++from loom.scan.scan import scan
++
++try:
++    from loom.records.store import place_context
++except ImportError:  # today's code has none
++    place_context = None
++
++WORD = re.compile(r"^[A-Za-z][A-Za-z,.;:'-]*$")
++
++
++# ---------------------------------------------------------------- targets
++
++
++@dataclass
++class Target:
++    tid: str
++    kind: str  # stmt-label | stmt-none | proof-of-label | proof-of-none | proof-alone | sec-label | sec-none | eq | master
++    key: str  # the key records are filed on (canonical, as the CLI resolves it)
++    block: str  # the node key that owns the text
++    file: str
++    start: int  # node start in file
++    end: int
++    qstart: int  # quote's offset in file
++    quote: str
++    stmt_start: int | None = None  # for proofs: their statement's start, so moves carry both
++    stmt_end: int | None = None
++    labels: list[str] = field(default_factory=list)
++
++
++def _plain_window(own: str, n: int = 6) -> tuple[int, int] | None:
++    toks = [(m.start(), m.end(), m.group()) for m in re.finditer(r"\S+", own)]
++    if len(toks) < n:
++        return None
++    mid = len(toks) // 2
++    order = sorted(range(len(toks) - n + 1), key=lambda i: abs(i - mid))
++    for i in order:
++        win = toks[i : i + n]
++        if all(WORD.match(t[2]) for t in win):
++            a, b = win[0][0], win[-1][1]
++            if len(find_quote(own, own[a:b])) == 1:
++                return a, b
++    for i in order:
++        win = toks[i : i + n]
++        a, b = win[0][0], win[-1][1]
++        if "\\" not in own[a:b] and "%" not in own[a:b] and len(find_quote(own, own[a:b])) == 1:
++            return a, b
++    return None
++
++
++def pick_targets(result) -> list[Target]:
++    nodes = [n for n in result.nodes.values() if not n.file.startswith(".loom") and not n.external]
++    nodes.sort(key=lambda n: (n.file, n.start))
++    out: list[Target] = []
++
++    def add(kind: str, n, key: str | None = None, quote_span=None) -> None:
++        own, pieces = Records.own_pieces(result, n)
++        if n.kind == "master":
++            # prose after \begin{document}
++            pieces = [(c, f, l) for c, f, l in pieces if f + l > n.body_start]
++            if not pieces:
++                return
++            c0 = pieces[0][0] + max(0, n.body_start - pieces[0][1])
++            sub = own[c0 : c0 + 3000]
++            span = _plain_window(sub)
++            if span is None:
++                return
++            span = (span[0] + c0, span[1] + c0)
++        else:
++            span = quote_span or _plain_window(own)
++        if span is None:
++            return
++        quote = own[span[0] : span[1]]
++        if len(find_quote(own, quote)) != 1:
++            return
++        fs = Records.to_file_span(pieces, span)
++        if fs is None:
++            return
++        t = Target(f"{kind}{sum(1 for x in out if x.kind == kind) + 1}", kind, key or n.key, n.key, n.file, n.start, n.end, fs[0], quote, labels=list(n.labels))
++        if n.kind == "proof" and n.of:
++            st = result.nodes[n.of]
++            t.stmt_start, t.stmt_end = st.start, st.end
++        out.append(t)
++
++    def spread(items, k):
++        if not items:
++            return []
++        if len(items) <= k:
++            return items
++        return [items[int((i + 1) * len(items) / (k + 1))] for i in range(k)]
++
++    stmts = [n for n in nodes if n.kind == "environment" and not n.id]
++    lab = [n for n in stmts if n.labels]
++    nolab = [n for n in stmts if not n.labels]
++    for n in spread(lab, 3):
++        add("stmt-label", n)
++    for n in spread(nolab, 2):
++        add("stmt-none", n)
++    proofs = [n for n in nodes if n.kind == "proof" and not n.id]
++    pl = [p for p in proofs if p.of and result.nodes[p.of].labels and not result.nodes[p.of].id]
++    pn = [p for p in proofs if p.of and not result.nodes[p.of].labels]
++    pa = [p for p in proofs if not p.of]
++    for n in spread(pl, 1):
++        add("proof-of-label", n)
++    for n in spread(pn, 1):
++        add("proof-of-none", n)
++    nonempty = [p for p in pa if len(Records.own_pieces(result, p)[0].split()) > 8]
++    for n in spread(nonempty, 3):
++        add("proof-alone", n)
++    empty = [p for p in pa if len(Records.own_pieces(result, p)[0].split()) <= 2]
++    if len(empty) >= 2:
++        n = empty[len(empty) // 2]
++        out.append(Target(f"proof-empty1", "proof-empty", n.key, n.key, n.file, n.start, n.end, -1, ""))
++    ids = [n for n in nodes if n.kind == "environment" and n.id]
++    for n in spread(ids, 2):
++        add("stmt-id", n)
++    secs = [n for n in nodes if n.kind == "section" and not n.id]
++    for n in spread([s for s in secs if s.labels and len(Records.own_pieces(result, s)[0].split()) > 30], 1):
++        add("sec-label", n)
++    for n in spread([s for s in secs if not s.labels and len(Records.own_pieces(result, s)[0].split()) > 30], 1):
++        add("sec-none", n)
++    regs = [r for r in result.assembly.regions.values() if not r.file.startswith(".loom") and r.where in ("statement",) or r.where.startswith("proof:")]
++    regs = [r for r in regs if not r.file.startswith(".loom") and not result.nodes[r.container].id]
++    for r in spread(regs, 1) + regs[len(regs) // 2 :] + regs:
++        if any(x.kind == "eq" for x in out):
++            break
++        cont = result.nodes[r.container]
++        own, pieces = Records.own_pieces(result, cont)
++        # the formula just after the \label inside the equation
++        local = next((c + (r.offset - f) for c, f, l in pieces if f <= r.offset < f + l), None)
++        if local is None:
++            continue
++        m = re.match(r"\\label\{[^}]*\}\s*", own[local:])
++        if not m:
++            continue
++        qa = local + m.end()
++        line = own[qa : qa + 40].split("\n")[0].rstrip()
++        quote = line
++        if len(quote) < 8 or len(find_quote(own, quote)) != 1:
++            continue
++        span = (qa, qa + len(quote))
++        add("eq", cont, key=r.key, quote_span=span)
++    for m in [n for n in nodes if n.kind == "master"][:1]:
++        add("master", m)
++    return out
++
++
++# ---------------------------------------------------------------- filing
++
++
++def file_records(root: Path, targets: list[Target]) -> list[dict]:
++    result = scan(load_quilt(root))
++    recs = []
++    for t in targets:
++        if t.kind == "proof-empty":
++            said = _one_comment(result, ("human", "Tester"), t.key, f"whole-block note on {t.tid}", None, None, None, None)
++            recs.append({"tid": t.tid, "type": "ann", "id": said.split()[0], "quoted": False})
++            event = {"event": "created", "when": stamp(), "author": "Agent Tester", "kind": "agent", "target": t.key, "against": _version(result, t.key) or key_hash(result, t.key), "anchor": None, "with": "The answer an agent wrote for this problem.", "placement": "replace"}
++            if place_context:
++                event["context"] = place_context(result, result.nodes[t.key])
++            recs.append({"tid": t.tid, "type": "edit", "id": E.append_new(root, event, today()), "quoted": False})
++            t.file_hits = 0  # type: ignore[attr-defined]
++            continue
++        said = _one_comment(result, ("human", "Tester"), t.key, f"note on {t.tid}", t.quote, None, None, None)
++        recs.append({"tid": t.tid, "type": "ann", "id": said.split()[0], "quoted": True})
++        if t.kind in ("stmt-none", "proof-of-none", "proof-alone", "stmt-label", "sec-none"):
++            said = _one_comment(result, ("human", "Tester"), t.key, f"whole-block note on {t.tid}", None, None, None, None)
++            recs.append({"tid": t.tid, "type": "ann", "id": said.split()[0], "quoted": False})
++        node_key = result.assembly.regions[t.key].container if t.key in result.assembly.regions else t.key
++        node = result.nodes[node_key]
++        own, _ = Records.own_pieces(result, node)
++        # the shortest leading run of the quote's words that stands once in the block: how a person selects two words
++        words = t.quote.split()
++        for k in range(2, len(words)):
++            short = " ".join(words[:k])
++            if len(find_quote(own, short)) == 1:
++                said = _one_comment(result, ("human", "Tester"), t.key, f"short-quote note on {t.tid}", short, None, None, None)
++                recs.append({"tid": t.tid, "type": "ann", "id": said.split()[0], "quoted": True, "short": short})
++                break
++        text = result.files[t.file].text
++        t.file_hits = len(find_quote(text, t.quote))  # type: ignore[attr-defined]
++        sel = make_selector(own, t.quote)
++        words = t.quote.split()
++        new = " ".join(words[:-1] + [words[-1].upper() + "X"])
++        event = {
++            "event": "created",
++            "when": stamp(),
++            "author": "Agent Tester",
++            "kind": "agent",
++            "target": t.key,
++            "against": _version(result, t.key) or key_hash(result, node_key),
++            "anchor": sel.to_dict(),
++            "with": new,
++            "placement": "replace",
++        }
++        if place_context:
++            event["context"] = place_context(result, node, t.quote)
++        eid = E.append_new(root, event, today())
++        recs.append({"tid": t.tid, "type": "edit", "id": eid, "quoted": True})
++    return recs
++
++
++# ---------------------------------------------------------------- workspace with tracked anchors
++
++
++class WS:
++    def __init__(self, root: Path):
++        self.root = root
++        self.files: dict[str, str] = {}
++        self.anchors: dict[str, tuple[str, int] | None] = {}
++        self.renamed: dict[str, str] = {}
++
++    def load(self, path: str) -> str:
++        if path not in self.files:
++            self.files[path] = (self.root / path).read_text(encoding="utf-8", errors="surrogateescape")
++        return self.files[path]
++
++    def insert(self, path: str, pos: int, text: str) -> None:
++        t = self.load(path)
++        self.files[path] = t[:pos] + text + t[pos:]
++        for k, v in self.anchors.items():
++            if v and v[0] == path and v[1] >= pos:
++                self.anchors[k] = (path, v[1] + len(text))
++
++    def replace(self, path: str, a: int, b: int, text: str, keep: dict[str, int] | None = None) -> None:
++        t = self.load(path)
++        self.files[path] = t[:a] + text + t[b:]
++        d = len(text) - (b - a)
++        for k, v in self.anchors.items():
++            if not v or v[0] != path:
++                continue
++            if keep and k in keep:
++                self.anchors[k] = (path, a + keep[k])
++            elif a <= v[1] < b and not (v[1] == a and text.startswith(t[a:b][:1]) and False):
++                self.anchors[k] = None
++            elif v[1] >= b:
++                self.anchors[k] = (path, v[1] + d)
++
++    def move(self, path: str, a: int, b: int, dest: str, dpos_before_cut: int) -> None:
++        """Cut [a, b) of `path` and paste it at `dpos_before_cut` of `dest` (an offset read before the cut)."""
++        t = self.load(path)
++        cut = t[a:b]
++        inside = {k: v[1] - a for k, v in self.anchors.items() if v and v[0] == path and a <= v[1] < b}
++        self.files[path] = t[:a] + t[b:]
++        for k, v in self.anchors.items():
++            if k in inside or not v or v[0] != path:
++                continue
++            if v[1] >= b:
++                self.anchors[k] = (path, v[1] - (b - a))
++        if dest == path and dpos_before_cut >= b:
++            dpos = dpos_before_cut - (b - a)
++        else:
++            dpos = dpos_before_cut
++        d = self.load(dest)
++        self.files[dest] = d[:dpos] + cut + d[dpos:]
++        for k, v in self.anchors.items():
++            if k in inside or not v or v[0] != dest:
++                continue
++            if v[1] >= dpos:
++                self.anchors[k] = (dest, v[1] + len(cut))
++        for k, off in inside.items():
++            self.anchors[k] = (dest, dpos + off)
++
++    def rename(self, old: str, new: str) -> None:
++        self.load(old)
++        self.files[new] = self.files.pop(old)
++        self.renamed[old] = new
++        for k, v in self.anchors.items():
++            if v and v[0] == old:
++                self.anchors[k] = (new, v[1])
++
++    def write(self) -> None:
++        for old in self.renamed:
++            (self.root / old).unlink(missing_ok=True)
++        for p, t in self.files.items():
++            (self.root / p).parent.mkdir(parents=True, exist_ok=True)
++            (self.root / p).write_text(t, encoding="utf-8", errors="surrogateescape")
++
++
++# ---------------------------------------------------------------- co-author edits
++
++
++def body_end(text: str) -> int:
++    for pat in (r"\\bibliographystyle", r"\\bibliography\{", r"\\begin\{thebibliography\}", r"\\printbibliography", r"\\end\{document\}"):
++        m = re.search(pat, text)
++        if m:
++            return m.start()
++    return len(text)
++
++
++def env_name_at(text: str, start: int) -> str:
++    m = re.match(r"\\begin\{([^}]+)\}", text[start:])
++    return m.group(1) if m else "theorem"
++
++
++def insert_above(ws: WS, targets: list[Target]) -> None:
++    """A co-author puts a new statement (with a proof) of each annotated kind, and a new unattached proof, above the first target in each file."""
++    by_file: dict[str, list[Target]] = {}
++    for t in targets:
++        by_file.setdefault(ws.anchors[f"blk:{t.tid}"][0], []).append(t)
++    for path, ts in by_file.items():
++        text = ws.load(path)
++        names = []
++        for t in ts:
++            s = ws.anchors.get(f"stmt:{t.tid}") or ws.anchors[f"blk:{t.tid}"]
++            if (t.kind.startswith("stmt") and t.kind != "stmt-id") or t.kind.startswith("proof-of") or t.kind == "eq":
++                names.append(env_name_at(text, s[1]))
++        firsts = [ws.anchors.get(f"stmt:{t.tid}") or ws.anchors[f"blk:{t.tid}"] for t in ts if t.kind != "master"]
++        if not firsts:
++            continue
++        pos = min(f[1] for f in firsts)
++        # never inside an environment: back up to the line start
++        pos = text.rfind("\n", 0, pos) + 1
++        block = ""
++        for name in dict.fromkeys(names):
++            block += f"\\begin{{{name}}}\nA new result a co-author added above.\n\\end{{{name}}}\n\\begin{{proof}}\nIts short proof.\n\\end{{proof}}\n\n"
++        if any(t.kind == "proof-empty" for t in ts):
++            block += "\\begin{proof}[Answer]\n\\end{proof}\n\n"
++        if any(t.kind == "proof-alone" for t in ts):
++            block += "\\begin{proof}[Answer]\nA new answer a co-author added above.\n\\end{proof}\n\n"
++        ws.insert(path, pos, block)
++
++
++def insert_section_above(ws: WS, targets: list[Target]) -> None:
++    for path in {ws.anchors[f"blk:{t.tid}"][0] for t in targets}:
++        text = ws.load(path)
++        m = re.search(r"\\(section)(\*?)\{", text)
++        if not m:
++            continue
++        ws.insert(path, m.start(), f"\\section{m.group(2)}{{A section a co-author added}}\nSome words of the new section.\n\n")
++
++
++def _body_of(text: str, start: int) -> tuple[int, int]:
++    """The env body (after the \\begin line, before \\end) of the environment at `start`."""
++    name = env_name_at(text, start)
++    depth, i = 0, start
++    pat = re.compile(r"\\(begin|end)\{" + re.escape(name) + r"\}")
++    for m in pat.finditer(text, start):
++        depth += 1 if m.group(1) == "begin" else -1
++        if depth == 0:
++            nl = text.find("\n", start)
++            return (nl + 1 if 0 <= nl < m.start() else start), m.start()
++    return start, start
++
++
++def light_edit(ws: WS, targets: list[Target]) -> None:
++    """A short sentence added inside each annotated block, away from the quoted words."""
++    for t in targets:
++        path, s = ws.anchors[f"blk:{t.tid}"] or (None, None)
++        if path is None:
++            continue
++        q = ws.anchors[f"q:{t.tid}"]
++        text = ws.load(path)
++        if t.kind == "proof-empty":
++            a, b = _body_of(text, s)
++            ws.insert(path, b, "The person's own answer, written in.\n")
++            continue
++        if q is None:
++            continue
++        if t.kind in ("master", "sec-label", "sec-none"):
++            # after the quote's sentence
++            end = text.find(".", q[1] + len(t.quote))
++            pos = end + 1 if end > 0 else q[1] + len(t.quote)
++        else:
++            a, b = _body_of(text, s)
++            pos = b
++            # end of body: before trailing whitespace
++            while pos > a and text[pos - 1] in " \n\t":
++                pos -= 1
++        ws.insert(path, pos, " Indeed, a co-author added this sentence.")
++
++
++def heavy_edit(ws: WS, targets: list[Target]) -> None:
++    """Most of the words around the quote rewritten, the quote kept."""
++    for t in targets:
++        path, s = ws.anchors[f"blk:{t.tid}"] or (None, None)
++        q = ws.anchors[f"q:{t.tid}"]
++        if path is None or q is None:
++            continue
++        text = ws.load(path)
++        qa, qb = q[1], q[1] + len(t.quote)
++        if t.kind in ("master", "sec-label", "sec-none"):
++            # the sentence that holds the quote
++            a = max(text.rfind(". ", 0, qa) + 2, text.rfind("\n", 0, qa) + 1)
++            nb = [x for x in (text.find(". ", qb), text.find("\n", qb)) if x >= 0]
++            b = min(nb) if nb else qb
++        else:
++            a, b = _body_of(text, s)
++            a, b = max(a, qa - 2000), min(b, qb + 2000)
++            # keep \label lines at the head of the body
++            head = re.match(r"(\s*(\\label\{[^}]*\}|\\uses\{[^}]*\})\s*)*", text[a:qa])
++            a = a + (head.end() if head else 0)
++        if a > qa or b < qb:
++            continue
++        labs = "".join(m.group(0) for m in re.finditer(r"\\label\{[^}]*\}", text[a:b]) if not (qa <= m.start() < qb))
++        new = "Rewritten by a co-author: the argument now runs differently, and " + text[qa:qb] + " in the new wording, with more words after." + labs
++        ws.replace(path, a, b, new, keep={f"q:{t.tid}": new.index(text[qa:qb])})
++
++
++def edit_quote(ws: WS, targets: list[Target]) -> None:
++    """The quoted words themselves rewritten."""
++    for t in targets:
++        q = ws.anchors.get(f"q:{t.tid}")
++        if q is None:
++            continue
++        text = ws.load(q[0])
++        qb = q[1] + len(t.quote)
++        if text[q[1] : qb] != t.quote:
++            continue
++        ws.replace(q[0], q[1], qb, "words a co-author wrote instead")
++
++
++def move_statements(ws: WS, targets: list[Target]) -> None:
++    """Each annotated statement (with its proof) and each unattached proof cut and pasted at the end of the body."""
++    done = set()
++    for t in targets:
++        if t.kind not in ("stmt-label", "stmt-none", "stmt-id", "proof-of-label", "proof-of-none", "proof-alone", "proof-empty", "eq"):
++            continue
++        sa = ws.anchors.get(f"stmt:{t.tid}") or ws.anchors[f"blk:{t.tid}"]
++        if sa is None or sa in done:
++            continue
++        path, s = sa
++        text = ws.load(path)
++        # the statement and the proofs right after it
++        _, e = _body_of(text, s)
++        e = text.find("}", e) + 1
++        while True:
++            m = re.match(r"\s*\\begin\{proof\}", text[e:])
++            if not m or t.kind in ("proof-alone", "proof-empty"):
++                break
++            _, pe = _body_of(text, e + m.end() - len("\\begin{proof}"))
++            e = text.find("}", pe) + 1
++        done.add(sa)
++        ws.move(path, s, e, path, body_end(text))
++        ws.insert(path, ws.anchors[f"blk:{t.tid}"][1], "\n")
++
++
++def move_sections(ws: WS, targets: list[Target]) -> None:
++    for t in targets:
++        if t.kind not in ("sec-label", "sec-none"):
++            continue
++        path, s = ws.anchors[f"blk:{t.tid}"]
++        text = ws.load(path)
++        lvl = re.match(r"\\(section|subsection|subsubsection)", text[s:]).group(1)
++        order = ["section", "subsection", "subsubsection"]
++        stops = [r"\\" + x + r"\*?\{" for x in order[: order.index(lvl) + 1]]
++        m = re.search("|".join(stops), text[s + 5 :])
++        e = s + 5 + m.start() if m else body_end(text)
++        e = min(e, body_end(text))
++        # to just before the file's last section heading (or its first, when it is in the last), so it never swallows the bibliography
++        heads = [h.start() for h in re.finditer(r"\\section\*?\{", text) if h.start() < body_end(text)]
++        later = [h for h in heads if h >= e]
++        dest = later[-1] if later else next((h for h in heads if h < s), s)
++        ws.move(path, s, e, path, dest)
++
++
++def rename_label_scn(ws: WS, targets: list[Target], result) -> None:
++    renames = {}
++    for t in targets:
++        for lab in t.labels:
++            if not is_id_shaped(lab, result.assembly.citeslugs):
++                renames[lab] = lab + "-renamed"
++        if t.kind == "eq":
++            lab = t.key.rsplit("#", 1)[1]
++            renames[lab] = lab + "-renamed"
++    from loom.scan.labels import HYPERREF, LABEL_DEF, LABEL_REFS
++
++    for path in list({v[0] for v in ws.anchors.values() if v}):
++        text = ws.load(path)
++        spans = []
++        for pat in (LABEL_DEF, LABEL_REFS, HYPERREF):
++            for m in pat.finditer(text):
++                base = m.start(2)
++                for part in re.finditer(r"[^,\s]+", m.group(2)):
++                    if part.group() in renames:
++                        spans.append((base + part.start(), base + part.end(), renames[part.group()]))
++        for a, b, new in sorted(set(spans), reverse=True):
++            ws.replace(path, a, b, new)
++
++
++def delete_statements(ws: WS, targets: list[Target]) -> None:
++    for t in targets:
++        if t.kind not in ("stmt-label", "stmt-none", "stmt-id", "proof-alone", "proof-empty"):
++            continue
++        sa = ws.anchors.get(f"blk:{t.tid}")
++        if sa is None:
++            continue
++        path, s = sa
++        text = ws.load(path)
++        _, e = _body_of(text, s)
++        e = text.find("}", e) + 1
++        if t.kind not in ("proof-alone", "proof-empty"):
++            m = re.match(r"\s*\\begin\{proof\}", text[e:])
++            if m:
++                _, pe = _body_of(text, e + m.end() - len("\\begin{proof}"))
++                e = text.find("}", pe) + 1
++        ws.replace(path, s, e, "")
++
++
++def _stmt_span(text: str, s: int, with_proof: bool) -> int:
++    _, e = _body_of(text, s)
++    e = text.find("}", e) + 1
++    if with_proof:
++        m = re.match(r"\s*\\begin\{proof\}", text[e:])
++        if m:
++            _, pe = _body_of(text, e + m.end() - len("\\begin{proof}"))
++            e = text.find("}", pe) + 1
++    return e
++
++
++def label_reused(ws: WS, targets: list[Target]) -> None:
++    """Each labelled statement deleted with its proof, and its label put on a new, different statement at the end of the body."""
++    for t in targets:
++        if t.kind != "stmt-label" or not t.labels:
++            continue
++        path, s = ws.anchors[f"blk:{t.tid}"]
++        text = ws.load(path)
++        name = env_name_at(text, s)
++        e = _stmt_span(text, s, True)
++        ws.replace(path, s, e, "")
++        text = ws.load(path)
++        ws.insert(path, body_end(text), f"\\begin{{{name}}}\\label{{{t.labels[0]}}}\nA different result that took over the label.\n\\end{{{name}}}\n")
++
++
++def duplicate_label(ws: WS, targets: list[Target]) -> None:
++    """Each labelled statement restated verbatim, label and all, near the top of its file (LaTeX warns of a label defined twice)."""
++    first = {}
++    for t in targets:
++        a = ws.anchors.get(f"stmt:{t.tid}") or ws.anchors[f"blk:{t.tid}"]
++        first[a[0]] = min(first.get(a[0], a[1]), a[1])
++    for t in targets:
++        if t.kind != "stmt-label":
++            continue
++        path, s = ws.anchors[f"blk:{t.tid}"]
++        text = ws.load(path)
++        e = _stmt_span(text, s, False)
++        copy = text[s:e] + "\n"
++        pos = text.rfind("\n", 0, first[path]) + 1
++        ws.insert(path, pos, copy)
++        first[path] = pos
++
++
++def rename_file(ws: WS, targets: list[Target], cfg_main: str) -> None:
++    files = {ws.anchors[f"blk:{t.tid}"][0] for t in targets}
++    for path in files:
++        new = re.sub(r"([^/]+)\.tex$", r"renamed-\1.tex", path)
++        ws.rename(path, new)
++        if path == cfg_main:
++            ws.config_main = new  # type: ignore[attr-defined]
++
++
++def split_file(ws: WS, targets: list[Target]) -> None:
++    """The second half of each target file's body moved into its own file, \\input in its place."""
++    for path in {ws.anchors[f"blk:{t.tid}"][0] for t in targets}:
++        text = ws.load(path)
++        end = body_end(text)
++        secs = [m.start() for m in re.finditer(r"\\section\*?\{", text) if m.start() < end]
++        if len(secs) < 2:
++            continue
++        cut = secs[len(secs) // 2]
++        stem = path.rsplit("/", 1)[-1].removesuffix(".tex")
++        part = path.rsplit("/", 1)[0] + f"/{stem}-part2.tex" if "/" in path else f"{stem}-part2.tex"
++        ws.files[part] = ""
++        ws.move(path, cut, end, part, 0)
++        rel = part.removesuffix(".tex")
++        ws.insert(path, cut, f"\\input{{{rel}}}\n")
++
++
++SCENARIOS = {
++    "insert-above": ["insert"],
++    "insert-section-above": ["insert_section"],
++    "light-edit": ["light"],
++    "heavy-edit-keep-quote": ["heavy"],
++    "quoted-words-edited": ["quote"],
++    "move-statement": ["move"],
++    "move-section": ["move_section"],
++    "rename-label": ["rename_label"],
++    "delete-statement": ["delete"],
++    "rename-file": ["rename_file"],
++    "split-file": ["split"],
++    "insert-above+light-edit": ["insert", "light"],
++    "insert-above+heavy-edit": ["insert", "heavy"],
++    "move-statement+light-edit": ["move", "light"],
++    "rename-label+light-edit": ["rename_label", "light"],
++    "rename-file+light-edit": ["rename_file", "light"],
++    "split-file+insert-above": ["split", "insert"],
++    "label-reused": ["label_reused"],
++    "duplicate-label": ["duplicate_label"],
++}
++
++
++def apply_scenario(root: Path, name: str, targets: list[Target], result, cfg_main: str) -> WS:
++    ws = WS(root)
++    for t in targets:
++        ws.anchors[f"blk:{t.tid}"] = (t.file, t.start)
++        ws.anchors[f"q:{t.tid}"] = (t.file, t.qstart) if t.qstart >= 0 else None
++        if t.stmt_start is not None:
++            ws.anchors[f"stmt:{t.tid}"] = (t.file, t.stmt_start)
++    for step in SCENARIOS[name]:
++        if step == "insert":
++            insert_above(ws, targets)
++        elif step == "insert_section":
++            insert_section_above(ws, targets)
++        elif step == "light":
++            light_edit(ws, targets)
++        elif step == "heavy":
++            heavy_edit(ws, targets)
++        elif step == "quote":
++            edit_quote(ws, targets)
++        elif step == "move":
++            move_statements(ws, targets)
++        elif step == "move_section":
++            move_sections(ws, targets)
++        elif step == "rename_label":
++            rename_label_scn(ws, targets, result)
++        elif step == "delete":
++            delete_statements(ws, targets)
++        elif step == "rename_file":
++            rename_file(ws, targets, cfg_main)
++        elif step == "split":
++            split_file(ws, targets)
++        elif step == "label_reused":
++            label_reused(ws, targets)
++        elif step == "duplicate_label":
++            duplicate_label(ws, targets)
++    ws.write()
++    new_main = getattr(ws, "config_main", None)
++    if new_main:
++        cfg = (root / "config.toml").read_text()
++        (root / "config.toml").write_text(cfg.replace(f'"{cfg_main}"', f'"{new_main}"'))
++    # the truth for a quote is dead when its words no longer stand at the anchor
++    for t in targets:
++        q = ws.anchors.get(f"q:{t.tid}")
++        if q is not None and t.quote:
++            text = ws.files.get(q[0]) or (root / q[0]).read_text(encoding="utf-8", errors="surrogateescape")
++            if text[q[1] : q[1] + len(t.quote)] != t.quote:
++                ws.anchors[f"q:{t.tid}"] = None
++    return ws
++
++
++# ---------------------------------------------------------------- classify
++
++
++def node_at(result, path: str, start: int, kind_hint: str):
++    for n in result.nodes.values():
++        if n.file == path and n.start == start and n.kind not in ("master", "file", "conflict"):
++            return n
++    if kind_hint == "master":
++        return result.nodes.get(path)
++    return None
++
++
++def classify(root: Path, targets: list[Target], recs: list[dict], ws: WS) -> list[dict]:
++    result = scan(load_quilt(root))
++    R = Records(root)
++    res_by_id = {r.annotation.id: r for r in R.resolved(result)}
++    edits = {e.id: e for e in E.replay(root)[0]}
++    tmap = {t.tid: t for t in targets}
++    out = []
++    for rec in recs:
++        t = tmap[rec["tid"]]
++        blk = ws.anchors.get(f"blk:{t.tid}")
++        truth = node_at(result, blk[0], blk[1], "master" if t.kind == "master" else "") if blk else None
++        if t.kind == "master" and blk:
++            truth = result.nodes.get(blk[0])
++        q = ws.anchors.get(f"q:{t.tid}")
++        row = {"tid": t.tid, "kind": t.kind, "type": rec["type"], "quoted": rec["quoted"], "truth": truth.key if truth else None}
++        if rec["type"] == "ann":
++            r = res_by_id[rec["id"]]
++            key = r.target or r.annotation.target_key
++            n = result.nodes.get(key)
++            if n is None and key in result.assembly.regions:
++                n = result.nodes.get(result.assembly.regions[key].container)
++            row["now"] = key
++            if r.detached:
++                row["outcome"] = "lost" if n is None else "detached"
++            else:
++                at = None
++                if r.span is not None and n is not None:
++                    own, pieces = Records.own_pieces(result, n)
++                    fs = Records.to_file_span(pieces, r.span)
++                    at = fs[0] if fs else None
++                ok_block = truth is not None and n is not None and n.key == truth.key
++                if not rec["quoted"]:
++                    row["outcome"] = "right" if ok_block else "wrong"
++                else:
++                    row["outcome"] = "right" if ok_block and q is not None and at == q[1] else "wrong"
++        else:
++            e = edits[rec["id"]]
++            node = E.home(result, e)
++            row["now"] = node.key if node else None
++            try:
++                placed = E.place(result, e)
++                ok_block = truth is not None and placed.key == truth.key and placed.file == truth.file
++                if rec["quoted"]:
++                    row["outcome"] = "right" if ok_block and q is not None and placed.at[0] == q[1] else "wrong"
++                else:
++                    row["outcome"] = "right" if ok_block else "wrong"
++                row["now"] = placed.key
++            except E.Unplaced:
++                row["outcome"] = "lost" if node is None else "detached"
++        if row["outcome"] == "detached":
++            alive = truth is not None and q is not None if rec["quoted"] else truth is not None
++            row["detail"] = ("miss" if alive else "honest") + ("" if truth is not None and row["now"] == truth.key else "-elsewhere")
++        if row["outcome"] == "lost":
++            alive = truth is not None and (q is not None or not rec["quoted"])
++            row["detail"] = "miss" if alive else "honest"
++        if row["outcome"] == "wrong":
++            row["detail"] = "other-block" if truth is None or row["now"] != truth.key else "other-words"
++        out.append(row)
++    return out
++
++
++def main(paper: Path, out: Path, results: Path, only: list[str] | None = None) -> None:
++    out.mkdir(parents=True, exist_ok=True)
++    base = out / "filed"
++    if base.exists():
++        shutil.rmtree(base)
++    shutil.copytree(paper, base)
++    (base / ".loom" / "serve.json").unlink(missing_ok=True)
++    result = scan(load_quilt(base))
++    targets = pick_targets(result)
++    recs = file_records(base, targets)
++    cfg_main = load_quilt(base).config.main if hasattr(load_quilt(base).config, "main") else ""
++    all_rows = {}
++    for name in SCENARIOS:
++        if only and name not in only:
++            continue
++        work = out / name
++        if work.exists():
++            shutil.rmtree(work)
++        shutil.copytree(base, work)
++        ws = apply_scenario(work, name, targets, result, cfg_main)
++        try:
++            rows = classify(work, targets, recs, ws)
++        except Exception as exc:  # report and go on
++            rows = [{"error": repr(exc)}]
++        all_rows[name] = rows
++        c = Counter(r.get("outcome", "error") for r in rows)
++        print(f"{paper.name:10s} {name:28s} " + " ".join(f"{k}={c[k]}" for k in ("right", "wrong", "detached", "lost", "error") if c[k]), flush=True)
++    results.write_text(json.dumps({"targets": [t.__dict__ for t in targets], "records": recs, "rows": all_rows}, indent=1))
++
++
++if __name__ == "__main__":
++    main(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4:] or None)
+diff --git a/loom/scripts/spikes/labels/ledger.py b/loom/scripts/spikes/labels/ledger.py
+new file mode 100644
+index 00000000..7ef0b0a8
+--- /dev/null
++++ b/loom/scripts/spikes/labels/ledger.py
+@@ -0,0 +1,47 @@
++"""What the acceptance ledger says after co-author edits: accept some statements on a copy, apply a scenario, and read each block's state. Usage: ledger.py LOOM_BIN PAPER OUT"""
++
++import shutil
++import subprocess
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).parent))
++import harness as H  # noqa: E402
++from loom.records.store import Records  # noqa: E402
++from loom.scan.quilt import load_quilt  # noqa: E402
++from loom.scan.scan import scan  # noqa: E402
++
++loom, paper, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
++base = out / "filed"
++if out.exists():
++    shutil.rmtree(out)
++shutil.copytree(paper, base)
++result = scan(load_quilt(base))
++targets = [t for t in H.pick_targets(result) if t.kind in ("stmt-label", "stmt-none")]
++keys = [t.key for t in targets]
++# the writer `loom accept` and the unit tests share, called on this scratch copy as the tests do (the CLI refuses an agent's shell)
++from loom.cli.review import write_acceptance  # noqa: E402
++
++rows, _, _ = write_acceptance(result, keys, "Tester")
++print("accepted rows:", [r.key for r in rows])
++cfg_main = load_quilt(base).config.main
++for name in ("insert-above", "insert-above+light-edit", "rename-label", "delete-statement", "label-reused", "duplicate-label", "rename-file"):
++    work = out / name
++    shutil.copytree(base, work)
++    ws = H.apply_scenario(work, name, targets, result, cfg_main)
++    res = scan(load_quilt(work))
++    R = Records(work, reviewer="Tester")
++    states = R.key_states(res, observe=False)
++    accepted = {k for k, s in states.items() if s.row is not None}
++    truths = {}
++    for t in targets:
++        blk = ws.anchors.get(f"blk:{t.tid}")
++        n = H.node_at(res, blk[0], blk[1], "") if blk else None
++        truths[t.tid] = n.key if n else None
++    right = sum(1 for t in targets if truths[t.tid] in accepted)
++    lost = sum(1 for t in targets if truths[t.tid] is not None and truths[t.tid] not in accepted)
++    gone = sum(1 for t in targets if truths[t.tid] is None)
++    wrong = sorted(k for k in accepted if k not in set(truths.values()))
++    fresh = sum(1 for t in targets if truths[t.tid] in accepted and states[truths[t.tid]].fresh)
++    diags = [d.code for d in R.diagnostics(res, states) if d.code in ("loom:retired-ledger-key", "loom:previous-key-match")]
++    print(f"{paper.name:8s} {name:26s} rows on the right block={right} (fresh {fresh}), on no block though it stands={lost}, block deleted={gone}, rows on another block={len(wrong)} {[(k, 'stale' if not states[k].fresh else 'FRESH') for k in wrong]} diags={len(diags)}")
+diff --git a/loom/scripts/spikes/labels/stats.py b/loom/scripts/spikes/labels/stats.py
+new file mode 100644
+index 00000000..2816f9ba
+--- /dev/null
++++ b/loom/scripts/spikes/labels/stats.py
+@@ -0,0 +1,57 @@
++"""Facts about labels in real papers that bear on label keys: restatements, place-shaped labels, a statement's first label being an equation's, duplicate labels."""
++
++import difflib
++import re
++import sys
++from collections import Counter
++from pathlib import Path
++
++from loom.records.store import Records
++from loom.render.manifest import own_text
++from loom.scan.quilt import load_quilt
++from loom.scan.scan import scan
++
++PLACE = re.compile(r"^[A-Za-z@*]+:[0-9]+$")
++
++
++def words(t):
++    return re.sub(r"% !LOOM child: \S+", "", t).split()
++
++
++def main(root: Path) -> None:
++    r = scan(load_quilt(root))
++    c = Counter()
++    stmts = [n for n in r.nodes.values() if n.kind == "environment" and not n.external and not n.file.startswith(".loom")]
++    theorem_names = set(r.taxa)
++    for n in stmts:
++        if n.labels:
++            src = r.files[n.file].clean
++            body = src[n.start : n.end]
++            head = re.match(r"\\begin\{[^}]*\}\s*(\[[^\]]*\])?\s*\\label", body)
++            first_off = n.label_offsets.get(n.labels[0], n.start) - n.start
++            # first label sits inside a math environment of the body
++            inner = body[:first_off]
++            if re.search(r"\\begin\{(equation|align|gather|multline|eqnarray)\*?\}", inner) and not head:
++                c["first_label_is_equation"] += 1
++            if PLACE.match(n.labels[0]) and n.labels[0].split(":")[0] in theorem_names | {"section", "subsection", "proof"}:
++                c["place_shaped_label"] += 1
++    # restatements: statements with another statement reading alike
++    texts = {n.key: words(own_text(r, n)) for n in stmts}
++    keys = list(texts)
++    twins = set()
++    for i, a in enumerate(keys):
++        for b in keys[i + 1 :]:
++            m = difflib.SequenceMatcher(None, texts[a], texts[b], autojunk=False)
++            if m.real_quick_ratio() >= 0.6 and m.quick_ratio() >= 0.6 and m.ratio() >= 0.6:
++                twins |= {a, b}
++    c["statements"] = len(stmts)
++    c["statements_with_near_twin"] = len(twins)
++    c["dup_label_diags"] = sum(1 for d in r.assembly.diagnostics if d.code == "loom:duplicate-label")
++    # files
++    c["files"] = len([f for f in r.files if not f.startswith(".loom")])
++    print(root.name, dict(c))
++
++
++if __name__ == "__main__":
++    for a in sys.argv[1:]:
++        main(Path(a))
+diff --git a/loom/scripts/spikes/labels/upgrade.py b/loom/scripts/spikes/labels/upgrade.py
+new file mode 100644
+index 00000000..dc2bcbb9
+--- /dev/null
++++ b/loom/scripts/spikes/labels/upgrade.py
+@@ -0,0 +1,34 @@
++"""Records filed by today's code, read by the prototype after an upgrade: the quilt as filed, then with co-author edits. Usage: upgrade.py BASE_RUN_DIR PAPER OUT"""
++
++import json
++import shutil
++import sys
++from collections import Counter
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).parent))
++import harness as H  # noqa: E402
++from loom.scan.quilt import load_quilt  # noqa: E402
++from loom.scan.scan import scan  # noqa: E402
++
++base_run, paper, out = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
++data = json.loads((base_run / f"{paper}.json").read_text())
++targets = []
++for d in data["targets"]:
++    d = dict(d)
++    d.pop("file_hits", None)
++    targets.append(H.Target(**d))
++recs = data["records"]
++filed = base_run / paper / "filed"
++cfg_main = load_quilt(filed).config.main
++result = scan(load_quilt(filed))
++H.SCENARIOS["as-filed"] = []
++for name in ("as-filed", "light-edit", "insert-above", "insert-above+light-edit", "rename-label", "delete-statement"):
++    work = out / paper / name
++    if work.exists():
++        shutil.rmtree(work)
++    shutil.copytree(filed, work)
++    ws = H.apply_scenario(work, name, targets, result, cfg_main)
++    rows = H.classify(work, targets, recs, ws)
++    c = Counter(r["outcome"] for r in rows)
++    print(f"{paper:9s} {name:26s} " + " ".join(f"{k}={c[k]}" for k in ("right", "wrong", "detached", "lost") if c[k]))
+diff --git a/loom/src/loom/cli/review.py b/loom/src/loom/cli/review.py
+index a44d5092..9b0f6f06 100644
+--- a/loom/src/loom/cli/review.py
++++ b/loom/src/loom/cli/review.py
+@@ -402,6 +402,12 @@ def _annotator(root: Path, author: str | None, *, sniff: bool = True) -> tuple[s
+     return ("agent" if is_agent(declared) else "human"), name
+ 
+ 
++def place_context(result: ScanResult, node: Any, quote: str | None = None) -> dict[str, Any] | None:
++    from loom.records.store import place_context as context
++
++    return context(result, node, quote)
++
++
+ def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | None:
+     """The hash of `key`'s current text, frozen so a note written against it can always be shown; None for what is not a key (a work's page).
+ 
+@@ -554,6 +560,7 @@ def _one_comment(
+             "event": "created",
+             "target": key,
+             "against": _version(result, key, dry_run=dry_run) or key_hash(result, node_key),
++            "context": place_context(result, result.nodes[node_key], selector.exact if selector else None),
+             "anchor": selector.to_dict() if selector else None,
+             "in": in_doc,
+             **styled,
+diff --git a/loom/src/loom/cli/suggest.py b/loom/src/loom/cli/suggest.py
+index 8380db5a..d2e652b2 100644
+--- a/loom/src/loom/cli/suggest.py
++++ b/loom/src/loom/cli/suggest.py
+@@ -66,7 +66,7 @@ def suggest_command(
+ 
+     The person keeps or discards it with `loom changes`: keeping writes it into the file, discarding leaves the text as it is, and `loom changes ID` prints the patch that takes it. An edit that names the annotation it --answers resolves that annotation when it is kept. `--before` with no quote puts the text at the head of the body, which is how a `\\uses{…}` is proposed. `--withdraw EDIT` takes back one of your own while it is open; `loom changes --by NAME` lists the edits NAME suggested, in every state.
+     """
+-    from loom.cli.review import _annotator, _version
++    from loom.cli.review import _annotator, _version, place_context
+     from loom.clock import stamp, today
+     from loom.records.annotations import find_annotation, load_records
+     from loom.records.edits import append_new
+@@ -120,6 +120,7 @@ def suggest_command(
+         "kind": akind,
+         "target": target,
+         "against": _version(result, target, dry_run=dry_run) or key_hash(result, node_key),
++        "context": place_context(result, node, selector.exact if selector else None),
+         "anchor": selector.to_dict() if selector else None,
+         "with": with_text,
+         "placement": placement,
+diff --git a/loom/src/loom/records/annotations.py b/loom/src/loom/records/annotations.py
+index 0985cdd7..1f852cfb 100644
+--- a/loom/src/loom/records/annotations.py
++++ b/loom/src/loom/records/annotations.py
+@@ -34,6 +34,8 @@ class Annotation:
+     in_reply_to: str | None = None
+     #: The document this is read in, for a claim about a node that holds only there (plan 0.15, decision 9); None means the node wherever it appears.
+     in_doc: str | None = None
++    #: Where its block stood among its neighbours when it was written (`store.place_context`).
++    context: dict[str, Any] | None = None
+     #: Why it was resolved, from the resolving event's body; replayed.
+     resolved_why: str | None = None
+     #: On a PDF page without a page anchor (`records/marks.py`): the page, its place and strokes in points from the page's top left, the drawing tool, the PDF's hash and where an import came from.
+diff --git a/loom/src/loom/records/edits.py b/loom/src/loom/records/edits.py
+index f0779860..ef603a5f 100644
+--- a/loom/src/loom/records/edits.py
++++ b/loom/src/loom/records/edits.py
+@@ -49,6 +49,7 @@ class Edit:
+     why: str | None = None  # why it was discarded
+     kept: dict[str, Any] | None = None  # `{hash}`: its key's text once it was kept
+     acts: list[dict[str, Any]] = field(default_factory=list)  # every kept, discarded and reopened event, in order
++    context: dict[str, Any] | None = None  # where its block stood among its neighbours (`store.place_context`)
+ 
+     def to_dict(self) -> dict[str, Any]:
+         return {
+@@ -130,6 +131,7 @@ def replay(root: Path) -> tuple[list[Edit], list[str]]:
+                 placement=placement,
+                 comment=str(e.get("comment") or ""),
+                 answers=str(e["answers"]) if e.get("answers") else None,
++                context=e["context"] if isinstance(e.get("context"), dict) else None,
+             )
+             continue
+         edit = out.get(eid)
+@@ -195,9 +197,9 @@ def home(result: ScanResult, edit: Edit) -> NodeRec | None:
+ 
+     Keeping an edit that adds a proof renumbers every proof after it; the edit goes with the text it was written against, wherever that now stands. None when its key is gone and no block of its file holds that text.
+     """
+-    from loom.records.store import written_on
++    from loom.records.store import locate
+ 
+-    return written_on(result, edit.target_key, node_of(result, edit.target_key), edit.target_hash)
++    return locate(result, edit.target_key, node_of(result, edit.target_key), edit.target_hash, edit.selector, edit.context)
+ 
+ 
+ def _balanced(text: str, at: int, opening: str, closing: str) -> int:
+diff --git a/loom/src/loom/records/log.py b/loom/src/loom/records/log.py
+index 76699906..26c9a644 100644
+--- a/loom/src/loom/records/log.py
++++ b/loom/src/loom/records/log.py
+@@ -162,6 +162,7 @@ def _annotation(event: dict[str, Any]) -> Annotation:
+         target_key=str(event.get("target", "")),
+         target_hash=str(event.get("against", "")),
+         in_doc=str(event["in"]) if event.get("in") else None,
++        context=event["context"] if isinstance(event.get("context"), dict) else None,
+         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
+         anchor=Anchor.from_dict(anchor) if is_page_anchor(anchor) else None,
+         type=str(event["type"]) if event.get("type") else None,
+diff --git a/loom/src/loom/records/store.py b/loom/src/loom/records/store.py
+index 91deee71..c3016917 100644
+--- a/loom/src/loom/records/store.py
++++ b/loom/src/loom/records/store.py
+@@ -21,7 +21,7 @@ from loom.paths import ANNOTATION_LOG, ANNOTATION_TYPES, EDIT_LOG, LINKS, REVIEW
+ from loom.records.annotations import Annotation, Record, load_records
+ from loom.records.ids import repeated
+ from loom.records.ledger import AcceptRow, latest_rows, read_ledger
+-from loom.records.selectors import Selector, resolve_selector
++from loom.records.selectors import Selector, find_quote, resolve_selector
+ from loom.records.snapshots import read_snapshot
+ from loom.render.manifest import key_hash, own_text
+ from loom.scan.hashing import hash_text, mathematical_hash, normalize
+@@ -148,6 +148,273 @@ def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str) ->
+     return same[0] if len(same) == 1 else node
+ 
+ 
++# ---- prototype (study spike): any label a stable key, verified by text; a key named by place never falls back to the block now at that place ----
++
++#: `safe` (default): `follow`; `literal`: the audit's proposal as worded -- `written_on`, then the quote looked for across the file and the quilt; `labels`: label keys with today's `written_on`.
++MODE = os.environ.get("LOOM_PROTO_MODE", "safe")
++#: The fewest words a quote must have to place a record by its words alone.
++QUOTE_WORDS = int(os.environ.get("LOOM_PROTO_QUOTE_WORDS", "4"))
++#: How alike a block must read to the text a record was written on, and by how much it must beat the next best.
++SIMILAR, MARGIN = 0.6, 0.1
++_CHILD = re.compile(r"% !LOOM child: \S+")
++#: `trust` (default): a labelled block keeps its records however it was rewritten, unless its old text is found in another block; `verify`: it keeps them only while it reads as what they were written on.
++LABELS = os.environ.get("LOOM_PROTO_LABEL", "trust")
++
++
++def by_place(key: str) -> bool:
++    """Whether `key` is named by its place in its file (`FILE#lemma:3`, `FILE#lemma:3/proof`, a region inside one)."""
++    from loom.scan.nodes import PLACE
++
++    return PLACE.search(key) is not None
++
++
++def _words(text: str) -> list[str]:
++    return _CHILD.sub("", text).split()
++
++
++def _ratio(a: list[str], b: list[str]) -> float:
++    m = difflib.SequenceMatcher(None, a, b, autojunk=False)
++    if m.real_quick_ratio() < SIMILAR or m.quick_ratio() < SIMILAR:
++        return 0.0
++    return m.ratio()
++
++
++_OLD_TEXTS: dict[str, str | None] = {}
++
++
++def _old_text(result: ScanResult, want: str) -> str | None:
++    """The text a record was written on, from the snapshot `annotate` and `suggest` freeze; None when none was kept."""
++    if want not in _OLD_TEXTS:
++        _OLD_TEXTS[want] = read_snapshot(result.quilt.root, want, result.quilt.history_dir)
++    return _OLD_TEXTS[want]
++
++
++def _blocks(result: ScanResult, kind: str) -> list[NodeRec]:
++    return [n for n in result.nodes.values() if n.kind == kind and n.kind not in ("conflict",)]
++
++
++def _sequence(result: ScanResult, path: str) -> list[NodeRec]:
++    return sorted((n for n in result.nodes.values() if n.file == path and n.kind not in ("master", "file", "conflict")), key=lambda n: (n.start, -n.end))
++
++
++def place_context(result: ScanResult, node: NodeRec, quote: str | None = None) -> dict[str, Any] | None:
++    """Where `node` stands among its neighbours, recorded beside a record on it; None for a document.
++
++    `l`/`r`: the nearest block before and after it whose text is unique in the file (its text frozen), or None for the file's edge; `ls`/`rs`: how many blocks away. `twin`: another block of its kind reads like it (a restated theorem, an empty answer). `qh`: how many blocks of the quilt its quote stood in.
++    """
++    if node.kind in ("master", "file", "conflict"):
++        return None
++    from loom.records.snapshots import write_snapshot
++
++    seq = _sequence(result, node.file)
++    hashes = [_block_hash(result, n.key) for n in seq]
++    i = seq.index(node)
++    out: dict[str, Any] = {}
++    for side, rng, edge in (("l", range(i - 1, -1, -1), i + 1), ("r", range(i + 1, len(seq)), len(seq) - i)):
++        out[side], out[side + "s"] = None, edge
++        for steps, j in enumerate(rng, 1):
++            if hashes.count(hashes[j]) == 1:
++                write_snapshot(result.quilt.root, own_text(result, seq[j]), result.quilt.history_dir)
++                out[side], out[side + "s"] = hashes[j], steps
++                break
++    mine = _words(own_text(result, node))
++    out["twin"] = any(n is not node and _ratio(mine, _words(own_text(result, n))) >= SIMILAR for n in _blocks(result, node.kind))
++    if quote:
++        out["qh"] = sum(1 for n in result.nodes.values() if n.kind not in ("master", "file", "conflict") and find_quote(Records.own_pieces(result, n)[0], quote))
++    return out
++
++
++def _neighbour_ok(result: ScanResult, node: NodeRec, context: dict[str, Any] | None) -> bool:
++    """Whether `node` stands where the record's `context` says: its recorded neighbours (or the file's edges) at the same distance, still reading as they did."""
++    if not context or "ls" not in context:
++        return False
++    seq = _sequence(result, node.file)
++    i = seq.index(node) if node in seq else -1
++    if i < 0:
++        return False
++    for side, sign in (("l", -1), ("r", 1)):
++        j = i + sign * int(context[side + "s"])
++        if context[side] is None:
++            if j != (-1 if sign < 0 else len(seq)):
++                return False
++            continue
++        if not 0 <= j < len(seq):
++            return False
++        there = seq[j]
++        if _block_hash(result, there.key) == context[side]:
++            continue
++        old = _old_text(result, context[side])
++        if old is None or _ratio(_words(old), _words(own_text(result, there))) < SIMILAR:
++            return False
++    return True
++
++
++def _by_label(result: ScanResult, key: str) -> NodeRec | None:
++    """The block a labelled key's label names now, wherever it went (another file, a renamed file): `FILE#lab`, `FILE#lab/proof`, `CONTAINER#eqlab`. None when the label is gone or stands twice."""
++    head, _, rest = key.partition("#")
++    if not rest:
++        return None
++    label = rest.rsplit("#", 1)[-1]
++    suffix = ""
++    if "/proof" in label:
++        label, _, tail = label.partition("/proof")
++        suffix = "/proof" + tail
++    dup = {m.group(1) for d in result.lint + result.diagnostics + result.assembly.diagnostics if d.code in ("loom:duplicate-label", "duplicate-id") if (m := re.match(r"label (.*) is defined twice", d.message))}
++    if label in dup:
++        return None
++    target = result.assembly.labels.get(label)
++    if target is None:
++        return None
++    region = result.assembly.regions.get(target)
++    node_key = (region.container if region else target) + suffix
++    return result.nodes.get(node_key)
++
++
++def _quoted(result: ScanResult, node: NodeRec, selector: Selector | None) -> bool:
++    return selector is not None and bool(selector.exact) and resolve_selector(Records.own_pieces(result, node)[0], selector) is not None
++
++
++def _sim(result: ScanResult, node: NodeRec, want: str) -> float:
++    if _block_hash(result, node.key) == want:
++        return 1.0
++    old = _old_text(result, want)
++    return 0.0 if old is None else _ratio(_words(old), _words(own_text(result, node)))
++
++
++def _reads_as(result: ScanResult, node: NodeRec, want: str, selector: Selector | None) -> bool:
++    """Whether `node` is still the piece a record was written on: its text unchanged, its quote still standing in it, or its text close to the one written on."""
++    return not want or _quoted(result, node, selector) or _sim(result, node, want) >= SIMILAR
++
++
++def follow(
++    result: ScanResult, key: str, node: NodeRec | None, want: str, selector: Selector | None = None, context: dict[str, Any] | None = None
++) -> NodeRec | None:
++    """The block a record on `key` was written on, or None (detached): never a block only because it stands at the record's place now.
++
++    A stable key (an id, or `FILE#label`) keeps its block while the label stands, unless the text written on is found clearly elsewhere; a labelled key whose label left its file is followed by the label. A key named by place keeps the block at that place only while its recorded neighbours (`context`) stand at the same distance either side. Otherwise the text is looked for: the same text (twins told apart by their neighbour), then the one block of the same kind that reads clearly closest, then the quote alone when long enough and standing once.
++    """
++    if not want:
++        return node
++    stable = not by_place(key)
++    if node is not None and stable:
++        if _reads_as(result, node, want, selector):
++            return node
++        if LABELS == "trust":
++            other = _closest(result, want, node.kind, node.file, exclude=node, context=context)
++            return other if other is not None else node
++    if node is not None and not stable and _neighbour_ok(result, node, context):
++        # the block at its place between the same neighbours is the block it was written on, however rewritten
++        return node
++    if node is None and stable:
++        moved = _by_label(result, key)
++        if moved is not None and _reads_as(result, moved, want, selector):
++            return moved
++    old = _old_text(result, want)
++    kind = node.kind if node is not None else _kind_of(key, old)
++    path = node.file if node is not None else key.split("#", 1)[0]
++    found = _closest(result, want, kind, path, context=context, strict=stable and node is None)
++    if found is not None:
++        return found
++    if selector is not None and len(selector.exact.split()) >= QUOTE_WORDS and not (context or {}).get("twin") and (context or {}).get("qh", 1) == 1:
++        # its words alone: only where they stand once in the whole quilt, since a twin left behind in the file reads the same
++        hits = [n for n in result.nodes.values() if n.kind not in ("conflict", "master", "file") and find_quote(Records.own_pieces(result, n)[0], selector.exact)]
++        if len(hits) == 1:
++            return hits[0]
++    return None
++
++
++def _closest(
++    result: ScanResult, want: str, kind: str, path: str, exclude: NodeRec | None = None, context: dict[str, Any] | None = None, strict: bool = False
++) -> NodeRec | None:
++    """The one block of `kind` holding the text `want` hashes, else reading clearly closest to it, same file first; twins told apart by their neighbour; None when none does or two tie.
++
++    `strict` (a stable key whose label is gone): only a block beside its old neighbour, or reading all but the same, since a restatement elsewhere reads alike too.
++    """
++    blocks = [n for n in _blocks(result, kind) if n is not exclude]
++    exact = [n for n in blocks if _block_hash(result, n.key) == want]
++    twin = bool(context and context.get("twin"))
++    if exact:
++        # the same text: the one block, or the one of its twins beside its old neighbour
++        told = [n for n in exact if _neighbour_ok(result, n, context)]
++        if len(told) == 1:
++            return told[0]
++        return exact[0] if len(exact) == 1 else None
++    old = _old_text(result, want)
++    if old is None:
++        return None
++    if twin:
++        # a block another reads like (a restatement) is followed by its own text or its place, never by likeness
++        near = [n for n in blocks if _neighbour_ok(result, n, context)]
++        return near[0] if len(near) == 1 else None
++    words = _words(old)
++    for pool in ([n for n in blocks if n.file == path], blocks):
++        scored = sorted(((_ratio(words, _words(own_text(result, n))), n) for n in pool), key=lambda x: -x[0])
++        if not scored or scored[0][0] < SIMILAR:
++            continue
++        best_score, best = scored[0]
++        if len(scored) > 1 and best_score - scored[1][0] < MARGIN:
++            return None  # two blocks read alike: say so rather than guess
++        if strict and not (_neighbour_ok(result, best, context) or best_score >= 0.95):
++            return None
++        return best
++    return None
++
++
++def _kind_of(key: str, old: str | None = None) -> str:
++    if "#" not in key:
++        return "master"
++    if old is not None:
++        head = old.lstrip()
++        if head.startswith("\\begin{proof}"):
++            return "proof"
++        if re.match(r"\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\b", head):
++            return "section"
++        if head.startswith("\\begin{"):
++            return "environment"
++    tail = key.rsplit("#", 1)[-1]
++    if "/proof" in key.rsplit("#", 1)[-1] or tail.startswith("proof:"):
++        return "proof"
++    if tail.split(":")[0].rstrip("*") in ("part", "chapter", "section", "subsection", "subsubsection", "paragraph", "subparagraph"):
++        return "section"
++    return "environment"
++
++
++def quote_anywhere(result: ScanResult, selector: Selector, path: str) -> NodeRec | None:
++    """The audit's literal fallback: the block in `path`, else in the quilt, where the quote stands, best by its words either side; None when it stands nowhere."""
++    for pool in ([n for n in result.nodes.values() if n.file == path and n.kind not in ("conflict",)], [n for n in result.nodes.values() if n.kind != "conflict"]):
++        best, score = None, -1
++        for n in pool:
++            own = Records.own_pieces(result, n)[0]
++            span = resolve_selector(own, selector)
++            if span is None:
++                continue
++            a, b = span
++            s = len(own[max(0, a - 32) : a]) and sum(1 for x, y in zip(reversed(own[max(0, a - 32) : a]), reversed(selector.prefix)) if x == y)
++            if s > score:
++                best, score = n, s
++        if best is not None:
++            return best
++    return None
++
++
++def locate(
++    result: ScanResult, key: str, node: NodeRec | None, want: str, selector: Selector | None = None, context: dict[str, Any] | None = None
++) -> NodeRec | None:
++    """The prototype's one entry point for every record that names a key, by `MODE`: `labels` is today's `written_on` over the new keys."""
++    if MODE == "labels":
++        return written_on(result, key, node, want)
++    if MODE == "literal":
++        found = written_on(result, key, node, want)
++        if selector is not None and selector.exact:
++            if found is None or resolve_selector(Records.own_pieces(result, found)[0], selector) is None:
++                path = found.file if found is not None else key.split("#", 1)[0]
++                elsewhere = quote_anywhere(result, selector, path)
++                if elsewhere is not None:
++                    return elsewhere
++        return found
++    return follow(result, key, node, want, selector, context)
++
++
+ #: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.
+ _ACCEPTANCE: dict[tuple[str | None, str], tuple[ScanResult, dict[str, KeyState], dict[str, str]]] = {}
+ 
+@@ -571,9 +838,11 @@ class Records:
+                     region = result.assembly.regions.get(target)
+                     n = result.nodes.get(region.container) if region else None
+                 # a key named by place goes with the block it was written on, once a block put in before it renumbers the keys
+-                moved = written_on(result, target, n, a.target_hash)
+-                if moved is not None and moved is not n:
+-                    n, target = moved, moved.key
++                moved = locate(result, target, n, a.target_hash, a.selector, a.context)
++                if moved is not n:
++                    n = moved
++                    if moved is not None:
++                        target = moved.key
+                 if n is None:
+                     out.append(
+                         ResolvedAnnotation(a, rec, None, True, self._recorded(a, None), target=target, in_doc=in_doc)
+diff --git a/loom/src/loom/scan/nodes.py b/loom/src/loom/scan/nodes.py
+index f6fa3225..86fa4533 100644
+--- a/loom/src/loom/scan/nodes.py
++++ b/loom/src/loom/scan/nodes.py
+@@ -347,6 +347,37 @@ def defined_by(paths: list[str], definitions: int = 2) -> str:
+     return f"defined {times} in {paths[0]}"
+ 
+ 
++#: A key named by its place in its file: `FILE#theorem:3`, `FILE#section:2`, `FILE#proof:4`, and every key built on one (`…/proof`, a region inside one).
++PLACE = re.compile(r"#[A-Za-z@*]+:[0-9]+(?=$|[/#])")
++
++
++def heading_label_counts(asm: Assembly, files: dict[str, SourceFile]) -> dict[tuple[str, str], int]:
++    """(file, label) -> how many statements, proofs and sections of that file carry it as their first label: a label carried twice names no one block."""
++    counts: dict[tuple[str, str], int] = {}
++    for path, fe in asm.envs.items():
++        src = files[path]
++        for env in fe.theorem_envs + fe.proofs:
++            found = labels_in(src.clean, env.own_ranges())
++            if found:
++                counts[(path, found[0][0])] = counts.get((path, found[0][0]), 0) + 1
++    seen: set[tuple[str, int]] = set()
++    for units in asm.sections.values():
++        for u in units:
++            if (u.file, u.offset) in seen:  # a file reached by two masters is sectioned twice
++                continue
++            seen.add((u.file, u.offset))
++            if u.labels:
++                counts[(u.file, u.labels[0])] = counts.get((u.file, u.labels[0]), 0) + 1
++    return counts
++
++
++def label_keyable(label: str | None, path: str, counts: dict[tuple[str, str], int]) -> bool:
++    """Whether a block's first ordinary label may be its key, `FILE#label`: carried once in its file, and not of a place key's shape (`lem:2` beside an environment `lem`)."""
++    if not label or counts.get((path, label), 0) != 1:
++        return False
++    return PLACE.search("#" + label) is None
++
++
+ def _statement_nodes(
+     asm: Assembly,
+     files: dict[str, SourceFile],
+@@ -355,6 +386,7 @@ def _statement_nodes(
+     masters: list[str],
+     conflicted: dict[str, list[str]],
+ ) -> None:
++    keyable = heading_label_counts(asm, files)
+     for path, fe in asm.envs.items():
+         src = files[path]
+         counts: dict[str, int] = {}
+@@ -368,7 +400,12 @@ def _statement_nodes(
+             conflict_of = node_id if node_id in conflicted else None
+             if conflict_of:
+                 node_id = None  # demoted: the placeholder holds the id and claims every label; this record claims none
+-            key = node_id or f"{path}#{env.name}:{counts[env.name]}"
++            if node_id:
++                key = node_id
++            elif conflict_of is None and label_keyable(first, path, keyable):
++                key = f"{path}#{first}"
++            else:
++                key = f"{path}#{env.name}:{counts[env.name]}"
+             taxon = taxa.get(env.name) or asm.digest_taxa.get(path, {}).get(env.name)
+             rec = NodeRec(
+                 key=key,
+@@ -411,6 +448,7 @@ def _section_nodes(
+     ordered = ([default_master] if default_master in asm.sections else []) + [
+         m for m in asm.sections if m != default_master
+     ]
++    keyable = heading_label_counts(asm, files)
+     for master in ordered:
+         units = asm.sections[master]
+         keys: dict[int, str] = {}
+@@ -422,7 +460,7 @@ def _section_nodes(
+                 node_id = None
+             if node_id:
+                 key = node_id
+-            elif first:
++            elif first and label_keyable(first, u.file, keyable):
+                 key = f"{u.file}#{first}"
+             else:
+                 key = f"{u.file}#{u.name}:{u.ordinal}"

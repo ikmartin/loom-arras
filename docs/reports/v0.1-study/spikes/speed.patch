@@ -1,0 +1,351 @@
+diff --git a/loom/src/loom/render/build.py b/loom/src/loom/render/build.py
+index b26e9b75..9c8de5f3 100644
+--- a/loom/src/loom/render/build.py
++++ b/loom/src/loom/render/build.py
+@@ -41,6 +41,8 @@ class BuildReport:
+     rendered: list[str] = field(default_factory=list)
+     skipped: list[str] = field(default_factory=list)
+     diagnostics: list[Diagnostic] = field(default_factory=list)
++    #: previews left as source because the build was told not to make them by TeX (`previews_tex`)
++    deferred: int = 0
+ 
+ 
+ class _PageTable:
+@@ -384,6 +386,7 @@ def build(
+     reuse: ScanResult | None = None,
+     progress: Callable[[str, str, int, int | None], None] | None = None,
+     tex: bool = True,
++    previews_tex: bool = True,
+ ) -> BuildReport:
+     """Scan, read the records, render what changed and publish the build directory.
+ 
+@@ -403,6 +406,8 @@ def build(
+         Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
+     tex : bool, default True
+         Whether TeX may run for text no compile makes (snippets, pictures); without it that text comes from the cache or shows as its source.
++    previews_tex : bool, default True
++        Whether TeX may run for previews (Review's comparisons, suggested edits, versions); without it a preview not cached shows as its source and is counted in `BuildReport.deferred`.
+ 
+     Returns
+     -------
+@@ -572,7 +577,7 @@ def build(
+     attach_closed(result, manifest, files)
+     from loom.section_drafts import attach_context
+ 
+-    attach_context(result, manifest, files)
++    attach_context(result, manifest, files, marks)
+     from loom.render.review_compare import attach_comparisons
+ 
+     _attach_spans(result.quilt.root, manifest, files)
+@@ -589,7 +594,8 @@ def build(
+     attach_pending(result, records, renderer, manifest, files, marks)
+     attach_versions(result, records, renderer, manifest, files, gone)
+     # every preview asked for above, made by TeX together, one batch per preamble
+-    renderer.previews.make()
++    renderer.previews.make(tex=previews_tex)
++    report.deferred = renderer.previews.deferred
+     from loom.review_queue import rows_for
+ 
+     manifest["unresolved"] = rows_for(result, manifest)
+diff --git a/loom/src/loom/render/changes.py b/loom/src/loom/render/changes.py
+index 2d6cd37b..67fab146 100644
+--- a/loom/src/loom/render/changes.py
++++ b/loom/src/loom/render/changes.py
+@@ -29,7 +29,7 @@ _INLINE = re.compile(r"\\\((.*?)\\\)|(?<![\\$])\$(?!\$)((?:\\.|[^$\\])+?)\$", re
+ _POINT = '<span class="review-change-point" aria-label="edit point"></span>'
+ 
+ 
+-def preview_html(r: FragmentRenderer, group: Sequence[Later]) -> list[str]:
++def preview_html(r: FragmentRenderer, group: Sequence[Later], tex: bool = True) -> list[str]:
+     """Each preview of `group`, which share a document and a preamble, made in one batch: from `.loom/build/cache/previews/` where made before, else by TeX."""
+     from loom.render.fragments import _preview_owner
+     from loom.render.snippets import render_snippets
+@@ -51,6 +51,8 @@ def preview_html(r: FragmentRenderer, group: Sequence[Later]) -> list[str]:
+     todo = [i for i, o in enumerate(out) if o is None]
+     if not todo:
+         return [o or "" for o in out]
++    if not tex and r.plan.tex:
++        r.previews.deferred += len(todo)
+     made = render_snippets(
+         r.result.quilt.root,
+         owner.base,
+@@ -60,7 +62,7 @@ def preview_html(r: FragmentRenderer, group: Sequence[Later]) -> list[str]:
+         envs=r.envs(owner),
+         engine=owner.engine,
+         aux=owner.aux,
+-        tex=r.plan.tex,
++        tex=r.plan.tex and tex,
+     )
+     for i, s in zip(todo, made.made, strict=True):
+         p = group[i]
+diff --git a/loom/src/loom/render/fragments.py b/loom/src/loom/render/fragments.py
+index b7314cca..c5edaf04 100644
+--- a/loom/src/loom/render/fragments.py
++++ b/loom/src/loom/render/fragments.py
+@@ -516,6 +516,8 @@ class _Previews:
+         self.r = renderer
+         self.asked: list[Later] = []
+         self._lock = threading.Lock()
++        #: previews asked for that were neither cached nor made, because `make` was told not to run TeX
++        self.deferred = 0
+ 
+     def ask(self, key: str, text: str, preamble: str | None, spans: list[list[int]]) -> Later:
+         """A preview of `text` drawn as `key`, read under `preamble` (None: the document's own), its `spans` marked as changed; made at `make`."""
+@@ -528,8 +530,8 @@ class _Previews:
+         """Hand `later`'s markup to `then` once it is made."""
+         later.then.append(then)
+ 
+-    def make(self) -> None:
+-        """Make every preview asked for and not yet made, and hand each to what waits on it."""
++    def make(self, tex: bool = True) -> None:
++        """Make every preview asked for and not yet made, and hand each to what waits on it; `tex` False takes each from the cache or shows its source, and counts the rest in `deferred`."""
+         from loom.render.changes import preview_html
+ 
+         with self._lock:
+@@ -540,7 +542,7 @@ class _Previews:
+             owner = _preview_owner(self.r, p)
+             groups.setdefault((owner.key, owner.preamble if p.preamble is None else p.preamble), []).append(p)
+         for group in groups.values():
+-            for p, made in zip(group, preview_html(self.r, group), strict=True):
++            for p, made in zip(group, preview_html(self.r, group, tex=tex), strict=True):
+                 p.html = made
+                 for then in p.then:
+                     then(made)
+diff --git a/loom/src/loom/render/keys.py b/loom/src/loom/render/keys.py
+index d8e39e7e..09b4d197 100644
+--- a/loom/src/loom/render/keys.py
++++ b/loom/src/loom/render/keys.py
+@@ -6,6 +6,7 @@ Shared by the fragment cache (`build._input_hash`), the review previews (`review
+ from __future__ import annotations
+ 
+ import hashlib
++import re
+ from functools import cache
+ from pathlib import Path
+ 
+@@ -35,12 +36,40 @@ def code_hash() -> str:
+ 
+ 
+ def aux_bytes(numbers: dict[str, dict[str, AuxNumber]], cite_labels: dict[str, dict[str, str]]) -> bytes:
+-    """Every master's number table and citation labels as one byte stream, serialised once per build rather than once per node."""
++    """Every master's number table and citation labels as one byte stream, serialised once per build rather than once per node.
++
++    Page numbers are left out: no fragment or preview loom renders prints one (a `\\pageref` is TeX's, keyed by `aux_digest`), and a page break that moves would otherwise re-render every block.
++    """
+     parts: list[str] = []
+     for m in sorted(numbers):
+         for lab, num in sorted(numbers[m].items()):
+-            parts.append(f"{m}|{lab}|{num.number}|{num.page}")
++            parts.append(f"{m}|{lab}|{num.number}")
+     for m in sorted(cite_labels):
+         for ck, lab in sorted(cite_labels[m].items()):
+             parts.append(f"{m}|cite|{ck}|{lab}")
+     return "".join(parts).encode()
++
++
++#: A command that prints a label's page, so a text using one is keyed on the aux's pages too.
++PAGEREF = re.compile(r"\\(?:[cvV]?pageref|[vV]ref|labelcpageref|cpagerefrange|pagerefrange)\b")
++#: The page group of a `\\newlabel{x}{{number}{page}...}` line.
++_NEWLABEL_PAGE = re.compile(r"^(\\newlabel\{[^\n]*?\}\{\{(?:[^{}\n]|\{[^{}\n]*\})*\})\{[^{}\n]*\}", re.M)
++#: Lines of an aux that record only where things fell on the page.
++_PAGE_ONLY = re.compile(r"^(?:\\@writefile|\\gdef\s*\\@abspage@last|\\abx@aux@page|\\zref@newlabel).*\n?", re.M)
++
++
++@cache
++def _aux_digests(path: str, mtime: int, size: int) -> tuple[str, str]:
++    raw = Path(path).read_bytes()
++    text = raw.decode("utf-8", errors="replace")
++    narrow = _NEWLABEL_PAGE.sub(r"\1{}", _PAGE_ONLY.sub("", text))
++    return hashlib.sha256(raw).hexdigest(), hashlib.sha256(narrow.encode()).hexdigest()
++
++
++def aux_digest(aux: Path | None, text: str) -> str:
++    """What a TeX-made text's cache key takes from its document's aux: the whole file's digest when `text` prints a page (`PAGEREF`), else the digest with page numbers and contents lines left out, so a moved page break remakes nothing; '' with no aux."""
++    if aux is None or not aux.is_file():
++        return ""
++    st = aux.stat()
++    whole, narrow = _aux_digests(str(aux), st.st_mtime_ns, st.st_size)
++    return whole if PAGEREF.search(text) else narrow
+diff --git a/loom/src/loom/render/serve.py b/loom/src/loom/render/serve.py
+index ce44c9de..1e775d60 100644
+--- a/loom/src/loom/render/serve.py
++++ b/loom/src/loom/render/serve.py
+@@ -366,8 +366,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
+             with lock:
+                 answer = handle(self.quilt_root, endpoint, body)
+             # The viewer's refresh finds the write immediately. Reads need no rebuild; review decisions already published queue metadata without touching document renderings.
++            # the write is answered once it is on disk; its publication follows on the stream
+             if self.rebuild is not None and endpoint not in NO_REBUILD:
+-                self.rebuild(records=endpoint in RECORD_WRITES)
++                threading.Thread(
++                    target=self.rebuild, kwargs={"records": endpoint in RECORD_WRITES}, daemon=True
++                ).start()
+             self._json(HTTPStatus.OK, answer)
+         except ApiError as exc:
+             self._json(exc.status, exc.answer())
+@@ -715,13 +718,16 @@ class ServeSession:
+                     return
+                 records = scan_unread(root, changed)
+             reuse = self.last_report.result if records and self.last_report is not None else None
++            # a save is published before TeX runs at all, the edited block as its source and its previews too; the publication that follows makes them
++            deferring = changed is not None
++            tex = self.compile_masters and not deferring
+             if progress is None and changed is not None:
+                 from loom.cli.report import Progress
+ 
+                 with Progress("rebuilding") as shown:
+-                    report = build(self.quilt, reuse=reuse, progress=shown.told, tex=self.compile_masters)
++                    report = build(self.quilt, reuse=reuse, progress=shown.told, tex=tex, previews_tex=not deferring)
+             else:
+-                report = build(self.quilt, reuse=reuse, progress=progress, tex=self.compile_masters)
++                report = build(self.quilt, reuse=reuse, progress=progress, tex=tex, previews_tex=not deferring)
+             self.last_report = report
+             self.builds += 1
+             self.published = seen
+@@ -736,6 +742,7 @@ class ServeSession:
+                 f"loom serve: rebuilt after change to {names}{' …' if len(changed) > 3 else ''}; {counted(len(report.rendered), 'block')} re-rendered",
+                 file=sys.stderr,
+             )
++        due = []
+         if self.compiles is not None and moved and not first:
+             from loom.render.compiles import needs_compiling
+ 
+@@ -743,6 +750,9 @@ class ServeSession:
+             due = needs_compiling(report.result, moved, self._built)
+             if due:
+                 self.compiles.want(due)
++        if changed is not None and self.compile_masters:
++            # what the save's publication left to TeX is made now, off the save's path
++            threading.Thread(target=self.rebuild, kwargs={"records": True}, daemon=True).start()
+ 
+     def _run_job(self, job: Any, progress: Callable[[str, str, int, int], None]) -> dict[str, Any]:
+         """One library run the viewer started: `refs.update.update` on the quilt as it is now, outside the publication lock, then a rebuild, so the manifest shows what it made. Its report is what `loom library update` prints."""
+diff --git a/loom/src/loom/render/snippets.py b/loom/src/loom/render/snippets.py
+index 00b5c4a3..b5c879d3 100644
+--- a/loom/src/loom/render/snippets.py
++++ b/loom/src/loom/render/snippets.py
+@@ -182,8 +182,12 @@ def render_snippets(
+     """
+     began = time.monotonic()
+     out = Snippets(made=[Snippet(None) for _ in texts])
+-    said = hashlib.sha256(aux.read_bytes()).hexdigest() if aux is not None and aux.is_file() else ""
+-    keys = [snippet_key(preamble, base, t, engine=engine, envs=envs, salt=salt, math=math, aux=said) for t in texts]
++    from loom.render.keys import aux_digest
++
++    keys = [
++        snippet_key(preamble, base, t, engine=engine, envs=envs, salt=salt, math=math, aux=aux_digest(aux, t))
++        for t in texts
++    ]
+     first: dict[str, int] = {}  # a text asked for twice is made once
+     for i, k in enumerate(keys):
+         made, failed = cache_dir / f"{k}.html", cache_dir / f"{k}.failed"
+diff --git a/loom/src/loom/render/versions.py b/loom/src/loom/render/versions.py
+index e07be55f..0efc9239 100644
+--- a/loom/src/loom/render/versions.py
++++ b/loom/src/loom/render/versions.py
+@@ -70,6 +70,22 @@ def aligned(old: str, new: str, at: int) -> int | None:
+     int or None
+         The offset in `new` of the same word where it survives, of what replaced it, or of the word after a cut; past the last word, the end of the new text's last word; None when no word of the two aligns.
+     """
++    known = _ALIGNED.get((old, new, at), _MISSING)
++    if known is not _MISSING:
++        return known  # type: ignore[return-value]
++    if len(_ALIGNED) >= _ALIGNED_MAX:
++        _ALIGNED.clear()
++    _ALIGNED[(old, new, at)] = placed = _aligned(old, new, at)
++    return placed
++
++
++#: `aligned`'s answers by its exact inputs: a served quilt re-anchors every gone annotation on every build, and the texts rarely change between two.
++_ALIGNED: dict[tuple[str, str, int], int | None] = {}
++_ALIGNED_MAX = 4096
++_MISSING = object()
++
++
++def _aligned(old: str, new: str, at: int) -> int | None:
+     left, right = _tokens(old), _tokens(new)
+     opcodes = difflib.SequenceMatcher(None, [t[0] for t in left], [t[0] for t in right], autojunk=False).get_opcodes()
+     if not any(tag == "equal" for tag, *_ in opcodes):
+diff --git a/loom/src/loom/scan/quilt.py b/loom/src/loom/scan/quilt.py
+index ef2eaf69..ed673a80 100644
+--- a/loom/src/loom/scan/quilt.py
++++ b/loom/src/loom/scan/quilt.py
+@@ -212,6 +212,41 @@ def load_user_config() -> dict[str, Any]:
+ 
+ 
+ def git_user_name(cwd: Path | None = None) -> str | None:
++    """`git config user.name` in `cwd`, asked once per process for each state of the config files it reads.
++
++    A build asks once per annotation when no loom author name is set; the key is the mtimes of the global and XDG git configs and of the repository's own, so a name changed while `loom serve` runs is still seen (an `include.path` file is not watched).
++    """
++    stamp = _git_config_stamp(cwd)
++    if stamp in _GIT_NAMES:
++        return _GIT_NAMES[stamp]
++    _GIT_NAMES[stamp] = name = _git_user_name(cwd)
++    return name
++
++
++_GIT_NAMES: dict[tuple[Any, ...], str | None] = {}
++
++
++def _git_config_stamp(cwd: Path | None) -> tuple[Any, ...]:
++    """What `git config user.name` reads: the environment's overrides and each config file's mtime, the repository's found by walking up from `cwd`."""
++    home = Path.home()
++    xdg = os.environ.get("XDG_CONFIG_HOME") or str(home / ".config")
++    paths = [home / ".gitconfig", Path(xdg) / "git" / "config"]
++    here = (cwd or Path.cwd()).resolve()
++    for p in (here, *here.parents):
++        if (p / ".git").exists():
++            paths.append(p / ".git" / "config" if (p / ".git").is_dir() else p / ".git")
++            break
++    stamps = []
++    for p in paths:
++        try:
++            stamps.append(p.stat().st_mtime_ns)
++        except OSError:
++            stamps.append(None)
++    env = tuple(os.environ.get(k) for k in ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM", "HOME", "GIT_DIR"))
++    return (str(here), *stamps, *env)
++
++
++def _git_user_name(cwd: Path | None = None) -> str | None:
+     try:
+         proc = subprocess.run(
+             ["git", "config", "user.name"],
+diff --git a/loom/src/loom/section_drafts.py b/loom/src/loom/section_drafts.py
+index 42340e22..861319c0 100644
+--- a/loom/src/loom/section_drafts.py
++++ b/loom/src/loom/section_drafts.py
+@@ -273,8 +273,13 @@ def preview_in_paper(result: ScanResult, copy: str) -> dict[str, Any]:
+     }
+ 
+ 
+-def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str, str | bytes]) -> None:
+-    """Render scoped copies and external references from the same pinned input set."""
++def attach_context(
++    result: ScanResult, manifest: dict[str, Any], files: dict[str, str | bytes], marks: dict[str, Any] | None = None
++) -> None:
++    """Render scoped copies and external references from the same pinned input set.
++
++    `marks` is the build's `_marks_by_node`, passed so the annotations are not resolved and re-anchored a second time; computed here, once, when absent.
++    """
+     from loom.render.fragments import FragmentRenderer, RenderPlan
+     from loom.render.markup import slug
+     from loom.scan.macros import to_mathjax
+@@ -307,11 +312,13 @@ def attach_context(result: ScanResult, manifest: dict[str, Any], files: dict[str
+             return re.sub(r'data-target="([^"]+)"', ref, fragment)
+ 
+         # Preserve annotation marks placed by the ordinary renderer; only the underlying context differs.
+-        from loom.records.store import Records
+-        from loom.render.build import _marks_by_node
+         from loom.render.marks import place_marks
+ 
+-        marks = _marks_by_node(result, Records(result.quilt.root, result.quilt.history_dir))
++        if marks is None:
++            from loom.records.store import Records
++            from loom.render.build import _marks_by_node
++
++            marks = _marks_by_node(result, Records(result.quilt.root, result.quilt.history_dir))
+         files[master["fragment"]] = pin(
+             place_marks(
+                 renderer.master_fragment(copy),

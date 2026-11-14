@@ -1,0 +1,2081 @@
+diff --git a/loom/src/loom/adopt.py b/loom/src/loom/adopt.py
+index e5d2143a..6e6b3e66 100644
+--- a/loom/src/loom/adopt.py
++++ b/loom/src/loom/adopt.py
+@@ -855,6 +855,8 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None
+             "message": f"Changes incorporated; {source_stem} as it was is landmark {landmark}; mathematics remains to be reviewed",
+         }
+ 
++    from loom import writes
++
+     try:
+         stamp_document(
+             result,
+@@ -865,11 +867,17 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None
+             who,
+             kept_for="adopt",
+         )
+-        for rel, text in saved["overlay"].items():
+-            target = root / rel
+-            target.parent.mkdir(parents=True, exist_ok=True)
+-            target.write_text(text)
+-        return finish()
++        out: dict[str, Any] = {}
++        with writes.act(root, history.dir, "adopt", writes.fresh_id(f"adopt:{token}"), who) as w:
++            for rel, text in saved["overlay"].items():
++                now = w.text(rel)
++                if rel in result.files:
++                    # the preview was made from the scan; refuse when the file moved since
++                    w.expect(rel, result.files[rel].text, newlines=True)
++                nl = writes.newline_of(now) if now is not None else "\n"
++                w.replace(rel, (text.replace("\n", nl) if nl != "\n" else text).encode("utf-8"))
++            w.then(lambda: out.update(finish()))
++        return out
+     except Exception as exc:
+         import shutil
+ 
+@@ -882,6 +890,10 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None
+             shutil.rmtree(made)
+         if isinstance(exc, ValueError):
+             raise SyncError(str(exc)) from exc
++        from loom.writes import WriteRefused
++
++        if isinstance(exc, WriteRefused):
++            raise SyncError(exc.message) from exc
+         raise
+ 
+ 
+diff --git a/loom/src/loom/cli/suggest.py b/loom/src/loom/cli/suggest.py
+index 8380db5a..a1efea18 100644
+--- a/loom/src/loom/cli/suggest.py
++++ b/loom/src/loom/cli/suggest.py
+@@ -124,6 +124,16 @@ def suggest_command(
+         "with": with_text,
+         "placement": placement,
+     }
++    if selector is None and placement in ("after", "before"):
++        from loom.records.edits import EDGE, body_span
++
++        own, _ = Records.own_pieces(result, node)
++        a, b = body_span(own)
++        event["edge"] = own[max(a, b - EDGE) : b] if placement == "after" else own[a : min(b, a + EDGE)]
++    if "#" in target and target not in result.assembly.regions:
++        from loom.records.store import line_before
++
++        event["near"] = line_before(result, node)
+     if comment:
+         event["comment"] = comment
+     if answers:
+diff --git a/loom/src/loom/config_edit.py b/loom/src/loom/config_edit.py
+index a1b7c242..e7be0d26 100644
+--- a/loom/src/loom/config_edit.py
++++ b/loom/src/loom/config_edit.py
+@@ -257,7 +257,15 @@ def set_values(quilt: Quilt, changes: dict[str, Value | None]) -> QuiltConfig:
+     if gained:
+         raise ConfigRefused({k: gained[0] for k in changes})
+     if new != text:
+-        _replace(path, new)
++        from loom import writes
++
++        rel = path.relative_to(quilt.root).as_posix() if path.is_relative_to(quilt.root) else None
++        if rel is None:
++            _replace(path, new)
++        else:
++            with writes.act(quilt.root, quilt.history_dir, "settings", writes.fresh_id("settings"), None) as w:
++                w.expect(rel, text, newlines=True)
++                w.replace(rel, new.encode("utf-8"))
+     return config
+ 
+ 
+diff --git a/loom/src/loom/doctor.py b/loom/src/loom/doctor.py
+index 34796220..e5784fac 100644
+--- a/loom/src/loom/doctor.py
++++ b/loom/src/loom/doctor.py
+@@ -650,6 +650,23 @@ def check_config(quilt: Any) -> Item:
+     return Item("config", WARN, QUILT, f"{w[0]}{more}", "loom lint")
+ 
+ 
++def check_writes(root: Path) -> Item:
++    """Writes to the person's files a crash left unfinished, which the next write through the door could not settle (`loom.writes.recover`)."""
++    from loom.writes import unfinished
++
++    left = unfinished(root)
++    if not left:
++        return Item("writes", OK, QUILT, "every write to your files finished")
++    files = sorted({f for e in left for f in e.get("files", {})})
++    return Item(
++        "writes",
++        WARN,
++        QUILT,
++        f"{len(left)} write(s) were interrupted and the files changed since: {', '.join(files)}; both texts are kept in the history",
++        "compare the file with its versions in The Record",
++    )
++
++
+ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
+     """Check the machine, and the quilt when there is one.
+ 
+@@ -696,6 +713,7 @@ def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
+         root = quilt.root
+         report.items += [
+             check_engine(quilt),
++            check_writes(root),
+             check_permissions(root),
+             *check_mcp(root),
+             check_ai_files(root),
+diff --git a/loom/src/loom/history/acts.py b/loom/src/loom/history/acts.py
+index 3f263d84..d46bafb6 100644
+--- a/loom/src/loom/history/acts.py
++++ b/loom/src/loom/history/acts.py
+@@ -5,7 +5,6 @@ A version is a landmark (`stamp_document`): Keep and Undo in Your Changes keep o
+ 
+ from __future__ import annotations
+ 
+-import os
+ from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Any
+@@ -114,10 +113,9 @@ def cannot_restore(result: ScanResult, history: History, entry: Entry) -> str:
+ 
+ def write_file(path: Path, text: str) -> None:
+     """Write `text` to `path` whole or not at all: through a sibling file moved into place."""
+-    path.parent.mkdir(parents=True, exist_ok=True)
+-    tmp = path.with_name(path.name + ".loom-tmp")
+-    tmp.write_text(text, encoding="utf-8")
+-    os.replace(tmp, path)
++    from loom.writes import write_bytes
++
++    write_bytes(path, text.encode("utf-8"))
+ 
+ 
+ def restore(result: ScanResult, doc: str, version: str, actor: str | None) -> dict[str, Any]:
+@@ -144,26 +142,78 @@ def restore(result: ScanResult, doc: str, version: str, actor: str | None) -> di
+             files[path] = text
+     else:
+         files[doc] = history.landmark_path(entry).read_text(encoding="utf-8")
++    from loom import writes
++
+     label = _label(history, entry, doc, result.masters)
+-    kept = keep_versions(result, [doc], "restore", f"Before restoring “{label}”", actor)
+-    if doc in kept.skipped and kept.skipped[doc]:
+-        raise RestoreRefused("cannot-keep", f"its text now cannot be kept first: {kept.skipped[doc]}")
+-    written = [
+-        p for p, text in files.items() if not (root / p).is_file() or (root / p).read_text(encoding="utf-8") != text
+-    ]
+-    for p in written:
+-        write_file(root / p, files[p])
+-    append_entry(
+-        result.quilt.history_dir,
+-        RESTORE,
+-        {"from": {"landmark": entry.get("landmark"), "step": entry.step}, "in": doc, "paths": written},
+-        actor,
+-    )
++    for p in files:
++        target = (root / p).resolve()
++        if not target.is_relative_to(root.resolve()):
++            raise RestoreRefused("outside", f"{p} is outside the quilt")
++    # a landmark for The Record; the door keeps the bytes of every file it replaces, reached or not
++    keep_versions(result, [doc], "restore", f"Before restoring “{label}”", actor)
++    written: list[str] = []
++    try:
++        with writes.act(root, result.quilt.history_dir, "restore", writes.fresh_id(f"restore:{doc}@{entry.name}"), actor) as w:
++            for p, text in files.items():
++                now = w.text(p)
++                if now is not None and now.replace("\r\n", "\n") == text.replace("\r\n", "\n"):
++                    continue
++                # a version may hold the text as the scan read it, with LF: put it back in the file's own line endings
++                nl = writes.newline_of(now) if now is not None and "\r" not in text else "\n"
++                w.replace(p, (text.replace("\n", nl) if nl != "\n" else text).encode("utf-8"))
++                written.append(p)
++            def records() -> None:
++                append_entry(
++                    result.quilt.history_dir,
++                    RESTORE,
++                    {"from": {"landmark": entry.get("landmark"), "step": entry.step}, "in": doc, "paths": written},
++                    actor,
++                )
++                _reopen_undone(root, w, actor)
++
++            w.then(records)
++    except writes.WriteRefused as exc:
++        raise RestoreRefused(exc.code, exc.message) from exc
+     history = load_history(result.quilt.history_dir)
+     newest = versions_of(history, doc, result.masters)[-1]
+     return {"paths": written, "label": label, "before": _label(history, newest, doc, result.masters)}
+ 
+ 
++def _reopen_undone(root: Path, w: Any, actor: str | None) -> None:
++    """After an act `w` (a restore or a put-back) rewrote files, open again each kept suggested edit whose words, as its Keep wrote them, stood in a file before the act and stand there no more: the record follows the file back. By the journal's splices, never by reading the text as taken, so an edit the person worked inside since is left kept."""
++    from loom import writes
++    from loom.clock import stamp
++    from loom.records.edits import append, generation, replay
++
++    begun = [e for e in writes.entries(root) if e.get("event") == "begin" and e.get("edits")]
++    wrote = writes.written_edits(root)
++    for e in replay(root)[0]:
++        gen = f"{e.id}:{generation(e)}"
++        if e.status != "kept" or gen not in wrote:
++            continue
++        gone = False
++        for b in begun:
++            for rel, splices in b.get("splices", {}).items():
++                if rel not in w.after or w.before.get(rel) is None:
++                    continue
++                was, now = w.before[rel].decode("utf-8", "replace"), (w.after[rel] or b"").decode("utf-8", "replace")
++                gone |= any(
++                    sp.get("edit") == gen and sp["new"].strip() and sp["new"] in was and sp["new"] not in now and not _mostly_in(sp["new"], now)
++                    for sp in splices
++                )
++        if gone:
++            append(root, {"event": "reopened", "id": e.id, "when": stamp(), "author": actor or "", "kind": "human", "why": "restored"})
++
++
++def _mostly_in(words: str, text: str) -> bool:
++    """Whether half or more of `words` stand in `text` in order: written in and worked inside, not taken out."""
++    import difflib
++
++    mine = words.split()
++    blocks = difflib.SequenceMatcher(None, mine, text.split(), autojunk=False).get_matching_blocks()
++    return sum(b.size for b in blocks) * 2 >= len(mine)
++
++
+ def _label(history: History, entry: Entry, doc: str, live: list[str]) -> str:
+     """A version as an answer names it: its message, with its time when another version of the document has the same message ("Kept an edit, 2026-11-04 07:52")."""
+     said = entry.message or entry.name
+@@ -184,16 +234,23 @@ def put_back(root: Path, history_dir: Path, path: str, digest: str, actor: str |
+ 
+     `texts` is the open files' texts now (`looks.open_texts`); only a file loom shows may be put back.
+     """
+-    from loom.records.snapshots import read_raw, write_raw
++    from loom import writes
+ 
+-    text = read_raw(root, digest, history_dir)
+-    if text is None:
++    data = writes.fetch(history_dir, digest)
++    if data is None:
+         raise RestoreRefused("no-text", f"that text of {path} is missing from the history")
+     p = root / path
++    if not p.resolve().is_relative_to(root.resolve()):
++        raise RestoreRefused("outside", f"{path} is outside the quilt")
+     if p.exists() and path not in texts:
+         raise RestoreRefused("not-text", f"{path} is no longer a text file loom keeps")
+-    now = texts.get(path)
+-    before = write_raw(root, now, history_dir) if now is not None else None
+-    write_file(p, text)
+-    append_entry(history_dir, RESTORE, {"path": path, "from": before, "to": digest}, actor)
++    with writes.act(root, history_dir, "put-back", writes.fresh_id(f"put-back:{path}@{digest}"), actor) as w:
++        now = w.read(path)
++        before = writes.digest(now)
++        w.replace(path, data)
++        def records() -> None:
++            append_entry(history_dir, RESTORE, {"path": path, "from": before, "to": digest}, actor)
++            _reopen_undone(root, w, actor)
++
++        w.then(records)
+     return before or ""
+diff --git a/loom/src/loom/pending.py b/loom/src/loom/pending.py
+index 485fcd8a..135b6274 100644
+--- a/loom/src/loom/pending.py
++++ b/loom/src/loom/pending.py
+@@ -245,10 +245,12 @@ def _blocks(result: ScanResult, path: str, a: int, b: int) -> tuple[str | None,
+ def suggested(result: ScanResult) -> list[Pending]:
+     """The open suggested edits, each placed in its key's text now with its state: `ready` to keep, `taken` when its key reads as it taken already, `unplaced` when its words no longer stand once (or a suggested edit before it is on them), `on-a-copy` when none of the person's documents reads its key."""
+     from loom.history.acts import documents_reaching
+-    from loom.records.edits import Placed, compose, home, replay, taken_how
++    from loom.records.edits import Placed, compose, generation, home, replay, taken_how
++    from loom.writes import written_edits
+ 
+     out: list[Pending] = []
+     edits = [e for e in replay(result.quilt.root)[0] if e.status == "open"]
++    loom_wrote = written_edits(result.quilt.root)
+     for edit, placed in compose(result, edits):
+         node = home(result, edit)
+         p = Pending(
+@@ -283,6 +285,9 @@ def suggested(result: ScanResult) -> list[Pending]:
+                 if copy
+                 else "It is on a block none of your documents reads"
+             )
++        elif f"{edit.id}:{generation(edit)}" in loom_wrote:
++            p.state = "taken"
++            p.why = "Loom wrote it in already; keeping it records it kept and writes nothing"
+         elif (how := taken_how(result, edit)) is not None:
+             p.state = "taken"
+             p.why = (
+@@ -292,6 +297,14 @@ def suggested(result: ScanResult) -> list[Pending]:
+             )
+         elif not isinstance(placed, Placed):
+             p.state, p.why = "unplaced", str(placed)
++        elif (
++            any(g.startswith(f"{edit.id}:") for g in loom_wrote)
++            and len(edit.with_text.split()) >= 8
++            and node is not None
++            and node.file in result.files
++            and _mostly_in(edit.with_text, result.files[node.file].text)
++        ):
++            p.state, p.why = "unplaced", "Loom wrote it once before and most of its words stand in the file again; look at it before keeping"
+         out.append(p)
+     return out
+ 
+@@ -414,11 +427,15 @@ def keep(
+     (list of str, list of dict)
+         The ids kept, and `{id, why}` for each that cannot be: one unplaced, or on an agent's copy.
+     """
+-    from loom.history.acts import APPLY, KEEP, keep_versions, write_file
++    from loom import writes
++    from loom.clock import stamp
++    from loom.history.acts import APPLY, KEEP, keep_versions
+     from loom.history.ledger import append_entry
++    from loom.paths import EDIT_LOG
+     from loom.records.carry import carry_all
+-    from loom.records.edits import EditRefused, Placed, compose, find, is_taken
++    from loom.records.edits import EditRefused, Placed, compose, generation, is_taken, replay, taken_how
+     from loom.records.edits import keep as record_kept
++    from loom.scan.hashing import hash_text
+ 
+     chosen = _chosen(result, who, ids)
+     refused = [{"id": p.id, "why": p.why or p.state} for p in chosen if p.state in ("unplaced", "on-a-copy")]
+@@ -435,54 +452,170 @@ def keep(
+     if edits:
+         # what was kept is a version of each document it is part of
+         _say(said, keep_versions(result, sorted({p.path for p in edits}), KEEP, "Kept an edit", writer[1]))
+-    written: dict[str, list[tuple[int, int]]] = {}
+-    wrote: set[str] = set()
+-    to_write = [p for p in chosen if p.kind == "suggested" and p.state == "ready"]
+-    if to_write:
+-        kept = keep_versions(
+-            result, sorted({p.path for p in to_write}), APPLY, "Before keeping a suggested edit", writer[1]
+-        )
+-        _say(said, kept)
+-        placed = {e.id: pl for e, pl in compose(result, [p.edit for p in to_write if p.edit]) if isinstance(pl, Placed)}
+-        for path in sorted({p.path for p in to_write}):
+-            text = result.files[path].text
+-            mine = sorted((p for p in to_write if p.path == path and p.id in placed), key=lambda p: placed[p.id].at)
+-            shift, spans = 0, []
+-            for p in mine:
+-                a, b = placed[p.id].at
+-                spans.append((a + shift, a + shift + len(placed[p.id].text)))
+-                shift += len(placed[p.id].text) - (b - a)
+-            for p in reversed(mine):
+-                a, b = placed[p.id].at
+-                text = text[:a] + placed[p.id].text + text[b:]
+-            write_file(root / path, text)
+-            for p in mine:
+-                append_entry(hist, APPLY, {"edit": p.id, "key": p.key, "path": path}, writer[1])
+-                wrote.add(p.id)
+-            written[path] = spans
+-    after = _rescan(result)
++    suggested_ = [p for p in chosen if p.kind == "suggested" and p.edit]
++    gens = {p.id: f"{p.id}:{generation(p.edit)}" for p in suggested_ if p.edit}
++    act_id = "keep:" + "+".join(sorted(gens.values())) if gens else "keep:look:" + "+".join(p.id for p in edits)
+     done = [p.id for p in edits]
+-    for p in chosen:
+-        if p.kind != "suggested":
+-            continue
+-        edit = find(root, p.id)
+-        if edit is None:
++    with writes.act(root, hist, "keep", act_id, writer[1]) as w:
++        if w.previous is not None:
++            answer = w.previous.get("answer") or {}
++            return list(answer.get("done", done)), list(answer.get("refused", refused))
++        # every decision again under the lock, by record: the list was made before it, and recovery may have run since
++        fresh = {e.id: e for e in replay(root)[0]}
++        wrote_before = writes.written_edits(root)
++        loom_wrote = {p.id for p in suggested_ if gens.get(p.id) in wrote_before}
++        live = [p for p in suggested_ if fresh.get(p.id) is not None and fresh[p.id].status == "open"]
++        maybe = [p for p in live if p.id not in loom_wrote and (p.state == "ready" or taken_how(result, fresh[p.id]) is None)]
++        # an edit loom wrote in an earlier generation (kept, undone, opened again) whose words mostly stand again, put back by a restore or by hand: never written blind
++        again = [
++            p
++            for p in maybe
++            if any(g.startswith(f"{p.id}:") for g in wrote_before)
++            and len(fresh[p.id].with_text.split()) >= 8  # a short text of common words would read as present anywhere
++            and p.path in result.files
++            and _mostly_in(fresh[p.id].with_text, result.files[p.path].text)
++        ]
++        refused += [{"id": p.id, "why": "loom wrote it once before and most of its words stand in the file again; look at it before keeping"} for p in again]
++        maybe = [p for p in maybe if p not in again]
++        placed = {e.id: pl for e, pl in compose(result, [fresh[p.id] for p in maybe]) if isinstance(pl, Placed)}
++        refused += [{"id": p.id, "why": "its place cannot be found now"} for p in maybe if p.id not in placed]
++        writing = [p for p in maybe if p.id in placed]
++        if writing:
++            # a landmark for The Record; the door keeps the bytes it replaces whatever this keeps
++            _say(
++                said,
++                keep_versions(result, sorted({p.path for p in writing}), APPLY, "Before keeping a suggested edit", writer[1]),
++            )
++        written: dict[str, list[tuple[int, int]]] = {}
++        for path in sorted({p.path for p in writing}):
++            mine = sorted((p for p in writing if p.path == path), key=lambda p: placed[p.id].at)
++            try:
++                raw = w.text(path) or ""
++                w.expect(path, result.files[path].text, newlines=True)
++            except writes.WriteRefused as exc:
++                refused += [{"id": p.id, "why": exc.message, "code": exc.code} for p in mine]
++                writing = [p for p in writing if p not in mine]
++                continue
++            new, made = writes.splice(raw, [(*placed[p.id].at, placed[p.id].text) for p in mine])
++            for m, p in zip(made, mine, strict=True):
++                m["edit"] = gens[p.id]
++            w.replace(path, new.encode("utf-8"), made)
++            written[path] = [(m["at"], m["at"] + len(m["new"])) for m in made]
++            for p in mine:
++                w.edits.append(gens[p.id])
++                # the key's hash as it will read, from the plan: the record is whole before the file is written
++                taken = hash_text(placed[p.id].taken)
++                w.log(EDIT_LOG, {"event": "kept", "id": p.id, "when": stamp(), "author": writer[1], "kind": writer[0], "hash": taken})
++                done.append(p.id)
++        recorded_by_door = set(done)
++
++        def records() -> None:
++            # the ledger's line for The Record; what guards a second write is the journal
++            for path in written:
++                for p in writing:
++                    if p.path == path:
++                        append_entry(hist, APPLY, {"edit": p.id, "key": p.key, "path": path}, writer[1])
++            after = _rescan(result)
++            for p in live:
++                if p.id in recorded_by_door or p in maybe:
++                    continue
++                edit = fresh.get(p.id)
++                if edit is None or edit.status != "open":
++                    continue
++                try:
++                    record_kept(after, edit, writer, written=p.id in loom_wrote)
++                except EditRefused as exc:
++                    refused.append({"id": p.id, "why": exc.message})
++                    continue
++                done.append(p.id)
++                if p.state == "taken" and is_taken(after, edit):
++                    written.setdefault(p.path, []).extend(_where_taken(after, edit))
++            _resolve_answered(after, [fresh[i] for i in recorded_by_door if i in fresh], writer)
++            for path, spans in written.items():
++                absorb(after, who, path, spans)
++            after = _rescan(after)
++            carry_all(after, before, [p for p in chosen if p.id in done], writer)
++            w.answer = {"done": done, "refused": refused}
++
++        w.then(records)
++    return done, refused
++
++
++def unkeep(result: ScanResult, who: str, ids: list[str], writer: tuple[str, str]) -> tuple[list[str], list[dict[str, str]]]:
++    """Undo the Keep of each kept suggested edit `ids` in one step: write back exactly the bytes its keep act replaced, and open it again.
++
++    Parameters
++    ----------
++    result : ScanResult
++        The quilt as scanned now.
++    who : str
++        Whose look follows the file back.
++    ids : list of str
++        Kept suggested edits, by id.
++    writer : (str, str)
++        Who undoes them.
++
++    Returns
++    -------
++    (list of str, list of dict)
++        The ids opened again, and `{id, why}` for each that cannot be: not kept, or its words changed since (restore a version instead).
++    """
++    from loom import writes
++    from loom.clock import stamp
++    from loom.paths import EDIT_LOG
++    from loom.records.edits import find, generation
++
++    root, hist = result.quilt.root, result.quilt.history_dir
++    done: list[str] = []
++    refused: list[dict[str, str]] = []
++    for i in ids:
++        edit = find(root, i)
++        if edit is None or edit.status != "kept":
++            refused.append({"id": i, "why": f"{i} is not a kept suggested edit"})
+             continue
++        gen = f"{i}:{generation(edit)}"
++        entry = writes.last_act(root, gen)
++        reopen = {"event": "reopened", "id": i, "when": stamp(), "author": writer[1], "kind": writer[0]}
+         try:
+-            record_kept(after, edit, writer, written=p.id in wrote)
+-        except EditRefused as exc:
+-            refused.append({"id": p.id, "why": exc.message})
++            if entry is None:
++                # kept without loom writing it: its text stood already, and opening it with the text in would invite a second write
++                refused.append({"id": i, "why": f"keeping {i} wrote nothing (its text was in already), so there is nothing to undo"})
++                continue
++            else:
++                writes.undo(root, hist, entry, f"undo:{entry['act']}:{gen}", writer[1], only=gen, records=[(EDIT_LOG, reopen)], look=who)
++        except writes.WriteRefused as exc:
++            refused.append({"id": i, "why": exc.message})
+             continue
+-        done.append(p.id)
+-        if p.state == "taken" and is_taken(after, edit):
+-            written.setdefault(p.path, []).extend(_where_taken(after, edit))
+-    for path, spans in written.items():
+-        absorb(after, who, path, spans)
+-    after = _rescan(after)
+-    carry_all(after, before, [p for p in chosen if p.id in done], writer)
++        done.append(i)
+     return done, refused
+ 
+ 
++def _mostly_in(words: str, text: str) -> bool:
++    from loom.history.acts import _mostly_in as mostly
++
++    return mostly(words, text)
++
++
++def _resolve_answered(result: ScanResult, edits: list[Edit], writer: tuple[str, str]) -> None:
++    """Resolve the open annotation each edit the door recorded kept answers, as `records.edits.keep` does."""
++    from loom.clock import stamp
++    from loom.records.annotations import find_annotation, load_records
++    from loom.records.log import append as append_annotation
++    from loom.records.types import load_types
++
++    for edit in edits:
++        found = find_annotation(load_records(result.quilt.root)[0], edit.answers) if edit.answers else None
++        if found is None:
++            continue
++        ann = found[1]
++        t = load_types(result.quilt.root).get(ann.type)
++        if ann.status == "open" and t is not None and t.open:
++            append_annotation(
++                result.quilt.root,
++                {"event": "resolved", "id": ann.id, "when": stamp(), "author": writer[1], "kind": writer[0], "body": f"kept suggested edit {edit.id}"},
++            )
++
++
+ def discard(
+     result: ScanResult,
+     who: str,
+@@ -513,12 +646,12 @@ def discard(
+     (list of str, list of dict)
+         The ids discarded, and `{id, why}` for each that cannot be.
+     """
+-    from loom.history.acts import keep_versions, write_file
++    from loom import writes
++    from loom.history.acts import keep_versions
+     from loom.history.ledger import append_entry
+     from loom.looks import UNDO
+     from loom.records.edits import EditRefused
+     from loom.records.edits import discard as record_discarded
+-    from loom.records.snapshots import write_raw
+ 
+     chosen = _chosen(result, who, ids)
+     root, hist = result.quilt.root, result.quilt.history_dir
+@@ -531,30 +664,36 @@ def discard(
+         )
+         texts = look_texts(result, who)
+         then = texts[0] if texts else {}
++        now = texts[1] if texts else {}
++        looked = _look_files(result, who)
+         for path in sorted({p.path for p in edits}):
+             mine = sorted((p for p in edits if p.path == path), key=lambda p: p.span, reverse=True)
+-            current = (root / path).read_text(encoding="utf-8") if (root / path).is_file() else ""
+-            from_hash = write_raw(root, current, hist) if (root / path).is_file() else None
+-            text = current
+-            for p in mine:
+-                text = text[: p.span[0]] + then.get(path, "")[p.was[0] : p.was[1]] + text[p.span[1] :]
+-            if not text and path not in _look_files(result, who):
+-                (root / path).unlink(missing_ok=True)
+-                to = None
+-            else:
+-                write_file(root / path, text)
+-                to = write_raw(root, text, hist)
+-            entry: dict[str, Any] = {
+-                "who": who,
+-                "path": path,
+-                "from": from_hash,
+-                "to": to,
+-                "changes": [p.id for p in mine],
+-            }
+-            if why:
+-                entry["why"] = why
+-            append_entry(hist, UNDO, entry, writer[1])
+-            done += [p.id for p in mine]
++            try:
++                with writes.act(root, hist, "discard", writes.fresh_id("discard:" + "+".join(sorted(p.id for p in mine))), writer[1]) as w:
++                    if w.previous is not None:
++                        done += [p.id for p in mine]
++                        continue
++                    current = w.text(path)
++                    # the change was cut from the file as it was then: refuse when it moved since
++                    w.expect(path, now.get(path))
++                    text = current or ""
++                    for p in mine:
++                        text = text[: p.span[0]] + then.get(path, "")[p.was[0] : p.was[1]] + text[p.span[1] :]
++                    gone = not text and path not in looked
++                    w.replace(path, None if gone else text.encode("utf-8"))
++                    entry: dict[str, Any] = {
++                        "who": who,
++                        "path": path,
++                        "from": writes.digest(current.encode("utf-8")) if current is not None else None,
++                        "to": None if gone else writes.digest(text.encode("utf-8")),
++                        "changes": [p.id for p in mine],
++                    }
++                    if why:
++                        entry["why"] = why
++                    w.then(lambda entry=entry: append_entry(hist, UNDO, entry, writer[1]))
++                done += [p.id for p in mine]
++            except writes.WriteRefused as exc:
++                refused += [{"id": p.id, "why": exc.message} for p in mine]
+     for p in chosen:
+         if p.kind != "suggested" or p.edit is None:
+             continue
+diff --git a/loom/src/loom/records/edits.py b/loom/src/loom/records/edits.py
+index f0779860..b4e952cd 100644
+--- a/loom/src/loom/records/edits.py
++++ b/loom/src/loom/records/edits.py
+@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
+ from pathlib import Path
+ from typing import Any
+ 
+-from loom.history.acts import Kept
+ from loom.locks import locked
+ from loom.paths import EDIT_LOG
+ from loom.records.ids import EDIT, draw
+@@ -49,6 +48,8 @@ class Edit:
+     why: str | None = None  # why it was discarded
+     kept: dict[str, Any] | None = None  # `{hash}`: its key's text once it was kept
+     acts: list[dict[str, Any]] = field(default_factory=list)  # every kept, discarded and reopened event, in order
++    near: str = ""  # on a key named by place: the line above its block when it was written
++    edge: str = ""  # at the head or foot of a body: the body's first or last words when it was written
+ 
+     def to_dict(self) -> dict[str, Any]:
+         return {
+@@ -130,6 +131,8 @@ def replay(root: Path) -> tuple[list[Edit], list[str]]:
+                 placement=placement,
+                 comment=str(e.get("comment") or ""),
+                 answers=str(e["answers"]) if e.get("answers") else None,
++                near=str(e.get("near") or ""),
++                edge=str(e.get("edge") or ""),
+             )
+             continue
+         edit = out.get(eid)
+@@ -197,7 +200,7 @@ def home(result: ScanResult, edit: Edit) -> NodeRec | None:
+     """
+     from loom.records.store import written_on
+ 
+-    return written_on(result, edit.target_key, node_of(result, edit.target_key), edit.target_hash)
++    return written_on(result, edit.target_key, node_of(result, edit.target_key), edit.target_hash, edit.near)
+ 
+ 
+ def _balanced(text: str, at: int, opening: str, closing: str) -> int:
+@@ -246,6 +249,16 @@ def body_span(own: str) -> tuple[int, int]:
+     return start, stop
+ 
+ 
++#: How many characters of a body's head or foot a suggestion at it records, as a quote's selector records its neighbours.
++EDGE = 32
++
++
++def body_edge(own: str, placement: str) -> str:
++    """The body's last (`after`) or first (`before`) words, whitespace flattened: what an insertion at its foot or head is written against."""
++    a, b = body_span(own)
++    return _flat(own[max(a, b - EDGE) : b]) if placement == "after" else _flat(own[a : min(b, a + EDGE)])
++
++
+ def _joined(own: str, point: int, text: str, before: bool) -> str:
+     """The text with a space to join it to the word it lands against, when neither side carries whitespace."""
+     left = own[point - 1 : point] if point > 0 else " "
+@@ -255,7 +268,7 @@ def _joined(own: str, point: int, text: str, before: bool) -> str:
+     return ("" if text[:1].isspace() or left.isspace() or not left else " ") + text
+ 
+ 
+-def place(result: ScanResult, edit: Edit) -> Placed:
++def place(result: ScanResult, edit: Edit, *, context: bool = True) -> Placed:
+     """Where `edit`'s text goes in its key's text now.
+ 
+     Parameters
+@@ -264,6 +277,8 @@ def place(result: ScanResult, edit: Edit) -> Placed:
+         A scan of the quilt now.
+     edit : Edit
+         The suggested edit.
++    context : bool, default True
++        Refuse an insertion whose quote stands but whose words on the side it goes no longer read as when it was suggested.
+ 
+     Returns
+     -------
+@@ -272,7 +287,7 @@ def place(result: ScanResult, edit: Edit) -> Placed:
+     Raises
+     ------
+     Unplaced
+-        When its key is gone, or its quote no longer stands in the text exactly once.
++        When its key is gone, its quote no longer stands in the text exactly once, or (with `context`) the words beside its place changed since it was suggested.
+     """
+     from loom.render.manifest import key_hash
+ 
+@@ -283,6 +298,10 @@ def place(result: ScanResult, edit: Edit) -> Placed:
+     new = edit.with_text
+     if edit.selector is None:
+         a, b = body_span(own)
++        if context and new and edit.edge and edit.placement in ("after", "before") and body_edge(own, edit.placement) != _flat(edit.edge):
++            raise Unplaced(
++                f"the words at the {'end' if edit.placement == 'after' else 'head'} of the body {edit.id} goes in changed since it was suggested, so it is not written in blind; look at it again"
++            )
+         if edit.placement == "after":
+             span, text = (b, b), ("\n" if a < b else "") + new
+         elif edit.placement == "before":
+@@ -298,6 +317,14 @@ def place(result: ScanResult, edit: Edit) -> Placed:
+                 f"the text {edit.id} quotes now stands {len(found)} times in {node.key}, so where it goes is not known"
+             )
+         a, b = found[0]
++        if context and new and edit.placement in ("after", "before"):
++            side = edit.selector.suffix if edit.placement == "after" else edit.selector.prefix
++            want = _flat(side)
++            near = _flat(own[b:])[: len(want)] if edit.placement == "after" else _flat(own[:a])[-len(want) :]
++            if want and near != want:
++                raise Unplaced(
++                    f"the words {edit.placement} the text {edit.id} quotes changed since it was suggested, so it is not written in blind; look at it again"
++                )
+         if edit.placement == "after":
+             span, text = (b, b), _joined(own, b, new, before=False) if new else ""
+         elif edit.placement == "before":
+@@ -415,6 +442,41 @@ def taken_how(result: ScanResult, edit: Edit) -> str | None:
+     quote = _flat(edit.selector.exact) if edit.selector else ""
+     if not edit.with_text.strip():
+         return "as-written" if quote and quote not in _flat(Records.own_pieces(result, node)[0]) else None
++    if edit.placement != "replace":
++        # an insertion whose place still stands is taken only when its text stands right there, on the side it goes
++        try:
++            placed = place(result, edit, context=False)
++        except Unplaced:
++            placed = None
++        if placed is not None:
++            pat = _words(edit.with_text)
++            if edit.selector is None and edit.edge and body_edge(placed.own, edit.placement) == _flat(edit.edge):
++                # the body's head or foot as it was when it was suggested: nothing was written in
++                return "edited" if _written_since(edit, text[node.start : node.end]) else None
++            if edit.selector is not None:
++                # the words beside the quote as they were when it was suggested: still there, nothing was written in
++                side = _flat(edit.selector.suffix if edit.placement == "after" else edit.selector.prefix)
++                x, y = placed.at
++                reach = 2 * len(side) + 64
++                near = _flat(text[y : y + reach])[: len(side)] if edit.placement == "after" else _flat(text[max(0, x - reach) : x])[-len(side) :]
++                if side and near == side:
++                    return "edited" if _written_since(edit, text[node.start : node.end]) else None
++            # beside a quote the place stays put; at the head or foot of the body it moves past text written there
++            after = edit.placement == "after" if edit.selector is not None else edit.placement == "before"
++            if after:
++                rest = text[placed.at[1] :]
++                at = len(rest) - len(rest.lstrip())
++                if pat.match(rest, at):
++                    return "as-written"
++            else:
++                head = text[max(0, placed.at[0] - 3 * len(edit.with_text) - 200) : placed.at[0]].rstrip()
++                if re.search(pat.pattern + r"\Z", head):
++                    return "as-written"
++            return "edited" if _written_since(edit, text[node.start : node.end]) else None
++    if edit.placement == "replace" and quote and quote not in _flat(edit.with_text):
++        # the quoted words still standing once are what the replacement replaces: it is not in
++        if len(find_quote(Records.own_pieces(result, node)[0], edit.selector.exact if edit.selector else "")) == 1:
++            return None
+     holes = [m.span() for m in _words(edit.with_text).finditer(text, node.start, node.end)]
+     if not holes:
+         if not _written_since(edit, text[node.start : node.end]):
+@@ -454,36 +516,9 @@ class EditRefused(Exception):
+         self.status = status
+ 
+ 
+-def apply(result: ScanResult, edit: Edit, actor: str | None) -> tuple[list[str], Kept]:
+-    """Write `edit` into its key's file: a version of each of the person's documents made of the file kept first (P7), then the file, then an `apply` act in the ledger.
+-
+-    The author's act: the caller refuses an agent, and records the edit kept against a scan of the file as written (`keep`). Raises EditRefused for an edit that is not open, one whose key already reads as it taken, one its quote no longer places, and one on a key none of the person's documents reads (an agent's copy, whose changes come in with the copy). Returns the person's documents the file is part of, and the versions kept.
+-    """
+-    from loom.history.acts import APPLY, documents_reaching, keep_versions, write_file
+-    from loom.history.ledger import append_entry
+-
+-    if edit.status != "open":
+-        raise EditRefused("not-open", f"It is {edit.status} already")
+-    node = home(result, edit)
+-    if node is not None and not any(result.document_role(d) == "person" for d in node.reached_by):
+-        copy = next((d for d in node.reached_by if result.document_role(d) == "agent"), None)
+-        raise EditRefused(
+-            "on-a-copy",
+-            f"It is on the agent's copy “{copy.rsplit('/', 1)[-1]}”; it comes in with the copy"
+-            if copy
+-            else "It is on a block none of your documents reads",
+-        )
+-    if is_taken(result, edit):
+-        raise EditRefused("taken", "Its block reads as it taken already: keep it without applying it")
+-    try:
+-        placed = place(result, edit)
+-    except Unplaced as exc:
+-        raise EditRefused("unplaced", str(exc)) from exc
+-    root = result.quilt.root
+-    kept = keep_versions(result, [placed.file], APPLY, "Before applying a suggested edit", actor)
+-    write_file(root / placed.file, taken_file(result, placed))
+-    append_entry(result.quilt.history_dir, APPLY, {"edit": edit.id, "key": placed.key, "path": placed.file}, actor)
+-    return documents_reaching(result, [placed.file]), kept
++def generation(edit: Edit) -> int:
++    """How many times `edit` was opened again: a keep act is named by the edit and this, so an edit undone and kept again is a new act."""
++    return sum(1 for e in edit.acts if e.get("event") == "reopened")
+ 
+ 
+ def keep(result: ScanResult, edit: Edit, writer: tuple[str, str], *, written: bool = False) -> str:
+diff --git a/loom/src/loom/records/snapshots.py b/loom/src/loom/records/snapshots.py
+index fbb7eec8..93bbd8e3 100644
+--- a/loom/src/loom/records/snapshots.py
++++ b/loom/src/loom/records/snapshots.py
+@@ -41,10 +41,11 @@ def write_raw(root: Path, text: str, history_dir: Path) -> str:
+     d.mkdir(parents=True, exist_ok=True)
+     p = d / f"{digest.split(':', 1)[1]}.md"
+     if not p.exists():
+-        p.write_text(text, encoding="utf-8")
++        p.write_bytes(text.encode("utf-8"))
+     return digest
+ 
+ 
+ def read_raw(root: Path, digest: str, history_dir: Path) -> str | None:
++    """The text stored as `digest`, exactly: its own line endings, never read as LF."""
+     p = snapshots_dir(root, history_dir) / f"{digest.split(':', 1)[-1]}.md"
+-    return p.read_text(encoding="utf-8") if p.is_file() else None
++    return p.read_bytes().decode("utf-8") if p.is_file() else None
+diff --git a/loom/src/loom/records/store.py b/loom/src/loom/records/store.py
+index 91deee71..4a2f930d 100644
+--- a/loom/src/loom/records/store.py
++++ b/loom/src/loom/records/store.py
+@@ -120,7 +120,7 @@ def _block_hash(result: ScanResult, key: str) -> str:
+     return known
+ 
+ 
+-def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str) -> NodeRec | None:
++def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str, near: str = "") -> NodeRec | None:
+     """The block a record on `key` was written on: `node`, the block `key` names now, unless `key` is named by its place in its file and no longer holds the text `want` hashes while exactly one other block of that file does.
+ 
+     A key named by place (`FILE#proof:3`) names another block once a block is put in before it, so a record goes with the text it was written against wherever that now stands. A labelled key always names its own block, and so does a region inside one. None when `key` is gone and no block of its file holds that text.
+@@ -134,6 +134,8 @@ def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str) ->
+         The block `key` names now; None when it names none.
+     want : str
+         The record's `against`: the hash of the block's text when it was written; '' moves nothing.
++    near : str, default ''
++        The line above the block when it was written; given, a block that cannot be told apart by it and its text is None.
+ 
+     Returns
+     -------
+@@ -141,11 +143,25 @@ def written_on(result: ScanResult, key: str, node: NodeRec | None, want: str) ->
+     """
+     if not want or "#" not in key or key in result.assembly.regions:
+         return node
+-    if node is not None and _block_hash(result, node.key) == want:
+-        return node
+     path = node.file if node is not None else key.split("#", 1)[0]
+-    same = [n for n in result.nodes.values() if n.file == path and n is not node and _block_hash(result, n.key) == want]
+-    return same[0] if len(same) == 1 else node
++    same = [n for n in result.nodes.values() if n.file == path and _block_hash(result, n.key) == want]
++    if len(same) == 1:
++        return same[0]
++    if near:
++        # the line above the block when the record was written tells apart blocks whose text is the same; a block that cannot be told apart is no block
++        if same:
++            by_near = [n for n in same if line_before(result, n) == near]
++            return by_near[0] if len(by_near) == 1 else None
++        return node if node is not None and line_before(result, node) == near else None
++    return node
++
++
++def line_before(result: ScanResult, node: NodeRec) -> str:
++    """The last line with words above `node` in its file: what a record on a key named by place is anchored to beside its text."""
++    f = result.files.get(node.file)
++    if f is None:
++        return ""
++    return f.text[: node.start].rstrip().rsplit("\n", 1)[-1].strip()
+ 
+ 
+ #: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.
+diff --git a/loom/src/loom/render/api.py b/loom/src/loom/render/api.py
+index 9df3d896..07b52e33 100644
+--- a/loom/src/loom/render/api.py
++++ b/loom/src/loom/render/api.py
+@@ -30,6 +30,7 @@ CAPABILITIES = [
+     "annotations-take",
+     "change-keep",
+     "change-discard",
++    "change-undo",
+     "library-verify",
+     "library-discard",
+     "library-update",
+@@ -439,8 +440,22 @@ def _change(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+         return _reopen(root, ids, writer)
+     versions: list[str] = []
+     try:
++        if endpoint == "change-undo":
++            from loom.pending import unkeep
++
++            done, refused = unkeep(result, who, ids, writer)
++            return {"ok": True, "result": f"undid the keep of {len(done)}", "done": done, "refused": refused}
+         if endpoint == "change-keep":
+             done, refused = keep(result, who, ids, writer, versions)
++            moved = [r["id"] for r in refused if r.get("code") == "changed"]
++            if moved:
++                # the file changed between this request's scan and the door: plan again from a scan taken now, once
++                try:
++                    more, again = keep(open_scan(str(root)), who, moved, writer, versions)
++                except PendingRefused:
++                    more, again = [], [r for r in refused if r["id"] in moved]
++                done += more
++                refused = [r for r in refused if r["id"] not in moved] + again
+         else:
+             done, refused = discard(result, who, ids, writer, _str(body, "why"), versions)
+     except PendingRefused as exc:
+@@ -474,6 +489,10 @@ def _reopen(root: Path, ids: list[str], writer: tuple[str, str]) -> dict[str, An
+                 f"no suggested edit {i}; an in-place change discarded comes back from History",
+                 status=404,
+             )
++        if edit.status == "kept":
++            # opening a kept edit while its words stay in would let Keep write them again: the undo of a Keep is change-undo
++            refused.append({"id": i, "why": f"{i} is kept; change-undo writes back what its Keep replaced and opens it"})
++            continue
+         try:
+             discard(root, edit, writer, undo=True)
+             done.append(i)
+@@ -708,13 +727,22 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+     dict
+         `{"ok": True, "result": <what the CLI would have printed>}`.
+     """
++    from loom.writes import WriteRefused
++
++    try:
++        return _handle(root, endpoint, body)
++    except WriteRefused as exc:
++        raise ApiError(exc.code, exc.message, status=exc.status) from exc
++
++
++def _handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
+     if endpoint not in discovery()["capabilities"]:
+         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
+     if endpoint == "here":
+         return _here(root, body)
+     if endpoint == "open":
+         return _open(root, body)
+-    if endpoint in ("change-keep", "change-discard"):
++    if endpoint in ("change-keep", "change-discard", "change-undo"):
+         return _change(root, endpoint, body)
+     if endpoint == "file-tick":
+         return _file_tick(root, body)
+diff --git a/loom/src/loom/tasks.py b/loom/src/loom/tasks.py
+index f4d867a7..74d3e854 100644
+--- a/loom/src/loom/tasks.py
++++ b/loom/src/loom/tasks.py
+@@ -107,11 +107,10 @@ def tick(quilt: Quilt, who: str, path: str, task: str, done: bool) -> bool:
+ 
+     The person's act (P7): the old text goes into the history first, one character of the file changes, the same change goes into `who`'s look so that it is not listed back to them (`looks.take_line`), and the ledger records it. A box already in that state writes nothing. Raises TickRefused for a file the viewer does not show, one that is not Markdown, and a line that no longer reads as the page drew it.
+     """
++    from loom import writes
+     from loom.files import Shown, kind_of
+-    from loom.history.acts import write_file
+     from loom.history.ledger import append_entry
+     from loom.looks import take_line
+-    from loom.records.snapshots import write_raw
+ 
+     root = quilt.root.resolve()
+     target = (quilt.root / path).resolve()
+@@ -119,26 +118,31 @@ def tick(quilt: Quilt, who: str, path: str, task: str, done: bool) -> bool:
+         raise TickRefused("no-such-file", f"{path} is not a file the viewer shows")
+     if kind_of(quilt.root, path) != "markdown":
+         raise TickRefused("not-a-task", f"{path} is not a Markdown file, so it has no boxes to tick")
+-    try:
+-        text = target.read_bytes().decode("utf-8")
+-    except UnicodeDecodeError as exc:
+-        raise TickRefused("not-a-task", f"{path} is not UTF-8 text, so loom leaves it as it is") from exc
+-    got = next((t for t in items(text) if t.id == task), None)
+-    if got is None:
+-        raise TickRefused("stale", f"{path} changed since the page was drawn; look at it again")
+-    if got.done == done:
+-        return False
+-    lines = split_lines(text)
+-    source = lines[got.line]
+-    box = _BOX.search(source)
+-    assert box is not None  # an item is only ever marked on a line holding a box
+-    lines[got.line] = source[: box.start()] + ("[x]" if done else "[ ]") + source[box.end() :]
+-    after = "".join(lines)
+-    before = write_raw(quilt.root, text, quilt.history_dir)
+-    write_file(target, after)
+-    if who:
+-        take_line(quilt, who, path, text, after, got.line)
+-    words = source[box.end() :].strip()[:WORDS]
+-    entry = {"path": path, "line": got.line + 1, "done": done, "words": words, "from": before}
+-    append_entry(quilt.history_dir, TICK, entry, who or None)
++    rel = target.relative_to(root).as_posix()
++    with writes.act(quilt.root, quilt.history_dir, "tick", writes.fresh_id(f"tick:{rel}:{task}:{done}"), who or None) as w:
++        try:
++            text = w.text(rel) or ""
++        except writes.WriteRefused as exc:
++            raise TickRefused("not-a-task", f"{path} is not UTF-8 text, so loom leaves it as it is") from exc
++        got = next((t for t in items(text) if t.id == task), None)
++        if got is None:
++            raise TickRefused("stale", f"{path} changed since the page was drawn; look at it again")
++        if got.done == done:
++            return False
++        lines = split_lines(text)
++        source = lines[got.line]
++        box = _BOX.search(source)
++        assert box is not None  # an item is only ever marked on a line holding a box
++        lines[got.line] = source[: box.start()] + ("[x]" if done else "[ ]") + source[box.end() :]
++        after = "".join(lines)
++        w.replace(rel, after.encode("utf-8"))
++        words = source[box.end() :].strip()[:WORDS]
++        entry = {"path": path, "line": got.line + 1, "done": done, "words": words, "from": writes.digest(text.encode("utf-8"))}
++
++        def records() -> None:
++            if who:
++                take_line(quilt, who, path, text, after, got.line)
++            append_entry(quilt.history_dir, TICK, entry, who or None)
++
++        w.then(records)
+     return True
+diff --git a/loom/src/loom/writes.py b/loom/src/loom/writes.py
+new file mode 100644
+index 00000000..15d3da9f
+--- /dev/null
++++ b/loom/src/loom/writes.py
+@@ -0,0 +1,465 @@
++"""The one door (prototype): every write to a person's file goes through `act`.
++
++An act holds the history's `writes.lock` across processes, reads each file's bytes under it, checks them against what the caller planned from, keeps the before and after bytes exactly in the history's text store, writes a `begin` line to the journal before any file, writes each file atomically (unique temp, fsync, mode kept), runs the act's records, then writes `done`. An act id names the act, so a repeated act is a no-op returning its first answer. On every act the journal is read for a `begin` with no `done`: finished when every file holds its after bytes, marked aborted when every file holds its before bytes, else left and reported by `unfinished`.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++import tempfile
++from collections.abc import Callable, Iterator
++from contextlib import contextmanager
++from dataclasses import dataclass, field
++from pathlib import Path
++from typing import Any
++
++from loom.locks import locked
++
++
++class WriteRefused(Exception):
++    """A write the door will not make, and why in the person's words; `code` is the write API's."""
++
++    def __init__(self, code: str, message: str, status: int = 409) -> None:
++        super().__init__(message)
++        self.code = code
++        self.message = message
++        self.status = status
++
++
++def digest(data: bytes | None) -> str | None:
++    return None if data is None else "sha256:" + hashlib.sha256(data).hexdigest()
++
++
++def store(history: Path, data: bytes) -> str:
++    """Keep `data` byte-exact in the history's text store, `<hex>.md` for UTF-8 and `<hex>.bin` otherwise; returns its digest.
++
++    Same name and hash as `snapshots.write_raw` for UTF-8 text, so a version, a look and the door share one store.
++    """
++    d = digest(data)
++    assert d is not None
++    try:
++        data.decode("utf-8")
++        suffix = ".md"
++    except UnicodeDecodeError:
++        suffix = ".bin"
++    p = history / "texts" / f"{d.split(':', 1)[1]}{suffix}"
++    if not p.is_file():
++        p.parent.mkdir(parents=True, exist_ok=True)
++        fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".store.")
++        with os.fdopen(fd, "wb") as fh:
++            fh.write(data)
++        os.replace(tmp, p)
++    return d
++
++
++def fetch(history: Path, d: str) -> bytes | None:
++    hexd = d.split(":", 1)[-1]
++    for suffix in (".md", ".bin"):
++        p = history / "texts" / f"{hexd}{suffix}"
++        if p.is_file():
++            return p.read_bytes()
++    return None
++
++
++def fresh_id(prefix: str) -> str:
++    """A unique act id, for an act whose repeat a record already refuses (the change is no longer pending) or whose effect is a state, so repeating it changes nothing: deriving such an id from content alone would name a later act like an earlier one when a state recurs."""
++    import uuid
++
++    return f"{prefix}#{uuid.uuid4().hex[:12]}"
++
++
++def _target(path: Path) -> Path:
++    """The file a write lands in: a symlink's target, so the link stays a link."""
++    return Path(os.path.realpath(path)) if path.is_symlink() else path
++
++
++def write_bytes(path: Path, data: bytes) -> None:
++    """Write `data` to `path` whole or not at all: a unique temp beside it, fsync, the file's mode kept, `os.replace`."""
++    path = _target(path)
++    path.parent.mkdir(parents=True, exist_ok=True)
++    try:
++        mode: int | None = path.stat().st_mode & 0o7777
++    except FileNotFoundError:
++        mode = None
++    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".loom-tmp")
++    try:
++        with os.fdopen(fd, "wb") as fh:
++            fh.write(data)
++            fh.flush()
++            os.fsync(fh.fileno())
++        if mode is None:
++            umask = os.umask(0)
++            os.umask(umask)
++            mode = 0o666 & ~umask
++        os.chmod(tmp, mode)
++        os.replace(tmp, path)
++    finally:
++        Path(tmp).unlink(missing_ok=True)
++
++
++def _remove(path: Path) -> None:
++    path.unlink(missing_ok=True)
++
++
++# ---- the journal ----------------------------------------------------------------------------------------------------
++
++
++_HISTORY: dict[Path, Path] = {}
++
++
++def _history_of(root: Path) -> Path:
++    """The quilt's history directory (`[quilt] history`), where the journal and its lock live: protected from agents already, beside the text store that holds every before and after."""
++    held = _HISTORY.get(root)
++    if held is None:
++        from loom.scan.quilt import load_quilt
++
++        held = _HISTORY[root] = load_quilt(root).history_dir
++    return held
++
++
++def _journal(root: Path) -> Path:
++    return _history_of(root) / "writes.jsonl"
++
++
++def entries(root: Path) -> list[dict[str, Any]]:
++    p = _journal(root)
++    if not p.is_file():
++        return []
++    out = []
++    for line in p.read_text(encoding="utf-8").splitlines():
++        try:
++            out.append(json.loads(line))
++        except json.JSONDecodeError:
++            continue
++    return out
++
++
++def _append(root: Path, entry: dict[str, Any]) -> None:
++    p = _journal(root)
++    p.parent.mkdir(parents=True, exist_ok=True)
++    with p.open("a", encoding="utf-8") as fh:
++        fh.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
++        fh.flush()
++        os.fsync(fh.fileno())
++
++
++def _settled(root: Path) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], set[str]]:
++    """Each act's `begin` and `done` by id, and the ids aborted."""
++    begun: dict[str, dict[str, Any]] = {}
++    done: dict[str, dict[str, Any]] = {}
++    aborted: set[str] = set()
++    for e in entries(root):
++        if e.get("event") == "begin":
++            begun[e["act"]] = e
++            aborted.discard(e["act"])
++        elif e.get("event") == "done":
++            done[e["act"]] = e
++        elif e.get("event") == "aborted":
++            aborted.add(e["act"])
++    return begun, done, aborted
++
++
++def written_edits(root: Path) -> set[str]:
++    """Every `<edit id>:<generation>` a keep act wrote (begun and not aborted): what loom wrote, by record."""
++    begun, done, aborted = _settled(root)
++    out: set[str] = set()
++    for a, e in begun.items():
++        if a in aborted or not e.get("edits"):
++            continue
++        # an act a crash left unfinished wrote its edits only if its files hold what it wrote, as recovery will find
++        if a in done or all(_holds(root, rel, ab[1]) for rel, ab in e.get("files", {}).items()):
++            out.update(e["edits"])
++    return out
++
++
++def last_act(root: Path, edit_gen: str) -> dict[str, Any] | None:
++    """The finished keep act that wrote `edit_gen`, for its undo."""
++    begun, done, aborted = _settled(root)
++    found = [e for a, e in begun.items() if a in done and a not in aborted and edit_gen in e.get("edits", [])]
++    return found[-1] if found else None
++
++
++def unfinished(root: Path) -> list[dict[str, Any]]:
++    """Acts begun and neither done nor aborted: what a crash left that recovery could not settle."""
++    begun, done, aborted = _settled(root)
++    return [e for a, e in begun.items() if a not in done and a not in aborted]
++
++
++def _holds(root: Path, rel: str, want: str | None) -> bool:
++    p = root / rel
++    if want is None:
++        return not p.exists()
++    try:
++        return digest(p.read_bytes()) == want
++    except OSError:
++        return False
++
++
++def recover(root: Path) -> list[str]:
++    """Settle each act a crash left begun: finish it (its record lines, then `done`) when every file holds its after bytes, abort it when every file holds its before bytes; leave the rest. Temp files the act left are removed. Returns what was done, in words."""
++    said = []
++    for e in unfinished(root):
++        files: dict[str, list[str | None]] = e.get("files", {})
++        for rel in files:
++            t = _target(root / rel)
++            for tmp in t.parent.glob(f".{t.name}.*.loom-tmp"):
++                tmp.unlink(missing_ok=True)
++        if all(_holds(root, rel, ab[1]) for rel, ab in files.items()):
++            for rec in e.get("records", []):
++                p = root / rec["log"]
++                p.parent.mkdir(parents=True, exist_ok=True)
++                with locked(p), p.open("a", encoding="utf-8") as fh:
++                    fh.write(json.dumps(rec["line"], ensure_ascii=False, sort_keys=True) + "\n")
++            _append(root, {"event": "done", "act": e["act"], "answer": e.get("answer"), "recovered": True})
++            said.append(f"finished {e['act']}")
++        elif all(_holds(root, rel, ab[0]) for rel, ab in files.items()):
++            _append(root, {"event": "aborted", "act": e["act"]})
++            said.append(f"aborted {e['act']}")
++    return said
++
++
++# ---- an act ---------------------------------------------------------------------------------------------------------
++
++
++@dataclass
++class Act:
++    """One act through the door, staged until the block ends."""
++
++    root: Path
++    history: Path
++    kind: str
++    id: str
++    actor: str | None
++    previous: dict[str, Any] | None = None  # the earlier answer, when this act is done already
++    before: dict[str, bytes | None] = field(default_factory=dict)
++    after: dict[str, bytes | None] = field(default_factory=dict)
++    splices: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
++    edits: list[str] = field(default_factory=list)
++    records: list[dict[str, Any]] = field(default_factory=list)
++    follow: list[Callable[[], None]] = field(default_factory=list)
++    answer: Any = None
++    extra: dict[str, Any] = field(default_factory=dict)
++
++    def read(self, rel: str) -> bytes | None:
++        """The file's bytes now, under the lock; the first read is what the act replaces."""
++        p = _target(self.root / rel)
++        data = p.read_bytes() if p.is_file() else None
++        self.before.setdefault(rel, data)
++        return data
++
++    def text(self, rel: str) -> str | None:
++        """The file as UTF-8 text with its own line endings, or WriteRefused for a file that is not UTF-8."""
++        data = self.read(rel)
++        if data is None:
++            return None
++        try:
++            return data.decode("utf-8")
++        except UnicodeDecodeError as exc:
++            raise WriteRefused(
++                "not-utf8", f"{rel} is not UTF-8 text, so loom does not write into it; save it as UTF-8 first"
++            ) from exc
++
++    def expect(self, rel: str, planned: str | None, *, newlines: bool = False) -> None:
++        """Refuse unless the file still reads as `planned`, the text the caller planned from (`newlines`: compared with CRLF and CR read as LF, as the scan reads)."""
++        now = self.text(rel)
++        if newlines and now is not None:
++            now = now.replace("\r\n", "\n").replace("\r", "\n")
++        if now != planned:
++            raise WriteRefused("changed", f"{rel} changed since loom read it; nothing was written, look at it again")
++
++    def replace(self, rel: str, data: bytes | None, splices: list[dict[str, Any]] | None = None) -> None:
++        """Stage `data` as the file's new bytes (None removes it); `splices` say what replaced what, for an undo."""
++        if rel not in self.before:
++            self.read(rel)
++        self.after[rel] = data
++        if splices:
++            self.splices.setdefault(rel, []).extend(splices)
++
++    def log(self, log: str, line: dict[str, Any]) -> None:
++        """A record line the act appends to `log` (quilt-relative) after its files; recovery appends it too."""
++        self.records.append({"log": log, "line": line})
++
++    def then(self, fn: Callable[[], None]) -> None:
++        """A step after the files and before `done` (rescans, looks, carries): not replayed by recovery."""
++        self.follow.append(fn)
++
++    def _append_records(self) -> None:
++        for rec in self.records:
++            p = self.root / rec["log"]
++            p.parent.mkdir(parents=True, exist_ok=True)
++            with locked(p), p.open("a", encoding="utf-8") as fh:
++                fh.write(json.dumps(rec["line"], ensure_ascii=False, sort_keys=True) + "\n")
++
++    def _commit(self) -> None:
++        changed = {rel: self.after[rel] for rel in self.after if self.after[rel] != self.before.get(rel)}
++        if not changed:
++            # nothing written: no journal, so the same act asked again is free to write; its records still stand
++            self._append_records()
++            for fn in self.follow:
++                fn()
++            return
++        files = {}
++        for rel, data in changed.items():
++            b = self.before.get(rel)
++            files[rel] = [store(self.history, b) if b is not None else None, store(self.history, data) if data is not None else None]
++        _append(
++            self.root,
++            {
++                "event": "begin",
++                "act": self.id,
++                "kind": self.kind,
++                "actor": self.actor,
++                "files": files,
++                "splices": {rel: s for rel, s in self.splices.items() if rel in changed},
++                "edits": self.edits,
++                "records": self.records,
++                "answer": self.answer,
++                **self.extra,
++            },
++        )
++        for rel, data in changed.items():
++            if data is None:
++                _remove(self.root / rel)
++            else:
++                write_bytes(self.root / rel, data)
++        self._append_records()
++        for fn in self.follow:
++            fn()
++        _append(self.root, {"event": "done", "act": self.id, "answer": self.answer})
++
++
++@contextmanager
++def act(root: Path, history: Path, kind: str, act_id: str, actor: str | None = None) -> Iterator[Act]:
++    """Hold the door for one act; the act is written when the block ends without an exception.
++
++    Parameters
++    ----------
++    root : Path
++        The quilt.
++    history : Path
++        The quilt's history directory, whose `texts/` store keeps every before and after.
++    kind : str
++        What the act is: keep, discard, put-back, restore, tick, settings, undo.
++    act_id : str
++        Names the act; an act whose `done` is in the journal is not done again (`Act.previous` holds its answer).
++    actor : str, optional
++        Who.
++
++    Yields
++    ------
++    Act
++    """
++    _HISTORY.setdefault(root, history)
++    with locked(history / "writes.lock"):
++        recover(root)
++        _begun, done, _aborted = _settled(root)
++        a = Act(root, history, kind, act_id, actor)
++        if act_id in done:
++            a.previous = {"answer": done[act_id].get("answer")}
++            yield a
++            return
++        yield a
++        a._commit()
++
++
++# ---- bytes from a scan's text ---------------------------------------------------------------------------------------
++
++
++def newline_of(text: str) -> str:
++    """The file's line ending: CRLF when most of its lines end so, else LF."""
++    crlf = text.count("\r\n")
++    return "\r\n" if crlf and crlf >= text.count("\n") - crlf else "\n"
++
++
++def raw_offsets(raw: str) -> list[int]:
++    """For each offset of `raw` read as the scan reads it (CRLF and CR as LF), the offset in `raw`; one more for the end."""
++    out = []
++    i = 0
++    while i < len(raw):
++        out.append(i)
++        i += 2 if raw[i] == "\r" and raw[i + 1 : i + 2] == "\n" else 1
++    out.append(len(raw))
++    return out
++
++
++def splice(raw: str, spans: list[tuple[int, int, str]]) -> tuple[str, list[dict[str, Any]]]:
++    """Put each `(a, b, text)` (offsets in the scan's reading of `raw`) into `raw`, every other byte kept, `text` in the file's own line endings; returns the new text and the splices made (raw offsets in the new text, old and new words)."""
++    pos = raw_offsets(raw)
++    nl = newline_of(raw)
++    out = raw
++    made = []
++    for a, b, text in sorted(spans, reverse=True):
++        ra, rb = pos[a], pos[b]
++        new = text.replace("\n", nl) if nl != "\n" else text
++        made.append({"old": out[ra:rb], "new": new, "at": ra})
++        out = out[:ra] + new + out[rb:]
++    # offsets in the new text, in order
++    made.reverse()
++    shift = 0
++    for m in made:
++        m["at"] += shift
++        shift += len(m["new"]) - len(m["old"])
++    return out, made
++
++
++def undo(
++    root: Path,
++    history: Path,
++    act_entry: dict[str, Any],
++    act_id: str,
++    actor: str | None,
++    *,
++    only: str | None = None,
++    records: list[tuple[str, dict[str, Any]]] | None = None,
++    look: str | None = None,
++) -> list[str]:
++    """Write back what the act `act_entry` replaced, as a new act named `act_id`: the whole file when it still holds the act's after bytes and the act wrote no other edit there, else each splice (of `only`, an edit's `<id>:<generation>`) whose new words stand exactly once; WriteRefused when neither. `records` are appended with it; `look` is a reviewer whose look holding the act's after text follows the file back. Returns the paths written."""
++    paths: list[str] = []
++    with act(root, history, "undo", act_id, actor) as w:
++        if w.previous is not None:
++            return list(act_entry.get("files", {}))
++        for rel, (before, after) in act_entry.get("files", {}).items():
++            splices = [s for s in act_entry.get("splices", {}).get(rel, []) if only is None or s.get("edit") == only]
++            if only is not None and not splices:
++                continue
++            others = [s for s in act_entry.get("splices", {}).get(rel, []) if s not in splices]
++            now = w.read(rel)
++            if digest(now) == after and not others:
++                w.replace(rel, fetch(history, before) if before else None)
++            else:
++                text = w.text(rel) or ""
++                for s in reversed(splices):
++                    if s["new"] and text.count(s["new"]) == 1:
++                        i = text.index(s["new"])
++                        text = text[:i] + s["old"] + text[i + len(s["new"]) :]
++                    else:
++                        raise WriteRefused(
++                            "changed-since",
++                            f"{rel} changed where it was written since; restore a version from The Record instead",
++                        )
++                w.replace(rel, text.encode("utf-8"))
++            paths.append(rel)
++        for log, line in records or []:
++            w.log(log, line)
++        if look:
++            w.then(lambda: _look_follows(root, history, look, w))
++    return paths
++
++
++def _look_follows(root: Path, history: Path, who: str, w: Act) -> None:
++    """Where `who`'s look held a file exactly as the act found it, it holds the file as the act left it: loom's write is no change of the person's."""
++    from loom.looks import _write, read_look
++
++    look = read_look(root, who)
++    if look is None:
++        return
++    moved = False
++    for rel, data in w.after.items():
++        b = w.before.get(rel)
++        if b is not None and look.files.get(rel) == digest(b) and data is not None:
++            look.files[rel] = store(history, data)
++            moved = True
++    if moved:
++        _write(root, look)
+diff --git a/loom/tests/unit/test_door.py b/loom/tests/unit/test_door.py
+new file mode 100644
+index 00000000..5226bbec
+--- /dev/null
++++ b/loom/tests/unit/test_door.py
+@@ -0,0 +1,166 @@
++"""The one door (prototype): one-step undo of Keep, recovery of an interrupted act, two Keeps at once, and files that are not UTF-8."""
++
++from __future__ import annotations
++
++import json
++import threading
++from pathlib import Path
++
++from tests.unit.test_write_safety import call, q, suggest  # noqa: F401 -- the fixture
++
++NODE = "drafting/nodes/sy-000A.tex"
++
++
++def test_undo_of_a_keep_gives_back_the_bytes_and_the_edit_can_be_kept_again(q: Path) -> None:
++    node = q / NODE
++    node.write_bytes(node.read_bytes().replace(b"\n", b"\r\n"))
++    call(q, "change-keep", {"all": True})
++    before = node.read_bytes()
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_bytes().count(b"Each swap fixes nothing.") == 1 and node.read_bytes().count(b"\r\n") == 3
++    assert call(q, "change-undo", {"changes": [eid]})["done"] == [eid]
++    assert node.read_bytes() == before
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_bytes().count(b"Each swap fixes nothing.") == 1
++
++
++def test_undo_of_a_keep_survives_a_later_edit_elsewhere_and_refuses_one_inside(q: Path) -> None:
++    node = q / NODE
++    a = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    b = suggest(q, "sy-000A", "A remark.", "--quote", "Gadgets exist:", "--before")
++    call(q, "change-keep", {"changes": [a]})
++    node.write_text(node.read_text() + "% my own line\n", encoding="utf-8")
++    call(q, "change-keep", {"changes": [b]})
++    assert call(q, "change-undo", {"changes": [a]})["done"] == [a]
++    text = node.read_text()
++    assert "Each swap fixes nothing." not in text and "A remark." in text and "% my own line" in text
++    call(q, "change-keep", {"changes": [a]})
++    node.write_text(node.read_text().replace("Each swap fixes nothing.", "Each swap fixes no point."), encoding="utf-8")
++    out = call(q, "change-undo", {"changes": [a]})
++    assert out["done"] == [] and "changed where it was written" in out["refused"][0]["why"]
++
++
++def test_a_kept_edit_is_not_reopened_with_its_words_left_in(q: Path) -> None:
++    eid = suggest(q, "sy-000A", "A gadget with three points has one fixed point.", "--quote", "\\end{remark}", "--after")
++    call(q, "change-keep", {"changes": [eid]})
++    out = call(q, "change-discard", {"changes": [eid], "undo": True})
++    assert out["done"] == [] and "change-undo" in out["refused"][0]["why"]
++
++
++def test_an_act_interrupted_after_its_write_is_finished_and_never_written_twice(q: Path, monkeypatch) -> None:
++    import loom.writes as writes
++
++    node = q / NODE
++    new = "A gadget with three points has one fixed point."
++    eid = suggest(q, "sy-000A", new, "--quote", "\\end{remark}", "--after")
++
++    class Crash(BaseException):
++        pass
++
++    real = writes.write_bytes
++
++    def write_then_die(path: Path, data: bytes) -> None:
++        real(path, data)
++        raise Crash
++
++    monkeypatch.setattr(writes, "write_bytes", write_then_die)
++    try:
++        call(q, "change-keep", {"changes": [eid]})
++    except Crash:
++        pass
++    monkeypatch.setattr(writes, "write_bytes", real)
++    assert node.read_text().count(new) == 1 and len(writes.unfinished(q)) == 1
++    out = call(q, "change-keep", {"changes": [eid]})  # recovery runs first, records it kept; this keep finds nothing to do
++    assert node.read_text().count(new) == 1 and not writes.unfinished(q)
++    assert "error" in out or out["done"] in ([], [eid])
++    from loom.records.edits import find
++
++    assert find(q, eid).status == "kept"  # type: ignore[union-attr]
++
++
++def test_an_act_interrupted_before_its_write_is_aborted(q: Path, monkeypatch) -> None:
++    import loom.writes as writes
++
++    node = q / NODE
++    old = node.read_bytes()
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++
++    class Crash(BaseException):
++        pass
++
++    def die(path: Path, data: bytes) -> None:
++        raise Crash
++
++    monkeypatch.setattr(writes, "write_bytes", die)
++    try:
++        call(q, "change-keep", {"changes": [eid]})
++    except Crash:
++        pass
++    monkeypatch.undo()
++    assert node.read_bytes() == old and len(writes.unfinished(q)) == 1
++    out = call(q, "change-keep", {"changes": [eid]})
++    print("DEBUG", out, writes.entries(q))
++    assert node.read_text().count("Each swap fixes nothing.") == 1
++    assert any(e.get("event") == "aborted" for e in writes.entries(q))
++
++
++def test_two_keeps_at_once_lose_nothing(q: Path) -> None:
++    node = q / NODE
++    a = suggest(q, "sy-000A", "A gadget with three points has one fixed point.", "--quote", "\\end{remark}", "--after")
++    b = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    outs: list[dict] = []
++    ts = [threading.Thread(target=lambda e=e: outs.append(call(q, "change-keep", {"changes": [e]}))) for e in (a, b)]
++    for t in ts:
++        t.start()
++    for t in ts:
++        t.join()
++    text = node.read_text()
++    from loom.records.edits import find
++
++    for e, words in ((a, "A gadget with three points"), (b, "Each swap fixes nothing.")):
++        status = find(q, e).status  # type: ignore[union-attr]
++        assert text.count(words) == (1 if status == "kept" else 0), (outs, status)
++    assert text.count("A gadget with three points") + text.count("Each swap fixes nothing.") >= 1
++
++
++def test_a_file_that_is_not_utf8_is_refused_whole(q: Path) -> None:
++    node = q / NODE
++    node.write_bytes(node.read_bytes().replace(b"Gadgets exist:", b"Gadgets (Schr\xf6der) exist:"))
++    old = node.read_bytes()
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    out = call(q, "change-keep", {"changes": [eid]})
++    assert node.read_bytes() == old
++    assert out["done"] == [] and "not UTF-8" in out["refused"][0]["why"]
++
++
++def test_every_write_is_journalled_with_its_bytes(q: Path) -> None:
++    from loom.writes import entries, fetch
++
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    before = (q / NODE).read_bytes()
++    call(q, "change-keep", {"changes": [eid]})
++    begin = [e for e in entries(q) if e.get("event") == "begin" and e.get("kind") == "keep"][-1]
++    b, a = begin["files"][NODE]
++    hist = q / ".loom/history"
++    assert fetch(hist, b) == before and fetch(hist, a) == (q / NODE).read_bytes()
++    assert json.dumps(begin)  # plain JSON
++
++
++def test_restoring_the_version_before_a_keep_opens_the_edit_again(q: Path) -> None:
++    from loom.history.acts import versions_of
++    from loom.history.ledger import load_history
++    from loom.records.edits import find
++    from loom.scan.quilt import load_quilt
++    from loom.scan.scan import scan
++
++    node = q / NODE
++    old = node.read_bytes()
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    call(q, "change-keep", {"changes": [eid]})
++    result = scan(load_quilt(q))
++    v = [e for e in versions_of(load_history(q / ".loom/history"), "drafting/main.tex", result.masters) if e.message == "Before keeping a suggested edit"][-1]
++    call(q, "history-restore", {"document": "drafting/main.tex", "version": v.name})
++    assert node.read_bytes() == old and find(q, eid).status == "open"  # type: ignore[union-attr]
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_text().count("Each swap fixes nothing.") == 1
+diff --git a/loom/tests/unit/test_write_safety.py b/loom/tests/unit/test_write_safety.py
+new file mode 100644
+index 00000000..7e6e8275
+--- /dev/null
++++ b/loom/tests/unit/test_write_safety.py
+@@ -0,0 +1,408 @@
++"""Writes to the person's files hold up over sequences of acts: seeded runs of suggest, hand edits, Keep, Keep all, Discard and their undo, a tick and a setting, through the write API's handler on a copy of the synthetic quilt, each act checked against the invariants loom promises.
++
++The invariants, checked after every act loom performs: only the files the act names change; the same request sent again changes nothing; every suggested edit's text (each carries a unique word) stands at most once, and a ready one is never already in its file; text the person typed is in a file or in a kept text; and the bytes a write replaced are kept in the history first. The `KNOWN` tests pin damage found by the v0.1 safety study and are expected to fail until it is fixed.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++import random
++import re
++import shutil
++from pathlib import Path
++from typing import Any
++
++import pytest
++
++import loom
++
++from tests.unit._quilts import REPO  # noqa: E402
++
++QUILTS = REPO / "tests" / "quilts"
++AGENT = "Agent Smith"
++WORDS = "orbit group action finite widget lemma bound measure compact dense closed map kernel image quotient series limit converges uniformly hence suppose every exists integral norm space basis linear operator".split()
++
++
++# ---- the quilt and the person -----------------------------------------------------------------------------------
++
++
++@pytest.fixture
++def q(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
++    """A copy of the synthetic quilt, edits tracked, with a Markdown task list; the person is `Pat`, and no agent marker is set."""
++    for m in ("AI_AGENT", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CODEX_SANDBOX", "CURSOR_AGENT", "GEMINI_CLI"):
++        monkeypatch.delenv(m, raising=False)
++    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
++    from loom.scan.quilt import save_author
++
++    save_author("Pat")
++    root = tmp_path / "q"
++    shutil.copytree(QUILTS / "synthetic", root, ignore=shutil.ignore_patterns("build", ".git"))
++    (root / "tasks.md").write_text("# Tasks\n\n- [ ] read the first proof again\n- [x] write the second answer\n", encoding="utf-8")
++    from loom.config_edit import set_values
++    from loom.scan.quilt import load_quilt
++
++    try:
++        set_values(load_quilt(root), {"review.track_edits": True})
++    except Exception:  # noqa: BLE001 -- a loom from before edit tracking refuses the table
++        pass
++    call(root, "change-keep", {"all": True})  # the first look
++    return root
++
++
++def call(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
++    from loom.render.api import ApiError, handle
++
++    try:
++        return handle(root, endpoint, dict(body))
++    except ApiError as exc:
++        return {"error": exc.code}
++
++
++def suggest(root: Path, key: str, new: str, *more: str) -> str | None:
++    from click.testing import CliRunner
++
++    from loom.cli import main
++
++    res = CliRunner().invoke(main, ["suggest", key, "--with", new, *more, "--as", AGENT, "--json", "--quilt", str(root)], env={"AI_AGENT": "1"})
++    return str(json.loads(res.stdout)["edit"]) if res.exit_code == 0 else None
++
++
++def files(root: Path) -> dict[str, bytes]:
++    """Every file outside `.loom/`, as bytes."""
++    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file() and ".loom" not in p.relative_to(root).parts}
++
++
++def scan(root: Path) -> Any:
++    from loom.scan.quilt import load_quilt
++    from loom.scan.scan import scan as scan_
++
++    return scan_(load_quilt(root))
++
++
++def waiting(root: Path, result: Any = None) -> list[Any]:
++    from loom.pending import pending
++
++    return pending(result or scan(root), "Pat")
++
++
++def kept_in_history(root: Path, data: bytes) -> bool:
++    text = data.decode("utf-8")
++    p = root / ".loom/history/texts" / f"{hashlib.sha256(text.encode()).hexdigest()}.md"
++    return p.is_file() and p.read_bytes() == data
++
++
++# ---- the invariants ---------------------------------------------------------------------------------------------
++
++
++class Run:
++    """One sequence: what the harness filed, typed and expects."""
++
++    def __init__(self, root: Path, seed: int) -> None:
++        self.root = root
++        self.rng = random.Random(seed)
++        self.markers: dict[str, str] = {}  # edit id -> its unique word
++        self.typed: set[str] = set()
++        self.n = 0
++        self.problems: list[str] = []
++        self.trail: list[str] = []  # what was done, for the failure message
++
++    def word(self, kind: str) -> str:
++        self.n += 1
++        return f"{kind}{''.join(chr(97 + (self.n * 7 + i * 3) % 26) for i in range(3))}{self.n:03d}x"
++
++    def check(self, act: str, before: dict[str, bytes], allowed: set[str]) -> dict[str, bytes]:
++        from loom.records.edits import replay
++
++        after = files(self.root)
++        changed = {k for k in set(before) | set(after) if before.get(k) != after.get(k)}
++        if not changed <= allowed:
++            self.problems.append(f"{act}: changed {sorted(changed - allowed)}, which it does not name")
++        for k in changed & set(before):
++            if k == "config.toml":
++                continue  # no version is kept of the config (SAFE-10): test_saving_settings_keeps_the_config_first
++            if before[k] and not kept_in_history(self.root, before[k]):
++                self.problems.append(f"{act}: the text of {k} before the write is kept nowhere")
++        blob = b"\n".join(after.values()).decode("utf-8", "replace")
++        for mk in sorted(self.typed):
++            if mk not in blob and not any(mk.encode() in p.read_bytes() for p in (self.root / ".loom/history").rglob("*.md")):
++                self.problems.append(f"{act}: the person's {mk} is gone and kept nowhere")
++        states = {p.id: p.state for p in waiting(self.root) if p.kind == "suggested"}
++        status = {e.id: e.status for e in replay(self.root)[0]}
++        for eid, mk in self.markers.items():
++            n = blob.count(mk)
++            if n > 1:
++                self.problems.append(f"{act}: {eid}'s text stands {n} times")
++            if status.get(eid) == "open" and states.get(eid) == "ready" and n:
++                self.problems.append(f"{act}: {eid} is ready to keep while its text already stands")
++        return after
++
++    def press(self, endpoint: str, body: dict[str, Any], allowed: set[str]) -> None:
++        """Send a request, check it, send it again and check that nothing more changed."""
++        before = files(self.root)
++        call(self.root, endpoint, body)
++        after = self.check(endpoint, before, allowed)
++        call(self.root, endpoint, body)
++        if files(self.root) != after:
++            self.problems.append(f"{endpoint} {body} sent twice changed the files again")
++
++
++def sentence(rng: random.Random, n: int, mark: str) -> str:
++    ws = [rng.choice(WORDS) for _ in range(n)]
++    ws.insert(rng.randrange(n + 1), mark)
++    return " ".join(ws)
++
++
++def blocks(root: Path, result: Any) -> list[Any]:
++    return [n for n in result.nodes.values() if n.kind in ("environment", "proof") and not n.file.startswith(".loom/") and any(result.document_role(d) == "person" for d in n.reached_by or [])]
++
++
++def quote_in(result: Any, node: Any, rng: random.Random) -> str | None:
++    """A run of two to four words standing once in the block's own text, inside it (never its `\\begin` or `\\end`)."""
++    from loom.records.edits import body_span
++    from loom.records.selectors import find_quote
++    from loom.records.store import Records
++
++    own = Records.own_pieces(result, node)[0]
++    a, b = body_span(own)
++    toks = [m for m in re.finditer(r"\S+", own) if a <= m.start() and m.end() <= b and "\\" not in m.group() and "%" not in m.group()]
++    for _ in range(20):
++        if len(toks) < 3:
++            return None
++        i = rng.randrange(len(toks) - 1)
++        quote = own[toks[i].start() : toks[min(len(toks) - 1, i + rng.randint(1, 3))].end()]
++        if len(find_quote(own, quote)) == 1 and not quote.startswith("-"):
++            return quote
++    return None
++
++
++def step(run: Run) -> None:
++    """One act drawn from the run's generator."""
++    rng, root = run.rng, run.root
++    op = rng.choices(["suggest", "section", "type", "edit", "keep", "keep_all", "discard", "undo_discard", "tick", "setting"], [6, 2, 2, 4, 6, 2, 2, 1, 1, 1])[0]
++    run.trail.append(op)
++    if run.typed:  # what the person deleted in their own last act was theirs to delete; loom's acts are checked as they happen
++        blob = b"\n".join(files(root).values())
++        run.typed = {w for w in run.typed if w.encode() in blob}
++    if op in ("suggest", "section"):
++        if op == "section":  # the hwk1 shape: a problem and its answer after \maketitle
++            mk = run.word("sm")
++            new = f"\\section*{{Problem {mk}}}\n{sentence(rng, 24, 'and')}\n\\begin{{proof}}[Answer]\n{sentence(rng, 24, 'so')}\n\\end{{proof}}"
++            eid = suggest(root, "drafting/main.tex", new, "--quote", "\\maketitle", "--after")
++        else:
++            result = scan(root)
++            node = rng.choice(blocks(root, result))
++            quote = quote_in(result, node, rng)
++            mk = run.word("sg")
++            new = sentence(rng, rng.choice([3, 6, 30]), mk)
++            where = rng.choice(["--after", "--before", None]) if quote else rng.choice(["--after", "--before"])
++            more = (["--quote", quote] if quote else []) + ([where] if where else [])
++            eid = suggest(root, node.key, new, *more)
++            run.trail[-1] += f" {node.key} {more} {new[:40]!r}"
++        if eid:
++            run.markers[eid] = mk
++        run.check("suggest", files(root), set())
++        return
++    if op == "type":  # the person writes an open suggestion of twenty words or more in by hand, then works inside it
++        from loom.records.edits import Placed, compose, find
++
++        result = scan(root)
++        opens = [e for eid in run.markers if (e := find(root, eid)) and e.status == "open" and len(e.with_text.split()) >= 20]
++        placed = [(e, pl) for e, pl in compose(result, opens) if isinstance(pl, Placed)]
++        if placed:
++            e, pl = rng.choice(placed)
++            text = result.files[pl.file].text
++            mine = run.word("pt")
++            typed = pl.text.replace(run.markers[e.id], f"{run.markers[e.id]} {mine}")
++            (root / pl.file).write_text(text[: pl.at[0]] + typed + text[pl.at[1] :], encoding="utf-8")
++            run.typed.add(mine)
++            run.trail[-1] += f" {e.id} by hand into {pl.file}, with {mine} inside"
++        return
++    if op == "edit":  # the person's own words somewhere in a block
++        node = rng.choice(blocks(root, scan(root)))
++        text = (root / node.file).read_text(encoding="utf-8")
++        at = text.find(" ", node.start + (node.end - node.start) // 2, node.end)
++        if at > 0:
++            mine = run.word("pt")
++            (root / node.file).write_text(text[:at] + f" {mine}" + text[at:], encoding="utf-8")
++            run.typed.add(mine)
++            run.trail[-1] += f" {mine} into {node.key}"
++        return
++    pend = waiting(root)
++    sug = [p for p in pend if p.kind == "suggested"]
++    if op == "keep" and sug:
++        p = rng.choice(sug)
++        run.trail[-1] += f" {p.id} ({p.state})"
++        run.press("change-keep", {"changes": [p.id]}, {p.path})
++    elif op == "keep_all":
++        run.press("change-keep", {"all": True}, {p.path for p in sug})
++    elif op == "discard" and pend:
++        p = rng.choice(pend)
++        run.trail[-1] += f" {p.id} ({p.kind})"
++        run.press("change-discard", {"changes": [p.id]}, {p.path} if p.kind == "edit" else set())
++    elif op == "undo_discard":
++        from loom.records.edits import replay
++
++        gone = [e.id for e in replay(root)[0] if e.status == "discarded" and e.id in run.markers]
++        if gone:
++            before = files(root)
++            call(root, "change-discard", {"changes": [rng.choice(gone)], "undo": True})
++            run.check("undo of a discard", before, set())
++    elif op == "tick":
++        from loom.tasks import items
++
++        t = items((root / "tasks.md").read_text(encoding="utf-8"))[0]
++        before = files(root)
++        call(root, "file-tick", {"path": "tasks.md", "task": t.id, "done": not t.done})
++        run.check("tick", before, {"tasks.md"})
++        t2 = items((root / "tasks.md").read_text(encoding="utf-8"))[0]
++        call(root, "file-tick", {"path": "tasks.md", "task": t2.id, "done": t.done})
++        if files(root)["tasks.md"] != before["tasks.md"]:
++            run.problems.append("tick then untick did not give back tasks.md")
++    elif op == "setting":
++        before = files(root)
++        call(root, "settings-save", {"changes": {"quilt.name": f"widgets {rng.randrange(99)}"}})
++        run.check("settings", before, {"config.toml"})
++
++
++# ---- the tests --------------------------------------------------------------------------------------------------
++
++
++@pytest.mark.parametrize("seed", range(4))
++def test_a_seeded_sequence_of_writes_keeps_the_persons_text(q: Path, seed: int) -> None:
++    run = Run(q, seed)
++    for _ in range(16):
++        step(run)
++        assert not run.problems, (run.problems, run.trail)
++
++
++def test_a_kept_edit_that_opens_a_section_is_written_once_however_often_keep_is_pressed(q: Path) -> None:
++    """1ac44c5e: a kept suggestion that opened a section read as not taken, and each press pasted it again."""
++    run = Run(q, 0)
++    new = "\\section*{Preface}\nThese notes collect what is known about widgets and gadgets.\n\\begin{proof}[Answer]\nNone yet.\n\\end{proof}"
++    eid = suggest(q, "drafting/main.tex", new, "--quote", "\\maketitle", "--after")
++    run.markers[eid] = "These notes collect"
++    run.press("change-keep", {"changes": [eid]}, {"drafting/main.tex"})
++    assert not run.problems, run.problems
++
++
++def test_text_written_in_and_worked_inside_is_not_written_again(q: Path) -> None:
++    """2e106a45: the person wrote a long suggestion in and worked inside it; Keep pasted it a second time."""
++    run = Run(q, 0)
++    new = "These notes collect what is known about widgets, what each lemma rests on, and which questions stay open for a reader to settle on a later pass."
++    eid = suggest(q, "drafting/main.tex", new, "--quote", "\\maketitle", "--after")
++    run.markers[eid] = "These notes collect"
++    main = q / "drafting/main.tex"
++    main.write_text(main.read_text().replace("\\maketitle", "\\maketitle\n" + new.replace("rests on,", "rests on, with a sketch,")), encoding="utf-8")
++    run.press("change-keep", {"changes": [eid]}, {"drafting/main.tex"})
++    assert not run.problems, run.problems
++
++
++# Damage the v0.1 safety study found (docs/reports/v0.1-study/raw/safety.md); each test passes once its finding is fixed.
++
++
++def test_an_edit_placed_after_its_blocks_end_is_not_written_twice(q: Path) -> None:
++    """SAFE-1: text placed after a block's \\end is never read as taken (fixed by the one door prototype)."""
++    node = q / "drafting/nodes/sy-000A.tex"
++    new = "A gadget with three points has one fixed point."
++    eid = suggest(q, "sy-000A", new, "--quote", "\\end{remark}", "--after")
++    node.write_text(node.read_text().replace("\\end{remark}", "\\end{remark} " + new), encoding="utf-8")  # written in by hand
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_text().count(new) == 1
++
++
++def test_a_short_edit_written_in_and_touched_is_not_written_twice(q: Path) -> None:
++    """SAFE-1: a short text written in and touched is not read as taken (fixed by the one door prototype)."""
++    node = q / "drafting/nodes/sy-000A.tex"
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    node.write_text(node.read_text().replace("with the swap.", "with the swap. Each swap fixes no point."), encoding="utf-8")
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_text().count("Each swap fixes") == 1
++
++
++def test_a_save_made_while_keep_runs_is_not_lost(q: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    """SAFE-2: Keep writes the file from its scan, so a save made meanwhile is lost (fixed by the one door prototype)."""
++    import loom.history.acts as acts
++
++    node = q / "drafting/nodes/sy-000A.tex"
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    real = acts.keep_versions
++
++    def and_a_save(*args: Any, **kw: Any) -> Any:
++        out = real(*args, **kw)
++        node.write_text(node.read_text() + "% a line the editor saved\n", encoding="utf-8")
++        return out
++
++    monkeypatch.setattr(acts, "keep_versions", and_a_save)
++    call(q, "change-keep", {"changes": [eid]})
++    assert "a line the editor saved" in node.read_text()
++
++
++def test_an_edit_on_a_block_named_by_place_stays_on_that_block(q: Path) -> None:
++    """SAFE-4: an edit on a key named by place goes into another block when the blocks cannot be told apart (fixed by the one door prototype)."""
++    main = q / "drafting/main.tex"
++    text = main.read_text()
++    empty = "\\begin{proof}[Answer]\n\\end{proof}\n"
++    main.write_text(text.replace("\\end{document}", f"\\section*{{One}}\n{empty}\\section*{{Two}}\n{empty}\\end{{document}}"), encoding="utf-8")
++    result = scan(q)
++    keys = sorted((n.start, k) for k, n in result.nodes.items() if n.file == "drafting/main.tex" and k.startswith("drafting/main.tex#proof:"))
++    last = keys[-1][1]  # the empty proof under Two
++    a = suggest(q, last, "The answer to two. ANSWER-TWO")
++    b = suggest(q, "drafting/main.tex", "\\section*{Zero}\n" + empty.strip(), "--quote", "\\maketitle", "--after")
++    call(q, "change-keep", {"changes": [b]})
++    call(q, "change-keep", {"changes": [a]})
++    after = main.read_text()
++    assert after.index("ANSWER-TWO") > after.index("\\section*{Two}")
++
++
++def test_keep_leaves_line_endings_alone(q: Path) -> None:
++    """SAFE-6: Keep rewrites the file from the scan's normalised text (fixed by the one door prototype)."""
++    node = q / "drafting/nodes/sy-000A.tex"
++    node.write_bytes(node.read_bytes().replace(b"\n", b"\r\n"))
++    call(q, "change-keep", {"all": True})
++    eid = suggest(q, "sy-000A", "Each swap fixes nothing.", "--quote", "with the swap.", "--after")
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_bytes().count(b"\r\n") == 3
++
++
++def test_saving_settings_keeps_the_config_first(q: Path) -> None:
++    """SAFE-10: saving Settings keeps nothing of config.toml first, and leaves it mode 0600 (fixed by the one door prototype)."""
++    config = q / "config.toml"
++    old = config.read_bytes()
++    call(q, "settings-save", {"changes": {"quilt.name": "widgets"}})
++    call(q, "settings-save", {"changes": {"quilt.name": "gadgets"}})
++    assert kept_in_history(q, config.read_bytes().replace(b"gadgets", b"widgets")) and kept_in_history(q, old)
++    assert config.stat().st_mode & 0o777 == 0o644
++
++
++def test_restoring_a_version_keeps_every_file_it_overwrites(q: Path) -> None:
++    """SAFE-5: restore overwrites a file the document no longer reaches without keeping it (fixed by the one door prototype)."""
++    results, node = q / "drafting/sections/results.tex", q / "drafting/nodes/sy-0006.tex"
++    results.write_text(results.read_text().replace("\\input{nodes/sy-0006}", "% \\input{nodes/sy-0006}"), encoding="utf-8")
++    node.write_text(node.read_text() + "% MY-NEW-PARAGRAPH\n", encoding="utf-8")
++    kept = node.read_bytes()
++    call(q, "history-restore", {"document": "drafting/main.tex", "version": "widgets-v1"})
++    assert "MY-NEW-PARAGRAPH" in node.read_text() or kept_in_history(q, kept)
++
++
++def test_discarding_an_agents_edit_in_a_crlf_file_gives_back_its_bytes(q: Path) -> None:
++    """SAFE-7: discarding an in-place change in a CRLF file splices at offsets of another text (fixed by the one door prototype)."""
++    f = q / "drafting/sections/appendix.tex"
++    f.write_bytes(f.read_bytes().replace(b"\n", b"\r\n"))
++    call(q, "change-keep", {"all": True})
++    original = f.read_bytes()
++    text = original.decode()
++    at = text.rfind("the")
++    f.write_bytes((text[:at] + "AGENT-WORDS" + text[at + 3 :]).encode())
++    ids = [c.id for c in waiting(q) if c.kind == "edit" and c.path == "drafting/sections/appendix.tex"]
++    call(q, "change-discard", {"changes": ids})
++    assert f.read_bytes() == original
++
++
++def test_keeping_an_insertion_writes_it_even_when_its_words_stand_elsewhere_in_the_block(q: Path) -> None:
++    """SAFE-8: an insertion whose words stand elsewhere in its block reads as taken, and Keep writes nothing (fixed by the one door prototype)."""
++    node = q / "drafting/nodes/sy-000A.tex"
++    eid = suggest(q, "sy-000A", "\\cite[Theorem 2.1]{Kre99}", "--quote", "Gadgets exist:", "--after")
++    call(q, "change-keep", {"changes": [eid]})
++    assert node.read_text().count("\\cite[Theorem 2.1]{Kre99}") == 2
