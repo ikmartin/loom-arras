@@ -196,12 +196,15 @@ def serve(root: Path, name: str) -> None:
 
 
 async def _run(root: Path, words: list[str]) -> subprocess.CompletedProcess[bytes]:
-    """`loom WORDS` in the quilt's root, as an agent: no progress lines, no log line of its own, and no standard input."""
+    """`loom WORDS` in the quilt's root, as an agent: no progress lines, no log line of its own, and no standard input.
+
+    Python starts in safe-path mode (`-P`, and `PYTHONSAFEPATH` for any Python the command starts in turn): `-m` otherwise puts the working directory first on `sys.path`, and a `loom.py` or a `json.py` in the quilt's root, which an agent or a co-author can write, would run in loom's place on every call.
+    """
     import anyio
 
-    env = {**os.environ, "AI_AGENT": "1", "LOOM_PROGRESS": "off", "LOOM_LOGGED": "1"}
+    env = {**os.environ, "AI_AGENT": "1", "LOOM_PROGRESS": "off", "LOOM_LOGGED": "1", "PYTHONSAFEPATH": "1"}
     return await anyio.run_process(
-        [sys.executable, "-m", "loom", *words], cwd=root, env=env, check=False, stdin=subprocess.DEVNULL
+        [sys.executable, "-P", "-m", "loom", *words], cwd=root, env=env, check=False, stdin=subprocess.DEVNULL
     )
 
 

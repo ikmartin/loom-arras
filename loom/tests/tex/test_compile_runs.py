@@ -34,6 +34,37 @@ def test_neither_a_quilt_s_latexmkrc_nor_a_write18_runs_with_shell_escape_in_the
 
 
 @pytest.mark.tex
+def test_a_document_reads_no_file_from_outside_its_directory_whatever_the_shell_allows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TeX Live lets a document `\\input` any file its reader can read, by its absolute path, and print it, so a cited paper's source or a co-author's file could carry the person's own files into a PDF. The PDF's run and the HTML's both refuse the name and still read what the document's directory holds, and a shell that turns shell escape on turns nothing on."""
+    from loom.tex.tex4ht import compile_html
+
+    monkeypatch.setenv("openin_any", "a")
+    monkeypatch.setenv("shell_escape", "t")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "loot.tex").write_text("\\typeout{LOOT-READ}Loot.\n", encoding="utf-8")
+    q = tmp_path / "q"
+    (q / "paper" / "sub").mkdir(parents=True)
+    (q / "paper" / "sub" / "part.tex").write_text("\\typeout{PART-READ}Part.\n", encoding="utf-8")
+    (q / "paper" / "main.tex").write_text(
+        "\\documentclass{article}\\begin{document}\\input{sub/part}"
+        f"\\immediate\\write18{{touch {tmp_path}/ran}}\\input{{{outside}/loot.tex}}Done.\\end{{document}}\n",
+        encoding="utf-8",
+    )
+    out = q / ".loom/build/paper/main"
+    res = compile_document(q, "paper", "paper/main.tex", out, halt_on_error=False)
+    assert res.log is not None
+    log = res.log.read_text(errors="replace")
+    assert "PART-READ" in log and "LOOT-READ" not in log, log[-2000:]
+    assert res.first_error.startswith("! LaTeX Error: File `/"), res.errors  # the name it would not open
+    page = compile_html(q, "paper", "paper/main.tex", out / "html", envs=[])
+    assert "PART-READ" in page.log and "LOOT-READ" not in page.log, page.log[-2000:]
+    assert not (tmp_path / "ran").exists()
+
+
+@pytest.mark.tex
 def test_a_failed_run_leaves_the_last_good_pdf_and_aux_and_reports_its_own_log(tmp_path: Path) -> None:
     q = _doc(tmp_path / "q")
     out = q / ".loom/build/main"

@@ -17,9 +17,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from loom.clock import tex_date
 from loom.scan.preamble import PreambleClosure
-from loom.tex.runner import stage_document, stop_run
+from loom.tex.runner import stage_document, stop_run, tex_env
 
 #: What a quilt could carry that TeX4ht or make4ht would run or obey: build files, make4ht's own configuration, and the commands `t4ht` reads.
 CARRIED = re.compile(r"(?:\.mk4|\.make4ht|^tex4ht\.env|^\.tex4ht)$")
@@ -438,7 +437,14 @@ def _prepare(stage: Path, cwd: Path, envs: Sequence[str], *, snippets: bool = Fa
     if shutil.which("extractbb"):
         for f in sorted(cwd.rglob("*")):
             if f.is_file() and f.suffix.lower() in FIGURES:
-                subprocess.run(["extractbb", f.name], cwd=f.parent, capture_output=True, timeout=60, check=False)
+                subprocess.run(
+                    ["extractbb", f.name],
+                    cwd=f.parent,
+                    capture_output=True,
+                    timeout=60,
+                    check=False,
+                    env=tex_env(f.name),
+                )
     (cwd / "loom-html.cfg").write_text(configuration(envs, snippets=snippets, math=math), encoding="utf-8")
     (cwd / "loom-html.mk4").write_text("-- loom's build file: make4ht's defaults and nothing else\n", encoding="utf-8")
 
@@ -456,7 +462,7 @@ def _pass(
 ) -> tuple[int, str]:
     """One make4ht pass over `name` in `cwd`, writing into `out`, with `home` its own, formulas in `math` mode: its exit code and what it said; 124 when it ran past `timeout` and was killed with everything it started."""
     home.mkdir(exist_ok=True)
-    env = {**os.environ, **tex_date(), "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
+    env = {**tex_env(name), "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
     if "TEXMFHOME" not in os.environ:
         env["TEXMFHOME"] = _texmfhome()
     cmd = [exe, *ENGINE.get(engine, []), "-m", "draft", "-u", "-c", "loom-html.cfg", "-e", "loom-html.mk4"]

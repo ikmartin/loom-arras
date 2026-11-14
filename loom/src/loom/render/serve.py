@@ -57,6 +57,8 @@ STORE_URL = f"/{STORE_ADDRESS}/"
 HEARTBEAT = 15.0
 #: The headers everything but the viewer's bundle is served with -- `/build/`, `/digests/storage/`, `/_files/` and every JSON answer -- so a page there runs no script and has an opaque origin, never the viewer's: an agent writes the build output and the project's files, and a page that ran as the viewer could read the token and post the author's acts.
 CONFINED = {"Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"}
+#: The headers every answer from the frames origin carries. A page there runs its scripts as a page of that origin, so the policy is not `sandbox`; it keeps what those scripts connect to (`fetch`, `XMLHttpRequest`, a WebSocket, an event stream, a beacon) to that origin, which is the project's shown files. It limits nothing else: a frame, an image, a video, a stylesheet or a script from another host still loads, since an embedded player is one, and such an address can carry what the page read, so the policy closes the plainest way out and not every one.
+FRAMED = {"Content-Security-Policy": "connect-src 'self' data: blob:", "X-Content-Type-Options": "nosniff"}
 #: What the frames origin adds to an HTML page so that the page can ask the viewer to open a link and say what is selected in it, and nothing else. `%s` is the viewer's origin, the only window it posts to.
 BRIDGE = """<script>(function(){var V=%s;function post(m){try{parent.postMessage(m,V)}catch(e){}}
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';
@@ -79,6 +81,15 @@ def from_elsewhere(request: SimpleHTTPRequestHandler) -> str:
     if site and site not in ("same-origin", "none"):
         return f"this request came from a {site} page, which is not this server"
     return ""
+
+
+def addressed_here(request: SimpleHTTPRequestHandler) -> bool:
+    """Whether the request's `Host` is this server's own: `127.0.0.1` or `localhost`, at its port.
+
+    A browser sends the name its page was loaded by. A domain pointed at 127.0.0.1 (DNS rebinding) is same-origin with this server as the browser sees it, so `from_elsewhere` finds nothing wrong with its page's requests, and they still name the domain here.
+    """
+    port = request.server.server_address[1] if isinstance(request.server.server_address, tuple) else 0
+    return (request.headers.get("Host") or "").lower() in (f"127.0.0.1:{port}", f"localhost:{port}")
 
 
 class Publications:
@@ -127,21 +138,24 @@ def write_serve_json(root: Path, port: int) -> str:
     token = secrets.token_urlsafe(24)
     p = root / SERVE_JSON
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(
-        json.dumps(
-            {
-                "port": port,
-                "pid": os.getpid(),
-                "token": token,
-                "url": f"http://127.0.0.1:{port}/",
-                # a copied quilt carries the file, and a link it printed would open the other quilt's viewer
-                "root": str(Path(root).resolve()),
-            },
-            indent=1,
+    # the token is for this person's programs alone, so nobody else on the machine may read the file; one an earlier server left keeps the mode it was made with, so it is emptied and closed to others before the token goes in
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {
+                    "port": port,
+                    "pid": os.getpid(),
+                    "token": token,
+                    "url": f"http://127.0.0.1:{port}/",
+                    # a copied quilt carries the file, and a link it printed would open the other quilt's viewer
+                    "root": str(Path(root).resolve()),
+                },
+                indent=1,
+            )
+            + "\n"
         )
-        + "\n",
-        encoding="utf-8",
-    )
     return token
 
 
@@ -258,6 +272,15 @@ class LoomHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
             super().log_message(format, *args)
+
+    def parse_request(self) -> bool:
+        """Refuse, before any method answers it, a request that names another host (`addressed_here`): the token at `/_api` and every file the server reads out would otherwise go to a rebinding domain's page."""
+        if not super().parse_request():
+            return False
+        if not addressed_here(self):
+            self.send_error(HTTPStatus.FORBIDDEN, "This server answers only as 127.0.0.1 or localhost, at its own port")
+            return False
+        return True
 
     def _resolve(self) -> Path | None:
         path = self.path.split("?", 1)[0].split("#", 1)[0]
@@ -582,7 +605,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
 class FramesHandler(SimpleHTTPRequestHandler):
     """The frames origin: the project's shown files on a port of their own, so an HTML page runs as a page of its own origin, never the viewer's.
 
-    It answers GET and HEAD for shown files and nothing else -- no `/_api`, no bundle, no build output, no store -- and only to a request addressed to its own host and port, which keeps a rebinding domain out. An HTML page gets `BRIDGE`. A page here can read the project's other shown files, as any page on a local server can, but never the viewer: the write API refuses this origin (`from_elsewhere`) and sends no CORS headers.
+    It answers GET and HEAD for shown files and nothing else -- no `/_api`, no bundle, no build output, no store -- and only to a request addressed to its own host and port, which keeps a rebinding domain out. An HTML page gets `BRIDGE`, and every answer `FRAMED`. A page here can read the project's other shown files, as any page on a local server can, but never the viewer: the write API refuses this origin (`from_elsewhere`) and sends no CORS headers.
     """
 
     shown: Shown | None = None
@@ -594,8 +617,7 @@ class FramesHandler(SimpleHTTPRequestHandler):
             super().log_message(format, *args)
 
     def _target(self) -> Path | None:
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}") or self.shown is None:
+        if not addressed_here(self) or self.shown is None:
             return None
         rel = unquote(self.path.split("?", 1)[0].split("#", 1)[0].lstrip("/"))
         if not self.shown.is_shown(rel):
@@ -606,10 +628,7 @@ class FramesHandler(SimpleHTTPRequestHandler):
 
     def _listing(self) -> bytes | None:
         """`/.loom/files.json`: every shown file's path, the one thing here that is not a shown file, at an address no shown file can have since `.loom` is never shown; so a page can find what the project holds."""
-        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
-        if self.path.split("?", 1)[0] != "/.loom/files.json" or self.shown is None:
-            return None
-        if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+        if self.path.split("?", 1)[0] != "/.loom/files.json" or self.shown is None or not addressed_here(self):
             return None
         return json.dumps({"files": self.shown.walk()}).encode("utf-8")
 
@@ -622,7 +641,8 @@ class FramesHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(listing)))
             self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Content-Type-Options", "nosniff")
+            for name, value in FRAMED.items():
+                self.send_header(name, value)
             self.end_headers()
             if body:
                 self.wfile.write(listing)
@@ -644,7 +664,8 @@ class FramesHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-cache")
-        self.send_header("X-Content-Type-Options", "nosniff")
+        for name, value in FRAMED.items():
+            self.send_header(name, value)
         self.end_headers()
         if body:
             self.wfile.write(data)

@@ -55,7 +55,8 @@ def test_an_html_page_runs_on_the_frames_origin_with_the_bridge_and_nothing_of_l
     s, _, frames = served
     viewer = s.url.rstrip("/")
     status, headers, body = get(frames + "/notes/page.html")
-    assert status == 200 and "Content-Security-Policy" not in headers and headers["X-Content-Type-Options"] == "nosniff"
+    assert status == 200 and "sandbox" not in headers["Content-Security-Policy"]
+    assert headers["X-Content-Type-Options"] == "nosniff"
     page = body.decode()
     assert page.index("parent.postMessage") < page.index("</body>") and json.dumps(viewer) in page
     other = viewer.replace("127.0.0.1", "localhost")
@@ -75,6 +76,20 @@ def test_an_html_page_runs_on_the_frames_origin_with_the_bridge_and_nothing_of_l
             urllib.request.Request(frames + "/_api/here", data=b"{}", method="POST"), timeout=PATIENCE
         )
     assert refused.value.code == 501
+
+
+def test_a_framed_pages_scripts_connect_to_the_frames_origin_alone(served) -> None:  # type: ignore[no-untyped-def]
+    """A script in a quilt's HTML file can read every shown file, and `fetch` or a beacon would send them anywhere. Every answer there, a page, a script a worker may run, an SVG and the listing, says its scripts connect to that origin only, and limits nothing a page loads: no `default-src`, and no source list for a frame, an image, a video or a script, which an embedded player needs."""
+    s, q, frames = served
+    put(q, "notes/worker.js", "postMessage(1)\n")
+    put(q, "notes/drawn.svg", '<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>\n')
+    for path in ("/notes/page.html", "/notes/worker.js", "/notes/drawn.svg", "/notes/a.md", "/.loom/files.json"):
+        status, headers, _ = get(frames + path)
+        assert status == 200, path
+        policy = [d.split() for d in headers["Content-Security-Policy"].split(";")]
+        assert policy == [["connect-src", "'self'", "data:", "blob:"]], (path, policy)
+    # the viewer's own origin keeps its policy for the same file: no script at all
+    assert get(s.url + "_files/notes/page.html")[1]["Content-Security-Policy"] == "sandbox"
 
 
 def test_a_page_can_list_the_shown_files_and_nothing_else(served) -> None:  # type: ignore[no-untyped-def]

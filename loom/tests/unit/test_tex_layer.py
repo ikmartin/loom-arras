@@ -21,6 +21,26 @@ def demo(tmp_path: Path) -> Path:
     return tmp_path / "demo"
 
 
+def test_a_tex_run_is_held_to_its_directory_whatever_the_shell_says(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Every run writes only below its directory and runs only TeX Live's safe commands; a document named in or below its directory also reads nothing outside it. kpathsea would refuse loom's own name for a document kept under `.loom/`, so that one keeps the shell's `openin_any`."""
+    from loom.tex.runner import tex_env
+
+    for var, loose in (("openin_any", "a"), ("openout_any", "a"), ("shell_escape", "t")):
+        monkeypatch.setenv(var, loose)
+    for name in ("main.tex", "./main.tex", "sub/part.tex"):
+        env = tex_env(name)
+        assert (env["openin_any"], env["openout_any"], env["shell_escape"]) == ("p", "p", "p"), name
+    for other in (
+        "../.loom/copies/talk.tex",
+        ".loom/build/closures/dm-0003.tex",
+        "/tmp/main.tex",
+        "sub/../x.tex",
+        None,
+    ):
+        env = tex_env(other)
+        assert (env["openin_any"], env["openout_any"], env["shell_escape"]) == ("a", "p", "p"), other
+
+
 def test_aux_read_plain_and_hyperref() -> None:
     text = "\\relax\n\\newlabel{lem:a}{{1.1}{1}}\n\\newlabel{lem:a@cref}{{[lemma][1][1]1.1}{[1][1][]1}}\n\\newlabel{thm:b}{{2.1}{12}{Main theorem}{theorem.2.1}{}}\n\\newlabel{eq:c}{{3}{4}}\n\\newlabel{sec:s}{{2}{12}{Results}{section.2}{}}\n"
     n = parse_aux(text)

@@ -92,12 +92,15 @@ class ClientReport:
 
 
 def command() -> tuple[str, list[str]]:
-    """The absolute command that starts this loom: its script beside the running interpreter, else that interpreter with `-m loom`."""
+    """The absolute command that starts this loom: its script beside the running interpreter, else that interpreter with `-P -m loom`.
+
+    An agent's app runs it in the project, so the interpreter starts in safe-path mode: `-m` alone puts that directory first on `sys.path`, where a `loom.py` in the quilt would be the server.
+    """
     exe = Path(sys.executable)
     script = exe.parent / ("loom.exe" if sys.platform == "win32" else "loom")
     if script.is_file():
         return str(script), []
-    return str(exe), ["-m", "loom"]
+    return str(exe), ["-P", "-m", "loom"]
 
 
 def render(client: Client, root: Path) -> str:
