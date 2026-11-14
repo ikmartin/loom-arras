@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from loom.paths import under
+from loom.tex.runner import tex_env
 
 
 def _digest(path: Path) -> str:
@@ -56,6 +57,7 @@ def publish_graphic(root: Path, name: str, svg_dir: Path, base: str = "") -> tup
             text=True,
             errors="replace",
             check=False,
+            env=tex_env(),
         )
         if proc.returncode == 0 and out.exists():
             return f"svg/{out.name}", None

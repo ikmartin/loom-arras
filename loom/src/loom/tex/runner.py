@@ -1,6 +1,6 @@
 """Run latexmk from a document's own directory into a build subdirectory.
 
-The engine is the master's `% !TEX program` if present, else `[quilt] engine`. Nothing is set in the environment: a document's local styles, inputs and figures sit in its directory and below, as LaTeX and Overleaf expect, which is what makes it compile on Overleaf too (P12). Tests isolate HOME and the TeX trees through the environment they run in.
+The engine is the master's `% !TEX program` if present, else `[quilt] engine`. The environment names no search path: a document's local styles, inputs and figures sit in its directory and below, as LaTeX and Overleaf expect, which is what makes it compile on Overleaf too (P12). It does carry what holds a document to that directory (`tex_env`). Tests isolate HOME and the TeX trees through the environment they run in.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from loom.clock import tex_date
 
@@ -24,6 +24,35 @@ ENGINE_FLAGS = {
     "xelatex": ["-xelatex"],
     "latex": ["-dvi"],
 }
+
+
+#: What kpathsea holds every TeX program loom starts to, whatever the distribution's configuration, the person's own or their shell says: it writes only in or below the directory it runs in, and runs no command but the few TeX Live lists as safe, which is how pdflatex converts an EPS figure.
+LIMITS = {"openout_any": "p", "shell_escape": "p"}
+
+
+def tex_env(document: str | None = None) -> dict[str, str]:
+    """The environment of a TeX program loom starts: latexmk, make4ht, and whatever they run in turn.
+
+    Parameters
+    ----------
+    document : str, optional
+        The document as it is named to TeX, relative to the directory the program runs in; None for a program that compiles no document.
+
+    Returns
+    -------
+    dict of str to str
+        `os.environ` with `tex_date` and `LIMITS`, and `openin_any=p` when `document` is named in or below its directory: TeX then reads no file named by an absolute path, through `..` or under a hidden directory, so a document cannot print a file from elsewhere on the machine. kpathsea holds the document's own name to the same rule, so one loom names through `.loom/` (an agent's copy, a key's closure) runs without that one limit.
+    """
+    env = {**os.environ, **tex_date(), **LIMITS}
+    if document is not None and _within(document):
+        env["openin_any"] = "p"
+    return env
+
+
+def _within(name: str) -> bool:
+    """Whether `name` is one kpathsea's paranoid rule opens: relative, with no `..` and no hidden directory or file in it."""
+    path = PurePosixPath(name)
+    return not path.is_absolute() and not any(part.startswith(".") for part in path.parts)
 
 
 @dataclass
@@ -257,7 +286,7 @@ def compile_tex(
             stderr=subprocess.PIPE,
             text=True,
             errors="replace",
-            env={**os.environ, **tex_date()},
+            env=tex_env(tex_rel),
             start_new_session=True,
         )
         if started is not None:
