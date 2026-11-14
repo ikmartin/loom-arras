@@ -57,6 +57,8 @@ STORE_URL = f"/{STORE_ADDRESS}/"
 HEARTBEAT = 15.0
 #: The headers everything but the viewer's bundle is served with -- `/build/`, `/digests/storage/`, `/_files/` and every JSON answer -- so a page there runs no script and has an opaque origin, never the viewer's: an agent writes the build output and the project's files, and a page that ran as the viewer could read the token and post the author's acts.
 CONFINED = {"Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"}
+#: The headers every answer from the frames origin carries. A page there runs its scripts as a page of that origin, so the policy is not `sandbox`; it keeps what those scripts connect to (`fetch`, `XMLHttpRequest`, a WebSocket, an event stream, a beacon) to that origin, which is the project's shown files. It limits nothing else: a frame, an image, a video, a stylesheet or a script from another host still loads, since an embedded player is one, and such an address can carry what the page read, so the policy closes the plainest way out and not every one.
+FRAMED = {"Content-Security-Policy": "connect-src 'self' data: blob:", "X-Content-Type-Options": "nosniff"}
 #: What the frames origin adds to an HTML page so that the page can ask the viewer to open a link and say what is selected in it, and nothing else. `%s` is the viewer's origin, the only window it posts to.
 BRIDGE = """<script>(function(){var V=%s;function post(m){try{parent.postMessage(m,V)}catch(e){}}
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';
@@ -600,7 +602,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
 class FramesHandler(SimpleHTTPRequestHandler):
     """The frames origin: the project's shown files on a port of their own, so an HTML page runs as a page of its own origin, never the viewer's.
 
-    It answers GET and HEAD for shown files and nothing else -- no `/_api`, no bundle, no build output, no store -- and only to a request addressed to its own host and port, which keeps a rebinding domain out. An HTML page gets `BRIDGE`. A page here can read the project's other shown files, as any page on a local server can, but never the viewer: the write API refuses this origin (`from_elsewhere`) and sends no CORS headers.
+    It answers GET and HEAD for shown files and nothing else -- no `/_api`, no bundle, no build output, no store -- and only to a request addressed to its own host and port, which keeps a rebinding domain out. An HTML page gets `BRIDGE`, and every answer `FRAMED`. A page here can read the project's other shown files, as any page on a local server can, but never the viewer: the write API refuses this origin (`from_elsewhere`) and sends no CORS headers.
     """
 
     shown: Shown | None = None
@@ -636,7 +638,8 @@ class FramesHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(listing)))
             self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Content-Type-Options", "nosniff")
+            for name, value in FRAMED.items():
+                self.send_header(name, value)
             self.end_headers()
             if body:
                 self.wfile.write(listing)
@@ -658,7 +661,8 @@ class FramesHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-cache")
-        self.send_header("X-Content-Type-Options", "nosniff")
+        for name, value in FRAMED.items():
+            self.send_header(name, value)
         self.end_headers()
         if body:
             self.wfile.write(data)
