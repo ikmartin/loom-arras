@@ -78,6 +78,34 @@ def test_a_call_returns_the_commands_report_and_each_exit_as_it_means(tmp_path: 
     attached(q, body)
 
 
+#: A module that says it ran, for a quilt's root: what `python -m loom` there would import in loom's place.
+SHADOW = "import pathlib\npathlib.Path('SHADOW_RAN').write_text('ran')\nprint('SHADOW')\n"
+
+
+@pytest.mark.parametrize("planted", ["loom.py", "loom/__init__.py", "json.py"])
+def test_a_module_planted_in_the_quilts_root_never_runs_in_looms_place(tmp_path: Path, planted: str) -> None:
+    """A tool call starts Python in the quilt's root, where an agent or a co-author can leave a file named for loom or for a module it imports. The server here is started as an app starts it (`ai.clients.command`), which the same file must not become either."""
+    from mcp import Client
+    from mcp.client.stdio import StdioServerParameters
+
+    from loom.ai.clients import command
+
+    q = demo(tmp_path)
+    (q / planted).parent.mkdir(exist_ok=True)
+    (q / planted).write_text(SHADOW)
+    cmd, pre = command()
+    server = StdioServerParameters(command=cmd, args=[*pre, "mcp", "--as", AGENT], cwd=q, env=dict(os.environ))
+
+    async def main() -> None:
+        async with Client(server) as client:  # type: ignore[arg-type]
+            status = await client.call_tool("loom_status", {})
+            assert not status.is_error and "SHADOW" not in status.content[0].text, status.content[0].text
+            assert status.content[0].text.startswith("11 keys of yours")
+
+    anyio.run(main)
+    assert not (q / "SHADOW_RAN").exists()
+
+
 def test_a_write_is_the_agents_and_each_call_is_logged_once(tmp_path: Path) -> None:
     q = demo(tmp_path)
 

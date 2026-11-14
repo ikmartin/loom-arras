@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,20 @@ def test_ai_init_writes_a_file_per_app_naming_its_agent_this_loom_and_where_the_
 
 
 @pytest.mark.skipif(GIT is None, reason="no git")
+def test_with_no_script_beside_the_interpreter_the_command_starts_python_off_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An app runs the command in the project, and `python -m loom` there would import a `loom.py` the quilt holds as the server."""
+    real = sys.executable
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "bin" / "python"))
+    cmd, pre = command()
+    assert (cmd, pre) == (str(tmp_path / "bin" / "python"), ["-P", "-m", "loom"])
+    (tmp_path / "loom.py").write_text("import pathlib\npathlib.Path('SHADOW_RAN').write_text('ran')\nprint('SHADOW')\n")
+    done = subprocess.run([real, *pre, "--version"], cwd=tmp_path, capture_output=True, text=True)
+    assert done.returncode == 0 and "SHADOW" not in done.stdout and "loom" in done.stdout, done.stdout + done.stderr
+    assert not (tmp_path / "SHADOW_RAN").exists()
+
+
 def test_every_client_file_is_gitignored(tmp_path: Path) -> None:
     q = demo(tmp_path)
     subprocess.run(["git", "init", "-q"], cwd=q, check=True)
